@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a studyless model that reuses another's ids gets the model row on that model's newest run",
+  "mutations": [
+    {
+      "contract": "A studyless model with ids_from offers the other model's newest run.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Drops the row, so v2 has no way into its sweep from the nav.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      group(t.id).model = modelRow(model);\n",
+      "replace": ""
+    }
+  ]
+}

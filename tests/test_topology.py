@@ -1084,6 +1084,46 @@ def test_the_pitch_system_declares_a_body_round_every_part(path):
             assert load_topology(other).bodies == []
 
 
+@pytest.mark.parametrize("path", topology_files(), ids=lambda p: p.stem)
+def test_a_model_that_reuses_anothers_ids_means_the_same_feature_by_each(path):
+    """``ids_from`` (docs/DAG_TOPOLOGY.md, "Models") lets the 3D surface read
+    the other model's bindings and sweeps on every id the two share, so each
+    shared id must name the same thing in both: a node its kind and parts, an
+    edge its kind, ends, part and interface. A shared id that drifted would
+    carry a binding onto the wrong face without a word."""
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    source = raw.get("ids_from")
+    if source is None:
+        return
+    other_path = TOPOLOGIES_DIR / f"topology_{source}.json"
+    assert other_path.exists(), f"{path.name}: ids_from names {source!r}, not committed"
+    mine, theirs = load_topology(path), load_topology(other_path)
+    their_nodes = {n.id: n for n in theirs.nodes}
+    their_edges = {e.id: e for e in theirs.edges}
+    shared = 0
+    for node in mine.nodes:
+        if node.id in their_nodes:
+            shared += 1
+            other = their_nodes[node.id]
+            assert (node.kind, set(node.parts)) == (other.kind, set(other.parts)), node.id
+    for edge in mine.edges:
+        if edge.id in their_edges:
+            shared += 1
+            other = their_edges[edge.id]
+            assert ((edge.kind, edge.from_node, edge.to_node, edge.part, edge.interface)
+                    == (other.kind, other.from_node, other.to_node, other.part,
+                        other.interface)), edge.id
+    assert shared, f"{path.name} declares ids_from {source!r} and shares no id with it"
+
+
+def test_model_v2_is_the_projections_first_model():
+    """The nav opens the projection's first model when the reader has chosen
+    none (``VA.bootModel``), and the builder lists topologies by file name --
+    so v2 is first because its name sorts first. A new topology that sorts
+    ahead of it moves the default, and that is a decision, not a side effect."""
+    assert topology_files()[0] == MODEL_V2
+
+
 def _linkage_part_lists(source: str) -> dict:
     """``{"BODY_PARTS": {...}, "LINK_PARTS": {...}}`` out of ``linkage/vpa.py``."""
     import ast

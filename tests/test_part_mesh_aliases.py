@@ -293,3 +293,36 @@ def test_every_sha256_quoted_in_an_evidence_string_names_its_own_mesh(aliases):
         "(docs/topologies/part_mesh_aliases.json), reading it off the live "
         f"provenance.json under {meshes_dir} rather than from memory"
     )
+
+
+@pytest.mark.skipif(
+    installed_meshes_dir() is None,
+    reason="no data/meshes/ with an installed mesh (gitignored, main checkout "
+           "only -- see data/meshes/README.md); this pairing needs real data",
+)
+def test_every_declared_occurrence_is_recorded_and_its_part_resolves(aliases):
+    """[real] tier: a topology part's ``occurrence`` (the one place the 3D
+    surface draws it, 2026-11-08) names an instance path some installed mesh's
+    sidecar records, and the part itself resolves to a mesh -- otherwise the
+    surface draws it at its own origin with a note, which no test would see."""
+    meshes_dir = installed_meshes_dir()
+    recorded = set()
+    for sidecar in meshes_dir.glob("*/provenance.json"):
+        raw = json.loads(sidecar.read_text(encoding="utf-8"))
+        for instance in (raw.get("extraction") or {}).get("instances") or []:
+            recorded.add("/".join(instance.get("instance_path") or []))
+    installed = set(installed_part_id_owners(meshes_dir))
+    by_part = {entry["topology_part"]: entry["mesh_part_id"] for entry in aliases}
+    declared, wrong = [], []
+    for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json")):
+        for part in json.loads(path.read_text(encoding="utf-8")).get("parts", []):
+            if "occurrence" not in part:
+                continue
+            declared.append(part["id"])
+            if part["occurrence"] not in recorded:
+                wrong.append(f"{path.name}:{part['id']} names {part['occurrence']!r}, "
+                             f"which no installed sidecar records")
+            if by_part.get(part["id"], part["id"]) not in installed:
+                wrong.append(f"{path.name}:{part['id']} resolves to no installed mesh")
+    assert declared, "no topology part declares an occurrence -- vacuous"
+    assert not wrong, "\n".join(wrong)

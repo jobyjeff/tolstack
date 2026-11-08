@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_viewer_shows_a_kinematic_study (2026-10-20). Never marks the row current: the page opens and the rail does not say where you are.",
       "file": "apps/viewer/views/nav.js",
-      "find": "        var active = state.mode === \"kinematic\" && state.kinematicId === s.id;",
-      "replace": "        var active = false;"
+      "find": "      var active = state.mode === \"kinematic\" && state.kinematicId === s.id;",
+      "replace": "      var active = false;"
     }
   ]
 }

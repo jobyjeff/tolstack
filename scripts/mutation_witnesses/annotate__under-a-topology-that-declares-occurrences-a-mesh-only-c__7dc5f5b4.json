@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "under a topology that declares occurrences, a mesh only carried inside a moving occurrence is drawn where it is carried; with none declared it keeps its still places",
+  "mutations": [
+    {
+      "contract": "Under declared occurrences, a carried-only mesh is drawn where it is carried, once.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Draws the tangential link's inner link at all three recorded places again.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      var own = occ.pinned && !listed[sha] && !(sha in occ.pinned)\n",
+      "replace": "      var own = false\n"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a part that declares an occurrence is drawn there alone -- its own record, or another mesh's record at that path -- and a part that declares none keeps every occurrence",
+  "mutations": [
+    {
+      "contract": "A part with a declared occurrence is drawn at that one only.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Keeps every occurrence of the pinned mesh, which is five pitch arms on a one-blade model.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      byMesh[sha] = mine;\n",
+      "replace": ""
+    }
+  ]
+}

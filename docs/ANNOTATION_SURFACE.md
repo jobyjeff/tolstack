@@ -108,6 +108,11 @@ value: scripts/extract_assembly_parts.py, scripts/tessellate_parts.py
 
 ### The projection
 
+A model that reuses another's ids (`ids_from`, `DAG_TOPOLOGY.md`, "Models")
+reads that model's records on the edge ids both have, as its own, until it has
+a record of its own; every binding reader in the app asks through
+`mergedIdentityProjection`, which applies it (`AA.identityReadThrough`).
+
 `scripts/build_feature_identity_projection.py` folds
 `data/inbox/feature-identity/` into
 `data/projections/feature-identity/bindings.json`
@@ -190,6 +195,17 @@ geometry and material, so it costs a draw call and a matrix, not a copy.
   the occurrence rotorkit had recorded) is drawn at its own origin and **says so**, in its panel row and in
   the banner when it is opened: "no position in the assembly — shown at its own
   origin".
+- **A part that declares one occurrence** (2026-11-08, a topology part's
+  `occurrence`; `DAG_TOPOLOGY.md`, "A topology, in outline") is drawn there
+  alone, in sweep mode and out of it, while the topology declaring it is open
+  — model v2 draws one blade, one pitch arm, one pitch link and one
+  tangential link. The path may be recorded on another mesh's sidecar, as
+  blade 1's design pitch link is on the instrumented one's, and the part is
+  drawn with its own mesh at that placement (`AA.pinnedOccurrences`). In sweep
+  mode such a part can earn only its declared occurrence, and a mesh only
+  *carried* inside a moving occurrence is drawn where it is carried and not at
+  its other recorded places. Switching to a topology that declares none puts
+  every part back at every occurrence.
 - **A part past the draw cap** (`AA.OCCURRENCE_DRAW_LIMIT`, `sweep.js`) is drawn
   at the first that-many and says how many it has. No installed part reaches
   it, and a `[real]` check in `apps/annotate/run_tests.cjs` reads the mesh store

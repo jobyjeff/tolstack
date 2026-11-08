@@ -49,9 +49,12 @@ traced ratio" — never restate the rule elsewhere).
   `docs/DAG_TOPOLOGY.md`. The third archetype (2026-08-31): interfaces as nodes,
   dimensions and gaps as edges, a study = a human-lassoed chain. It carries a
   hard fence — **it is not a solver** — and that fence rules out the most
-  natural-looking next feature. Since 2026-10-26 there is **one topology per
-  product** (`topology_vpa_pitch_linkage.json`; `pitch_system` was folded into
-  it) and every study is a subset of it; which parts move as one rigid body is
+  natural-looking next feature. Since 2026-11-08 there is **one topology per
+  model; the model is the top node of the nav** — v1
+  `topology_vpa_pitch_linkage.json` (`pitch_system` was folded into it
+  2026-10-26) and v2 `topology_vpa_end_stop_v2.json`, the end stop alone,
+  which reuses v1's ids (`docs/DAG_TOPOLOGY.md`, "Models") — and every study is
+  a subset of one of them; which parts move as one rigid body is
   declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies". Since 2026-11-06 the page
   draws a part with two or more interfaces as one block with its interfaces as
   pins, re-arranging only what it draws (same file, "A part with many

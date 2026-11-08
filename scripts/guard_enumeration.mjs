@@ -274,7 +274,7 @@ export const DECLARED_GUARDS = {
   // the merge with integration's 646: 656.
   // Merged with integration again before hand-back (review round 1 rework,
   // 2026-11-06): integration's 656 + this branch's 10 = 666, measured.
-  fast: { declared: 669, enrollable: 669, names: "f86476833986" },
+  fast: { declared: 672, enrollable: 672, names: "c9bb369819bf" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -331,7 +331,7 @@ export const DECLARED_GUARDS = {
   // mark. Each carries a spec.
   // Merged with integration at its 291 (rework, 2026-11-06): 291 + 3.
   // Merged with integration (review of the rework, 2026-11-06): both sides +1 on 645 / 291.
-  annotate: { declared: 296, enrollable: 296, names: "c019052dd931" },
+  annotate: { declared: 300, enrollable: 300, names: "76d27058a01f" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

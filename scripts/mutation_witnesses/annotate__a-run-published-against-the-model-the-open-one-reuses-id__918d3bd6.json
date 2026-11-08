@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a run published against the model the open one reuses ids from plays on the open one -- unless a kinematic study opened it",
+  "mutations": [
+    {
+      "contract": "A run published against the ids_from model plays on the open model.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Every such run plays on the model it was published against, switching the scene from v2 to v1.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return AA.topologyIdsFrom(current) === runTopologyId ? current.id : runTopologyId;\n",
+      "replace": "    return runTopologyId;\n"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a model that reuses another's ids reads that model's bindings on the edges both have, under its own id, until it has a record of its own",
+  "mutations": [
+    {
+      "contract": "An ids_from model answers the other model's bindings under its own id.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Leaves the copy keyed to the other model, so v2 reads none of v1's bindings.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      copy.stack_key = AA.topologyEdgeKey(topology.id, k.edge_id);\n",
+      "replace": ""
+    }
+  ]
+}

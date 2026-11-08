@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the boot opens the model the reader last chose while the projection still lists it, and the first model otherwise",
+  "mutations": [
+    {
+      "contract": "A reload lands on the model the reader last chose.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Forgets the remembered model, so every reload opens the first one.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (list[i].id === remembered) return remembered;\n",
+      "replace": ""
+    }
+  ]
+}

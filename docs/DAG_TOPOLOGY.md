@@ -200,6 +200,7 @@ linkage solver's sweeps already name and the DAG had no way to know:
   A part whose motion is not recorded is a body of its own, named after the
   part, rather than placed in a guessed one.
 - **The five mechanism bodies are linkage's.** `topology_vpa_pitch_linkage.json`'s
+  and `topology_vpa_end_stop_v2.json`'s
   `base`, `blade`, `pitch_plate`, `pitch_link` and `tan_link` carry the part
   lists `C:\workspace\linkage\linkage\vpa.py` names (`BODY_PARTS`,
   `LINK_PARTS`), paired by `tests/test_topology.py` when that repo is on disk.
@@ -440,8 +441,39 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 
 | schema | you write it? | what it is |
 |---|---|---|
-| `joby.tolerance_stack/topology/v0` | **yes** — one per product | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `description`, `bodies`, `joint`, `provenance` and `notes` |
+| `joby.tolerance_stack/topology/v0` | **yes** — one per model | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `description`, `bodies`, `joint`, `ids_from`, `provenance` and `notes` |
 | `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list (or a `no_checks_reason` saying why there is none), an optional `configuration` block, an optional `description` |
+
+### Models — one topology per model (2026-11-08)
+
+**One topology per model; the model is the top node of the nav.** Since
+2026-11-08 (handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`,
+Jeff: *"trying to mash all of these studies … into one is just creating way
+too much unnecessary complexity"*) a product may have more than one model, and
+every study is a subset of exactly one of them. The viewer's nav lists the
+models under one heading; the open one lists its studies and its kinematic
+studies beneath it, so choosing a model switches everything below, and the
+page reopens on the model the reader last chose.
+
+- **v1**, `topology_vpa_pitch_linkage.json` — the whole pitch system: every
+  joint, the fastener grip stacks and their hardware, the gas spring, the VPA,
+  and the studies and the kinematic study over them.
+- **v2**, `topology_vpa_end_stop_v2.json` — only the kinematic end stop: the
+  five mechanism bodies as one blade, one pitch link and one tangential link,
+  the two stops, and no tolerances yet. It leaves out the gas spring, the VPA
+  and its piston, the ring gear, the hydraulic brake, every fastener, washer
+  and bushing, and blades 2 to 5.
+
+**`ids_from` — a model that reuses another's ids.** v2 declares
+`"ids_from": "vpa_pitch_linkage"`: every node and edge id it shares with v1
+names the same feature there. Two readers act on it, both in the 3D surface
+and both read-only: a `feature-identity/v0` binding keyed to v1 on an edge id
+v2 also has is read as v2's until v2 has a record of its own
+(`apps/annotate/binding_state.js`, `AA.identityReadThrough`), and a linkage
+sweep published against v1 plays on v2 when v2 is open (`AA.sweepPlaysOn`), so
+the P2 run binds without a republish. Nothing writes through it: a bind made on
+v2 is keyed to v2. `tests/test_topology.py` holds every shared id to the same
+kind, ends and parts in both documents.
 
 ### Naming a topology or a study
 
@@ -522,7 +554,14 @@ reason: optional, defaulting to `null`, read by nothing `fold()`/`traverse()`/
 ```
 
 `units` is the unit **every** stored dimension is in; a topology does not mix
-them. What a *study's* output unit is depends on the transforms it crosses.
+them.
+
+A `part` may carry `"occurrence": "<instance path>"` — one of the assembly
+occurrences its mesh sidecar records, the `instance_path` joined with `/`
+(2026-11-08). The 3D surface then draws that part there and nowhere else, in
+sweep mode and out of it; a part without one is drawn at every occurrence
+(`docs/ANNOTATION_SURFACE.md`, "Where a part is drawn"). Additive, so `/v0`.
+`fold()` never reads it. What a *study's* output unit is depends on the transforms it crosses.
 
 `joint` is optional and free-form: the same assembly/context block a stack's
 own `joint` carries (`assembly_drawing`, `assembly_revision`, `sheet`, `view`,
@@ -835,7 +874,8 @@ the study.
 
 ### `topology_vpa_pitch_linkage.json` + ten studies and a kinematic study
 
-**One topology per product, and every study is a subset of it.** This is the
+**One topology per model, and every study is a subset of it; the model is the
+top node of the nav (2026-11-08, "Models" above).** This is model v1, the
 propeller pitch system's (Jeff, 2026-10-26: "all of the studies are just
 subsets of a single global model representing the actual product"). The
 graph: 35 parts, 79 interfaces, 99 edges, 24 branch points, 25 grounded loops,
@@ -883,6 +923,29 @@ what a disconnected topology does to the rail serialisation; `Topology.cycle_ran
 counts components rather than assuming one either way.
 
 **The one piece that does carry numbers is the end-stop travel chain** (handoff `the_travel_between_the_end_stops_is_a_study`, 2026-10-16): the two piston heads, the piston cover and the gas-spring mount's stop face, summed by `study_vpa_pitch_linkage_travel_between_end_stops.json`. Its sibling `study_vpa_pitch_linkage_feather_stop_axial_position.json` (2026-11-03) places the feather contact itself, from the tangential link mount's hub face through both mounts and the piston body to its flange on the plate: the feather stop's axial stack in the kinematic study, and with the travel added, the low stop's. Since 2026-10-22 every band in it is a drawing's: two dimensions, and two general profile notes banding a mesh-fit nominal (the SOP's "What a term cites when its drawing does not band it"); a third mount edge, 213668-002's datum-A height, is recorded and selected by no study. And `docs/tolerance_stacks/WORKSHEET_gas_spring_end_stop_travel.md` carries the face order, the fits and the signs. It is modelled as a clearance at the second stop, not a contact, because a hard contact is one node and a walk that ended on one would close a ring.
+
+### `topology_vpa_end_stop_v2.json` — model v2, the end stop in five bodies
+
+Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
+(2026-11-08): the first rung of the reset in
+`dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
+The graph: 15 parts, 23 interfaces, 27 edges, 6 branch points, 5 grounded
+loops, 8 gap edges. Studyless; no edge carries a dimension, and each says what
+would close it.
+
+It is v1's mechanism cut down to the joints and the stops. The bodies are
+linkage's five plus v1's three riders (the heads ride the plate, the cover the
+base). The nodes are the ten the P2 sweep names, the faces that join each
+body's parts, and the three stop faces: the feather contact (the lower head on
+the mount, one node because they touch), the upper head's step face and the
+cover's internal shoulder, with `travel_between_end_stops` the clearance
+between those two. Every id is v1's except two edges inside the pitch-plate
+body (the plate's pilot in the piston body's ID, and the piston body from that
+ID to the head seat), which v1 never needed because it joins those parts only
+through its bodies list. One blade, one pitch link and one tangential link:
+each of those parts, and the link's two bearings, declares its `occurrence`,
+blade 1's and the tangential link the P2 sweep poses, with the placement
+recorded in the part's note.
 
 ---
 

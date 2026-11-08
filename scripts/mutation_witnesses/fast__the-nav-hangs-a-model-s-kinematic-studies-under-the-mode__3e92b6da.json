@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the nav hangs a model's kinematic studies under the model, keeps a section only for a group no listed model claims, and says nothing kinematic when there is no projection",
+  "mutations": [
+    {
+      "contract": "A model's kinematic studies are listed under the model in the Models section.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Never appends them, which is the kinematic studies silently leaving the rail for every model the projection lists.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    kinematic.forEach(function (item) { children.appendChild(item); });\n",
+      "replace": ""
+    }
+  ]
+}

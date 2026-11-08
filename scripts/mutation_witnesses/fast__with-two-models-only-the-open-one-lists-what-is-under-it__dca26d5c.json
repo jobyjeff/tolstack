@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "with two models only the open one lists what is under it, and choosing the other switches the whole list",
+  "mutations": [
+    {
+      "contract": "Only the open model lists its studies; the others are one row each.",
+      "issue": null,
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Every model lists everything again, which is the switcher becoming a long flat list.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (open === false) return li;\n",
+      "replace": ""
+    }
+  ]
+}

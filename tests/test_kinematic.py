@@ -947,9 +947,10 @@ def test_real_every_contributor_carries_the_body_its_part_moves_with():
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
 def test_real_every_borrowed_band_is_an_edge_of_the_studys_own_topology():
-    """Since the 2026-10-26 fold the kinematic study's bands come from inside the
-    one topology: no contributor names a second model (the cross-topology ref
-    stays legal in the schema, for a document that has one to borrow from)."""
+    """Since the 2026-10-26 fold the kinematic study's bands come from inside its
+    own model's topology (v1's; one topology per model since 2026-11-08): no
+    contributor names another model (the cross-topology ref stays legal in the
+    schema, for a document that has one to borrow from)."""
     study, _ = load_kinematic_study(REAL_STUDY, REAL_DATA)
     raw = json.loads(REAL_STUDY.read_text(encoding="utf-8"))
     refs = [c["dimension_ref"] for c in raw["contributors"] if "dimension_ref" in c]

@@ -3,17 +3,18 @@
 // never collects it.
 //
 //   node tests/debug_model_v2_shots.mjs --phase before --shots <dir>
-//   node tests/debug_model_v2_shots.mjs --phase after  --shots <dir> [--projections <dir>]
+//   node tests/debug_model_v2_shots.mjs --phase after  --shots <dir> [--projections <data-root>/projections]
 //
 // Serves THIS tree's apps/ with data/ from the main checkout, except that
-// `--projections <dir>` stands in for data/projections/viewer/ (a projection
-// built from this tree into a scratch root, so the main checkout's own is not
-// overwritten from a branch). `before` pins the v1 DAG; `after` takes what
+// any file under `--projections <dir>` stands in for the same path under
+// data/projections/ (projections built from this tree into a scratch data
+// root -- data/scratch/ -- so the main checkout's own are not overwritten from
+// a branch). `before` pins the v1 DAG; `after` takes what
 // the lesson shows: the nav with both models, the v2 DAG at 1600 and 2560
 // wide, v1 again (to diff against `before`), and the 3D pane on v2 at rest
 // and mid-sweep, printing what the scene draws and where.
 import { createServer } from "node:http";
-import { readFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, extname, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { takeTheBrowserSlot, launchBrowser, loadPlaywright } from "../scripts/browser_runner.mjs";
@@ -27,10 +28,18 @@ const TREE = resolve(flag("--tree") || HERE);
 const DATA_REPO = resolve(flag("--repo") || "C:/workspace/tolstack");
 const PROJECTIONS = flag("--projections") ? resolve(flag("--projections")) : null;
 const PHASE = flag("--phase") || "after";
+// `--dump-v1 <file>`: also write v1's drawn rails and grid, as markup, so a
+// before/after pair can be diffed without the banner shifting pixels.
+const DUMP_V1 = flag("--dump-v1") ? resolve(flag("--dump-v1")) : null;
 const SHOTS = resolve(HERE, flag("--shots") || "docs/sessions/lessons/shots/model_v2");
 if (!existsSync(SHOTS)) mkdirSync(SHOTS, { recursive: true });
 const V1 = "vpa_pitch_linkage";
 const V2 = "vpa_end_stop_v2";
+//: The parts the mechanism shot frames: every v2 part but the blade, whose
+//: span would shrink the rest to a few pixels.
+const MECHANISM = ["hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
+  "pitch_arm", "pitch_plate_215177_001", "gas_spring_piston_214700_002", "pitch_link",
+  "tan_link_212956_005", "piston_cover_214958_002"];
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
   ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml" };
 
@@ -38,9 +47,9 @@ const server = await new Promise((ok) => {
   const s = createServer((req, res) => {
     const rel = decodeURIComponent(req.url.split("?")[0]).replace(/^\/+/, "");
     let full = join(rel.startsWith("data/") ? DATA_REPO : TREE, rel);
-    const viewer = "data/projections/viewer/";
-    if (PROJECTIONS && rel.startsWith(viewer)) {
-      const candidate = join(PROJECTIONS, rel.slice(viewer.length));
+    const projections = "data/projections/";
+    if (PROJECTIONS && rel.startsWith(projections)) {
+      const candidate = join(PROJECTIONS, rel.slice(projections.length));
       if (existsSync(candidate)) full = candidate;
     }
     try {
@@ -104,10 +113,25 @@ const drawCounts = (page) => frameOf(page).evaluate(() => {
   return out;
 });
 
+
+async function dumpV1(page) {
+  if (!DUMP_V1) return;
+  const markup = await page.evaluate(() => {
+    const live = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
+      .filter((n) => !n.closest(".tv__ghost"))[0];
+    const svg = live && live.querySelector("svg.tv__rails");
+    const rows = Array.from(document.querySelectorAll("tr.tvrow")).map((r) => r.textContent.trim());
+    const nl = String.fromCharCode(10);
+    return (svg ? svg.outerHTML : "NO SVG") + nl + rows.join(nl);
+  });
+  writeFileSync(DUMP_V1, markup, "utf-8");
+}
+
 try {
   if (PHASE === "before") {
     const page = await open(1600, `?topology=${V1}`);
     await page.screenshot({ path: join(SHOTS, "before_v1_dag_1600.png") });
+    await dumpV1(page);
     await page.close();
   } else {
     const nav = await open(1600, "");
@@ -119,10 +143,12 @@ try {
     for (const width of [1600, 2560]) {
       const page = await open(width, `?topology=${V2}`);
       await page.screenshot({ path: join(SHOTS, `2_v2_dag_${width}.png`) });
+      await page.screenshot({ path: join(SHOTS, `2_v2_dag_${width}_full.png`), fullPage: true });
       await page.close();
     }
     const v1 = await open(1600, `?topology=${V1}`);
     await v1.screenshot({ path: join(SHOTS, "3_v1_dag_1600_after.png") });
+    await dumpV1(v1);
     await v1.close();
 
     const page = await open(1700, `?topology=${V2}`);
@@ -135,6 +161,11 @@ try {
     console.log(JSON.stringify({ list: "3D at rest: draw count per open mesh", counts: await drawCounts(page) }));
     await page.waitForTimeout(3000);
     await page.screenshot({ path: join(SHOTS, "4_v2_3d_at_rest.png") });
+    // The pane frames every drawn part, the blade's whole span among them;
+    // the mechanism, framed on its own, is what can be checked by eye.
+    await run(page, ["camera", "frame", ...MECHANISM]).catch((e) => console.log("FRAME", e.message));
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: join(SHOTS, "4b_v2_3d_at_rest_mechanism.png") });
 
     const sw = await run(page, ["sweep", "latest"]).catch((e) => "ERR " + e.message);
     console.log(JSON.stringify({ sweep: String(JSON.stringify(sw)).slice(0, 300) }));
@@ -150,6 +181,7 @@ try {
     console.log(JSON.stringify({ list: "sweep anchors (subject, part, state, keys)", ...info }));
     const mid = await frameOf(page).evaluate(() => Math.floor(window.__sweep.artifact.points.length / 2));
     await run(page, ["seek", "#" + mid]);
+    await run(page, ["camera", "frame", ...MECHANISM]).catch((e) => console.log("FRAME", e.message));
     await page.waitForTimeout(2500);
     console.log(JSON.stringify({ list: "mid-sweep: draw count per open mesh", counts: await drawCounts(page) }));
     await page.screenshot({ path: join(SHOTS, "5_v2_3d_mid_sweep.png") });
