@@ -1264,6 +1264,22 @@
     };
   };
 
+  // Where the pane's transport is, as the page beside it is told
+  // ({type: "annotate:pose"}, app.js's postEmbedPose): the run it is on -- the
+  // artifact id the page checks against its own study's, because a point
+  // index from one run read against another is a silent wrong frame -- the
+  // continuous point index, the driver value there and whether it is playing.
+  AA.embedPose = function (artifact, frame, index, playing) {
+    var f = Number(index) || 0;
+    return {
+      type: "annotate:pose",
+      run: artifact ? artifact.runId : null,
+      index: f,
+      driver: frame && typeof frame.driver === "number" ? frame.driver : null,
+      playing: !!playing,
+    };
+  };
+
   // Which face a hover over one edge tints (the `highlight` verb): the first
   // face the edge's binding names on a part that is OPEN in the scene. A
   // highlight is a viewing aid on what is drawn, so it opens nothing; every

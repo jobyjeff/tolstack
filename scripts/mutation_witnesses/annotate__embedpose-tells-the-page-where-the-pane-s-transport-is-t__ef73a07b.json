@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "embedPose tells the page where the pane's transport is: the run it is on, the point index, the driver there and whether it plays",
+  "mutations": [
+    {
+      "contract": "The pose message says whether the pane is playing, which is how the page settles on a pause.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md",
+      "note": "Always reports paused.",
+      "file": "apps/annotate/commands.js",
+      "find": "      playing: !!playing,\n",
+      "replace": "      playing: false,\n"
+    }
+  ]
+}

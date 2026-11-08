@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] the kinematic page has a pose read-out and no Play button or travel slider of its own",
+  "mutations": [
+    {
+      "contract": "The page carries the angle read-out and no second transport.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md",
+      "note": "The read-out is not drawn.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "      box.appendChild(field);\n",
+      "replace": ""
+    }
+  ]
+}

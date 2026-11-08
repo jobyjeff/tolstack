@@ -1739,7 +1739,13 @@
         setPaneStatus(msg);
         return;
       }
+      // The pane's transport moved the pose (onPanePose).
+      if (msg && msg.type === "annotate:pose") {
+        onPanePose(msg);
+        return;
+      }
       if (!msg || msg.type !== "annotate:state") return;
+      paneRun = msg.run || null;
       setPaneTitle(msg.title || null);
       // What the scene shows changed: its anchors are asked for afresh, and
       // the page keeps drawing from the last ones until they land -- they are
@@ -1749,6 +1755,7 @@
       // lit set and dim-or-hide word again, whatever it was told before --
       // and the pose (syncPanePose).
       panePosePosted = null;
+      paneDriver = null;
       if (state.mode === "kinematic" && poseIndex(poseStudy()) !== null) {
         syncPanePose(poseStudy(), VA.kinematicPose(poseStudy(), poseIndex(poseStudy())));
       }
@@ -3296,26 +3303,18 @@
             setPose(VA.kinematicStopPose(kinematicStudy, stopId));
             render();
           },
-          // The pose control (VA.kinematicPose): where the page is read, a
-          // drag's moves (unsettled) and its release or a typed angle
-          // (settled), and play.
+          // The pose read-out (VA.kinematicPose): where the page is read, and
+          // a typed angle, which pauses the pane and seeks it there.
           pose: livePoseIndex !== null ? VA.kinematicPose(kinematicStudy, livePoseIndex) : null,
-          onPose: function (index, settled) {
+          onPose: function (index) {
             stopPlay();
-            if (settled) {
-              setPose(index);
-              render();
-            } else {
-              livePose(index);
-            }
-          },
-          playing: !!posePlay,
-          onPlay: function (on) {
-            if (on && !posePlay) { startPlay(); return; }
-            if (!stopPlay()) return;
-            setPose(state.kinematicPose);
+            setPose(index);
             render();
           },
+          // One muted line when the pane is on another run's frames.
+          poseNote: paneRunMismatch
+            ? "The 3D pane shows run " + paneRunMismatch + ", not this study's; its poses are not applied"
+            : null,
           annotateMount: state.annotateMount,
           onAttach3d: launchAnnotate,
           onCardShow: showCard,
@@ -3494,7 +3493,6 @@
   // (VA.applyStackText), the DAG eased between keyframes rendered off screen
   // (VA.poseFilm), the control's marks moved (VA.syncPoseControl). No pane
   // rebuild per frame: that is what the tween handoff measured and removed.
-  var posePlay = null;
   var poseFilm = null;
   var poseFilmCtx = null;
   var panePosePosted = null;
@@ -3549,6 +3547,13 @@
   // what it shows (wirePaneState forgets what was posted).
   function syncPanePose(study, pose) {
     if (state.mode !== "kinematic" || !pose || typeof pose.driver !== "number") return;
+    // An index read against another run's frames is a silent wrong frame.
+    if (paneRun && study && study.sweep && study.sweep.run_id && paneRun !== study.sweep.run_id) {
+      return;
+    }
+    // The pane is the clock while it plays, and a pose it already holds is
+    // not told back to it.
+    if (panePlaying || (paneDriver !== null && Math.abs(paneDriver - pose.driver) < 1e-6)) return;
     var text = String(pose.driver);
     if (text === panePosePosted) return;
     if (postToPane(["seek", text])) panePosePosted = text;
@@ -3614,7 +3619,7 @@
       ? function (fn) { window.requestIdleCallback(fn, { timeout: 2000 }); }
       : function (fn) { setTimeout(fn, 50); };
     var next = function () {
-      if (paneCtx !== ctx || !builder.valid() || builder.done() || posePlay) return;
+      if (paneCtx !== ctx || !builder.valid() || builder.done() || panePlaying) return;
       try { builder.step(); } catch (err) { return; }
       idle(next);
     };
@@ -3631,7 +3636,7 @@
   }
 
   // A moving pose, one frame of it.
-  function livePose(index) {
+  function livePose(index, fromPane) {
     var study = poseStudy();
     var topo = currentTopology();
     if (!study || !topo || !paneCtx || !paneCtx.stack) return;
@@ -3648,51 +3653,47 @@
     paneCtx.lengths = VA.kinematicPoseLengths(study, pose);
     if (film) film.apply(pose.index);
     VA.applyStackText(nodes.pane, stack);
-    VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, index), !!posePlay);
+    VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, index), panePlaying);
     scheduleSeamDraw();
-    syncPanePose(study, pose);
+    // The pane's own pose is not told back to it: it is the one moving it.
+    if (!fromPane) syncPanePose(study, pose);
   }
 
-  // Play: the sweep end to end and back at the 3D pane's own pace
-  // (VA.KINEMATIC_POSE.pointsPerSecond), from wherever the pose is. Reduced
-  // motion moves by whole points at the same pace. Any settled pose, a study
-  // change or a pause ends it, and the pause renders the pose it stopped at.
-  function startPlay() {
-    var study = poseStudy();
-    if (!study || posePlay) return;
-    var last = VA.kinematicPoseCount(study) - 1;
-    if (last < 1) return;
-    var at = poseIndex(study);
-    posePlay = { at: at, direction: at >= last ? -1 : 1, lastTick: null };
-    // The pane's own transport would fight this one.
-    postToPane(["pause"]);
-    VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, at), true);
-    var tick = function (now) {
-      var play = posePlay;
-      if (!play || poseStudy() !== study) return;
-      var dt = play.lastTick === null ? 0 : Math.min((now - play.lastTick) / 1000, 0.25);
-      play.lastTick = now;
-      var next = play.at + VA.KINEMATIC_POSE.pointsPerSecond * dt * play.direction;
-      if (next > last) { next = last - (next - last); play.direction = -1; }
-      if (next < 0) { next = -next; play.direction = 1; }
-      play.at = Math.min(Math.max(next, 0), last);
-      try {
-        livePose(VA.prefersReducedMotion() ? Math.round(play.at) : play.at);
-      } catch (err) {
-        posePlay = null;
-        renderCrash(err);
-        return;
-      }
-      poseFrame(tick);
-    };
-    poseFrame(tick);
-  }
+  // The pane's transport is the transport (the_linkage_play_control_is_the_only_
+  // one_and_it_moves_everything): it owns the clock and the one pose, and tells
+  // this page where it is ({type: "annotate:pose", run, index, driver,
+  // playing}) on every frame, seek and step. A frame of it is livePose(); the
+  // pose it stops at is settled -- held, put in the URL, rendered -- once the
+  // pane has paused or a scrub has gone quiet. There is no second loop here, so
+  // a pause cannot reach one reader and miss another.
+  var POSE_SETTLE_MS = 160;
+  var panePlaying = false;
+  var paneRun = null;
+  var paneDriver = null;
+  var settleTimer = null;
+  // The run the pane reported when it is not the study's: the page refuses its
+  // poses and says so in one muted line.
+  var paneRunMismatch = null;
 
-  // Ends play, leaving the pose where it got to; true when it was playing.
-  function stopPlay() {
-    if (!posePlay) return false;
-    posePlay = null;
-    return true;
+  // The pane posts a pose on every one of its frames, and a page that drew
+  // each one in turn would fall behind the pane the moment a draw took longer
+  // than a frame (the messages queue; the page then shows frames the pane left
+  // long ago). So the page keeps the LATEST pose it was told and draws it once
+  // per display frame -- never behind the pane by more than the one it is
+  // drawing, whatever the draw costs.
+  var panePoseLatest = null;
+  var panePoseScheduled = false;
+
+  function onPanePose(msg) {
+    panePoseLatest = msg;
+    if (panePoseScheduled) return;
+    panePoseScheduled = true;
+    poseFrame(function () {
+      panePoseScheduled = false;
+      var latest = panePoseLatest;
+      panePoseLatest = null;
+      if (latest) applyPanePose(latest);
+    });
   }
 
   function poseFrame(fn) {
@@ -3701,6 +3702,63 @@
     } else {
       setTimeout(function () { fn(Date.now()); }, 16);
     }
+  }
+
+  function applyPanePose(msg) {
+    var study = poseStudy();
+    if (!study) return;
+    var runId = study.sweep && study.sweep.run_id;
+    var mismatch = runId && msg.run && msg.run !== runId ? msg.run : null;
+    if (mismatch !== paneRunMismatch) {
+      paneRunMismatch = mismatch;
+      if (mismatch && typeof console !== "undefined" && console.warn) {
+        console.warn("annotate:pose: the pane is on run " + mismatch + " and this study " +
+          "was folded from " + runId + "; its poses are not applied");
+      }
+      render();
+    }
+    if (mismatch) return;
+    var index = typeof msg.driver === "number" ? VA.kinematicPoseOfDriver(study, msg.driver) : null;
+    if (index === null) return;
+    var was = panePlaying;
+    panePlaying = !!msg.playing;
+    // What the pane holds, so the page never seeks it back to where it is.
+    panePosePosted = String(msg.driver);
+    paneDriver = msg.driver;
+    if (panePlaying) {
+      cancelSettle();
+      try { livePose(index, true); } catch (err) { panePlaying = false; renderCrash(err); }
+    } else if (was) {
+      cancelSettle();
+      setPose(index);
+      render();
+    } else if (typeof state.kinematicPose !== "number" ||
+               Math.abs(state.kinematicPose - index) > 1e-6) {
+      // A scrub or a step with the pane paused: moved live, settled when quiet.
+      livePose(index, true);
+      cancelSettle();
+      settleTimer = setTimeout(function () {
+        settleTimer = null;
+        if (typeof state.kinematicPose === "number" && poseStudy() === study) {
+          setPose(state.kinematicPose);
+          render();
+        }
+      }, POSE_SETTLE_MS);
+    }
+  }
+
+  function cancelSettle() {
+    if (settleTimer !== null) { clearTimeout(settleTimer); settleTimer = null; }
+  }
+
+  // Pauses the pane's transport -- a reader setting the pose another way (a
+  // typed angle, a stop) takes it from the clock; true when it was playing.
+  function stopPlay() {
+    cancelSettle();
+    if (!panePlaying) return false;
+    panePlaying = false;
+    postToPane(["pause"]);
+    return true;
   }
 
   function rewind() {

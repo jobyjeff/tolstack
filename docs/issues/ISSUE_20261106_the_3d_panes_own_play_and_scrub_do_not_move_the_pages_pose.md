@@ -1,13 +1,12 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: resolved
 area: viewer/annotate pose
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_grid_and_the_dag_move_with_the_mechanism.md
-defer_until: 2026-11-20
 class: pose_sync
-resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
+resolution: fixed 2026-11-08 by the_linkage_play_control_is_the_only_one_and_it_moves_everything -- the pane owns the one pose and posts annotate:pose, the page's own play and slider are gone. Earlier: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The 3D pane's own play and scrubber do not move the kinematic page's pose

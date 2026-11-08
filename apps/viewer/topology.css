@@ -1128,8 +1128,6 @@ body { display: flex; flex-direction: column; }
    travel slider (the chart's x axis), the angle at the pose, the stops. One
    row, wrapping on a narrow pane. */
 .kmpose { flex-wrap: wrap; }
-.kmpose__play { font-size: var(--t-dense); min-width: 56px; }
-.kmpose__slider { flex: 1 1 140px; min-width: 100px; accent-color: var(--accent); }
 .kmpose__angle {
   width: 64px; font: inherit; font-size: var(--t-dense); text-align: right;
   font-variant-numeric: tabular-nums; color: var(--ink); background: var(--panel);

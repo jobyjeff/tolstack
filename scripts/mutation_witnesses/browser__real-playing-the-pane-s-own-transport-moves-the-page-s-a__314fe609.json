@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] playing the pane's own transport moves the page's angle, chart cursor and grid numbers with the linkage",
+  "mutations": [
+    {
+      "contract": "A frame of the pane's play is a frame of the page's pose.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md",
+      "note": "The page ignores the pane's frames while it plays.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "try { livePose(index, true); } catch",
+      "replace": "try { } catch"
+    }
+  ]
+}

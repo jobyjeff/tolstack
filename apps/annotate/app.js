@@ -1935,7 +1935,26 @@ function applySweepFrame() {
   // An armed pick's drawing outranks the per-frame visibility above (a
   // layer toggled while armed must not bring the other parts back solid).
   if (sweep.armed) applyArmDisplay();
+  postEmbedPose();
   return frame;
+}
+
+// The pane owns the one pose, and tells the page it is embedded in where it is
+// (handoff the_linkage_play_control_is_the_only_one_and_it_moves_everything):
+// {type: "annotate:pose", run, index, driver, playing} on every frame of play,
+// every seek and step, and every play/pause -- built by AA.embedPose. The
+// mirror of the `seek` the page posts into this app. Same-origin only, and
+// nothing to tell when this app is not embedded.
+let embedPoseSent = "";
+
+function postEmbedPose() {
+  if (window.parent === window || !state.sweep) return;
+  const sweep = state.sweep;
+  const message = AA.embedPose(sweep.artifact, sweep.frame || null, sweep.index, sweep.playing);
+  const text = JSON.stringify(message);
+  if (text === embedPoseSent) return;
+  embedPoseSent = text;
+  try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
 }
 
 function setSweepIndex(index) {
@@ -1971,6 +1990,7 @@ function cmdPlay() {
   sweep.playing = true;
   sweep.lastTick = null;
   renderDetail();
+  postEmbedPose();
   return true;
 }
 
@@ -1978,6 +1998,7 @@ function cmdPause() {
   const sweep = sweepState();
   sweep.playing = false;
   renderDetail();
+  postEmbedPose();
   return false;
 }
 
@@ -5926,6 +5947,9 @@ function postEmbedState() {
     !!(state.partScope && !state.partScope.targets.length));
   try { window.parent.postMessage(message, window.location.origin); } catch (_) { /* embedder gone */ }
   postEmbedTree(true);
+  // A page that has just been told what the scene shows is told where it is.
+  embedPoseSent = "";
+  postEmbedPose();
 }
 
 // --- the rail, mirrored into the shell's nav (embedded mode) ---------------
