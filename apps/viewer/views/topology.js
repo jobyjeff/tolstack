@@ -4107,10 +4107,10 @@
     // reads -- NOT the document's own `parts` list. In the parts' own names.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 37 of the 79 live nodes the same dot answered differently
+    // false, and on 58 of the 102 live nodes the same dot answered differently
     // hovered and clicked. (That is the STRING count, which is what "answered
-    // differently" means; 29 is the smaller count of nodes that differ as a
-    // SET. The other 8 name the same two parts in the opposite order --
+    // differently" means; 44 is the smaller count of nodes that differ as a
+    // SET. The other 14 name the same two parts in the opposite order --
     // authoring order against first-seen-edge order -- and a reader looking at
     // two orders of two names is still reading two different answers. Every
     // digit in this paragraph, and the README's copy of the first sentence,
