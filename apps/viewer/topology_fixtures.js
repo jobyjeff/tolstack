@@ -31,6 +31,11 @@
 // not one physical joint, and declares no worksheet -- so this is a genuine
 // shape fix, not a hand-edited number.
 //
+// Each part's `occurrence: null` is the fifth (handoff model_v2_is_the_end_stop_
+// linkage_in_five_bodies_and_the_nav_switches_models, 2026-11-08): the
+// builder writes the field on every part, null where the part declares none,
+// and no demo part declares one.
+//
 // Each part's `mesh` block is the fourth thing patched in by hand (handoff
 // annotate_affordances_flyout_and_mesh_gating, 2026-09-14): the builder derives
 // it from the installed meshes under `data/`, which this demo mechanism has
@@ -371,6 +376,7 @@
               "thickness is the only dimension this fixture cites; every other " +
               "number about it is invented, and nothing here is a claim about " +
               "any hardware.",
+            "occurrence": null,
             "mesh": { "installed": true, "part_id": "base" }
           },
           {
@@ -381,6 +387,7 @@
             "drawing": null,
             "revision": null,
             "note": null,
+            "occurrence": null,
             "mesh": { "installed": false, "part_id": null }
           },
           {
@@ -389,6 +396,7 @@
             "drawing": null,
             "revision": null,
             "note": null,
+            "occurrence": null,
             "mesh": { "installed": true, "part_id": "demo_arm_machined" }
           },
           {
@@ -397,6 +405,7 @@
             "drawing": null,
             "revision": null,
             "note": "identity not established",
+            "occurrence": null,
             "mesh": { "installed": false, "part_id": null }
           }
         ],

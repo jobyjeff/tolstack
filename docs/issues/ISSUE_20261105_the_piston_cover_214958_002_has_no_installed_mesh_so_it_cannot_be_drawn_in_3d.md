@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: resolved
 area: meshes/extraction
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md
 defer_until: 2026-11-20
 class: vpa_part_facts_missing
-resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
+resolution: resolved 2026-11-08 -- rotorkit run assembly_extract_20261108T092425Z installed asm217755_214958_002 and handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models added its alias row; it is drawn in both models. Earlier: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The piston cover (214958-002) has no installed mesh, so it cannot be drawn in 3D

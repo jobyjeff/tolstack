@@ -1,0 +1,51 @@
+---
+type: bug
+priority: high
+status: open
+area: feature-identity
+reporter: agent
+found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
+---
+
+# Four feature-identity events share a seq, so the bindings projection cannot be rebuilt
+
+`scripts/build_feature_identity_projection.py` refuses the live event log
+(measured 2026-11-08 against the main checkout's `data/inbox/feature-identity/`,
+76 files):
+
+```
+ValueError: events 'annotate-1793923957504-pitch_link_length' and
+'proposal-0056-pitch_plate_slide_bushings_to_piston_body-from' share seq 56
+```
+
+Four collisions, each an annotator accept from 2026-11-06 against an agent
+proposal written days earlier:
+
+| seq | Jeff's event (annotate-app) | the proposal it collides with |
+|---|---|---|
+| 56 | `0001_pitch_link_length_accepted.json` | `0056_pitch_plate_slide_bushings_to_piston_body_proposed.json` |
+| 57 | `0002_tan_link_length_accepted.json` | `0057_pitch_plate_slide_bushings_to_piston_body_proposed.json` |
+| 58 | `0003_tan_link_length_accepted.json` | `0058_pitch_plate_attach_radius_proposed.json` |
+| 59 | `0004_pitch_link_length_accepted.json` | `0059_pitch_plate_attach_height_proposed.json` |
+
+Renumbering Jeff's four in a scratch copy only moves the refusal on: the fold
+then reports `proposal-0002-pitch_link_length-to` answered twice
+(`annotate-1794117497736-pitch_link_length` and
+`annotate-1793923957504-pitch_link_length`).
+
+**What it costs.** `data/projections/feature-identity/bindings.json` is dated
+2026-11-05 and holds proposals only — every one of its 34 records has zero
+`bindings`. The annotator reads that file on every load (the folder adapter
+too: `apps/annotate/storage/fsa.js` reads the projection and folds only this
+session's events on top), so Jeff's 2026-11-06 accepts of both link lengths
+are gone after a reload, and nothing says so. `scripts/rebuild_projections.ps1`
+does not run this builder, which is why nothing has gone red.
+
+**Likely cause, unconfirmed.** The annotator numbers its next event off the
+projection plus this session (`AA.nextEventSeq`), and the projection it read
+was older than the proposals already on disk; its file names (`0001_…`) are
+its own count too. Worth checking against the events directory itself rather
+than the projection.
+
+Found while building model v2's 3D shots: v2 reads v1's bindings through
+`ids_from`, and there were none to read.

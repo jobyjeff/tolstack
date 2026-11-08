@@ -95,8 +95,11 @@ MAX_PART_NAME_CHARS = 44
 
 def topology_documents():
     paths = sorted(TOPOLOGY_DIR.glob("topology_*.json"))
-    # A scan that silently finds nothing passes against anything.
-    assert len(paths) == 1, f"expected the one product topology, found {len(paths)}"
+    # A scan that silently finds nothing passes against anything. One
+    # topology per model since 2026-11-08 (docs/DAG_TOPOLOGY.md, "Models").
+    assert [p.name for p in paths] == [
+        "topology_vpa_end_stop_v2.json", "topology_vpa_pitch_linkage.json"], (
+        f"expected the two models' topologies, found {[p.name for p in paths]}")
     return [(p.relative_to(REPO_ROOT).as_posix(),
              json.loads(p.read_text(encoding="utf-8"))) for p in paths]
 
