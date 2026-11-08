@@ -3740,8 +3740,7 @@
       cancelSettle();
       setPose(index);
       render();
-    } else if (typeof state.kinematicPose !== "number" ||
-               Math.abs(state.kinematicPose - index) > 1e-6) {
+    } else if (!heldPoseIs(study, index)) {
       // A scrub or a step with the pane paused: moved live, settled when quiet.
       livePose(index, true);
       cancelSettle();
@@ -3753,6 +3752,15 @@
         }
       }, POSE_SETTLE_MS);
     }
+  }
+
+  // Whether the page already holds this pose -- by what it holds (the default
+  // stop's pose included), not by what it has written to the URL. A pane that
+  // only repeats it (its first message after it reports its state) moves and
+  // writes nothing: the reader has done nothing yet.
+  function heldPoseIs(study, index) {
+    var held = poseIndex(study);
+    return typeof held === "number" && Math.abs(held - index) <= 1e-6;
   }
 
   function cancelSettle() {
