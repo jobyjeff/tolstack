@@ -143,3 +143,47 @@ to `data/meshes`, `data/inbox`, `data/projections/parts`,
 `data/projections/feature-identity`, plus projections built from this branch).
 Kept for the reviewer to re-run the shots and the `[real]` tiers against;
 delete with `rmdir` on the junctions first.
+
+## Verification record
+
+All in **this worktree**, after `dispatch bridge-test-inputs C:/workspace/tolstack .`
+(the merge candidate's read-only links; `--also node_modules` for the browser
+tier only, the junction removed afterwards) and `scripts/rebuild_projections.ps1`
+into the worktree's own `data/projections/` at `80709670` (clean, behind trunk 0).
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs` —
+  **1862 passed, 1 skipped, 0 failed**, 552 s wall, single process (xdist is
+  not installed in the venv), recorded `inside budget`. The skip is
+  pre-existing (`test_fit_bound_features.py:424`, a 2026-10-01 re-extraction
+  not installed). This run includes the viewer JS `[real]` tier
+  (`test_viewer_js_suite.py`), so nothing in it is a skipped tier.
+- `node apps/viewer/run_tests.cjs` 672/672; `node apps/annotate/run_tests.cjs`
+  300/300 (both with the worktree's projections, so their `[real]` tiers ran).
+- `node scripts/run_viewer_browser_tests.mjs`: first full run 39/43 — four
+  checks assumed the first model is v1 or that any nav heading is the
+  kinematic one; fixed (`scripts/run_viewer_browser_tests.mjs`: v1's study
+  checks deep-link to v1, the wedge check opens each model before clicking its
+  rows, the topology-row 3D check names v1, the no-projection check looks for a
+  *Kinematic* heading). Each of the four re-run with `--only`: all pass. The
+  other 39 passed on the full run, which took 1539 s.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since integration`:
+  26/28 witnessed, 28 of 42 reached inside the 30-minute cap, 14 left to the
+  sweep. The two misses (`…mechanism-tree-is-nested…__98a8dc29`, tier red
+  before mutation; `…synthetic-binding-moves-exactly-one-node…__389dc6f7`,
+  another check reddened) were each re-run with `--only` and **witnessed** —
+  run-order flakes inside the batch, not decays. Eight new specs written for
+  the new guards; two specs re-anchored after the `views/nav.js` dedent; the
+  renamed nav guard's spec replaced; `DECLARED_GUARDS` pins moved
+  (fast 669→672, annotate 296→300).
+
+**Earlier in the session**, before the bridge, the `[real]` crop checks failed
+against a scratch data root: `build_viewer_crops.py` resolves
+`data/inbox/specs/…` against the repo root, so from an unbridged worktree every
+spec crop is unresolvable. Bridge first; the scratch root under
+`data/scratch/model_v2*` is only what the shot script reads.
+
+**Counts the change moved**, re-derived and re-pinned in
+`apps/viewer/README.md` and `views/topology.js`'s `renderNodeDetail` comment:
+leader-vs-rail crossings 256 → 25 over both models (v2 alone 37 → 3, v1 still
+219 → 22); nodes answering differently hovered and clicked 58 of 102 (44 as a
+set, 14 reordered); column reuse 17 over 7 for v2.
