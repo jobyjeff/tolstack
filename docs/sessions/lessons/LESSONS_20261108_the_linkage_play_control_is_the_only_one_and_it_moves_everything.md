@@ -90,3 +90,16 @@ read-out 7.0, the chart cursor at 7).
 - Filed: `docs/issues/ISSUE_20261108_the_kinematic_page_cannot_play_or_scrub_without_the_3d_pane.md` (strategy, low) and `docs/issues/ISSUE_20261108_the_page_trails_the_3d_pane_by_its_draw_time_at_full_pace.md` (the lag above).
 - The `pytest` reds that are the worktree, not the change: `tests/test_viewer_js_suite.py` (no projections here, by design) and `tests/test_mutation_witness_shadow_concurrency.py` (a Windows `rmtree` EPERM in the shadow tree — fails on its cleanup, not on a witness).
 - `docs/prompts/REVIEW_AGENT.md` still cites the old Play-button sighting as history; left as is.
+
+## Review round 1: the pane's first pose wrote the URL
+
+The reviewer's full browser tier failed "3D pane follows the selection" (3 of 3
+runs). Cause: `applyPanePose` compared the pane's pose with `state.kinematicPose`,
+which is unset until a pose is settled, so the pane's first `annotate:pose` after
+load (the pose the page had just told it) counted as a reader's scrub and settled
+into `?kinematic=...&pose=...`. A chain-study pick then stripped `kinematic` and
+the reload landed bare. Fix: compare against the pose the page *holds*
+(`heldPoseIs`, the default stop's pose included), so a pane that only repeats it
+moves nothing and writes nothing. I ran the whole browser tier this time, not a
+slice: 43/43 on the worktree with `--repo C:/workspace/tolstack`. The earlier
+"two suites only" record was the gap the reviewer named.
