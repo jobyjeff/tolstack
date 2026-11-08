@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: tests
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md
 handoff: docs/sessions/HANDOFF_20261106_the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id.md
-resolution: triaged 2026-11-06 (triage) -- the batch merge took it onto master as a known red; staged the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id
+resolution: triaged 2026-11-06 (triage) -- the batch merge took it onto master as a known red; staged the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id -- handoff completed 2026-11-08 -- closed automatically by dispatch when handoff `the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id` moved to completed/; not independently verified.
 ---
 
 # Two kinematic-page browser checks still match the edge names `2e97a77a` renamed
