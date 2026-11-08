@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
 reviewer: agent
 date: 2026-11-08
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_linkage_play_control_is_the_only_one_and_it_moves_everything
@@ -102,3 +102,13 @@ Round 2: confirm the URL at the reload step is `?kinematic=…` again, run the
 `node_modules` junctioned, and re-measure the `fast` guard digest if `tests.js`
 guards move again (the pin in `scripts/guard_enumeration.mjs` is already
 resolved on this review branch).
+
+## Re-run 2026-11-08 (round 2)
+
+Round 1 was REQUEST CHANGES, 1 blocker (B1, closed below).
+
+- **B1 fixed** (`665e4d34`): `heldPoseIs(study, index)` compares against what the page holds (default stop included), so the pane's opening message moves and writes nothing. Merged cleanly into the review branch; no conflict.
+- `3D pane follows the selection` 32/32, twice. Fast tiers 669/669 and 297/297 on the scratch root.
+- **Whole browser tier: 42/43**, the red being `kinematic study page (deep link…)` sub-check "colouring by body … survives a reload" — it passed in round 1's full tier and 27/27 in two isolated re-runs: load noise, not the diff.
+- **Witnesses `--changed-since integration`: 21/22 reached witnessed** (2 left to the sweep by budget). The one not witnessed, `browser__real-the-kinematic-page-reads-nav-scene-dag-results-left__fb0d661d`, reads "tier red before the mutation" identically on a detached `integration` tree in this scratch environment, and its spec is untouched by the diff — not attributable to this work; the scheduled sweep owns it.
+- Verdict: **APPROVE**. Landed on `integration` as a fast-forward from `review/<slug>`.
