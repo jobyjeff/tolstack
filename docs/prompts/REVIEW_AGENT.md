@@ -652,6 +652,13 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A message the page acts on at load reaches the URL.** A pane/embed message
+      handled on arrival (e.g. `annotate:pose`) that calls `setPose` writes
+      `?kinematic=…&pose=…` with no reader action, sets `poseUrlWritten`, and a later
+      nav away from the study strips the deep link (2026-11-08,
+      `the_linkage_play_control_is_the_only_one_and_it_moves_everything`; red in
+      `testThreeDPane`, reload step). Run the whole browser tier, not the author's suites.
+
 - [ ] **A grid column narrowed to fit, measured against member rows only.**
       `.tvcell` clips with an ellipsis, and the foot's `totalRow` number cells
       carry no `title`. So a width chosen for the longest *member* value
