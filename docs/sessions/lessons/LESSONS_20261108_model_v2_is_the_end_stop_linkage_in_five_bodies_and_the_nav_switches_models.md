@@ -187,3 +187,75 @@ spec crop is unresolvable. Bridge first; the scratch root under
 leader-vs-rail crossings 256 → 25 over both models (v2 alone 37 → 3, v1 still
 219 → 22); nodes answering differently hovered and clicked 58 of 102 (44 as a
 set, 14 reordered); column reuse 17 over 7 for v2.
+
+## Rework after REQUEST CHANGES (2026-11-08)
+
+Review: `docs/sessions/reviews/REVIEW_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md`.
+
+**B1, the blocker, was mine and it was real.** The read-through re-keyed v1's
+record to v2 for reading, but the inner events kept v1's key, so the answer
+paths split: Accept and Reject copied the proposal's key (v1), while Take, the
+armed click, the bind dialog and *not in set* built the key from the open
+topology (v2) — and a v2-keyed re-pick then named a v1 event in `supersedes`,
+which `build_projection` refuses. One click and the log is unrebuildable. My
+comment ("an event written here is keyed to this topology") was true for half
+the paths, and no test wrote anything under `ids_from`, so nothing noticed.
+The read-only framing hid it: I reasoned about the read side and assumed the
+write side was untouched, when every write path *reads first* to find what it
+supersedes.
+
+**Decision: a shared id has one key, the source model's.** It follows from
+what `ids_from` already claims (a shared id is the same feature, pinned by
+`test_a_model_that_reuses_anothers_ids_means_the_same_feature_by_each`), and
+it makes the write side need no bookkeeping. The rule is written once per
+language: `tolerance_stack.topology.identity_topology_id` (used by
+`scripts/propose_bindings.py`, so an agent proposing "on v2" writes v1's key
+too) and `AA.identityKey`, which every annotator write path reaches through
+`identityWriteKey` in `app.js`. Accept, Reject and a correction already copy
+the key of the event they answer, which is v1's. The per-edge `own` rule in
+the read-through went with it: v2 can no longer get a record of its own on a
+shared id, so the reviewer's "binding `from` hides `to`" case cannot arise,
+and a stray v2 row on a shared id loses to the source's record.
+
+**The test the review asked for:**
+`tests/test_feature_identity.py::test_every_answer_on_a_shared_id_writes_events_the_fold_accepts`.
+It loads the annotator's own modules in node, runs accept, reject, take a
+different face and take with proposals open against a read-through record,
+and folds each answer through the Python `build_projection`. Under the
+mutation (`AA.identityKey` returning the open model's key) it fails with
+`take_a_different_face wrote on ['v2'], not the source model's key`. It has
+a python-tier witness spec.
+
+**Nits:**
+- The `sweep.js` comment is back on `AA.sweepTopologyId`.
+- v2 is the default by rule now. The builder lists a model ahead of the model
+  it reuses ids from (`in_model_order`), so file names no longer decide it.
+- The projection carries `ids_from` at the topology's top level. The viewer's
+  reader (`VA.topologyIdsFrom`) is gone, and `views/kinematic.js` reads the
+  field. The annotator keeps `AA.topologyIdsFrom`: it is a separate page with
+  its own namespace and loads nothing of the viewer's `topology.js`.
+
+**Gotcha:** an ordering fix that changes nothing today is easy to leave
+untested. `test_a_model_is_listed_ahead_of_the_model_it_reuses_ids_from`
+uses ids that sort the wrong way (`z` reuses `a`), so it fails if the rule is
+removed even though the live files sort right either way.
+
+**Rework verification**, in this worktree, inputs bridged as before, with the
+projections rebuilt from the rework commit `d0863681` (clean, behind trunk 0):
+
+- `pytest -q -rs`: **1869 passed, 1 skipped** (the same pre-existing skip),
+  553 s, recorded `inside budget`.
+- `node apps/viewer/run_tests.cjs` 672/672; `node apps/annotate/run_tests.cjs`
+  301/301, both with `[real]` tiers run.
+- `node scripts/run_mutation_witness_tests.mjs --changed-since f5b9755d` (the
+  rework's own hunks, `node_modules` bridged, then the junction removed):
+  **17/17 witnessed**, 17 reached, none left to the sweep. That includes the
+  browser armed-click bind and reject-then-bind checks, so the click paths
+  still write.
+  - A first attempt with `--repo C:/workspace/tolstack` read the main
+    checkout's trunk-built projection. Ten entries came back "tier red before
+    mutation". That was the setup, not a decay: from a worktree, leave
+    `--repo` off once the worktree has its own projections.
+- The full browser tier was not re-run. The rework changes no browser check
+  and no DOM the page draws, and the browser entries the hunks reach are
+  witnessed above.
