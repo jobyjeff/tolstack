@@ -80,10 +80,11 @@
     if (!this.canWrite()) {
       throw new Error("storage cannot write (read-only transport, or not ready)");
     }
-    if (this.written.some(function (w) { return w.filename === filename; })) {
-      throw new Error("feature-identity event " + filename + " already exists -- append-only, refusing to overwrite");
+    while (this.written.some(function (w) { return w.filename === filename; })) {
+      filename = AA.bumpEventFilename(filename);
     }
     this.written.push({ filename: filename, event: eventObject });
+    return filename;
   };
 
   AA.MemoryAdapter = MemoryAdapter;

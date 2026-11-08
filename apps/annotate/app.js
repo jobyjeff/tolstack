@@ -72,8 +72,6 @@ const state = {
   // event file; this app never re-implements that fold, it just doesn't want
   // a bound row to look unbound until the next rebuild.
   sessionEvents: [],
-  // Filenames this session has written, so the next number is one past them.
-  sessionFilenames: [],
   // The bind form's interface choice: {edgeId, sha256, faceId, direction}, or
   // null. Keyed to the element and the face it was made on (bindContext), so
   // it can never outlive either.
@@ -4114,17 +4112,17 @@ async function cmdTake(edgeId, direction, meshId, faceText) {
 // numbered file. The sweep rail's Accept, an armed pick's click and the bind
 // bar's Accept and Reject all come here; none of them builds an event itself.
 async function writeAnswer(plan, edgeId, banner) {
-  const filenames = await existingEventFilenames();
+  const seq = await nextEventSeq();
   const events = AA.buildAnswerEvents(plan, {
     eventId: "annotate-" + Date.now() + "-" + slugify(edgeId),
-    seq: filenames.length + 1,
+    seq,
     createdAt: nowIso(),
     recordedBy: AA.humanActor(AA.CONFIG.reviewer),
   });
   for (const event of events) {
     const suffix = event.rejects ? "_rejected"
       : (event.ratifies ? "_accepted" : "");
-    await writeIdentityEvent(nextFilename(filenames, slugify(edgeId) + suffix), event, banner);
+    await writeIdentityEvent(AA.eventFilename(event.seq, slugify(edgeId) + suffix), event, banner);
   }
   return events;
 }
@@ -5284,19 +5282,12 @@ function slugify(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
-// The next "<NNNN>_<slug>.json", counting the files this session has already
-// written: `existingEventFilenames` carries event ids, which never match the
-// numbered-filename pattern, so a second write in one session (a bind, then a
-// correction of it) used to be handed 0001 again and refused as a collision.
-function nextFilename(known, slug) {
-  const name = AA.nextEventFilename(known.concat(state.sessionFilenames), slug);
-  state.sessionFilenames.push(name);
-  return name;
-}
-
-async function existingEventFilenames() {
+// The next event's seq: one past the highest in the projection and this
+// session's own events (AA.nextEventSeq). Re-reads the folder's projection
+// first when the served transport has not been granted write yet.
+async function nextEventSeq() {
   // Reading over HTTP, the first write asks for the folder HERE -- inside the
-  // click that wrote, before a filename is counted -- and the projection the
+  // click that wrote, before a number is counted -- and the projection the
   // count comes from is then re-read from the folder, which the served origin
   // may not publish at all (storage/http.js).
   if (servedTransport && !state.storage.writeGranted()) {
@@ -5304,14 +5295,7 @@ async function existingEventFilenames() {
     state.identityProjection = await state.storage.readFeatureIdentityProjection();
     renderPaneStatus();
   }
-  // The app cannot list an FSA directory's file entries as cheaply as it can
-  // list data/meshes/ subdirectories (there is no manifest to key off), so
-  // the running count is this session's own writes plus whatever the
-  // projection already knows about (its `built_from_events` list carries
-  // every filename-derived event id the log had at last rebuild).
-  const known = (state.identityProjection && state.identityProjection.built_from_events) || [];
-  const sessionIds = state.sessionEvents.map((e) => e.event_id);
-  return known.concat(sessionIds);
+  return AA.nextEventSeq(state.identityProjection, state.sessionEvents);
 }
 
 // The bind form, horizontal since 2026-09-21 -- it is the bottom of a bar
@@ -5362,11 +5346,11 @@ function buildBindForm(edge, pick, bind, onChoose) {
   btn.onclick = async () => {
     if (!selected) return;
     try {
-      const filenames = await existingEventFilenames();
+      const seq = await nextEventSeq();
       const eventId = "annotate-" + Date.now() + "-" + slugify(edge.id);
       const event = AA.buildBoundEvent({
         eventId,
-        seq: filenames.length + 1,
+        seq,
         createdAt: nowIso(),
         recordedBy: AA.humanActor(AA.CONFIG.reviewer),
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
@@ -5379,9 +5363,8 @@ function buildBindForm(edge, pick, bind, onChoose) {
         note: noteField.input.value || null,
         supersedes: bind.target ? bind.target.event_id : null,
       });
-      const filename = nextFilename(filenames, slugify(edge.id));
       state.correcting = null;
-      await writeIdentityEvent(filename, event, "Wrote " + filename);
+      await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id)), event, (name) => "Wrote " + name);
     } catch (err) {
       setWriteFailure("Bind", err);
     }
@@ -5426,11 +5409,13 @@ function correctionTarget(record, edge) {
 }
 
 // Write one event and repaint -- the tail every correction write shares.
+// `banner` is a string, or a function of the filename actually written (the
+// writer bumps the number when the target exists).
 async function writeIdentityEvent(filename, event, banner) {
-  await state.storage.writeFeatureIdentityEvent(filename, event);
+  const written = (await state.storage.writeFeatureIdentityEvent(filename, event)) || filename;
   state.sessionEvents.push(event);
   buildModel().catch(() => { /* the layer keeps its last anchors */ });
-  setBanner(banner, "ok");
+  setBanner(typeof banner === "function" ? banner(written) : banner, "ok");
   renderElementList();
   renderDetail();
 }
@@ -5468,16 +5453,16 @@ function buildBindingsBlock(edge, bind, canWrite) {
         flip.title = "this face belongs at " + bind.names[other];
         flip.onclick = async () => {
           try {
-            const filenames = await existingEventFilenames();
+            const seq = await nextEventSeq();
             const event = AA.buildCorrectionEvent(row.event, {
               eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
-              seq: filenames.length + 1,
+              seq,
               createdAt: nowIso(),
               recordedBy: AA.humanActor(AA.CONFIG.reviewer),
               direction: other,
             });
             state.correcting = null;
-            await writeIdentityEvent(nextFilename(filenames, slugify(edge.id)), event,
+            await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id)), event,
               "Moved the face to " + bind.names[other]);
           } catch (err) {
             setWriteFailure("Correction", err);
@@ -5671,23 +5656,18 @@ function buildOwnerNotInSetFields(edge) {
   btn.textContent = "Record owner not in set";
   btn.onclick = async () => {
     try {
-      const filenames = await existingEventFilenames();
+      const seq = await nextEventSeq();
       const eventId = "annotate-" + Date.now() + "-" + slugify(edge.id) + "-not-in-set";
       const event = AA.buildOwnerNotInSetEvent({
         eventId,
-        seq: filenames.length + 1,
+        seq,
         createdAt: nowIso(),
         recordedBy: AA.humanActor(AA.CONFIG.reviewer),
         stackKey: AA.topologyEdgeKey(state.currentTopology.id, edge.id),
         note: noteField.input.value || null,
       });
-      const filename = nextFilename(filenames, slugify(edge.id) + "_owner_not_in_set");
-      await state.storage.writeFeatureIdentityEvent(filename, event);
-      state.sessionEvents.push(event);
-      buildModel().catch(() => { /* the layer keeps its last anchors */ });
-      setBanner("Wrote " + filename, "ok");
-      renderElementList();
-      renderDetail();
+      await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id) + "_owner_not_in_set"), event,
+        (name) => "Wrote " + name);
     } catch (err) {
       setWriteFailure("Record", err);
     }

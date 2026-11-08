@@ -156,24 +156,26 @@
     return (await handle.getFile()).arrayBuffer();
   };
 
-  // Append-only: refuses to overwrite a file that already exists, the
-  // schema's own invariant enforced at the one point a write can happen.
+  // Append-only: never overwrites. A target that already exists is bumped to
+  // the next free number, and the name actually written is returned.
   FsaAdapter.prototype.writeFeatureIdentityEvent = async function (filename, eventObject) {
     AA.requireReady(this);
     var dir = await this._dir(AA.CONFIG.featureIdentityEventsDir, /* create */ true);
     var exists = true;
-    try {
-      await dir.getFileHandle(filename, { create: false });
-    } catch (_) {
-      exists = false;
-    }
-    if (exists) {
-      throw new Error("feature-identity event " + filename + " already exists -- append-only, refusing to overwrite");
+    while (exists) {
+      try {
+        await dir.getFileHandle(filename, { create: false });
+        filename = AA.bumpEventFilename(filename);
+      } catch (err) {
+        if (err && err.name !== "NotFoundError") throw err;
+        exists = false;
+      }
     }
     var fileHandle = await dir.getFileHandle(filename, { create: true });
     var writable = await fileHandle.createWritable();
     await writable.write(JSON.stringify(eventObject, null, 2) + "\n");
     await writable.close();
+    return filename;
   };
 
   FsaAdapter.prototype._readJson = async function (segments) {

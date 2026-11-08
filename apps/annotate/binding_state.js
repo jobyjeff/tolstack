@@ -596,20 +596,38 @@
     return event;
   };
 
-  // "<NNNN>_<slug>.json", the same convention docs/spec_library/events/ and
-  // data/inbox/feature-identity/README.md both name. `existingFilenames` is
-  // whatever the app has already listed from the events directory (or
-  // written this session) -- the next number is one past the highest seen,
-  // never reused, so two sessions racing each other collide on a filename
-  // (and therefore fail loudly at write time) rather than silently
-  // overwriting different events under the same number.
-  AA.nextEventFilename = function (existingFilenames, slug) {
+  // The next event's seq: one past the highest the log is known to hold. A
+  // served projection lists its events as ids (`built_from_events`), which
+  // carry no number the page can read, so the highest seq is read off every
+  // full event the projection embeds (bindings, proposals, rejections ...),
+  // floored by the event count -- `seq` is unique across the log -- and by
+  // this session's own events. Never from filenames: a served page cannot list
+  // the folder, and a session once wrote prefixes that disagree with `seq`.
+  AA.nextEventSeq = function (projection, sessionEvents) {
     var max = 0;
-    (existingFilenames || []).forEach(function (name) {
-      var m = /^(\d{4})_/.exec(name);
-      if (m) max = Math.max(max, parseInt(m[1], 10));
-    });
-    var n = String(max + 1).padStart(4, "0");
-    return n + "_" + slug + ".json";
+    function walk(node) {
+      if (Array.isArray(node)) { node.forEach(walk); return; }
+      if (!node || typeof node !== "object") return;
+      if (typeof node.event_id === "string" && typeof node.seq === "number") max = Math.max(max, node.seq);
+      Object.keys(node).forEach(function (k) { walk(node[k]); });
+    }
+    walk(projection && projection.stack_keys);
+    max = Math.max(max, ((projection && projection.built_from_events) || []).length);
+    (sessionEvents || []).forEach(function (e) { if (e && typeof e.seq === "number") max = Math.max(max, e.seq); });
+    return max + 1;
+  };
+
+  // "<NNNN>_<slug>.json", the same convention docs/spec_library/events/ and
+  // data/inbox/feature-identity/README.md both name; NNNN is the event's seq.
+  AA.eventFilename = function (seq, slug) {
+    return String(seq).padStart(4, "0") + "_" + slug + ".json";
+  };
+
+  // The name after a collision: the same slug under the next free number.
+  // Storage calls it while the target exists, so a write never overwrites.
+  AA.bumpEventFilename = function (filename) {
+    var m = /^(\d{4,})(_.*)$/.exec(filename);
+    if (!m) throw new Error("not a numbered event filename: " + filename);
+    return String(parseInt(m[1], 10) + 1).padStart(4, "0") + m[2];
   };
 })(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);
