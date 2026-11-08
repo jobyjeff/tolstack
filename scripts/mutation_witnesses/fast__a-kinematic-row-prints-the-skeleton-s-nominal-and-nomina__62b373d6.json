@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a kinematic row prints the skeleton's nominal and nominal plus band, at two decimals, and says where the nominal came from",
+  "mutations": [
+    {
+      "contract": "A kinematic row's nominal cell is the skeleton's measured value, with its source on hover.",
+      "issue": null,
+      "note": "Prints the band's own nominal-less min as the nominal, so the row reads the 0-about convention again.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "var nominal = display.vector ? \"centre\" : n(display.nominal);",
+      "replace": "var nominal = display.vector ? \"centre\" : n(display.min);"
+    }
+  ]
+}

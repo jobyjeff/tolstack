@@ -272,8 +272,9 @@
     }
     var unit = display.units ? " " + display.units : "";
     var source = display.nominal_source || {};
-    var nominal = display.vector
-      ? "(" + display.vector.map(n).join(", ") + ")" : n(display.nominal);
+    // A ball's nominal is a point, too wide for a number cell: the word here,
+    // the coordinates on hover.
+    var nominal = display.vector ? "centre" : n(display.nominal);
     var title;
     if (source.kind === "cited") {
       var offset = source.skeleton_offset;
@@ -287,6 +288,9 @@
         "), sweep " + source.sweep;
     } else {
       title = "measured on the kinematic skeleton, sweep " + source.sweep;
+      if (display.vector) {
+        title = "centre (" + display.vector.map(n).join(", ") + ")" + unit + " " + title;
+      }
     }
     var bandTitle = display.vector
       ? "a ball of radius " + VA.kinematicNumber(display.max, 3) + unit + " about the measured centre"

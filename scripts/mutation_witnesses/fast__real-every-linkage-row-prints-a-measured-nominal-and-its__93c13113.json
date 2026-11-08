@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every linkage row prints a measured nominal and its band, the borrowed band names its lender, and no value cell is blank beside a contribution",
+  "mutations": [
+    {
+      "contract": "The live grid's borrowed-band row names its lender on hover.",
+      "issue": null,
+      "note": "Drops the lender from the element cell's hover.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "\" (dimension_ref)\" : \"\");",
+      "replace": "\"\" : \"\");"
+    }
+  ]
+}

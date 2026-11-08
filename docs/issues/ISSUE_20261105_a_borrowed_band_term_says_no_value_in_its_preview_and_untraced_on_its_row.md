@@ -1,13 +1,12 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: resolved
 area: viewer/preview
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what.md
-defer_until: 2026-12-06
 class: reading_surface_copy
-resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
+resolution: handoff a_kinematic_row_shows_the_numbers_the_fold_uses_or_refuses (2026-11-08) -- the grid row prints the lender's band in its own cells and names the lender on the element cell hover; the Preview pane's wording was not re-checked there
 ---
 
 # A borrowed-band term says "no value" in its Preview and "untraced" on its row

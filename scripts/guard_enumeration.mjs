@@ -274,7 +274,7 @@ export const DECLARED_GUARDS = {
   // the merge with integration's 646: 656.
   // Merged with integration again before hand-back (review round 1 rework,
   // 2026-11-06): integration's 656 + this branch's 10 = 666, measured.
-  fast: { declared: 666, enrollable: 666, names: "a269e9c6fa4a" },
+  fast: { declared: 669, enrollable: 669, names: "f86476833986" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

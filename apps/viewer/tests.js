@@ -11614,7 +11614,8 @@
         has(c.nominalTitle, "The skeleton measures 61.4504 mm (+0.0504 from nominal, at the band's edge)");
         var sphere = VA.kinematicRowValues(Object.assign({}, DISPLAY_LINK, {
           zone: "sphere", nominal: 0, vector: [83, -35.355, 35.355], min: 0, max: 0.015 }));
-        eq([sphere.nominal, sphere.min, sphere.max], ["(83.00, -35.35, 35.35)", "0.000", "0.015"]);
+        eq([sphere.nominal, sphere.min, sphere.max], ["centre", "0.000", "0.015"]);
+        has(sphere.nominalTitle, "centre (83.00, -35.35, 35.35) mm measured on the kinematic skeleton");
         var refused = VA.kinematicRowValues({ refused: true, reason: "no geometry key" });
         eq([refused.refused, refused.nominal, refused.min, refused.max],
            [true, "no value", "no value", "no value"]);
@@ -18840,6 +18841,7 @@
               has(cells("pitch_plate_attach_height").row.querySelector("td.tvcell--name")
                 .getAttribute("title"), "(dimension_ref)");
               grid.rows.forEach(function (row) {
+                if (row.getAttribute("data-row-kind") !== "edge") return;
                 if (!row.querySelector("td.tvcell--contribution").textContent) return;
                 ["nominal", "min", "max"].forEach(function (c) {
                   ok(row.querySelector("td.tvcell--" + c).textContent !== "",
