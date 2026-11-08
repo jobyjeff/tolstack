@@ -3566,6 +3566,14 @@
     if (poseFilm !== null && poseFilmCtx === paneCtx &&
         (poseFilm === false || poseFilm.valid())) return poseFilm;
     var builder = builderFor(study, topo, drawnStop, decimals, folds);
+    // A film not yet built is built one keyframe a frame, not all at once:
+    // rendering the rest in one frame stalls the pane's play for seconds on a
+    // loaded box (the page then shows poses the pane left long ago). The DAG
+    // joins the grid, the chart and the pane when the film is ready.
+    if (builder && builder.valid() && !builder.done()) {
+      try { builder.step(); } catch (err) { poseFilmCtx = paneCtx; poseFilm = false; return false; }
+      if (!builder.done()) return false;
+    }
     poseFilmCtx = paneCtx;
     poseFilm = builder && builder.valid() ? builder.finish() || false : false;
     return poseFilm;

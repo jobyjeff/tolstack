@@ -8953,26 +8953,38 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       await page.waitForTimeout(500);
       const rest = await sample();
       await exec(["play"]);
-      await page.waitForTimeout(700);
-      const a = await sample();
-      await page.waitForTimeout(500);
-      const b = await sample();
+      // Eight readings over ~4 s of play: on a loaded box the page can stall
+      // for a beat, so "moves" is several distinct values, not two different ones.
+      const played = [];
+      for (let i = 0; i < 8; i++) {
+        await page.waitForTimeout(500);
+        played.push(await sample());
+      }
+      const b = played[played.length - 1];
       await exec(["pause"]);
-      await page.waitForTimeout(500);
-      const c = await sample();
-      await page.waitForTimeout(700);
+      // The page settles on the frame the pane stopped on (a render, which can
+      // take a beat on a loaded box): read once three samples agree, then again
+      // after a wait. A pane that did not pause never agrees with itself.
+      let c = await sample();
+      for (let i = 0, still = 0; i < 40 && still < 3; i++) {
+        await page.waitForTimeout(400);
+        const next = await sample();
+        still = JSON.stringify(next) === JSON.stringify(c) ? still + 1 : 0;
+        c = next;
+      }
+      await page.waitForTimeout(900);
       const d = await sample();
       const N = Math.min(5, study.envelope.length - 1);
       await exec(["seek", "#" + N]);
       await page.waitForTimeout(600);
       const e = await sample();
       const want = await angleAt(N);
-      console.log("      pane play: " + [rest, a, b, c, d, e].map((x) =>
+      console.log("      pane play: " + [rest, ...played, c, d, e].map((x) =>
         `[pane ${Number(x.pane).toFixed(2)} angle ${x.angle} cursor ${x.cursor}]`).join(" "));
       push("[real] playing the pane's own transport moves the page's angle, chart cursor and " +
         "grid numbers with the linkage",
-        a.angle !== rest.angle && b.angle !== a.angle && b.cursor !== a.cursor &&
-        b.grid !== a.grid && b.pane !== a.pane);
+        ["angle", "cursor", "grid", "pane"].every((k) =>
+          new Set(played.map((x) => x[k])).size >= 3) && b.angle !== rest.angle);
       push("[real] and a pause in the pane holds the page on the frame it stopped on",
         d.angle === c.angle && d.cursor === c.cursor && d.grid === c.grid && d.pane === c.pane);
       push("[real] and a seek in the pane lands the page's angle on that frame",

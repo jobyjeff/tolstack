@@ -31,6 +31,15 @@ current angle; the chart's cursor and the grid/DAG numbers are the other read-ou
 - **The echo.** The page's own `livePose` used to `seek` the pane after every frame; with the
   pane as clock that seek fights it. `livePose(index, true)` skips the seek, and
   `syncPanePose` skips a playing pane and a driver within 1e-6 of the pane's.
+- **The page lags the pane by its own draw time, and the first frame can stall.** At the
+  pane's full pace on a loaded box (the browser tier's, other agents running) the page was
+  0.1–0.5 s behind (pane 21.2 beside the angle of frame ~9) and caught up on pause — it never
+  accumulates (latest wins) but it is not "frame for frame" at full speed there. At a slow pace
+  (the filmstrip) it was on the pane's frame in 27 of 28 readings. Building the DAG's keyframes
+  all at once on the first frame of play stalled the pane for seconds, so `filmFor` now steps
+  one keyframe per frame and the DAG joins in when the film is ready (the grid, the chart and
+  the pane move from the first frame). I did not profile the per-frame cost further; it is
+  filed below.
 - `speed` has a floor of 0.25× (`AA.parseSweepSpeed`); the filmstrip sets `__sweep.speed`
   in the frame to go slower than a screenshot.
 - Reduced motion rounds the pane's *displayed* index only; the continuous `playbackPosition`
@@ -55,10 +64,11 @@ Pane's play pressed, 28 readings, one synchronous read of every surface each. Ex
 Columns advance together, and the same pane frame gave the same four readings every time it
 was read (rows with the same pane frame are identical on all four surfaces). In the last run
 27 of 28 readings had the page exactly on the pane's frame and one (pane 12) showed the page
-one frame behind (angle 4.0, frame 11's) — the rAF skew above, not a stuck surface; earlier
-runs on a busier box showed more of them (with per-message drawing, before the latest-wins
-fix, up to a few frames). **So "identical columns" holds as: the four page surfaces move on one
-pose and agree with each other; against the pane's own index the page can trail by one display frame.**
+one frame behind (angle 4.0, frame 11's). **So "identical columns" holds as: the page's
+surfaces move on one pose and agree with each other, and at a slow pace they sit on the pane's
+frame; at the pane's full pace on a loaded box the page trails by its own draw time (above).**
+The DAG column's sum is the one honest summary of its bar ends; the DAG is eased between
+keyframes (`VA.poseFilm`), so it is a few px off a settled render mid-play by design.
 Pause: the pane paused at frame 28 / angle 21.0 / cursor 365.84 and 800 ms later read the same
 on all four. Seek: the browser tier's check lands the angle read-out on frame 5's angle after
 `seek #5`.
@@ -72,11 +82,11 @@ read-out 7.0, the chart cursor at 7).
 
 - Worktree (`C:\workspace\tolstack-worktrees\the_linkage_play_control_is_the_only_one_and_it_moves_everything`): `node apps/viewer/run_tests.cjs` 544/544 (node-fs tier skipped: no projection in a worktree); `node apps/annotate/run_tests.cjs` 297/297.
 - Browser tier from the worktree against the main checkout's data (`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only ...`, a junctioned `node_modules`): "annotate rail holds still" 17/17 (carries the three pane-driven checks) and "the DAG zoom, Fit and the grid header" 44/44. The whole browser tier was **not** run here — the reviewer's post-merge run in the main checkout covers it.
-- Mutation witnesses for every new guard, `--repo C:/workspace/tolstack`: read-out (fast), embedPose (annotate), no-Play-button (browser), play-moves-page, seek-lands — WITNESSED; pause-holds — see the re-run section below.
+- Mutation witnesses for every new guard, `--repo C:/workspace/tolstack`: read-out (fast), embedPose (annotate), no-Play-button (browser), play-moves-page, seek-lands — WITNESSED, and pause-holds — all six, after the checks were made tolerant of a loaded box (several samples, wait-until-three-agree).
 - `pytest -q` in the worktree: see the end of this file.
 
 ## Left over
 
-- Filed: `docs/issues/ISSUE_20261108_the_kinematic_page_cannot_play_or_scrub_without_the_3d_pane.md` (strategy, low).
+- Filed: `docs/issues/ISSUE_20261108_the_kinematic_page_cannot_play_or_scrub_without_the_3d_pane.md` (strategy, low) and `docs/issues/ISSUE_20261108_the_page_trails_the_3d_pane_by_its_draw_time_at_full_pace.md` (the lag above).
 - The `pytest` reds that are the worktree, not the change: `tests/test_viewer_js_suite.py` (no projections here, by design) and `tests/test_mutation_witness_shadow_concurrency.py` (a Windows `rmtree` EPERM in the shadow tree — fails on its cleanup, not on a witness).
 - `docs/prompts/REVIEW_AGENT.md` still cites the old Play-button sighting as history; left as is.
