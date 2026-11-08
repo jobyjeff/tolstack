@@ -31,3 +31,9 @@ guards are outside the registry, and enrolling is a separate decision.
 - Not run: viewer node-fs/browser TRUTH tiers (not touched).
 - Pre-existing, unrelated: two mock-anchor FAILs in the same browser check
   (`ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration`).
+
+## 5-run record (final)
+Five consecutive runs of `node apps/annotate/run_browser_check.mjs --repo C:/workspace/tolstack`
+in one loop: both checks PASS 5/5, 0 FAIL of either. A second loop of the same command ran
+partly alongside it and the full pytest suite: runs 2-4 PASS with the same numbers (72/71,
+12/48). Before: red 4/5 and 3/5.
