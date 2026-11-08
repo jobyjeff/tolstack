@@ -5944,7 +5944,7 @@ if (!SWEEPS_DIR) {
 
   // The sweep rail's tree on P2 (handoff the_sweep_rail_shows_the_mechanism):
   // the run the handoff names, read for what the rail shows.
-  const P2_FILE = "vpa-pitch-p2-20261016-235852.json";
+  const P2_FILE = "vpa-pitch-p2-20261105-204957.json";
   if (SWEEP_RUNS.indexOf(P2_FILE) === -1) {
     console.log("SKIP  [real] P2's mechanism tree -- " + P2_FILE + " is not published here");
   } else {
@@ -5981,17 +5981,20 @@ if (!SWEEPS_DIR) {
       const joints = AA.modelJointGroups(topo, features);
       const r2 = (p) => p.map((v) => Math.round(v * 100) / 100 + 0);
       assertEqual(joints.groups.map((g) => g.members),
-        [["hub_spindle_bore_axis", "pitch_plate_spindle_bore_axis"]], "the one merged joint on P2");
+        [["hub_spindle_bore_axis", "pitch_plate_spindle_bore_axis"],
+         ["gas_spring_mount_bushing_bore", "gas_spring_piston_body_od"]], "the merged joints on P2");
       const asModelled = AA.modelJointWorldPoints(joints, features, {}, null);
       assertEqual(r2(asModelled.hub_spindle_bore_axis), [0, 0, 0], "as modelled (72 deg, zero travel)");
       const first = AA.modelJointWorldPoints(joints, features, {}, AA.sweepFrameAt(art, 0));
       assertEqual(r2(first.hub_spindle_bore_axis), [0, 0, 32.23], "at the first point (-7 deg): half the slide");
       const rows = {};
       joints.measured.forEach((r) => { rows[r.edge] = r; });
-      // Exactly these four: gas_spring_bushing_coaxiality is not measured,
-      // because gas_spring_mount_bushing_bore has no feature on this run.
+      // Exactly these five: since the 2026-11-05 republish the plate slide's own
+      // edge (the mount's bushings on the piston body) has a solver feature at
+      // both ends, and its two ends are one joint.
       assertEqual(Object.keys(rows).sort(), ["hub_blade_axis_offset",
-        "hub_to_pitch_plate_spindle_coaxiality", "pitch_link_length", "tan_link_length"],
+        "hub_to_pitch_plate_spindle_coaxiality", "pitch_link_length",
+        "pitch_plate_slide_bushings_to_piston_body", "tan_link_length"],
         "the edges with a solver feature at both ends");
       if (rows.pitch_link_length.merge || rows.tan_link_length.merge || rows.hub_blade_axis_offset.merge) {
         throw new Error("a link's two centres, or the spindle and the blade hinge, merged");

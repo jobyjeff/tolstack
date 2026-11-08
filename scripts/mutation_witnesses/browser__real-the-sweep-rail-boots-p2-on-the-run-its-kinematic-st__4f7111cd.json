@@ -8,7 +8,7 @@
       "issue": "docs/sessions/lessons/LESSONS_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md",
       "note": "Declared with the guard by handoff the_kinematic_study_checks_its_run_its_units_and_shows_its_limit (2026-10-21). Points the constant back at the older P2 run, which is on disk, so only this check notices.",
       "file": "scripts/run_viewer_browser_tests.mjs",
-      "find": "const SWEEP_RAIL_RUN = \"vpa-pitch-p2-20261016-235852\";\n",
+      "find": "const SWEEP_RAIL_RUN = \"vpa-pitch-p2-20261105-204957\";\n",
       "replace": "const SWEEP_RAIL_RUN = \"vpa-pitch-p2-20261015-013931\";\n"
     }
   ]

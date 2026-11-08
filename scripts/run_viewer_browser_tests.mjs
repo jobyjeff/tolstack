@@ -8546,7 +8546,7 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
 // length, on two faces of the first part the sweep opened.
 const BIND_RAIL_SNAPSHOT = join(REPO, "tests", "fixtures", "annotate", "bind_rail_snapshot.json");
 const WRITE_BIND_RAIL_SNAPSHOT = process.argv.includes("--write-bind-rail-snapshot");
-const SWEEP_RAIL_RUN = "vpa-pitch-p2-20261016-235852";
+const SWEEP_RAIL_RUN = "vpa-pitch-p2-20261105-204957";
 const SWEEP_RAIL_STUDY = "vpa_pitch_linkage_blade_pitch_at_the_stops";
 
 // --- an armed pick (a_face_is_picked_the_way_cad_picks_it) -------------------
@@ -13097,6 +13097,10 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         /vpa_pitch_linkage_travel_between_end_stops/.test(remembered) &&
         await travelKids().count() === 0);
 
+      // An edge's name is read from the projection by id, so a rename of the
+      // edge cannot redden a check that asks for it (2026-11-06).
+      const edgeName = (id) => realProjection.topologies
+        .find((t) => t.id === "vpa_pitch_linkage").edges.find((e) => e.id === id).name;
       // A sensitivity's hover: its curve across P2, in the page's one popover.
       // The tangential-link mount height's coefficient changes sign between
       // the stops, so both signs are on the card's axis.
@@ -13110,7 +13114,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       }, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
       push("[real] hovering a sensitivity shows its curve across the sweep, both signs " +
         "of the mount height's on its axis",
-        /tangential link mount/.test(curveCard) && /\+0\.172/.test(curveCard) &&
+        curveCard.includes(edgeName("tan_link_mount_height")) && /\+0\.172/.test(curveCard) &&
         /-0\.241/.test(curveCard));
       await dismissCard(page);
 
@@ -13138,8 +13142,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         "place: the page stays the study, the model marks it, the preview pane shows it",
         await page.locator("div.kmverdict").count() === 2 &&
         await page.locator(navRow("kinematic", STUDY) + ".navtree__row--on").count() === 1 &&
-        /pitch-link attachment bore, height/.test(
-          await page.locator("#detail").innerText()) &&
+        (await page.locator("#detail").innerText())
+          .includes(edgeName("pitch_plate_attach_height")) &&
         await page.locator('#topopane tr.tvrow--selected[data-id="pitch_plate_attach_height"]')
           .count() === 1);
 
