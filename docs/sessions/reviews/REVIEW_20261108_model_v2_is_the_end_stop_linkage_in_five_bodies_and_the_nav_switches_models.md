@@ -224,3 +224,39 @@ dirty=False behind_trunk=0`, so the `[real]` tiers judged this tree.
 ### Verdict
 
 **APPROVE (round 2), 0 blockers.** No should-fix is left unfixed.
+
+### Landing: integration moved, one conflict, and integration was already red
+
+My first `git fetch . review/…:integration` was refused because
+`integration` had moved, and nine commits had landed:
+`the_linkage_play_control_is_the_only_one_and_it_moves_everything`, round 2,
+and an issue. Merging `integration` into `review/…` conflicted in
+`scripts/guard_enumeration.mjs` `DECLARED_GUARDS`:
+
+- integration had swapped fast guards one for one at 669, with a new digest,
+  and taken annotate to 297;
+- this branch had taken fast 669→672 and annotate 296→301.
+
+Resolution: I kept both sides' comments and re-measured the pins on the
+merged tree with `census()`. They came out fast **672** / `c6b7e89ec8b5` and
+annotate **302** / `10971c663fa6`, which is exactly 669+3 and 297+5. I
+grepped for marker lines and found none. Merge commit `f030bdac`.
+
+After the merge I rebuilt the projections (stamps `sha12=f030bdaceba1
+dirty=False`) and re-ran a risky subset:
+
+- `pytest -q tests/test_mutation_witnesses.py tests/test_viewer_js_suite.py
+  tests/test_feature_identity.py tests/test_topology.py tests/test_kinematic.py
+  tests/test_architecture_inventory.py tests/test_js_vocabulary_is_generated.py`:
+  **430 passed, 1 failed**;
+- `node apps/annotate/run_tests.cjs`: **302/302**;
+- `node apps/viewer/run_tests.cjs`: **672/672**.
+
+The one failure, `test_every_anchor_resolves_to_exactly_one_place`, is
+**integration's own**. Spec `…a-seek-in-the-pane-lands…__f697d046` anchors on
+`Math.abs(state.kinematicPose - index) > 1e-6`, and that line is in **0**
+places on the `integration` tip as well as on the merge. The play-control
+rework (`665e4d34`) rewrote it. It is not this handoff's, and I did not fix
+it in someone else's work: filed high as
+`ISSUE_20261108_the_pane_seek_witness_anchor_rotted_on_integration_and_reddens_pytest.md`.
+Landing this branch neither causes that red nor hides it.
