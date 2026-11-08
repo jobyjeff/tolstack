@@ -12060,45 +12060,34 @@
         ok(film.valid());
       });
 
-    await test("the pose control: play, a travel slider, the angle at the pose and a button " +
-      "per stop -- a drag reports unsettled moves, a release and a typed angle settle, and " +
-      "the chart's cursor marks the pose", function () {
+    await test("the pose read-out: the angle at the pose as a field that sets the pose, a button " +
+      "per stop, the chart's cursor marks the pose -- and the page carries no transport " +
+      "of its own (the 3D pane's is the one)", function () {
         var posed = [];
-        var played = [];
         var pose = VA.kinematicPose(KIN_STUDY, 1.5);
         var root = kinematicPage({ stackStop: "low", pose: pose,
-          onStackStop: function () {}, onPlay: function (on) { played.push(on); },
-          onPose: function (f, settled) { posed.push([f, settled]); } });
-        var slider = all(root, "input.kmpose__slider")[0];
+          onStackStop: function () {}, onPose: function (f) { posed.push(f); } });
         var field = all(root, "input.kmpose__angle")[0];
-        eq([slider.getAttribute("min"), slider.getAttribute("max"), slider.value],
-           ["0", "20", "7.5"], "the slider runs over the driver, like the chart's x axis");
         eq(field.value, "23.0");
-        slider.value = "12.5";
-        slider.oninput();
-        slider.onchange();
         field.value = "53";
         field.onchange();
-        eq(posed, [[2.5, false], [2.5, true], [3, true]]);
-        all(root, "button.kmpose__play")[0].onclick();
-        eq(played, [true]);
+        eq(posed, [3]);
+        eq(all(root, "input.kmpose__slider").length + all(root, "button.kmpose__play").length, 0,
+           "no second transport");
         eq(all(root, "button.kmstop__button").map(function (b) {
           return b.getAttribute("aria-pressed"); }), ["false", "false"], "off both stops");
         var cursor = all(root, "line.kmchart__pose")[0];
         var chart = VA.kinematicChart(KIN_STUDY, 3);
         eq(Number(cursor.getAttribute("x1")), VA.kinematicChartX(chart.xScale, 7.5));
-        // A frame of play moves the marks in place.
-        VA.syncPoseControl(root, KIN_STUDY, VA.kinematicPose(KIN_STUDY, 4), true);
+        // A frame of the pane's play moves the marks in place.
+        VA.syncPoseControl(root, KIN_STUDY, VA.kinematicPose(KIN_STUDY, 4));
         eq(Number(cursor.getAttribute("x1")), VA.kinematicChartX(chart.xScale, 20));
-        eq(slider.value, "20");
-        eq(all(root, "button.kmpose__play")[0].textContent, "Pause");
-        // Play started without a render, so the second click on the same button
-        // is a pause: it reads the live label, not the render-time ctx.playing.
-        all(root, "button.kmpose__play")[0].onclick();
-        eq(played, [true, false], "the second click pauses");
+        eq(field.value, VA.kinematicNumber(VA.kinematicPose(KIN_STUDY, 4).measure, 1));
         eq(all(root, "button.kmstop__button")[1].getAttribute("aria-pressed"), "true");
-        eq(all(kinematicPage({ stackStop: "low", onStackStop: function () {} }),
-           "input.kmpose__slider").length, 0, "no pose, no slider");
+        eq(all(root, "p.kmhead__pose").length, 0, "no stale-run line on a matching run");
+        eq(all(kinematicPage({ stackStop: "low", onStackStop: function () {},
+           poseNote: "The 3D pane shows run x" }), "p.kmhead__pose").length, 1,
+           "a pane on another run is said in one muted line");
       });
 
     await test("the pose rides in the URL as the angle there, beside its study, and " +

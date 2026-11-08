@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the pose read-out: the angle at the pose as a field that sets the pose, a button per stop, the chart's cursor marks the pose -- and the page carries no transport of its own (the 3D pane's is the one)",
+  "mutations": [
+    {
+      "contract": "A frame of the pane's play moves the page's angle read-out in place.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md",
+      "note": "The read-out stops following the pose the pane moves.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "    if (field && field !== active) {\n",
+      "replace": "    if (false) {\n"
+    }
+  ]
+}

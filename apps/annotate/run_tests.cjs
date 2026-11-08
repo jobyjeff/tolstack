@@ -1736,6 +1736,17 @@ check("embedState names the mode and the subject in one line -- the run's mechan
     "Binding — Propeller pitch linkage");
   assertEqual(AA.embedState(null, null, null).title, "Binding");
 });
+check("embedPose tells the page where the pane's transport is: the run it is on, the " +
+  "point index, the driver there and whether it plays", () => {
+  const artifact = { runId: "run-1" };
+  assertEqual(AA.embedPose(artifact, { driver: 41.25 }, 3.5, true), {
+    type: "annotate:pose", run: "run-1", index: 3.5, driver: 41.25, playing: true,
+  });
+  assertEqual(AA.embedPose(artifact, null, 0, false), {
+    type: "annotate:pose", run: "run-1", index: 0, driver: null, playing: false,
+  });
+  assertEqual(AA.embedPose(null, null, "x", 0).run, null);
+});
 check("isolate parts: the named parts are ghost and every other installed part faint, " +
   "or hidden under the unlit word hide, and none is solid -- and a scope with no mesh says so in the head line", () => {
   assertEqual(AA.ISOLATE_PARTS_WORD, "parts");
