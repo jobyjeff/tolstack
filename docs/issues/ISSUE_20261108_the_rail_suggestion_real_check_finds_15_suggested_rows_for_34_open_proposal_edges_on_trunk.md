@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: annotate/browser-tier
 reporter: agent
 class: browser_red_on_trunk
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261108_triage_sweep.md
-handoff: the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show
+handoff: docs/sessions/HANDOFF_20261108_the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show.md
 ---
 
 # The rail-suggestion `[real]` check finds 15 suggested rows for 34 open-proposal edges on trunk

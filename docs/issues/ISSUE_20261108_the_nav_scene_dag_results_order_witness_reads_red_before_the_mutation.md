@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: mutation-witnesses
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
 class: decayed_witness
+resolution: triage 2026-11-08: low, default 30-day defer
 ---
 
 # `browser__real-the-kinematic-page-reads-nav-scene-dag-results-left__fb0d661d` reads "tier red before the mutation"

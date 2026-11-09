@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: viewer/pose
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
 class: pose_sync
+resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days
 ---
 
 # The kinematic page trails the 3D pane by its own per-frame draw time at the pane's full pace

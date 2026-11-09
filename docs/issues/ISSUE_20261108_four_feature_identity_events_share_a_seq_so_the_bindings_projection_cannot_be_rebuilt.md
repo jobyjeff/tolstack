@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: feature-identity
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
+handoff: docs/sessions/HANDOFF_20261108_the_bindings_projection_folds_the_events_jeff_accepted.md
 ---
 
 # Four feature-identity events share a seq, so the bindings projection cannot be rebuilt

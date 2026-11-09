@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/mutation-witness
 reporter: agent
-class: flaky_witness
+class: flaky_check
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
+resolution: triage 2026-11-08: low, default 30-day defer
 ---
 
 # The synthetic-binding witness is red before mutation inside a `--changed-since` batch, and green alone

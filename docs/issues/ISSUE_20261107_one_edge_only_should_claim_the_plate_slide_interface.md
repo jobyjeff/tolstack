@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+class: one_fact_written_twice
 area: topology/interface
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261106_the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id.md
+resolution: triage 2026-11-08: low, default 30-day defer
 ---
 
 # Two edges still carry `cylindrical_slide`: the real slide and the hub coaxiality

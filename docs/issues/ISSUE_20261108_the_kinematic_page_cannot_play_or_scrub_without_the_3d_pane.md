@@ -1,11 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
+class: pose_sync
 area: viewer/pose
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
+resolution: triage 2026-11-08: low, default 30-day defer
 ---
 
 # With the 3D pane closed, the kinematic page has no way to play or scrub its pose

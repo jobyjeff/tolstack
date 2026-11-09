@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
 class: decayed_witness
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
+handoff: docs/sessions/HANDOFF_20261108_the_pane_seek_witness_points_at_the_comparison_the_page_now_makes.md
 ---
 
 # The pane-seek witness's anchor rotted on integration, and `pytest -q` is red there

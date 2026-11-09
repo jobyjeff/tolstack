@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+class: dag_layout_policy
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
+resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days
 ---
 
 # Model v2's five-body DAG draws a column, not a loop
