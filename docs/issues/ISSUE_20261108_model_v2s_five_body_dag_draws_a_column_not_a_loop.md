@@ -44,3 +44,15 @@ so the loop's closing rail is the one short edge; (b) draw the five mechanism
 bodies as a ring layout distinct from the walk (a new renderer, not a tweak);
 (c) leave the walk and fold riders into their hosts' blocks so the column is
 shorter. (a) is the smallest change that addresses 1 and 2 together.
+
+## Addendum 2026-11-08 — the_end_stop_model_names_its_datums_right_and_folds_its_riders
+
+Option (a), in Jeff's reading order rather than the cycle's direction: v2 now
+declares `"walk_order": "authored"` and draws its five bodies in `bodies[]`
+order: base (hub, tan-link mount, gas-spring mount, cover), tangential link,
+pitch plate (plate, piston, lower head, upper head), pitch link, blade. The
+riders are folded, so points 1 and 3's one-row rider pills are gone. Still
+open: the blade is reached last, so `blade_root_bearing_to_pitch_arm_seat`
+closes back up to the hub's bore row at the top (point 2). The grid's
+placement (point 4) belongs to the DAG/grid sibling. Shots:
+`docs/sessions/lessons/shots/end_stop_names_riders/`.
