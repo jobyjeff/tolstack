@@ -1,3 +1,11 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261108_a_kinematic_row_shows_the_numbers_the_fold_uses_or_refuses.md
+reviewer: agent
+date: 2026-11-08
+verdict: APPROVE
+---
+
 # Review — a_kinematic_row_shows_the_numbers_the_fold_uses_or_refuses
 
 **Verdict: APPROVE** (merged to `integration`; no inline fixes, no conflicts).
