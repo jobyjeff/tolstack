@@ -9,7 +9,7 @@
       "note": "Puts the second copy back: `214373-002 214373-002 propeller hub`.",
       "file": "apps/viewer/views/topology.js",
       "find": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words && !bracketed ? words.number : \"\");",
-      "replace": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words ? words.number : \"\");"
+      "replace": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words && !bracketed ? words.number : \"\");"
     }
   ]
 }
