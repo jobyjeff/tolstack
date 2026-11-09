@@ -2,6 +2,7 @@
 type: chore
 priority: low
 status: deferred
+class: guard_cannot_fail
 area: apps/annotate browser check, mutation witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261106_the_annotate_pacing_checks_step_a_virtual_clock.md
