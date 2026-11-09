@@ -1387,10 +1387,7 @@ body { display: flex; flex-direction: column; }
 .detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
 .detail__vallabel { width: 110px; flex: none; color: var(--muted); }
 .detail__valnum { font-variant-numeric: tabular-nums; }
-.detail__transform {
-  margin: 8px 0; color: var(--muted); font-size: var(--t-meta);
-  font-family: ui-monospace, monospace;
-}
+.detail__transform { margin: 8px 0; color: var(--muted); font-size: var(--t-meta); }
 /* A 3px SPINE in the accent, not a 1px ring around the whole box (2026-09-17).
    The accent is right here -- this block is the SELECTED study's own reading of
    the edge, and the selected study's path is what the accent means on this page

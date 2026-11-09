@@ -989,6 +989,29 @@ check("the pane's status: one word per state, and the shell styles every tone", 
   }
 });
 
+check("the pane's status is shown only once a write begins, in either mode", () => {
+  // the_demo_path_reads_cleanly_on_a_projector: an amber "folder needed" sat
+  // in the pane's head through a whole demo that never wrote anything.
+  for (const key of Object.keys(AA.PANE_STATUS)) {
+    assertEqual(AA.paneStatusShown(AA.PANE_STATUS[key], false), null);
+    assertEqual(AA.paneStatusShown(AA.PANE_STATUS[key], true), AA.PANE_STATUS[key]);
+  }
+  assertEqual(AA.paneStatusShown(null, true), null);
+  // The three gestures that begin one each say so before anything is drawn
+  // or written (app.js's beginWrite): a face picked, a pick armed, a write.
+  const app = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  const body = (name) => {
+    const at = app.search(new RegExp("^(async )?function " + name + "\\b", "m"));
+    if (at === -1) throw new Error("app.js has no function " + name);
+    return app.slice(at, app.indexOf("\n}\n", at));
+  };
+  for (const name of ["cmdSelectFace", "cmdArm", "nextEventSeq"]) {
+    if (body(name).indexOf("beginWrite();") === -1) {
+      throw new Error(name + " no longer begins a write, so the status never appears after it");
+    }
+  }
+});
+
 check("sweep: the folded bar's two figures and the scrubber chip are one composition", () => {
   const art = AA.readSweepArtifact(sweepFixture());
   const values = AA.sweepDriverValues(art);

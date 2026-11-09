@@ -4366,8 +4366,8 @@
       root.appendChild(values);
     }
 
-    root.appendChild(VA.el("div", "detail__transform",
-      "default transform: " + VA.transformText(record.transform)));
+    var scaled = VA.transformWords(record.transform);
+    if (scaled) root.appendChild(VA.el("div", "detail__transform", scaled));
 
     if (record.contribution && record.contribution.kind === "chain") {
       root.appendChild(contributionBlock(record.contribution, ctx.topoProj));
@@ -4419,16 +4419,13 @@
       VA.nodeLabel(topoProj, c.to));
     row(box, "sign", c.sign < 0 ? "− (against the edge's orientation)"
       : "+ (with the edge's orientation)");
-    row(box, "transform", c.transform + "  ×" + VA.fmt(c.ratio));
+    row(box, "scale", "×" + VA.fmt(c.ratio));
     row(box, "weight", VA.fmt(c.weight));
     row(box, "contributes",
       VA.fmt(c.min) + " … " + VA.fmt(c.max) + " " + c.units);
     box.appendChild(VA.el("p", "muted",
-      "No sign is authored anywhere: it is read off the direction the chain " +
-      "crossed this edge. " + (hit.override
-        ? "This study OVERRIDES the edge's default transform with `" +
-          hit.override + "`."
-        : "The edge's own default transform applied.")));
+      "Its sign is read off the direction the chain crosses this edge." +
+      (hit.override ? " This study scales it its own way." : "")));
     return box;
   }
 
@@ -4494,15 +4491,11 @@
     box.appendChild(VA.el("h4", null, "Drawing crop"));
     if (!record.crop) {
       box.className = "detail__crop detail__crop--no-key";
-      box.appendChild(VA.el("div", "detail__crop-reason",
-        record.noCropReason +
-        " No crop index covers it — that is the state of the documents, not a " +
-        "stale projection."));
       var ref = record.citation;
-      if (ref && ref.kind === "assumed") {
-        box.appendChild(VA.el("div", "detail__crop-reason",
-          "Its citation is kind `assumed`: there is no document behind it to crop."));
-      }
+      box.appendChild(VA.el("div", "detail__crop-reason",
+        ref && ref.kind === "assumed"
+          ? "Its value is an assumption; its crop appears here once a drawing backs it."
+          : record.noCropReason));
       return box;
     }
     var entry = record.crop.entry;

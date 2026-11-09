@@ -254,7 +254,7 @@
       "library is append-only, so nothing in it is renamed or re-exported " +
       "over and the filename IS the identity. Those rows say “" +
       VA.IDENTITY_RULES.spec_pile_filename.headline +
-      "” in place of an export block, and `traced` beside no export is correct " +
+      "” in place of an export block, and “traced” beside no export is correct " +
       "for them and only for them."));
     list.appendChild(VA.el("li", null,
       "Any other citation with no export block has nothing identifying its bytes " +
@@ -764,7 +764,7 @@
     if (stackProj.checks_source === "generated") {
       section.appendChild(VA.el("p", "check__note",
         "GENERATED CHECKS. These are not authored in " + stackProj.source_file +
-        " — its `checks` array is empty on purpose. The archetype \"" +
+        " — its checks list is empty on purpose. The archetype \"" +
         (stackProj.archetype || "?") + "\" builds them, coefficients included, " +
         "from the stack's own block, and the projection ran that loader in " +
         "Python: the same code the tests pin, so nothing here was re-derived in " +
