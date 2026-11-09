@@ -3,7 +3,7 @@
 // collects it, and it asserts nothing: it takes the walk's shots and prints
 // the numbers each one is read against.
 //
-//   node tests/debug_integration_walk_20261108.mjs [--phase probe|walk|demo|models|all]
+//   node tests/debug_integration_walk_20261108.mjs [--phase probe|walk|pane3d|demo|demo8000|models|all]
 //        [--shots <dir>] [--widths 1600,2560] [--repo C:/workspace/tolstack]
 //
 // Serves THIS tree's apps/ with data/ from the main checkout (as
@@ -13,7 +13,9 @@
 // empty store.
 //   walk   -- one shot per sentence of Jeff's 2026-11-08 complaint (S1..S15),
 //             at each width
+//   pane3d -- the 3D pane's framed scene (S1) and Bodies list (S10/S13), at each width
 //   demo   -- the five demo clicks at 1920x1200
+//   demo8000 -- the same five clicks against drawing-checker's mount on 8000
 //   models -- v2 -> v1 -> v2 in one page
 import { createServer } from "node:http";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
