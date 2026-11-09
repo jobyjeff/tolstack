@@ -1018,7 +1018,8 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
     if (!hit) { bad.push(`${row.id}: no bar hit line`); continue; }
     // The bar and its hit line share y1/y2 (slot extent, 1px inset each end),
     // butt-capped, so the rect's height is exactly the drawn length.
-    const h = hit.getBoundingClientRect().height;
+    // In the DAG's own units: the drawing is at its zoom (lastTopoRender.zoom).
+    const h = hit.getBoundingClientRect().height / ((last && last.zoom) || 1);
     if (Math.abs(h - (slot.length - 2)) > 0.75) {
       bad.push(`${row.id}: drawn ${h.toFixed(2)} vs slot ${(slot.length - 2).toFixed(2)}`);
     }
@@ -1161,8 +1162,10 @@ const ZONE_IN_PAGE = () => {
   const id = VA.lastTopoRender.topologyId;
   const proj = VA.findTopology(VA.demoTopologyFixture().topologies, id);
   const layout = VA.spineRight(proj.layout);
+  // At the zoom the page drew at: the DAG's part of the SVG scales with it,
+  // the jog zone does not (VA.leaderGeometry's `zoom`).
   const natural = VA.leaderGeometry(layout, VA.gridPlan(layout, proj),
-    VA.RAIL_METRICS);
+    VA.RAIL_METRICS, null, { zoom: { k: VA.lastTopoRender.zoom || 1, y0: 0 } });
   const svg = document.querySelector("svg.tv__rails").getBoundingClientRect().width;
   return {
     topologyId: id,
@@ -1995,7 +1998,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const at = await page.evaluate((sel) => {
         const row = document.querySelector(sel);
         if (!row) return null;
-        const cell = row.querySelector("td.tvcell--nominal") || row;
+        // The PART cell: on screen at the suite's width since the brackets'
+        // label gutter widened it (the labels over it take no pointer).
+        const cell = row.querySelector("td.tvcell--part") || row;
         const b = cell.getBoundingClientRect();
         return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
       }, rowFor(id));

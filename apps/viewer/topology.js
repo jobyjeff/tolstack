@@ -1474,9 +1474,10 @@
   // walk fails here instead of being unreachable.
   // `max` 2 is where the 26px rows are 52px and the text is large enough for
   // anything a reader zooms in for. `step` is one wheel notch's factor.
-  // `min` went 0.12 -> 0.1 on 2026-11-08, when the containers' label bands
-  // (VA.CONTAINER_LABEL) made the product walk ~7% taller.
-  VA.DAG_ZOOM = { min: 0.1, max: 2, step: 1.15 };
+  // `min` went 0.12 -> 0.08 on 2026-11-08, when the containers' label bands
+  // (VA.CONTAINER_LABEL) made the product walk taller: Fit under tolerance
+  // width, below the page's real pinned bars, was clamped at 0.1.
+  VA.DAG_ZOOM = { min: 0.08, max: 2, step: 1.15 };
 
   VA.clampDagZoom = function (scale) {
     var n = Number(scale);
