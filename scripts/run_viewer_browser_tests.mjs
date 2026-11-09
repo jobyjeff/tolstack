@@ -1038,16 +1038,11 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
              .map((r) => Math.round(pos.edges[r.id].length)))).sort((a, b) => a - b) };
 };
 
-// The alternating bands and the two draggable widths
-// (viewer_leader_grid_legibility), measured in the page.
-//
-// The band claim is a CORRESPONDENCE like the leaders': the band between two
-// adjacent leaders and the grid rows that band feeds wear one tint. So it is
-// measured the way the leaders' is -- off what the browser actually painted.
-// `fill` is the computed colour of each band polygon and `rowBg` the computed
-// background of each row, both as the browser resolved them, and the mapping
-// from a row to its band is re-derived from the projection rather than read
-// back out of the render.
+// What the leaders' zone and the grid rows paint behind them, measured in
+// the page: nothing. The alternating bands were removed 2026-11-08
+// (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows), so
+// `drawn` -- the band polygons in the rails SVG -- must be 0, and a row's
+// background says nothing (below).
 // A real pointer on `selector`, at a point the browser says is that element's
 // own -- not under a leader's hit path, a rail or the sticky top bar. On the
 // product graph (a page thousands of pixels tall, every leader crossing it)
@@ -1098,34 +1093,16 @@ async function clearPoint(page, selector, action) {
   if (action === "click") await page.mouse.click(point.x, point.y);
 }
 
-const BANDS_IN_PAGE = () => {
+const GRID_IN_PAGE = () => {
   const VA = window.ViewerApp;
   const last = VA.lastTopoRender;
   const proj = VA.findTopology(VA.demoTopologyFixture().topologies, last.topologyId);
   const layout = VA.spineRight(proj.layout);
   const plan = VA.gridPlan(layout, proj);
-  const bands = VA.leaderBands(plan);
-  const parity = VA.rowBandParity(plan);
-  const drawn = Array.from(document.querySelectorAll("svg.tv__rails path.rail__band"));
+  const drawn = document.querySelectorAll("svg .rail__band, .rail__band").length;
   const rows = Array.from(document.querySelectorAll("tr.tvrow"));
   const bad = [];
-  if (drawn.length !== bands.length) {
-    bad.push(`${drawn.length} band polygons drawn for ${bands.length} bands`);
-  }
-  // A band polygon's own fill, keyed by parity: two tints, and they must
-  // differ or the alternation is not on screen at all.
-  const fills = {};
-  drawn.forEach((path, i) => {
-    const band = bands[i];
-    if (!band) return;
-    const fill = getComputedStyle(path).fill;
-    if (fills[band.parity] === undefined) fills[band.parity] = fill;
-    else if (fills[band.parity] !== fill) bad.push(`band ${i} fill drifted`);
-    if (getComputedStyle(path).pointerEvents !== "none") {
-      bad.push(`band ${i} is hit-testable -- it would swallow a bar's click`);
-    }
-  });
-  if (fills[0] === fills[1]) bad.push("both band tints resolve to one colour");
+  if (drawn) bad.push(`${drawn} band polygons are still drawn`);
   // A row's background says nothing (the_grid_fits_the_screen_and_its_
   // brackets_say_what_nests_in_what): no body tint, no divider, no untraced
   // wash. Its body and its sub-stacks are the brackets over it, one pair of
@@ -1157,10 +1134,10 @@ const BANDS_IN_PAGE = () => {
     if (caps.length < 2) bad.push(`bracket ${brace.id} has ${caps.length} caps`);
   });
   return {
-    bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
+    bad, tinted, provenanceLayers, drawn,
     // The plan's own leader count, so a check compares what is drawn with what
     // the layout asks for. The number itself is the fast tier's to pin
-    // (apps/viewer/tests.js, "[real]" leaders/bands, which d3a7afae moved).
+    // (apps/viewer/tests.js, "[real]" leaders, which d3a7afae moved).
     leaders: plan.leaders.length,
     svgWidth: document.querySelector("svg.tv__rails").getBoundingClientRect().width,
     rowHeights: rows.map((r) => Math.round(r.getBoundingClientRect().height * 100) / 100),
@@ -2556,7 +2533,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // ends on its dot and its seam. So each is toggled and correspondence
     // re-measured, which is the matrix the handoff asks for -- jogged ×
     // angled, and the jog zone at two widths.
-    const bands = () => page.evaluate(BANDS_IN_PAGE);
+    const bands = () => page.evaluate(GRID_IN_PAGE);
 
     // ANGLED is the default since 2026-09-21 (viewer_nav_alert_badge_and_
     // angled_default), so the default style is measured FIRST and jogged is
@@ -2564,8 +2541,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // really usable yet and arguably isn't worth putting more effort into
     // since the angled lines look just fine)."
     const angledBands = await bands();
-    push("the bands are drawn, tinted by parity, and hit-test nothing",
-      angledBands.bad.length === 0 && angledBands.drawn === angledBands.bands &&
+    push("no band is drawn behind the leaders, and no grid row wears a tint",
+      angledBands.bad.length === 0 && angledBands.drawn === 0 &&
       angledBands.tinted > 0);
     if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
     push("the leader-style toggle starts at angled",
@@ -2592,8 +2569,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       joggedBands.leaderPaths.every((d) => / H .* V .* H /.test(d)));
     push("jogged leaders land on exactly the same dots and seams",
       (await correspondence()).drift.length === 0);
-    push("the bands follow the jogged leaders and still tint by parity",
-      joggedBands.bad.length === 0);
+    push("with the jogged leaders still no band is drawn and no row wears a tint",
+      joggedBands.bad.length === 0 && joggedBands.drawn === 0);
     if (joggedBands.bad.length) console.log("    bands: " + joggedBands.bad.slice(0, 5).join(" | "));
 
     // Dragging the jog zone open, with a real pointer on the real grip --
@@ -3385,25 +3362,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
 
-      // The bands and both leader styles on the REAL pitch_system -- the
-      // document Jeff was reading when he said the leaders were near
-      // impossible to follow, and the one where the leaders genuinely cross
-      // each other until descending_leaders_take_a_path_that_cannot_cross
-      // (2026-10-30: ISSUE_20260914_leaders_cross_each_other_since_the_grid_
-      // was_centred.md). 43 rows and 16 leaders is also the only
-      // case with enough bands for "ride a band across the jog zone" to mean
-      // anything.
-      const realBands = await page.evaluate(BANDS_IN_PAGE);
-      push("[real] pitch_system's bands are tinted by parity, its rows wear no tint, " +
+      // Both leader styles on the REAL pitch_system -- the document Jeff was
+      // reading when he said the leaders were near impossible to follow, and
+      // the one where the leaders genuinely cross each other until
+      // descending_leaders_take_a_path_that_cannot_cross (2026-10-30:
+      // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md).
+      const realBands = await page.evaluate(GRID_IN_PAGE);
+      push("[real] pitch_system draws no band, its rows wear no tint, " +
         "and its untraced rows say so on their mark",
-        // One band more than the plan has leaders, every one drawn. These
-        // were literals (62 bands off 61 leaders) and went stale twice in a
-        // day -- 6d23015d took the graph to 62 leaders and b4b641db to 63 --
-        // while the fast tier, which pins the count off the same projection,
-        // was moved. So the count is read from the plan and pinned there once.
         realBands.bad.length === 0 && realBands.leaders > 0 &&
-        realBands.bands === realBands.leaders + 1 &&
-        realBands.drawn === realBands.bands &&
+        realBands.drawn === 0 &&
         realBands.tinted === realBands.rowHeights.length &&
         // A floor, not a share: 21 of the product graph's 59 rows are
         // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
@@ -3414,7 +3382,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // jogged and the one after it comes home.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      const realJogged = await page.evaluate(BANDS_IN_PAGE);
+      const realJogged = await page.evaluate(GRID_IN_PAGE);
       push("[real] pitch_system's jogged leaders still land on every dot and seam",
         (await correspondence()).drift.length === 0 &&
         realJogged.bad.length === 0 &&
@@ -3423,7 +3391,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      const realAngled = await page.evaluate(BANDS_IN_PAGE);
+      const realAngled = await page.evaluate(GRID_IN_PAGE);
       push("[real] and back in angled style, flat out of the rails then straight",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&

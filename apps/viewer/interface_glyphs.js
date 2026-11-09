@@ -115,7 +115,9 @@
   // rail on either side of the node, and a rail must keep a point a pointer
   // can reach between two nodes (the browser tier walks every one).
   VA.jointNodeTargetR = function (metrics) {
-    return metrics.rowHeight * 7 / VA.INTERFACE_GLYPH_PX;
+    // At the pitch the marks are drawn at (VA.RAIL_METRICS.drawPitch), which
+    // density never moves: Compact packs rows, it does not shrink glyphs.
+    return (metrics.drawPitch || metrics.rowHeight) * 7 / VA.INTERFACE_GLYPH_PX;
   };
 
   VA.interfaceGlyphId = function (kind) { return "glyph-" + kind; };

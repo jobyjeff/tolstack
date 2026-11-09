@@ -40,31 +40,6 @@
      ink would read 2.8:1, under the floor). A leader under the pointer or
      selected is drawn at --rail-hot / the accent, as before. */
   --leader-ink: #616a79;
-  /* The two alternating band tints (viewer_leader_grid_legibility,
-     2026-09-14). Jeff: "use alternating fill colors between the leader lines
-     (these same colors can be the alternating row background colors)" -- so
-     the band between two adjacent leaders and the grid rows that band feeds
-     wear the same one of these two, and an eye can ride a band across the jog
-     zone instead of tracking one 1.5px line among all the others.
-
-     Both are pure WHITE at a low alpha: R = G = B, so neither has a hue at
-     all and neither can be read as -- or even sit near -- the four saturated
-     provenance colours this page reserves (traced green, inferred amber,
-     untraced red, uncited magenta). That is the same reason the rails
-     alternate two greys by column parity rather than carrying a categorical
-     palette, and it is a constraint rather than a preference: see the header
-     comment above and README's "The colours". A white overlay also composites
-     identically over the page background, a provenance row tint and a hover
-     tint, which a pair of opaque greys would not.
-
-     The alpha is deliberately near the floor of visible. A band has to be
-     findable while the eye is tracking it and invisible while the eye is
-     reading a value beside it; anything stronger turns a 43-row grid into a
-     barcode and starts competing with the untraced row tint (which is itself
-     only .1). */
-  --tv-band-a: rgba(255, 255, 255, .017);
-  --tv-band-b: rgba(255, 255, 255, .055);
-
   /* The hover emphasis (nav_tooltip_once_and_rail_hover_emphasis,
      2026-09-30). Jeff: "add an emphasis (bold/glow etc) to the edges when you
      hover over them, again makes it easier to trace them."
@@ -80,44 +55,14 @@
 
      The two grid tints are deliberately WHITE AT LOW ALPHA rather than the
      opaque `#20242c` the retired `.tvrow:hover` used, and they are painted on
-     the CELLS: a row already carries two background layers it must not lose
-     (the alternating band's colour and an untraced row's provenance image),
-     and an opaque colour on the row replaced one of them. A cell layer
-     composites over both. It also fixes a wrinkle that rule had: its tint was
-     the same value as `--tv-band-b`, so hovering a b-band row changed nothing
-     at all. */
+     the CELLS: a row may carry an untraced row's provenance image it must not
+     lose, and an opaque colour on the row would replace it. A cell layer
+     composites over it. */
   --rail-hot: #c3ccdb;
   --rail-halo: rgba(174, 196, 232, .13);
   --tv-hot: rgba(255, 255, 255, .055);
   --tv-lead: rgba(255, 255, 255, .125);
 
-  /* The bodies' tints (the_kinematic_grid_is_a_stack_of_sub_stacks): ONE set,
-     filled into the DAG's body containers (.tv__bodyfield--t*). (The grid's
-     rows wore them too until 2026-11-05; its brackets say which rows are one
-     body now.) Sixteen
-     (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit), one per
-     body: a body's tint is its place in the document's `bodies[]`
-     (VA.BODY_TINTS, VA.bodyTint), so no two of a topology's first sixteen
-     bodies share one, and a body's container bridge (one body, one container)
-     wears it too. Neighbouring slots sit far apart in hue, since bodies listed
-     together are usually drawn together. Muted hues near the floor of
-     visible, none of them a provenance colour. */
-  --tv-body-0: rgba(140, 160, 200, .075);
-  --tv-body-1: rgba(150, 190, 170, .065);
-  --tv-body-2: rgba(190, 170, 140, .065);
-  --tv-body-3: rgba(170, 150, 200, .07);
-  --tv-body-4: rgba(140, 185, 195, .065);
-  --tv-body-5: rgba(190, 150, 165, .065);
-  --tv-body-6: rgba(167, 194, 147, .065);
-  --tv-body-7: rgba(194, 147, 194, .065);
-  --tv-body-8: rgba(194, 194, 147, .06);
-  --tv-body-9: rgba(147, 147, 194, .075);
-  --tv-body-10: rgba(147, 194, 187, .065);
-  --tv-body-11: rgba(194, 159, 147, .065);
-  --tv-body-12: rgba(179, 147, 194, .07);
-  --tv-body-13: rgba(147, 194, 151, .065);
-  --tv-body-14: rgba(147, 175, 194, .07);
-  --tv-body-15: rgba(194, 147, 179, .065);
   /* An edge's one ink and its two weights (the_joint_is_the_node_and_an_
      edge_says_only_lit_or_unlit): lit -- or everything, with nothing lit --
      and unlit. Neutral, a step under the hover grey, so a bar is the rail it
@@ -147,32 +92,47 @@
      overlay's ink. */
   --edge-gap-ink: #7d8592;
   --edge-gap-dash: 10 6;
-  /* The bodies' inks: the SAME sixteen hues as --tv-body-*, slot for slot,
-     at stroke strength -- the "body" and "part" colour overlays, the overlay
-     legend's swatches, a part's solid fill and the 3D pane's body colour all
-     read these, so one palette is seen in the DAG, the grid and the scene.
-     Chosen with OKLCH L in 0.56-0.66 and validated as a categorical set on
-     --bg (adjacent CVD and normal-vision separation, >= 3:1 contrast); the
-     run is recorded in this handoff's lesson. */
-  --tv-body-ink-0: #5172b8;
-  --tv-body-ink-1: #41a87e;
-  --tv-body-ink-2: #a06700;
-  --tv-body-ink-3: #8956c2;
-  --tv-body-ink-4: #04a4bc;
-  --tv-body-ink-5: #ba417b;
-  --tv-body-ink-6: #71a342;
-  --tv-body-ink-7: #a669a8;
-  --tv-body-ink-8: #7d7900;
-  --tv-body-ink-9: #6d6ab5;
-  --tv-body-ink-10: #009d8e;
-  --tv-body-ink-11: #b6522d;
-  --tv-body-ink-12: #a85fc6;
-  --tv-body-ink-13: #509659;
-  --tv-body-ink-14: #009dea;
-  --tv-body-ink-15: #9f588c;
+  /* The bodies' inks: ONE colour per body, everywhere the body is drawn
+     (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows,
+     2026-11-08) -- its DAG container and name, its part containers and their
+     tint, its grid brace and label, and the "body" and "part" colour
+     overlays, the legend's swatches and the 3D pane's body colour. A body's
+     slot is its place in the document's `bodies[]` (VA.bodyTint,
+     VA.BODY_TINTS), so the first sixteen never share one. Jeff: "Getting
+     some contrast in the colors is likely to be higher impact than making
+     the line weight excessively heavy."
 
-  /* A group's border, one bright hue per KIND of group: a body, a part, a
-     chain study, a kinematic study. 1px at zoom 1. */
+     Two palettes (VA.PALETTES, the View popover). This block is BOLD, the
+     default: a plotly-class categorical set at full saturation, the first
+     ten Plotly's own order, the last six the paler tab20 steps. The
+     Colour-blind set is the html[data-palette="cvd"] block below. Every ink
+     in both holds at least 3:1 against --bg; the run is in this handoff's
+     lesson. */
+  --tv-body-ink-0: #636efa;
+  --tv-body-ink-1: #00cc96;
+  --tv-body-ink-2: #ffa15a;
+  --tv-body-ink-3: #ab63fa;
+  --tv-body-ink-4: #19d3f3;
+  --tv-body-ink-5: #ff6692;
+  --tv-body-ink-6: #b6e880;
+  --tv-body-ink-7: #fecb52;
+  --tv-body-ink-8: #ef553b;
+  --tv-body-ink-9: #ff97ff;
+  --tv-body-ink-10: #bcbd22;
+  --tv-body-ink-11: #c49c94;
+  --tv-body-ink-12: #9edae5;
+  --tv-body-ink-13: #f7b6d2;
+  --tv-body-ink-14: #dbdb8d;
+  --tv-body-ink-15: #c5b0d5;
+  /* How strongly a part container is tinted with its body's ink (Group fill:
+     Parts, the default), and a body's own field (Group fill: All groups). */
+  --tv-part-tint: 16%;
+  --tv-body-tint: 7%;
+
+  /* A group's border where it has no body ink of its own: a body or part
+     whose body is not in the document's `bodies[]`, a chain study, a
+     kinematic study. A body's and a part's border is otherwise its body's
+     ink (.tv__fill--t*). */
   --group-body: #d7dde6;
   --group-part: #6fd6c4;
   --group-chain: #c3a6ff;
@@ -195,6 +155,20 @@
   --ovl-seq-2: #3987e5;
   --ovl-seq-3: #6da7ec;
   --ovl-seq-4: #9ec5f4;
+}
+
+/* The Colour-blind palette (VA.PALETTES): Okabe-Ito's eight, in their own
+   order, with the light grey standing in for the set's black on this dark
+   page, then the Bold set's remainder. */
+html[data-palette="cvd"] {
+  --tv-body-ink-0: #e69f00;
+  --tv-body-ink-1: #56b4e9;
+  --tv-body-ink-2: #009e73;
+  --tv-body-ink-3: #f0e442;
+  --tv-body-ink-4: #0072b2;
+  --tv-body-ink-5: #d55e00;
+  --tv-body-ink-6: #cc79a7;
+  --tv-body-ink-7: #bbbbbb;
 }
 
 /* Everything the drag of a grip should suppress while it is running
@@ -762,49 +736,56 @@ body { display: flex; flex-direction: column; }
 .rail__glyph--form { stroke: var(--muted); }
 .rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
 
-/* The groups (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"; the_dag_is_coloured_
-   by_a_chosen_attribute_and_spaced_to_taste): every group is a thin, bright
-   border in its KIND's hue -- body, part, chain study, kinematic study -- and
-   no fill. Whether any group is filled is the view's group fill
-   (VA.GROUP_FILLS): the fills are separate rects in one layer under every
-   border (.tv__groupfill), so a border always draws on top. A body the
-   current study does not reach is a dim border. pointer-events off: a field
-   is wayfinding; a body's NAME is the one control (it folds the body). */
-.tv__bodyfield { fill: none; stroke: var(--group-body); stroke-width: 1; pointer-events: none; }
+/* The groups (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): two nested layers,
+   always. A body is an outer container in its own ink, named top-left in the
+   same ink; each part inside it is an inner container -- a block when it has
+   many interfaces (VA.blockLayout), a field otherwise -- in a lighter step of
+   that ink, named with its drawing number (the_dag_and_grid_nest_coloured_
+   bodies_and_compact_means_denser_rows, 2026-11-08). A study's group is a
+   border in its kind's hue. Whether any group is also FILLED is the view's
+   group fill (VA.GROUP_FILLS): the fills are separate rects in one layer
+   under every border (.tv__groupfill), so a border always draws on top. A
+   body the current study does not reach is a dim border. pointer-events
+   off: a field is wayfinding; a body's NAME is the one control (it folds
+   the body). The weights are modest -- Jeff ranked contrast above weight. */
+.tv__bodyfield { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 1.5;
+  pointer-events: none; }
 .tv__bodyfield--flat { stroke-opacity: .35; }
-.tv__partfield { fill: none; stroke: var(--group-part); stroke-width: 1; pointer-events: none; }
-.tv__partfield--flat { stroke-opacity: .35; }
-/* A part with many interfaces is a component (VA.blockLayout): its outline in
-   the part hue, a little heavier than a group's border because it is the part
-   itself, unfilled like every group. Its chords are bars drawn as curves, and
-   a stub is its pin's piece of rail. */
-.tv__block { fill: none; stroke: var(--group-part); stroke-width: 1.5; pointer-events: none; }
-.tv__block--flat { stroke-opacity: .35; }
+.tv__partfield, .tv__block { fill: none; stroke-width: 1.25; pointer-events: none;
+  stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+.tv__partfield--flat, .tv__block--flat { stroke-opacity: .35; }
+/* A part's name: its drawing number (or display name), top-left inside it. */
+.tv__partname { font-size: var(--t-micro); pointer-events: none;
+  fill: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.tv__partname--flat { opacity: .45; }
+/* A part with many interfaces is a component (VA.blockLayout): its chords are
+   bars drawn as curves, and a stub is its pin's piece of rail. */
 .rail__bar--chord, .rail__barhit--chord { fill: none; }
 .rail__stub { fill: none; stroke: var(--rail-even); }
-/* A fill's tint: the body's two strengths (--tv-body-* for a region tint,
-   --tv-body-ink-* for a solid part), slot for slot. */
-.tv__fill--t0 { --fill-tint: var(--tv-body-0); --fill-ink: var(--tv-body-ink-0); }
-.tv__fill--t1 { --fill-tint: var(--tv-body-1); --fill-ink: var(--tv-body-ink-1); }
-.tv__fill--t2 { --fill-tint: var(--tv-body-2); --fill-ink: var(--tv-body-ink-2); }
-.tv__fill--t3 { --fill-tint: var(--tv-body-3); --fill-ink: var(--tv-body-ink-3); }
-.tv__fill--t4 { --fill-tint: var(--tv-body-4); --fill-ink: var(--tv-body-ink-4); }
-.tv__fill--t5 { --fill-tint: var(--tv-body-5); --fill-ink: var(--tv-body-ink-5); }
-.tv__fill--t6 { --fill-tint: var(--tv-body-6); --fill-ink: var(--tv-body-ink-6); }
-.tv__fill--t7 { --fill-tint: var(--tv-body-7); --fill-ink: var(--tv-body-ink-7); }
-.tv__fill--t8 { --fill-tint: var(--tv-body-8); --fill-ink: var(--tv-body-ink-8); }
-.tv__fill--t9 { --fill-tint: var(--tv-body-9); --fill-ink: var(--tv-body-ink-9); }
-.tv__fill--t10 { --fill-tint: var(--tv-body-10); --fill-ink: var(--tv-body-ink-10); }
-.tv__fill--t11 { --fill-tint: var(--tv-body-11); --fill-ink: var(--tv-body-ink-11); }
-.tv__fill--t12 { --fill-tint: var(--tv-body-12); --fill-ink: var(--tv-body-ink-12); }
-.tv__fill--t13 { --fill-tint: var(--tv-body-13); --fill-ink: var(--tv-body-ink-13); }
-.tv__fill--t14 { --fill-tint: var(--tv-body-14); --fill-ink: var(--tv-body-ink-14); }
-.tv__fill--t15 { --fill-tint: var(--tv-body-15); --fill-ink: var(--tv-body-ink-15); }
+/* A body's ink, by its slot (VA.bodyTint): every container, name and fill of
+   that body wears the class and reads --fill-ink. */
+.tv__fill--t0 { --fill-ink: var(--tv-body-ink-0); }
+.tv__fill--t1 { --fill-ink: var(--tv-body-ink-1); }
+.tv__fill--t2 { --fill-ink: var(--tv-body-ink-2); }
+.tv__fill--t3 { --fill-ink: var(--tv-body-ink-3); }
+.tv__fill--t4 { --fill-ink: var(--tv-body-ink-4); }
+.tv__fill--t5 { --fill-ink: var(--tv-body-ink-5); }
+.tv__fill--t6 { --fill-ink: var(--tv-body-ink-6); }
+.tv__fill--t7 { --fill-ink: var(--tv-body-ink-7); }
+.tv__fill--t8 { --fill-ink: var(--tv-body-ink-8); }
+.tv__fill--t9 { --fill-ink: var(--tv-body-ink-9); }
+.tv__fill--t10 { --fill-ink: var(--tv-body-ink-10); }
+.tv__fill--t11 { --fill-ink: var(--tv-body-ink-11); }
+.tv__fill--t12 { --fill-ink: var(--tv-body-ink-12); }
+.tv__fill--t13 { --fill-ink: var(--tv-body-ink-13); }
+.tv__fill--t14 { --fill-ink: var(--tv-body-ink-14); }
+.tv__fill--t15 { --fill-ink: var(--tv-body-ink-15); }
 .tv__groupfill { stroke: none; pointer-events: none; }
-.tv__groupfill--body { fill: var(--fill-tint); }
-/* A part's fill is SOLID: its body's ink mixed into the page, opaque, so the
-   part reads as a block and the borders above it stay crisp. */
-.tv__groupfill--part { fill: color-mix(in srgb, var(--fill-ink) 24%, var(--bg)); }
+.tv__groupfill--body { fill: color-mix(in srgb, var(--fill-ink) var(--tv-body-tint), transparent); }
+/* A part's fill is a tint of its body's ink: enough to read as that body's
+   colour, little enough that the marks on it keep their contrast. */
+.tv__groupfill--part { fill: color-mix(in srgb, var(--fill-ink) var(--tv-part-tint), transparent); }
 .tv__groupfill--flat { opacity: .4; }
 .tv__groupfill--study { --study-hue: var(--group-chain);
   fill: color-mix(in srgb, var(--study-hue) 9%, transparent); }
@@ -812,17 +793,19 @@ body { display: flex; flex-direction: column; }
 .tv__groupfill--thermal { --study-hue: var(--muted); }
 .tv__groupfill--selected { fill: color-mix(in srgb, var(--study-hue) 16%, transparent); }
 /* A collapsed body's pill is a node, so it keeps its tint whatever the fill. */
-.tv__bodyfield.tv__pill__shape { pointer-events: none; fill: var(--fill-tint); }
+.tv__bodyfield.tv__pill__shape { pointer-events: none;
+  fill: color-mix(in srgb, var(--fill-ink) var(--tv-part-tint), transparent); }
 /* A body is one container: where the walk splits it into fields, a bridge in
    the body border's hue runs from each field to the next (VA.bodyBridges);
    the body is named on one field and its others carry a muted repeat. */
-.tv__bodybridge { fill: none; stroke: var(--group-body); stroke-width: 1;
+.tv__bodybridge { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 1.5;
   stroke-dasharray: 2 2; stroke-linecap: butt; pointer-events: none; }
 .tv__bodybridge--flat { stroke-opacity: .35; }
-.tv__bodyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
+.tv__bodyname { font-size: var(--t-micro); fill: var(--fill-ink, var(--muted)); cursor: pointer;
+  font-weight: 600;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
-.tv__bodyrepeat { font-size: var(--t-micro); fill: var(--muted); opacity: .6;
+.tv__bodyrepeat { font-size: var(--t-micro); fill: var(--fill-ink, var(--muted)); opacity: .6;
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 
 /* A study's group (a_study_is_a_translucent_group_on_the_dag): a border in
@@ -902,17 +885,6 @@ body { display: flex; flex-direction: column; }
 .seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 2.5; }
 .seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2; }
 .seam__leader--dim, .seam__end--dim { opacity: .28; }
-
-/* --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ----
-   One filled polygon per band, bounded above and below by two adjacent
-   leaders' own polylines (VA.leaderGeometry's `bands`), in whichever leader
-   style is on. Drawn before everything else in the SVG so rails, bars, dots
-   and leaders all sit on top of it, and hit-tested by nothing -- a band is
-   wayfinding, never a target, and a band that swallowed a bar's click would
-   break the whole-edge hover contract underneath it. */
-.rail__band { stroke: none; pointer-events: none; }
-.rail__band--a { fill: var(--tv-band-a); }
-.rail__band--b { fill: var(--tv-band-b); }
 
 /* --- the resize grips (viewer_leader_grid_legibility) --------------------
    Two of them, both in the sticky column header: the jog zone's sits on the
@@ -1047,8 +1019,8 @@ body { display: flex; flex-direction: column; }
 .rail__leader--hot { stroke-width: 2.5; }
 .rail__leader--lead { stroke-width: 3; }
 
-/* The grid half. On the CELLS, so the band tint and an untraced row's
-   provenance image both survive underneath (see `--tv-hot` in :root). */
+/* The grid half. On the CELLS, so an untraced row's provenance image
+   survives underneath (see `--tv-hot` in :root). */
 .tvrow--hot > .tvcell { background-color: var(--tv-hot); }
 .tvrow--lead > .tvcell { background-color: var(--tv-lead); }
 
@@ -1083,11 +1055,12 @@ body { display: flex; flex-direction: column; }
    no body tint, no divider, no red wash -- and the grouping is drawn: each
    group is a pair of thin caps, a rounded cap over its first row and another
    under its last, inset per level so an outer group is wider than what it
-   holds (VA.gridBraces is the model, VA.braceGeometry the pixels). The hue is
-   the DAG's colour for that KIND of group (`--group-*`, the DAG's group
-   borders, the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste),
-   so a bracket and its group's border on the DAG are one hue. A part
-   boundary inside a group is a plain rule.
+   holds (VA.gridBraces is the model, VA.braceGeometry the pixels). A body's
+   and a part's bracket are its body's ink, the same as its border on the DAG
+   (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows); a
+   study's is its kind's hue (`--group-*`). Every body holds its parts' own
+   brackets, a one-part body included, each labelled in the gutter at the
+   PART column's left.
 
    An overlay over the table, inert and absolutely placed: a border on a cell
    would join the table's row-height sizing and walk a row off its leader. */
@@ -1097,15 +1070,30 @@ body { display: flex; flex-direction: column; }
   position: absolute; box-sizing: border-box; border: 0 solid currentColor;
   pointer-events: none;
 }
-.tvbrace--top { border-width: 1px 1px 0 1px; border-radius: 6px 6px 0 0; }
-.tvbrace--bottom { border-width: 0 1px 1px 1px; border-radius: 0 0 6px 6px; }
+.tvbrace--top { border-width: 1.5px 1.5px 0 1.5px; border-radius: 6px 6px 0 0; }
+.tvbrace--bottom { border-width: 0 1.5px 1.5px 1.5px; border-radius: 0 0 6px 6px; }
 .tvbrace--gap { border-style: dashed; }
 .tvbrace--kinematic { color: var(--group-kinematic); }
 .tvbrace--chain { color: var(--group-chain); }
-.tvbrace--body { color: var(--group-body); }
-.tvbrace__rule {
-  position: absolute; height: 0; border-top: 1px solid var(--group-part);
+/* A body's brace in its ink, a little heavier than its parts'; a part's in
+   the lighter step of the same ink the DAG draws it in -- one colour per
+   body, DAG and grid alike. */
+.tvbrace--body { color: var(--fill-ink, var(--group-body)); }
+.tvbrace--body.tvbrace--top { border-width: 2px 2px 0 2px; }
+.tvbrace--body.tvbrace--bottom { border-width: 0 2px 2px 2px; }
+.tvbrace--part { color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+/* The labels, in the gutter at the PART column's left: a body's name in its
+   ink, wrapping down its rows; a part's number on its first row. Clipped
+   text is on hover (the title), so they take the pointer. */
+.tvbrace__label {
+  position: absolute; box-sizing: border-box; overflow: hidden;
+  font-size: var(--t-micro); pointer-events: auto; cursor: default;
+  white-space: nowrap; text-overflow: ellipsis;
 }
+.tvbrace__label--body { color: var(--fill-ink, var(--muted)); font-weight: 600;
+  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; }
+.tvbrace__label--part {
+  color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
 .tvrow--substack { font-size: var(--t-dense); }
 .tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
 .tvsub__title { font-weight: 600; }

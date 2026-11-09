@@ -2550,15 +2550,14 @@
       zoomDagAt(VA.dagZoomAfterWheel(state.dagZoom, event.deltaY),
         event.clientX, event.clientY);
     }, { passive: false });
-    // Pan: a drag that starts on the drawing's own empty space -- the SVG, its
-    // alternating bands and its body fields, never a bar, dot or leader, which
-    // are the controls.
+    // Pan: a drag that starts on the drawing's own empty space -- the SVG and
+    // its body fields, never a bar, dot or leader, which are the controls.
     var drag = null;
     nodes.pane.addEventListener("pointerdown", function (event) {
       if (event.button !== 0 || !event.target || !event.target.closest) return;
       var t = event.target;
       var empty = t.tagName === "svg" || (t.classList && (
-        t.classList.contains("rail__band") || t.classList.contains("tv__bodyfield") ||
+        t.classList.contains("tv__bodyfield") ||
         t.classList.contains("tv__studyfield")));
       if (!empty || !t.closest("svg.tv__rails")) return;
       drag = { x: event.clientX, y: event.clientY };

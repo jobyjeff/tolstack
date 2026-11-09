@@ -6,10 +6,10 @@
     {
       "contract": "An outer bracket is wider than the brackets it holds.",
       "issue": null,
-      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Draws every level at the outermost inset.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Draws every level at the outermost inset. Re-anchored 2026-11-08 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows), when a part's bracket began to start right of its body's label strip.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      var x = 2 + b.level * g.inset;",
-      "replace": "      var x = 2;"
+      "find": "        : 2 + b.level * g.inset;",
+      "replace": "        : 2;"
     }
   ]
 }
