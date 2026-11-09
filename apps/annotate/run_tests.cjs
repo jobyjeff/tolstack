@@ -1875,6 +1875,34 @@ check("a run's links are bodies of their own, after the bodies, named by their j
     [["base", ["p1", "p2"], false], ["arm", ["p3"], false], ["rod", ["rod_part"], true]]);
 });
 
+check("the Bodies list reads the model's bodies: a folded part under its body, in the " +
+  "model's order, links among the bodies; a subject the model does not declare keeps the run's", () => {
+  const tree = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc()));
+  const topology = { bodies: [
+    { id: "rod", kind: "link", parts: ["rod_part", "rod_bearing"] },
+    { id: "base", kind: "body", parts: ["p1", "cover", "p2"] },
+  ] };
+  const model = AA.sweepModelTree(tree, topology);
+  assertEqual(AA.sweepTreeSubjects(model).map((b) => [b.name, b.parts, !!b.link]),
+    [["rod", ["rod_part", "rod_bearing"], true], ["base", ["p1", "cover", "p2"], false],
+      ["arm", ["p3"], false]]);
+  // The run's own tree is untouched, and no declared bodies is the run's tree.
+  assertEqual(tree.bodies[0].parts, ["p1", "p2"], "the run's tree is not mutated");
+  if (AA.sweepModelTree(tree, { bodies: [] }) !== tree) throw new Error("no bodies is not the run's tree");
+  if (AA.sweepModelTree(tree, null) !== tree) throw new Error("no topology is not the run's tree");
+});
+
+check("a folded part rides its own body's subject, a rider body's parts ride the host's, " +
+  "and a link hosts nothing", () => {
+  assertEqual(AA.sweepRidingParts({ bodies: [
+    { id: "base", kind: "body", parts: ["hub", "cover"] },
+    { id: "plate", kind: "body", parts: ["plate", "head"] },
+    { id: "rider", kind: "body", parts: ["head_2"], rides_with: "plate" },
+    { id: "link", kind: "link", parts: ["link", "bearing"] },
+  ] }), { base: ["hub", "cover"], plate: ["plate", "head", "head_2"] });
+  assertEqual(AA.sweepRidingParts(null), {}, "no topology");
+});
+
 check("a node feature is bound through the edge to its joint's other node, at its own " +
   "end; an edge feature is its whole edge; a node nothing ends on is bound nowhere", () => {
   const rod = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc())).joints[1];
@@ -4786,6 +4814,10 @@ check("parts: a row reads `<number> <name>`, the id is on the hover, and a numbe
     "an absent projection");
   assertEqual(AA.partRowWords({ label: "M1 blade, clean OML (single solid)", sha256: sha }, names).text,
     "M1 blade, clean OML (single solid)", "a label with no number");
+  const fastener = AA.partRowWords({ label: "MS14101-3 (extracted from 217755-001 A.1 PROPULSION ASSEMBLY, " +
+    "PROPELLER, CW Released.stp)", sha256: sha }, names);
+  assertEqual(fastener.text, "MS14101-3", "a label with no number is its own name, not the STEP file");
+  if (fastener.title.indexOf("extracted from 217755-001") === -1) throw new Error("the STEP file is not on the hover");
   assertEqual(AA.partNumberOf("216332-001_41 (extracted ...)"), "216332-001", "a suffixed instance");
   assertEqual(AA.partNumberOf("NAS6404U13D (extracted ...)"), null, "a fastener");
 });

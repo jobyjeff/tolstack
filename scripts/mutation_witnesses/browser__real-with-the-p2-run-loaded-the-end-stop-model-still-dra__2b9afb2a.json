@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] with the P2 run loaded the end-stop model still draws as many parts as it has, and no context",
+  "mutations": [
+    {
+      "contract": "In sweep mode a model drawn alone opens its own parts only and hides what the run carries inside them.",
+      "issue": "docs/issues/ISSUE_20261109_the_end_stop_models_in_sweep_drawn_part_count_is_logged_not_asserted.md",
+      "note": "Declared with the guard by handoff a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list (2026-11-09). Drops the anchoring's skip that keeps a carried bolt shut together with its trailing hideOutsideModel(): the two back each other up, so either alone changes nothing, and both together put back the 20-part scene Jeff reported on 2026-11-08.",
+      "file": "apps/annotate/app.js",
+      "find": "    // A model drawn alone opens its own parts only; a carried bolt is listed.\n    if (alone && alone.indexOf(row.sha256) === -1) continue;\n    if (state.scene.listOpenParts().indexOf(row.sha256) !== -1) continue;\n    if (superseded()) return [];\n    try {\n      await AA.exec([\"open-part\", row.sha256]);\n      // Opened for THIS run: if it was left meanwhile, close it again.\n      if (superseded()) { state.scene.unloadPart(row.sha256); return []; }\n      sweep.openedBySweep.push(row.sha256);\n    } catch (err) { /* the row already says what happened */ }\n  }\n  sweep.bodies = rows;\n  sweep.occurrences = AA.sweepSubjectOccurrences(rows);\n  hideOutsideModel();\n",
+      "replace": "    if (state.scene.listOpenParts().indexOf(row.sha256) !== -1) continue;\n    if (superseded()) return [];\n    try {\n      await AA.exec([\"open-part\", row.sha256]);\n      // Opened for THIS run: if it was left meanwhile, close it again.\n      if (superseded()) { state.scene.unloadPart(row.sha256); return []; }\n      sweep.openedBySweep.push(row.sha256);\n    } catch (err) { /* the row already says what happened */ }\n  }\n  sweep.bodies = rows;\n  sweep.occurrences = AA.sweepSubjectOccurrences(rows);\n"
+    }
+  ]
+}

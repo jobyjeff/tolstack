@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a folded part rides its own body's subject, a rider body's parts ride the host's, and a link hosts nothing",
+  "mutations": [
+    {
+      "contract": "A body's own parts ride its subject, not only a rides_with body's.",
+      "issue": "docs/issues/ISSUE_20261108_the_sweep_leaves_model_v2s_folded_piston_heads_standing_still.md",
+      "note": "Declared with the guard by handoff a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list (2026-11-09). The pre-fix rule: only rides_with bodies ride.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      else if (b.kind !== \"link\") add(b.id, b.parts);\n",
+      "replace": "\n"
+    },
+    {
+      "contract": "A link is never a host.",
+      "issue": "docs/issues/ISSUE_20261108_the_sweep_leaves_model_v2s_folded_piston_heads_standing_still.md",
+      "note": "Declared with the guard by handoff a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list (2026-11-09). A link's pressed-in bearings would be posed twice, once carried inside the link and once riding it.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      else if (b.kind !== \"link\") add(b.id, b.parts);\n",
+      "replace": "      else add(b.id, b.parts);\n"
+    }
+  ]
+}

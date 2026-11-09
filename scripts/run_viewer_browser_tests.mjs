@@ -14572,6 +14572,25 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       "leader across the seam",
       built && led.joint.length > 0 && led.leaders.length >= led.joint.length &&
       led.joint.every((id) => led.leaders.indexOf(id) !== -1));
+    // In sweep mode too the model is drawn alone: the sweep-only sites
+    // (hideOutsideModel, the skip that keeps a carried bolt shut, the frame's
+    // `outside` term) are what keep the context out once the run poses it.
+    push("[real] with the P2 run loaded the end-stop model still draws as many parts as it has, " +
+      "and no context", sweepDrawn.length === model.parts.length);
+    // And every part of one of its rigid bodies is posed WITH that body: a
+    // part the model folds into a body the run's own part list does not name
+    // (the piston heads into the plate, the cover into the base) rides that
+    // body's subject rather than standing at its assembly position. A link's
+    // pressed-in bearings are carried inside the link's occurrence, which
+    // names no topology part, so links are left to the carried rows.
+    const posed = await inPane((w) => w.__sweep.bodies
+      .filter((r) => r.placements && r.placements.length).map((r) => r.subject + "/" + r.part));
+    const unposed = (model.bodies || []).filter((b) => b.kind !== "link")
+      .flatMap((b) => b.parts.map((p) => b.id + "/" + p)).filter((id) => posed.indexOf(id) === -1);
+    console.log(`      [${label}] P2: parts of the model's bodies not posed with their body: ` +
+      `${unposed.join(", ") || "-"}`);
+    push("[real] with the P2 run loaded every part of the end-stop model's bodies is posed with " +
+      "its own body", (model.bodies || []).length > 0 && unposed.length === 0);
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {

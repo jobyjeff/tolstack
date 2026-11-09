@@ -353,7 +353,10 @@ export const DECLARED_GUARDS = {
   // an accept numbered against a folder ahead of the projection. It carries a spec.
   // 2026-11-08 (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
   // leader): +1 -- a model is drawn alone. It carries a spec.
-  annotate: { declared: 304, enrollable: 304, names: "5a10e71c0fa8" },
+  // 2026-11-09 (a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_
+  // list): +2 -- the Bodies list reads the model's bodies, and a folded part
+  // rides its own body's subject. Each carries a spec.
+  annotate: { declared: 306, enrollable: 306, names: "93fdc1ceb9e7" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -525,7 +528,11 @@ export const DECLARED_GUARDS = {
   // radius, Groups off means gone; each carries a spec. Three band checks
   // reworded to say no band is drawn (they had no spec before, nor now).
   // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
-  browser: { declared: 864, enrollable: 831, names: "c9bfe8c37568" },
+  // 2026-11-09 (a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_
+  // list): +2 in "the model drawn alone and led" -- the in-sweep drawn count
+  // (was logged only) and every part of the model's bodies posed with its own
+  // body. Each carries a spec.
+  browser: { declared: 866, enrollable: 833, names: "1e9c2ad93f3b" },
 };
 
 
