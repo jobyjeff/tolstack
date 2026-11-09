@@ -22,6 +22,7 @@ Handoff: ``dag_viewer_poc`` (2026-09-01), from the locked brief
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -1440,6 +1441,43 @@ def test_the_product_models_crossings_and_width_are_pinned():
     assert counts == {"branch": 16, "close": 70, "leader": 50}
     assert layout.columns == 14
     assert layout.column_order == "shortest_first"
+
+
+def test_model_v2_reads_in_its_authored_body_and_part_order(topologies):
+    """``walk_order: "authored"`` (2026-11-08): Jeff read v2's page top to
+    bottom as base (hub, tan-link mount, gas-spring mount, cover), tangential
+    link, pitch plate (plate, piston, lower head, upper head), pitch link,
+    blade -- and the document is that order, so the walk's bodies come in
+    ``bodies[]`` order, one block each, and each body's parts first appear in
+    its ``parts`` order (a part with no row of its own, a pressed bearing,
+    has nothing to order). The hub's first row after its own is the tan-link
+    mount's."""
+    topology = topologies["vpa_end_stop_v2"]
+    layout = B.serialize_topology(topology).as_dict()
+    assert [s["body"] for s in layout["bodies"]] == [b.id for b in topology.bodies]
+    for body in topology.bodies:
+        seen = []
+        for row in layout["rows"]:
+            if row["body"] != body.id:
+                continue
+            on = (topology.node(row["id"]).parts if row["kind"] == "node"
+                  else [topology.edge(row["id"]).part])
+            seen += [p for p in on if p in body.parts and p not in seen]
+        assert seen == [p for p in body.parts if p in seen], body.id
+        assert seen, body.id
+    hub_rows = [r for r in layout["rows"] if r["body"] == "base"]
+    assert [r["id"] for r in hub_rows[3:5]] == ["hub_spindle_to_tan_link_mount_face",
+                                               "tan_link_mount_hub_face"]
+
+
+def test_the_authored_walk_is_not_the_product_models(topologies):
+    """Why ``authored`` is declared rather than the default: on v1 it widens
+    the walk and raises its crossings, against the pin above."""
+    topology = topologies["vpa_pitch_linkage"]
+    default = B.serialize_topology(topology)
+    authored = B.serialize_topology(dataclasses.replace(topology, walk_order="authored"))
+    assert authored.columns > default.columns
+    assert sum(B.layout_crossings(authored).values()) > sum(B.layout_crossings(default).values())
 
 
 def test_a_deferred_joint_never_draws_its_rail_over_another_on_one_column(topologies):

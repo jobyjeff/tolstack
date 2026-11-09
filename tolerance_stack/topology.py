@@ -210,6 +210,19 @@ TRANSFORM_KINDS = ("identity", "ratio", "linear_to_rotary")
 #: to compute anything. Paired against ``docs/DAG_TOPOLOGY.md``, "Bodies".
 BODY_KINDS = ("body", "link")
 
+#: How the DAG's walk orders what the graph leaves open, added 2026-11-08
+#: (handoff ``the_end_stop_model_names_its_datums_right_and_folds_its_riders``):
+#:
+#: * ``nearest_fork`` -- the default: a node's edges in document order, and
+#:   the deferred edge whose fork is nearest walked next.
+#: * ``authored`` -- the document's ``bodies[]`` order, and each body's
+#:   ``parts`` order inside it, is the page's reading order.
+#:
+#: Read by ``scripts/build_topology_projection.py``'s ``serialize_topology``
+#: alone, never by ``fold``. Paired against ``docs/DAG_TOPOLOGY.md``, "The
+#: vocabularies".
+WALK_ORDERS = ("nearest_fork", "authored")
+
 #: What kind of contact a ``gap`` edge is, added 2026-10-26 (handoff
 #: ``the_dag_draws_bodies_as_containers_and_joints_as_symbols``) so the DAG can
 #: draw a joint as the contact it is rather than as one more dashed bar. Each
@@ -933,6 +946,11 @@ class Topology:
     source model's (:func:`identity_topology_id`) -- and a model is listed
     ahead of the model it reuses (:func:`in_model_order`). Optional and
     additive, so the schema stays ``/v0``; never read by ``fold``.
+
+    ``walk_order``, added 2026-11-08 (handoff ``the_end_stop_model_names_its_
+    datums_right_and_folds_its_riders``), is one of :data:`WALK_ORDERS`: how
+    the DAG's walk breaks the ties the graph leaves open. Optional and
+    additive; read by the topology projection's layout alone.
     """
 
     id: str
@@ -940,6 +958,7 @@ class Topology:
     units: str
     description: Optional[str] = None
     ids_from: Optional[str] = None
+    walk_order: str = "nearest_fork"   # one of WALK_ORDERS, above -- and checked
     parts: List[Part] = field(default_factory=list)
     nodes: List[Node] = field(default_factory=list)
     edges: List[Edge] = field(default_factory=list)
@@ -955,6 +974,10 @@ class Topology:
             raise TopologyError(
                 f"topology {self.id!r}: ids_from names the model whose ids this "
                 f"one reuses -- another topology's id -- got {self.ids_from!r}")
+        if self.walk_order not in WALK_ORDERS:
+            raise TopologyError(
+                f"topology {self.id!r}: walk_order must be one of {WALK_ORDERS}, "
+                f"got {self.walk_order!r}")
         self._parts = _unique("part", self.parts)
         self._nodes = _unique("node", self.nodes)
         self._edges = _unique("edge", self.edges)
@@ -1785,6 +1808,7 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None,
         units=data["units"],
         description=data.get("description"),
         ids_from=data.get("ids_from"),
+        walk_order=data.get("walk_order", WALK_ORDERS[0]),
         parts=[Part.from_dict(p) for p in data.get("parts", [])],
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,

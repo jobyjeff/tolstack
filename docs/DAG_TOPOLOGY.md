@@ -151,6 +151,16 @@ in order. A word must reach both.
 - `link` — a two-force member between two bodies, posed by its two joint
   centres: the pitch link, the tangential link.
 
+`walk_order` on a topology is one of `nearest_fork | authored`.
+
+Optional; absent reads as the first. It orders the DAG's walk ("Bodies on the
+DAG"), never a fold.
+
+- `nearest_fork` — a node's edges in document order, and the deferred edge
+  whose fork is nearest walked next.
+- `authored` — the document's `bodies[]` order, and each body's `parts` order
+  inside it, is the order the page reads in.
+
 `interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance`.
 
 Optional in v0 and refused on a structural edge. What each word draws is the
@@ -223,7 +233,9 @@ linkage solver's sweeps already name and the DAG had no way to know:
   the body it moves with; a rider is for the part whose fold would reshape the
   walk -- folding the piston heads and the cover into the pitch plate and the
   base widened the product model's walk by a column and raised every kind of
-  crossing, so they ride instead. It is still a claim about motion, not a pose:
+  crossing, so they ride instead. That was measured on v1's 40-part graph and
+  does not bind model v2's 15 parts, which fold all three into their bodies
+  and declare no rider; v1 keeps them. It is still a claim about motion, not a pose:
   the 3D model puts a rider at the one recorded occurrence it has, or the one
   recorded beside its host's own parts, and refuses a part it cannot place.
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
@@ -246,6 +258,15 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   Each row carries `body`; `layout.bodies` lists each body's block as
   `{body, start, end, lo, hi}`. Column order still minimises the crossing count
   (`layout_crossings`), over a walk in which each body is contiguous.
+- **A model may read in its authored order** (2026-11-08,
+  `the_end_stop_model_names_its_datums_right_and_folds_its_riders`).
+  `"walk_order": "authored"` starts the walk on the first body's first part,
+  takes a node's edges by the `parts` order of the part each leads into, and
+  after a body is done crosses into the earliest authored body not yet drawn
+  -- so the author re-orders the page by re-ordering `bodies[]` and `parts`.
+  It only breaks ties the walk leaves open, and it is not the default: on v1 it
+  widens the walk and raises its crossings, and no order of v1's lists
+  reproduces the walk v1 draws today.
 - **Drawn as one container.** A rounded field behind the body's block, in the
   body's own muted tint — assigned, one per body (`VA.bodyTint`;
   `docs/DESIGN_TYPE_AND_COLOUR.md` says where the tints live). Where the walk
@@ -458,9 +479,11 @@ page reopens on the model the reader last chose.
 - **v1**, `topology_vpa_pitch_linkage.json` — the whole pitch system: every
   joint, the fastener grip stacks and their hardware, the gas spring, the VPA,
   and the studies and the kinematic study over them.
-- **v2**, `topology_vpa_end_stop_v2.json` — only the kinematic end stop: the
-  five mechanism bodies as one blade, one pitch link and one tangential link,
-  the two stops, and no tolerances yet. It leaves out the gas spring, the VPA
+- **v2**, `topology_vpa_end_stop_v2.json` — only the kinematic end stop: five
+  bodies and no riders (the piston heads are the pitch plate's parts, the
+  cover the base's), as one blade, one pitch link and one tangential link,
+  the two stops, and no tolerances yet. It declares `"walk_order": "authored"`,
+  so its DAG and grid read in its `bodies[]` and `parts` order. It leaves out the gas spring, the VPA
   and its piston, the ring gear, the hydraulic brake, every fastener, washer
   and bushing, and blades 2 to 5.
 
@@ -937,20 +960,29 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 15 parts, 23 interfaces, 27 edges, 6 branch points, 5 grounded
+The graph: 15 parts, 25 interfaces, 30 edges, 7 branch points, 6 grounded
 loops, 8 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
-linkage's five plus v1's three riders (the heads ride the plate, the cover the
-base). The nodes are the ten the P2 sweep names, the faces that join each
+linkage's five, in the loop's reading order (base, tangential link, pitch
+plate, pitch link, blade), with the piston heads folded into the plate and the
+cover into the base (2026-11-08,
+`the_end_stop_model_names_its_datums_right_and_folds_its_riders`). The nodes are the ten the P2 sweep names, the faces that join each
 body's parts, and the three stop faces: the feather contact (the lower head on
 the mount, one node because they touch), the upper head's step face and the
 cover's internal shoulder, with `travel_between_end_stops` the clearance
 between those two. Every id is v1's except two edges inside the pitch-plate
 body (the plate's pilot in the piston body's ID, and the piston body from that
 ID to the head seat), which v1 never needed because it joins those parts only
-through its bodies list. One blade, one pitch link and one tangential link:
+through its bodies list, and the tan-link mount's compound datum (2026-11-08):
+its pilot bore on the hub's locating boss (a `pin_in_bore` gap), the pilot to
+its attachment bore, and its clocking by the perimeter fasteners, one node on
+both parts like v1's `pitch_arm_blade_root_clocking`. Its names say what each
+datum locates and never "spindle": the hub's axis is its locating boss, the
+plate's its piston-locating boss. v1's hub-to-plate coaxiality is not here --
+the plate is located through the piston, the piston through the mount's
+bushings, the mount through its seat on the hub. One blade, one pitch link and one tangential link:
 each of those parts, and the link's two bearings, declares its `occurrence`,
 blade 1's and the tangential link the P2 sweep poses, with the placement
 recorded in the part's note.

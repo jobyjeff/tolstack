@@ -58,6 +58,7 @@ from tolerance_stack.topology import (
     INTERFACE_KINDS,
     NODE_KINDS,
     TRANSFORM_KINDS,
+    WALK_ORDERS,
     Body,
     BranchAmbiguity,
     BrokenChain,
@@ -976,10 +977,17 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
 }
 
 #: Model v2 carries no hardware (its own notes say what it leaves out), so its
-#: one declared difference is the tangential link's two bearings, as v1's.
+#: declared differences are the tangential link's two bearings, as v1's, and
+#: the three piston parts v1 declares as riders, which v2 folds into the bodies
+#: they move with (2026-11-08, Jeff: "the piston head components are rigidly
+#: attached to the piston"; the cover is the base's).
 BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY = {
     L2_TOPOLOGY.stem: BODY_PARTS_LINKAGE_DOES_NOT_LIST,
-    MODEL_V2.stem: {"tan_link": BODY_PARTS_LINKAGE_DOES_NOT_LIST["tan_link"]},
+    MODEL_V2.stem: {
+        "tan_link": BODY_PARTS_LINKAGE_DOES_NOT_LIST["tan_link"],
+        "base": {"piston_cover_214958_002"},
+        "pitch_plate": {"piston_head_lower_214699_002", "piston_head_upper_214698_002"},
+    },
 }
 
 
@@ -1050,16 +1058,15 @@ BODIES_THAT_RIDE = {
 }
 
 
-@pytest.mark.parametrize("path", BODIED_TOPOLOGIES, ids=lambda p: p.stem)
-def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(path):
+def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on():
     """The lower head sits on the piston body (a pitch-plate part) and the upper
     head stacks on the lower; the cover's flange sits on the gas-spring mount (a
     base part). Read off the topology's own node names, so a renamed seat fails
     here instead of drifting. Every one of the three is recorded under the same
     ``P3-214700.3`` sub-assembly as the piston body in 217755 (the mesh
     provenance), which is the assembly evidence the stack's nodes cannot give for
-    the upper head."""
-    pitch_system = load_topology(path)
+    the upper head. v1 only: model v2 folds all three (the next test)."""
+    pitch_system = load_topology(L2_TOPOLOGY)
     assert {b.id: b.rides_with for b in pitch_system.bodies if b.rides_with} == BODIES_THAT_RIDE
     assert pitch_system.body_of("gas_spring_piston_214700_002").id == "pitch_plate"
     assert pitch_system.body_of("gas_spring_mount_213668_002").id == "base"
@@ -1068,6 +1075,95 @@ def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on(path):
             ("piston_heads_seat", {"piston_head_lower_214699_002", "piston_head_upper_214698_002"}),
             ("piston_cover_mount_flange_seat", {"base", "piston_cover_214958_002"})):
         assert set(pitch_system.node_bodies(node_id)) == bodies, node_id
+
+
+#: Model v2's bodies and parts, in Jeff's reading order (2026-11-08): "the hub,
+#: the tangential link mount, the gas spring mount, the piston cover, in that
+#: order" and "pitch plate, piston, lower piston head, upper piston head"; the
+#: bodies in the loop's order, and the blade entered from the pitch link (arm
+#: before root). The page reads in this order (``walk_order``).
+MODEL_V2_BODIES = {
+    "base": ["hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
+             "piston_cover_214958_002"],
+    "tan_link": ["tan_link_212956_005", "spherical_bearing_tan_link",
+                 "spherical_bearing_tan_link_ms14103_3"],
+    "pitch_plate": ["pitch_plate_215177_001", "gas_spring_piston_214700_002",
+                    "piston_head_lower_214699_002", "piston_head_upper_214698_002"],
+    "pitch_link": ["pitch_link", "spherical_bearing_pitch_link"],
+    "blade": ["pitch_arm", "blade_root"],
+}
+
+
+def test_model_v2_folds_the_piston_heads_and_cover_into_the_bodies_they_move_with():
+    """No riders on v2: the heads are the pitch plate's parts and the cover the
+    base's, so the piston's three seats are inside one body each."""
+    v2 = load_topology(MODEL_V2)
+    assert {b.id: list(b.parts) for b in v2.bodies} == MODEL_V2_BODIES
+    assert [b.id for b in v2.bodies] == list(MODEL_V2_BODIES)
+    assert [b.id for b in v2.bodies if b.rides_with] == []
+    assert v2.walk_order == "authored"
+    for node_id, body in (("piston_body_head_seat", "pitch_plate"),
+                          ("piston_heads_seat", "pitch_plate"),
+                          ("piston_cover_mount_flange_seat", "base")):
+        assert v2.node_bodies(node_id) == (body,), node_id
+
+
+def test_no_name_on_model_v2_says_spindle():
+    """Jeff, 2026-11-08: "Need to stop calling everything a spindle, the only
+    spindle is the main bearings in the hub that the entire prop rotates about
+    (the spindle/shaft is not even in this model)." Every authored string on v2
+    a reader sees; ids keep v1's words (they are shared), and v1 keeps its own."""
+    raw = json.loads(MODEL_V2.read_text(encoding="utf-8"))
+    said = []
+
+    def scan(where, obj):
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if key in ("name", "title", "description", "note") and isinstance(value, str):
+                    if "spindle" in value.lower():
+                        said.append((where, key, value))
+                else:
+                    scan(f"{where}.{key}", value)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                scan(f"{where}[{i}]", item)
+
+    scan(MODEL_V2.name, raw)
+    assert said == []
+
+
+def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
+    """Jeff, 2026-11-08: the mount sits on the hub's top face, is located
+    radially by the hub's circular boss, and is clocked by the fasteners round
+    its perimeter. And the hub's axis reaches the pitch plate nowhere: the
+    plate is located through the piston, the piston through the mount's
+    bushings."""
+    v2 = load_topology(MODEL_V2)
+    pilot = v2.edge("hub_boss_in_tan_link_mount_pilot")
+    assert (pilot.kind, pilot.interface) == ("gap", "pin_in_bore")
+    assert (pilot.from_node, pilot.to_node) == ("hub_spindle_bore_axis",
+                                                "tan_link_mount_pilot_bore")
+    assert set(v2.node("tan_link_mount_fastener_clocking").parts) == {
+        "tan_link_mount_215175_002", "hub"}
+    into_bore = {e.other_end("tan_link_mount_bore") for e in v2.incident("tan_link_mount_bore")
+                 if e.part == "tan_link_mount_215175_002"}
+    assert into_bore == {"tan_link_mount_hub_face", "tan_link_mount_pilot_bore",
+                         "tan_link_mount_fastener_clocking"}
+    for edge in v2.edges:
+        assert edge.dimension is None, edge.id
+        assert "What would close it" in (edge.note or ""), edge.id
+    assert "hub_to_pitch_plate_spindle_coaxiality" not in {e.id for e in v2.edges}
+    assert {e.other_end("pitch_plate_spindle_bore_axis")
+            for e in v2.incident("pitch_plate_spindle_bore_axis")} == {
+        "pitch_plate_link_attach_bore", "pitch_plate_tan_link_attach_bore",
+        "pitch_plate_pilot_in_piston_id"}
+
+
+def test_walk_order_is_a_word_the_topology_checks():
+    assert WALK_ORDERS[0] == "nearest_fork"
+    assert _bare("t").walk_order == WALK_ORDERS[0]
+    with pytest.raises(TopologyError, match="walk_order must be one of"):
+        Topology(id="t", title="t", units="mm", walk_order="by_hand")
 
 
 @pytest.mark.parametrize("path", BODIED_TOPOLOGIES, ids=lambda p: p.stem)
@@ -1233,6 +1329,7 @@ _DOC_VOCABULARIES = (
     ("Transform.kind", "\n`kind` on a transform is one of ", TRANSFORM_KINDS),
     ("Body.kind", "\n`kind` on a body is one of ", BODY_KINDS),
     ("Edge.interface", "\n`interface` on a gap edge is one of ", INTERFACE_KINDS),
+    ("Topology.walk_order", "\n`walk_order` on a topology is one of ", WALK_ORDERS),
     ("Form.kind", "\n`kind` on a form callout is one of ", FORM_KINDS),
 )
 

@@ -848,11 +848,56 @@ def serialize_topology(topology: Topology) -> Layout:
         if body is not None and body not in started:
             started.append(body)
 
+    # `walk_order: "authored"` (2026-11-08,
+    # the_end_stop_model_names_its_datums_right_and_folds_its_riders): the
+    # document is the reading order -- bodies in `bodies[]` order and, inside a
+    # body, parts in its `parts` order. It only breaks ties the walk above
+    # leaves open (which edge at a node goes first, which deferred edge is
+    # walked next), so the author re-orders the page by re-ordering the
+    # document. Not the default: on the product model it widens the walk and
+    # raises its crossings (pinned in tests/test_topology_projection.py).
+    authored = has_bodies and topology.walk_order == "authored"
+    body_rank = {b.id: i for i, b in enumerate(topology.bodies)}
+    part_rank = {p: i for b in topology.bodies for i, p in enumerate(b.parts)}
+
+    def part_order(near_id: str, edge: Edge) -> int:
+        """Where the part ``edge`` leads into stands in its body's ``parts``:
+        the far node's earliest part the near node is not on, else the edge's
+        own part (or the near node's), so staying on a part comes first."""
+        near = topology.node(near_id).parts
+        into = [part_rank[p] for p in topology.node(edge.other_end(near_id)).parts
+                if p not in near and p in part_rank]
+        if into:
+            return min(into)
+        own = [edge.part] if edge.part else list(near)
+        return min((part_rank[p] for p in own if p in part_rank), default=0)
+
+    def target_body(near_id: str, edge: Edge) -> Optional[str]:
+        """The body walking ``edge`` from ``near_id`` enters."""
+        return edge_block(edge) or enter_body(edge.other_end(near_id), None)
+
     def next_deferred() -> int:
+        """The current body's own edges first, so it closes up; else the most
+        recently deferred, whose fork is nearest and whose rail is therefore
+        shortest. ``authored``: the body's own edges by its parts order, then
+        the edge into the earliest authored body not yet drawn, entering at
+        its earliest authored part, before the nearest fork. Ties keep the
+        order the default has: the earlier deferral inside the body, the later
+        across."""
         focus = started[-1] if started else None
-        for i, (_, edge) in enumerate(deferred):
-            if edge.id not in used and edge_block(edge) == focus:
-                return i
+        if not authored:
+            for i, (_, edge) in enumerate(deferred):
+                if edge.id not in used and edge_block(edge) == focus:
+                    return i
+            return len(deferred) - 1
+        live = [i for i, (_, edge) in enumerate(deferred) if edge.id not in used]
+        own = [i for i in live if edge_block(deferred[i][1]) == focus]
+        if own:
+            return min(own, key=lambda i: (part_order(*deferred[i]), i))
+        fresh = [i for i in live if target_body(*deferred[i]) not in started]
+        if fresh:
+            return min(fresh, key=lambda i: (body_rank.get(target_body(*deferred[i]), 0),
+                                             part_order(*deferred[i]), -i))
         return len(deferred) - 1
 
     def walk(node: Node, column: int, body: Optional[str] = None) -> None:
@@ -862,6 +907,8 @@ def serialize_topology(topology: Topology) -> Layout:
                             if edge_block(e) is None or edge_block(e) != body)
             pending = [e for e in pending
                        if edge_block(e) is not None and edge_block(e) == body]
+            if authored:
+                pending.sort(key=lambda e: part_order(node.id, e))
         # Claimed up front, all of them: a deeper walk that reaches one of these
         # edges from its far end must NOT consume it, or the branch this node
         # already allocated a column for would silently vanish from the page.
@@ -951,7 +998,11 @@ def serialize_topology(topology: Topology) -> Layout:
             step(topology.node(node_id), edge, edge_column, edge_block(edge))
             ser.release(edge_column)
 
-    for node in topology.nodes:
+    # The walk starts at the first node in document order -- `authored`: the
+    # first one on the first body's first part.
+    first_part = topology.bodies[0].parts[0] if authored else None
+    starts = sorted(topology.nodes, key=lambda n: first_part not in n.parts)
+    for node in starts:
         if node.id in visited:
             continue
         column = ser.allocate(len(ser.layout.rows))
