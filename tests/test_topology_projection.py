@@ -1465,9 +1465,11 @@ def test_model_v2_reads_in_its_authored_body_and_part_order(topologies):
             seen += [p for p in on if p in body.parts and p not in seen]
         assert seen == [p for p in body.parts if p in seen], body.id
         assert seen, body.id
-    hub_rows = [r for r in layout["rows"] if r["body"] == "base"]
-    assert [r["id"] for r in hub_rows[3:5]] == ["hub_spindle_to_tan_link_mount_face",
-                                               "tan_link_mount_hub_face"]
+    rows = layout["rows"]
+    assert [r["id"] for r in rows[:3]] == ["hub_spindle_bore_axis", "hub_blade_axis_offset",
+                                           "hub_blade1_root_bearing_bore"]
+    assert rows[3]["kind"] == "edge" and rows[4]["kind"] == "node"
+    assert topology.node(rows[4]["id"]).parts == ("tan_link_mount_215175_002",)
 
 
 def test_the_authored_walk_is_not_the_product_models(topologies):

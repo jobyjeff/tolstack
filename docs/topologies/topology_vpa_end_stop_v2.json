@@ -425,6 +425,33 @@
       "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
     },
     {
+      "id": "hub_boss_in_tan_link_mount_pilot",
+      "name": "locating boss in the tan-link mount's pilot bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "hub_spindle_bore_axis",
+      "to": "tan_link_mount_pilot_bore",
+      "note": "New in v2 (2026-11-08): the mount's radial location. No value recorded. What would close it: 214373-002's boss and 215175-002's pilot bore."
+    },
+    {
+      "id": "hub_spindle_to_tan_link_mount_face",
+      "name": "locating-boss axis to tan-link mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "tan_link_mount_hub_face",
+      "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
+    },
+    {
+      "id": "hub_boss_to_tan_link_mount_fasteners",
+      "name": "locating-boss axis to the mount's fastener pattern",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "tan_link_mount_fastener_clocking",
+      "note": "New in v2 (2026-11-08): the hub's hole pattern for the mount, clocked about the boss. No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
+    },
+    {
       "id": "hub_spindle_to_gas_spring_mount_face",
       "name": "locating-boss axis to gas-spring mount seat",
       "kind": "structural",
@@ -443,15 +470,6 @@
       "note": "No value recorded; M2 adds the term. What would close it: 213668-002's drawing."
     },
     {
-      "id": "hub_spindle_to_tan_link_mount_face",
-      "name": "locating-boss axis to tan-link mount seat",
-      "kind": "structural",
-      "part": "hub",
-      "from": "hub_spindle_bore_axis",
-      "to": "tan_link_mount_hub_face",
-      "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
-    },
-    {
       "id": "tan_link_mount_height",
       "name": "base face to attachment bore",
       "kind": "structural",
@@ -461,15 +479,6 @@
       "note": "No value recorded; M2 adds the term. What would close it: 215175-002's drawing."
     },
     {
-      "id": "hub_boss_in_tan_link_mount_pilot",
-      "name": "locating boss in the tan-link mount's pilot bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "hub_spindle_bore_axis",
-      "to": "tan_link_mount_pilot_bore",
-      "note": "New in v2 (2026-11-08): the mount's radial location. No value recorded. What would close it: 214373-002's boss and 215175-002's pilot bore."
-    },
-    {
       "id": "tan_link_mount_pilot_to_bore",
       "name": "pilot bore to attachment bore",
       "kind": "structural",
@@ -477,15 +486,6 @@
       "from": "tan_link_mount_pilot_bore",
       "to": "tan_link_mount_bore",
       "note": "New in v2 (2026-11-08): where the attachment bore sits radially from the pilot. No value recorded; M2 adds the term. What would close it: 215175-002's drawing."
-    },
-    {
-      "id": "hub_boss_to_tan_link_mount_fasteners",
-      "name": "locating-boss axis to the mount's fastener pattern",
-      "kind": "structural",
-      "part": "hub",
-      "from": "hub_spindle_bore_axis",
-      "to": "tan_link_mount_fastener_clocking",
-      "note": "New in v2 (2026-11-08): the hub's hole pattern for the mount, clocked about the boss. No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
     },
     {
       "id": "tan_link_mount_fasteners_to_bore",
