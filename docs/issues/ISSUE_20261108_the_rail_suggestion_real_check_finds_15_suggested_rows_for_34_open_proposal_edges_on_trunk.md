@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: annotate/browser-tier
 reporter: agent
 class: browser_red_on_trunk
@@ -53,3 +53,34 @@ rebuilt by `scripts/rebuild_projections.ps1` first (stamps `sha12=6682b9720d97 d
 
 The routed fix is
 `docs/sessions/HANDOFF_20261108_the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show.md`.
+
+## Resolution (2026-11-08, handoff `the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show`)
+
+**The check was wrong, not the rail.** The 15 rows it read were model v2's rail
+(`vpa_end_stop_v2`, head "all 27 interfaces — no study scopes them"), not
+`vpa_pitch_linkage`'s. Since `d0863681` v2 is listed first, so the boot's
+`selectFirstTopology()` draws v2 before the deep link's `goto vpa_pitch_linkage`
+lands -- and v2 is studyless, so the check's "wait for a studyless head" was
+already true on the boot's rail. Before model v2 the first model was v1, whose
+boot rail is a study's, so the wait held until the goto landed. 15 is exactly the
+number of v2's 27 (shared-id) edges that carry an open proposal, all 15 suggested
+-- so the ids_from read-through is doing its job on v2 as well.
+
+Fix (`scripts/run_viewer_browser_tests.mjs`, section 5): wait for the head
+`AA.studylessHead(<this topology's edge count>)`, and require it in the
+comparison. The comparison was tightened, not loosened. The runner also now
+lists every `(skipped: ...)` sub-check by name under a `SKIPPED` line at the
+end of the run.
+
+Verified in the main checkout's data, running the worktree's runner:
+
+> ```
+> node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack --only "annotate rail suggestion"
+>     topology-level rail ("all 99 interfaces — no study scopes them"): 34 rows read suggested; vpa_pitch_linkage has 34 edges with 62 open ends
+>     kinematic study's joint ends: 9, 7 read suggested, 7 distinct ends of 4 edges
+> [annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)] 19/19 sub-checks passed: PASS
+> 1/1 browser checks passed (--only "annotate rail suggestion")
+> ```
+
+The guard's mutation (`browser__real-the-topology-level-rail-shows-a-suggestion-on-every__f2976b67`)
+is still WITNESSED under `--changed-since master`.

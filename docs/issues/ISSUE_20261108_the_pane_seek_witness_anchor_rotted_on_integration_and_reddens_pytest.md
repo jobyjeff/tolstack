@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 class: decayed_witness
@@ -37,3 +37,12 @@ Fix: re-point `find`/`replace` at the comparison the page now makes before it
 follows a pane seek (around `syncPanePose`, `apps/viewer/topology_app.js`
 ~l. 1521 / 1760), then `--only` the entry to confirm it still witnesses. The
 other way out is to retire the spec and say why.
+
+## Resolved 2026-11-08
+
+Anchor re-pointed at `heldPoseIs`'s `Math.abs(held - index) <= 1e-6`
+(`<= 1e9` mutated). Verified:
+`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only browser__real-and-a-seek-in-the-pane-lands-the-page-s-angle-on-th__f697d046`
+-> `=> WITNESSED in 2m26s`, `1/1 witnessed`; `pytest -q` in the worktree
+`1 failed, 1867 passed` (the one failure is the worktree-only viewer JS tier).
+Cause and the review-prompt gap: the lesson of the same slug.
