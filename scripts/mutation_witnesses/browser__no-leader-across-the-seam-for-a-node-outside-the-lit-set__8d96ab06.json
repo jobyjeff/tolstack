@@ -6,10 +6,10 @@
     {
       "contract": "Only the lit set's nodes have a DAG end.",
       "issue": null,
-      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Gives every drawn node one, lit or not.",
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Gives every drawn node one, lit or not. Re-pointed 2026-11-08 (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader), when no study came to light every drawn node: the same break, now spelled as ignoring the lit set that is there.",
       "file": "apps/viewer/topology.js",
-      "find": "    Object.keys(lit.nodes || {}).sort().forEach(function (id) {\n      if (!lit.nodes[id]) return;",
-      "replace": "    Object.keys(marks).sort().forEach(function (id) {\n      if (!marks[id]) return;"
+      "find": "    var ids = lit ? Object.keys(lit.nodes || {}).filter(function (id) { return lit.nodes[id]; })",
+      "replace": "    var ids = false ? Object.keys(lit.nodes || {}).filter(function (id) { return lit.nodes[id]; })"
     }
   ]
 }
