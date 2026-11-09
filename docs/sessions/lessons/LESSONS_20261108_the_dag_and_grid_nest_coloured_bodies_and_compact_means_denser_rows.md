@@ -154,5 +154,26 @@ densities, dot r is 7 at both, and rows are 26 and 18.
 
 ## Verification record
 
-See "Re-run" below for the final numbers; this section is filled in by the
-final run.
+Every `[real]` run read `data/scratch/nested_bodies/repo`, which holds all seven
+projections built from this branch's committed tree. Each runner checks the
+pairing and reported it paired.
+
+| tier | where | result |
+| --- | --- | --- |
+| `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, 394 s | worktree | 1890 passed, 1 skipped, 1 failed. The failure is `test_viewer_js_suite.py`, deliberately red in a worktree (no projection there); the tier it wraps is the next row. |
+| `node apps/viewer/run_tests.cjs --repo <scratch>` | worktree | 671/671 |
+| `node apps/viewer/run_tests.cjs` | worktree | 548/548, with the `[real]` tier skipped (no projection), as designed |
+| `node apps/annotate/run_tests.cjs` | worktree | 303/303 |
+| `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`, 1906 s, on `2ee3fc54` | worktree, `node_modules` junctioned | 42/43. The red is `annotate rail holds still`, and the same 6 sub-checks fail on a plain `git archive integration` copy against the same projections (filed: `ISSUE_20261108_the_rail_holds_still_browser_check_is_red_on_integration.md`). 1m46s over the merge budget, appended to `ISSUE_20261106_the_viewer_browser_tier_ran_51_minutes_against_the_merge_budget.md`. |
+| `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration`, 1772 s | worktree | 36/38 witnessed, 38/63 reached, 25 left to the sweep (budget). The 2 misses are the colour-by-body guard's store mutations, which ran before the check was repaired. Re-run alone with `--only "colouring by body puts the overlay"`: 3/3 witnessed. |
+| `tests/test_mutation_witnesses.py` (inside pytest) | worktree | green: names, anchors, census |
+
+Notes on the record:
+
+- An earlier witness run with `--repo C:/workspace/tolstack` was **void**. The
+  main checkout is on `master`, and every fast entry refused that stale
+  projection before any mutation ran. Pass the scratch root.
+- The main checkout's shared projections were rebuilt at the start of the
+  session (`scripts/rebuild_projections.ps1`, `master @ c0ae9b7f`, exit 0). That
+  is master's tree, not this branch's; the post-merge rebuild belongs to
+  whoever lands `integration` on master.
