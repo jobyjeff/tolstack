@@ -2775,12 +2775,18 @@
   // 0 where nothing is drawn -- stack mode, a pre-layout call -- which
   // VA.clampFlyoutWidth reads as "nothing measured" and answers with its own
   // floor.
+  //
+  // ...and the grid beside it, through its ELEMENT column (the_demo_path_
+  // reads_cleanly_on_a_projector): at 1920 wide the scene kept only the
+  // drawing, and the grid beside an open pane showed nothing but its body
+  // labels. VA.gridKeptWidth is the columns' own sum, so no scroll position
+  // and no half-laid-out row can make it read short.
   function graphNeed() {
     var rails = nodes.pane && nodes.pane.querySelector
       ? nodes.pane.querySelector("svg.tv__rails") : null;
     var box = rails && rails.getBoundingClientRect
       ? rails.getBoundingClientRect() : null;
-    return box && box.width > 0 ? Math.round(box.width) : 0;
+    return box && box.width > 0 ? Math.round(box.width) + VA.gridKeptWidth() : 0;
   }
 
   // The remembered flyout width onto the dialog, or nothing at all -- same

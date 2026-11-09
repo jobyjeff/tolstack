@@ -1514,17 +1514,21 @@
   // said on a part's first row only, and the brackets
   // (VA.gridBraces) carry the grouping.
   // The grid brackets' two label strips, in px (VA.GRID_BRACE reads these):
-  // a body's name, then a part's number, left of the PART column's words.
-  var BRACE_STRIPS = { body: 84, part: 68 };
+  // a body's name in a gutter left of the PART column's words, then a part's
+  // number, which IS the column's words wherever a part's bracket is drawn
+  // (VA.gridPartLabel) -- so the part strip is the column's own 112px less
+  // its stubs, and only the body strip widens the column.
+  var BRACE_STRIPS = { body: 84, part: 96 };
 
   var COLUMNS = [
     // Each width is measured against the longest thing its column prints on
     // the real projection, in a totals row (dense, bold) as well as a member
     // row: a number never clips, and words clip only with their hover title.
-    // `NAS1149V0332H` inside its brackets' indent is 109px; the brackets'
-    // label strips (a body's name, a part's number) sit in a gutter at the
-    // column's left, so the column is that much wider (VA.braceGutter).
-    { cls: "part", label: "part", width: 112 + BRACE_STRIPS.body + BRACE_STRIPS.part },
+    // `NAS1149V0332H` inside its brackets' indent is 109px; a body's name
+    // sits in a gutter at the column's left, so the column is that much
+    // wider (VA.braceGutter). A part's number is in its bracket's strip,
+    // inside the 112px, and not in the cell as well.
+    { cls: "part", label: "part", width: 112 + BRACE_STRIPS.body },
     { cls: "description", label: "description", width: 140 },
     { cls: "ord", label: "#", width: 30 },
     { cls: "name", label: "element", width: 220, resizable: true },
@@ -1833,6 +1837,21 @@
     column.width = Math.min(VA.TOPO_COLUMN_WIDTH.max,
       Math.max(VA.TOPO_COLUMN_WIDTH.min, Math.round(n)));
     return column.width;
+  };
+
+  // How much of the grid a pane beside it must leave on screen: every column
+  // up to and including ELEMENT (`GRID_KEPT_THROUGH`), at its current width
+  // -- ELEMENT's is the reader's to drag. The scene's width gives way to it
+  // (topology_app.js's graphNeed); the number columns right of it scroll.
+  VA.GRID_KEPT_THROUGH = "name";
+
+  VA.gridKeptWidth = function () {
+    var sum = 0;
+    for (var i = 0; i < COLUMNS.length; i++) {
+      sum += COLUMNS[i].width;
+      if (COLUMNS[i].cls === VA.GRID_KEPT_THROUGH) return sum;
+    }
+    return sum;
   };
 
   function tableWidth() {
@@ -3172,6 +3191,12 @@
       kinds: kindsOn ? { bodies: !!kindsOn.bodies, parts: !!kindsOn.parts } : null,
     });
     var braceGeo = VA.braceGeometry(braces, M.rowHeight, tableWidth());
+    // The rows whose part's bracket says its number: their cell does not.
+    var numbered = {};
+    braces.braces.forEach(function (b) {
+      if (b.kind !== "part" || !b.label) return;
+      for (var r = b.start; r <= b.end; r++) numbered[r] = true;
+    });
     var tbody = VA.el("tbody");
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
@@ -3179,7 +3204,8 @@
         var indent = braceGeo.indent[group.start + i] || 4;
         var row = group.header
           ? subStackRow(planRow, ctx, hot, indent)
-          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent);
+          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent,
+                    !!numbered[group.start + i]);
         tbody.appendChild(fade(row, "edge", planRow.id));
       }
     });
@@ -3255,10 +3281,10 @@
     return { caps: caps, labels: labels, indent: indent, curl: curl };
   };
 
-  // The gutter every label strip lives in, added to the PART column's own
-  // width (COLUMNS): the outermost levels' stubs, a body's strip and a part's.
+  // The gutter added to the PART column's own width (COLUMNS): a body's
+  // strip. A part's strip is inside the column's words, where its number is.
   VA.braceGutter = function () {
-    return VA.GRID_BRACE.body + VA.GRID_BRACE.part;
+    return VA.GRID_BRACE.body;
   };
 
   function braceLayer(geo) {
@@ -3613,12 +3639,14 @@
   // The PART and DESCRIPTION cells (VA.partColumns): one pair per row, so
   // every row's part cell is part of the row and selects it, with the words
   // on a part's first row only -- the part is said once and its bracket or
-  // rule says where it ends. Whatever the column clips is on hover, and the
-  // Preview of any of its rows has the part's name, drawing and picture.
-  function partCells(el, group, first, indent, index) {
+  // rule says where it ends. Where its bracket is drawn the number is the
+  // bracket's label (`bracketed`), so the cell prints none. Whatever the
+  // column clips is on hover, and the Preview of any of its rows has the
+  // part's name, drawing and picture.
+  function partCells(el, group, first, indent, index, bracketed) {
     var words = first ? VA.partColumns(group.part === null ? null
       : (index.parts[group.part] || { id: group.part })) : null;
-    var number = VA.el("td", "tvcell tvcell--part", words ? words.number : "");
+    var number = VA.el("td", "tvcell tvcell--part", words && !bracketed ? words.number : "");
     number.style.paddingLeft = indent + "px";
     var description = VA.el("td", "tvcell tvcell--description",
       words ? words.description : "");
@@ -3630,7 +3658,7 @@
     el.appendChild(description);
   }
 
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent) {
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent, bracketed) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
     var term = planRow.term || null;
@@ -3659,7 +3687,7 @@
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 
-    partCells(el, group, first, indent, index);
+    partCells(el, group, first, indent, index, bracketed);
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a

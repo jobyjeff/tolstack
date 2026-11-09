@@ -1556,6 +1556,14 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    it holds every study page's results, so the row is nav | scene | model +
    grid | results, the detail divider setting the last one's width. */
 body.flyout-open .navtree { border-right: none; }
+/* ...and the results pane is the one that gives way (the_demo_path_reads_
+   cleanly_on_a_projector). At 1920 wide the row is the nav (300), the scene at
+   its floor (400, VA.FLYOUT_WIDTH.min), the drawing and the grid through
+   ELEMENT (about 1000, VA.gridKeptWidth -- the scene's clamp keeps it) and this
+   pane: what is left, 1706px less than the window, between 200 and its usual
+   560. A scene squeezed to 290 crushed its sweep bar; this pane holds a hint
+   while a sweep plays. A width the reader dragged is inline and still wins. */
+body.flyout-open .tv .detail { width: clamp(200px, calc(100vw - 1706px), 560px); }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

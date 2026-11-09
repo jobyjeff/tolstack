@@ -245,6 +245,17 @@
     return canWrite ? AA.PANE_STATUS.folderNeeded : AA.PANE_STATUS.readOnly;
   };
 
+  // Whether the shell shows that status at all (handoff the_demo_path_reads_
+  // cleanly_on_a_projector): only once the reader has begun a write -- picked
+  // a face to bind, armed a pick, or pressed a write. Until then the pane
+  // wears no chip in either mode: a reader who only watches a sweep never
+  // needs the folder, and an amber word on screen through a whole demo reads
+  // as a fault. The first write asks for the folder itself (app.js,
+  // nextEventSeq), and the chip is there from that moment on.
+  AA.paneStatusShown = function (status, writeBegun) {
+    return writeBegun ? status : null;
+  };
+
   // Did the decision come back "read over HTTP"? Read off the shared
   // vocabulary in one place, like AA.isHosted.
   AA.isServed = function (picked) {

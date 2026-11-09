@@ -4551,7 +4551,7 @@
   //   level  how deep it nests, 0 = outermost -- what the inset is made of;
   //   start, end  plan row indices, inclusive; `end` may run past the plan's
   //          rows into the foot (the study's brace holds its totals);
-  //   label  a body's name, a part's drawing number (VA.partContainerLabel);
+  //   label  a body's name, a part's number (VA.gridPartLabel);
   //          a study and a sub-stack are titled by their own header rows;
   //   body   on a part, the body brace it sits in (absent where Bodies are
   //          switched off, or the part has no body).
@@ -4568,6 +4568,16 @@
   // kind), `opts.topoProj` names the labels and the inks. Pure: the geometry
   // is views/topology.js's.
   VA.GRID_BRACE_KINDS = Object.freeze(["kinematic", "chain", "body", "part"]);
+
+  // A part's bracket label in the grid: the PART column's own number
+  // (VA.partColumns), said there and nowhere else on the row -- the rows it
+  // holds print no number of their own (the_demo_path_reads_cleanly_on_a_
+  // projector; it was printed in both, `214373-002 214373-002 propeller hub`).
+  // A part with no number keeps the DAG container's label.
+  VA.gridPartLabel = function (part) {
+    if (!part) return "";
+    return VA.partColumns(part).number || VA.partContainerLabel(part);
+  };
 
   VA.gridBraces = function (plan, opts) {
     opts = opts || {};
@@ -4643,7 +4653,7 @@
         braces.push({ kind: "part", id: "part:" + g.part, part: g.part,
                       level: at ? at.level + 1 : levelIn(containerOf(rows[g.start])),
                       start: g.start, end: g.start + g.count - 1, gap: false,
-                      label: VA.partContainerLabel(record),
+                      label: VA.gridPartLabel(record),
                       tint: VA.bodyTint(topo, own !== null && own !== undefined ? own
                                                 : bodyOfPart[g.part]),
                       body: at || null });
