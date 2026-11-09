@@ -59,3 +59,16 @@ concurrent pytest subset was loading the box), `annotate rail holds still`
 (already filed), and `the model drawn alone and led`, which is red on plain
 integration too
 (`ISSUE_20261109_the_model_drawn_alone_and_led_check_is_red_on_integration_against_integration_built_projections.md`).
+
+## Measurement 2026-11-09, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261109_triage_sweep.md)
+
+`node scripts/run_viewer_browser_tests.mjs` took **33m05s (1985 s)**, 3m05s
+over the 30-minute merge budget. It ran in the main checkout on master
+`31c9118c` (fast-forwarded from `5e868bc3`) after a fresh
+`scripts/rebuild_projections.ps1`, with nothing else holding the browser
+slot. The witness gate ran after it, not beside it. **42/44** suites passed.
+The two reds are `annotate rail holds still` and `the model drawn alone and
+led`, both already filed and now routed to
+`HANDOFF_20261109_the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection`.
+The suite count grew from 43 to 44 with this merge. The runner prints no
+per-suite timing, so this measurement has no pareto.

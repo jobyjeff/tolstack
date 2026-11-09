@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20261109_the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection.md
 area: tiers/browser
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md
