@@ -9547,17 +9547,26 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     aliases: index.aliases, binding: "real" });
   try {
     await page.goto(`${url}?embedded=1&topology=${topology.id}`, { waitUntil: "load" });
-    // The boot draws the first study's rail before the entry's goto lands:
-    // the whole topology is the one with the studyless head.
-    await page.waitForFunction(() => document.querySelector("#element-list li.el-head") &&
-      document.querySelectorAll("#element-list li.el-row").length > 0, null, { timeout: 60000 })
-      .catch(() => {});
-    const bindRail = await page.evaluate(() => Array.from(
-      document.querySelectorAll("#element-list li.el-row .el-row__proposal")).map((n) => n.textContent));
-    console.log(`    topology-level rail: ${bindRail.length} rows read suggested; the projection ` +
-      `has ${openEdges.size} edges with ${openEnds} open ends`);
+    // The boot draws the FIRST model's rail before the entry's goto lands, and
+    // since model v2 (d0863681) that first model is studyless too -- so "a
+    // studyless head" was v2's 27 interfaces, not this topology's. Wait for the
+    // head that names THIS topology's edge count, and read nothing until then.
+    const wantHead = await page.evaluate((n) => window.AnnotateApp.studylessHead(n),
+      (topology.edges || []).length);
+    await page.waitForFunction((want) => {
+      const head = document.querySelector("#element-list li.el-head");
+      return !!head && head.textContent === want;
+    }, wantHead, { timeout: 60000 }).catch(() => {});
+    const bindRail = await page.evaluate(() => ({
+      head: (document.querySelector("#element-list li.el-head") || {}).textContent || "",
+      shown: Array.from(document.querySelectorAll("#element-list li.el-row .el-row__proposal"))
+        .map((n) => n.textContent),
+    }));
+    console.log(`    topology-level rail ("${bindRail.head}"): ${bindRail.shown.length} rows read ` +
+      `suggested; ${topology.id} has ${openEdges.size} edges with ${openEnds} open ends`);
     push("[real] the topology-level rail shows a suggestion on every edge with an open proposal",
-      bindRail.length === openEdges.size && bindRail.every((t) => /^suggested · (high|medium|low)$/.test(t)));
+      bindRail.head === wantHead && bindRail.shown.length === openEdges.size &&
+      bindRail.shown.every((t) => /^suggested · (high|medium|low)$/.test(t)));
 
     await page.goto(`${url}?embedded=1&sweep=${SWEEP_RAIL_RUN}&kinematic=${SWEEP_RAIL_STUDY}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__sweep && document.getElementById("sweep-tree") &&
@@ -15728,6 +15737,16 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         "census pin or mutation spec can see them:" +
         scanMisses.map((n) => `\n  ${JSON.stringify(n)}`).join(""));
       process.exitCode = 1;
+    }
+
+    // A `[real]` sub-check that found no data on disk passes as "(skipped: ...)",
+    // inside a green total. Name every one, so a run record shows which real
+    // checks did not run -- the rail-suggestion check skipped on the model v2
+    // tactical and review runs and first ran on trunk, red (2026-11-08).
+    const skipped = RAN_NAMES.filter((n) => /\(skipped\b/.test(n));
+    if (skipped.length) {
+      console.log(`\nSKIPPED -- ${skipped.length} sub-check(s) passed without running ` +
+        `(no data under ${DATA_REPO}):` + skipped.map((n) => `\n  ${n}`).join(""));
     }
 
     const failed = results.filter((r) => !r.ok);
