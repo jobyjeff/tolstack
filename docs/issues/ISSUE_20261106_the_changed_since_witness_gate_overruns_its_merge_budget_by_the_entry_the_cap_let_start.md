@@ -42,3 +42,33 @@ kinematic-page entries whose baseline was red for the reason in
 `ISSUE_20261106_two_kinematic_page_browser_checks_still_match_the_old_edge_names.md`.
 It has nothing to do with this overrun. An earlier round-2 run the same day
 took 2359 s (30m36s reached), and was recorded as **OVER BUDGET by 9m19s**. About 9 minutes of that fall outside the runner's own clock, which I take to be the wait for the browser slot. I did not measure it.
+
+## 2026-11-08 measurement (triage batch merge)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since 783515c1`, main checkout at
+`6682b972`, right after the batch merge (`783515c1 -> 7d9772e6`): **2042 s wall** against the
+30-minute merge budget. `suite-time record --tier merge` printed **OVER BUDGET by 4m02s**.
+Runner summary: "65/66 witnessed, 66/111 reached in 33m32s; 45 left to the sweep". The
+overrun is this issue's shape again. The entry the cap let start was the 5m59s
+`browser__real-nothing-above-produced-an-uncaught-error__62500dca` (its suite's clean run
+was red, a load flake that passed alone afterwards).
+That entry ran right after a full browser tier, so the slot was not contended. Slowest entries
+(runner's own timing):
+
+    5m59s  browser__real-nothing-above-produced-an-uncaught-error__62500dca
+    1m07s  annotate__a-model-that-reuses-another-s-ids-reads-that-model-s-rec__2a4aa28c
+      52s  fast__a-collapsed-body-is-remembered-per-topology-per-reader-a__a17039c2
+      36s  annotate__real-p2-the-spindle-coaxiality-pair-is-one-joint-at-the__020b8ea4#1
+      34s  annotate__real-p2-the-spindle-coaxiality-pair-is-one-joint-at-the__020b8ea4#2
+      34s  annotate__planhighlight-tints-a-bound-face-only-where-its-part-is__e95c3cac
+      34s  annotate__highlight-narrows-to-one-end-of-an-edge-and-a-selected-l__b0323cf6
+      34s  annotate__under-a-topology-that-declares-occurrences-a-mesh-only-c__7dc5f5b4
+      34s  annotate__nexteventseq-numbers-from-seq-when-built-from-events-are__b23d3481
+      34s  annotate__memoryadapter-never-overwrites-an-existing-filename-is-b__1b42eea5
+      34s  annotate__embedstate-names-the-mode-and-the-subject-in-one-line-th__bd227e9f
+      34s  annotate__a-proposal-never-stands-the-row-s-state-is-proposed-with__09392b85
+      33s  annotate__an-event-on-an-id-a-model-shares-with-the-model-it-reuse__8a1a5db8
+      33s  annotate__sweep-a-part-the-topology-puts-in-a-body-rides-it-one-re__28550e1f#2
+      33s  annotate__a-part-that-declares-an-occurrence-is-drawn-there-alone__457a9310
+
+(found_by for this measurement: dispatch/docs/sessions/lessons/LESSONS_20261108_triage_sweep.md)

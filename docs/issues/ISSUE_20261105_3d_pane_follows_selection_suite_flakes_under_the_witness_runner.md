@@ -21,3 +21,13 @@ browser tier and in two isolated `--only` runs. Not baselined against integratio
 this change's pane-open/close glide widens the window is unknown; the checks click and hover
 rows while the page may still be settling. The witness for this guard is therefore unproven on
 this branch; the sweep should re-check it.
+
+## 2026-11-08 recurrence (triage batch merge, main checkout at `6682b972`)
+
+The full `node scripts/run_viewer_browser_tests.mjs` run reported this suite 31/32, failing
+"[real] clicking a contributor row in the nav selects it in the scene, and the row shows it
+selected". The witness runner's clean baseline of the same suite was red right after it
+(so `browser__real-nothing-above-produced-an-uncaught-error__62500dca` read NOT WITNESSED,
+"tier was red before the mutation"). Run alone with `--only "3D pane follows the selection"`
+it passed 32/32 in 110 s. Same shape as above: batch-only, green alone.
+(found_by: dispatch/docs/sessions/lessons/LESSONS_20261108_triage_sweep.md)
