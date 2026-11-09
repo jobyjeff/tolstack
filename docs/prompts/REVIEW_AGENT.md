@@ -652,6 +652,14 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A shot of "the merged page" taken on port 8000 is trunk's page.**
+      drawing-checker's 8000 mount serves the main checkout's `apps/` (master), so
+      only a private server over the worktree's `apps/` (as `tests/debug_*.mjs` do)
+      shows integration. Check which server each shot came from, and the Data
+      source strip's commit. Rebuilding the main checkout's projections from
+      integration also leaves 8000 as master code over integration data until the
+      batch merge (2026-11-09, `the_integration_walk_reads_the_merged_page_against_jeffs_sentences`).
+
 - [ ] **A message the page acts on at load reaches the URL.** A pane/embed message
       handled on arrival (e.g. `annotate:pose`) that calls `setPose` writes
       `?kinematic=…&pose=…` with no reader action, sets `poseUrlWritten`, and a later
