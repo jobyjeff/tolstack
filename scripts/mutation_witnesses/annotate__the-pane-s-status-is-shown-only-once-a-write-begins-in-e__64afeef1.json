@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the pane's status is shown only once a write begins, in either mode",
+  "mutations": [
+    {
+      "contract": "No status is shown before a write begins.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "The chip at boot: amber through a whole demo.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "    return writeBegun ? status : null;",
+      "replace": "    return status;"
+    },
+    {
+      "contract": "A face picked to bind begins a write.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "A pick that never says so leaves the chip hidden through the bind it starts.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.currentPick = { sha256: mesh.sha256, faceId, record };\n  beginWrite();",
+      "replace": "  state.currentPick = { sha256: mesh.sha256, faceId, record };"
+    }
+  ]
+}
