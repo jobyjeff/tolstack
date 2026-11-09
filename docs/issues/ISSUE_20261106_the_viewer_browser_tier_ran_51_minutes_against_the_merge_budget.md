@@ -49,3 +49,13 @@ the 30-minute merge budget, so 1m46s over. 42/43 suites passed; the one red is
 (`ISSUE_20261108_the_rail_holds_still_browser_check_is_red_on_integration.md`).
 That handoff added 4 checks to "the DAG zoom, Fit and the grid header", each
 toggling density and Groups on both models, which is about 40 s of the total.
+
+## Measurement 2026-11-09, review merge (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows)
+
+Same spelling and scratch root, run from the review worktree on the merged tree
+(integration `e34401a0` + this handoff): **32m54s (1974 s)**, 2m54s over. 40/43
+suites passed. The reds were the file:// rail-hover pair (209/209 alone; my
+concurrent pytest subset was loading the box), `annotate rail holds still`
+(already filed), and `the model drawn alone and led`, which is red on plain
+integration too
+(`ISSUE_20261109_the_model_drawn_alone_and_led_check_is_red_on_integration_against_integration_built_projections.md`).

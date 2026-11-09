@@ -5702,6 +5702,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       17/22 under load, then 22/22 alone and 22/22 on `git archive integration`.
       Re-run the suite alone and baseline it before you blame the branch
       (`ISSUE_20261109_the_annotate_model_suites_fake_bindings_reader_loses_a_race_to_the_real_bindings_projection.md`).
+- [ ] **A diff that flips a view setting's DEFAULT voids every sentence that
+      leaned on "it's off by default".** (2026-11-09,
+      `the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows`.)
+      `Colour by: Body` became the default. Two sentences still said a grid
+      row's background "carries nothing", and a deferred issue's only
+      mitigation ("a reader never sees body and sourcing together") stopped
+      being true. README's "nothing else may wear" the provenance hues went
+      false too. For each `*_DEFAULTS` value a diff changes, grep the old
+      default's word and "by default" across `docs/`, `apps/viewer/README.md`,
+      the CSS comments and the open issues.
 
 ## Architectural errors to check
 
