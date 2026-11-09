@@ -75,14 +75,20 @@ The run's `geometry.features` name **9** distinct nodes, not the handoff's ten.
 
 With master's projections the two spindle nodes were `bound`. With
 integration's they are not, because the bindings are keyed to v1's edge ids
-and integration's v2 renamed that spindle edge. They are one joint dot at the
-solver's point either way. That's the datum-rename handoff's consequence, not
-this one's.
+and integration's v2 renamed that spindle edge. That's the datum-rename
+handoff's consequence, not this one's. **Corrected after the revert:** with
+integration's projections `hub_spindle_bore_axis` posts `null` too (its hub
+section centre is out of view, and the reverted skeleton point was what had
+placed it). `pitch_plate_spindle_bore_axis` is still led. Once a binding names
+the hub's spindle bore under v2's id, both get leaders.
 
 Leaders with P2 loaded, at the 1500-tall viewport, measured before the revert:
 **21 of 25**. The other 4 (`pitch_arm_link_bore`, `pitch_arm_root_seat` and
 the two pitch-link sphere centres) are `offDag`: their dots are below the
-pane's visible height. After the revert the hinge is `noAnchor` as well, so 20. Every
+pane's visible height. After the revert the hinge is `noAnchor` as well, so 20
+with master's projections (the browser tier's count). With integration's,
+re-shot, it's 19 (the hub spindle node is `noAnchor` too), and 18 at the +72°
+stop, where `tan_link_lower_sphere_centre` posts `null` for that frame. Every
 node the scene placed at a solver point, with its dot on screen, has its leader. The browser check
 counts this (`[real] with the P2 run loaded and no study, every joint node the
 scene drew has its leader across the seam`).
@@ -92,7 +98,8 @@ scene drew has its leader across the seam`).
 All of these were taken with integration's topology and bindings projections
 from a scratch root (see "Projections", below). The red "Data is older than
 the latest code" banner in them comes from that override, not from this
-change.
+change. Shots 2, 3, 4, 5, 7 and 9 were re-taken after the revert: no leader
+runs into the assembly origin any more.
 
 1. `1_v2_pane_at_rest.png` — 15 meshes for 15 parts, "Other parts (37)"
    folded and unticked, framed on the mechanism. Tight in this tall portrait
@@ -158,3 +165,29 @@ rebuild that puts integration's v2 on the served page.
   line, with the same break.
 </content>
 </invoke>
+- **The studyless seam unit test was itself red at first.** Its
+  `svg.tv__rails [data-row-kind="node"]` selector matched nothing, so "the walk
+  draws nodes" failed. The witness gate caught it as "the tier was red before
+  the mutation". It now reads `use.rail__glyph` / `circle.rail__dot` like the
+  record-pairing test. Both mutations then redden it alone, checked by hand,
+  because the shadow's fast tier is red on the `[real]` stale-projection check
+  (`--repo` main is built from master).
+
+## The test record (final tree, `735195b8` plus these docs; worktree checkout)
+
+| tier | command | result | wall |
+|---|---|---|---|
+| default | `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` | 1 failed, 1890 passed, 1 skipped, 2 deselected. The one failure is `test_viewer_js_suite` (no `[real]` projection in a worktree; documented) | 6m35s |
+| viewer JS | `node apps/viewer/run_tests.cjs` | 549/549, `[real]` tier skipped (worktree) | — |
+| annotate JS | `node apps/annotate/run_tests.cjs` | 304/304 | — |
+| browser | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` (node_modules junction) | 42/44. The new suite passes 2/2: 15 meshes for 15 parts; with P2 and no study, 20 leaders and all 4 joint nodes led. Red: "annotate rail holds still", the same on pristine integration (`ISSUE_20261108_the_rail_holds_still_browser_check_is_red_on_integration.md`), and "kinematic study page" 25/27, intermittent (below) | 30m51s |
+| witness | `node scripts/run_mutation_witness_tests.mjs --changed-since integration --repo C:/workspace/tolstack` | 14/16 witnessed, 2 left to the sweep (budget). The 2 not witnessed were the fast seam guard (above), since fixed and witnessed by hand | 33m03s |
+
+The kinematic page's two "survives a reload" sub-checks failed on 3 of 9
+`--only` runs across these trees, and passed 5/5 on pristine integration.
+Bisected: they never failed with integration's annotate files in. But the
+page never loads the pane or any annotate script, and it later passed 2/2 in
+this worktree, so no mechanism ties it to this change. Filed:
+`ISSUE_20261109_the_kinematic_page_view_settings_survive_a_reload_check_is_intermittent.md`.
+Suite times were recorded with `dispatch suite-time`. The merge-tier overruns
+went as sightings on the two open (deferred) over-budget issues.

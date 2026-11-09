@@ -72,3 +72,9 @@ That entry ran right after a full browser tier, so the slot was not contended. S
       33s  annotate__a-part-that-declares-an-occurrence-is-drawn-there-alone__457a9310
 
 (found_by for this measurement: dispatch/docs/sessions/lessons/LESSONS_20261108_triage_sweep.md)
+
+**Sighting, 2026-11-09** (handoff
+`the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader`):
+`--changed-since integration` selected 18 entries and reached 16 in 32m45s.
+2 were left to the sweep (budget), and the run was 33m03s wall: the same
+overrun shape, from the last browser entry the cap let start.

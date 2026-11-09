@@ -33,3 +33,9 @@ for the witness gate.
 the time from that line to the summary line would give the tier's own length.
 If that is still past the budget, the next question is which suites dominate.
 This session did not time suites one by one.
+
+**Sighting, 2026-11-09** (handoff
+`the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader`):
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` from
+a worktree ran 30m51s wall, slot queue included, with 44 suites (one added by
+that handoff). That's over the 30-minute budget by 0m51s.
