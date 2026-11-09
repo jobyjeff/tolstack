@@ -3275,7 +3275,8 @@
       node.setAttribute("aria-hidden", "true");
       place(node, cap);
     });
-    // A label the strip clips is read in full on hover (its title).
+    // A label the strip clips keeps its whole text as a title for tools; a
+    // reader's hover reaches the PART cell under it, whose title names the part.
     geo.labels.forEach(function (label) {
       var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
         " tv__fill--t" + label.tint, label.text);

@@ -4261,7 +4261,7 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
   // After the runner's own "start on the rails": this suite is the blocks'.
   await page.addInitScript(() => {
     try {
-      const key = "tolstack.viewer.dagView";
+      const key = "tolstack.viewer.dagView.2"; // VA.DAG_VIEW_KEY
       const view = JSON.parse(localStorage.getItem(key) || "{}") || {};
       view.partDrawing = "blocks";
       localStorage.setItem(key, JSON.stringify(view));
@@ -15593,7 +15593,7 @@ async function testAnnotateRenderOnDemand(browser, label) {
       // of their own ("parts as blocks"), which picks them.
       await page.addInitScript(() => {
         try {
-          const key = "tolstack.viewer.dagView";
+          const key = "tolstack.viewer.dagView.2"; // VA.DAG_VIEW_KEY
           const view = JSON.parse(localStorage.getItem(key) || "{}") || {};
           if (!view.partDrawing) {
             view.partDrawing = window.__partDrawing || "rails";

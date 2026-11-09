@@ -1090,11 +1090,12 @@ body { display: flex; flex-direction: column; }
 .tvbrace--body.tvbrace--bottom { border-width: 0 2px 2px 2px; }
 .tvbrace--part { color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
 /* The labels, in the gutter at the PART column's left: a body's name in its
-   ink, wrapping down its rows; a part's number on its first row. Clipped
-   text is on hover (the title), so they take the pointer. */
+   ink, wrapping down its rows; a part's number on its first row. Inert: they
+   lie over the PART cells, which are click targets, so a clipped part label
+   is read in full on that cell's own hover title (its part's name). */
 .tvbrace__label {
   position: absolute; box-sizing: border-box; overflow: hidden;
-  font-size: var(--t-micro); pointer-events: auto; cursor: default;
+  font-size: var(--t-micro); pointer-events: none;
   white-space: nowrap; text-overflow: ellipsis;
 }
 .tvbrace__label--body { color: var(--fill-ink, var(--muted)); font-weight: 600;
