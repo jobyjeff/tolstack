@@ -7,7 +7,8 @@ area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
-resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days
+resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days. Strategy 2026-11-08 evening: option (a) is deliverable 2 of the handoff below; labels and nesting are the DAG/grid sibling
+handoff: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
 ---
 
 # Model v2's five-body DAG draws a column, not a loop
