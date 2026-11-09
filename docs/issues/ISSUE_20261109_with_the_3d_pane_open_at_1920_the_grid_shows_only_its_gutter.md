@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/layout
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_integration_walk_reads_the_merged_page_against_jeffs_sentences.md
+handoff: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
 ---
 
 # With the 3D pane open at 1920 wide, the grid shows only its brace gutter

@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/copy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_integration_walk_reads_the_merged_page_against_jeffs_sentences.md
+handoff: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
 ---
 
 # A row's preview on the demo path prints raw backticks and negation prose

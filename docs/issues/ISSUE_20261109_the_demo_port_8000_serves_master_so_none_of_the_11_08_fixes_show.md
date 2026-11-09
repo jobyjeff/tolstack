@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: high
-status: open
+status: resolved
 area: ops/batch-merge
 reporter: agent
 needs: jeff
 ask: Batch-merge integration into master before the demo, so the page on port 8000 shows the 11-08 fixes
 found_by: docs/sessions/HANDOFF_20261108_the_integration_walk_reads_the_merged_page_against_jeffs_sentences.md
+resolution: triage 2026-11-09 batch merge landed integration on master (5e868bc3 -> 31c9118c, ff); http://127.0.0.1:8000/tolstack/viewer/topology.js now hashes identical to the main checkout's merged apps/viewer/topology.js (sha256 984efdff...), and projections were rebuilt from 31c9118c
 ---
 
 # The page on port 8000 serves master, so none of the 11-08 fixes show there

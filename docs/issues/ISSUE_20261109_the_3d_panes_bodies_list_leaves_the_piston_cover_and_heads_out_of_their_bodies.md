@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: annotate/sweep
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_integration_walk_reads_the_merged_page_against_jeffs_sentences.md
+handoff: docs/sessions/HANDOFF_20261109_a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list.md
 ---
 
 # The 3D pane's Bodies list still leaves the piston cover and the piston heads out of their bodies

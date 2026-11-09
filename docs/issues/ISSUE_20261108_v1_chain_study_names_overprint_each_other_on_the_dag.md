@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/dag
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md
+class: topology_layout
+defer_until: 2026-11-23
+resolution: triage 2026-11-09 -- med beyond budget (v1 is no longer the default model); 14-day date
 ---
 
 # v1's chain-study names overprint each other on the DAG

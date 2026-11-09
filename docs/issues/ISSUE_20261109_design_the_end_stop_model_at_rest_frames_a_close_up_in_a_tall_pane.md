@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
+class: topology_layout
+defer_until: 2026-12-09
+resolution: triage 2026-11-09 -- low, deferred by default; 30-day date
 ---
 
 # Design: the end-stop model at rest frames a close-up of one large part in a tall pane

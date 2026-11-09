@@ -1,12 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/browser-tier
 reporter: agent
 audience: tactical
 class: flaky_check
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
+defer_until: 2026-12-09
+resolution: triage 2026-11-09 -- low, deferred by default; 30-day date
 ---
 
 # The kinematic page's "View settings survive a reload" checks are intermittent

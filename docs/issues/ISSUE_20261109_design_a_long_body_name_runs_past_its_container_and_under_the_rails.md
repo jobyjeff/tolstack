@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md
+class: topology_layout
+defer_until: 2026-12-09
+resolution: triage 2026-11-09 -- low, deferred by default; 30-day date
 ---
 
 # Design: a long body name runs past its DAG container's right edge, with rails drawn through it

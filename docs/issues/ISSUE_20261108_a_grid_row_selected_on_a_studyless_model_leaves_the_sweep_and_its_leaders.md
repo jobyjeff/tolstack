@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/pane-redrive
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
+class: sweep_mode_exit
+defer_until: 2026-11-23
+resolution: triage 2026-11-09 -- med beyond the per-repo budget (3 staged: two demo handoffs + the red-suites fix); 14-day date
 ---
 
 # A grid row selected on a studyless model leaves the sweep, and takes every leader with it

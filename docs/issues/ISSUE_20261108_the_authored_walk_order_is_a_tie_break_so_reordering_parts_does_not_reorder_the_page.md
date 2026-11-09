@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: topology/walk-order
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
+class: topology_layout
+defer_until: 2026-11-23
+resolution: triage 2026-11-09 -- med beyond budget; 14-day date
 ---
 
 # The `authored` walk order only breaks ties, so re-ordering a body's `parts` does not always re-order the page

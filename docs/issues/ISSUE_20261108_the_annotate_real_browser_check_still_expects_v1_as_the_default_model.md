@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: annotate/browser-check
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
+class: stale_check_expectation
+defer_until: 2026-11-23
+resolution: triage 2026-11-09 -- med beyond budget; 14-day date
 ---
 
 # The annotate `[real]` browser check still expects v1 as the default model
