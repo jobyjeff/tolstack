@@ -19,26 +19,24 @@ root (`data/scratch/end_stop_names_riders/`) and served by
 `tests/debug_model_v2_shots.mjs --projections`, so the main checkout's shared
 projections were never overwritten from a branch.
 
-What I read off them:
+What I read off the final shots:
 
 - **Grid, top to bottom:**
-  - hub (3 rows)
-  - tan-link mount: pilot, seat, fastener pattern, attachment bore
+  - hub (its four edges)
+  - the hub's boss in the mount's pilot bore (a gap row)
+  - tan-link mount: pilot to bore, seat to bore, fastener pattern to bore
   - gas-spring mount
   - cover
   - tangential link
   - pitch plate, then piston, then lower head, then upper head
   - pitch link
   - pitch arm, then blade root
-- **Hub → mount edge:** the first edge out of the hub into the tan-link mount
-  (`hub_boss_in_tan_link_mount_pilot`) is the row directly below the hub's
-  three rows.
+  - the two closing joints (travel between the stops, the slide bushings)
+- **Hub → mount edge:** the DAG's first branch off the hub lands on the
+  tan-link mount, on the row directly below the hub's own three.
 - **Containers:** each body is one container, and no body holds a part that is
   not in its `parts`.
 - **"Spindle":** no row says it.
-- **What stayed the same:** the "data is older than the code" banner shows on
-  every shot. That is the scratch projection's provenance against a dirty or
-  moved tree, not a page fault.
 
 ## Renames (ids frozen)
 
@@ -214,3 +212,35 @@ No behaviour changed under `apps/`.
   The annotate runner has no `--repo`. It reads the worktree's own `data/`
   first, so I copied projections there (gitignored). The browser tier needs
   `node_modules`: junction the main checkout's.
+
+## Verification record
+
+| tier | where | result |
+| --- | --- | --- |
+| `pytest -q`, 390 s | worktree | 1890 passed, 1 skipped, 1 failed |
+| `node apps/viewer/run_tests.cjs --repo <scratch>` | worktree, against a scratch data root built from this tree | 672/672 |
+| `node apps/annotate/run_tests.cjs` | worktree, this tree's projections in the worktree's gitignored `data/` | 303/303 |
+| `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`, ~30 min | worktree, `node_modules` junctioned | 42/43 |
+| `node scripts/run_mutation_witness_tests.mjs --changed-since integration` | worktree | 0 of 847 entries reachable |
+| `node apps/annotate/run_browser_check.mjs --real <P2>` | worktree | red, the same failures as baseline |
+
+What each non-green line is:
+
+- **pytest's one failure** is `test_viewer_js_suite.py`, which is
+  deliberately red in a worktree. The viewer tier it stands for ran green
+  against the scratch root (next row).
+- **The browser tier's one failure** is
+  `annotate rail holds still (bodies under Bodies, joint words, framing, the second face)`.
+  The same 6 of 17 sub-checks fail against the main checkout's baseline
+  projections. Filed as
+  `ISSUE_20261108_the_rail_holds_still_browser_check_is_red_on_integration.md`.
+- **The annotate `[real]` check** is ungated, and the same failures show on the
+  baseline. Filed as
+  `ISSUE_20261108_the_annotate_real_browser_check_still_expects_v1_as_the_default_model.md`.
+
+The linkage pairing test is green on both models.
+
+**Not done here:** rebuilding the main checkout's shared projections from this
+branch. That belongs to the post-merge step (`scripts/rebuild_projections.ps1`
+in the main checkout). Every `[real]` run above read projections built from
+this tree into `data/scratch/end_stop_names_riders/`.
