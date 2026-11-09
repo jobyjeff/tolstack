@@ -15228,8 +15228,7 @@ async function testSeamLeaders(browser, label, topologies) {
       // names it in the log.
       const with3d = ends.filter((id) => onScene(anchors[id]) && shown(dots[id]));
       return { gridLit, withGridLeader, seamLit, with3d, dots, anchors,
-        noAnchor: ends.filter((id) => !sent[id]),
-        dbg: { pane: [pane.top, pane.bottom], vh: innerHeight, fr: [fr.left, fr.right, fr.top, fr.bottom], band: band && [band.top, band.bottom] } };
+        noAnchor: ends.filter((id) => !sent[id]) };
     }, arg);
     // A leader's DAG end is on its dot: level with the centre, at the rim.
     const atMark = (p, d) => !!d && Math.abs(p[1] - d.y) <= 2 &&
@@ -15306,7 +15305,6 @@ async function testSeamLeaders(browser, label, topologies) {
         `${held ? "" : " DIAG aimed " + JSON.stringify(at) + ", lit " + lit + ", settled " + calm +
           ", broke " + JSON.stringify(traceFaults(t, ends)) + " " +
           JSON.stringify(t, (key, v) => key === "pts" ? undefined : v)}`);
-      if (!t.with3d.length) console.log("    DEBUGTRACE " + JSON.stringify({ dots: t.dots, anchors: t.anchors, dbg: t.dbg }));
       return { held, t };
     };
     const traceRound = async (sequence) => {
