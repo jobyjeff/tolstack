@@ -8,7 +8,7 @@
       "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
       "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05). The 11-04 issue's unnamed second block of base and pitch_plate, back.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      else bodyNames.push(bodyRepeat(body, field));\n",
+      "find": "      else bodyNames.push(bodyRepeat(body, field, ctx));\n",
       "replace": ""
     }
   ]
