@@ -442,19 +442,44 @@ def load_event(path: str | Path) -> FeatureIdentityEvent:
     return FeatureIdentityEvent.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
-def load_events(directory: str | Path) -> List[FeatureIdentityEvent]:
-    """Every event in ``directory``, in log order.
+def log_order(event: FeatureIdentityEvent) -> Tuple[int, str, str]:
+    """The fold's total order: ``seq``, then ``created_at``, then ``event_id``.
 
-    ``seq`` is the total order and must be unique across the log, the same
-    guard ``spec_library.load_events`` uses.
+    ``seq`` is meant to be unique, and every writer numbers past the folder
+    (``AA.nextEventSeq``, ``propose_bindings._next_numbers``). But four of
+    Jeff's 2026-11-06 accepts took seqs 56-59 that agent proposals already
+    held -- the annotator numbered off a stale projection -- and the log is
+    append-only, so those pairs are on disk for good (handoff
+    ``the_bindings_projection_folds_the_events_jeff_accepted``). Two events
+    claiming one seq were each numbered without knowing of the other, so
+    ``seq`` cannot say which came first; ``created_at`` can, because it is when
+    each was actually written (UTC, the same ISO shape from both writers), and
+    folding in the order things happened is what a log means. ``event_id`` is
+    unique, so it makes the order total even on an equal timestamp, and the
+    order never depends on a filename or on the order a directory lists.
+    """
+    return (event.seq, event.created_at, event.event_id)
+
+
+def seq_collisions(events: Iterable[FeatureIdentityEvent]) -> List[Tuple[int, List[str]]]:
+    """``[(seq, [event ids in fold order])]`` for every seq more than one event
+    claims -- resolved by :func:`log_order`, and printed by :func:`rebuild`,
+    never swallowed."""
+    by_seq: Dict[int, List[FeatureIdentityEvent]] = {}
+    for event in events:
+        by_seq.setdefault(event.seq, []).append(event)
+    return [(seq, [e.event_id for e in sorted(group, key=log_order)])
+            for seq, group in sorted(by_seq.items()) if len(group) > 1]
+
+
+def load_events(directory: str | Path) -> List[FeatureIdentityEvent]:
+    """Every event in ``directory``, in log order (:func:`log_order`).
+
+    Two events sharing a ``seq`` do not refuse the log: they are ordered by
+    when they were written, and :func:`seq_collisions` names them.
     """
     events = [load_event(p) for p in sorted(Path(directory).glob("*.json"))]
-    by_seq: Dict[int, str] = {}
-    for event in events:
-        if event.seq in by_seq:
-            raise ValueError(f"events {by_seq[event.seq]!r} and {event.event_id!r} share seq {event.seq}")
-        by_seq[event.seq] = event.event_id
-    return sorted(events, key=lambda e: e.seq)
+    return sorted(events, key=log_order)
 
 
 # ---------------------------------------------------------------------------
@@ -532,6 +557,10 @@ class StackKeyBindings:
 class FeatureIdentityProjection:
     by_stack_key: Dict[Tuple[str, str, str], StackKeyBindings] = field(default_factory=dict)
     events: List[str] = field(default_factory=list)
+    # {later answer id: the earlier answer it repeats} -- a proposal answered
+    # twice the same way (_answered_proposals). The repeat is in its record's
+    # history and nowhere else; rebuild() prints each pair.
+    restated: Dict[str, str] = field(default_factory=dict)
 
     def for_stack_key(self, key: StackKey) -> Optional[StackKeyBindings]:
         return self.by_stack_key.get(key.as_key())
@@ -558,19 +587,27 @@ class FeatureIdentityProjection:
 def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityProjection:
     """Fold the event log: per stack-side key, current bindings + full history.
 
-    A group-by on ``stack_key.as_key()`` in ``seq`` order. An event another
+    A group-by on ``stack_key.as_key()`` in :func:`log_order`. An event another
     event names in ``supersedes`` leaves ``bindings`` and goes to ``superseded``
     (still in ``history``): folds hide, history keeps. A ``supersedes`` naming
     an id that does not exist, or one on a different key, is a load error
-    naming both ids.
+    naming both ids. "Earlier" everywhere below means earlier in that order.
+
+    A proposal answered twice with the same answer stands once: the repeat is
+    in ``history`` and nowhere else, and superseding either supersedes the
+    answer (:attr:`FeatureIdentityProjection.restated`).
     """
-    events = sorted(events, key=lambda e: e.seq)
+    events = sorted(events, key=log_order)
     seen_ids: Dict[str, FeatureIdentityEvent] = {}
+    position: Dict[str, int] = {}
     projection = FeatureIdentityProjection(events=[e.event_id for e in events])
-    for event in events:
+    for index, event in enumerate(events):
         if event.event_id in seen_ids:
             raise ValueError(f"duplicate event_id {event.event_id!r}")
         seen_ids[event.event_id] = event
+        position[event.event_id] = index
+    answered, restated = _answered_proposals(events, seen_ids, position)
+    projection.restated = restated
     hidden: Dict[str, str] = {}
     for event in events:
         if event.supersedes is None:
@@ -584,10 +621,9 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
             )
         if target.verdict != "bound":
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not a bound event")
-        if target.seq >= event.seq:
+        if position[target.event_id] >= position[event.event_id]:
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not earlier")
-        hidden[target.event_id] = event.event_id
-    answered = _answered_proposals(events, seen_ids)
+        hidden[restated.get(target.event_id, target.event_id)] = event.event_id
     for event in events:
         key = event.stack_key.as_key()
         record = projection.by_stack_key.get(key)
@@ -595,6 +631,8 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
             record = StackKeyBindings(stack_key=event.stack_key)
             projection.by_stack_key[key] = record
         record.history.append(event)
+        if event.event_id in restated:
+            continue  # the answer it repeats is already folded, once
         if event.verdict == "bound":
             (record.superseded if event.event_id in hidden else record.bindings).append(event)
         elif event.verdict == "proposed":
@@ -611,17 +649,41 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
     return projection
 
 
-def _answered_proposals(events: List[FeatureIdentityEvent],
-                        seen_ids: Dict[str, FeatureIdentityEvent]) -> Dict[str, FeatureIdentityEvent]:
-    """``{proposal id: the event that answered it}`` -- a ``ratifies`` or a ``rejects``.
+# What two answers to one proposal may differ in and still be the same answer:
+# which event, where in the log, and when. Everything else -- the verdict, the
+# face, the end, who answered, every note and identity field -- must match.
+ANSWER_IDENTITY_FIELDS = ("event_id", "seq", "created_at")
 
-    An answer must name an earlier ``proposed`` event on the same key, and a
-    ratification must bind exactly the proposed face at the proposed end: an
-    accept that names a proposal and binds something else would record a human
-    agreeing to a face nobody proposed. A proposal answered twice is a load
-    error naming both answers -- accepted-then-rejected is not a state.
+
+def _same_answer(a: FeatureIdentityEvent, b: FeatureIdentityEvent) -> bool:
+    def body(e: FeatureIdentityEvent) -> Dict[str, Any]:
+        return {k: v for k, v in e.as_dict().items() if k not in ANSWER_IDENTITY_FIELDS}
+    return body(a) == body(b)
+
+
+def _answered_proposals(events: List[FeatureIdentityEvent],
+                        seen_ids: Dict[str, FeatureIdentityEvent],
+                        position: Dict[str, int],
+                        ) -> Tuple[Dict[str, FeatureIdentityEvent], Dict[str, str]]:
+    """``({proposal id: the event that answered it}, {repeat id: first answer id})``.
+
+    An answer is a ``ratifies`` or a ``rejects``. It must name an earlier
+    ``proposed`` event on the same key, and a ratification must bind exactly
+    the proposed face at the proposed end: an accept that names a proposal and
+    binds something else would record a human agreeing to a face nobody
+    proposed.
+
+    A proposal answered twice with the **same** answer (:func:`_same_answer`)
+    folds as one, idempotently: the first answer stands, and the repeat is in
+    the second dict. Jeff accepted four proposals on 2026-11-06 and again on
+    2026-11-08, because the first accepts were gone after a reload (the
+    projection was never rebuilt). Answered twice **differently** --
+    accepted-then-rejected, or a second accept that adds a note -- is still a
+    load error naming both: which answer stands is the reviewer's call, never
+    the fold's.
     """
     answered: Dict[str, FeatureIdentityEvent] = {}
+    restated: Dict[str, str] = {}
     for event in events:
         target_id = event.ratifies or event.rejects
         if target_id is None:
@@ -634,7 +696,7 @@ def _answered_proposals(events: List[FeatureIdentityEvent],
             raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is on a different stack key")
         if target.verdict != "proposed":
             raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not a proposal")
-        if target.seq >= event.seq:
+        if position[target_id] >= position[event.event_id]:
             raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not earlier")
         if event.ratifies and (event.geometry_key.as_key() != target.geometry_key.as_key()
                                or event.direction != target.direction):
@@ -642,11 +704,27 @@ def _answered_proposals(events: List[FeatureIdentityEvent],
                 f"event {event.event_id!r} ratifies {target_id!r} but binds a different face or end "
                 f"than the one proposed")
         if target_id in answered:
+            first = answered[target_id]
+            if _same_answer(first, event):
+                restated[event.event_id] = first.event_id
+                continue
             raise ValueError(
-                f"proposal {target_id!r} is answered twice, by {answered[target_id].event_id!r} "
+                f"proposal {target_id!r} is answered twice, differently, by {first.event_id!r} "
                 f"and {event.event_id!r}")
         answered[target_id] = event
-    return answered
+    return answered, restated
+
+
+def resolution_notes(events: Iterable[FeatureIdentityEvent],
+                     projection: FeatureIdentityProjection) -> List[str]:
+    """One line per irregularity the fold resolved rather than refused: a seq
+    two events claim, and a proposal answered twice the same way. Printed by
+    :func:`rebuild` -- a collision the builder resolves is never silent."""
+    lines = [f"seq {seq} is claimed by {len(ids)} events; folded in the order they were "
+             f"written: {', '.join(ids)}" for seq, ids in seq_collisions(events)]
+    lines += [f"{repeat} repeats the answer {first} already gave; folded as one"
+              for repeat, first in sorted(projection.restated.items())]
+    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -764,6 +842,8 @@ def rebuild(
 
     events = load_events(events_dir)
     projection = build_projection(events)
+    for line in resolution_notes(events, projection):
+        print(f"note: {line}", file=sys.stderr)
     data = projection.as_dict()
     if replacements:
         data["staleness"] = revalidate_projection(projection, replacements)

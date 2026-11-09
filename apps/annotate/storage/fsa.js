@@ -156,6 +156,24 @@
     return (await handle.getFile()).arrayBuffer();
   };
 
+  // Every event file's own `seq`. A file that does not parse throws: a write
+  // numbered past a log this page cannot read could collide with it.
+  FsaAdapter.prototype.listFeatureIdentityEventSeqs = async function () {
+    AA.requireReady(this);
+    var dir = await this._dir(AA.CONFIG.featureIdentityEventsDir, false);
+    if (!dir) return [];
+    var names = [];
+    for await (var entry of dir.entries()) {
+      if (entry[1].kind === "file" && /\.json$/i.test(entry[0])) names.push(entry[0]);
+    }
+    var seqs = [];
+    for (var i = 0; i < names.length; i++) {
+      var event = await this._readJson(AA.CONFIG.featureIdentityEventsDir.concat([names[i]]));
+      if (event && typeof event.seq === "number") seqs.push(event.seq);
+    }
+    return seqs;
+  };
+
   // Append-only: never overwrites. A target that already exists is bumped to
   // the next free number, and the name actually written is returned.
   FsaAdapter.prototype.writeFeatureIdentityEvent = async function (filename, eventObject) {

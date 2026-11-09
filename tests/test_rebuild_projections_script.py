@@ -159,3 +159,26 @@ def test_the_rails_last_output_is_the_kinematic_report():
                        text)
     assert report, "the kinematic --report is not the rail's last command"
     assert report.start() > stamps
+
+
+def test_the_feature_identity_bindings_are_built_on_this_rail():
+    """``build_feature_identity_projection.py`` is on the rail since 2026-11-08
+    (handoff ``the_bindings_projection_folds_the_events_jeff_accepted``). It was
+    not, so when the builder refused the live log nothing went red, and the
+    ``bindings.json`` the annotator reads on every load stayed three days stale
+    -- Jeff's accepts gone after each reload. On the rail, a refused log stops
+    the rebuild. With tolstack's own interpreter, before the kinematic leg (the
+    rail's last), and its file among the stamps.
+
+    Read as step invocations, for the reason the vocabulary test above gives.
+    """
+    text = SCRIPT.read_text(encoding="utf-8")
+    steps = re.findall(r'Invoke-Step -Name "([^"]+)" -Exe (\$\w+) -Arguments @\(\s*'
+                       r'\(Join-Path \$ScriptsDir "([^"]+)"\)', text)
+    built = [(name, exe) for name, exe, script in steps
+             if script == "build_feature_identity_projection.py"]
+    assert built == [("feature identity bindings", "$TolstackPython")], steps
+    names = [name for name, _, _ in steps]
+    assert names.index("feature identity bindings") < names.index("kinematic projection")
+    stamps = re.search(r"\$Projections = @\(([^)]*)\)", text)
+    assert stamps and r"feature-identity\bindings.json" in stamps.group(1)

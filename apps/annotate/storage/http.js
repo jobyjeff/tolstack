@@ -148,6 +148,13 @@
     return this._writer;
   };
 
+  // Only the folder can be listed; before it is granted there is nothing to
+  // number past but the projection (and a write asks for the folder first).
+  HttpAdapter.prototype.listFeatureIdentityEventSeqs = async function () {
+    if (!this.writeGranted()) return [];
+    return this._writer.listFeatureIdentityEventSeqs();
+  };
+
   HttpAdapter.prototype.writeFeatureIdentityEvent = async function (filename, eventObject) {
     var writer = await this.ensureWriter();
     return writer.writeFeatureIdentityEvent(filename, eventObject);

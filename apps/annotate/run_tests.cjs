@@ -5097,6 +5097,58 @@ check("sweep: the point export is loaded before app.js, and the run's pipeline "
   }
 });
 
+check("an accept numbered against a folder ahead of the projection takes a seq no " +
+  "event on disk holds, on every adapter that writes", async () => {
+  // The 2026-11-06 shape: the page's projection was built when the log ended
+  // at 55; an agent has since proposed up to 62. Numbering off the projection
+  // alone handed Jeff's accept seq 56, which a proposal already held.
+  const proj = { built_from_events: [], stack_keys: [
+    { proposals: [{ event_id: "proposal-0055-a-to", seq: 55 }] }] };
+  for (let i = 1; i <= 55; i++) proj.built_from_events.push("e" + i);
+  const proposal = { schema: "joby.tolerance_stack/feature-identity/v0", event_id: "proposal-0062-a-to",
+    seq: 62, verdict: "proposed", direction: "to",
+    stack_key: AA.topologyEdgeKey("t", "a"), geometry_key: { source_step_sha256: "f".repeat(64),
+      face_id: 7, area_native2: 1, centroid_native: [0, 0, 0] } };
+  const onDiskEvents = [{ event_id: "e55", seq: 55 }, proposal];
+  if (!AA.FsaAdapter) {
+    vm.runInContext(fs.readFileSync(path.join(here, "storage", "fsa.js"), "utf8"), sandbox,
+      { filename: "storage/fsa.js" });
+  }
+  if (!AA.HttpAdapter) {
+    vm.runInContext(fs.readFileSync(path.join(here, "storage", "http.js"), "utf8"), sandbox,
+      { filename: "storage/http.js" });
+  }
+  const memory = new AA.MemoryAdapter({ featureIdentityEvents: onDiskEvents });
+  await memory.connect();
+  // A file's name is not its seq: the live log has 0001_... holding seq 56.
+  const files = { "README.md": { __file: true, text: "# not an event" },
+    "0001_a_accepted.json": { __file: true, text: JSON.stringify(onDiskEvents[0]) },
+    "0062_a_proposed.json": { __file: true, text: JSON.stringify(proposal) } };
+  const fsa = new AA.FsaAdapter();
+  fsa._state = AA.STATE.READY;
+  fsa._rootHandle = fakeDirHandle({ data: { inbox: { "feature-identity": files } } });
+  const http = new AA.HttpAdapter({ va: {}, writer: fsa });
+  for (const [name, adapter] of [["memory", memory], ["fsa", fsa], ["http, folder granted", http]]) {
+    const onDisk = await adapter.listFeatureIdentityEventSeqs();
+    assertEqual(onDisk.slice().sort((a, b) => a - b), [55, 62], name + " lists the folder's seqs");
+    const plan = { accept: proposal, reject: [], supersedes: null };
+    const events = AA.buildAnswerEvents(plan, { eventId: "annotate-1-a",
+      seq: AA.nextEventSeq(proj, [], onDisk), createdAt: "2026-11-08T00:00:00Z",
+      recordedBy: AA.humanActor("tester") });
+    const taken = events.map((e) => e.seq).filter((seq) => onDisk.indexOf(seq) !== -1);
+    assertEqual(taken, [], name + ": the accept took a seq the folder already holds");
+    assertEqual(events.map((e) => e.seq), [63], name);
+  }
+  // The session's own write is on disk too, so a second answer goes past it.
+  await memory.writeFeatureIdentityEvent("0063_a_accepted.json", { seq: 63 });
+  assertEqual(AA.nextEventSeq(proj, [], await memory.listFeatureIdentityEventSeqs()), 64);
+  // An absent folder lists nothing, rather than failing the write.
+  const bare = new AA.FsaAdapter();
+  bare._state = AA.STATE.READY;
+  bare._rootHandle = fakeDirHandle({});
+  assertEqual(await bare.listFeatureIdentityEventSeqs(), []);
+});
+
 // --- parts sit where the assembly puts them (handoff 2026-10-14) -------------
 
 // A directory handle in memory, shaped like the File System Access one the

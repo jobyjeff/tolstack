@@ -5350,9 +5350,12 @@ function slugify(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
-// The next event's seq: one past the highest in the projection and this
-// session's own events (AA.nextEventSeq). Re-reads the folder's projection
-// first when the served transport has not been granted write yet.
+// The next event's seq: one past the highest in the projection, this
+// session's own events and the events the folder holds right now
+// (AA.nextEventSeq) -- the folder is listed on every write, because the
+// projection is a snapshot and an agent may have proposed since. Re-reads the
+// folder's projection first when the served transport has not been granted
+// write yet.
 async function nextEventSeq() {
   // Reading over HTTP, the first write asks for the folder HERE -- inside the
   // click that wrote, before a number is counted -- and the projection the
@@ -5363,7 +5366,8 @@ async function nextEventSeq() {
     state.identityProjection = await state.storage.readFeatureIdentityProjection();
     renderPaneStatus();
   }
-  return AA.nextEventSeq(state.identityProjection, state.sessionEvents);
+  const onDisk = await state.storage.listFeatureIdentityEventSeqs();
+  return AA.nextEventSeq(state.identityProjection, state.sessionEvents, onDisk);
 }
 
 // The bind form, horizontal since 2026-09-21 -- it is the bottom of a bar
