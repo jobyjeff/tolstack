@@ -2019,7 +2019,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         // label gutter widened it (the labels over it take no pointer).
         const cell = row.querySelector("td.tvcell--part") || row;
         const b = cell.getBoundingClientRect();
-        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+        return { x: b.left + Math.min(30, b.width / 2), y: b.top + b.height / 2 };
       }, rowFor(id));
       if (at) await page.mouse.move(at.x, at.y);
       return !!at;
@@ -2134,7 +2134,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("circle.rail__dot--selected").count() === 0);
 
     // FREEZE on a grid row, the same four steps.
-    await page.locator(rowFor("base_thickness")).locator("td.tvcell--nominal").click();
+    await onCellStart(page, rowFor("base_thickness") + " td.tvcell--part", "click");
     push("clicking a grid row freezes the Preview on its edge",
       await previewIs("frozen", "edge|base_thickness"));
     await hoverRow("post_height");
@@ -2171,7 +2171,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         "svg.tv__rails [tabindex][data-row-kind], svg.tv__rails path.rail__leaderhit, tr.tvrow")]
         .filter((n) => !(n.getAttribute("aria-label") || "").trim()).length);
     push("every focusable mark on both tiers carries an accessible name", unnamed === 0);
-    await page.locator(rowFor("base_thickness")).locator("td.tvcell--nominal").click();
+    await onCellStart(page, rowFor("base_thickness") + " td.tvcell--part", "click");
     await page.keyboard.press("Escape");
     await page.mouse.move(4, 4);
 
@@ -3174,9 +3174,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // edge's bar, hovered as the edge (whose two ends are on other
       // columns, so it lights more than one). Counted, so a layout that made
       // every rail a stub would still fail the `railHits` floor below.
+      // A body's label band (VA.CONTAINER_LABEL.room, 2026-11-08) can sit
+      // inside such a stub, so a stub is under a row plus one band.
       const stubs = await page.evaluate(() => Array.from(document.querySelectorAll(
         "svg.tv__rails line.rail__hit")).map((n, i) =>
-          Number(n.getAttribute("y2")) - Number(n.getAttribute("y1")) < 26 ? i : -1)
+          Number(n.getAttribute("y2")) - Number(n.getAttribute("y1")) <
+            window.ViewerApp.RAIL_METRICS.rowHeight + window.ViewerApp.CONTAINER_LABEL.room ? i : -1)
         .filter((i) => i >= 0));
       for (let i = 0; i < railHits; i++) {
         if (stubs.indexOf(i) !== -1) continue;
@@ -13326,7 +13329,10 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const viewSetting = (setting) => page.locator(
         `#dag-view select[data-view-setting="${setting}"]`).inputValue().catch(() => null);
       const pickView = async (setting, value) => {
-        await page.locator("#dag-view-toggle").click({ timeout: 5000 }).catch(() => {});
+        // Open it only when it is shut: a change puts the popover back open.
+        if ((await page.locator("#dag-view").getAttribute("open").catch(() => null)) === null) {
+          await page.locator("#dag-view-toggle").click({ timeout: 5000 }).catch(() => {});
+        }
         await page.locator(`#dag-view select[data-view-setting="${setting}"]`)
           .selectOption(value, { timeout: 5000 }).catch(() => {});
         await page.waitForTimeout(400);

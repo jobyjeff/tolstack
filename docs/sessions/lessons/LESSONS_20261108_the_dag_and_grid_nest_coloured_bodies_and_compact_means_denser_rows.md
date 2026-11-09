@@ -31,29 +31,55 @@ Handoff: `docs/sessions/active/HANDOFF_20261108_the_dag_and_grid_nest_coloured_b
   decoupled. The fork curves, block heights and bar floors stay row-relative,
   because they are vertical.
 
-## The decision not in the handoff: label bands in the position store
+## The decision not in the handoff: a label band above each body
 
 "A label never sits on a glyph" could not be met by placement alone: at 18px rows,
 the first row's glyph reaches the field's top edge. So `VA.rowPositions` now
-leaves a **gap** before the slot of each body field's first row, and another
-before each part field's first row. Each gap is `VA.CONTAINER_LABEL.room` = 14px,
-and `VA.containerLabelRoom` computes them. A block's first pin gets a top-up only
-where the pitch is short. The gap goes *before* the slot, so bar lengths in the
-scaled modes are untouched. The fields reach up over their band through
-`field(…, band)` in `railGeometry`, and a study group reaches over the body's
-band too.
+leaves a **gap** before the slot of each body field's first row. The gap is
+`VA.CONTAINER_LABEL.room` = 14px, and `VA.containerLabelRoom` computes it. A
+block's first pin gets a top-up only where the pitch is short. The gap goes
+*before* the slot, so bar lengths in the scaled modes are untouched. Body fields
+reach up over their band through `field(…, band)` in `railGeometry`, and a study
+group reaches over the body's band too.
+
+**Part fields got bands too at first, and that was a mistake.** The product walk
+grew so much that the grid, centred against it, moved away from its dots. At
+1600×1000 a centred row's two dots sat 35–263px above the viewport, so the seam
+leaders had nothing to draw from. The browser tier's seam suite caught it. So a
+part field now names itself *beside* its first mark (`CONTAINER_LABEL.beside`).
+A part field is one or two columns of its body, at least 80px wide, so the label
+fits there without a band.
 
 Costs, measured:
 
-- The product walk is about 7% taller. `VA.DAG_ZOOM.min` went from 0.12 to 0.1 so
-  the [real] check that the whole walk fits 900px still holds.
+- The product walk is taller. `VA.DAG_ZOOM.min` went from 0.12 to 0.08: at 0.1,
+  Fit under tolerance width was clamped below the page's pinned bars.
 - README's re-derived numbers moved:
-  - max jog: 2041 → 1014 became 2923 → 1441;
-  - walk `gridOffset`: 1027 → 715 became 1482 → 799.
-
-  The DAG is taller relative to the grid, so leaders jog further.
+  - max jog: 2041 → 1014 became 2321 → 1147;
+  - walk `gridOffset`: 1027 → 715 became 1174 → 743.
 - Every rowPositions test now adds the bands, through one test helper,
   `labelBands`.
+
+## Things the browser tier made me change
+
+- **The grid's label strips take no pointer.** They lie over the PART cells, and
+  with `pointer-events: auto`, meant for their tooltip, 0 of 6 part cells took a
+  click. A clipped part label is read in full on the PART cell's own title.
+- **No overlay key under Colour by Body or Part.** With Body as the default, the
+  key showed up on every page. It added a toolbar line that pushed the pinned
+  header down, and that was enough to break the pinned-header and 3D-reserve
+  checks. Every container already names its body in its ink, so the key only
+  repeated those names. Schemes whose colours carry words (interface,
+  sourcing, contribution) keep their key.
+- **The browser runner seeded the old store key**
+  (`tolstack.viewer.dagView`). Its "start on the rails" setup silently stopped
+  applying, and the rails suites drew blocks.
+- **Zoom-1 assumptions in the checks.** The PART column is now 152px wider, and
+  Fit leaves the grid its PART..ELEMENT floor, so pages land below zoom 1. Two
+  in-page measurements now divide by `lastTopoRender.zoom`. Hovers aim at a
+  PART cell's visible start, not at a NOMINAL cell that is now off-screen. A
+  locator hover of a cell that does not wholly fit beside the 3D pane scrolls
+  the strip sideways and takes the lit dots out of the DAG's view.
 
 ## Palettes and the contrast each ink holds (against `--bg` #16181d)
 
