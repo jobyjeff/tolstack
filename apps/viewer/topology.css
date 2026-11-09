@@ -1388,6 +1388,10 @@ body { display: flex; flex-direction: column; }
   align-self: flex-start;
   position: sticky; top: var(--bar-h); height: calc(100vh - var(--bar-h)); overflow-y: auto;
 }
+/* A chip longer than the pane wraps inside its pill rather than clipping: the
+   pane is narrow beside an open scene (body.flyout-open, below), and
+   "DERIVED — the quantity a study computes" outran it. */
+.tv .detail__chips .chip { white-space: normal; }
 .detail__values { margin: 8px 0; }
 .detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
 .detail__vallabel { width: 110px; flex: none; color: var(--muted); }
