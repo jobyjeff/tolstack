@@ -6,10 +6,10 @@
     {
       "contract": "A run's two-force members are rail subjects beside its bodies.",
       "issue": "docs/sessions/lessons/LESSONS_20261105_the_rail_holds_still_and_takes_the_face_jeff_picked.md",
-      "note": "Returning the bodies alone is the pre-2026-11-05 tree, where a link's parts hung under its joint.",
+      "note": "Returning the bodies alone is the pre-2026-11-05 tree, where a link's parts hung under its joint. Re-pointed 2026-11-09 (a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list): the list is now named before the model's order sorts it.",
       "file": "apps/annotate/sweep.js",
-      "find": "    return ((tree && tree.bodies) || []).concat(links);\n",
-      "replace": "    return ((tree && tree.bodies) || []);\n"
+      "find": "    var subjects = ((tree && tree.bodies) || []).concat(links);\n",
+      "replace": "    var subjects = ((tree && tree.bodies) || []);\n"
     }
   ]
 }

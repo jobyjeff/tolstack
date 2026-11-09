@@ -116,10 +116,10 @@ try {
         await run(page, ["camera", "frame", ...CLOSE]).catch((e) => console.log("FRAME", e.message));
         await page.waitForTimeout(2500);
         console.log(JSON.stringify({ stop: name, at: await where(page) }));
-        await page.screenshot({ path: join(SHOTS, `${PHASE}_v2_sweep_${name}_1920.png`) });
+        await page.screenshot({ path: join(SHOTS, `${PHASE}_${name}.png`) });
       }
     } else {
-      await page.screenshot({ path: join(SHOTS, `${PHASE}_v1_sweep_1920.png`) });
+      await page.screenshot({ path: join(SHOTS, `${PHASE}_v1.png`) });
     }
     await page.close();
   }
