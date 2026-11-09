@@ -5633,6 +5633,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       unfoldable. For any alias, read-through or re-keying of feature-identity
       records, walk **every** answer path (accept, reject, take, armed click)
       and fold its JS-built events through the Python loader.
+- [ ] **A writer numbering a new event off a snapshot, not off the log.**
+      (2026-11-08, `the_bindings_projection_folds_the_events_jeff_accepted`.)
+      `AA.nextEventSeq` read only the loaded projection plus the session, so
+      agent proposals written since the last rebuild were invisible and Jeff's
+      accepts took seqs 56-59 they already held. The log is append-only, so
+      those collisions stay on disk for good. For any new writer into
+      `data/inbox/*`, ask what it numbers past: the files on disk now
+      (`listFeatureIdentityEventSeqs`, `propose_bindings._next_numbers`)
+      or a cached read. A filename bump does not save it, because it renames
+      the file and leaves the `seq` inside unchanged. Also check that the
+      projection a log feeds is on `rebuild_projections.ps1`. Off the rail, a
+      refused fold leaves a stale file and nothing goes red.
 
 ## Architectural errors to check
 
