@@ -5294,6 +5294,93 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     if (process.env.GROUPS_SHOTS) {
       await page.screenshot({ path: join(process.env.GROUPS_SHOTS, "kinematic_groups.png") });
     }
+    // --- nested, coloured containers on both models (the_dag_and_grid_nest_
+    //     coloured_bodies_and_compact_means_denser_rows, 2026-11-08): no
+    //     band; Compact packs rows and moves no drawn size; Groups off means
+    //     that kind of outline is gone, DAG and grid alike; the DAG and the
+    //     grid wear the same body inks.
+    const OUTLINES = () => page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const n = (sel) => document.querySelectorAll("#topopane " + sel).length;
+      const dots = Array.from(document.querySelectorAll(
+        "#topopane svg.tv__rails circle.rail__dot:not(.rail__dot--pin)"));
+      const xs = Array.from(new Set(dots.map((d) => Number(d.getAttribute("cx")))))
+        .sort((a, b) => a - b);
+      const steps = xs.slice(1).map((x, i) => x - xs[i]).filter((d) => d > 0.5);
+      const inks = (sel, prop) => Array.from(new Set(Array.from(
+        document.querySelectorAll("#topopane " + sel)).map((el) => getComputedStyle(el)[prop]))).sort();
+      return {
+        topology: VA.lastTopoRender && VA.lastTopoRender.topologyId,
+        rowHeight: VA.RAIL_METRICS.rowHeight,
+        bands: n(".rail__band"),
+        body: n("rect.tv__bodyfield:not(.tv__pill__shape)") + n("path.tv__bodybridge") +
+          n("text.tv__bodyname") + n("text.tv__bodyrepeat") + n("div.tvbrace--body") +
+          n("div.tvbrace__label--body"),
+        part: n("rect.tv__partfield") + n("rect.tv__block") + n("text.tv__partname") +
+          n("div.tvbrace--part") + n("div.tvbrace__label--part"),
+        marks: n("svg.tv__rails circle.rail__dot") + n("svg.tv__rails .rail__bar"),
+        pitch: steps.length ? Math.min(...steps) : null,
+        dotR: Array.from(new Set(dots.map((d) => d.getAttribute("r")))).sort().join(","),
+        dagInks: inks("rect.tv__bodyfield:not(.tv__pill__shape)", "stroke"),
+        gridInks: inks("div.tvbrace--body", "borderTopColor"),
+      };
+    });
+    const groupBox = async (kind, on) => {
+      const box = page.locator(`#group-kinds input[data-kind="${kind}"]`);
+      if ((await page.locator("#group-kinds").getAttribute("open")) === null) {
+        await page.locator("#group-kinds-toggle").click();
+      }
+      if ((await box.isChecked()) !== on) await box.click();
+      await settle(200);
+    };
+    const nested = [];
+    for (const topoId of ["vpa_end_stop_v2", "vpa_pitch_linkage"]) {
+      await page.locator(navRow("topology", topoId)).first().click();
+      await page.waitForFunction((id) => window.ViewerApp.lastTopoRender &&
+        window.ViewerApp.lastTopoRender.topologyId === id &&
+        !window.ViewerApp.lastTopoRender.tweening, topoId, { timeout: 30000 });
+      await settle(300);
+      const all = await OUTLINES();
+      await page.locator("#density-toggle").click();
+      await settle(300);
+      const compact = await OUTLINES();
+      await page.locator("#density-toggle").click();
+      await settle(300);
+      await groupBox("parts", false);
+      const noParts = await OUTLINES();
+      await groupBox("parts", true);
+      await groupBox("bodies", false);
+      const noBodies = await OUTLINES();
+      await groupBox("parts", false);
+      const neither = await OUTLINES();
+      await groupBox("parts", true);
+      await groupBox("bodies", true);
+      await page.click("body", { position: { x: 2, y: 2 } }).catch(() => {});
+      nested.push({ topoId, all, compact, noParts, noBodies, neither });
+    }
+    // Every check holds on BOTH models; a name is a literal so a witness
+    // can name it (scripts/mutation_witnesses/README.md).
+    const onBoth = (fn) => nested.length === 2 && nested.every(fn);
+    nested.forEach((m) => console.log("    " + m.topoId + ": " + JSON.stringify({
+      bands: m.all.bands, body: m.all.body, part: m.all.part, pitch: [m.all.pitch, m.compact.pitch],
+      r: [m.all.dotR, m.compact.dotR], rows: [m.all.rowHeight, m.compact.rowHeight],
+      off: [m.noParts.part, m.noBodies.body, m.neither.part + m.neither.body],
+      inks: m.all.dagInks.length })));
+    push("[real] on both models no band is drawn, and every body and every part has an outline",
+      onBoth((m) => m.all.topology === m.topoId && m.all.bands === 0 && m.all.body > 0 &&
+        m.all.part > 0));
+    push("[real] on both models the DAG's body outlines and the grid's body brackets wear the same inks",
+      onBoth((m) => m.all.dagInks.length > 1 &&
+        JSON.stringify(m.all.dagInks) === JSON.stringify(m.all.gridInks)));
+    push("[real] on both models Compact packs the rows and keeps the column pitch and the dot radius",
+      onBoth((m) => m.compact.rowHeight < m.all.rowHeight && m.all.pitch !== null &&
+        m.compact.pitch === m.all.pitch && m.compact.dotR === m.all.dotR &&
+        m.compact.bands === 0));
+    push("[real] on both models Parts off removes every part outline, Bodies off every body " +
+      "outline, and both off leaves the nodes and bars",
+      onBoth((m) => m.noParts.part === 0 && m.noParts.body === m.all.body &&
+        m.noBodies.body === 0 && m.noBodies.part > 0 &&
+        m.neither.part === 0 && m.neither.body === 0 && m.neither.marks === m.all.marks));
     await page.evaluate(() => {
       try { localStorage.removeItem("tolstack.viewer.groupKinds"); } catch (e) { /* none */ }
     });

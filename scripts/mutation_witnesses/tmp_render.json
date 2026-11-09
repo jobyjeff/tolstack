@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the RENDER draws no band behind the leaders, and a grid row wears no tint: its body is a bracket, drawn from VA.gridBraces",
+  "mutations": [
+    {
+      "contract": "Every rigid body is a bracket over its rows.",
+      "issue": null,
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05); re-anchored and renamed by the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows (2026-11-08), when every body became a bracket and the bands went. Brackets no body at all.",
+      "file": "apps/viewer/topology.js",
+      "find": "      if (kinds.bodies !== false) {\n        var body = { kind: \"body\"",
+      "replace": "      if (kinds.bodies === 42) {\n        var body = { kind: \"body\""
+    }
+  ]
+}
