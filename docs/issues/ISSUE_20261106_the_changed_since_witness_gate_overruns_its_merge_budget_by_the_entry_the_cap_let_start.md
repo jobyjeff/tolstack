@@ -78,3 +78,8 @@ That entry ran right after a full browser tier, so the slot was not contended. S
 `--changed-since integration` selected 18 entries and reached 16 in 32m45s.
 2 were left to the sweep (budget), and the run was 33m03s wall: the same
 overrun shape, from the last browser entry the cap let start.
+
+**Sighting, 2026-11-09 (review of the same handoff)**: the review's
+post-merge `--changed-since integration --repo C:/workspace/tolstack` run
+selected 18, reached 16 in 32m44s, left 2 to the sweep, and took 33m04s wall
+(`dispatch suite-time`: `OVER BUDGET by 3m04s`). Same shape as above.

@@ -44,5 +44,3 @@ Options, for a strategy call:
    in sweep mode and selections there are highlights.
 3. Bind mode turns the model layer on by default when embedded, so the
    leaders survive the jump (they then point at as-modelled positions).
-</content>
-</invoke>

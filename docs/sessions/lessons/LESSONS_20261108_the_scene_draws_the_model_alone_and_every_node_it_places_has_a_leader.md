@@ -163,8 +163,6 @@ rebuild that puts integration's v2 on the served page.
 - An existing witness (`browser__no-leader-across-the-seam-for-a-node-outside-the-lit-set`)
   anchored on the old `seamDots` lines and was re-pointed at the new `ids`
   line, with the same break.
-</content>
-</invoke>
 - **The studyless seam unit test was itself red at first.** Its
   `svg.tv__rails [data-row-kind="node"]` selector matched nothing, so "the walk
   draws nodes" failed. The witness gate caught it as "the tier was red before

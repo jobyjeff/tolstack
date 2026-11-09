@@ -2020,6 +2020,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       below the fold of every excerpt. Trimmed inline. `tail -c 100` (or
       `git show HEAD:<path> | tail -3`) every file a handoff *created*, and grep
       a diff for `</invoke>`, `</content>`, `<parameter`.
+      **Second sighting, 2026-11-09**: mid-file this time, not at the end. A
+      lesson had a `</content>`/`</invoke>` pair between two bullets, where a
+      later append resumed, and a new issue had one at its end. Grep, don't
+      `tail`.
 - [ ] **A guard credited with a rejection a *different* guard made.** New
       2026-08-13 (`spec_pile_gap_join`), and it is the cheapest vacuity check
       there is: **delete the guard and re-run the suite.** `_as_range` in
@@ -5680,6 +5684,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       When a diff says "re-order the JSON to re-order the page", permute the
       authored list in a scratch copy and check whether the rendered order
       follows. A pin of today's order is not that check.
+- [ ] **A browser check that measures the second half of its claim and only
+      logs it.** (2026-11-09,
+      `the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader`.)
+      The deliverable was "drawn alone, in and out of sweep mode".
+      `testModelDrawnAloneAndLed` computes `sweepDrawn` and prints `15 meshes
+      drawn`, but only the at-rest count is `push`ed. Its one witness cuts the
+      shared `aloneShas()`, which breaks both halves, so the gap stays hidden
+      (`ISSUE_20261109_the_end_stop_models_in_sweep_drawn_part_count_is_logged_not_asserted.md`).
+      For every number a new suite prints, `grep` its `push` lines for that
+      variable.
+- [ ] **A red `[real]` browser sub-check that needs "no binding in the inbox"
+      can be a stub-install race, not the diff.** (Same review.)
+      `installRealAnnotatorReads` swaps the readers from a 1 ms `setInterval`.
+      Since 2026-11-08 the real `bindings.json` holds accepted events, so a lost
+      race reads as `bound N` in "annotate model in the scene". It measured
+      17/22 under load, then 22/22 alone and 22/22 on `git archive integration`.
+      Re-run the suite alone and baseline it before you blame the branch
+      (`ISSUE_20261109_the_annotate_model_suites_fake_bindings_reader_loses_a_race_to_the_real_bindings_projection.md`).
 
 ## Architectural errors to check
 
