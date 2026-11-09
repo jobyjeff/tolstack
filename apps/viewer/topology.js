@@ -3592,7 +3592,10 @@
         var body = (n.parts || []).length ? info.bodyOfPart[n.parts[0]] : null;
         return body ? "ovl-b" + VA.bodyTint(info.topoProj, body) : null;
       },
-      legend: function (info) { return bodyLegend(info); },
+      // No key: every body's and part's own container names it in its ink
+      // (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows),
+      // so a strip of the same names would only repeat them.
+      legend: function () { return []; },
     },
     {
       id: "part", label: "Part",
@@ -3600,7 +3603,10 @@
       node: function (info, n) {
         return (n.parts || []).length ? partToken(info, n.parts[0]) : null;
       },
-      legend: function (info) { return bodyLegend(info); },
+      // No key: every body's and part's own container names it in its ink
+      // (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows),
+      // so a strip of the same names would only repeat them.
+      legend: function () { return []; },
     },
     {
       id: "interface", label: "Interface type",
@@ -3680,12 +3686,6 @@
     if (!body) return null;
     var shade = info.partShade[part] || 0;
     return "ovl-b" + VA.bodyTint(info.topoProj, body) + (shade ? " ovl-s" + shade : "");
-  }
-
-  function bodyLegend(info) {
-    return ((info.topoProj && info.topoProj.bodies) || []).map(function (body) {
-      return { token: "ovl-b" + VA.bodyTint(info.topoProj, body.id), label: body.name || body.id };
-    });
   }
 
   // One paint's overlay: {scheme, edges: {id: classes}, nodes: {id: classes},

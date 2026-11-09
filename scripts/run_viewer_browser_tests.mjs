@@ -525,6 +525,23 @@ async function runSuite(browser, url, label) {
 // which run inside `page.evaluate` and can use the browser's own `CSS.escape`)
 // — every id this file passes is a plain identifier, so a bare quote-escape is
 // enough without pulling in the DOM's CSS.escape.
+// A real pointer on the visible START of a cell, with no scroll: a locator's
+// hover or click scrolls a cell that does not wholly fit into view, and the
+// PART column (since the brackets' label gutter widened it, 2026-11-08) does
+// not always fit beside the 3D pane -- a sideways scroll there takes the lit
+// dots out of the DAG's view and their leaders with them.
+async function onCellStart(page, selector, action) {
+  const at = await page.evaluate((sel) => {
+    const cell = document.querySelector(sel);
+    if (!cell) return null;
+    const b = cell.getBoundingClientRect();
+    return { x: b.left + Math.min(30, b.width / 2), y: b.top + b.height / 2 };
+  }, selector);
+  if (!at) return;
+  await page.mouse.move(at.x, at.y);
+  if (action === "click") await page.mouse.click(at.x, at.y);
+}
+
 function navRow(kind, id) {
   return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
 }
@@ -13343,7 +13360,8 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         "survives a reload",
         plainBars === 0 && liveBars > 0 && reloadedBars === liveBars &&
         await viewSetting("colourBy") === "body" &&
-        await page.locator("#dag-overlay-legend .tvovl__item").count() > 0);
+        // No key under Body: the containers name the bodies in their inks.
+        await page.locator("#dag-overlay-legend .tvovl__item").count() === 0);
       // Back to the defaults, so the boots below draw what they always drew.
       await page.evaluate(() => {
         try { localStorage.removeItem(window.ViewerApp.DAG_VIEW_KEY); } catch (e) { /* none */ }
@@ -14614,7 +14632,7 @@ async function testSeamLeaders(browser, label, topologies) {
     const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
     let hovered = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().hover();
+      await onCellStart(page, `tr.tvrow[data-id="${first.id}"] td.tvcell--part`, "hover");
       hovered = await seamShows([first.from, first.to], S[1]);
       m = await measure();
     }
@@ -14646,7 +14664,7 @@ async function testSeamLeaders(browser, label, topologies) {
     // Selection: a grid row click lights the triple and dims the rest.
     let clicked = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().click();
+      await onCellStart(page, `tr.tvrow[data-id="${first.id}"] td.tvcell--part`, "click");
       await settled();
       clicked = await seamShows([first.from, first.to], S[0]);
       m = await measure();

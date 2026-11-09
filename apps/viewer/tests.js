@@ -13082,7 +13082,7 @@
         eq(body.edges, { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1" },
            "a gap is in no body, so it keeps the neutral ink");
         eq([body.nodes.a1, body.nodes.b3], ["ovl ovl-b0", "ovl ovl-b1"]);
-        eq(body.legend.map(function (l) { return l.label; }), ["body a", "body b"]);
+        eq(body.legend, [], "the containers name the bodies in their inks; no key repeats them");
         var p = twoBodyProjection();
         p.bodies[1].parts = ["pb", "pc"];
         p.edges[3].part = "pc";
@@ -13228,7 +13228,8 @@
         selects[1].value = "cvd";
         selects[1].onchange();
         eq(seen, [["graphWidth", "wide"], ["palette", "cvd"]]);
-        eq(all(tb, "span.tvovl__item").length, 2, "one key entry per body");
+        eq(all(tb, "span.tvovl__item").length, 0, "Body needs no key: its containers name it");
+        eq(all(toolbar("sourcing", null), "div.tvovl").length, 1, "a scheme with words has its key");
         eq(all(toolbar("none", null), "div.tvovl").length, 0);
         ok(all(all(toolbar("none", { contributions: {} }), "select")[0], "option")
           .some(function (o) { return o.value === "contribution"; }), "kinematic page");
