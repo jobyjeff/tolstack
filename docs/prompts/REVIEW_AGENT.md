@@ -5671,6 +5671,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the file and leaves the `seq` inside unchanged. Also check that the
       projection a log feeds is on `rebuild_projections.ps1`. Off the rail, a
       refused fold leaves a stale file and nothing goes red.
+- [ ] **A claim that authored order drives the layout, when the order only
+      breaks ties.** (2026-11-08,
+      `the_end_stop_model_names_its_datums_right_and_folds_its_riders`.)
+      `walk_order: "authored"` matched v2's order only because that order
+      fitted the depth-first walk. With two of `base.parts` swapped, the page
+      did not follow (`ISSUE_20261108_the_authored_walk_order_is_a_tie_break_…`).
+      When a diff says "re-order the JSON to re-order the page", permute the
+      authored list in a scratch copy and check whether the rendered order
+      follows. A pin of today's order is not that check.
 
 ## Architectural errors to check
 
