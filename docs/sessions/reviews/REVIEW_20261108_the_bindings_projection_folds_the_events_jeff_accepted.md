@@ -138,3 +138,7 @@ None.
 
 Added a **Recurring bugs** entry: *a writer numbering a new event off a
 snapshot, not off the log*, with the stale-rail corollary.
+
+## Landing
+
+`integration` moved while this review ran (`e72f465f`; 9 files, incl. the rail-suggestion handoff). Merged into the review branch cleanly, no conflict; risky subset re-run on that tip: `pytest -q tests/test_feature_identity.py tests/test_rebuild_projections_script.py tests/test_mutation_witnesses.py tests/test_architecture_inventory.py` → **121 passed** (the rotted-anchor failure is gone on this tip), `node apps/annotate/run_tests.cjs` → **303/303**. Fast-forwarded `integration` to `274ed2a1` and pushed.
