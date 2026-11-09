@@ -1128,8 +1128,8 @@
   // `room` where a short row pitch leaves less; a part field's label sits
   // `beside` px right of its first row's mark. Pixels, not rows: the same at
   // either density. `minWidth` is the narrowest a block or a part field is
-  // drawn, so a drawing number fits on it.
-  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, beside: 10, minWidth: 80 };
+  // drawn, so a drawing number fits on it (86px holds `214958-002` beside its mark).
+  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, beside: 10, minWidth: 86 };
 
   // A part container's name: its display name when the record has one, else
   // its drawing number, else its name.
