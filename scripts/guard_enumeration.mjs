@@ -279,7 +279,11 @@ export const DECLARED_GUARDS = {
   // count is integration's 669 and the names digest is re-measured on the merge.
   // Review merge of model_v2_is_the_end_stop_linkage_... with that (2026-11-08):
   // integration's 669 (names swapped) + this branch's 3, digest re-measured.
-  fast: { declared: 672, enrollable: 672, names: "c6b7e89ec8b5" },
+  // 2026-11-08 (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
+  // leader): one renamed -- the seam's leaders test now pins that with no study
+  // every drawn node has a DAG end ("the whole walk has none" is retired). Its
+  // spec moved with it and gained the mutation that puts the old rule back.
+  fast: { declared: 672, enrollable: 672, names: "4f75566b1df0" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -342,7 +346,10 @@ export const DECLARED_GUARDS = {
   // Review merge with integration (2026-11-08): integration's 297 + this branch's 5.
   // 2026-11-08 (the_bindings_projection_folds_the_events_jeff_accepted): +1 --
   // an accept numbered against a folder ahead of the projection. It carries a spec.
-  annotate: { declared: 303, enrollable: 303, names: "c50b8b0efa7d" },
+  // 2026-11-08 (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
+  // leader): +2 -- a model is drawn alone, and a node the skeleton draws is
+  // anchored there. Both carry a spec.
+  annotate: { declared: 305, enrollable: 305, names: "05726eb7ec74" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -503,7 +510,12 @@ export const DECLARED_GUARDS = {
   // beside the strip. Each carries a spec.
   // Merged with integration again before hand-back (review round 1 rework,
   // 2026-11-06): integration's 846 + this branch's 9 = 855, measured.
-  browser: { declared: 857, enrollable: 824, names: "2e18d19c3891" },
+  // 2026-11-08 (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
+  // leader): +3 declared, +3 enrollable -- the end-stop model at rest draws its
+  // parts and no context, and with P2 and no study every joint node has its
+  // leader (each carries a spec); the suite's skip line is the third, left
+  // unenrolled like the P2 seam suite's own skip line.
+  browser: { declared: 860, enrollable: 827, names: "357f82cac5d0" },
 };
 
 

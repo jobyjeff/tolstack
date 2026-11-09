@@ -24,6 +24,12 @@
 //   bound    a committed binding names the node's face: that face's fitted
 //            point -- a ball's centre, a bore's axis point, a plane's
 //            centroid -- at the occurrence the node's body anchors.
+//   joint    (again) otherwise, in sweep mode, the node is an end of any
+//            other joint the run solves (a slide, a hinge, the actuator):
+//            the skeleton's own point for it, so a node the stick figure
+//            draws is placed where it is drawn (AA.modelSkeletonEnds; the_
+//            scene_draws_the_model_alone_and_every_node_it_places_has_a_
+//            leader, 2026-11-08).
 //   section  otherwise: the +X-bias section centre of the node's part (see
 //            AA.modelPartSection). Several such nodes on one part are spread
 //            up the stack axis across the cut's height in stack order, so a
@@ -305,6 +311,21 @@
     return out;
   };
 
+  // Every node a run's geometry names as an end of ANY joint it solves --
+  // links, slides, hinges, the actuator -- in the same shape: the skeleton
+  // draws a point for each, and a node with no better anchor sits there. A
+  // node named at two joints, or at both ends of one, keeps the first.
+  AA.modelSkeletonEnds = function (artifact) {
+    var out = {};
+    ((artifact && artifact.features) || []).forEach(function (f) {
+      if (!f || !f.node || typeof f.label !== "string" || out[f.node]) return;
+      var m = /^([^.]+)\.point_([ab])\[/.exec(f.label);
+      if (!m) return;
+      out[f.node] = { joint: m[1], end: m[2] === "a" ? AA.SWEEP_JOINT_ENDS[0] : AA.SWEEP_JOINT_ENDS[1] };
+    });
+    return out;
+  };
+
   // A part's section-anchored nodes, in stack order: the structural edges of
   // THAT part between them, followed from `from` to `to` (Kahn's order, ties
   // and the unconnected in the topology's own node order). This is the
@@ -346,6 +367,8 @@
   //   topology       the projection's topology entry
   //   bias           AA.readAnchorBias's answer
   //   linkEnds       AA.modelLinkEnds's answer ({} in bind mode)
+  //   skeletonEnds   AA.modelSkeletonEnds's answer ({} in bind mode): read
+  //                  after `bound`, before the section
   //   parts          {part id: {subject, section: AA.modelPartSection's
   //                   answer | null, origin, why}} -- per topology part, what
   //                   app.js read:
@@ -365,6 +388,7 @@
     var parts = input.parts || {};
     var bound = input.bound || {};
     var linkEnds = input.linkEnds || {};
+    var skeletonEnds = input.skeletonEnds || {};
     var bias = input.bias;
     var out = {};
     var onSection = {};
@@ -379,6 +403,11 @@
       }
       if (bound[n.id]) {
         out[n.id] = Object.assign(base, { source: "bound", point: bound[n.id].slice() });
+        return;
+      }
+      if (skeletonEnds[n.id]) {
+        out[n.id] = Object.assign(base, { source: "joint", joint: skeletonEnds[n.id].joint,
+          end: skeletonEnds[n.id].end, point: null });
         return;
       }
       if (info.section && info.section.region) {

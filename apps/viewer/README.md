@@ -1967,9 +1967,11 @@ its own column on a collapsed body's pill); and one page-level SVG
 (`svg.seamleaders`) draws a leader between the two, offset by the rails SVG's
 and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
 
-- **The lit set only** — a kinematic study's own, a chain study's chain; the
-  whole walk has none, and a node outside the lit set never gets one whatever
-  the scene posts. A node whose anchor is `null`, whose anchor is outside the
+- **The lit set, or with no study every node** — a kinematic study's own, a
+  chain study's chain, and a node outside it never gets one whatever the scene
+  posts; with no study open every node the DAG draws is lit for leaders, so
+  each node the scene placed has one (2026-11-08, Jeff asked for them by name
+  on the end-stop model's ~25 nodes). A node whose anchor is `null`, whose anchor is outside the
   scene's visible frame, or whose dot is scrolled out of the DAG's view gets
   nothing: no leader, no stub. A dot under the pinned grid header is out of
   view only where the header is painted — its table; over the rails the header

@@ -346,11 +346,19 @@ async function scopeToParts(identifiers) {
   setSceneEmptyState(null);
   applyPartScope();
   await AA.exec(["camera", "frame", ...targets]);
-  const rest = state.meshList.map((m) => m.sha256).filter((sha) => targets.indexOf(sha) === -1);
+  // The rest is loaded as faint context: the rest of the store, or -- under a
+  // model drawn alone, whose context is listed and not drawn -- the rest of
+  // its own parts (a bearing no lit edge names is still the model's).
+  const alone = aloneShas();
+  const rest = (alone || state.meshList.map((m) => m.sha256))
+    .filter((sha) => targets.indexOf(sha) === -1);
   const loaded = state.scene.listOpenParts();
   await Promise.all(rest.filter((sha) => loaded.indexOf(sha) === -1)
     .map((sha) => state.scene.loadPart(sha).catch(() => null)));
   applyPartScope();
+  // Each load framed every open part; a model drawn alone is framed on its
+  // mechanism once all of it is drawn.
+  if (alone && !state.sweep) state.scene.frameMechanism(alone);
   postEmbedState();
   return { opened: targets, missing };
 }
@@ -375,10 +383,28 @@ function applyPartScope() {
   if (!scope || !scope.targets.length) return;
   if (state.sweep && state.sweep.armed) return;
   const plan = AA.planPartScope(state.scene.listOpenParts(), scope.targets, scopeHidesRest());
-  plan.ghost.concat(plan.faint).forEach((sha) => state.scene.setVisible(sha, true));
-  plan.hide.forEach((sha) => state.scene.setVisible(sha, false));
+  // A model drawn alone keeps only its own parts; the rest is not context.
+  const off = AA.modelAloneHides(plan.ghost.concat(plan.faint), aloneShas());
+  plan.ghost.concat(plan.faint).filter((sha) => off.indexOf(sha) === -1)
+    .forEach((sha) => state.scene.setVisible(sha, true));
+  plan.hide.concat(off).forEach((sha) => state.scene.setVisible(sha, false));
   applyLooks();
   renderPartsPanel();
+}
+
+// The meshes of the current topology's parts when it is a model drawn alone
+// (AA.modelAloneShas: it declares occurrences), else null.
+function aloneShas() {
+  return AA.modelAloneShas(state.currentTopology, state.meshList, state.partMeshAliases);
+}
+
+// Every open part that is none of a model's own goes off screen -- what a
+// reader then ticks under "Other parts" stays drawn until the next arrival.
+function hideOutsideModel() {
+  if (!state.scene) return [];
+  const off = AA.modelAloneHides(state.scene.listOpenParts(), aloneShas());
+  off.forEach((sha) => state.scene.setVisible(sha, false));
+  return off;
 }
 
 function scopeHidesRest() {
@@ -532,6 +558,10 @@ async function isolateOrGhost(verb, ghost, identifiers) {
 // rail's scope, else the selected topology's (or study's) parts; null while
 // nothing scopes the model, which AA.planContext reads as "every mesh".
 function contextBaseShas() {
+  // A model drawn alone is its own parts, in sweep mode too: what the run
+  // carries inside them (bolts, sub-parts) is listed under "Other parts".
+  const alone = aloneShas();
+  if (state.sweep && alone) return alone;
   if (state.sweep) {
     const open = state.scene.listOpenParts();
     const shas = state.sweep.bodies
@@ -1435,6 +1465,10 @@ async function cmdSweep(target, studyId) {
       state.topologyProjection.topologies.some((t) => t.id === artifact.topologyId)) {
     selectTopology(artifact.topologyId);
   }
+  // Read once per run, after the topology it plays on is selected: the frame
+  // reads it on every tick.
+  state.sweep.alone = aloneShas();
+  hideOutsideModel();
   state.scene.enterSweep(Object.assign({ trails }, structure));
   state.scene.onSweepHover = showSweepTip;
   setRailSweepPosture(true);
@@ -1667,6 +1701,8 @@ async function anchorSweepBodies() {
   const asModelled = artifact.points[artifact.points.length - 1];
   await loadOccurrences();
   const occurrences = occurrencesFor(sweepTopology() || state.currentTopology);
+  const alone = AA.modelAloneShas(sweepTopology() || state.currentTopology, state.meshList,
+    state.partMeshAliases);
   // This runs off the render path and takes seconds; a reader may leave the
   // run, or load another, before it lands. Every await below re-checks, and a
   // superseded run stops -- otherwise it would go on opening parts for a
@@ -1829,6 +1865,8 @@ async function anchorSweepBodies() {
   for (const row of rows) {
     if (!row.placements || !row.placements.length) continue;
     if (row.state === "carried" && !row.inside) continue;
+    // A model drawn alone opens its own parts only; a carried bolt is listed.
+    if (alone && alone.indexOf(row.sha256) === -1) continue;
     if (state.scene.listOpenParts().indexOf(row.sha256) !== -1) continue;
     if (superseded()) return [];
     try {
@@ -1840,6 +1878,7 @@ async function anchorSweepBodies() {
   }
   sweep.bodies = rows;
   sweep.occurrences = AA.sweepSubjectOccurrences(rows);
+  hideOutsideModel();
   renderPartsPanel();
   applySweepFrame();
   // The scene is only now what it is going to be, so this is where it gets
@@ -1936,7 +1975,11 @@ function applySweepFrame() {
         ? AA.sweepMeshMatrices(entries, sweep.frame) : null,
       sweep.layers.bodies ? entries.map((e) => e.key) : null);
     }
-    state.scene.setVisible(sha, !!sweep.layers.bodies && !scopeHides(sha));
+    // A model drawn alone never puts a part of the run's that is none of its
+    // own back on screen; one the reader ticked under "Other parts" stays.
+    const outside = AA.modelAloneHides([sha], sweep.alone).length > 0;
+    state.scene.setVisible(sha, !!sweep.layers.bodies && !scopeHides(sha) &&
+      (!outside || state.scene.isVisible(sha)));
     // An as-modelled row's placement is the occurrence's `placement_world`,
     // which by definition does not move between frames, and setSweepGhost
     // reallocates a mesh and a material per part -- so it is applied only on
@@ -4364,7 +4407,8 @@ async function buildModel() {
   const bound = await modelBoundPoints(topology, parts, occurrences, "bindings", boundFeatures);
   if (generation !== model.generation || state.sweep !== sweep) return null;
   const anchors = AA.modelAnchors({ topology, bias, parts, bound,
-    linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
+    linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {},
+    skeletonEnds: sweep ? AA.modelSkeletonEnds(sweep.artifact) : {} });
   // A joint is one node (coaxial_ends_share_one_3d_node): the solver's own
   // features win over a binding's, as its joint point wins the anchor.
   const features = Object.assign({}, boundFeatures, sweep ? AA.modelSolverFeatures(sweep.artifact) : {});

@@ -216,6 +216,16 @@ geometry and material, so it costs a draw call and a matrix, not a copy.
   *carried* inside a moving occurrence is drawn where it is carried and not at
   its other recorded places. Switching to a topology that declares none puts
   every part back at every occurrence.
+- **A model is drawn alone** (2026-11-08, handoff
+  `the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader`).
+  A topology that declares any occurrence draws its own parts and nothing
+  else, in sweep mode and out of it (`AA.modelAloneShas`): the rest of the
+  store is listed under "Other parts", folded and unticked, for a reader to
+  add by hand; a bolt the run carries inside a moving part is listed there
+  too and not opened. At rest the camera frames the model as a mechanism,
+  leaving out a part far larger than the median one (the blade; the sweep's
+  own `SWEEP_CONTEXT_RATIO`, in `scene.frameMechanism`). A topology that declares none keeps the store as
+  faint context.
 - **A part past the draw cap** (`AA.OCCURRENCE_DRAW_LIMIT`, `sweep.js`) is drawn
   at the first that-many and says how many it has. No installed part reaches
   it, and a `[real]` check in `apps/annotate/run_tests.cjs` reads the mesh store
@@ -955,6 +965,10 @@ binding, a stack or a fitted nominal.
    plane's centroid (`point`, as `tolerance_stack/feature_geometry.py`'s
    `fit_plane` names it), at the occurrence the node's body anchors. A binding
    with no `direction` binds an edge, not a node, and anchors nothing.
+   Otherwise, in sweep mode, **the skeleton's point** — a node the run's
+   `geometry.features` name as an end of any other joint (a slide, a hinge,
+   the actuator) sits where the stick figure draws it, the same `joint`
+   source as 1 (2026-11-08, `AA.modelSkeletonEnds`).
 3. **The +X-bias section** of the node's part (`AA.modelPartSection`): the
    part's mesh, at the occurrence the body anchors, cut by the plane spanned by
    the bias and stack axes, through the middle of the occurrence's own box
@@ -1042,7 +1056,7 @@ down the scene posts the message once with both maps empty. `model anchors`
 posts it at once, unchanged or not, for a shell that dropped its copy (its
 pane reopened, or the scene's state changed). The shell offsets
 by the iframe's measured rect and draws a leader from each lit node's DAG dot
-to its anchor (`apps/viewer/README.md`, "Leaders across the seam"); it posts
+— with no study open, every node's — to its anchor (`apps/viewer/README.md`, "Leaders across the seam"); it posts
 its lit set and its dim-or-hide word whenever either changes, so the
 fallback above is what a full page, or a shell that has not yet spoken, sees.
 

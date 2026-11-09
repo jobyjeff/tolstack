@@ -4769,9 +4769,13 @@
   // anchor in its own CSS pixels (`annotate:anchors`); the shell adds the
   // iframe's rect, adds the rails SVG's rect to the points below, and draws
   // one page-level overlay from the two (topology_app.js's drawSeamLeaders).
-  // Only the lit set gets one: "if every single element in the model were
-  // connected it would probably be way too busy to interpret" (Jeff,
-  // 2026-10-26).
+  // With a study open only its lit set gets one: "if every single element in
+  // the model were connected it would probably be way too busy to interpret"
+  // (Jeff, 2026-10-26, of v1's ~100 nodes). With none (`lit` null) every node
+  // the DAG draws is lit for leaders, and a leader is drawn wherever the
+  // scene placed that node -- Jeff asked for them by name on the end stop
+  // model's ~25 (the_scene_draws_the_model_alone_and_every_node_it_places_
+  // has_a_leader, 2026-11-08).
   //
   // The DAG end of each, in the rails SVG's own pixels: the left side of a
   // lit node's dot, or -- for a lit node folded into a collapsed body -- its
@@ -4782,7 +4786,7 @@
   VA.seamDots = function (layout, geometry, lit, metrics, x, zoom) {
     metrics = metrics || VA.RAIL_METRICS;
     var out = { dots: {}, bend: 0, bars: [] };
-    if (!lit || !geometry) return out;
+    if (!geometry) return out;
     // At the DAG's zoom (VA.leaderGeometry's `zoom`), mapped into the SVG's
     // own pixels: the DAG is drawn scaled, the overlay is not.
     var k = zoom && zoom.k > 0 ? zoom.k : 1;
@@ -4792,7 +4796,7 @@
     var minX = Infinity;
     (geometry.marks || []).forEach(function (mark) {
       if (mark.kind === "node") marks[mark.id] = mark;
-      else if (lit.edges && lit.edges[mark.id]) {
+      else if (lit && lit.edges && lit.edges[mark.id]) {
         out.bars.push({ id: mark.id, x: k * mark.x, y1: yk(mark.y1), y2: yk(mark.y2) });
       }
       minX = Math.min(minX, mark.x);
@@ -4800,8 +4804,9 @@
     (geometry.rails || []).forEach(function (rail) { minX = Math.min(minX, rail.x); });
     out.bend = minX === Infinity ? 0 : k * Math.max(0, minX - metrics.gutter / 2);
     var folded = (layout && layout.folded) || {};
-    Object.keys(lit.nodes || {}).sort().forEach(function (id) {
-      if (!lit.nodes[id]) return;
+    var ids = lit ? Object.keys(lit.nodes || {}).filter(function (id) { return lit.nodes[id]; })
+      : Object.keys(marks).concat(Object.keys(folded));
+    ids.sort().forEach(function (id) {
       var mark = marks[id];
       if (mark) {
         var r = mark.branch ? metrics.branchDot : metrics.dot;

@@ -1149,6 +1149,35 @@
     return pins;
   };
 
+  // A topology that declares any occurrence is a MODEL, and a model is drawn
+  // alone (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
+  // leader, 2026-11-08): its own parts, each at its declared occurrence, and
+  // no context -- in sweep mode and out of it. The rest of the store is still
+  // listed (folded, unticked) so a reader can add context by hand. A topology
+  // that declares none (v1) keeps the every-occurrence rule and its context.
+  // null when the topology is not drawn alone, else the shas of the meshes
+  // its parts resolve to, as the scene resolves them.
+  AA.modelAloneShas = function (topology, meshes, aliases) {
+    var parts = (topology && topology.parts) || [];
+    var declares = parts.some(function (part) {
+      return part && typeof part.occurrence === "string" && !!part.occurrence;
+    });
+    if (!declares) return null;
+    var shas = [];
+    parts.forEach(function (part) {
+      var mesh = part && AA.resolveMeshIdentifier(meshes, part.id, aliases);
+      if (mesh && shas.indexOf(mesh.sha256) === -1) shas.push(mesh.sha256);
+    });
+    return shas;
+  };
+
+  // The open meshes a model drawn alone takes off screen: every one that is
+  // none of its parts. Nothing with no model (`alone` null).
+  AA.modelAloneHides = function (open, alone) {
+    if (!alone) return [];
+    return (open || []).filter(function (sha) { return alone.indexOf(sha) === -1; });
+  };
+
   // The occurrence table (AA.readMeshOccurrences) with each pinned mesh cut
   // to its one declared occurrence: its own record at that path, or -- when
   // the path is recorded on another mesh, as blade 1's design pitch link is

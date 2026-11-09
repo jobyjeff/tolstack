@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the leaders across the seam start at each lit node's dot, turn once left of the rails and end at its anchor; with no study every drawn node does",
+  "mutations": [
+    {
+      "contract": "A leader leaves its node from the dot's own left side.",
+      "issue": null,
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Starts every leader on the dot's right side instead.",
+      "file": "apps/viewer/topology.js",
+      "find": "        out.dots[id] = [k * (mark.x - r - 1.5), yk(mark.y)];",
+      "replace": "        out.dots[id] = [k * (mark.x + r + 1.5), yk(mark.y)];"
+    },
+    {
+      "contract": "With no study open every node the DAG draws has a DAG end for its leader.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md",
+      "note": "Declared with the guard by handoff the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader (2026-11-08). Puts back the 2026-10-27 rule that nothing lit means no leader at all -- the zero Jeff measured on the end-stop model.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (!geometry) return out;",
+      "replace": "    if (!lit || !geometry) return out;"
+    }
+  ]
+}

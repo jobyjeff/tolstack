@@ -13399,7 +13399,7 @@
     }
 
     await test("the leaders across the seam start at each lit node's dot, turn " +
-      "once left of the rails and end at its anchor; the whole walk has none", function () {
+      "once left of the rails and end at its anchor; with no study every drawn node does", function () {
         var study = topoStudy("demo_base_to_tip");
         var lit = VA.studyLitSet(study);
         var seam = seamOf(study);
@@ -13438,8 +13438,18 @@
           eq(l.d, "M " + l.from[0] + " " + l.from[1] + " H " + l.bend[0] +
             " L " + l.to[0] + " " + l.to[1], "one bend");
         });
-        var walk = seamOf(null);
-        eq(walk.dots, {}, "nothing lit, nothing to lead from");
+        // No study: every node the DAG draws is lit for leaders, and a leader
+        // is drawn wherever the scene posted an anchor.
+        var whole = render(function (r) { VA.renderTopoPane(r, topoCtx({ study: null })); });
+        var walk = VA.lastTopoRender.seam;
+        var drawnNodes = {};
+        all(whole, 'svg.tv__rails [data-row-kind="node"][data-id]').forEach(function (n) {
+          drawnNodes[n.getAttribute("data-id")] = true;
+        });
+        ok(Object.keys(drawnNodes).length > 0, "the walk draws nodes");
+        eq(Object.keys(walk.dots).sort(), Object.keys(drawnNodes).sort(),
+          "no study: every drawn node has a DAG end");
+        eq(walk.bars, [], "and no edge is lit, so no bar is counted");
       });
 
     await test("a leader across the seam leaves level with its own row, so it runs " +

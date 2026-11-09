@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a topology that declares occurrences is drawn alone: its own parts' meshes, and every other open mesh hidden; one that declares none keeps its context",
+  "mutations": [
+    {
+      "contract": "A topology whose parts declare an occurrence is a model drawn alone.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md",
+      "note": "Declared with the guard by handoff the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader (2026-11-08). Treats every topology as one that declares none, so the end-stop model keeps the store as context.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (!declares) return null;",
+      "replace": "    if (declares || !declares) return null;"
+    }
+  ]
+}

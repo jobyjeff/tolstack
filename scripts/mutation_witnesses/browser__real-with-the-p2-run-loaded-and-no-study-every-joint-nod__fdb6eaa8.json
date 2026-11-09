@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] with the P2 run loaded and no study, every joint node the scene drew has its leader across the seam",
+  "mutations": [
+    {
+      "contract": "With no study open, every node the scene placed is led from its DAG dot.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md",
+      "note": "Declared with the guard by handoff the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader (2026-11-08). The cause measured on the merged page: no lit set, no DAG ends, so zero leaders with 22 anchors posted.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (!geometry) return out;",
+      "replace": "    if (!lit || !geometry) return out;"
+    }
+  ]
+}

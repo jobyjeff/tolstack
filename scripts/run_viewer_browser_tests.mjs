@@ -14366,6 +14366,126 @@ async function testPreviewFromTheScene(browser, label) {
   return reportSuite(label, checks, errors);
 }
 
+// The model drawn alone, and every node it places led to its DAG dot
+// (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader,
+// 2026-11-08). On the end-stop model -- a topology whose parts declare
+// occurrences -- the 3D pane at rest draws that model's parts and no context,
+// and with the P2 run loaded and no study open every node the scene placed at
+// the solver's joint point has a leader across the seam. Real data only: the
+// meshes, the run and the topology projection are the facts it is about.
+const MODEL_ALONE_TOPOLOGY = "vpa_end_stop_v2";
+
+async function testModelDrawnAloneAndLed(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const model = topologies && (topologies.topologies || []).find((t) => t.id === MODEL_ALONE_TOPOLOGY);
+  const kinematic = await readProjection("kinematic/kinematic_studies.json");
+  const study = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
+  const index = await realDataIndexForTheAnnotator();
+  if (!model || !(model.parts || []).some((p) => p.occurrence) || !study ||
+      index.runs.indexOf(study.sweep.run_id) === -1 || !index.meshes.length) {
+    push("[real] the model drawn alone and led (skipped: the end-stop model with declared " +
+      "occurrences, the P2 run or the meshes are not on disk -- build them, or pass --repo " +
+      "<a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  // Tall enough that every one of the model's DAG dots is in the pane's view.
+  const page = await browser.newPage({ viewport: { width: 1700, height: 1500 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => !!new Function("arg",
+        "return (" + src + ")(arg);")(arg), { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // What the scene draws, read until three reads 300ms apart agree.
+  const drawnNow = () => inPane((w) => {
+    const view = w.AnnotateApp.exec(["scene-view"]);
+    return view.filter((r) => r.visible).map((r) => ({ sha: r.sha256,
+      at: w.__scene.drawnOccurrenceKeys(r.sha256).length })).sort((a, b) => (a.sha < b.sha ? -1 : 1));
+  });
+  const drawnSettled = async () => {
+    let last = null, same = 0, now = null;
+    const end = Date.now() + 120000;
+    while (Date.now() < end) {
+      now = JSON.stringify(await drawnNow());
+      same = now === last ? same + 1 : 0;
+      last = now;
+      if (same >= 2) break;
+      await page.waitForTimeout(300);
+    }
+    return JSON.parse(now || "[]");
+  };
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + MODEL_ALONE_TOPOLOGY, { waitUntil: "load" });
+    await page.waitForSelector(navRow("topology", MODEL_ALONE_TOPOLOGY), { timeout: 30000 });
+    const row = page.locator(navRow("topology", MODEL_ALONE_TOPOLOGY)).first();
+    await row.hover();
+    await row.locator("[data-nav-3d]").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 });
+    await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.AnnotateApp && w.__scene && w.__scene.listOpenParts().length > 0;
+    }, null, 120000);
+    const rest = await drawnSettled();
+    const pinned = (model.parts || []).filter((p) => p.occurrence).length;
+    console.log(`      [${label}] at rest: ${rest.length} meshes drawn for ${model.parts.length} parts ` +
+      `(${pinned} with a declared occurrence)`);
+    push("[real] the end-stop model at rest draws as many parts as it has, and no context",
+      rest.length === model.parts.length);
+
+    // The P2 run, loaded with no study: every node the scene placed at the
+    // solver's joint point, on screen, has its leader.
+    const runId = study.sweep.run_id;
+    await inPane((w, r) => { w.AnnotateApp.exec(["sweep", r]); return true; }, runId);
+    const built = await until((r) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.__sweep && w.__sweep.artifact.runId === r && w.__sweep.bodies.length > 0 &&
+        w.__model && w.__model.built && w.__model.built.runId === r && w.__model.built.bodies &&
+        window.ViewerApp.lastSeamDraw && window.ViewerApp.lastSeamDraw.leaders.length > 0;
+    }, runId, 240000);
+    await inPane((w) => w.AnnotateApp.exec(["pause"]));
+    await page.waitForTimeout(1500);
+    const led = await page.evaluate(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      const sent = (w.__lastAnchors || {}).nodes || {};
+      const anchors = w.__model.built.anchors;
+      const joint = Object.keys(anchors).filter((id) => anchors[id].source === "joint" && sent[id]).sort();
+      const leaders = [...document.querySelectorAll("svg.seamleaders path.seam__leader")]
+        .map((p) => p.getAttribute("data-node-id"));
+      return { joint, leaders, skipped: window.ViewerApp.lastSeamDraw.skipped };
+    });
+    const sweepDrawn = await drawnSettled();
+    console.log(`      [${label}] P2 with no study: ${led.leaders.length} leaders; joint nodes the ` +
+      `scene drew ${led.joint.length} (${led.joint.join(", ")}); no anchor: ` +
+      `${led.skipped.noAnchor.join(", ") || "-"}; ${sweepDrawn.length} meshes drawn`);
+    push("[real] with the P2 run loaded and no study, every joint node the scene drew has its " +
+      "leader across the seam",
+      built && led.joint.length > 0 && led.leaders.length >= led.joint.length &&
+      led.joint.every((id) => led.leaders.indexOf(id) !== -1));
+  } catch (err) {
+    errors.push(String(err && err.stack || err));
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 async function testSeamLeaders(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -15672,6 +15792,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testPreviewFromTheScene(browser, label)],
       ["leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)", (label) =>
         testSeamLeaders(browser, label, topologies)],
+      ["the model drawn alone and led (the end-stop model's parts only, a leader per placed node)", (label) =>
+        testModelDrawnAloneAndLed(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

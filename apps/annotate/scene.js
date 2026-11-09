@@ -1149,6 +1149,31 @@ export class AnnotateScene {
     this._frameBox(overall);
   }
 
+  // Frames a model drawn alone as a mechanism: every visible occurrence of
+  // `shas`, less any more than SWEEP_CONTEXT_RATIO times the median one's
+  // size -- frameSweepScene's rule, with the parts' own median standing in
+  // for the swept path, so one blade beside a linkage does not shrink the
+  // linkage to a few pixels. Falls back to frameParts when nothing is drawn.
+  frameMechanism(shas) {
+    const boxes = [];
+    for (const sha256 of shas || []) {
+      const mesh = this.parts.get(sha256);
+      if (!mesh) continue;
+      for (const node of this._occurrenceNodes(sha256)) {
+        if (!node.visible) continue;
+        boxes.push(mesh.geometry.boundingBox.clone().applyMatrix4(node.matrix));
+      }
+    }
+    if (!boxes.length) { this.frameParts(shas); return false; }
+    const span = (b) => { const v = b.getSize(new THREE.Vector3()); return Math.max(v.x, v.y, v.z); };
+    const spans = boxes.map(span).sort((a, b) => a - b);
+    const limit = Math.max(spans[Math.floor(spans.length / 2)], 1) * AnnotateScene.SWEEP_CONTEXT_RATIO;
+    const overall = new THREE.Box3();
+    for (const b of boxes) if (span(b) <= limit) overall.union(b);
+    this._frameBox(overall);
+    return true;
+  }
+
   // Frames a box given in the ASSEMBLY frame -- `frame-contact`'s camera, the
   // box a contact candidate carries in the projection. The same placement as
   // framing a part, so a reader's camera behaves one way whatever it frames.

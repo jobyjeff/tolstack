@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] the end-stop model at rest draws as many parts as it has, and no context",
+  "mutations": [
+    {
+      "contract": "The pane on a model with declared occurrences draws its parts and no context.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md",
+      "note": "Declared with the guard by handoff the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader (2026-11-08). Cuts the one wiring point every alone-site reads, so the store loads and draws faint round the model again.",
+      "file": "apps/annotate/app.js",
+      "find": "  return AA.modelAloneShas(state.currentTopology, state.meshList, state.partMeshAliases);",
+      "replace": "  return null;"
+    }
+  ]
+}

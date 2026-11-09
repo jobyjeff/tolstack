@@ -5444,6 +5444,24 @@ check("a part that declares an occurrence is drawn there alone -- its own record
     AA.ASSEMBLY_POSITION_WORDS.none, "a path nothing records is said, not drawn somewhere");
 });
 
+check("a topology that declares occurrences is drawn alone: its own parts' meshes, " +
+  "and every other open mesh hidden; one that declares none keeps its context", () => {
+  const meshes = [{ sha256: "arm", part_id: "m_arm" }, { sha256: "hub", part_id: "m_hub" },
+    { sha256: "bolt", part_id: "m_bolt" }, { sha256: "blade2", part_id: "m_blade2" }];
+  const aliases = [{ topology_part: "pitch_arm", mesh_part_id: "m_arm" },
+    { topology_part: "hub", mesh_part_id: "m_hub" }];
+  const model = { parts: [{ id: "pitch_arm", occurrence: "r/b.1/arm.1" }, { id: "hub" },
+    { id: "no_mesh_part" }] };
+  const alone = AA.modelAloneShas(model, meshes, aliases);
+  assertEqual(alone, ["arm", "hub"], "every part with a mesh, declared or not");
+  assertEqual(AA.modelAloneHides(["arm", "hub", "bolt", "blade2"], alone), ["bolt", "blade2"],
+    "the context goes");
+  const v1 = { parts: [{ id: "pitch_arm" }, { id: "hub" }] };
+  assertEqual(AA.modelAloneShas(v1, meshes, aliases), null, "no declaration, not alone");
+  assertEqual(AA.modelAloneHides(["arm", "bolt"], null), [], "and nothing hidden");
+  assertEqual(AA.modelAloneShas(null, meshes, aliases), null, "no topology, not alone");
+});
+
 check("under a topology that declares occurrences, a mesh only carried inside a " +
   "moving occurrence is drawn where it is carried; with none declared it keeps its " +
   "still places", () => {
@@ -5823,6 +5841,33 @@ check("model: the link ends are read off the run's own geometry features, for li
     rod_upper: { joint: "rodlink", end: "point_b_world" },
   }, "a link's two ends, and not a hinge's");
   assertEqual(AA.modelLinkEnds(null), {}, "no run, no link ends");
+});
+
+check("model: a node the skeleton draws at any joint the run solves is anchored at that " +
+  "point, after a link end and a binding and before the section", () => {
+  const artifact = {
+    links: [{ joint: "rodlink" }],
+    features: [
+      { label: "rodlink.point_a[0]", node: "rod_lower" },
+      { label: "hinge.point_a[0]", node: "ring_base" },
+      { label: "hinge.point_b[0]", node: "ring_base" },
+      { label: "slide.point_b[1]", node: "boss_bore" },
+      { label: "rodlink.length", edge: "rod_length" },
+    ],
+  };
+  const ends = AA.modelSkeletonEnds(artifact);
+  assertEqual(ends, {
+    rod_lower: { joint: "rodlink", end: "point_a_world" },
+    ring_base: { joint: "hinge", end: "point_a_world" },
+    boss_bore: { joint: "slide", end: "point_b_world" },
+  }, "every joint's ends, the first naming of a node kept");
+  assertEqual(AA.modelSkeletonEnds(null), {}, "no run, no skeleton ends");
+  const anchors = modelDemoAnchors({ skeletonEnds: ends });
+  assertEqual([anchors.ring_base.source, anchors.ring_base.joint, anchors.ring_base.point],
+    ["joint", "hinge", null], "a section node the hinge names sits on the skeleton's point");
+  assertEqual(anchors.boss_bore.source, "bound", "a binding still wins over the skeleton");
+  assertEqual(anchors.rod_lower.joint, "rodlink", "and a link end over both");
+  assertEqual(modelDemoAnchors().ring_base.source, "section", "with no run, the section as before");
 });
 
 // --- a joint is one node (handoff coaxial_ends_share_one_3d_node) ----------
