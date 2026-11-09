@@ -1019,6 +1019,13 @@ body { display: flex; flex-direction: column; }
 .rail__leader--hot { stroke-width: 2.5; }
 .rail__leader--lead { stroke-width: 3; }
 
+/* Under Colour by Body a row wears its body's ink, faintly, as a cell
+   IMAGE -- so the hover and lead tints below, which are cell COLOURS, layer
+   under it rather than replace it. */
+.tvrow--ink > .tvcell { background-image: linear-gradient(
+  color-mix(in srgb, var(--fill-ink) var(--tv-body-tint), transparent),
+  color-mix(in srgb, var(--fill-ink) var(--tv-body-tint), transparent)); }
+
 /* The grid half. On the CELLS, so an untraced row's provenance image
    survives underneath (see `--tv-hot` in :root). */
 .tvrow--hot > .tvcell { background-color: var(--tv-hot); }

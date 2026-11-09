@@ -1553,7 +1553,7 @@ its length wherever the big dimensions are, so on
 `vpa_pitch_linkage` 2026-10-26) under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `vpa_pitch_linkage`'s max jog 2041px → 1014px,
+which is the thing the change is for: `vpa_pitch_linkage`'s max jog 2923px → 1441px,
 and every topology × mode pair on the shelf improves.
 
 A leader can therefore now **descend** left-to-right, where before it always
@@ -1604,7 +1604,7 @@ live corpus (before the band). Taking
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
   pane goes **678 → 330px**;
 * the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **1027 → 715px**;
+  of unchanged height — `gridOffset` goes **1482 → 799px**;
 * the grid **cross-fades** between two different row sets, as it always did.
 
 Every committed study moves at least one of those, which the `[real]` tier

@@ -248,6 +248,9 @@
     picker("colourBy", "Colour by", (view.schemes || VA.COLOUR_SCHEMES).map(function (s) {
       return { id: s.id, label: s.label };
     }));
+    picker("palette", "Palette", VA.PALETTE_ORDER.map(function (id) {
+      return { id: id, label: VA.PALETTES[id].label };
+    }));
     picker("groupFill", "Group fill", VA.GROUP_FILL_ORDER.map(function (id) {
       return { id: id, label: VA.GROUP_FILLS[id].label };
     }));
@@ -2406,7 +2409,9 @@
         { x: box.x1 + VA.CONTAINER_LABEL.inset, y: box.y1 + VA.CONTAINER_LABEL.baseline });
       label.textContent = fitText(VA.partContainerLabel(part),
         Math.max(box.x2 - box.x1 - 2 * VA.CONTAINER_LABEL.inset, 24));
-      label.appendChild(svgTitle(VA.componentTitle(part)));
+      // The hover carries the everyday name beside the number, never the id.
+      label.appendChild(svgTitle(VA.componentLabel(part) +
+        (part.drawing ? " · drawing " + part.drawing : "")));
       label.setAttribute("data-part-name", partId);
       bodyNames.push(label);
     };
@@ -3626,8 +3631,11 @@
     if (first) el.className += " tvrow--group-start";
     // A kinematic term's sourcing is its band's (VA.kinematicStack's
     // `confidence`); every other row's is its edge's own. It is the row's
-    // mark (VA.rowSourcingMark), not a tint: the brackets are the only thing
-    // a row's background says.
+    // mark (VA.rowSourcingMark), not a tint: the brackets, and under Colour
+    // by Body its body's ink, are the only things a row's background says.
+    if (ctx.colourBy === "body" && planRow.body !== null && planRow.body !== undefined) {
+      el.className += " tvrow--ink tv__fill--t" + VA.bodyTint(ctx.topoProj, planRow.body);
+    }
     var confidence = term && term.confidence ? term.confidence : edge ? edge.confidence : null;
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";

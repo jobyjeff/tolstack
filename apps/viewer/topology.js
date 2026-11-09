@@ -1228,14 +1228,31 @@
   };
   VA.PART_DRAWING_ORDER = ["blocks", "rails"];
 
-  // The DAG's four view settings, remembered across sessions in one store
+  // Which set of inks the bodies wear (the_dag_and_grid_nest_coloured_bodies_
+  // and_compact_means_denser_rows, 2026-11-08): `bold`, a plotly-class
+  // categorical set, or `cvd`, Okabe-Ito's eight first. The values are
+  // topology.css's (`--tv-body-ink-*`, and the html[data-palette="cvd"]
+  // block); the page sets the attribute (topology_app.js).
+  VA.PALETTES = {
+    bold: { label: "Bold" },
+    cvd: { label: "Colour-blind" },
+  };
+  VA.PALETTE_ORDER = ["bold", "cvd"];
+
+  // The DAG's five view settings, remembered across sessions in one store
   // entry (like the group kinds, VA.readGroupKinds): which colour scheme
   // (VA.COLOUR_SCHEMES), which group fill, which width, how a part with
-  // many interfaces is drawn (VA.PART_DRAWINGS). An unreadable store,
-  // or a word outside its table, reads as that setting's default.
-  VA.DAG_VIEW_KEY = "tolstack.viewer.dagView";
-  VA.DAG_VIEW_DEFAULTS = { colourBy: "none", groupFill: "off", graphWidth: "narrow",
-                           partDrawing: "blocks" };
+  // many interfaces is drawn (VA.PART_DRAWINGS), which palette
+  // (VA.PALETTES). An unreadable store, or a word outside its table, reads
+  // as that setting's default.
+  //
+  // One colour per body, by default: Colour by Body, parts tinted. The key
+  // took a `.2` with those defaults, because the entry stores every setting
+  // whenever any one changes -- a reader who had ever touched the width
+  // would otherwise keep the old "None" and never see the new default.
+  VA.DAG_VIEW_KEY = "tolstack.viewer.dagView.2";
+  VA.DAG_VIEW_DEFAULTS = { colourBy: "body", groupFill: "parts", graphWidth: "narrow",
+                           partDrawing: "blocks", palette: "bold" };
 
   VA.readDagView = function (store) {
     var out = Object.assign({}, VA.DAG_VIEW_DEFAULTS);
@@ -1247,6 +1264,7 @@
         if (VA.GROUP_FILLS[saved.groupFill]) out.groupFill = saved.groupFill;
         if (VA.GRAPH_WIDTHS[saved.graphWidth]) out.graphWidth = saved.graphWidth;
         if (VA.PART_DRAWINGS[saved.partDrawing]) out.partDrawing = saved.partDrawing;
+        if (VA.PALETTES[saved.palette]) out.palette = saved.palette;
       }
     } catch (err) {
       // Unreadable: the defaults.
@@ -1259,7 +1277,7 @@
       if (!store) return;
       store.setItem(VA.DAG_VIEW_KEY, JSON.stringify({
         colourBy: view.colourBy, groupFill: view.groupFill, graphWidth: view.graphWidth,
-        partDrawing: view.partDrawing,
+        partDrawing: view.partDrawing, palette: view.palette,
       }));
     } catch (err) {
       // A browser that refuses to store it still draws it for this session.
@@ -1456,7 +1474,9 @@
   // walk fails here instead of being unreachable.
   // `max` 2 is where the 26px rows are 52px and the text is large enough for
   // anything a reader zooms in for. `step` is one wheel notch's factor.
-  VA.DAG_ZOOM = { min: 0.12, max: 2, step: 1.15 };
+  // `min` went 0.12 -> 0.1 on 2026-11-08, when the containers' label bands
+  // (VA.CONTAINER_LABEL) made the product walk ~7% taller.
+  VA.DAG_ZOOM = { min: 0.1, max: 2, step: 1.15 };
 
   VA.clampDagZoom = function (scale) {
     var n = Number(scale);

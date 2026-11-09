@@ -13153,14 +13153,22 @@
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "never chosen");
+        // One colour per body by default (the_dag_and_grid_nest_coloured_
+        // bodies_and_compact_means_denser_rows): Colour by Body, parts tinted,
+        // the Bold palette -- under a key the old "None" entries do not reach.
+        eq([VA.DAG_VIEW_DEFAULTS.colourBy, VA.DAG_VIEW_DEFAULTS.groupFill,
+            VA.DAG_VIEW_DEFAULTS.palette], ["body", "parts", "bold"]);
+        data["tolstack.viewer.dagView"] = JSON.stringify({ colourBy: "none", groupFill: "off" });
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "an entry under the old key is not read");
         var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide",
-                       partDrawing: "rails" };
+                       partDrawing: "rails", palette: "cvd" };
         VA.writeDagView(store, chosen);
         eq(VA.readDagView(store), chosen);
         data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "rainbow", groupFill: "parts",
-                                                 graphWidth: "huge", partDrawing: "boxes" });
-        eq(VA.readDagView(store), { colourBy: "none", groupFill: "parts", graphWidth: "narrow",
-                                    partDrawing: "blocks" });
+                                                 graphWidth: "huge", partDrawing: "boxes",
+                                                 palette: "neon" });
+        eq(VA.readDagView(store), { colourBy: "body", groupFill: "parts", graphWidth: "narrow",
+                                    partDrawing: "blocks", palette: "bold" });
         data[VA.DAG_VIEW_KEY] = "{not json";
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
         eq(VA.readDagView(null), VA.DAG_VIEW_DEFAULTS);
@@ -13190,7 +13198,7 @@
         }
       });
 
-    await test("the view popover offers the four settings over their own tables and " +
+    await test("the view popover offers the five settings over their own tables and " +
       "reports a change; the overlay's key is beside it, and absent with none", function () {
         var proj = twoBodyProjection();
         var seen = [];
@@ -13198,7 +13206,7 @@
           return render(function (r) {
             VA.renderTopoToolbar(r, { mode: "topology", topologyId: proj.id, studyId: null }, proj, {
               dagView: { colourBy: colourBy, groupFill: "off", graphWidth: "narrow",
-                         partDrawing: "blocks",
+                         partDrawing: "blocks", palette: "bold",
                          schemes: VA.availableColourSchemes(options),
                          legend: VA.dagOverlay(colourBy, proj, options).legend },
               onDagView: function (k, v) { seen.push([k, v]); },
@@ -13208,15 +13216,18 @@
         var tb = toolbar("body", null);
         var selects = all(tb, "select");
         eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }),
-           ["colourBy", "groupFill", "graphWidth", "partDrawing"]);
+           ["colourBy", "palette", "groupFill", "graphWidth", "partDrawing"]);
         eq(all(selects[0], "option").map(function (o) { return o.value; }),
            VA.availableColourSchemes(null).map(function (s) { return s.id; }));
-        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
-        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
-        eq(all(selects[3], "option").map(function (o) { return o.value; }), VA.PART_DRAWING_ORDER);
-        selects[2].value = "wide";
-        selects[2].onchange();
-        eq(seen, [["graphWidth", "wide"]]);
+        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.PALETTE_ORDER);
+        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
+        eq(all(selects[3], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
+        eq(all(selects[4], "option").map(function (o) { return o.value; }), VA.PART_DRAWING_ORDER);
+        selects[3].value = "wide";
+        selects[3].onchange();
+        selects[1].value = "cvd";
+        selects[1].onchange();
+        eq(seen, [["graphWidth", "wide"], ["palette", "cvd"]]);
         eq(all(tb, "span.tvovl__item").length, 2, "one key entry per body");
         eq(all(toolbar("none", null), "div.tvovl").length, 0);
         ok(all(all(toolbar("none", { contributions: {} }), "select")[0], "option")

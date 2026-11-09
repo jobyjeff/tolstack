@@ -236,6 +236,7 @@
     applyDensity();
     state.dagView = VA.readDagView(widthStore());
     VA.applyGraphWidth(state.dagView.graphWidth);
+    applyPalette();
     state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
@@ -822,6 +823,18 @@
   function applyDensity() {
     var preset = VA.applyRowDensity(state.rowDensity);
     document.documentElement.style.setProperty("--tv-row", preset.rowHeight + "px");
+  }
+
+  // The bodies' palette (VA.PALETTES) is one attribute on the document: the
+  // DAG, the grid's brackets and the overlay's key all read the same
+  // `--tv-body-ink-*`, so one write recolours every place a body is drawn.
+  function applyPalette() {
+    var root = document.documentElement;
+    if (state.dagView.palette && state.dagView.palette !== "bold") {
+      root.setAttribute("data-palette", state.dagView.palette);
+    } else if (root.removeAttribute) {
+      root.removeAttribute("data-palette");
+    }
   }
 
   function currentTopology() {
@@ -3158,7 +3171,7 @@
         // The length mode the pane draws, which is the page's default until
         // the reader picks one (VA.edgeLengthModeFor).
         edgeLengthMode: lengthMode,
-        // The view popover (VA.COLOUR_SCHEMES, VA.GROUP_FILLS,
+        // The view popover (VA.COLOUR_SCHEMES, VA.PALETTES, VA.GROUP_FILLS,
         // VA.GRAPH_WIDTHS) and the overlay's key beside it.
         dagView: Object.assign({}, state.dagView, {
           schemes: VA.availableColourSchemes(overlayOptions),
@@ -3170,6 +3183,7 @@
           state.dagView[setting] = value;
           VA.writeDagView(widthStore(), state.dagView);
           if (setting === "graphWidth") VA.applyGraphWidth(value);
+          if (setting === "palette") applyPalette();
           render();
           var menu = typeof document !== "undefined" && document.getElementById &&
             document.getElementById("dag-view");
