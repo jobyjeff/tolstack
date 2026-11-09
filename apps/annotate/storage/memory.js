@@ -76,6 +76,15 @@
     return (byPart && byPart[filename]) || null;
   };
 
+  // The folder, in memory: the fixture's events (`featureIdentityEvents`, as
+  // they would sit on disk) plus everything written since.
+  MemoryAdapter.prototype.listFeatureIdentityEventSeqs = async function () {
+    return (this._fixtures.featureIdentityEvents || []).concat(
+      this.written.map(function (w) { return w.event; }))
+      .map(function (e) { return e && e.seq; })
+      .filter(function (seq) { return typeof seq === "number"; });
+  };
+
   MemoryAdapter.prototype.writeFeatureIdentityEvent = async function (filename, eventObject) {
     if (!this.canWrite()) {
       throw new Error("storage cannot write (read-only transport, or not ready)");

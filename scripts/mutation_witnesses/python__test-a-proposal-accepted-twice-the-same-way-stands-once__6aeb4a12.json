@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_feature_identity.py",
+  "expect_red": "test_a_proposal_accepted_twice_the_same_way_stands_once",
+  "mutations": [
+    {
+      "contract": "A proposal answered twice with the same answer folds as one binding, the repeat kept in history.",
+      "issue": "docs/issues/ISSUE_20261108_four_feature_identity_events_share_a_seq_so_the_bindings_projection_cannot_be_rebuilt.md",
+      "note": "Treats every repeat as a different answer, so Jeff's re-accepts refuse the live log again.",
+      "file": "tolerance_stack/feature_identity.py",
+      "find": "            if _same_answer(first, event):",
+      "replace": "            if False:"
+    }
+  ]
+}

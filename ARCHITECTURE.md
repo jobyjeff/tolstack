@@ -226,6 +226,7 @@ scripts/
                                in sibling worktrees collided over.
                                Added 2026-09-15.
   rebuild_projections.ps1      runs the topology, results and crops builders --
+                               since 2026-11-08 the feature-identity bindings too,
                                and, since 2026-10-20, the kinematic builder, last --
                                from the MAIN checkout in sequence and fails loud,
                                before building anything, if drawing-checker's
@@ -442,7 +443,7 @@ writes one immutable event per binding.
 | `GeometryKey` | a mesh face: `(source_step_sha256, face_id)` plus the `area_native2`/`centroid_native` fingerprint copied from `data/meshes/<sha>/manifest.json` at binding time |
 | `FeatureIdentityEvent` | one binding (`verdict: "bound"`, with a `GeometryKey` and a `direction`), one `owner_not_in_set` finding (no geometry at all), one agent's `proposed` face (never standing) or one human's `rejected` answer to a proposal; an accept is a `bound` event naming the proposal in `ratifies` |
 | `OwnerPath` | how a binding's `owner_part` was reached: `direct` or a carried-as-such `hypothesis` |
-| `build_projection(events)` | **the fold**: per stack-side key, every `bound` event (many-to-many, decision 4) plus every `owner_not_in_set` event, plus the full history; open proposals in a list of their own that nothing reading `bindings` sees, and rejected ones kept so the face is never proposed again |
+| `build_projection(events)` | **the fold**: per stack-side key, every `bound` event (many-to-many, decision 4) plus every `owner_not_in_set` event, plus the full history; open proposals in a list of their own that nothing reading `bindings` sees, and rejected ones kept so the face is never proposed again. In `log_order` (`seq`, then `created_at`, then `event_id`), so a seq two events claim folds in the order they were written; a proposal answered twice the same way stands once (`restated`), twice differently is refused. `rebuild()` prints each resolution |
 | `revalidate(event, new_manifest)` / `revalidate_projection(...)` | the staleness re-check: does a stored `face_id` still match its fingerprint in a replacement mesh's manifest? `"needs_re_confirmation"` on a mismatch, never a silent re-bind and never a drop |
 | `rebuild()` | wipe-and-rebuild `<data-root>/projections/feature-identity/bindings.json`, stamped and gated exactly like the spec library's (`scripts/projection_provenance.py`) |
 

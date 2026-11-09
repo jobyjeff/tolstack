@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_feature_identity.py",
+  "expect_red": "test_a_seq_two_events_claim_folds_in_the_order_they_were_written",
+  "mutations": [
+    {
+      "contract": "Two events claiming one seq fold in the order they were written, never in filename order.",
+      "issue": "docs/issues/ISSUE_20261108_four_feature_identity_events_share_a_seq_so_the_bindings_projection_cannot_be_rebuilt.md",
+      "note": "Drops created_at from the order, so the tie falls to the event id and the later-written accept folds first.",
+      "file": "tolerance_stack/feature_identity.py",
+      "find": "    return (event.seq, event.created_at, event.event_id)",
+      "replace": "    return (event.seq, \"\", event.event_id)"
+    }
+  ]
+}

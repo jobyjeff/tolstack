@@ -652,9 +652,17 @@
   // carry no number the page can read, so the highest seq is read off every
   // full event the projection embeds (bindings, proposals, rejections ...),
   // floored by the event count -- `seq` is unique across the log -- and by
-  // this session's own events. Never from filenames: a served page cannot list
-  // the folder, and a session once wrote prefixes that disagree with `seq`.
-  AA.nextEventSeq = function (projection, sessionEvents) {
+  // this session's own events.
+  //
+  // `onDisk` is the seq of every event the folder holds now (the storage's
+  // listFeatureIdentityEventSeqs), and it is the one that matters: the
+  // projection is a snapshot from the last rebuild and the page's load, and an
+  // agent's proposals written since are on disk and in neither. Numbering off
+  // the snapshot is how four of Jeff's 2026-11-06 accepts took seqs 56-59
+  // that proposals already held, and the log stopped folding (handoff
+  // the_bindings_projection_folds_the_events_jeff_accepted). Never from
+  // filenames: a session once wrote prefixes that disagree with `seq`.
+  AA.nextEventSeq = function (projection, sessionEvents, onDisk) {
     var max = 0;
     function walk(node) {
       if (Array.isArray(node)) { node.forEach(walk); return; }
@@ -665,6 +673,7 @@
     walk(projection && projection.stack_keys);
     max = Math.max(max, ((projection && projection.built_from_events) || []).length);
     (sessionEvents || []).forEach(function (e) { if (e && typeof e.seq === "number") max = Math.max(max, e.seq); });
+    (onDisk || []).forEach(function (seq) { if (typeof seq === "number") max = Math.max(max, seq); });
     return max + 1;
   };
 

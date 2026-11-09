@@ -124,7 +124,12 @@ which the fold refuses. Each write path asks `identityWriteKey`
 (`tolerance_stack.feature_identity.build_projection`): per stack-side key,
 every `bound` event (many-to-many) plus every `owner_not_in_set` event, plus
 the full history. Gated exactly like every other shared projection in this
-repo (`scripts/projection_provenance.py`).
+repo (`scripts/projection_provenance.py`), and run by
+`scripts/rebuild_projections.ps1` since 2026-11-08, so a log it refuses turns
+the rebuild red. The annotator numbers a new event past every event in the
+folder (`AA.nextEventSeq`), not past the projection it loaded. A seq two events
+already share folds in the order they were written, and a proposal accepted
+twice the same way stands once; the builder prints both.
 
 ### The fit projection — where placement produces a value
 

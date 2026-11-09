@@ -73,6 +73,12 @@
 //   readSweepRun(runId): Promise<object|null>
 //        -- data/inbox/linkage-sweeps/<run-id>.json. The schema is checked by
 //           AA.readSweepArtifact, not here: a transport's job is bytes.
+//   listFeatureIdentityEventSeqs(): Promise<number[]>
+//        -- the `seq` of every event in data/inbox/feature-identity/, read off
+//           each file's CONTENTS (names and seqs disagree on the live log).
+//           What the next event is numbered past (AA.nextEventSeq), so a new
+//           event never takes a seq an event on disk already holds. [] when
+//           the directory is absent.
 //   writeFeatureIdentityEvent(filename, eventObject): Promise<string>
 //        -- data/inbox/feature-identity/<filename>, JSON.stringify'd; resolves
 //           to the name written. Throws if canWrite() is false. Append-only: a

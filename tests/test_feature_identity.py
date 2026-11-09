@@ -31,8 +31,10 @@ from tolerance_stack.feature_identity import (
     face_matches,
     load_events,
     main,
+    resolution_notes,
     revalidate,
     revalidate_projection,
+    seq_collisions,
 )
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "feature_identity_events"
@@ -196,15 +198,71 @@ def test_load_events_orders_by_seq_not_filename():
     assert [e.seq for e in loaded] == [1, 2, 3, 4]
 
 
-def test_load_events_rejects_duplicate_seq(tmp_path):
-    (tmp_path / "a.json").write_text(
-        json.dumps(FeatureIdentityEvent(**_bound_kwargs(event_id="a", seq=1)).as_dict()), encoding="utf-8"
-    )
-    (tmp_path / "b.json").write_text(
-        json.dumps(FeatureIdentityEvent(**_bound_kwargs(event_id="b", seq=1)).as_dict()), encoding="utf-8"
-    )
-    with pytest.raises(ValueError):
-        load_events(tmp_path)
+def test_a_seq_two_events_claim_folds_in_the_order_they_were_written(tmp_path):
+    """The 2026-11-06 shape: Jeff's accept took seq 56, which an agent's
+    proposal written two days earlier already held. Neither file may be
+    renamed, so the log orders the pair by ``created_at`` -- here against the
+    filename order, which must not decide -- and says it did."""
+    written_later = FeatureIdentityEvent(**_bound_kwargs(
+        event_id="annotate-a", seq=56, created_at="2026-11-06T00:12:37Z"))
+    written_first = FeatureIdentityEvent(**_bound_kwargs(
+        event_id="proposal-z", seq=56, created_at="2026-11-04T03:49:08Z", direction="from"))
+    (tmp_path / "0001_a.json").write_text(json.dumps(written_later.as_dict()), encoding="utf-8")
+    (tmp_path / "0056_z.json").write_text(json.dumps(written_first.as_dict()), encoding="utf-8")
+    loaded = load_events(tmp_path)
+    assert [e.event_id for e in loaded] == ["proposal-z", "annotate-a"]
+    assert seq_collisions(loaded) == [(56, ["proposal-z", "annotate-a"])]
+    # An equal timestamp still has one order: the event id's.
+    tie = [FeatureIdentityEvent(**_bound_kwargs(event_id=i, seq=3)) for i in ("b", "a")]
+    assert build_projection(tie).events == ["a", "b"]
+
+
+def test_a_proposal_accepted_twice_the_same_way_stands_once():
+    """Jeff accepted four proposals twice (2026-11-06, again 2026-11-08, the
+    first accepts having vanished on reload). The same answer folds as one:
+    one binding, the proposal accepted once, both events in history, and the
+    repeat named in ``restated``."""
+    p = _proposed("p1", 1, 110, "to")
+    first = _accept("a1", 56, p, created_at="2026-11-06T00:12:37Z")
+    again = _accept("a2", 68, p, created_at="2026-11-08T05:58:17Z")
+    projection = build_projection([p, again, first])
+    record = _record(projection)
+    assert [e.event_id for e in record.bindings] == ["a1"]
+    assert [e.event_id for e in record.accepted_proposals] == ["p1"]
+    assert [e.event_id for e in record.history] == ["p1", "a1", "a2"]
+    assert projection.restated == {"a2": "a1"}
+    assert projection.counts()["bound"] == 2  # events by verdict, both kept
+    assert resolution_notes([p, first, again], projection) == [
+        "a2 repeats the answer a1 already gave; folded as one"]
+
+
+def test_superseding_a_repeated_answer_supersedes_the_answer():
+    p = _proposed("p1", 1, 110, "to")
+    fix = _bound("c1", 4, 111, "to", supersedes="a2")
+    record = _record(build_projection([p, _accept("a1", 2, p), _accept("a2", 3, p), fix]))
+    assert [e.event_id for e in record.bindings] == ["c1"]
+    assert [e.event_id for e in record.superseded] == ["a1"]
+
+
+def test_a_proposal_answered_twice_differently_is_still_refused():
+    """Which of two different answers stands is the reviewer's call."""
+    p = _proposed("p1", 1, 110, "to")
+    with pytest.raises(ValueError, match=r"answered twice, differently.*'a1'.*'a2'"):
+        build_projection([p, _accept("a1", 2, p), _accept("a2", 3, p, note="the bore, not the face")])
+
+
+def test_the_cli_prints_every_collision_it_resolved(tmp_path, capsys):
+    data_root = tmp_path / "data"
+    events_dir = data_root / "inbox" / "feature-identity"
+    events_dir.mkdir(parents=True)
+    p = _proposed("p1", 1, 110, "to")
+    log = [p, _bound("b9", 2, 5, "from"), _accept("a1", 2, p), _accept("a2", 3, p)]
+    for i, event in enumerate(log):
+        (events_dir / f"{i:04d}.json").write_text(json.dumps(event.as_dict()), encoding="utf-8")
+    assert main(["--data-root", str(data_root)]) == 0
+    err = capsys.readouterr().err
+    assert "note: seq 2 is claimed by 2 events; folded in the order they were written: b9, a1" in err
+    assert "note: a2 repeats the answer a1 already gave; folded as one" in err
 
 
 # ---------------------------------------------------------------------------

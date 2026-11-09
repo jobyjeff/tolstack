@@ -340,7 +340,9 @@ export const DECLARED_GUARDS = {
   // event on a shared id is written on the source model's key; the read-through
   // check renamed (it no longer yields to a record of its own). Both carry a spec.
   // Review merge with integration (2026-11-08): integration's 297 + this branch's 5.
-  annotate: { declared: 302, enrollable: 302, names: "10971c663fa6" },
+  // 2026-11-08 (the_bindings_projection_folds_the_events_jeff_accepted): +1 --
+  // an accept numbered against a folder ahead of the projection. It carries a spec.
+  annotate: { declared: 303, enrollable: 303, names: "c50b8b0efa7d" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
