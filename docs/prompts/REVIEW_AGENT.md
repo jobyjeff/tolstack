@@ -4127,6 +4127,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Making the two halves compare the same thing beats adding a third check
       that watches them disagree.
 
+- [ ] **A browser wait that recognises "the view I asked for" by a property the
+      boot's DEFAULT view can also have.** New 2026-11-08
+      (`the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show`): section
+      5 of the annotate rail suite waited for "a studyless head" to mean the deep
+      link's whole-topology rail landed; when `d0863681` made the first model
+      (v2) studyless, the boot's own rail satisfied it, and a `.catch(() => {})`
+      on the wait meant a wrong view never timed out. Any new default model,
+      study or mode silently satisfies such a wait. Key it on something only the
+      requested view has (its own count, its own id) and assert that key in the
+      check itself, so a missed wait is red rather than a read of the wrong view.
+
 - [ ] **A per-suite SKIP that returns `ok: true` is counted in the runner's own
       green total.** New 2026-09-18 (`visual_rules_nothing_checks`).
       `scripts/run_viewer_browser_tests.mjs` now has **six** suite bodies that
@@ -5277,6 +5288,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261029_display_name_reached_the_projections_but_not_the_viewer_fixtures_so_the_real_tier_is_red_on_integration.md`).
       A skipped `[real]` line in a review record is not a pass. Arm the tier,
       or say it was not run.
+      **Fourth sighting 2026-11-08** (`the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show`):
+      model v2's tactical and review runs skipped `[real] the topology-level
+      rail shows a suggestion…` (no `bindings.json` under the data root) and
+      it first ran on trunk, red. The browser runner now ends with a
+      `SKIPPED -- N sub-check(s) passed without running` block naming each
+      one: **a review record that quotes the last line without that block
+      has not shown the `[real]` checks ran.** Quote the block, or its absence.
       **Third sighting 2026-11-03:** the slide re-author's node `face` field,
       plus four layout pins and a node declaring a part no incident edge
       carries — six reds, found by the *next* review
