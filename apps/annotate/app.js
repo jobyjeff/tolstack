@@ -2770,7 +2770,11 @@ function hoverOn(node, command) {
 // design blade's own path is the same occurrence, and is not drawn twice).
 function subjectOccurrences(name) {
   const open = new Set(state.scene.listOpenParts());
-  return ((state.sweep && state.sweep.occurrences[name]) || []).filter((o) => open.has(o.sha256));
+  // Under a model drawn alone a body is its model parts: a carried bolt left
+  // open by another topology is hidden, and is not what its checkbox shows.
+  const alone = state.sweep ? state.sweep.alone : null;
+  return ((state.sweep && state.sweep.occurrences[name]) || []).filter((o) => open.has(o.sha256) &&
+    !AA.modelAloneHides([o.sha256], alone).length);
 }
 
 // Is `name` a body or a link this run's rail lists?

@@ -3,6 +3,7 @@
 // collects it.
 //
 //   node tests/debug_scene_alone_and_leaders.mjs --shots <dir> [--phase diagnose|shots]
+//        [--projections <data-root>/projections]
 //
 // Serves THIS tree's apps/ with data/ from the main checkout (as
 // debug_model_v2_shots.mjs does), opens v2 with the 3D pane, and prints what
@@ -23,6 +24,10 @@ const flag = (name) => { const i = argv.indexOf(name); return i === -1 ? null : 
 const TREE = resolve(flag("--tree") || HERE);
 const DATA_REPO = resolve(flag("--repo") || "C:/workspace/tolstack");
 const PHASE = flag("--phase") || "shots";
+// `--projections <dir>`: any file under it stands in for the same path under
+// data/projections/ (projections built from this tree into a scratch data
+// root, so the main checkout's own are not overwritten from a branch).
+const PROJECTIONS = flag("--projections") ? resolve(flag("--projections")) : null;
 const SHOTS = resolve(HERE, flag("--shots") ||
   "docs/sessions/lessons/shots/the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader");
 if (!existsSync(SHOTS)) mkdirSync(SHOTS, { recursive: true });
@@ -34,7 +39,12 @@ const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/jav
 const server = await new Promise((ok) => {
   const s = createServer((req, res) => {
     const rel = decodeURIComponent(req.url.split("?")[0]).replace(/^\/+/, "");
-    const full = join(rel.startsWith("data/") ? DATA_REPO : TREE, rel);
+    let full = join(rel.startsWith("data/") ? DATA_REPO : TREE, rel);
+    const projections = "data/projections/";
+    if (PROJECTIONS && rel.startsWith(projections)) {
+      const candidate = join(PROJECTIONS, rel.slice(projections.length));
+      if (existsSync(candidate)) full = candidate;
+    }
     try {
       const body = readFileSync(full);
       res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
@@ -207,6 +217,30 @@ try {
     log("v1: drawn parts (matrices)", await drawn(v1));
     log("v1: seam", await seam(v1));
     await v1.screenshot({ path: join(SHOTS, "7_v1_pane_open.png") });
+    // Back to v2 in the same page: what v1 loaded as context must go.
+    await v1.locator(`[data-nav-kind="topology"][data-nav-id="${V2}"]`).first().click();
+    await v1.waitForTimeout(6000);
+    await sceneNow(v1);
+    log("v1 -> v2: drawn parts", Object.keys(await drawn(v1)).length);
+    log("v1 -> v2: panel", (await panel(v1)).other);
+    await v1.screenshot({ path: join(SHOTS, "8_v1_back_to_v2.png") });
+    // Played, then a DAG node hovered: the leaders follow the frames, and the
+    // hovered node's takes the lighter emphasis.
+    await loadSweep(v1);
+    await run(v1, ["play"]);
+    await v1.waitForTimeout(2500);
+    log("playing: seam", await seam(v1));
+    await run(v1, ["pause"]);
+    const dot = v1.locator('svg.tv__rails circle.rail__dot[data-id="tan_link_upper_sphere_centre"]').first();
+    if (await dot.count()) {
+      await dot.hover({ force: true });
+      await v1.waitForTimeout(800);
+      log("hovered: hot leaders", await v1.evaluate(() => {
+        const s = window.ViewerApp.lastSeamDraw;
+        return s ? Object.entries(s.states).filter(([, v]) => v === "hot").map(([k]) => k) : null;
+      }));
+      await v1.screenshot({ path: join(SHOTS, "9_v2_node_hovered.png") });
+    }
     await v1.close();
   } else {
     await page.close();
