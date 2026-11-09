@@ -252,8 +252,8 @@ of the part cannot disagree about it. An adjacent edge with no part is a
 **clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
 is never a crop *of the interface itself*: an interface is a location, not a
 value. The pane printed the authored `parts` list until handoff
-`surfaces_that_state_something_false`, which is 58 of the
-102 live nodes answering differently hovered and clicked (both models; 37 of 79 then) — one surface and one
+`surfaces_that_state_something_false`, which is 60 of the
+104 live nodes answering differently hovered and clicked (both models; 37 of 79 then) — one surface and one
 record now.
 
 A part with no drawing of its own is identified by the documents its own rows
@@ -753,8 +753,8 @@ business; which side the picture is justified to is a display preference about
 a page that happens to have a grid on its right. What the mirror buys is the
 leaders — the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the two
-committed topologies, leader-vs-rail crossings went **256 → 25**, zero of the
-two to zero (model v2, `vpa_end_stop_v2`, is 37 → 3 of those since 2026-11-08); on `vpa_pitch_linkage`, the product graph since the 2026-10-26
+committed topologies, leader-vs-rail crossings went **260 → 34**, zero of the
+two to zero (model v2, `vpa_end_stop_v2`, is 41 → 12 of those since the same day's riders fold, 37 → 3 before it); on `vpa_pitch_linkage`, the product graph since the 2026-10-26
 fold (and with the four fastener stacks in it since 2026-10-27, when the
 before-and-after were 125 → 25 over its mechanism alone), that one
 topology's total moves 219 → 22. Both
@@ -775,7 +775,7 @@ Three shapes come out of it, and all three are in the projection:
   allocation may take it, so a column holds a *list* of disjoint rail spans
   rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
   every topology. Rail allocations over columns, per committed topology: 59 over 14 for
-  `vpa_pitch_linkage` and 17 over 7 for `vpa_end_stop_v2` (model v2, 2026-11-08),
+  `vpa_pitch_linkage` and 18 over 7 for `vpa_end_stop_v2` (model v2, 2026-11-08; 17 over 7 before its riders folded),
   where some columns carry more than one disjoint span (for `vpa_pitch_linkage`: 37
   over 11 before the four fastener stacks folded in on 2026-10-27, when they were
   3 over 3, 10 over 10, 2 over 2 and 2 over 2 as topologies of their own; 23
