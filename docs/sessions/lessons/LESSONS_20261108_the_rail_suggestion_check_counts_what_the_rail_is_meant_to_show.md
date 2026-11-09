@@ -58,3 +58,24 @@ by v2. So the real fix for this instance was (2): the data root.
   without touching the main checkout.
 - `pytest -n 16 --dist loadfile` (the dispatch budget's stated parallelism) fails
   here: no xdist in `venv-win`. The suite runs single-process.
+
+## Verification record
+
+- `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack --only "annotate rail suggestion"`
+  (worktree runner, main checkout's data): **19/19 PASS**. The rail had 34 suggested rows
+  for 34 edges, under head "all 99 interfaces". The same run without `--repo` printed 18/18
+  plus the new `SKIPPED -- 1 sub-check(s)` block.
+- Witnesses:
+  `node scripts/run_mutation_witness_tests.mjs --changed-since master --repo C:/workspace/tolstack`:
+  2/2 WITNESSED (`…f2976b67`, `…f97d359c`), 2m48s.
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q` (worktree, single-process):
+  **2 failed, 1866 passed, 1 skipped, 2 deselected**, 399 s (inside budget).
+  Neither failure is this diff's:
+  - `test_viewer_js_suite_is_green` fails in a worktree by design (node-fs tier has no projection).
+  - `test_mutation_witnesses.py::test_every_anchor_resolves_to_exactly_one_place` fails on
+    `…f697d046`. Its anchor `Math.abs(state.kinematicPose - index) > 1e-6` is absent on
+    `master` too, and the active handoff
+    `the_pane_seek_witness_points_at_the_comparison_the_page_now_makes` owns it.
+- Not run here: the full browser tier, `apps/viewer/run_tests.cjs`, and `apps/annotate/run_tests.cjs`
+  in the main checkout. The diff touches only section 5 of the browser runner and its summary,
+  and the `--only` run above covers that.
