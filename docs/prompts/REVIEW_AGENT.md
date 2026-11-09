@@ -1652,6 +1652,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       shadow tree holds, and `SHADOWED` in `scripts/run_mutation_witness_tests.mjs`
       is that list — read it there — so a merge touching nothing it names cannot
       change the answer.
+- [ ] **A round 2 re-runs the one cheap tier that reads anchors: `pytest -q tests/test_mutation_witnesses.py`.**
+      New 2026-11-08 (`the_pane_seek_witness_points_at_the_comparison_the_page_now_makes`).
+      A rework that rewrites code a mutation spec anchors on leaves the spec's `find`
+      matching 0 places, and only that test (seconds, no browser) says so: the
+      `--changed-since` run lists the entry among those browser entries the 30-minute
+      cap may leave to the sweep, and round 2's tiers (fast, browser, witnesses) do not
+      include `pytest`. Run it on the merged tree after every rework round, whatever
+      else round 1 ran.
 - [ ] **A crashed session's last commit looks exactly like a finished one —
       grep the diff for placeholder tokens before you read anything else.**
       New 2026-09-23 (`mutation_witness_repair_and_enrollment`). A tactical

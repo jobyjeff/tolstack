@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md",
       "note": "A paused pane's seek is ignored by the page.",
       "file": "apps/viewer/topology_app.js",
-      "find": "Math.abs(state.kinematicPose - index) > 1e-6",
-      "replace": "Math.abs(state.kinematicPose - index) > 1e9"
+      "find": "Math.abs(held - index) <= 1e-6",
+      "replace": "Math.abs(held - index) <= 1e9"
     }
   ]
 }
