@@ -6102,9 +6102,17 @@
 
     await test("rowPositions in uniform mode is the classic row pitch plus the " +
       "containers' label bands, exactly — today's rendering, not a near miss", function () {
+        // A model with bodies keeps a band above each body's first row.
+        var two = twoBodyProjection();
+        var twoPos = VA.rowPositions(two.layout, two, "uniform", VA.RAIL_METRICS);
+        var twoBands = labelBands(two.layout, two);
+        ok(twoBands.total > 0, "a model with bodies keeps label bands, or this says nothing");
+        two.layout.rows.forEach(function (row, i) {
+          eq(twoPos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS) + twoBands.before[i],
+             "two bodies: " + row.id);
+        });
         var pos = VA.rowPositions(TOPO.layout, TOPO, "uniform", VA.RAIL_METRICS);
         var bands = labelBands(TOPO.layout, TOPO);
-        ok(bands.total > 0, "the demo's bodies keep label bands, or this says nothing");
         eq(pos.mode, "uniform");
         eq(pos.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight + bands.total);
         TOPO.layout.rows.forEach(function (row, i) {

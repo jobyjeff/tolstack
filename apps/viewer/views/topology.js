@@ -2397,18 +2397,21 @@
     //       with one or two interfaces is a field over its rows (VA.partSpans);
     //       one with many is a block, its pins on its sides (VA.blockLayout).
     //       Both are the same container to a reader -- a border in a lighter
-    //       step of the body's ink, its drawing number top-left in the label
-    //       band the store keeps for it (VA.CONTAINER_LABEL), tinted with the
+    //       step of the body's ink, its drawing number in it (a block's
+    //       top-left, a field's beside its first mark), tinted with the
     //       body's ink when the group fill asks for parts -- and both go
     //       when the Groups popover switches parts off. A block's PINS are
     //       marks, and stay.
     var partName = function (box, partId, bodyId, flat) {
       var part = index.parts[partId] || { id: partId };
+      // A block's goes top-left in its own margin; a field's beside its first
+      // mark (`box.label`, VA.railGeometry).
+      var at = box.label || { x: box.x1 + VA.CONTAINER_LABEL.inset,
+                              y: box.y1 + VA.CONTAINER_LABEL.baseline };
       var label = VA.svg("text", "tv__partname tv__fill--t" + VA.bodyTint(ctx.topoProj, bodyId) +
-        (flat ? " tv__partname--flat" : ""),
-        { x: box.x1 + VA.CONTAINER_LABEL.inset, y: box.y1 + VA.CONTAINER_LABEL.baseline });
+        (flat ? " tv__partname--flat" : ""), { x: at.x, y: at.y });
       label.textContent = fitText(VA.partContainerLabel(part),
-        Math.max(box.x2 - box.x1 - 2 * VA.CONTAINER_LABEL.inset, 24));
+        Math.max(box.x2 - at.x - VA.CONTAINER_LABEL.inset, 24));
       // The hover carries the everyday name beside the number, never the id.
       label.appendChild(svgTitle(VA.componentLabel(part) +
         (part.drawing ? " · drawing " + part.drawing : "")));

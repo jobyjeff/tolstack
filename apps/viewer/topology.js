@@ -1121,14 +1121,15 @@
   //
   // Every body is an outer labelled container and every part inside it an
   // inner one, and a label never sits on a glyph. So the position store keeps
-  // a band of `room` px above the first row of each body field and of each
-  // part field (VA.containerLabelRoom): the field reaches up over it and the
-  // name sits in it, at `baseline` below the field's top and `inset` in from
-  // its left. A block keeps its label in the margin above its first pin,
-  // topped up to `room` where a short row pitch leaves less. Pixels, not
-  // rows: the band is the same at either density. `minWidth` is the narrowest
-  // a block is drawn, so a drawing number fits on it.
-  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, minWidth: 80 };
+  // a band of `room` px above the first row of each body field
+  // (VA.containerLabelRoom): the field reaches up over it and the name sits
+  // in it, at `baseline` below the field's top and `inset` in from its left.
+  // A block keeps its label in the margin above its first pin, topped up to
+  // `room` where a short row pitch leaves less; a part field's label sits
+  // `beside` px right of its first row's mark. Pixels, not rows: the same at
+  // either density. `minWidth` is the narrowest a block or a part field is
+  // drawn, so a drawing number fits on it.
+  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, beside: 10, minWidth: 80 };
 
   // A part container's name: its display name when the record has one, else
   // its drawing number, else its name.
@@ -1138,10 +1139,11 @@
   };
 
   // The band above each layout row, in px: `body` above a body field's first
-  // row, `part` above a part field's (the two stack, the body's outermost),
-  // `block` the top-up above a block's first pin. A collapsed body is a pill
-  // and has no field. Parts need the topology (VA.partSpans); without it
-  // only the bodies are known.
+  // row, `block` the top-up above a block's first pin. A collapsed body is a
+  // pill and has no field. `part` is kept in the shape and is always 0: a
+  // part field is one or two columns of a body, so its number sits BESIDE its
+  // first mark rather than above it -- a band per part made the product walk
+  // so much taller than its grid that a centred row's dots left the screen.
   VA.containerLabelRoom = function (layout, topoProj, metrics) {
     metrics = metrics || VA.RAIL_METRICS;
     var rows = (layout && layout.rows) || [];
@@ -1158,15 +1160,6 @@
       var i = at[span.start];
       if (i !== undefined && !rows[i].collapsed) out[i].body = room;
     });
-    if (topoProj) {
-      VA.partSpans(rows, topoProj).forEach(function (span) {
-        var inBlock = blocks.some(function (b) {
-          return b.part === span.part && b.start <= span.end && b.end >= span.start;
-        });
-        var i = at[span.start];
-        if (!inBlock && i !== undefined) out[i].part = room;
-      });
-    }
     // A block's label sits in the margin above its first pin: a row pitch,
     // less the pin's dot. Short of `room`, the band is topped up.
     var need = Math.max(0, room + VA.jointNodeTargetR(metrics) + 1 - metrics.rowHeight);
@@ -4188,6 +4181,10 @@
         // As wide as its label needs (VA.CONTAINER_LABEL.minWidth), so a
         // one-column part still says its number; its body widens to hold it.
         f.x2 = Math.max(f.x2, f.x1 + VA.CONTAINER_LABEL.minWidth);
+        // Where its number goes: right of its first row's mark, on that
+        // row's line (VA.CONTAINER_LABEL.beside).
+        var first = out.marks.filter(function (m) { return m.row === span.start; })[0];
+        if (first) f.label = { x: first.x + VA.CONTAINER_LABEL.beside, y: first.y + 4 };
         out.bodies.forEach(function (b) {
           if (b.body === f.body && b.start <= f.end && b.end >= f.start) {
             b.x2 = Math.max(b.x2, f.x2 + 3);
