@@ -13443,8 +13443,10 @@
         var whole = render(function (r) { VA.renderTopoPane(r, topoCtx({ study: null })); });
         var walk = VA.lastTopoRender.seam;
         var drawnNodes = {};
-        all(whole, 'svg.tv__rails [data-row-kind="node"][data-id]').forEach(function (n) {
-          drawnNodes[n.getAttribute("data-id")] = true;
+        ["use.rail__glyph", "circle.rail__dot"].forEach(function (selector) {
+          all(whole, selector).forEach(function (n) {
+            if (n.getAttribute("data-row-kind") === "node") drawnNodes[n.getAttribute("data-id")] = true;
+          });
         });
         ok(Object.keys(drawnNodes).length > 0, "the walk draws nodes");
         eq(Object.keys(walk.dots).sort(), Object.keys(drawnNodes).sort(),
