@@ -1058,8 +1058,9 @@ body { display: flex; flex-direction: column; }
    in_what) ------------------------------------------------------------------
    Jeff, 2026-11-05, on the grid they replace: "extremely busy, everything is
    nearly identical in color and has very little contrast etc, so it's hard to
-   infer meaning from anything." So a row's background says nothing at all --
-   no body tint, no divider, no red wash -- and the grouping is drawn: each
+   infer meaning from anything." So a row's background carries no divider and
+   no red wash -- only its body's faint ink under Colour by Body (.tvrow--ink,
+   above) -- and the grouping is drawn: each
    group is a pair of thin caps, a rounded cap over its first row and another
    under its last, inset per level so an outer group is wider than what it
    holds (VA.gridBraces is the model, VA.braceGeometry the pixels). A body's
