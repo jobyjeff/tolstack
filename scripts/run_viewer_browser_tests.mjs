@@ -1186,9 +1186,13 @@ const FIT_IN_PAGE = () => {
   const rowHeight = VA.RAIL_METRICS.rowHeight;
   const svg = document.querySelector("svg.tv__rails").getBoundingClientRect();
   const rows = document.querySelector(".tv__rows").getBoundingClientRect();
+  // ...plus the containers' label bands the store keeps above a body's and a
+  // part's first row (VA.containerLabelRoom), which are pixels, not rows.
+  const bands = Object.values(last.positions.byRow).reduce((sum, slot) =>
+    sum + (slot.room ? slot.room.body + slot.room.part + slot.room.block : 0), 0);
   const floorMin = rowHeight *
     (Object.keys(last.positions.nodes).length +
-     Object.keys(last.positions.edges).length * VA.EDGE_LENGTH_SCALE.floorRows);
+     Object.keys(last.positions.edges).length * VA.EDGE_LENGTH_SCALE.floorRows) + bands;
   return {
     mode: last.mode,
     dagHeight: last.positions.dagHeight,
@@ -13322,6 +13326,9 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         narrowWidth > 0 && wideWidth > narrowWidth * 1.5 &&
         Math.abs(reloadedWidth - wideWidth) < 1 && await viewSetting("graphWidth") === "wide");
       const overlaidBars = () => page.locator("#topopane .rail__bar.ovl").count();
+      // Body is the default since 2026-11-08 (one colour per body), so the
+      // plain picture is chosen first and Body is chosen back.
+      await pickView("colourBy", "none");
       const plainBars = await overlaidBars();
       await pickView("colourBy", "body");
       const liveBars = await overlaidBars();
