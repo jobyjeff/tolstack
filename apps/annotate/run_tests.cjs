@@ -5109,7 +5109,8 @@ check("an accept numbered against a folder ahead of the projection takes a seq n
     seq: 62, verdict: "proposed", direction: "to",
     stack_key: AA.topologyEdgeKey("t", "a"), geometry_key: { source_step_sha256: "f".repeat(64),
       face_id: 7, area_native2: 1, centroid_native: [0, 0, 0] } };
-  const onDiskEvents = [{ event_id: "e55", seq: 55 }, proposal];
+  // 56 is on disk too, so numbering off the projection alone collides here.
+  const onDiskEvents = [{ event_id: "e55", seq: 55 }, { event_id: "proposal-0056-b-from", seq: 56 }, proposal];
   if (!AA.FsaAdapter) {
     vm.runInContext(fs.readFileSync(path.join(here, "storage", "fsa.js"), "utf8"), sandbox,
       { filename: "storage/fsa.js" });
@@ -5123,6 +5124,7 @@ check("an accept numbered against a folder ahead of the projection takes a seq n
   // A file's name is not its seq: the live log has 0001_... holding seq 56.
   const files = { "README.md": { __file: true, text: "# not an event" },
     "0001_a_accepted.json": { __file: true, text: JSON.stringify(onDiskEvents[0]) },
+    "0056_b_proposed.json": { __file: true, text: JSON.stringify(onDiskEvents[1]) },
     "0062_a_proposed.json": { __file: true, text: JSON.stringify(proposal) } };
   const fsa = new AA.FsaAdapter();
   fsa._state = AA.STATE.READY;
@@ -5130,7 +5132,7 @@ check("an accept numbered against a folder ahead of the projection takes a seq n
   const http = new AA.HttpAdapter({ va: {}, writer: fsa });
   for (const [name, adapter] of [["memory", memory], ["fsa", fsa], ["http, folder granted", http]]) {
     const onDisk = await adapter.listFeatureIdentityEventSeqs();
-    assertEqual(onDisk.slice().sort((a, b) => a - b), [55, 62], name + " lists the folder's seqs");
+    assertEqual(onDisk.slice().sort((a, b) => a - b), [55, 56, 62], name + " lists the folder's seqs");
     const plan = { accept: proposal, reject: [], supersedes: null };
     const events = AA.buildAnswerEvents(plan, { eventId: "annotate-1-a",
       seq: AA.nextEventSeq(proj, [], onDisk), createdAt: "2026-11-08T00:00:00Z",
