@@ -217,7 +217,8 @@ No behaviour changed under `apps/`.
 
 | tier | where | result |
 | --- | --- | --- |
-| `pytest -q`, 390 s | worktree | 1890 passed, 1 skipped, 1 failed |
+| `pytest -q`, final tree, 568 s | worktree, this tree's projections in its gitignored `data/` | 1891 passed, 1 skipped, 0 failed |
+| `pytest -q`, earlier tree, 390 s | worktree, no `data/` | 1890 passed, 1 skipped, 1 failed |
 | `node apps/viewer/run_tests.cjs --repo <scratch>` | worktree, against a scratch data root built from this tree | 672/672 |
 | `node apps/annotate/run_tests.cjs` | worktree, this tree's projections in the worktree's gitignored `data/` | 303/303 |
 | `node scripts/run_viewer_browser_tests.mjs --repo <scratch>`, ~30 min | worktree, `node_modules` junctioned | 42/43 |
@@ -226,7 +227,7 @@ No behaviour changed under `apps/`.
 
 What each non-green line is:
 
-- **pytest's one failure** is `test_viewer_js_suite.py`, which is
+- **pytest's one failure, in the earlier run,** is `test_viewer_js_suite.py`, which is
   deliberately red in a worktree. The viewer tier it stands for ran green
   against the scratch root (next row).
 - **The browser tier's one failure** is
