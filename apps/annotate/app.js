@@ -1429,9 +1429,10 @@ async function cmdSweep(target, studyId) {
     // It is here because "does this run at a usable rate with the 286-solid
     // hub loaded" is a question about a build, measurable only in one.
     fps: 0,
-    // The rail's mechanism tree (AA.sweepMechanismTree), what is open in it,
-    // and what it has selected ({kind, name, faces} | null). The study is the
-    // kinematic study this run was opened from, or null.
+    // The rail's mechanism tree (AA.sweepMechanismTree, read through the
+    // model the run plays on -- AA.sweepModelTree, set just below), what is
+    // open in it, and what it has selected ({kind, name, faces} | null). The
+    // study is the kinematic study this run was opened from, or null.
     tree: AA.sweepMechanismTree(artifact),
     treeOpen: {},
     inspect: null,
@@ -1450,6 +1451,9 @@ async function cmdSweep(target, studyId) {
     armed: null,
     returnIndex: null,
   };
+  // The Bodies list lists the model's bodies, as the DAG does: a part the
+  // model folds into a body is listed under it even where the run is silent.
+  state.sweep.tree = AA.sweepModelTree(state.sweep.tree, sweepTopology());
   state.isolation = null;
   state.contextEdit = { added: [], removed: [] };
   state.rowNotes = {};
@@ -1804,42 +1808,37 @@ async function anchorSweepBodies() {
     }
   }
 
-  // The parts of the bodies the topology says ride with a body this run poses
-  // (`rides_with`: the piston heads with the plate, the cover with the mount;
-  // each is a body of its own on the DAG): they take the pose of the body they
-  // ride, or sit still with a ground one, wherever that body's own parts were
-  // placed. Only a part with a mesh and a recorded position gets a row -- the
-  // rest are the scene's own "no 3D model for these parts yet". A part already
-  // recorded INSIDE a placed occurrence is carried below.
-  const riders = new Map();
-  for (const b of ((sweepTopology() || {}).bodies) || []) {
-    if (!b.rides_with) continue;
-    riders.set(b.rides_with, (riders.get(b.rides_with) || []).concat(b.parts || []));
-  }
+  // The parts the model puts in a body this run poses that the run's own list
+  // for it does not name (AA.sweepRidingParts): a `rides_with` body's (v1's
+  // piston heads with the plate) and a part folded into the body itself (v2's
+  // heads in the plate, its cover in the base; v1's plate and base hardware).
+  // They take the pose of the body they ride, or sit still with a ground one,
+  // at the recorded occurrence beside that body's own placed parts
+  // (AA.sweepRideChoice: one recorded occurrence needs no choosing, several
+  // are narrowed or refused) -- never at every occurrence of a washer the
+  // whole assembly uses. Only a part with a mesh and a recorded position gets
+  // a row -- the rest are the scene's own "no 3D model for these parts yet".
+  // A part already recorded INSIDE a placed occurrence is carried below.
+  const riders = AA.sweepRidingParts(sweepTopology());
   for (const subject of subjects) {
     if (subject.link) continue;
     const listed = new Set(subject.parts);
     const claims = [];
     for (const r of rows) {
-      if (r.subject === subject.name && r.state === "matched") claims.push(...r.placements);
+      if (r.subject === subject.name && (r.state === "matched" || r.state === "ground")) {
+        claims.push(...r.placements);
+      }
     }
-    for (const partId of riders.get(subject.name) || []) {
+    for (const partId of riders[subject.name] || []) {
       if (listed.has(partId)) continue;
       const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
       const own = mesh ? (occurrences.byMesh[mesh.sha256] || []) : [];
       if (!own.length) continue;
       if (rows.some((r) => r.sha256 === mesh.sha256 && r.subject === subject.name)) continue;
       if (own.every((o) => claims.some((c) => AA.occurrenceWithin(o.key, c.key)))) continue;
-      if (subject.ground) {
-        rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
-          state: "ground", candidates: own.length, candidateKeys: own.map((o) => o.key),
-          placements: own.map((o) => ({ key: o.key, instance_name: o.instance_name,
-            placement: o.placement, residual: null })) });
-        continue;
-      }
       const choice = AA.sweepRideChoice(own, claims);
       rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
-        state: choice.chosen.length ? "rides" : "refused",
+        state: choice.chosen.length ? (subject.ground ? "ground" : "rides") : "refused",
         candidates: own.length, candidateKeys: own.map((o) => o.key),
         placements: choice.chosen.map((o) => ({ key: o.key,
           instance_name: o.instance_name, placement: o.placement, residual: null })),

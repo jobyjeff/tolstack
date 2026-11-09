@@ -667,8 +667,9 @@
   AA.partRowWords = function (mesh, namesDoc) {
     var number = AA.partNumberOf(mesh.label);
     var name = AA.partNameFor(namesDoc, number);
-    var text = number ? (name ? number + " " + name : number)
-      : String(mesh.label == null ? "" : mesh.label);
+    // A label with no drawing number is the part's own name, without the
+    // STEP file it was extracted from (that stays on the hover).
+    var text = number ? (name ? number + " " + name : number) : AA.meshShortName(mesh.label);
     var lines = [text];
     if (number && !name) lines.push(AA.PARTS_COPY.noName);
     if (mesh.label && mesh.label !== text) lines.push(String(mesh.label));

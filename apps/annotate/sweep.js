@@ -1300,10 +1300,31 @@
   // part is recorded more than once.
   //
   // `candidates` are the part's recorded occurrences ({key, ...}), `claims`
-  // the occurrences the SAME body was matched to ({key, ...}). One recorded
+  // the occurrences the SAME body was matched to ({key, ...}) -- or, for a
+  // ground body, the ones its listed parts stand at. One recorded
   // occurrence needs no choosing. Several are narrowed to the ones recorded
   // deepest alongside a claim -- sharing at least AA.SWEEP_RIDE_MIN_SHARED path
   // segments, more than the others do -- and a tie is a refusal, never a guess.
+  //
+  // Which parts ride each subject, by the subject's name: the parts of every
+  // topology body that `rides_with` it (v1's piston heads with the plate),
+  // and -- since 2026-11-09 -- the parts of the body of the same name itself.
+  // A model may fold into a body a part the run's own list for it does not
+  // name (v2's piston heads into `pitch_plate`, the cover into `base`); that
+  // part rides its own body's subject exactly as a rider body's parts ride
+  // the host's. The parts the run already lists are app.js's to skip. A link
+  // is posed by its two joint ends and is never a host: its pressed-in parts
+  // are carried inside its occurrence.
+  AA.sweepRidingParts = function (topology) {
+    var out = {};
+    var add = function (host, parts) { out[host] = (out[host] || []).concat(parts || []); };
+    ((topology && topology.bodies) || []).forEach(function (b) {
+      if (b.rides_with) add(b.rides_with, b.parts);
+      else if (b.kind !== "link") add(b.id, b.parts);
+    });
+    return out;
+  };
+
   AA.SWEEP_RIDE_MIN_SHARED = 3;
   AA.sweepRideChoice = function (candidates, claims) {
     var cands = candidates || [];
@@ -1542,6 +1563,37 @@
     return { bodies: bodies, joints: joints };
   };
 
+  // The tree above read through the model the run plays on (2026-11-09): a
+  // subject the topology declares as a body of the same name lists THAT
+  // body's parts, in its order (v2's `base` its piston cover, `pitch_plate`
+  // both heads), then any part the run lists and the body does not; and the
+  // rail lists the subjects in the topology's `bodies[]` order (`order`), so
+  // the Bodies list counts and reads as the DAG two clicks away does. A run
+  // subject the topology does not declare keeps the run's own parts, after
+  // the declared ones. With no topology, or one that declares no bodies, the
+  // tree is the run's.
+  AA.sweepModelTree = function (tree, topology) {
+    var declared = (topology && topology.bodies) || [];
+    if (!declared.length) return tree;
+    var byId = {};
+    declared.forEach(function (b) { byId[b.id] = b; });
+    var parts = function (name, own) {
+      if (!byId[name]) return own;
+      var out = (byId[name].parts || []).slice();
+      own.forEach(function (p) { if (out.indexOf(p) === -1) out.push(p); });
+      return out;
+    };
+    return {
+      bodies: tree.bodies.map(function (b) {
+        return Object.assign({}, b, { parts: parts(b.name, b.parts) });
+      }),
+      joints: tree.joints.map(function (j) {
+        return j.parts.length ? Object.assign({}, j, { parts: parts(j.name, j.parts) }) : j;
+      }),
+      order: declared.map(function (b) { return b.id; }),
+    };
+  };
+
   //: The rail's own words in sweep mode: the three group heads and the one
   //: control a feature row carries.
   AA.SWEEP_RAIL_WORDS = Object.freeze({
@@ -1559,11 +1611,20 @@
   // own -- the run poses a link by its two joint ends, so it is a body the
   // run moves, listed under Bodies with the others (Jeff, 2026-11-05: "why is
   // this body shown down here under the joint selector section"). A link's
-  // name is its joint's, which is also its key in the occurrence map.
+  // name is its joint's, which is also its key in the occurrence map. A tree
+  // read through its model (AA.sweepModelTree) carries the model's body
+  // `order`, and the subjects come in that order -- links among the bodies,
+  // as the DAG draws them -- with any the model does not declare after.
   AA.sweepTreeSubjects = function (tree) {
     var links = ((tree && tree.joints) || []).filter(function (j) { return j.parts.length; })
       .map(function (j) { return { name: j.name, ground: false, parts: j.parts, open: false, link: true }; });
-    return ((tree && tree.bodies) || []).concat(links);
+    var subjects = ((tree && tree.bodies) || []).concat(links);
+    var order = (tree && tree.order) || null;
+    if (!order) return subjects;
+    var rank = function (s) { var i = order.indexOf(s.name); return i === -1 ? order.length : i; };
+    return subjects.map(function (s, i) { return { s: s, i: i }; })
+      .sort(function (a, b) { return rank(a.s) - rank(b.s) || a.i - b.i; })
+      .map(function (x) { return x.s; });
   };
 
   // One body row's text: its name and how many parts it carries.

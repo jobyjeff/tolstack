@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the Bodies list reads the model's bodies: a folded part under its body, in the model's order, links among the bodies; a subject the model does not declare keeps the run's",
+  "mutations": [
+    {
+      "contract": "The sweep rail lists its subjects in the model's bodies[] order.",
+      "issue": "docs/issues/ISSUE_20261109_the_3d_panes_bodies_list_leaves_the_piston_cover_and_heads_out_of_their_bodies.md",
+      "note": "Declared with the guard by handoff a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list (2026-11-09). The run's order again: bodies first, links after, two clicks from a DAG that interleaves them.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    var order = (tree && tree.order) || null;\n",
+      "replace": "    var order = null;\n"
+    },
+    {
+      "contract": "A subject the model declares lists the model's parts for it.",
+      "issue": "docs/issues/ISSUE_20261109_the_3d_panes_bodies_list_leaves_the_piston_cover_and_heads_out_of_their_bodies.md",
+      "note": "Declared with the guard by handoff a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list (2026-11-09). The run's part list again: base without its cover, the plate without its heads.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (!byId[name]) return own;\n",
+      "replace": "      return own;\n"
+    }
+  ]
+}

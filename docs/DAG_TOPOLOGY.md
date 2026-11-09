@@ -238,6 +238,14 @@ linkage solver's sweeps already name and the DAG had no way to know:
   and declare no rider; v1 keeps them. It is still a claim about motion, not a pose:
   the 3D model puts a rider at the one recorded occurrence it has, or the one
   recorded beside its host's own parts, and refuses a part it cannot place.
+- **A folded part rides its own body** (2026-11-09,
+  `a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list`). A part
+  a body lists and the run's part list for that body does not (v2's piston
+  heads in `pitch_plate`, its cover in `base`; v1's plate and base hardware)
+  is posed exactly as a rider is, on the same occurrence rule; a link is
+  never a host (`AA.sweepRidingParts`). The 3D pane's Bodies list in sweep
+  mode lists each body's declared parts in `bodies[]` order, links among them,
+  as the DAG does (`AA.sweepModelTree`).
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 

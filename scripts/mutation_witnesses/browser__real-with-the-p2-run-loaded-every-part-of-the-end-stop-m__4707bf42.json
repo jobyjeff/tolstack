@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] with the P2 run loaded every part of the end-stop model's bodies is posed with its own body",
+  "mutations": [
+    {
+      "contract": "A part the model puts in a posed body that the run does not list rides that body's subject.",
+      "issue": "docs/issues/ISSUE_20261108_the_sweep_leaves_model_v2s_folded_piston_heads_standing_still.md",
+      "note": "Declared with the guard by handoff a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list (2026-11-09). Poses no unlisted part at all: v2's piston heads stand still at their assembly position and its cover has no row, exactly the 2026-11-08 regression.",
+      "file": "apps/annotate/app.js",
+      "find": "    for (const partId of riders[subject.name] || []) {\n",
+      "replace": "    for (const partId of []) {\n"
+    }
+  ]
+}

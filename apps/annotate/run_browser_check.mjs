@@ -1481,13 +1481,17 @@ async function realPass(browser, base) {
 
   // The bodies the topology says ride with a posed one (the piston heads with
   // the plate): each has a mesh and one recorded position, so each is a row
-  // that rides the plate's pose -- and the cover, which has no mesh installed,
-  // has no row rather than a guessed one.
-  const riding = bodies.filter((b) => b.state === "rides");
-  check("[real] both piston heads ride the pitch plate, and the cover with no mesh has no row",
+  // that rides the plate's pose. Since 2026-11-09 a part folded into a posed
+  // body rides it too (AA.sweepRidingParts), so v1's plate hardware the run
+  // does not list rides or is refused beside the heads; the heads are what
+  // this pins, and the cover -- on the ground body -- sits still.
+  const HEADS = ["piston_head_lower_214699_002", "piston_head_upper_214698_002"];
+  const riding = bodies.filter((b) => b.state === "rides" && HEADS.indexOf(b.part) !== -1);
+  check("[real] both piston heads ride the pitch plate, and the cover sits still with the base",
     riding.map((b) => b.part + "/" + b.subject).sort().join() ===
       "piston_head_lower_214699_002/pitch_plate,piston_head_upper_214698_002/pitch_plate" &&
-      !bodies.some((b) => b.part === "piston_cover_214958_002"),
+      bodies.filter((b) => b.part === "piston_cover_214958_002")
+        .every((b) => b.subject === "base" && b.state === "ground"),
     JSON.stringify(bodies.map((b) => [b.subject, b.part, b.state])));
 
   // And they MOVE with it: at the two ends of the sweep (the feather stop is
