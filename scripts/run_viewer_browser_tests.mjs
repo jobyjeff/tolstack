@@ -13354,20 +13354,23 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         narrowWidth > 0 && wideWidth > narrowWidth * 1.5 &&
         Math.abs(reloadedWidth - wideWidth) < 1 && await viewSetting("graphWidth") === "wide");
       const overlaidBars = () => page.locator("#topopane .rail__bar.ovl").count();
-      // Body is the default since 2026-11-08 (one colour per body), so the
-      // plain picture is chosen first and Body is chosen back.
+      // Body is the default since 2026-11-08 (one colour per body): so it is
+      // seen live, and the choice that must survive a reload is the reader's
+      // NON-default one, None -- a reload that ignored the store would land
+      // back on Body and say so.
       await pickView("colourBy", "none");
       const plainBars = await overlaidBars();
       await pickView("colourBy", "body");
       const liveBars = await overlaidBars();
+      // No key under Body: the containers name the bodies in their inks.
+      const bodyKey = await page.locator("#dag-overlay-legend .tvovl__item").count();
+      await pickView("colourBy", "none");
       await reboot();
       const reloadedBars = await overlaidBars();
       push("[real] colouring by body puts the overlay's ink on the DAG's bars, and the choice " +
         "survives a reload",
-        plainBars === 0 && liveBars > 0 && reloadedBars === liveBars &&
-        await viewSetting("colourBy") === "body" &&
-        // No key under Body: the containers name the bodies in their inks.
-        await page.locator("#dag-overlay-legend .tvovl__item").count() === 0);
+        plainBars === 0 && liveBars > 0 && bodyKey === 0 && reloadedBars === 0 &&
+        await viewSetting("colourBy") === "none");
       // Back to the defaults, so the boots below draw what they always drew.
       await page.evaluate(() => {
         try { localStorage.removeItem(window.ViewerApp.DAG_VIEW_KEY); } catch (e) { /* none */ }
