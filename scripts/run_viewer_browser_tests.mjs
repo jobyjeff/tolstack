@@ -7175,6 +7175,43 @@ async function realDataIndexForTheAnnotator() {
 // does not cross into the page -- the synthetic binding rows are built
 // in-page from `seed.binding`: `{topology, edge, faces: [[direction|null,
 // faceId], ...]}` on the first part the sweep opened, resolved when read.
+// The proposals an edge's only answers accepted, read off the event log, for
+// the edges whose record is nothing but that: every binding ratifies one of
+// its accepted proposals, nothing rejected, superseded or still open. Keyed
+// by edge id, each the proposal events themselves (agent, confidence and
+// basis as written). `binding: "real"` with `unaccept` serves such an edge as
+// it stood before the accept -- the same proposals, open, and no face -- so a
+// check about taking an unanswered end still has one once Jeff has answered
+// every end the study lists. Nothing else in the projection is touched.
+async function acceptedOnlyProposals() {
+  const dir = join(DATA_REPO, "data", "inbox", "feature-identity");
+  let projection = null;
+  const events = {};
+  try {
+    projection = JSON.parse(await readFile(
+      join(DATA_REPO, "data", "projections", "feature-identity", "bindings.json"), "utf8"));
+    for (const name of (await readdir(dir)).filter((n) => /\.json$/i.test(n))) {
+      try {
+        const e = JSON.parse(await readFile(join(dir, name), "utf8"));
+        if (e && e.event_id) events[e.event_id] = e;
+      } catch { /* not an event */ }
+    }
+  } catch {
+    return {};
+  }
+  const out = {};
+  for (const r of (projection && projection.stack_keys) || []) {
+    const accepted = r.accepted_proposals || [];
+    const bindings = r.bindings || [];
+    if (r.stack_key.kind !== "topology_edge" || !bindings.length || (r.proposals || []).length ||
+        (r.rejected_proposals || []).length || (r.superseded || []).length ||
+        !bindings.every((x) => accepted.indexOf(x.ratifies) !== -1) ||
+        !accepted.every((id) => events[id])) continue;
+    out[r.stack_key.edge_id] = accepted.map((id) => events[id]);
+  }
+  return out;
+}
+
 async function installRealAnnotatorReads(page, seed) {
   await page.addInitScript((seed) => {
     if (location.pathname.indexOf("/apps/annotate/") === -1) return;
@@ -7217,7 +7254,16 @@ async function installRealAnnotatorReads(page, seed) {
       // `binding: "real"`: the feature-identity projection and the contact
       // suggestions on disk, as built -- an agent's open proposals included.
       if (b === "real") {
-        P.readFeatureIdentityProjection = async () => json("/projections/feature-identity/bindings.json");
+        const unaccept = seed.unaccept || {};
+        P.readFeatureIdentityProjection = async () => {
+          const doc = await json("/projections/feature-identity/bindings.json");
+          (doc && doc.stack_keys || []).forEach((r) => {
+            const open = r.stack_key && unaccept[r.stack_key.edge_id];
+            if (!open) return;
+            Object.assign(r, { state: "proposed", bindings: [], proposals: open, accepted_proposals: [] });
+          });
+          return doc;
+        };
         P.readContactSuggestions = async () => json("/projections/feature-identity/contact_suggestions.json");
         return true;
       }
@@ -8978,8 +9024,13 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
   // Short enough that the nav scrolls with the scene's tree in it.
   const page = await browser.newPage({ viewport: { width: 1600, height: 760 } });
   page.on("pageerror", (e) => errors.push(String(e)));
+  // Jeff's accepts served unanswered (acceptedOnlyProposals): the Take below
+  // needs a joint whose ends are both still open, and since 2026-11-08 he has
+  // accepted every end the study lists.
+  const unaccept = await acceptedOnlyProposals();
+  console.log("    served unanswered: " + (Object.keys(unaccept).join(", ") || "-"));
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
-    aliases: index.aliases, binding: "real" });
+    aliases: index.aliases, binding: "real", unaccept });
   const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
     const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
     if (!w || !w.document) return null;
@@ -9018,9 +9069,32 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
   const listed = (re) => until((src) => Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
     .some((n) => new RegExp(src).test(n.getAttribute("data-scene-key")) && /face=/.test(n.getAttribute("data-scene-key"))),
   re.source);
-  const UPPER = /^#sweep-tree\/joint=pitch_link\/direction=to,edge=pitch_link_length,feature=pitch_link_upper_sphere_centre/;
-  const LOWER = /^#sweep-tree\/joint=pitch_link\/direction=from,edge=pitch_link_length,feature=pitch_link_lower_sphere_centre/;
+  // The pitch link's joint row: its words and its Pick's framing are read off
+  // it whatever its ends' state. The Take below goes to a joint chosen at run
+  // time instead (`takeTarget`), on the projection with Jeff's accepts served
+  // unanswered (above): a bound end with no open proposal and no contact face
+  // lists nothing to take.
   const JOINT = /^#sweep-tree\/joint=pitch_link$/;
+  const reEsc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // The first joint in rail order whose two rows are the two ends of one edge,
+  // both with no face standing and both listing candidates -- what a Take
+  // needs to open the partner end's list (app.js's nextEndToPick). Read off the
+  // pane's own rows, so the live projection decides, never a hard-coded name.
+  const takeTarget = (w) => {
+    const open = [w.AnnotateApp.BINDING_STATES.UNBOUND, w.AnnotateApp.BINDING_STATES.PROPOSED];
+    const joints = Array.from(w.document.querySelectorAll('#sweep-tree [data-group="joints"] [data-joint]'));
+    for (const j of joints) {
+      const ends = Array.from(j.querySelectorAll("li.tree-row[data-edge][data-direction]")).map((li) => ({
+        edge: li.dataset.edge, direction: li.dataset.direction, feature: li.dataset.feature,
+        open: open.indexOf(li.dataset.state) !== -1, listed: !!li.querySelector(":scope > .tree-row__twisty") }));
+      const to = ends.find((e) => e.direction === "to");
+      const from = ends.find((e) => e.direction === "from");
+      if (ends.length === 2 && to && from && to.edge === from.edge &&
+        to.open && from.open && to.listed && from.listed) return { joint: j.dataset.joint, edge: to.edge, to, from };
+    }
+    return { joint: null, seen: joints.map((j) => j.dataset.joint) };
+  };
+  let UPPER = /^$^/, LOWER = /^$^/, TAKE_JOINT = /^$^/, TAKE_EDGE = null;
   try {
     await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
     await page.waitForSelector("#pane-handle:visible", { timeout: 30000 });
@@ -9150,9 +9224,22 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     await until(() => !document.querySelector("#annotate-flyout iframe").contentWindow.__sweep.armed);
 
     // --- a Take keeps the nav still and opens the partner end -------------
+    const target = await inPane(takeTarget);
+    console.log("    take target: " + JSON.stringify(target));
+    if (target && target.joint) {
+      const end = (e) => new RegExp("^#sweep-tree/joint=" + reEsc(target.joint) + "/direction=" + e.direction +
+        ",edge=" + reEsc(e.edge) + ",feature=" + reEsc(e.feature));
+      UPPER = end(target.to);
+      LOWER = end(target.from);
+      TAKE_JOINT = new RegExp("^#sweep-tree/joint=" + reEsc(target.joint) + "$");
+      TAKE_EDGE = target.edge;
+    }
+    // No such joint is the Take check's failure (`!!take` below), logged above.
     at = await nav();
-    await click(rowOf(at.rows, JOINT).key, ".navtree__scenetext");
-    await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint=pitch_link/direction="]').length === 2);
+    const takeJointRow = rowOf(at.rows, TAKE_JOINT);
+    if (takeJointRow) await click(takeJointRow.key, ".navtree__scenetext");
+    await until((j) => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint=' + j +
+      '/direction="]').length === 2, target && target.joint);
     at = await nav();
     const upper = rowOf(at.rows, UPPER);
     if (upper) await click(upper.key, ".navtree__scenetwisty");
@@ -9162,8 +9249,8 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       const box = document.getElementById("navtree");
       const row = Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
         .find((n) => new RegExp(src).test(n.getAttribute("data-scene-key")));
-      box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - 60;
-    }, JOINT.source);
+      if (row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - 60;
+    }, TAKE_JOINT.source);
     await page.waitForTimeout(300);
     const before = await nav();
     const take = before.rows.find((r) => UPPER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
@@ -9172,8 +9259,8 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     await listed(LOWER);
     await page.waitForTimeout(1500);
     const after = await nav();
-    const jointBefore = rowOf(before.rows, JOINT);
-    const jointAfter = rowOf(after.rows, JOINT);
+    const jointBefore = rowOf(before.rows, TAKE_JOINT);
+    const jointAfter = rowOf(after.rows, TAKE_JOINT);
     push("[real] a Take keeps the nav's scroll, and the joint row stays where it was on screen",
       !!take && before.scrollTop > 0 && Math.abs(after.scrollTop - before.scrollTop) <= 1 &&
       jointAfter && Math.abs(jointAfter.top - jointBefore.top) <= 1);
@@ -9183,7 +9270,7 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     push("[real] after one end is taken the other end's candidate list is open and selected, still " +
       "suggested, and no edge-feature row is listed",
       !!take && lower && lower.open === "true" && lower.on && !lower.attention && lowerFaces.length > 0 &&
-      !after.rows.some((r) => /feature=pitch_link_length/.test(r.key)) && stillSweep);
+      !after.rows.some((r) => new RegExp("feature=" + reEsc(TAKE_EDGE) + "(?![A-Za-z0-9_])").test(r.key)) && stillSweep);
 
     // --- the rail reads as a tree (the_rail_reads_as_a_tree_of_bodies_
     // joints_and_faces) ------------------------------------------------------
@@ -9242,7 +9329,7 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
         ink: probe("var(--ink)"),
         inferred: probe("var(--inferred)"),
       };
-    }, { upper: UPPER.source, lower: LOWER.source, joint: JOINT.source });
+    }, { upper: UPPER.source, lower: LOWER.source, joint: TAKE_JOINT.source });
     console.log(`    rail look: kinds ${look.kinds.join(" ")}; ends ${look.endMarks.join(" ")}; ` +
       `legend ${look.legend.length}/${look.marks.length}; steps ${look.step.join(" ")}; ` +
       `upper fill ${look.upperFill} (picked ${look.picked}); attention ink ${look.attentionInk} ` +
@@ -14488,7 +14575,9 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
   }
   const server = await startRepoRootServer();
   const url = `http://127.0.0.1:${server.address().port}`;
-  // Tall enough that every one of the model's DAG dots is in the pane's view.
+  // Tall, so most of the model's DAG dots are in the pane's view. Not all of
+  // them: since the nested coloured bodies (2026-11-09) the pitch link's two
+  // dots sit below a 1500px window, and the leader check reads "on screen".
   const page = await browser.newPage({ viewport: { width: 1700, height: 1500 } });
   page.on("pageerror", (e) => errors.push(String(e)));
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
@@ -14562,16 +14651,73 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       const joint = Object.keys(anchors).filter((id) => anchors[id].source === "joint" && sent[id]).sort();
       const leaders = [...document.querySelectorAll("svg.seamleaders path.seam__leader")]
         .map((p) => p.getAttribute("data-node-id"));
-      return { joint, leaders, skipped: window.ViewerApp.lastSeamDraw.skipped };
+      const seam = (window.ViewerApp.lastTopoRender || {}).seam || {};
+      // A joint node with no DAG dot at all is in none of `skipped`'s lists.
+      const noDot = joint.filter((id) => !(seam.dots || {})[id]);
+      // Where an unled joint node's dot is, against the pane and the pinned
+      // header's band -- the two things that make a dot off the DAG.
+      const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails");
+      const rr = rails && rails.getBoundingClientRect();
+      const box = (n) => { const b = n && n.getBoundingClientRect(); return b ? [b.left, b.top, b.right, b.bottom].map(Math.round) : null; };
+      const head = document.querySelector("#topopane .tv__zoom .tv__head");
+      const where = {};
+      joint.forEach((id) => {
+        const d = (seam.dots || {})[id];
+        where[id] = d && rr ? [Math.round(rr.left + d[0]), Math.round(rr.top + d[1])] : null;
+      });
+      // On screen, measured here rather than read off the page's own skip
+      // lists: inside the pane, inside the window, and not under the band.
+      const pane = document.getElementById("topopane").getBoundingClientRect();
+      const bandNode = head && head.getAttribute("data-pinned") ? head.querySelector(".tvheadtable") : null;
+      const band = bandNode && bandNode.getBoundingClientRect();
+      const inBox = (p, b) => p[0] >= b.left && p[0] <= b.right && p[1] >= b.top && p[1] <= b.bottom;
+      const onScreen = joint.filter((id) => where[id] &&
+        inBox(where[id], { left: pane.left, right: pane.right, top: Math.max(pane.top, 0),
+          bottom: Math.min(pane.bottom, innerHeight) }) && !(band && inBox(where[id], band)));
+      return { joint, onScreen, leaders, skipped: window.ViewerApp.lastSeamDraw.skipped, noDot,
+        where: Object.fromEntries(joint.filter((id) => leaders.indexOf(id) === -1).map((id) => [id, where[id]])),
+        pane: box(document.getElementById("topopane")),
+        band: head && head.getAttribute("data-pinned") ? box(head.querySelector(".tvheadtable")) : null,
+        scroll: [document.scrollingElement.scrollTop, (document.querySelector("#topopane .tv__hscroll") || {}).scrollTop],
+        inner: [innerWidth, innerHeight] };
     });
     const sweepDrawn = await drawnSettled();
+    const why = (id) => ["noAnchor", "offDag", "offScene"].filter((k) => led.skipped[k].indexOf(id) !== -1)
+      .concat(led.noDot.indexOf(id) !== -1 ? ["noDot"] : []).join("+") || "?";
+    const unled = led.joint.filter((id) => led.leaders.indexOf(id) === -1);
     console.log(`      [${label}] P2 with no study: ${led.leaders.length} leaders; joint nodes the ` +
-      `scene drew ${led.joint.length} (${led.joint.join(", ")}); no anchor: ` +
-      `${led.skipped.noAnchor.join(", ") || "-"}; ${sweepDrawn.length} meshes drawn`);
+      `scene drew ${led.joint.length} (${led.joint.join(", ")}), ${led.onScreen.length} with their DAG dot ` +
+      `on screen (${led.onScreen.join(", ")}); skipped: ` +
+      ["noAnchor", "offDag", "offScene"].map((k) => `${k} ${led.skipped[k].join(", ") || "-"}`).join("; ") +
+      `; no dot ${led.noDot.join(", ") || "-"}; joint nodes with no leader ` +
+      `${unled.map((id) => id + " (" + why(id) + ")").join(", ") || "-"}; ${sweepDrawn.length} meshes drawn`);
+    if (unled.length) console.log(`      [${label}] unled dots at ${JSON.stringify(led.where)}; pane ` +
+      `${JSON.stringify(led.pane)}; pinned band ${JSON.stringify(led.band)}; scroll ${JSON.stringify(led.scroll)}; ` +
+      `window ${JSON.stringify(led.inner)}`);
+    // A dot below the window has nothing to lead from (VA.seamLeaderGeometry's
+    // offDag); every one on screen does. So the rest are scrolled to, and each
+    // must have its leader once its dot is on screen. An axis joint is never
+    // re-anchored at the skeleton's raw point to make up the count (c75d8fe3,
+    // reverted).
+    const offScreen = led.joint.filter((id) => led.onScreen.indexOf(id) === -1);
+    const scrolledTo = {};
+    for (const id of offScreen) {
+      const y = led.where[id] ? led.where[id][1] : null;
+      if (y === null) { scrolledTo[id] = false; continue; }
+      const n = await page.evaluate(() => (window.ViewerApp.lastSeamDraw || {}).draws || 0);
+      await page.evaluate((dy) => { document.scrollingElement.scrollTop += dy; }, y - 750);
+      await until((n) => window.ViewerApp.lastSeamDraw && window.ViewerApp.lastSeamDraw.draws > n, n, 10000);
+      await page.waitForTimeout(500);
+      scrolledTo[id] = await page.evaluate((id) => [...document.querySelectorAll("svg.seamleaders path.seam__leader")]
+        .some((p) => p.getAttribute("data-node-id") === id), id);
+      await page.evaluate(() => { document.scrollingElement.scrollTop = 0; });
+    }
+    if (offScreen.length) console.log(`      [${label}] scrolled to: ${JSON.stringify(scrolledTo)}`);
     push("[real] with the P2 run loaded and no study, every joint node the scene drew has its " +
       "leader across the seam",
-      built && led.joint.length > 0 && led.leaders.length >= led.joint.length &&
-      led.joint.every((id) => led.leaders.indexOf(id) !== -1));
+      built && led.onScreen.length > 0 && led.leaders.length >= led.onScreen.length &&
+      led.onScreen.every((id) => led.leaders.indexOf(id) !== -1) &&
+      offScreen.every((id) => scrolledTo[id]));
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {
