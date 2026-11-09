@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on both models Parts off removes every part outline, Bodies off every body outline, and both off leaves the nodes and bars",
+  "mutations": [
+    {
+      "contract": "Unticking Parts removes the DAG's part containers, blocks included.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Declared with the guard by handoff the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows (2026-11-08). The DAG draws its part containers whatever the popover says, the defect Jeff reported on 11-08.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (geometry.showParts !== false) {",
+      "replace": "    if (true) {"
+    }
+  ]
+}

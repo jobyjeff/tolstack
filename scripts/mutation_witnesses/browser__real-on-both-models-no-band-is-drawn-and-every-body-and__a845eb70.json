@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on both models no band is drawn, and every body and every part has an outline",
+  "mutations": [
+    {
+      "contract": "Every part inside a body is a bracket in the grid, inside its body's.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Declared with the guard by handoff the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows (2026-11-08). The grid stops bracketing parts, so its part outline count is 0 while the DAG's is not.",
+      "file": "apps/viewer/topology.js",
+      "find": "    if (kinds.parts !== false) {\n      groups.forEach(function (g) {",
+      "replace": "    if (kinds.parts === 42) {\n      groups.forEach(function (g) {"
+    }
+  ]
+}

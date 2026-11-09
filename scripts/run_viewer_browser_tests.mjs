@@ -525,6 +525,23 @@ async function runSuite(browser, url, label) {
 // which run inside `page.evaluate` and can use the browser's own `CSS.escape`)
 // — every id this file passes is a plain identifier, so a bare quote-escape is
 // enough without pulling in the DOM's CSS.escape.
+// A real pointer on the visible START of a cell, with no scroll: a locator's
+// hover or click scrolls a cell that does not wholly fit into view, and the
+// PART column (since the brackets' label gutter widened it, 2026-11-08) does
+// not always fit beside the 3D pane -- a sideways scroll there takes the lit
+// dots out of the DAG's view and their leaders with them.
+async function onCellStart(page, selector, action) {
+  const at = await page.evaluate((sel) => {
+    const cell = document.querySelector(sel);
+    if (!cell) return null;
+    const b = cell.getBoundingClientRect();
+    return { x: b.left + Math.min(30, b.width / 2), y: b.top + b.height / 2 };
+  }, selector);
+  if (!at) return;
+  await page.mouse.move(at.x, at.y);
+  if (action === "click") await page.mouse.click(at.x, at.y);
+}
+
 function navRow(kind, id) {
   return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
 }
@@ -1018,7 +1035,8 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
     if (!hit) { bad.push(`${row.id}: no bar hit line`); continue; }
     // The bar and its hit line share y1/y2 (slot extent, 1px inset each end),
     // butt-capped, so the rect's height is exactly the drawn length.
-    const h = hit.getBoundingClientRect().height;
+    // In the DAG's own units: the drawing is at its zoom (lastTopoRender.zoom).
+    const h = hit.getBoundingClientRect().height / ((last && last.zoom) || 1);
     if (Math.abs(h - (slot.length - 2)) > 0.75) {
       bad.push(`${row.id}: drawn ${h.toFixed(2)} vs slot ${(slot.length - 2).toFixed(2)}`);
     }
@@ -1038,16 +1056,11 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
              .map((r) => Math.round(pos.edges[r.id].length)))).sort((a, b) => a - b) };
 };
 
-// The alternating bands and the two draggable widths
-// (viewer_leader_grid_legibility), measured in the page.
-//
-// The band claim is a CORRESPONDENCE like the leaders': the band between two
-// adjacent leaders and the grid rows that band feeds wear one tint. So it is
-// measured the way the leaders' is -- off what the browser actually painted.
-// `fill` is the computed colour of each band polygon and `rowBg` the computed
-// background of each row, both as the browser resolved them, and the mapping
-// from a row to its band is re-derived from the projection rather than read
-// back out of the render.
+// What the leaders' zone and the grid rows paint behind them, measured in
+// the page: nothing. The alternating bands were removed 2026-11-08
+// (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows), so
+// `drawn` -- the band polygons in the rails SVG -- must be 0, and a row's
+// background says nothing (below).
 // A real pointer on `selector`, at a point the browser says is that element's
 // own -- not under a leader's hit path, a rail or the sticky top bar. On the
 // product graph (a page thousands of pixels tall, every leader crossing it)
@@ -1098,34 +1111,16 @@ async function clearPoint(page, selector, action) {
   if (action === "click") await page.mouse.click(point.x, point.y);
 }
 
-const BANDS_IN_PAGE = () => {
+const GRID_IN_PAGE = () => {
   const VA = window.ViewerApp;
   const last = VA.lastTopoRender;
   const proj = VA.findTopology(VA.demoTopologyFixture().topologies, last.topologyId);
   const layout = VA.spineRight(proj.layout);
   const plan = VA.gridPlan(layout, proj);
-  const bands = VA.leaderBands(plan);
-  const parity = VA.rowBandParity(plan);
-  const drawn = Array.from(document.querySelectorAll("svg.tv__rails path.rail__band"));
+  const drawn = document.querySelectorAll("svg .rail__band, .rail__band").length;
   const rows = Array.from(document.querySelectorAll("tr.tvrow"));
   const bad = [];
-  if (drawn.length !== bands.length) {
-    bad.push(`${drawn.length} band polygons drawn for ${bands.length} bands`);
-  }
-  // A band polygon's own fill, keyed by parity: two tints, and they must
-  // differ or the alternation is not on screen at all.
-  const fills = {};
-  drawn.forEach((path, i) => {
-    const band = bands[i];
-    if (!band) return;
-    const fill = getComputedStyle(path).fill;
-    if (fills[band.parity] === undefined) fills[band.parity] = fill;
-    else if (fills[band.parity] !== fill) bad.push(`band ${i} fill drifted`);
-    if (getComputedStyle(path).pointerEvents !== "none") {
-      bad.push(`band ${i} is hit-testable -- it would swallow a bar's click`);
-    }
-  });
-  if (fills[0] === fills[1]) bad.push("both band tints resolve to one colour");
+  if (drawn) bad.push(`${drawn} band polygons are still drawn`);
   // A row's background says nothing (the_grid_fits_the_screen_and_its_
   // brackets_say_what_nests_in_what): no body tint, no divider, no untraced
   // wash. Its body and its sub-stacks are the brackets over it, one pair of
@@ -1157,10 +1152,10 @@ const BANDS_IN_PAGE = () => {
     if (caps.length < 2) bad.push(`bracket ${brace.id} has ${caps.length} caps`);
   });
   return {
-    bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
+    bad, tinted, provenanceLayers, drawn,
     // The plan's own leader count, so a check compares what is drawn with what
     // the layout asks for. The number itself is the fast tier's to pin
-    // (apps/viewer/tests.js, "[real]" leaders/bands, which d3a7afae moved).
+    // (apps/viewer/tests.js, "[real]" leaders, which d3a7afae moved).
     leaders: plan.leaders.length,
     svgWidth: document.querySelector("svg.tv__rails").getBoundingClientRect().width,
     rowHeights: rows.map((r) => Math.round(r.getBoundingClientRect().height * 100) / 100),
@@ -1184,8 +1179,10 @@ const ZONE_IN_PAGE = () => {
   const id = VA.lastTopoRender.topologyId;
   const proj = VA.findTopology(VA.demoTopologyFixture().topologies, id);
   const layout = VA.spineRight(proj.layout);
+  // At the zoom the page drew at: the DAG's part of the SVG scales with it,
+  // the jog zone does not (VA.leaderGeometry's `zoom`).
   const natural = VA.leaderGeometry(layout, VA.gridPlan(layout, proj),
-    VA.RAIL_METRICS);
+    VA.RAIL_METRICS, null, { zoom: { k: VA.lastTopoRender.zoom || 1, y0: 0 } });
   const svg = document.querySelector("svg.tv__rails").getBoundingClientRect().width;
   return {
     topologyId: id,
@@ -1209,9 +1206,13 @@ const FIT_IN_PAGE = () => {
   const rowHeight = VA.RAIL_METRICS.rowHeight;
   const svg = document.querySelector("svg.tv__rails").getBoundingClientRect();
   const rows = document.querySelector(".tv__rows").getBoundingClientRect();
+  // ...plus the containers' label bands the store keeps above a body's and a
+  // part's first row (VA.containerLabelRoom), which are pixels, not rows.
+  const bands = Object.values(last.positions.byRow).reduce((sum, slot) =>
+    sum + (slot.room ? slot.room.body + slot.room.part + slot.room.block : 0), 0);
   const floorMin = rowHeight *
     (Object.keys(last.positions.nodes).length +
-     Object.keys(last.positions.edges).length * VA.EDGE_LENGTH_SCALE.floorRows);
+     Object.keys(last.positions.edges).length * VA.EDGE_LENGTH_SCALE.floorRows) + bands;
   return {
     mode: last.mode,
     dagHeight: last.positions.dagHeight,
@@ -2014,9 +2015,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const at = await page.evaluate((sel) => {
         const row = document.querySelector(sel);
         if (!row) return null;
-        const cell = row.querySelector("td.tvcell--nominal") || row;
+        // The PART cell: on screen at the suite's width since the brackets'
+        // label gutter widened it (the labels over it take no pointer).
+        const cell = row.querySelector("td.tvcell--part") || row;
         const b = cell.getBoundingClientRect();
-        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+        return { x: b.left + Math.min(30, b.width / 2), y: b.top + b.height / 2 };
       }, rowFor(id));
       if (at) await page.mouse.move(at.x, at.y);
       return !!at;
@@ -2131,7 +2134,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("circle.rail__dot--selected").count() === 0);
 
     // FREEZE on a grid row, the same four steps.
-    await page.locator(rowFor("base_thickness")).locator("td.tvcell--nominal").click();
+    await onCellStart(page, rowFor("base_thickness") + " td.tvcell--part", "click");
     push("clicking a grid row freezes the Preview on its edge",
       await previewIs("frozen", "edge|base_thickness"));
     await hoverRow("post_height");
@@ -2168,7 +2171,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         "svg.tv__rails [tabindex][data-row-kind], svg.tv__rails path.rail__leaderhit, tr.tvrow")]
         .filter((n) => !(n.getAttribute("aria-label") || "").trim()).length);
     push("every focusable mark on both tiers carries an accessible name", unnamed === 0);
-    await page.locator(rowFor("base_thickness")).locator("td.tvcell--nominal").click();
+    await onCellStart(page, rowFor("base_thickness") + " td.tvcell--part", "click");
     await page.keyboard.press("Escape");
     await page.mouse.move(4, 4);
 
@@ -2556,7 +2559,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // ends on its dot and its seam. So each is toggled and correspondence
     // re-measured, which is the matrix the handoff asks for -- jogged ×
     // angled, and the jog zone at two widths.
-    const bands = () => page.evaluate(BANDS_IN_PAGE);
+    const bands = () => page.evaluate(GRID_IN_PAGE);
 
     // ANGLED is the default since 2026-09-21 (viewer_nav_alert_badge_and_
     // angled_default), so the default style is measured FIRST and jogged is
@@ -2564,8 +2567,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // really usable yet and arguably isn't worth putting more effort into
     // since the angled lines look just fine)."
     const angledBands = await bands();
-    push("the bands are drawn, tinted by parity, and hit-test nothing",
-      angledBands.bad.length === 0 && angledBands.drawn === angledBands.bands &&
+    push("no band is drawn behind the leaders, and no grid row wears a tint",
+      angledBands.bad.length === 0 && angledBands.drawn === 0 &&
       angledBands.tinted > 0);
     if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
     push("the leader-style toggle starts at angled",
@@ -2592,8 +2595,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       joggedBands.leaderPaths.every((d) => / H .* V .* H /.test(d)));
     push("jogged leaders land on exactly the same dots and seams",
       (await correspondence()).drift.length === 0);
-    push("the bands follow the jogged leaders and still tint by parity",
-      joggedBands.bad.length === 0);
+    push("with the jogged leaders still no band is drawn and no row wears a tint",
+      joggedBands.bad.length === 0 && joggedBands.drawn === 0);
     if (joggedBands.bad.length) console.log("    bands: " + joggedBands.bad.slice(0, 5).join(" | "));
 
     // Dragging the jog zone open, with a real pointer on the real grip --
@@ -3171,9 +3174,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // edge's bar, hovered as the edge (whose two ends are on other
       // columns, so it lights more than one). Counted, so a layout that made
       // every rail a stub would still fail the `railHits` floor below.
+      // A body's label band (VA.CONTAINER_LABEL.room, 2026-11-08) can sit
+      // inside such a stub, so a stub is under a row plus one band.
       const stubs = await page.evaluate(() => Array.from(document.querySelectorAll(
         "svg.tv__rails line.rail__hit")).map((n, i) =>
-          Number(n.getAttribute("y2")) - Number(n.getAttribute("y1")) < 26 ? i : -1)
+          Number(n.getAttribute("y2")) - Number(n.getAttribute("y1")) <
+            window.ViewerApp.RAIL_METRICS.rowHeight + window.ViewerApp.CONTAINER_LABEL.room ? i : -1)
         .filter((i) => i >= 0));
       for (let i = 0; i < railHits; i++) {
         if (stubs.indexOf(i) !== -1) continue;
@@ -3385,25 +3391,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
 
-      // The bands and both leader styles on the REAL pitch_system -- the
-      // document Jeff was reading when he said the leaders were near
-      // impossible to follow, and the one where the leaders genuinely cross
-      // each other until descending_leaders_take_a_path_that_cannot_cross
-      // (2026-10-30: ISSUE_20260914_leaders_cross_each_other_since_the_grid_
-      // was_centred.md). 43 rows and 16 leaders is also the only
-      // case with enough bands for "ride a band across the jog zone" to mean
-      // anything.
-      const realBands = await page.evaluate(BANDS_IN_PAGE);
-      push("[real] pitch_system's bands are tinted by parity, its rows wear no tint, " +
+      // Both leader styles on the REAL pitch_system -- the document Jeff was
+      // reading when he said the leaders were near impossible to follow, and
+      // the one where the leaders genuinely cross each other until
+      // descending_leaders_take_a_path_that_cannot_cross (2026-10-30:
+      // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md).
+      const realBands = await page.evaluate(GRID_IN_PAGE);
+      push("[real] pitch_system draws no band, its rows wear no tint, " +
         "and its untraced rows say so on their mark",
-        // One band more than the plan has leaders, every one drawn. These
-        // were literals (62 bands off 61 leaders) and went stale twice in a
-        // day -- 6d23015d took the graph to 62 leaders and b4b641db to 63 --
-        // while the fast tier, which pins the count off the same projection,
-        // was moved. So the count is read from the plan and pinned there once.
         realBands.bad.length === 0 && realBands.leaders > 0 &&
-        realBands.bands === realBands.leaders + 1 &&
-        realBands.drawn === realBands.bands &&
+        realBands.drawn === 0 &&
         realBands.tinted === realBands.rowHeights.length &&
         // A floor, not a share: 21 of the product graph's 59 rows are
         // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
@@ -3414,7 +3411,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // jogged and the one after it comes home.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      const realJogged = await page.evaluate(BANDS_IN_PAGE);
+      const realJogged = await page.evaluate(GRID_IN_PAGE);
       push("[real] pitch_system's jogged leaders still land on every dot and seam",
         (await correspondence()).drift.length === 0 &&
         realJogged.bad.length === 0 &&
@@ -3423,7 +3420,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      const realAngled = await page.evaluate(BANDS_IN_PAGE);
+      const realAngled = await page.evaluate(GRID_IN_PAGE);
       push("[real] and back in angled style, flat out of the rails then straight",
         (await correspondence()).drift.length === 0 &&
         /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
@@ -4293,7 +4290,7 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
   // After the runner's own "start on the rails": this suite is the blocks'.
   await page.addInitScript(() => {
     try {
-      const key = "tolstack.viewer.dagView";
+      const key = "tolstack.viewer.dagView.2"; // VA.DAG_VIEW_KEY
       const view = JSON.parse(localStorage.getItem(key) || "{}") || {};
       view.partDrawing = "blocks";
       localStorage.setItem(key, JSON.stringify(view));
@@ -5326,6 +5323,95 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     if (process.env.GROUPS_SHOTS) {
       await page.screenshot({ path: join(process.env.GROUPS_SHOTS, "kinematic_groups.png") });
     }
+    // --- nested, coloured containers on both models (the_dag_and_grid_nest_
+    //     coloured_bodies_and_compact_means_denser_rows, 2026-11-08): no
+    //     band; Compact packs rows and moves no drawn size; Groups off means
+    //     that kind of outline is gone, DAG and grid alike; the DAG and the
+    //     grid wear the same body inks.
+    const OUTLINES = () => page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const n = (sel) => document.querySelectorAll("#topopane " + sel).length;
+      const dots = Array.from(document.querySelectorAll(
+        "#topopane svg.tv__rails circle.rail__dot:not(.rail__dot--pin)"));
+      const xs = Array.from(new Set(dots.map((d) => Number(d.getAttribute("cx")))))
+        .sort((a, b) => a - b);
+      const steps = xs.slice(1).map((x, i) => x - xs[i]).filter((d) => d > 0.5);
+      const inks = (sel, prop) => Array.from(new Set(Array.from(
+        document.querySelectorAll("#topopane " + sel)).map((el) => getComputedStyle(el)[prop]))).sort();
+      return {
+        topology: VA.lastTopoRender && VA.lastTopoRender.topologyId,
+        rowHeight: VA.RAIL_METRICS.rowHeight,
+        bands: n(".rail__band"),
+        body: n("rect.tv__bodyfield:not(.tv__pill__shape)") + n("path.tv__bodybridge") +
+          n("text.tv__bodyname") + n("text.tv__bodyrepeat") + n("div.tvbrace--body") +
+          n("div.tvbrace__label--body"),
+        part: n("rect.tv__partfield") + n("rect.tv__block") + n("text.tv__partname") +
+          n("div.tvbrace--part") + n("div.tvbrace__label--part"),
+        marks: n("svg.tv__rails circle.rail__dot") + n("svg.tv__rails .rail__bar"),
+        dagBody: n("rect.tv__bodyfield:not(.tv__pill__shape)"), gridBody: n("div.tvbrace--body"),
+        dagPart: n("rect.tv__partfield") + n("rect.tv__block"), gridPart: n("div.tvbrace--part"),
+        pitch: steps.length ? Math.min(...steps) : null,
+        dotR: Array.from(new Set(dots.map((d) => d.getAttribute("r")))).sort().join(","),
+        dagInks: inks("rect.tv__bodyfield:not(.tv__pill__shape)", "stroke"),
+        gridInks: inks("div.tvbrace--body", "borderTopColor"),
+      };
+    });
+    const groupBox = async (kind, on) => {
+      const box = page.locator(`#group-kinds input[data-kind="${kind}"]`);
+      if ((await page.locator("#group-kinds").getAttribute("open")) === null) {
+        await page.locator("#group-kinds-toggle").click();
+      }
+      if ((await box.isChecked()) !== on) await box.click();
+      await settle(200);
+    };
+    const nested = [];
+    for (const topoId of ["vpa_end_stop_v2", "vpa_pitch_linkage"]) {
+      await page.locator(navRow("topology", topoId)).first().click();
+      await page.waitForFunction((id) => window.ViewerApp.lastTopoRender &&
+        window.ViewerApp.lastTopoRender.topologyId === id &&
+        !window.ViewerApp.lastTopoRender.tweening, topoId, { timeout: 30000 });
+      await settle(300);
+      const all = await OUTLINES();
+      await page.locator("#density-toggle").click();
+      await settle(300);
+      const compact = await OUTLINES();
+      await page.locator("#density-toggle").click();
+      await settle(300);
+      await groupBox("parts", false);
+      const noParts = await OUTLINES();
+      await groupBox("parts", true);
+      await groupBox("bodies", false);
+      const noBodies = await OUTLINES();
+      await groupBox("parts", false);
+      const neither = await OUTLINES();
+      await groupBox("parts", true);
+      await groupBox("bodies", true);
+      await page.click("body", { position: { x: 2, y: 2 } }).catch(() => {});
+      nested.push({ topoId, all, compact, noParts, noBodies, neither });
+    }
+    // Every check holds on BOTH models; a name is a literal so a witness
+    // can name it (scripts/mutation_witnesses/README.md).
+    const onBoth = (fn) => nested.length === 2 && nested.every(fn);
+    nested.forEach((m) => console.log("    " + m.topoId + ": " + JSON.stringify({
+      bands: m.all.bands, body: m.all.body, part: m.all.part, pitch: [m.all.pitch, m.compact.pitch],
+      r: [m.all.dotR, m.compact.dotR], rows: [m.all.rowHeight, m.compact.rowHeight],
+      off: [m.noParts.part, m.noBodies.body, m.neither.part + m.neither.body],
+      inks: m.all.dagInks.length })));
+    push("[real] on both models no band is drawn, and every body and every part has an outline",
+      onBoth((m) => m.all.topology === m.topoId && m.all.bands === 0 && m.all.dagBody > 0 &&
+        m.all.gridBody > 0 && m.all.dagPart > 0 && m.all.gridPart > 0));
+    push("[real] on both models the DAG's body outlines and the grid's body brackets wear the same inks",
+      onBoth((m) => m.all.dagInks.length > 1 &&
+        JSON.stringify(m.all.dagInks) === JSON.stringify(m.all.gridInks)));
+    push("[real] on both models Compact packs the rows and keeps the column pitch and the dot radius",
+      onBoth((m) => m.compact.rowHeight < m.all.rowHeight && m.all.pitch !== null &&
+        m.compact.pitch === m.all.pitch && m.compact.dotR === m.all.dotR &&
+        m.compact.bands === 0));
+    push("[real] on both models Parts off removes every part outline, Bodies off every body " +
+      "outline, and both off leaves the nodes and bars",
+      onBoth((m) => m.noParts.part === 0 && m.noParts.body === m.all.body &&
+        m.noBodies.body === 0 && m.noBodies.part > 0 &&
+        m.neither.part === 0 && m.neither.body === 0 && m.neither.marks === m.all.marks));
     await page.evaluate(() => {
       try { localStorage.removeItem("tolstack.viewer.groupKinds"); } catch (e) { /* none */ }
     });
@@ -13243,7 +13329,10 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       const viewSetting = (setting) => page.locator(
         `#dag-view select[data-view-setting="${setting}"]`).inputValue().catch(() => null);
       const pickView = async (setting, value) => {
-        await page.locator("#dag-view-toggle").click({ timeout: 5000 }).catch(() => {});
+        // Open it only when it is shut: a change puts the popover back open.
+        if ((await page.locator("#dag-view").getAttribute("open").catch(() => null)) === null) {
+          await page.locator("#dag-view-toggle").click({ timeout: 5000 }).catch(() => {});
+        }
         await page.locator(`#dag-view select[data-view-setting="${setting}"]`)
           .selectOption(value, { timeout: 5000 }).catch(() => {});
         await page.waitForTimeout(400);
@@ -13265,16 +13354,23 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
         narrowWidth > 0 && wideWidth > narrowWidth * 1.5 &&
         Math.abs(reloadedWidth - wideWidth) < 1 && await viewSetting("graphWidth") === "wide");
       const overlaidBars = () => page.locator("#topopane .rail__bar.ovl").count();
+      // Body is the default since 2026-11-08 (one colour per body): so it is
+      // seen live, and the choice that must survive a reload is the reader's
+      // NON-default one, None -- a reload that ignored the store would land
+      // back on Body and say so.
+      await pickView("colourBy", "none");
       const plainBars = await overlaidBars();
       await pickView("colourBy", "body");
       const liveBars = await overlaidBars();
+      // No key under Body: the containers name the bodies in their inks.
+      const bodyKey = await page.locator("#dag-overlay-legend .tvovl__item").count();
+      await pickView("colourBy", "none");
       await reboot();
       const reloadedBars = await overlaidBars();
       push("[real] colouring by body puts the overlay's ink on the DAG's bars, and the choice " +
         "survives a reload",
-        plainBars === 0 && liveBars > 0 && reloadedBars === liveBars &&
-        await viewSetting("colourBy") === "body" &&
-        await page.locator("#dag-overlay-legend .tvovl__item").count() > 0);
+        plainBars === 0 && liveBars > 0 && bodyKey === 0 && reloadedBars === 0 &&
+        await viewSetting("colourBy") === "none");
       // Back to the defaults, so the boots below draw what they always drew.
       await page.evaluate(() => {
         try { localStorage.removeItem(window.ViewerApp.DAG_VIEW_KEY); } catch (e) { /* none */ }
@@ -14665,7 +14761,7 @@ async function testSeamLeaders(browser, label, topologies) {
     const stateOf = (m, id) => (m.paths.find((p) => p.id === id) || {}).cls || "";
     let hovered = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().hover();
+      await onCellStart(page, `tr.tvrow[data-id="${first.id}"] td.tvcell--part`, "hover");
       hovered = await seamShows([first.from, first.to], S[1]);
       m = await measure();
     }
@@ -14697,7 +14793,7 @@ async function testSeamLeaders(browser, label, topologies) {
     // Selection: a grid row click lights the triple and dims the rest.
     let clicked = false;
     if (first) {
-      await page.locator(`tr.tvrow[data-id="${first.id}"] td.tvcell--part`).first().click();
+      await onCellStart(page, `tr.tvrow[data-id="${first.id}"] td.tvcell--part`, "click");
       await settled();
       clicked = await seamShows([first.from, first.to], S[0]);
       m = await measure();
@@ -15656,7 +15752,7 @@ async function testAnnotateRenderOnDemand(browser, label) {
       // of their own ("parts as blocks"), which picks them.
       await page.addInitScript(() => {
         try {
-          const key = "tolstack.viewer.dagView";
+          const key = "tolstack.viewer.dagView.2"; // VA.DAG_VIEW_KEY
           const view = JSON.parse(localStorage.getItem(key) || "{}") || {};
           if (!view.partDrawing) {
             view.partDrawing = window.__partDrawing || "rails";

@@ -1083,8 +1083,14 @@
   //: agreeing. `leaderPad`/`leaderLane` size the jog zone between the rails
   //: and the grid: horizontal spacing, so density (a rowHeight control) never
   //: moves them.
-  VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5,
-                      leaderPad: 8, leaderLane: 6 };
+  //: `drawPitch` is the row pitch the MARKS are sized at -- a joint glyph,
+  //: its target ring, a block's width -- and it never moves: density is a
+  //: rowHeight control and nothing else (the_dag_and_grid_nest_coloured_
+  //: bodies_and_compact_means_denser_rows, 2026-11-08: Compact "mostly just
+  //: scales/zooms the entire dag uniformly which is redundant with just
+  //: zooming the canvas"). Zoom is the canvas's business.
+  VA.RAIL_METRICS = { rowHeight: 26, drawPitch: 26, gutter: 20, left: 15, dot: 4.5,
+                      branchDot: 6.5, leaderPad: 8, leaderLane: 6 };
 
   // --- row density -----------------------------------------------------
   //
@@ -1101,13 +1107,71 @@
   // is the one DOM write this pure file does not make.
   VA.ROW_DENSITIES = {
     comfortable: { rowHeight: 26, label: "Comfortable" },
-    compact: { rowHeight: 16, label: "Compact" },
+    compact: { rowHeight: 18, label: "Compact" },
   };
 
   VA.applyRowDensity = function (density) {
     var preset = VA.ROW_DENSITIES[density] || VA.ROW_DENSITIES.comfortable;
     VA.RAIL_METRICS.rowHeight = preset.rowHeight;
     return preset;
+  };
+
+  // --- the containers' labels (the_dag_and_grid_nest_coloured_bodies_and_
+  // compact_means_denser_rows, 2026-11-08) -------------------------------------
+  //
+  // Every body is an outer labelled container and every part inside it an
+  // inner one, and a label never sits on a glyph. So the position store keeps
+  // a band of `room` px above the first row of each body field
+  // (VA.containerLabelRoom): the field reaches up over it and the name sits
+  // in it, at `baseline` below the field's top and `inset` in from its left.
+  // A block keeps its label in the margin above its first pin, topped up to
+  // `room` where a short row pitch leaves less; a part field's label sits
+  // `beside` px right of its first row's mark. Pixels, not rows: the same at
+  // either density. `minWidth` is the narrowest a block or a part field is
+  // drawn, so a drawing number fits on it (86px holds `214958-002` beside its mark).
+  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, beside: 10, minWidth: 86 };
+
+  // A part container's name: its display name when the record has one, else
+  // its drawing number, else its name.
+  VA.partContainerLabel = function (part) {
+    if (!part) return "";
+    return part.display_name || VA.partColumns(part).number || VA.componentLabel(part);
+  };
+
+  // The band above each layout row, in px: `body` above a body field's first
+  // row, `block` the top-up above a block's first pin. A collapsed body is a
+  // pill and has no field. `part` is kept in the shape and is always 0: a
+  // part field is one or two columns of a body, so its number sits BESIDE its
+  // first mark rather than above it -- a band per part made the product walk
+  // so much taller than its grid that a centred row's dots left the screen.
+  VA.containerLabelRoom = function (layout, topoProj, metrics) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var rows = (layout && layout.rows) || [];
+    var blocks = (layout && layout.blocks) || [];
+    var room = VA.CONTAINER_LABEL.room;
+    var out = rows.map(function () { return { body: 0, part: 0, block: 0 }; });
+    var at = {};
+    rows.forEach(function (row, i) { at[row.row] = i; });
+    var bodyRows = rows.map(function (row) {
+      var b = row.pin ? blocks[row.pin.block] : row.chord ? blocks[row.chord.block] : null;
+      return b && row.body !== b.body ? assign(row, { body: b.body }) : row;
+    });
+    VA.bodySpans(bodyRows).forEach(function (span) {
+      var i = at[span.start];
+      if (i !== undefined && !rows[i].collapsed) out[i].body = room;
+    });
+    // A block's label sits in the margin above its first pin: a row pitch,
+    // less the pin's dot. Short of `room`, the band is topped up.
+    var need = Math.max(0, room + VA.jointNodeTargetR(metrics) + 1 - metrics.rowHeight);
+    if (need) {
+      blocks.forEach(function (b) {
+        for (var r = b.start; r <= b.end; r++) {
+          var i = at[r];
+          if (i !== undefined && rows[i].pin) { out[i].block = need; break; }
+        }
+      });
+    }
+    return out;
   };
 
   // --- the graph's width (the_dag_is_coloured_by_a_chosen_attribute_and_
@@ -1157,14 +1221,31 @@
   };
   VA.PART_DRAWING_ORDER = ["blocks", "rails"];
 
-  // The DAG's four view settings, remembered across sessions in one store
+  // Which set of inks the bodies wear (the_dag_and_grid_nest_coloured_bodies_
+  // and_compact_means_denser_rows, 2026-11-08): `bold`, a plotly-class
+  // categorical set, or `cvd`, Okabe-Ito's eight first. The values are
+  // topology.css's (`--tv-body-ink-*`, and the html[data-palette="cvd"]
+  // block); the page sets the attribute (topology_app.js).
+  VA.PALETTES = {
+    bold: { label: "Bold" },
+    cvd: { label: "Colour-blind" },
+  };
+  VA.PALETTE_ORDER = ["bold", "cvd"];
+
+  // The DAG's five view settings, remembered across sessions in one store
   // entry (like the group kinds, VA.readGroupKinds): which colour scheme
   // (VA.COLOUR_SCHEMES), which group fill, which width, how a part with
-  // many interfaces is drawn (VA.PART_DRAWINGS). An unreadable store,
-  // or a word outside its table, reads as that setting's default.
-  VA.DAG_VIEW_KEY = "tolstack.viewer.dagView";
-  VA.DAG_VIEW_DEFAULTS = { colourBy: "none", groupFill: "off", graphWidth: "narrow",
-                           partDrawing: "blocks" };
+  // many interfaces is drawn (VA.PART_DRAWINGS), which palette
+  // (VA.PALETTES). An unreadable store, or a word outside its table, reads
+  // as that setting's default.
+  //
+  // One colour per body, by default: Colour by Body, parts tinted. The key
+  // took a `.2` with those defaults, because the entry stores every setting
+  // whenever any one changes -- a reader who had ever touched the width
+  // would otherwise keep the old "None" and never see the new default.
+  VA.DAG_VIEW_KEY = "tolstack.viewer.dagView.2";
+  VA.DAG_VIEW_DEFAULTS = { colourBy: "body", groupFill: "parts", graphWidth: "narrow",
+                           partDrawing: "blocks", palette: "bold" };
 
   VA.readDagView = function (store) {
     var out = Object.assign({}, VA.DAG_VIEW_DEFAULTS);
@@ -1176,6 +1257,7 @@
         if (VA.GROUP_FILLS[saved.groupFill]) out.groupFill = saved.groupFill;
         if (VA.GRAPH_WIDTHS[saved.graphWidth]) out.graphWidth = saved.graphWidth;
         if (VA.PART_DRAWINGS[saved.partDrawing]) out.partDrawing = saved.partDrawing;
+        if (VA.PALETTES[saved.palette]) out.palette = saved.palette;
       }
     } catch (err) {
       // Unreadable: the defaults.
@@ -1188,7 +1270,7 @@
       if (!store) return;
       store.setItem(VA.DAG_VIEW_KEY, JSON.stringify({
         colourBy: view.colourBy, groupFill: view.groupFill, graphWidth: view.graphWidth,
-        partDrawing: view.partDrawing,
+        partDrawing: view.partDrawing, palette: view.palette,
       }));
     } catch (err) {
       // A browser that refuses to store it still draws it for this session.
@@ -1385,7 +1467,10 @@
   // walk fails here instead of being unreachable.
   // `max` 2 is where the 26px rows are 52px and the text is large enough for
   // anything a reader zooms in for. `step` is one wheel notch's factor.
-  VA.DAG_ZOOM = { min: 0.12, max: 2, step: 1.15 };
+  // `min` went 0.12 -> 0.08 on 2026-11-08, when the containers' label bands
+  // (VA.CONTAINER_LABEL) made the product walk taller: Fit under tolerance
+  // width, below the page's real pinned bars, was clamped at 0.1.
+  VA.DAG_ZOOM = { min: 0.08, max: 2, step: 1.15 };
 
   VA.clampDagZoom = function (scale) {
     var n = Number(scale);
@@ -1672,12 +1757,21 @@
       dagHeight += h;
     });
 
+    // The containers' label bands (VA.containerLabelRoom): a gap BEFORE a
+    // row's slot, so a bar's own extent -- its length, in a scaled mode --
+    // is untouched and only the rows after it move down.
+    var labelRoom = VA.containerLabelRoom(layout, topoProj, metrics);
+    var gaps = labelRoom.map(function (r) { return r.body + r.part + r.block; });
+    gaps.forEach(function (g) { dagHeight += g; });
+
     // Pass two: centre the two blocks against each other and lay the slots
     // out from there. Without a fit there is no grid to centre against, both
     // offsets are 0, and this is exactly the pre-fit store.
     var plan = fit && fit.plan;
     var gridHeight = (plan ? plan.rows.length : 0) * metrics.rowHeight;
-    var centre = VA.centreOffsets(rows, heights, plan, metrics, within);
+    var centre = VA.centreOffsets(rows,
+      heights.map(function (h, i) { return h + gaps[i]; }), plan, metrics,
+      within.map(function (w, i) { return w + gaps[i]; }));
     // The pane asks for the room above the first row (VA.DAG_FIT.topInset) by
     // naming it on `fit`; a caller that does not gets the classic store.
     var inset = (fit && fit.inset) || 0;
@@ -1695,6 +1789,7 @@
     var y = centre.dag;
     rows.forEach(function (row, i) {
       var h = heights[i];
+      y += gaps[i];
       // `id`/`kind` on the slot are what make the store correspondable
       // ACROSS two serialisations (viewer_study_respine_animation): a layout
       // row INDEX is not comparable between the walk and a study's chain --
@@ -1702,6 +1797,7 @@
       // the two stores by the element each slot belongs to, not by its key.
       var slot = { top: y, height: h, y: y + within[i], floored: flooredAt[i],
                    id: row.id, kind: row.kind };
+      if (gaps[i]) slot.room = labelRoom[i];
       out.byRow[row.row] = slot;
       if (row.kind === "node") out.nodes[row.id] = slot.y;
       if (row.kind === "edge") {
@@ -1871,6 +1967,9 @@
         floored: flooredDuring(prev.floored, slot.floored, e),
         id: slot.id, kind: slot.kind,
       };
+      // The label band a container reaches over is the target's: the field
+      // is drawn round the rows where they are going.
+      if (slot.room) out.byRow[key].room = slot.room;
     });
     Object.keys(leaving).forEach(function (id) {
       out.alpha[id] = 1 - e;
@@ -3424,7 +3523,9 @@
   // pin a row, a row of margin in all) times VA.BLOCK_ASPECT.target. A length
   // mode stretches the height and not this.
   VA.blockWidth = function (block, metrics) {
-    return Math.round(VA.BLOCK_ASPECT.target * (block.pins + 1) * metrics.rowHeight);
+    var pitch = metrics.drawPitch || metrics.rowHeight;
+    return Math.max(VA.CONTAINER_LABEL.minWidth,
+      Math.round(VA.BLOCK_ASPECT.target * (block.pins + 1) * pitch));
   };
 
   // How much room the block strip takes right of the spine: a gutter and the
@@ -3484,7 +3585,10 @@
         var body = (n.parts || []).length ? info.bodyOfPart[n.parts[0]] : null;
         return body ? "ovl-b" + VA.bodyTint(info.topoProj, body) : null;
       },
-      legend: function (info) { return bodyLegend(info); },
+      // No key: every body's and part's own container names it in its ink
+      // (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows),
+      // so a strip of the same names would only repeat them.
+      legend: function () { return []; },
     },
     {
       id: "part", label: "Part",
@@ -3492,7 +3596,10 @@
       node: function (info, n) {
         return (n.parts || []).length ? partToken(info, n.parts[0]) : null;
       },
-      legend: function (info) { return bodyLegend(info); },
+      // No key: every body's and part's own container names it in its ink
+      // (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows),
+      // so a strip of the same names would only repeat them.
+      legend: function () { return []; },
     },
     {
       id: "interface", label: "Interface type",
@@ -3572,12 +3679,6 @@
     if (!body) return null;
     var shade = info.partShade[part] || 0;
     return "ovl-b" + VA.bodyTint(info.topoProj, body) + (shade ? " ovl-s" + shade : "");
-  }
-
-  function bodyLegend(info) {
-    return ((info.topoProj && info.topoProj.bodies) || []).map(function (body) {
-      return { token: "ovl-b" + VA.bodyTint(info.topoProj, body.id), label: body.name || body.id };
-    });
   }
 
   // One paint's overlay: {scheme, edges: {id: classes}, nodes: {id: classes},
@@ -3973,10 +4074,17 @@
         if (m && m.pin) { top = Math.min(top, m.y); bottom = Math.max(bottom, m.y); }
       }
       var left = stripLeft(layout, metrics, x);
+      // The block's own label band: the margin above its first pin, plus the
+      // store's top-up where the pitch is short (VA.containerLabelRoom).
+      var topUp = 0;
+      for (var p = block.start; p <= block.end; p++) {
+        var ps = positions.byRow[p];
+        if (ps && ps.room && ps.room.block) { topUp = ps.room.block; break; }
+      }
       out.blocks.push({ index: i, part: block.part, body: block.body,
                         start: block.start, end: block.end, pins: block.pins,
                         x1: left, x2: left + VA.blockWidth(block, metrics),
-                        y1: top - 2 * half + 1, y2: bottom + 2 * half - 1 });
+                        y1: top - 2 * half + 1 - topUp, y2: bottom + 2 * half - 1 });
     });
     out.marks.forEach(function (m) {
       var row = rows[m.row];
@@ -4014,13 +4122,21 @@
     var pad = metrics.gutter * 0.45;
     // `inset` is how far inside the rows' extent the field sits: a body's 1px,
     // a study group's -2px -- it wraps the body field it coincides with.
-    var field = function (span, padding, inset) {
+    // `band` is which of the first row's label bands the field reaches up
+    // over (VA.containerLabelRoom): a body's -- and a study group's, which
+    // wraps it -- all of them, a part's its own; so the body's name sits
+    // above its parts' names.
+    var field = function (span, padding, inset, band) {
       var top = Infinity;
       var bottom = -Infinity;
       for (var r = span.start; r <= span.end; r++) {
         var slot = positions.byRow[r];
         var t = slot ? slot.top : VA.railY(r, metrics) - metrics.rowHeight / 2;
         var h = slot ? slot.height : metrics.rowHeight;
+        if (r === span.start && slot && slot.room && band) {
+          t -= band === "body" ? slot.room.body + slot.room.part + slot.room.block
+            : slot.room.part;
+        }
         top = Math.min(top, t);
         bottom = Math.max(bottom, t + h);
       }
@@ -4045,7 +4161,7 @@
       return b && row.body !== b.body ? assign(row, { body: b.body }) : row;
     });
     out.bodies = VA.bodySpans(bodyRows).map(function (span) {
-      var f = field(span, pad, 1);
+      var f = field(span, pad, 1, "body");
       f.body = span.body;
       return f;
     });
@@ -4059,9 +4175,21 @@
         });
       })
       .map(function (span) {
-        var f = field(span, pad - 3, 3);
+        var f = field(span, pad - 3, 3, "part");
         f.part = span.part;
         f.body = span.body;
+        // As wide as its label needs (VA.CONTAINER_LABEL.minWidth), so a
+        // one-column part still says its number; its body widens to hold it.
+        f.x2 = Math.max(f.x2, f.x1 + VA.CONTAINER_LABEL.minWidth);
+        // Where its number goes: right of its first row's mark, on that
+        // row's line (VA.CONTAINER_LABEL.beside).
+        var first = out.marks.filter(function (m) { return m.row === span.start; })[0];
+        if (first) f.label = { x: first.x + VA.CONTAINER_LABEL.beside, y: first.y + 4 };
+        out.bodies.forEach(function (b) {
+          if (b.body === f.body && b.start <= f.end && b.end >= f.start) {
+            b.x2 = Math.max(b.x2, f.x2 + 3);
+          }
+        });
         return f;
       });
     // The study groups, one entry per `options.groups` item (VA.studyGroups):
@@ -4070,7 +4198,7 @@
       return { id: group.id, kind: group.kind, title: group.title,
                selected: !!group.selected,
                spans: VA.studySpans(layout, group.lit).map(function (span) {
-                 return field(span, pad + 3, -2);
+                 return field(span, pad + 3, -2, "body");
                }) };
     }).filter(function (group) { return group.spans.length; });
 
@@ -4416,30 +4544,39 @@
   // (the_kinematic_grid_is_a_stack_of_sub_stacks), which left every row
   // "nearly identical in color".
   //
-  // `braces`, outermost first: { kind, id, level, start, end, gap }.
-  //   kind   a VA.GRID_BRACE_KINDS word -- the hue, which is the DAG's own
-  //          colour for that kind of group (topology.css, `--group-*`);
+  // `braces`, outermost first: { kind, id, level, start, end, gap, label,
+  // tint }.
+  //   kind   a VA.GRID_BRACE_KINDS word -- the hue: a body's and a part's is
+  //          its body's ink (`tint`, VA.bodyTint), a study's its kind's;
   //   level  how deep it nests, 0 = outermost -- what the inset is made of;
   //   start, end  plan row indices, inclusive; `end` may run past the plan's
-  //          rows into the foot (the study's brace holds its totals).
-  // `rules`: { row, level } -- a part boundary inside a group, drawn as a
-  // plain rule ABOVE `row`. A part is the smallest group and most hold one
-  // row, so a pair of caps inside a 16px row would be all bracket.
+  //          rows into the foot (the study's brace holds its totals);
+  //   label  a body's name, a part's drawing number (VA.partContainerLabel);
+  //          a study and a sub-stack are titled by their own header rows;
+  //   body   on a part, the body brace it sits in (absent where Bodies are
+  //          switched off, or the part has no body).
   //
-  // What nests: the study (when there is one) > a sub-stack and the
-  // sub-stacks inside it > a rigid body > a part. A body gets a brace only
-  // where it spans more than one part -- a one-part body is said by its
-  // part's rule -- and a body that crosses a sub-stack boundary is two runs,
-  // one per sub-stack. Pure: the geometry is views/topology.js's.
+  // What nests (the_dag_and_grid_nest_coloured_bodies_and_compact_means_
+  // denser_rows, 2026-11-08): the study (when there is one) > a sub-stack and
+  // the sub-stacks inside it > a rigid body > a part -- every body, and every
+  // part inside it, so a one-part body is two braces, one inside the other.
+  // Jeff: "What we discussed was making a rigid body with a single part
+  // inside of it, so it should be two nested sets of braces." A body that
+  // crosses a sub-stack boundary is two runs, one per sub-stack.
+  //
+  // `opts.kinds` is the Groups popover ({bodies, parts}: false drops that
+  // kind), `opts.topoProj` names the labels and the inks. Pure: the geometry
+  // is views/topology.js's.
   VA.GRID_BRACE_KINDS = Object.freeze(["kinematic", "chain", "body", "part"]);
 
   VA.gridBraces = function (plan, opts) {
     opts = opts || {};
     var rows = (plan && plan.rows) || [];
     var groups = (plan && plan.groups) || [];
+    var kinds = opts.kinds || {};
+    var topo = opts.topoProj || null;
     var braces = [];
-    var rules = [];
-    if (!rows.length) return { braces: braces, rules: rules, cover: {} };
+    if (!rows.length) return { braces: braces, cover: {} };
     var base = 0;
     if (opts.study) {
       braces.push({ kind: opts.study, id: "study", level: 0, start: 0,
@@ -4473,47 +4610,54 @@
         sid = subParent[sid];
       }
     });
+    var names = {};
+    ((topo && topo.bodies) || []).forEach(function (b) { names[b.id] = b.name || b.id; });
+    var partsById = {};
+    ((topo && topo.parts) || []).forEach(function (p) { partsById[p.id] = p; });
+    var bodyOfPart = topo ? VA.bodyOfPart(topo) : {};
     // Bodies, then parts, inside the innermost sub-stack each row sits in.
-    var partStart = {};
-    groups.forEach(function (g) { if (!g.header) partStart[g.start] = true; });
     var bodyAt = {};
     var i = 0;
     while (i < rows.length) {
       var row = rows[i];
       if (row.header || row.body === null || row.body === undefined) { i++; continue; }
       var j = i;
-      var parts = 0;
       while (j < rows.length && !rows[j].header && rows[j].body === row.body &&
-             containerOf(rows[j]) === containerOf(row)) {
-        if (partStart[j] || j === i) parts++;
-        j++;
-      }
-      if (parts > 1) {
+             containerOf(rows[j]) === containerOf(row)) j++;
+      if (kinds.bodies !== false) {
         var body = { kind: "body", id: String(row.body), level: levelIn(containerOf(row)),
-                     start: i, end: j - 1, gap: false };
+                     start: i, end: j - 1, gap: false,
+                     label: names[row.body] || String(row.body),
+                     tint: VA.bodyTint(topo, row.body) };
         braces.push(body);
         for (var k = i; k < j; k++) bodyAt[k] = body;
       }
       i = j;
     }
-    groups.forEach(function (g) {
-      var k = g.start;
-      if (g.header || k === 0 || rows[k - 1].header) return;
-      if (containerOf(rows[k - 1]) !== containerOf(rows[k])) return;
-      // A body's own caps already part the rows on either side of it.
-      if (bodyAt[k] !== bodyAt[k - 1]) return;
-      rules.push({ row: k, level: bodyAt[k] ? bodyAt[k].level + 1
-                                            : levelIn(containerOf(rows[k])) });
-    });
+    if (kinds.parts !== false) {
+      groups.forEach(function (g) {
+        if (g.header || g.part === null || g.part === undefined || !g.count) return;
+        var at = bodyAt[g.start];
+        var record = partsById[g.part] || { id: g.part };
+        var own = rows[g.start].body;
+        braces.push({ kind: "part", id: "part:" + g.part, part: g.part,
+                      level: at ? at.level + 1 : levelIn(containerOf(rows[g.start])),
+                      start: g.start, end: g.start + g.count - 1, gap: false,
+                      label: VA.partContainerLabel(record),
+                      tint: VA.bodyTint(topo, own !== null && own !== undefined ? own
+                                                : bodyOfPart[g.part]),
+                      body: at || null });
+      });
+    }
     braces.sort(function (a, b) { return a.level - b.level || a.start - b.start; });
-    // How many brackets hold each row: where its first words start.
+    // How many brackets hold each row.
     var cover = {};
     braces.forEach(function (b) {
       for (var r = b.start; r <= Math.min(b.end, rows.length - 1); r++) {
         cover[r] = Math.max(cover[r] || 0, b.level + 1);
       }
     });
-    return { braces: braces, rules: rules, cover: cover };
+    return { braces: braces, cover: cover };
   };
 
   // A row's one sourcing mark (deliverable 3): the pill cluster's worst word,
@@ -4729,8 +4873,6 @@
       var turnX = Math.max(x1, zoneLeftK);
       // The polyline, node end first, grid end last -- the order the browser
       // tier reads the two contract points off (getPointAtLength 0 and total).
-      // `points` is what the bands below are built from, so the two styles
-      // need no second description of where a leader goes.
       var points = angled
         ? [[x1, y1], [turnX, y1], [widthK, y2]]
         : [[x1, y1], [laneX, y1], [laneX, y2], [widthK, y2]];
@@ -4758,7 +4900,6 @@
       // is drawn under `translate(0 y0) scale(k) translate(0 -y0)`.
       height: height, zoom: k, y0: y0,
       leaders: leaders,
-      bands: bandGeometry(leaders, plan, widthK, height),
     };
   };
 
@@ -5091,204 +5232,6 @@
     var scale = VA.clampJogZoneScale(zoneScale === undefined ? 1 : zoneScale);
     return { columns: columns, zoneLeft: zoneLeft, naturalZone: naturalZone,
              scale: scale, width: zoneLeft + naturalZone * scale };
-  }
-
-  // --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ---
-  //
-  // Jeff, reviewing the shipped arcs: "The jogged leader lines between the dag
-  // and the grid view rows are near impossible to follow because the vertical
-  // sections are so bunched up ... use alternating fill colors between the
-  // leader lines (these same colors can be the alternating row background
-  // colors)." So the region BETWEEN two adjacent leaders and the grid rows
-  // that region feeds wear one tint, and an eye can ride a band across the
-  // jog zone into its own rows instead of tracking one 1.5px line among all
-  // the others.
-  //
-  // The tints are NEUTRAL and there are exactly two of them (topology.css's
-  // --tv-band-a / --tv-band-b, the same two-greys-by-parity precedent the
-  // rails already use). That is the page's hardest constraint, not a style
-  // choice: green, amber, red and magenta are provenance here and nothing
-  // else may wear them (README, "The colours"), and a categorical band
-  // palette would both collide with that and run out of hues long before a
-  // real mechanism runs out of bands.
-  //
-  // A band is indexed by how many leaders sit above it: band 0 is everything
-  // above the first leader, band i is between leaders i-1 and i, and band
-  // `leaders.length` is everything below the last. Its parity is its index's,
-  // which is what makes the grid's row tint and the zone's band tint the same
-  // decision made once. `startRow`/`endRow` are GRID row indices, half-open --
-  // a leader's `boundary` is the seam above the row of that index, so the
-  // band bounded below by leader i ends exactly where leader i points.
-  VA.leaderBands = function (plan) {
-    var leaders = (plan && plan.leaders) || [];
-    var rows = (plan && plan.rows) || [];
-    var bands = [];
-    for (var i = 0; i <= leaders.length; i++) {
-      bands.push({
-        index: i,
-        parity: i % 2,
-        above: i === 0 ? null : leaders[i - 1].id,
-        below: i === leaders.length ? null : leaders[i].id,
-        startRow: i === 0 ? 0 : leaders[i - 1].boundary,
-        endRow: i === leaders.length ? rows.length : leaders[i].boundary,
-      });
-    }
-    return bands;
-  };
-
-  // { edgeId: 0 | 1 } -- which of the two tints each grid row wears, off the
-  // same bands. One function, so "the row's tint" and "the band's tint" can
-  // never be two answers: the view reads this for the <tr> and the band path
-  // carries the same parity into the SVG.
-  VA.rowBandParity = function (plan) {
-    var out = {};
-    var rows = (plan && plan.rows) || [];
-    VA.leaderBands(plan).forEach(function (band) {
-      for (var r = band.startRow; r < band.endRow; r++) {
-        if (rows[r]) out[rows[r].id] = band.parity;
-      }
-    });
-    return out;
-  };
-
-  // One filled polygon per band, bounded above and below by two adjacent
-  // leaders and closed on the SVG's own left and right edges -- so the tint
-  // runs from the rails, through the jog zone, right up to the grid's first
-  // column, in either leader style. Drawn behind everything else and
-  // hit-tested by nothing (topology.css), so nothing a reader can click or
-  // read moves.
-  //
-  // The boundaries are a RUNNING MAXIMUM of the leaders, not the leaders
-  // themselves, and that is the whole subtlety of this function.
-  //
-  // "The region between leader k-1 and leader k" is only a simple region
-  // while the leaders do not cross. They crossed from 2026-09-14 (the grid-
-  // against-DAG centring let leaders descend, and walk-order lanes put a
-  // descending leader's vertical run through later leaders' horizontals) to
-  // 2026-10-30 (descending_leaders_take_a_path_that_cannot_cross, which made
-  // VA.leaderGeometry's paths crossing-free under the premise its comment
-  // states). Drawn literally, a crossing folds a band over itself and its tint
-  // doubles where it overlaps its neighbour -- a visible checkerboard right
-  // where the page is meant to be getting MORE legible. With no crossings the
-  // clamp below is a no-op; it stays so that a layout change which breaks
-  // that premise pinches a band rather than folding it.
-  //
-  // So each boundary is clamped to sit at or below the one above it:
-  // boundary_k = max(leader_k, boundary_k-1), pointwise in x. The bands then
-  // TILE the pane exactly -- no overlap, no gap, no fold -- and every
-  // boundary still IS its own leader everywhere the leaders behave, which is
-  // everywhere except the crossing regions.
-  function bandGeometry(leaders, plan, width, height) {
-    var boundary = null;
-    var boundaries = leaders.map(function (leader) {
-      boundary = boundary
-        ? maxProfile(leaderProfile(leader, width), boundary)
-        : leaderProfile(leader, width);
-      return boundary;
-    });
-    return VA.leaderBands(plan).map(function (band, i) {
-      // `top`/`bottom` are the polygon's own two boundaries, kept because
-      // they are what the tiling claim is ABOUT: band k's bottom is band
-      // k+1's top, the same array, so adjacent bands cannot be given two
-      // different edges and a test can say so without parsing a path string.
-      var top = i === 0 ? [[0, 0], [width, 0]] : boundaries[i - 1];
-      var bottom = i === leaders.length
-        ? [[0, height], [width, height]] : boundaries[i];
-      return {
-        index: band.index,
-        parity: band.parity,
-        startRow: band.startRow,
-        endRow: band.endRow,
-        top: top,
-        bottom: bottom,
-        d: bandPath(top, bottom),
-      };
-    });
-  }
-
-  // A leader as a curve over the WHOLE width: its own polyline, extended
-  // leftwards at the interface's own y to the SVG's left edge. x is
-  // non-decreasing; a jogged leader's lane is a vertical jump (two points at
-  // one x), which every routine below is written to tolerate.
-  function leaderProfile(leader, width) {
-    var points = [[0, leader.y1]];
-    leader.points.forEach(function (pt) {
-      if (pt[0] > 0) points.push([pt[0], pt[1]]);
-    });
-    points.push([width, leader.y2]);
-    return dedupe(points);
-  }
-
-  function dedupe(points) {
-    return points.filter(function (pt, i) {
-      return i === 0 || pt[0] !== points[i - 1][0] || pt[1] !== points[i - 1][1];
-    });
-  }
-
-  // The non-degenerate linear pieces of a profile -- the vertical jumps drop
-  // out, because a jump is the gap BETWEEN two pieces rather than a piece.
-  function profilePieces(profile) {
-    var pieces = [];
-    for (var i = 1; i < profile.length; i++) {
-      if (profile[i][0] > profile[i - 1][0]) {
-        pieces.push({ x0: profile[i - 1][0], y0: profile[i - 1][1],
-                      x1: profile[i][0], y1: profile[i][1] });
-      }
-    }
-    return pieces;
-  }
-
-  function pieceAt(pieces, xa, xb) {
-    for (var i = 0; i < pieces.length; i++) {
-      if (pieces[i].x0 <= xa && xb <= pieces[i].x1) return pieces[i];
-    }
-    return pieces.length ? pieces[pieces.length - 1] : null;
-  }
-
-  function interp(piece, x) {
-    if (!piece || piece.x1 === piece.x0) return piece ? piece.y1 : 0;
-    return piece.y0 + (piece.y1 - piece.y0) * (x - piece.x0) / (piece.x1 - piece.x0);
-  }
-
-  // Pointwise max of two profiles. Exact: every x where either profile bends
-  // or jumps is a sample, so each interval holds one straight piece of each,
-  // and the one place two straight pieces can swap order inside an interval
-  // (they cross at most once) gets that crossing inserted as its own point.
-  function maxProfile(a, b) {
-    var pa = profilePieces(a);
-    var pb = profilePieces(b);
-    var xs = [];
-    a.concat(b).forEach(function (pt) {
-      if (xs.indexOf(pt[0]) === -1) xs.push(pt[0]);
-    });
-    xs.sort(function (p, q) { return p - q; });
-    var out = [];
-    for (var k = 0; k + 1 < xs.length; k++) {
-      var xa = xs[k], xb = xs[k + 1];
-      var sa = pieceAt(pa, xa, xb), sb = pieceAt(pb, xa, xb);
-      var ay0 = interp(sa, xa), ay1 = interp(sa, xb);
-      var by0 = interp(sb, xa), by1 = interp(sb, xb);
-      out.push([xa, Math.max(ay0, by0)]);
-      var d0 = ay0 - by0, d1 = ay1 - by1;
-      if ((d0 < 0 && d1 > 0) || (d0 > 0 && d1 < 0)) {
-        var t = d0 / (d0 - d1);
-        out.push([xa + t * (xb - xa), ay0 + t * (ay1 - ay0)]);
-      }
-      out.push([xb, Math.max(ay1, by1)]);
-    }
-    return dedupe(out);
-  }
-
-  // The closed polygon between two boundaries: along the top left to right,
-  // down the SVG's right edge, back along the bottom, up its left edge.
-  function bandPath(top, bottom) {
-    var seg = ["M " + top[0][0] + " " + top[0][1]];
-    top.slice(1).forEach(function (pt) { seg.push("L " + pt[0] + " " + pt[1]); });
-    for (var i = bottom.length - 1; i >= 0; i--) {
-      seg.push("L " + bottom[i][0] + " " + bottom[i][1]);
-    }
-    seg.push("Z");
-    return seg.join(" ");
   }
 
   // --- loose stacks: the systems this page shows as a table, not a graph ---

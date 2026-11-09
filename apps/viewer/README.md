@@ -808,10 +808,13 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
 
 * rails are neutral, alternating two greys by column parity so two crossing rails
   can still be told apart;
-* the **alternating leader bands** are the same idea one level up
-  (`viewer_leader_grid_legibility`, below): two neutral tints, alternating, and
-  they are pure white at low alpha precisely so they have no hue to confuse
-  with the four above;
+* **one colour per body, everywhere the body is drawn** (2026-11-08,
+  `the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows`): its
+  DAG container and name, its parts' containers and tint, its grid bracket and
+  label, and — under `Colour by: Body`, the default — its bars, dots and rows,
+  from one of two palettes in `View → Palette` (Bold, or Colour-blind:
+  Okabe–Ito first). The body's ink never fills a state: provenance keeps its
+  marks. There are no leader bands any more — Jeff asked twice for them to go;
 * **an edge's bar says only lit or unlit**, by weight, in one neutral ink
   (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
   It used to wear its citation's confidence as well, and band hashes, and the
@@ -851,25 +854,18 @@ pitch-link names by value) and the rendering by two banned-string walks in
 `apps/viewer/tests.js` -- one over the fixture, one over every live topology's
 grid, preview panes and hover cards.
 
-### Reading the leaders: bands, two styles, and two widths you can drag
+### Reading the leaders: two styles, and two widths you can drag
 
 Jeff, reviewing the shipped arcs: *"The jogged leader lines between the dag and
 the grid view rows are near impossible to follow because the vertical sections
-are so bunched up."* Four answers, all of them **display preferences** — they
+are so bunched up."* Three answers, all of them **display preferences** — they
 survive a topology switch like density does, none of them touches a value, and
 none moves either end of a leader, so the correspondence contract below is
 measured in every combination of them.
 
-* **Alternating bands.** The region between two adjacent leaders, and the grid
-  rows that region feeds, wear one of two neutral tints; the next band down
-  wears the other. One more band than there are leaders (everything above the
-  first and everything below the last are bands too), and one function decides
-  both halves (`VA.rowBandParity`), so a row and the band feeding it cannot be
-  given two different answers. On a row that also carries a provenance tint the
-  two **layer** — the band is the row's background colour, the provenance tint
-  a background image over it — because most of `pitch_system`'s rows are
-  untraced and a band that lost to provenance would be invisible on the very
-  document this was built for.
+* **No bands.** The alternating tints between adjacent leaders shipped
+  2026-09-14 and were removed 2026-11-08 at Jeff's request; a body's colour,
+  on its bracket and its row, is what carries the eye across now.
 * **No two leaders cross, in either style** (2026-10-30,
   `descending_leaders_take_a_path_that_cannot_cross`). The rule rests on one
   premise: in walk order the dots go strictly down the page and the seams never
@@ -882,10 +878,6 @@ measured in every combination of them.
   premise and the zero on every view of every committed topology, at every
   density, length mode and style. The counts before the fix are in that
   handoff's lesson.
-* **The band boundaries are a running maximum of the leaders, not the leaders
-  themselves.** With no crossings the two are the same line; the clamp stays so
-  that a layout change which breaks the premise above pinches a band to nothing
-  rather than folding it over itself and doubling its tint.
 * **Angled or jogged**, from the toolbar. **Angled is the default** — flat out
   of the diagram, then one straight segment to the seam. Jogged is what shipped first:
   out from the dot, down a lane of the leader's own, into the grid. Jeff asked
@@ -1553,7 +1545,7 @@ its length wherever the big dimensions are, so on
 `vpa_pitch_linkage` 2026-10-26) under tolerance width all five leaders live in the
 top 236px of a 691px DAG and centring the heights would make every one of them
 jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `vpa_pitch_linkage`'s max jog 2041px → 1014px,
+which is the thing the change is for: `vpa_pitch_linkage`'s max jog 2321px → 1147px,
 and every topology × mode pair on the shelf improves.
 
 A leader can therefore now **descend** left-to-right, where before it always
@@ -1604,7 +1596,7 @@ live corpus (before the band). Taking
 * the **jog zone narrows** as leaders drop, and the pane width with it — the
   pane goes **678 → 330px**;
 * the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **1027 → 715px**;
+  of unchanged height — `gridOffset` goes **1174 → 743px**;
 * the grid **cross-fades** between two different row sets, as it always did.
 
 Every committed study moves at least one of those, which the `[real]` tier

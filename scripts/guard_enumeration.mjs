@@ -283,7 +283,12 @@ export const DECLARED_GUARDS = {
   // leader): one renamed -- the seam's leaders test now pins that with no study
   // every drawn node has a DAG end ("the whole walk has none" is retired). Its
   // spec moved with it and gained the mutation that puts the old rule back.
-  fast: { declared: 672, enrollable: 672, names: "4f75566b1df0" },
+  // the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows
+  // (2026-11-08): -1 -- the leader bands are gone, and with them the
+  // leaderBands unit test; five band-asserting guards were reworded (the
+  // three with specs re-keyed) and one rowPositions guard renamed, with a spec.
+  // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
+  fast: { declared: 671, enrollable: 671, names: "e57b83e4620b" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -514,7 +519,13 @@ export const DECLARED_GUARDS = {
   // parts and no context, and with P2 and no study every joint node has its
   // leader (each carries a spec); the suite's skip line is the third, left
   // unenrolled like the P2 seam suite's own skip line.
-  browser: { declared: 860, enrollable: 827, names: "357f82cac5d0" },
+  // the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows
+  // (2026-11-08): +4 in "the DAG zoom, Fit and the grid header" -- no band and
+  // both layers outlined, one ink DAG and grid, Compact keeps pitch and
+  // radius, Groups off means gone; each carries a spec. Three band checks
+  // reworded to say no band is drawn (they had no spec before, nor now).
+  // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
+  browser: { declared: 864, enrollable: 831, names: "c9bfe8c37568" },
 };
 
 

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on both models the DAG's body outlines and the grid's body brackets wear the same inks",
+  "mutations": [
+    {
+      "contract": "A body's grid bracket wears its body's ink, the one its DAG outline wears.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Declared with the guard by handoff the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows (2026-11-08). Back to the one bracket hue for every body: the grid has one ink, the DAG five.",
+      "file": "apps/viewer/topology.css",
+      "find": ".tvbrace--body { color: var(--fill-ink, var(--group-body)); }",
+      "replace": ".tvbrace--body { color: var(--group-body); }"
+    }
+  ]
+}

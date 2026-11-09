@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the view popover offers the five settings over their own tables and reports a change; the overlay's key is beside it, and absent with none",
+  "mutations": [
+    {
+      "contract": "A picker reports the value the reader chose.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "Declared with the guard by handoff the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste (2026-11-05); re-declared under the guard's new name by a_part_with_many_interfaces_is_drawn_as_a_component_with_pins (2026-11-06), which added a fourth setting. The change reports the setting's old value, so nothing the reader picks takes. Renamed 2026-11-08 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows), which added the palette as a fifth.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      select.onchange = function () { onChange(setting, select.value); };",
+      "replace": "      select.onchange = function () { onChange(setting, view[setting]); };"
+    }
+  ]
+}

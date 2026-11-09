@@ -39,3 +39,13 @@ This session did not time suites one by one.
 `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` from
 a worktree ran 30m51s wall, slot queue included, with 44 suites (one added by
 that handoff). That's over the 30-minute budget by 0m51s.
+
+## Measurement 2026-11-09 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/nested_bodies/repo`,
+from that handoff's worktree, browser slot uncontended: **31m46s (1906 s)** against
+the 30-minute merge budget, so 1m46s over. 42/43 suites passed; the one red is
+`annotate rail holds still`, already red on integration
+(`ISSUE_20261108_the_rail_holds_still_browser_check_is_red_on_integration.md`).
+That handoff added 4 checks to "the DAG zoom, Fit and the grid header", each
+toggling density and Groups on both models, which is about 40 s of the total.

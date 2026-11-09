@@ -248,6 +248,9 @@
     picker("colourBy", "Colour by", (view.schemes || VA.COLOUR_SCHEMES).map(function (s) {
       return { id: s.id, label: s.label };
     }));
+    picker("palette", "Palette", VA.PALETTE_ORDER.map(function (id) {
+      return { id: id, label: VA.PALETTES[id].label };
+    }));
     picker("groupFill", "Group fill", VA.GROUP_FILL_ORDER.map(function (id) {
       return { id: id, label: VA.GROUP_FILLS[id].label };
     }));
@@ -1510,12 +1513,18 @@
   // own cells, so every row's part cell is a place to click; the words are
   // said on a part's first row only, and the brackets
   // (VA.gridBraces) carry the grouping.
+  // The grid brackets' two label strips, in px (VA.GRID_BRACE reads these):
+  // a body's name, then a part's number, left of the PART column's words.
+  var BRACE_STRIPS = { body: 84, part: 68 };
+
   var COLUMNS = [
     // Each width is measured against the longest thing its column prints on
     // the real projection, in a totals row (dense, bold) as well as a member
     // row: a number never clips, and words clip only with their hover title.
-    // `NAS1149V0332H` inside its brackets' indent is 109px.
-    { cls: "part", label: "part", width: 112 },
+    // `NAS1149V0332H` inside its brackets' indent is 109px; the brackets'
+    // label strips (a body's name, a part's number) sit in a gutter at the
+    // column's left, so the column is that much wider (VA.braceGutter).
+    { cls: "part", label: "part", width: 112 + BRACE_STRIPS.body + BRACE_STRIPS.part },
     { cls: "description", label: "description", width: 140 },
     { cls: "ord", label: "#", width: 30 },
     { cls: "name", label: "element", width: 220, resizable: true },
@@ -1866,6 +1875,9 @@
       // A label the column clips is read in full on hover.
       if (c.title || c.label) th.setAttribute("title", c.title || c.label);
       if (c.cls === "sourcing") th.appendChild(VA.warningIcon("tvmark__head"));
+      // PART's words start right of the brackets' label gutter, as its
+      // cells' do.
+      if (c.cls === "part") th.style.paddingLeft = (4 + VA.braceGutter()) + "px";
       boundary += c.width;
       if (c.resizable) {
         th.className += " tvcell--resizable";
@@ -2271,8 +2283,8 @@
     svg.style.minWidth = width + "px";
     svg.style.height = height + "px";
     // The DAG's own drawing goes in layers at its zoom, about the DAG's
-    // top-left (VA.leaderGeometry's `zoom`); the bands and the leaders, which
-    // end on the unscaled grid, are drawn in the SVG's own pixels between them.
+    // top-left (VA.leaderGeometry's `zoom`); the leaders, which end on the
+    // unscaled grid, are drawn in the SVG's own pixels between them.
     var dagTransform = leaderGeo.zoom !== 1
       ? "translate(0 " + leaderGeo.y0 + ") scale(" + leaderGeo.zoom + ") translate(0 " +
         (-leaderGeo.y0) + ")"
@@ -2283,20 +2295,6 @@
       svg.appendChild(g);
       return g;
     };
-
-    // 0. the alternating bands (viewer_leader_grid_legibility): the region
-    //    between two adjacent leaders, tinted in one of two neutral shades by
-    //    parity (VA.rowBandParity). The grid rows wear no tint since
-    //    the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what
-    //    (brackets say the grouping, VA.gridBraces). Drawn
-    //    first so everything else sits on top of it, and hit-tested by
-    //    nothing -- a band is wayfinding, not a target.
-    leaderGeo.bands.forEach(function (band) {
-      var path = VA.svg("path", "rail__band rail__band--" + (band.parity ? "b" : "a"),
-        { d: band.d });
-      path.setAttribute("data-band", String(band.index));
-      svg.appendChild(path);
-    });
 
     // 0b. the joint glyphs' symbols, once per SVG (interface_glyphs.js).
     svg.appendChild(VA.interfaceGlyphDefs());
@@ -2370,7 +2368,8 @@
       if (pillRows[field.start]) return;
       var body = bodiesById[field.body] || { id: field.body, name: field.body };
       var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
-      var cls = "tv__bodyfield tv__bodyfield--t" + VA.bodyTint(ctx.topoProj, field.body) +
+      var tint = VA.bodyTint(ctx.topoProj, field.body);
+      var cls = "tv__bodyfield tv__bodyfield--t" + tint + " tv__fill--t" + tint +
         (flat ? " tv__bodyfield--flat" : "");
       var rect = VA.svg("rect", cls, {
         x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
@@ -2382,53 +2381,71 @@
         fillRect(field, "tv__groupfill--body tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
           (flat ? " tv__groupfill--flat" : ""), 6);
       }
-      if (named[f]) bodyNames.push(bodyName(body, field.x1 + 4, field.y1 + 9, false, ctx));
+      // The name sits in the label band the store keeps above the body's
+      // first row (VA.CONTAINER_LABEL), so it never sits on a glyph.
+      if (named[f]) {
+        bodyNames.push(bodyName(body, field.x1 + 4, field.y1 + VA.CONTAINER_LABEL.baseline,
+          false, ctx));
+      }
       // A body's other blocks carry a short, muted repeat of its name, so a
       // block whose named one is off-screen still says whose it is. Not the
       // fold control: that stays on the named block.
-      else bodyNames.push(bodyRepeat(body, field));
+      else bodyNames.push(bodyRepeat(body, field, ctx));
     });
 
-    // 0c''. the parts (VA.partSpans): the smallest group, a border in the
-    //       part hue inside its body's field, filled solid when the view's
-    //       group fill asks for parts.
+    // 0c''. the parts: the inner layer, inside their body's field. A part
+    //       with one or two interfaces is a field over its rows (VA.partSpans);
+    //       one with many is a block, its pins on its sides (VA.blockLayout).
+    //       Both are the same container to a reader -- a border in a lighter
+    //       step of the body's ink, its drawing number in it (a block's
+    //       top-left, a field's beside its first mark), tinted with the
+    //       body's ink when the group fill asks for parts -- and both go
+    //       when the Groups popover switches parts off. A block's PINS are
+    //       marks, and stay.
+    var partName = function (box, partId, bodyId, flat) {
+      var part = index.parts[partId] || { id: partId };
+      // A block's goes top-left in its own margin; a field's beside its first
+      // mark (`box.label`, VA.railGeometry).
+      var at = box.label || { x: box.x1 + VA.CONTAINER_LABEL.inset,
+                              y: box.y1 + VA.CONTAINER_LABEL.baseline };
+      var label = VA.svg("text", "tv__partname tv__fill--t" + VA.bodyTint(ctx.topoProj, bodyId) +
+        (flat ? " tv__partname--flat" : ""), { x: at.x, y: at.y });
+      label.textContent = fitText(VA.partContainerLabel(part),
+        Math.max(box.x2 - at.x - VA.CONTAINER_LABEL.inset, 24));
+      // The hover carries the everyday name beside the number, never the id.
+      label.appendChild(svgTitle(VA.componentLabel(part) +
+        (part.drawing ? " · drawing " + part.drawing : "")));
+      label.setAttribute("data-part-name", partId);
+      bodyNames.push(label);
+    };
+    var partBox = function (box, cls, attr, partId, bodyId, r) {
+      var flat = marking && !VA.bodyIsLit(layout && layout.rows, bodyId, lit);
+      var tint = VA.bodyTint(ctx.topoProj, bodyId);
+      var rect = VA.svg("rect", cls + " tv__fill--t" + tint + (flat ? " " + cls + "--flat" : ""), {
+        x: box.x1, y: box.y1, width: Math.max(0, box.x2 - box.x1),
+        height: Math.max(0, box.y2 - box.y1), rx: r, ry: r,
+      });
+      rect.setAttribute(attr, partId);
+      under.appendChild(rect);
+      if (fillMode !== "off") {
+        fillRect(box, "tv__groupfill--part tv__fill--t" + tint +
+          (flat ? " tv__groupfill--flat" : ""), r);
+      }
+      partName(box, partId, bodyId, flat);
+      return rect;
+    };
     if (geometry.showParts !== false) {
       (geometry.parts || []).forEach(function (field) {
         if (pillRows[field.start]) return;
-        var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
-        var rect = VA.svg("rect", "tv__partfield" + (flat ? " tv__partfield--flat" : ""), {
-          x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
-          height: Math.max(0, field.y2 - field.y1), rx: 4, ry: 4,
-        });
-        rect.setAttribute("data-part", field.part);
-        under.appendChild(rect);
-        if (fillMode !== "off") {
-          fillRect(field, "tv__groupfill--part tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
-            (flat ? " tv__groupfill--flat" : ""), 4);
-        }
+        partBox(field, "tv__partfield", "data-part", field.part, field.body, 4);
+      });
+      (geometry.blocks || []).forEach(function (block) {
+        var part = index.parts[block.part];
+        var rect = partBox(block, "tv__block", "data-block", block.part, block.body, 3);
+        if (block.body !== undefined) rect.setAttribute("data-block-body", block.body);
+        rect.setAttribute("aria-label", (part && part.name) || block.part);
       });
     }
-
-    // 0c'''. the blocks (VA.blockLayout): a part with many interfaces is one
-    //        component, its pins on its sides. Drawn whatever the Groups
-    //        popover says -- a block is the part itself, not a grouping of
-    //        it -- and filled with the parts when the group fill asks.
-    (geometry.blocks || []).forEach(function (block) {
-      var flat = marking && !VA.bodyIsLit(layout && layout.rows, block.body, lit);
-      var part = index.parts[block.part];
-      var rect = VA.svg("rect", "tv__block" + (flat ? " tv__block--flat" : ""), {
-        x: block.x1, y: block.y1, width: Math.max(0, block.x2 - block.x1),
-        height: Math.max(0, block.y2 - block.y1), rx: 3, ry: 3,
-      });
-      rect.setAttribute("data-block", block.part);
-      if (block.body !== undefined) rect.setAttribute("data-block-body", block.body);
-      rect.setAttribute("aria-label", (part && part.name) || block.part);
-      under.appendChild(rect);
-      if (fillMode !== "off") {
-        fillRect(block, "tv__groupfill--part tv__fill--t" + VA.bodyTint(ctx.topoProj, block.body) +
-          (flat ? " tv__groupfill--flat" : ""), 3);
-      }
-    });
 
     // 0c'. the study groups (a_study_is_a_translucent_group_on_the_dag): a
     //      see-through field per run of a study's rows, over the bodies and
@@ -2842,7 +2859,7 @@
         }).map(function (c) { return c.replace("rail__dot--", "rail__node--"); }))
           .join(" ");
         var glyph = VA.glyphUse(VA.interfaceGlyphId(jointKind), mark.x, mark.y,
-          glyphBase, M.rowHeight);
+          glyphBase, M.drawPitch);
         glyph.setAttribute("data-node-glyph", jointKind);
         glyph.setAttribute("data-glyph-node", mark.id);
         glyph.setAttribute("aria-hidden", "true");
@@ -2897,11 +2914,13 @@
     return svg;
   }
 
-  // A body's name, the control that collapses or opens it: muted, the micro
-  // step, its full name on hover however much of it the field shows (a
-  // one-column body's field is narrow and the name runs past it).
+  // A body's name, the control that collapses or opens it: in the body's
+  // own ink, the micro step, its full name on hover however much of it the
+  // field shows (a one-column body's field is narrow and the name runs past
+  // it).
   function bodyName(body, x, y, collapsed, ctx, text) {
-    var label = VA.svg("text", "tv__bodyname", { x: x, y: y });
+    var label = VA.svg("text", "tv__bodyname tv__fill--t" + VA.bodyTint(ctx.topoProj, body.id),
+      { x: x, y: y });
     label.textContent = text || body.name;
     label.appendChild(svgTitle(body.name + (collapsed ? " — click to open"
       : " — click to fold into one node")));
@@ -2922,19 +2941,20 @@
 
   // The muted repeat of a body's name on its other blocks: as much of the
   // name as the block's width holds, the whole name on hover.
-  function bodyRepeat(body, field) {
-    var label = VA.svg("text", "tv__bodyrepeat", { x: field.x1 + 4, y: field.y1 + 9 });
+  function bodyRepeat(body, field, ctx) {
+    var label = VA.svg("text", "tv__bodyrepeat tv__fill--t" + VA.bodyTint(ctx.topoProj, body.id),
+      { x: field.x1 + 4, y: field.y1 + VA.CONTAINER_LABEL.baseline });
     label.textContent = fitText(body.name || body.id, Math.max(field.x2 - field.x1 - 8, 60));
     label.appendChild(svgTitle(body.name || body.id));
     label.setAttribute("data-body-repeat", body.id);
     return label;
   }
 
-  // A body's bridge (VA.bodyBridges): a thin stroke in the body group's hue,
-  // the same as its border, or the flat outline's when nothing lit is inside.
+  // A body's bridge (VA.bodyBridges): a thin stroke in the body's ink, the
+  // same as its border, or the flat outline's when nothing lit is inside.
   function bodyBridge(bridge, ctx, flat) {
-    var path = VA.svg("path", "tv__bodybridge" + (flat ? " tv__bodybridge--flat" : ""),
-      { d: bridge.d });
+    var path = VA.svg("path", "tv__bodybridge tv__fill--t" + VA.bodyTint(ctx.topoProj, bridge.body) +
+      (flat ? " tv__bodybridge--flat" : ""), { d: bridge.d });
     path.setAttribute("data-body-bridge", bridge.body);
     return path;
   }
@@ -3146,14 +3166,17 @@
     // group's top and bottom edge are row counts, and nothing a leader's seam
     // reads moves. A row's first words start inside its innermost bracket.
     var study = !marking ? null : ctx.stack ? "kinematic" : ctx.study ? "chain" : null;
+    var kindsOn = ctx.groupKinds || null;
     var braces = VA.gridBraces(plan, {
-      study: study, foot: foot ? foot.childNodes.length : 0,
+      study: study, foot: foot ? foot.childNodes.length : 0, topoProj: ctx.topoProj,
+      kinds: kindsOn ? { bodies: !!kindsOn.bodies, parts: !!kindsOn.parts } : null,
     });
+    var braceGeo = VA.braceGeometry(braces, M.rowHeight, tableWidth());
     var tbody = VA.el("tbody");
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
         var planRow = plan.rows[group.start + i];
-        var indent = braceIndent(braces.cover[group.start + i] || 0);
+        var indent = braceGeo.indent[group.start + i] || 4;
         var row = group.header
           ? subStackRow(planRow, ctx, hot, indent)
           : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent);
@@ -3163,7 +3186,7 @@
     table.appendChild(tbody);
     if (foot) table.appendChild(foot);
     box.appendChild(table);
-    box.appendChild(braceLayer(braces));
+    box.appendChild(braceLayer(braceGeo));
     // What the sourcing marks say, under the rows they mark: below the last
     // row, so no leader's seam moves.
     if (plan.rows.length && marking) box.appendChild(sourcingLegend());
@@ -3177,13 +3200,15 @@
   // stays inside the space a row leaves above and below its text, so a cap
   // never runs through a word. Caps of several groups on one edge step apart
   // by `step`, outermost on the outside.
-  VA.GRID_BRACE = { inset: 7, step: 2, text: 14, curlMax: 6 };
-
-  // Where a row's first words start: clear of the left stubs of the `cover`
-  // brackets around it.
-  function braceIndent(cover) {
-    return 4 + cover * VA.GRID_BRACE.inset;
-  }
+  //
+  // The labels sit in the gutter left of the PART column's words (the_dag_
+  // and_grid_nest_coloured_bodies_and_compact_means_denser_rows): a body's
+  // name in a `body`-wide strip just inside its brace's left stub, wrapping
+  // down its rows; a part's brace starts right of that strip and its number
+  // fills a `part`-wide one. A row's first words start right of the
+  // innermost label strip that holds it (`indent`).
+  VA.GRID_BRACE = { inset: 7, step: 3, text: 14, curlMax: 6, line: 13,
+                    body: BRACE_STRIPS.body, part: BRACE_STRIPS.part };
 
   VA.braceGeometry = function (model, rowHeight, width) {
     var g = VA.GRID_BRACE;
@@ -3191,31 +3216,53 @@
     var tops = {};
     var bottoms = {};
     var caps = [];
+    var labels = [];
+    var indent = {};
+    var lefts = [];
+    var rows = function (b) { return b.end - b.start + 1; };
     model.braces.forEach(function (b) {
-      var x = 2 + b.level * g.inset;
-      var w = Math.max(0, width - 2 * x);
+      var right = 2 + b.level * g.inset;
+      var x = b.kind === "part" && b.body ? lefts[model.braces.indexOf(b.body)] + g.body
+        : 2 + b.level * g.inset;
+      lefts.push(x);
+      var w = Math.max(0, width - x - right);
       var t = tops[b.start] || 0;
       var u = bottoms[b.end] || 0;
       tops[b.start] = t + 1;
       bottoms[b.end] = u + 1;
       var y0 = b.start * rowHeight + 1 + t * g.step;
       var y1 = (b.end + 1) * rowHeight - 1 - u * g.step;
-      caps.push({ kind: b.kind, gap: b.gap, side: "top", id: b.id,
-                  left: x, top: y0, width: w, height: curl });
-      caps.push({ kind: b.kind, gap: b.gap, side: "bottom", id: b.id,
-                  left: x, top: y1 - curl, width: w, height: curl });
+      var cap = { kind: b.kind, gap: b.gap, id: b.id, tint: b.tint, left: x, width: w,
+                  height: curl };
+      caps.push(Object.assign({ side: "top", top: y0 }, cap));
+      caps.push(Object.assign({ side: "bottom", top: y1 - curl }, cap));
+      // Where a held row's words start: right of this brace's label strip
+      // (a body's or a part's), or just inside its stub.
+      var strip = b.kind === "body" ? g.body : b.kind === "part" ? g.part : g.inset;
+      for (var r = b.start; r <= b.end; r++) indent[r] = Math.max(indent[r] || 4, x + strip);
+      // A label starts on its brace's first row, on that row's text line;
+      // a body's wraps down as many lines as its rows hold, a part's is one.
+      if (b.label && (b.kind === "body" || b.kind === "part")) {
+        var line = Math.min(g.line, rowHeight - 2);
+        var lines = b.kind === "body"
+          ? Math.max(1, Math.floor((rows(b) * rowHeight - (rowHeight - line)) / g.line)) : 1;
+        labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label,
+                      left: x + 5, width: strip - 8, line: line, lines: lines,
+                      top: b.start * rowHeight + (rowHeight - line) / 2,
+                      height: lines === 1 ? line : lines * g.line });
+      }
     });
-    var rules = model.rules.map(function (r) {
-      var x = 2 + r.level * g.inset;
-      return { left: x, top: r.row * rowHeight, width: Math.max(0, width - 2 * x) };
-    });
-    return { caps: caps, rules: rules, curl: curl };
+    return { caps: caps, labels: labels, indent: indent, curl: curl };
   };
 
-  function braceLayer(model) {
+  // The gutter every label strip lives in, added to the PART column's own
+  // width (COLUMNS): the outermost levels' stubs, a body's strip and a part's.
+  VA.braceGutter = function () {
+    return VA.GRID_BRACE.body + VA.GRID_BRACE.part;
+  };
+
+  function braceLayer(geo) {
     var layer = VA.el("div", "tvbraces");
-    layer.setAttribute("aria-hidden", "true");
-    var geo = VA.braceGeometry(model, M.rowHeight, tableWidth());
     var place = function (node, box) {
       node.style.left = box.left + "px";
       node.style.top = box.top + "px";
@@ -3225,11 +3272,23 @@
     };
     geo.caps.forEach(function (cap) {
       var node = VA.el("div", "tvbrace tvbrace--" + cap.side + " tvbrace--" + cap.kind +
+        (cap.tint !== undefined ? " tv__fill--t" + cap.tint : "") +
         (cap.gap ? " tvbrace--gap" : ""));
       node.setAttribute("data-brace", cap.id);
+      node.setAttribute("aria-hidden", "true");
       place(node, cap);
     });
-    geo.rules.forEach(function (rule) { place(VA.el("div", "tvbrace__rule"), rule); });
+    // A label the strip clips keeps its whole text as a title for tools; a
+    // reader's hover reaches the PART cell under it, whose title names the part.
+    geo.labels.forEach(function (label) {
+      var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
+        " tv__fill--t" + label.tint, label.text);
+      node.setAttribute("data-brace-label", label.id);
+      node.setAttribute("title", label.text);
+      if (label.lines > 1) node.style.webkitLineClamp = String(label.lines);
+      node.style.lineHeight = (label.lines > 1 ? VA.GRID_BRACE.line : label.line) + "px";
+      place(node, label);
+    });
     return layer;
   }
 
@@ -3427,7 +3486,7 @@
         sectionLabel);
       cell.setAttribute("colspan", "2");
       // Inside the study's own bracket, the one group a foot row sits in.
-      cell.style.paddingLeft = braceIndent(1) + "px";
+      cell.style.paddingLeft = (4 + VA.GRID_BRACE.inset) + "px";
       if (section > 1) cell.setAttribute("rowspan", String(section));
       tr.appendChild(cell);
     }
@@ -3580,8 +3639,11 @@
     if (first) el.className += " tvrow--group-start";
     // A kinematic term's sourcing is its band's (VA.kinematicStack's
     // `confidence`); every other row's is its edge's own. It is the row's
-    // mark (VA.rowSourcingMark), not a tint: the brackets are the only thing
-    // a row's background says.
+    // mark (VA.rowSourcingMark), not a tint: the brackets, and under Colour
+    // by Body its body's ink, are the only things a row's background says.
+    if (ctx.colourBy === "body" && planRow.body !== null && planRow.body !== undefined) {
+      el.className += " tvrow--ink tv__fill--t" + VA.bodyTint(ctx.topoProj, planRow.body);
+    }
     var confidence = term && term.confidence ? term.confidence : edge ? edge.confidence : null;
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on both models Compact packs the rows and keeps the column pitch and the dot radius",
+  "mutations": [
+    {
+      "contract": "A joint's ring is sized at the draw pitch, which density never moves.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Declared with the guard by handoff the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows (2026-11-08). Sized at the row pitch again: Compact shrinks every joint dot, the uniform zoom Jeff called redundant.",
+      "file": "apps/viewer/interface_glyphs.js",
+      "find": "    return (metrics.drawPitch || metrics.rowHeight) * 7 / VA.INTERFACE_GLYPH_PX;",
+      "replace": "    return metrics.rowHeight * 7 / VA.INTERFACE_GLYPH_PX;"
+    }
+  ]
+}

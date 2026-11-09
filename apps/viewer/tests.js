@@ -4424,22 +4424,6 @@
     // leader's node-side end on its own dot, its grid-side end on its boundary
     // row's seam. Every test below that touches geometry re-checks both ends.
 
-    // A tiny evaluator for a band boundary (a polyline, non-decreasing in x,
-    // vertical jumps allowed) so the tiling claim can be sampled rather than
-    // asserted at the breakpoints the code chose.
-    function profileY(profile, x) {
-      var y = profile[0][1];
-      for (var i = 1; i < profile.length; i++) {
-        var a = profile[i - 1], b = profile[i];
-        if (b[0] < x) { y = b[1]; continue; }
-        if (a[0] > x) break;
-        y = b[0] === a[0] ? b[1]
-          : a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]);
-        break;
-      }
-      return y;
-    }
-
     // Which PAIRS of leaders cross, strictly: a segment of one passes through
     // the interior of a segment of the other. A touch is not a crossing, and
     // neither is two leaders sharing the run into one seam (several
@@ -4475,44 +4459,7 @@
       return pairs;
     }
 
-    await test("leaderBands cuts the grid into one band per leader plus one, " +
-      "alternating, covering every row exactly once", function () {
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var bands = VA.leaderBands(plan);
-        eq(bands.length, plan.leaders.length + 1);
-        var at = 0;
-        bands.forEach(function (band, i) {
-          eq(band.index, i);
-          eq(band.parity, i % 2, "bands alternate");
-          eq(band.startRow, at, "band " + i + " starts where the last ended");
-          ok(band.endRow >= band.startRow, "a band never runs backwards");
-          at = band.endRow;
-        });
-        eq(at, plan.rows.length, "the last band reaches the bottom of the grid");
-        // A band's lower edge IS the leader that bounds it, named by id, and
-        // its rows are the ones that leader points above.
-        bands.forEach(function (band, i) {
-          eq(band.below, i === plan.leaders.length ? null : plan.leaders[i].id);
-          eq(band.above, i === 0 ? null : plan.leaders[i - 1].id);
-          if (band.below !== null) {
-            eq(band.endRow, plan.leaders[i].boundary,
-               "band " + i + " ends at its own leader's seam");
-          }
-        });
-
-        // Every row gets exactly one parity, and it is its band's.
-        var parity = VA.rowBandParity(plan);
-        eq(Object.keys(parity).length, plan.rows.length);
-        bands.forEach(function (band) {
-          for (var r = band.startRow; r < band.endRow; r++) {
-            eq(parity[plan.rows[r].id], band.parity, plan.rows[r].id);
-          }
-        });
-      });
-
-    await test("descending leaders cross nothing in either style, and the " +
-      "bands TILE the pane: adjacent bands share one edge and none folds over " +
-      "itself", function () {
+    await test("descending leaders cross nothing in either style", function () {
         // The configuration that used to cross (ISSUE_20260914_leaders_cross_
         // each_other_since_the_grid_was_centred.md): a grid pushed far enough
         // down the DAG that leaders above the centring point DESCEND. With
@@ -4520,10 +4467,7 @@
         // every later leader's horizontal run above its seam; with the
         // descending leaders' lanes handed round in reverse, and every angled
         // leader's slanted run starting at one x, nothing crosses
-        // (VA.leaderGeometry's comment carries the argument). The bands'
-        // running-max clamp is now a no-op on drawn geometry; it stays as the
-        // guarantee that a future crossing pinches a band rather than folding
-        // it.
+        // (VA.leaderGeometry's comment carries the argument).
         //
         // The witness is asserted first -- some leader's seam really is below
         // a later leader's dot -- or this test passes forever on a straight
@@ -4544,32 +4488,6 @@
                         gridOffset: centred.gridOffset + 60 };
 
         [null, crossed].forEach(function (positions) {
-          ["jogged", "angled"].forEach(function (style) {
-            var label = (positions ? "centred " : "top-aligned ") + style;
-            var geo = VA.leaderGeometry(TOPO.layout, plan, M, positions,
-              { style: style });
-            eq(geo.bands.length, plan.leaders.length + 1, label);
-            geo.bands.forEach(function (band, i) {
-              // One shared edge, not two that happen to agree.
-              if (i + 1 < geo.bands.length) {
-                ok(band.bottom === geo.bands[i + 1].top,
-                   label + ": bands " + i + " and " + (i + 1) + " share an edge");
-              }
-              for (var x = 0; x <= geo.width; x += 2) {
-                var top = profileY(band.top, x);
-                var bottom = profileY(band.bottom, x);
-                ok(bottom >= top - 1e-9,
-                   label + ": band " + i + " is inside out at x=" + x +
-                   " (" + top + " > " + bottom + ")");
-              }
-            });
-            // And the stack covers the whole SVG, top to bottom.
-            eq(geo.bands[0].top[0][1], 0, label);
-            eq(profileY(geo.bands[geo.bands.length - 1].bottom, geo.width),
-               (positions || VA.rowPositions(TOPO.layout, null, "uniform", M)).height,
-               label);
-          });
-
           // The witness: with the grid pushed down, some descending leader's
           // seam sits below a LATER leader's dot -- the configuration
           // walk-order lanes crossed on (the old repro's predicate). Top-
@@ -6172,13 +6090,33 @@
         eq(VA.edgeLengthValue(index.edges.base_thickness, "uniform"), null);
       });
 
-    await test("rowPositions in uniform mode reproduces the classic row pitch " +
-      "exactly — it is today's rendering, not a near miss", function () {
+    // The containers' label bands the store keeps before a row's slot
+    // (VA.containerLabelRoom): `before[i]` is every band up to and including
+    // row i's, `total` all of them. A store is the classic pitch plus these.
+    function labelBands(layout, topo, metrics) {
+      var run = 0;
+      var before = VA.containerLabelRoom(layout, topo, metrics || VA.RAIL_METRICS)
+        .map(function (r) { run += r.body + r.part + r.block; return run; });
+      return { before: before, total: run };
+    }
+
+    await test("rowPositions in uniform mode is the classic row pitch plus the " +
+      "containers' label bands, exactly — today's rendering, not a near miss", function () {
+        // A model with bodies keeps a band above each body's first row.
+        var two = twoBodyProjection();
+        var twoPos = VA.rowPositions(two.layout, two, "uniform", VA.RAIL_METRICS);
+        var twoBands = labelBands(two.layout, two);
+        ok(twoBands.total > 0, "a model with bodies keeps label bands, or this says nothing");
+        two.layout.rows.forEach(function (row, i) {
+          eq(twoPos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS) + twoBands.before[i],
+             "two bodies: " + row.id);
+        });
         var pos = VA.rowPositions(TOPO.layout, TOPO, "uniform", VA.RAIL_METRICS);
+        var bands = labelBands(TOPO.layout, TOPO);
         eq(pos.mode, "uniform");
-        eq(pos.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight);
-        TOPO.layout.rows.forEach(function (row) {
-          eq(pos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS), row.id);
+        eq(pos.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight + bands.total);
+        TOPO.layout.rows.forEach(function (row, i) {
+          eq(pos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS) + bands.before[i], row.id);
           eq(pos.byRow[row.row].floored, false, row.id);
         });
         // The keyed stores address every node and every edge by id.
@@ -6229,9 +6167,12 @@
               eq(slot.floored, false, mode + " " + row.id);
             }
           });
-          // The slots tile: total height is the sum of every slot, no gaps.
+          // The slots tile: total height is the sum of every slot and the
+          // label bands between them (VA.containerLabelRoom), nothing else.
           var sum = 0;
-          TOPO.layout.rows.forEach(function (row) {
+          var room = VA.containerLabelRoom(TOPO.layout, TOPO, M);
+          TOPO.layout.rows.forEach(function (row, i) {
+            sum += room[i].body + room[i].part + room[i].block;
             eq(pos.byRow[row.row].top, sum, mode + " row " + row.row + " top");
             sum += pos.byRow[row.row].height;
           });
@@ -6266,7 +6207,8 @@
         var pos = VA.rowPositions(mini.layout, mini, "absolute", VA.RAIL_METRICS);
         eq(pos.edges.e1.floored, true);
         eq(pos.edges.e2.floored, true);
-        eq(pos.height, mini.layout.rows.length * VA.RAIL_METRICS.rowHeight,
+        eq(pos.height, mini.layout.rows.length * VA.RAIL_METRICS.rowHeight +
+           labelBands(mini.layout, mini).total,
            "all-floored absolute mode is uniform-height, honestly marked");
       });
 
@@ -6438,7 +6380,7 @@
     // cannot see it. Each of these dies under a one-line revert of its own
     // wiring.
 
-    await test("the RENDER keeps the jog zone's bands on their parity, and a grid row " +
+    await test("the RENDER draws no band behind the leaders, and a grid row " +
       "wears no tint: its body is a bracket, drawn from VA.gridBraces", function () {
         // The demo declares no bodies, so this copy puts its first half in one
         // and the rest in another.
@@ -6448,19 +6390,11 @@
         topo.layout.rows.forEach(function (r, i) { r.body = i < half ? "front" : "back"; });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ topoProj: topo })); });
         var plan = VA.gridPlan(VA.spineRight(topo.layout), topo);
-        var bands = VA.leaderBands(plan);
 
-        // The SVG's own band polygons, in order, wearing the parity class.
-        var drawn = all(root, "path.rail__band");
-        eq(drawn.length, bands.length, "one polygon per band");
-        drawn.forEach(function (path, i) {
-          eq(path.getAttribute("data-band"), String(i));
-          ok(path.getAttribute("d"), "a band with no geometry is not a band");
-          eq(hasClass(path, "rail__band--b"), bands[i].parity === 1,
-             "band " + i + " wears its own parity");
-          eq(hasClass(path, "rail__band--a"), bands[i].parity === 0,
-             "band " + i + " wears its own parity");
-        });
+        // The zebra bands are gone (the_dag_and_grid_nest_coloured_bodies_
+        // and_compact_means_denser_rows): Jeff, 11-05 and 11-08.
+        eq(all(root, "path.rail__band").length, 0, "no band is drawn");
+        ok(all(root, "path.rail__leader").length > 0, "the leaders still are");
 
         // No row wears a tint (the_grid_fits_the_screen_and_its_brackets_say_
         // what_nests_in_what): a body that holds more than one part is a
@@ -6551,12 +6485,6 @@
           var d = hit.getAttribute("d");
           eq(Number(/ H ([-\d.]+)$/.exec(d)[1]), want,
              hit.getAttribute("data-leader-id"));
-        });
-        // And the bands widen with it rather than staying at the old width.
-        ok(all(root, "path.rail__band").length > 0);
-        all(root, "path.rail__band").forEach(function (band) {
-          ok(band.getAttribute("d").indexOf(String(want)) !== -1,
-             "band " + band.getAttribute("data-band") + " reaches the new edge");
         });
       });
 
@@ -7127,7 +7055,7 @@
             });
           });
         var uniform = VA.rowPositions(TOPO.layout, TOPO, "uniform", M, { plan: plan });
-        eq(uniform.dagHeight, rows.length * M.rowHeight);
+        eq(uniform.dagHeight, rows.length * M.rowHeight + labelBands(TOPO.layout, TOPO).total);
         rows.forEach(function (row) {
           eq(uniform.byRow[row.row].floored, false, row.id);
         });
@@ -7289,9 +7217,10 @@
         eq(miniPlan.leaders, []);
         var pos = VA.rowPositions(mini.layout, mini, "uniform", M,
           { budget: 0, plan: miniPlan });
-        eq(pos.dagHeight, 5 * M.rowHeight);
+        var miniBands = labelBands(mini.layout, mini).total;
+        eq(pos.dagHeight, 5 * M.rowHeight + miniBands);
         eq(pos.gridHeight, 2 * M.rowHeight);
-        eq(pos.gridOffset, (5 - 2) * M.rowHeight / 2);
+        eq(pos.gridOffset, ((5 - 2) * M.rowHeight + miniBands) / 2);
         eq(pos.offset, 0);
       });
 
@@ -9481,11 +9410,6 @@
         // between them are gone. Each still bounds one of the two rows.
         eq(plan.leaders.map(function (l) { return l.id + "@" + l.boundary; }),
            ["base_post_seat@1", "strut_end@1", "post_strut_bushing@2"]);
-        // ...and the bands built over them survive a zero-height one.
-        var bands = VA.leaderBands(plan);
-        eq(bands.length, plan.leaders.length + 1);
-        eq(bands[1].startRow, 1);
-        eq(bands[1].endRow, 1, "the band between the two co-seam leaders is empty");
       });
 
     // --- the joint + the worksheet (deliverable 4, viewer_v2_single_nav) -----
@@ -11249,12 +11173,21 @@
       "and only it", function () {
         var original = VA.RAIL_METRICS.rowHeight;
         try {
+          var before = {
+            block: VA.blockWidth({ pins: 3 }, VA.RAIL_METRICS),
+            target: VA.jointNodeTargetR(VA.RAIL_METRICS),
+          };
           var compact = VA.applyRowDensity("compact");
-          eq(compact.rowHeight, 16);
-          eq(VA.RAIL_METRICS.rowHeight, 16);
-          // Everything else in the metrics object -- gutter, dot radii -- is
-          // untouched: density is a row-height control, not a column one.
+          eq(compact.rowHeight, 18);
+          eq(VA.RAIL_METRICS.rowHeight, 18);
+          // Everything else in the metrics object -- gutter, dot radii, the
+          // pitch the marks are drawn at -- is untouched: density is a
+          // row-height control, not a column one and not a zoom
+          // (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows).
           eq(VA.RAIL_METRICS.gutter, 20);
+          eq(VA.RAIL_METRICS.drawPitch, 26);
+          eq(VA.blockWidth({ pins: 3 }, VA.RAIL_METRICS), before.block, "a block keeps its width");
+          eq(VA.jointNodeTargetR(VA.RAIL_METRICS), before.target, "a joint keeps its ring");
 
           var comfortable = VA.applyRowDensity("comfortable");
           eq(comfortable.rowHeight, 26);
@@ -13157,7 +13090,7 @@
         eq(body.edges, { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1" },
            "a gap is in no body, so it keeps the neutral ink");
         eq([body.nodes.a1, body.nodes.b3], ["ovl ovl-b0", "ovl ovl-b1"]);
-        eq(body.legend.map(function (l) { return l.label; }), ["body a", "body b"]);
+        eq(body.legend, [], "the containers name the bodies in their inks; no key repeats them");
         var p = twoBodyProjection();
         p.bodies[1].parts = ["pb", "pc"];
         p.edges[3].part = "pc";
@@ -13228,14 +13161,22 @@
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "never chosen");
+        // One colour per body by default (the_dag_and_grid_nest_coloured_
+        // bodies_and_compact_means_denser_rows): Colour by Body, parts tinted,
+        // the Bold palette -- under a key the old "None" entries do not reach.
+        eq([VA.DAG_VIEW_DEFAULTS.colourBy, VA.DAG_VIEW_DEFAULTS.groupFill,
+            VA.DAG_VIEW_DEFAULTS.palette], ["body", "parts", "bold"]);
+        data["tolstack.viewer.dagView"] = JSON.stringify({ colourBy: "none", groupFill: "off" });
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "an entry under the old key is not read");
         var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide",
-                       partDrawing: "rails" };
+                       partDrawing: "rails", palette: "cvd" };
         VA.writeDagView(store, chosen);
         eq(VA.readDagView(store), chosen);
         data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "rainbow", groupFill: "parts",
-                                                 graphWidth: "huge", partDrawing: "boxes" });
-        eq(VA.readDagView(store), { colourBy: "none", groupFill: "parts", graphWidth: "narrow",
-                                    partDrawing: "blocks" });
+                                                 graphWidth: "huge", partDrawing: "boxes",
+                                                 palette: "neon" });
+        eq(VA.readDagView(store), { colourBy: "body", groupFill: "parts", graphWidth: "narrow",
+                                    partDrawing: "blocks", palette: "bold" });
         data[VA.DAG_VIEW_KEY] = "{not json";
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
         eq(VA.readDagView(null), VA.DAG_VIEW_DEFAULTS);
@@ -13265,7 +13206,7 @@
         }
       });
 
-    await test("the view popover offers the four settings over their own tables and " +
+    await test("the view popover offers the five settings over their own tables and " +
       "reports a change; the overlay's key is beside it, and absent with none", function () {
         var proj = twoBodyProjection();
         var seen = [];
@@ -13273,7 +13214,7 @@
           return render(function (r) {
             VA.renderTopoToolbar(r, { mode: "topology", topologyId: proj.id, studyId: null }, proj, {
               dagView: { colourBy: colourBy, groupFill: "off", graphWidth: "narrow",
-                         partDrawing: "blocks",
+                         partDrawing: "blocks", palette: "bold",
                          schemes: VA.availableColourSchemes(options),
                          legend: VA.dagOverlay(colourBy, proj, options).legend },
               onDagView: function (k, v) { seen.push([k, v]); },
@@ -13283,16 +13224,20 @@
         var tb = toolbar("body", null);
         var selects = all(tb, "select");
         eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }),
-           ["colourBy", "groupFill", "graphWidth", "partDrawing"]);
+           ["colourBy", "palette", "groupFill", "graphWidth", "partDrawing"]);
         eq(all(selects[0], "option").map(function (o) { return o.value; }),
            VA.availableColourSchemes(null).map(function (s) { return s.id; }));
-        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
-        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
-        eq(all(selects[3], "option").map(function (o) { return o.value; }), VA.PART_DRAWING_ORDER);
-        selects[2].value = "wide";
-        selects[2].onchange();
-        eq(seen, [["graphWidth", "wide"]]);
-        eq(all(tb, "span.tvovl__item").length, 2, "one key entry per body");
+        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.PALETTE_ORDER);
+        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
+        eq(all(selects[3], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
+        eq(all(selects[4], "option").map(function (o) { return o.value; }), VA.PART_DRAWING_ORDER);
+        selects[3].value = "wide";
+        selects[3].onchange();
+        selects[1].value = "cvd";
+        selects[1].onchange();
+        eq(seen, [["graphWidth", "wide"], ["palette", "cvd"]]);
+        eq(all(tb, "span.tvovl__item").length, 0, "Body needs no key: its containers name it");
+        eq(all(toolbar("sourcing", null), "div.tvovl").length, 1, "a scheme with words has its key");
         eq(all(toolbar("none", null), "div.tvovl").length, 0);
         ok(all(all(toolbar("none", { contributions: {} }), "select")[0], "option")
           .some(function (o) { return o.value === "contribution"; }), "kinematic page");
@@ -14092,15 +14037,22 @@
         eq([by.feather.kind, by.feather.level, by.feather.start, by.feather.end],
            ["chain", 2, 4, 7]);
         eq([by.anchor.gap, by.anchor.level, by.anchor.start, by.anchor.end], [true, 2, 8, 8]);
-        // The mount body spans two parts, so it is bracketed; a one-part body
-        // is not, and its part boundary is a rule.
+        // Every body is bracketed and every part inside it too -- a one-part
+        // body is two brackets, one inside the other (the_dag_and_grid_nest_
+        // coloured_bodies_and_compact_means_denser_rows).
         eq([by.mount.kind, by.mount.level, by.mount.start, by.mount.end], ["body", 3, 5, 7]);
-        eq(by.arm, undefined);
-        eq(model.rules, [{ row: 2, level: 2 }, { row: 7, level: 4 }]);
+        eq([by.arm.kind, by.arm.level, by.arm.start, by.arm.end], ["body", 2, 1, 1]);
+        eq([by["part:arm"].kind, by["part:arm"].level, by["part:arm"].start,
+            by["part:arm"].end, by["part:arm"].body], ["part", 3, 1, 1, by.arm]);
+        eq([by["part:mount_a"].level, by["part:mount_a"].start, by["part:mount_a"].end],
+           [4, 5, 6]);
+        eq([by["part:mount_b"].level, by["part:mount_b"].start, by["part:mount_b"].end],
+           [4, 7, 7]);
+        eq(model.rules, undefined, "a part is a bracket now, never a rule");
         eq(model.braces.map(function (b) { return b.level; }),
            model.braces.map(function (b) { return b.level; }).slice().sort(),
            "outermost first");
-        eq(model.cover[6], 4, "a row inside the body sits inside four brackets");
+        eq(model.cover[6], 5, "a row inside a part of the body sits inside five brackets");
         // The pixels: an outer bracket is wider than every bracket it holds,
         // and a cap's curl stays out of a row's text.
         var geo = VA.braceGeometry(model, 26, 900);
@@ -14109,7 +14061,13 @@
         };
         ok(top("study").width > top("position").width &&
            top("position").width > top("feather").width &&
-           top("feather").width > top("mount").width, "wider the further out");
+           top("feather").width > top("mount").width &&
+           top("mount").width > top("part:mount_a").width, "wider the further out");
+        // A part's bracket starts right of its body's label strip, and the
+        // row's words right of the part's.
+        eq(top("part:mount_a").left, top("mount").left + VA.GRID_BRACE.body);
+        eq(geo.indent[5], top("part:mount_a").left + VA.GRID_BRACE.part);
+        eq(geo.labels.filter(function (l) { return l.id === "mount"; })[0].text, "mount");
         ok(top("study").left < top("linkage").left, "inset one level");
         ok(top("linkage").top > top("study").top, "two caps on one edge step apart");
         ok(geo.curl <= (26 - VA.GRID_BRACE.text) / 2, "the curl clears a row's text");
@@ -16115,33 +16073,10 @@
             gapGroups.forEach(function (g) { eq(g.label, VA.GAP_COMPONENT_LABEL); });
           });
 
-        await test("[real] on pitch_system, a band polygon wears its own leader band's " +
-          "parity and a rendered row its own body's tint, value for value", function () {
-            // The deliverable's own claim, on the document it was asked for:
-            // "the band BETWEEN two adjacent leaders and the grid rows that
-            // band feeds share one alternating tint". Measured as the two
-            // things a reader actually sees -- the parity class on each <tr>
-            // and the parity class on each band polygon -- against the bands
-            // computed from the plan, row by row and band by band.
+        await test("[real] on the pitch linkage the DAG draws no band, and a rendered " +
+          "row wears no tint: a body is a bracket over its rows", function () {
             var layout = VA.spineRight(livePitch.layout);
             var plan = VA.gridPlan(layout, livePitch);
-            var bands = VA.leaderBands(plan);
-            eq(bands.length, 64, "63 leaders cut the grid into 64 bands");
-            // The product graph's own band boundaries, as grid row indices
-            // (re-measured 2026-10-26 for the fold and again for the
-            // body-major walk, and 2026-11-03 when the piston body joined the
-            // feather stop's chain, and 2026-11-04 after b4b641db's slide re-author,
-            // whose bands this string had not followed). The first leader points at row
-            // 0, so the first band is empty, and several bands carry more
-            // than one row.
-            eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
-               "0-0 0-1 1-2 2-3 3-4 4-5 5-6 6-7 7-8 8-9 9-13 13-14 14-15 15-16 " +
-               "16-18 18-19 19-20 20-21 21-22 22-23 23-25 25-27 27-30 30-31 31-32 " +
-               "32-34 34-38 38-39 39-40 40-44 44-45 45-47 47-50 50-52 52-53 53-55 " +
-               "55-56 56-57 57-58 58-62 62-63 63-64 64-65 65-66 66-67 67-68 68-69 " +
-               "69-73 73-74 74-75 75-76 76-85 85-86 86-87 87-88 88-91 91-92 92-93 " +
-               "93-94 94-95 95-96 96-97 97-98 98-99");
-
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
@@ -16149,17 +16084,12 @@
                 onSelect: function () {},
               });
             });
-            var drawn = all(root, "path.rail__band");
-            eq(drawn.length, bands.length);
+            eq(all(root, "path.rail__band").length, 0, "no band is drawn");
             var rows = all(root, "tr.tvrow");
             eq(rows.length, plan.rows.length);
 
-            // The band polygons keep their parity; a ROW wears no tint since
-            // the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what:
-            // a body of more than one part is a bracket over its rows.
-            bands.forEach(function (band, i) {
-              eq(hasClass(drawn[i], "rail__band--b") ? 1 : 0, band.parity, "band " + i);
-            });
+            // A ROW wears no tint since the_grid_fits_the_screen_and_its_
+            // brackets_say_what_nests_in_what: a body is a bracket over its rows.
             rows.forEach(function (row, r) {
               ok(!/tvrow--body-|tvrow--divide-|tvrow--band-|conf--/.test(row.className),
                  "row " + r + " (" + row.getAttribute("data-id") + ") wears no tint");
@@ -16184,8 +16114,7 @@
         var leaderKinematic = await real.readKinematic();
 
         await test("[real] no two leaders cross on any committed topology, at " +
-          "every density, length mode and leader style, and the bands still " +
-          "tile the pane", function () {
+          "every density, length mode and leader style", function () {
             // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_
             // centred.md, fixed by descending_leaders_take_a_path_that_cannot_
             // cross (2026-10-30). This test asserted the opposite until then:
@@ -16265,17 +16194,6 @@
                         });
                         strictLeaderCrossings(geo.leaders).forEach(function (pair) {
                           bad.push(label + ": " + pair + " cross");
-                        });
-                        geo.bands.forEach(function (band, i) {
-                          if (i + 1 < geo.bands.length && band.bottom !== geo.bands[i + 1].top) {
-                            bad.push(label + ": bands " + i + " and " + (i + 1) + " have two edges");
-                          }
-                          for (var x = 0; x <= geo.width; x += 4) {
-                            if (profileY(band.bottom, x) < profileY(band.top, x) - 1e-9) {
-                              bad.push(label + ": band " + i + " is inside out at x=" + x);
-                              break;
-                            }
-                          }
                         });
                         visited[topoProj.id] = true;
                         leadersSeen += geo.leaders.length;
