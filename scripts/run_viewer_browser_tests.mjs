@@ -14596,18 +14596,21 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       return false;
     }
   };
-  // What the scene draws, read until three reads 300ms apart agree.
+  // What the scene draws, read until three reads 300ms apart agree with no
+  // mesh load in flight: on a loaded box the loads pause long enough for
+  // three reads to agree on a scene half drawn ("4 meshes drawn for 15").
   const drawnNow = () => inPane((w) => {
     const view = w.AnnotateApp.exec(["scene-view"]);
-    return view.filter((r) => r.visible).map((r) => ({ sha: r.sha256,
-      at: w.__scene.drawnOccurrenceKeys(r.sha256).length })).sort((a, b) => (a.sha < b.sha ? -1 : 1));
+    return { loading: w.__scene._loading.size, drawn: view.filter((r) => r.visible).map((r) => ({ sha: r.sha256,
+      at: w.__scene.drawnOccurrenceKeys(r.sha256).length })).sort((a, b) => (a.sha < b.sha ? -1 : 1)) };
   });
   const drawnSettled = async () => {
     let last = null, same = 0, now = null;
     const end = Date.now() + 120000;
     while (Date.now() < end) {
-      now = JSON.stringify(await drawnNow());
-      same = now === last ? same + 1 : 0;
+      const read = await drawnNow();
+      now = JSON.stringify(read.drawn);
+      same = now === last && read.loading === 0 ? same + 1 : 0;
       last = now;
       if (same >= 2) break;
       await page.waitForTimeout(300);
@@ -14625,6 +14628,11 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
       return w && w.AnnotateApp && w.__scene && w.__scene.listOpenParts().length > 0;
     }, null, 120000);
+    // The whole model, or two minutes: then settled, and counted exactly.
+    await until((n) => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.AnnotateApp.exec(["scene-view"]).filter((r) => r.visible).length >= n;
+    }, model.parts.length, 120000);
     const rest = await drawnSettled();
     const pinned = (model.parts || []).filter((p) => p.occurrence).length;
     console.log(`      [${label}] at rest: ${rest.length} meshes drawn for ${model.parts.length} parts ` +
