@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "rowPositions in uniform mode is the classic row pitch plus the containers' label bands, exactly — today's rendering, not a near miss",
+  "mutations": [
+    {
+      "contract": "The store keeps each container's label band before its first row.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Declared with the guard by handoff the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows (2026-11-08). No band in the store: every row after a body's first sits 14px higher than the label band says.",
+      "file": "apps/viewer/topology.js",
+      "find": "      y += gaps[i];",
+      "replace": "      y += 0;"
+    }
+  ]
+}

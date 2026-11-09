@@ -5319,6 +5319,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         part: n("rect.tv__partfield") + n("rect.tv__block") + n("text.tv__partname") +
           n("div.tvbrace--part") + n("div.tvbrace__label--part"),
         marks: n("svg.tv__rails circle.rail__dot") + n("svg.tv__rails .rail__bar"),
+        dagBody: n("rect.tv__bodyfield:not(.tv__pill__shape)"), gridBody: n("div.tvbrace--body"),
+        dagPart: n("rect.tv__partfield") + n("rect.tv__block"), gridPart: n("div.tvbrace--part"),
         pitch: steps.length ? Math.min(...steps) : null,
         dotR: Array.from(new Set(dots.map((d) => d.getAttribute("r")))).sort().join(","),
         dagInks: inks("rect.tv__bodyfield:not(.tv__pill__shape)", "stroke"),
@@ -5367,8 +5369,8 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       off: [m.noParts.part, m.noBodies.body, m.neither.part + m.neither.body],
       inks: m.all.dagInks.length })));
     push("[real] on both models no band is drawn, and every body and every part has an outline",
-      onBoth((m) => m.all.topology === m.topoId && m.all.bands === 0 && m.all.body > 0 &&
-        m.all.part > 0));
+      onBoth((m) => m.all.topology === m.topoId && m.all.bands === 0 && m.all.dagBody > 0 &&
+        m.all.gridBody > 0 && m.all.dagPart > 0 && m.all.gridPart > 0));
     push("[real] on both models the DAG's body outlines and the grid's body brackets wear the same inks",
       onBoth((m) => m.all.dagInks.length > 1 &&
         JSON.stringify(m.all.dagInks) === JSON.stringify(m.all.gridInks)));

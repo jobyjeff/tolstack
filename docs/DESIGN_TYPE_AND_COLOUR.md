@@ -28,7 +28,7 @@
 | An edge's ink and its two weights, lit and unlit | `apps/viewer/topology.css` `:root`, `--edge-ink`, `--edge-lit-w`, `--edge-unlit-w`, and a gap's `--edge-gap-ink`/`--edge-gap-dash` — with no colour overlay, the only channel a DAG edge has; confidence is the grid chip's | `scripts/run_viewer_browser_tests.mjs` (one ink, one gap ink, two weights, measured) |
 | The colour overlays ("colour by") | `VA.COLOUR_SCHEMES` (`apps/viewer/topology.js`) — one table, each scheme mapping an edge and a node to a token; the tokens in `topology.css` `:root`: `--tv-body-ink-*` (body and part), `--ovl-if-*` (interface type), `--ovl-seq-*` (contribution), and the provenance hues themselves (sourcing). An overlay recolours a mark's ink only; weight stays lit/unlit and text never wears it | `apps/viewer/tests.js` (the scheme table, the ink on bar, dot and glyph) |
 | A group's border and fill | `topology.css` `:root`, `--group-*`, one hue per kind of group (body, part, chain study, kinematic study); a fill only where the view's group fill asks (`VA.GROUP_FILLS`), drawn under every border | `apps/viewer/tests.js` (no fill by default; fills under borders) |
-| The body tints | `apps/viewer/topology.css` `:root`, `--tv-body-*` — region tints like the leader bands, low chroma and never the accent; a DAG group's fill (`.tv__fill--t*`) reads them, and `--tv-body-ink-*` is the same sixteen hues at stroke strength (the body overlay, a part's solid fill, the 3D pane's body colour). Sixteen, **assigned**: a body's tint is its place in its topology's `bodies[]` (`VA.bodyTint`, `VA.BODY_TINTS`), so the first sixteen bodies never share one; neighbouring slots are far apart in hue | `apps/viewer/tests.js` (the live model's bodies fit the count) |
+| The body inks | `apps/viewer/topology.css` `:root`, `--tv-body-ink-*` (the Bold palette) and its `html[data-palette="cvd"]` block (Colour-blind, Okabe–Ito first) — **one colour per body, everywhere it is drawn**: its DAG container and name, its parts' containers (a lighter step of the same ink) and their tint (`--tv-part-tint`), its grid bracket and label, and the body overlay. Sixteen, **assigned**: a body's slot is its place in its topology's `bodies[]` (`VA.bodyTint`, `VA.BODY_TINTS`). No leader bands: they were removed on 2026-11-08 | `apps/viewer/tests.js` (the live model's bodies fit the count); `scripts/run_viewer_browser_tests.mjs` (the DAG and the grid wear the same inks) |
 | The grid's brackets | `VA.GRID_BRACE` (inset per level, cap step, curl) — **JS**, row geometry like `VA.RAIL_METRICS`; the hue per group kind is the DAG's `--group-*`, read by `.tvbrace--*` in `apps/viewer/topology.css`. A grid row's background carries nothing: no tint, no divider, no wash | `apps/viewer/tests.js` (the brackets nest; no row is tinted), `scripts/run_viewer_browser_tests.mjs` (no row painted, every bracket drawn) |
 
 | The scene tree's indent step, twisty and glyph columns | `apps/viewer/topology.css` `.navtree__scene`, `--tree-step`, `--tree-twisty`, `--tree-mark` | — (one declaration each; every nested level reads them) |
@@ -140,6 +140,11 @@ answer is not obvious from the fill rule alone:
   provenance **hue**, lightened by the same neutral halo as everything else on
   its line rather than recoloured. The declarations and the argument are in
   `apps/viewer/topology.css`'s "one hover state, two surfaces".
+
+**One colour per body, in the DAG and the grid alike** (2026-11-08,
+the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows): a body
+and its parts are nested containers in the body's ink, from one of two
+palettes, and the paragraph below is history.
 
 **The grid's structure is drawn by background and line weight, never by
 hue** (2026-11-03, the_kinematic_grid_is_a_stack_of_sub_stacks). A grid row's

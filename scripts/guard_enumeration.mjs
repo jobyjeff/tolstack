@@ -279,7 +279,11 @@ export const DECLARED_GUARDS = {
   // count is integration's 669 and the names digest is re-measured on the merge.
   // Review merge of model_v2_is_the_end_stop_linkage_... with that (2026-11-08):
   // integration's 669 (names swapped) + this branch's 3, digest re-measured.
-  fast: { declared: 672, enrollable: 672, names: "c6b7e89ec8b5" },
+  // the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows
+  // (2026-11-08): -1 -- the leader bands are gone, and with them the
+  // leaderBands unit test; five band-asserting guards were reworded (the
+  // three with specs re-keyed) and one rowPositions guard renamed, with a spec.
+  fast: { declared: 671, enrollable: 671, names: "6dd791babb88" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -503,7 +507,12 @@ export const DECLARED_GUARDS = {
   // beside the strip. Each carries a spec.
   // Merged with integration again before hand-back (review round 1 rework,
   // 2026-11-06): integration's 846 + this branch's 9 = 855, measured.
-  browser: { declared: 857, enrollable: 824, names: "2e18d19c3891" },
+  // the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows
+  // (2026-11-08): +4 in "the DAG zoom, Fit and the grid header" -- no band and
+  // both layers outlined, one ink DAG and grid, Compact keeps pitch and
+  // radius, Groups off means gone; each carries a spec. Three band checks
+  // reworded to say no band is drawn (they had no spec before, nor now).
+  browser: { declared: 861, enrollable: 828, names: "a89b06eac647" },
 };
 
 
