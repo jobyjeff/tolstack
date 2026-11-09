@@ -6,8 +6,9 @@
 // all — a hosted visitor has no repo to grant — and the page says the data is
 // not published here instead. See chooseTransport for the whole rule.
 //
-// Two mount shapes are known to exist, and BOTH are probed, in this order
-// (measured 2026-09-09, HANDOFF_20260909_viewer_http_transport):
+// Two mount shapes are known to exist, and BOTH are probed -- the one the
+// page's path names first (VA.httpCandidateOrder) -- (measured 2026-09-09,
+// HANDOFF_20260909_viewer_http_transport):
 //
 //   1. sibling-data-mount — drawing-checker's own mounts
 //      (webui/analyses.py::mount_tolstack): the page is served under
@@ -131,6 +132,17 @@
     return this._fetch(this._url(relative), init).catch(function () { return null; });
   };
 
+  // Which candidate to try first: the one the page's own path says it is on
+  // (the_demo_path_reads_cleanly_on_a_projector). A page at the repo's own
+  // `apps/<app>/` is under a repo-root server, so it starts there, and every
+  // other page starts at the sibling mount -- either way the probe's first
+  // request is the one this server answers, and a normal load logs no 404.
+  // Both are still tried: a path is a hint, the answer is the fetch.
+  VA.httpCandidateOrder = function (pathname) {
+    var repoRoot = /\/apps\/[^/]+\/[^/]*$/.test(String(pathname || ""));
+    return repoRoot ? [CANDIDATES[1], CANDIDATES[0]] : CANDIDATES.slice();
+  };
+
   // Try each candidate in order; the first whose `topologies.json` answers
   // `ok` AND a JSON content-type wins. Neither candidate answering (a served
   // origin with nothing built yet, or a plain file server with no mount at
@@ -138,8 +150,9 @@
   // VA.chooseTransport decides what that means for the page, which depends on
   // the page's protocol and is none of this file's business.
   HttpAdapter.prototype.init = async function () {
-    for (var i = 0; i < CANDIDATES.length; i++) {
-      var candidate = CANDIDATES[i];
+    var order = VA.httpCandidateOrder(this._pathname);
+    for (var i = 0; i < order.length; i++) {
+      var candidate = order[i];
       var res = await this._fetchQuiet(candidate.dataDir + "/topologies.json",
         { cache: "no-store" });
       if (res && res.ok) {

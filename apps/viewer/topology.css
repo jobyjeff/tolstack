@@ -632,10 +632,15 @@ body { display: flex; flex-direction: column; }
 
 /* --- the rails ---------------------------------------------------------- */
 
-.rail { stroke-width: 2; }
+/* The line weights (the_demo_path_reads_cleanly_on_a_projector, 2026-11-09:
+   Jeff, "line weights are still very thin", read at 1920 for a projector): a
+   bar 4 (--edge-lit-w) > a rail 3 > a leader 2, either kind > a body's
+   container 2 > a part's 1.5 -- and each hover, lead and selected state one
+   step above its own base, so it still reads as a change. */
+.rail { stroke-width: 3; }
 .rail--even { stroke: var(--rail-even); }
 .rail--odd { stroke: var(--rail-odd); }
-.rail__link { fill: none; stroke: var(--rail-even); stroke-width: 2; }
+.rail__link { fill: none; stroke: var(--rail-even); stroke-width: 3; }
 .rail__link--close { stroke: var(--rail-dim); stroke-dasharray: 3 3; }
 
 /* An edge's bar IS the dimension: a segment spanning exactly its row. It says
@@ -748,10 +753,10 @@ body { display: flex; flex-direction: column; }
    body the current study does not reach is a dim border. pointer-events
    off: a field is wayfinding; a body's NAME is the one control (it folds
    the body). The weights are modest -- Jeff ranked contrast above weight. */
-.tv__bodyfield { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 1.5;
+.tv__bodyfield { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 2;
   pointer-events: none; }
 .tv__bodyfield--flat { stroke-opacity: .35; }
-.tv__partfield, .tv__block { fill: none; stroke-width: 1.25; pointer-events: none;
+.tv__partfield, .tv__block { fill: none; stroke-width: 1.5; pointer-events: none;
   stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
 .tv__partfield--flat, .tv__block--flat { stroke-opacity: .35; }
 /* A part's name: its drawing number (or display name), top-left inside it. */
@@ -798,7 +803,7 @@ body { display: flex; flex-direction: column; }
 /* A body is one container: where the walk splits it into fields, a bridge in
    the body border's hue runs from each field to the next (VA.bodyBridges);
    the body is named on one field and its others carry a muted repeat. */
-.tv__bodybridge { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 1.5;
+.tv__bodybridge { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 2;
   stroke-dasharray: 2 2; stroke-linecap: butt; pointer-events: none; }
 .tv__bodybridge--flat { stroke-opacity: .35; }
 .tv__bodyname { font-size: var(--t-micro); fill: var(--fill-ink, var(--muted)); cursor: pointer;
@@ -848,11 +853,11 @@ body { display: flex; flex-direction: column; }
 /* --- the leaders (viewer_leader_line_grid, 2026-09-10) --------------------
    One jogged, GD&T-ordinate-style line per NON-internal node: dot -> jog zone
    -> the seam between the two grid rows the interface separates. Neutral and
-   thin — a leader is wayfinding, not data, so it must never compete with a
+   light — a leader is wayfinding, not data, so it must never compete with a
    bar's provenance colour. The hit path is the same invisible-but-wide trick
-   .rail__barhit uses, so a 1.5px line is still hoverable and clickable. */
+   .rail__barhit uses, so a 2px line is still hoverable and clickable. */
 .rail__leader {
-  fill: none; stroke: var(--rail-dim); stroke-width: 1.5;
+  fill: none; stroke: var(--rail-dim); stroke-width: 2;
   stroke-linejoin: round;
 }
 .rail__leaderhit {
@@ -860,7 +865,7 @@ body { display: flex; flex-direction: column; }
   pointer-events: stroke; cursor: pointer;
 }
 .rail__leader--on { stroke: var(--leader-ink); }
-.rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
+.rail__leader--selected { stroke: var(--accent); stroke-width: 2.5; }
 /* Something else is selected: this leader steps back (VA.selectedLeaderNodes,
    the rule the leaders across the seam share). */
 .rail__leader--dim { opacity: .28; }
@@ -877,13 +882,13 @@ body { display: flex; flex-direction: column; }
   pointer-events: none; z-index: 4; overflow: hidden;
 }
 .seam__leader {
-  fill: none; stroke: var(--leader-ink); stroke-width: 1.5;
+  fill: none; stroke: var(--leader-ink); stroke-width: 2;
   stroke-linejoin: round;
 }
 /* Its end on the scene is outlined, like the DAG's own dots. */
-.seam__end { fill: var(--panel); stroke: var(--leader-ink); stroke-width: 1.5; }
-.seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 2.5; }
-.seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2; }
+.seam__end { fill: var(--panel); stroke: var(--leader-ink); stroke-width: 2; }
+.seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 3; }
+.seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2.5; }
 .seam__leader--dim, .seam__end--dim { opacity: .28; }
 
 /* --- the resize grips (viewer_leader_grid_legibility) --------------------
@@ -999,8 +1004,8 @@ body { display: flex; flex-direction: column; }
 .rail__hit--hot, .rail__linkhit--hot, .rail__barhit--hot,
 .rail__leaderhit--hot { stroke: var(--rail-halo); }
 
-.rail--hot { stroke: var(--rail-hot); stroke-width: 3; }
-.rail__link--hot { stroke: var(--rail-hot); stroke-width: 3; }
+.rail--hot { stroke: var(--rail-hot); stroke-width: 4; }
+.rail__link--hot { stroke: var(--rail-hot); stroke-width: 4; }
 /* The bar keeps its one ink and its dash pattern; what moves is the
    weight. `--on` (a lit edge) is `--edge-lit-w`, so hot sits above it and lead
    above that, and a lit bar under the pointer still reads as both.
@@ -1016,8 +1021,8 @@ body { display: flex; flex-direction: column; }
 .rail__dot--hot { stroke-width: 3; }
 .rail__dot--lead { stroke-width: 3.5; }
 .rail__leader--hot:not(.rail__leader--selected) { stroke: var(--rail-hot); }
-.rail__leader--hot { stroke-width: 2.5; }
-.rail__leader--lead { stroke-width: 3; }
+.rail__leader--hot { stroke-width: 3; }
+.rail__leader--lead { stroke-width: 3.5; }
 
 /* Under Colour by Body a row wears its body's ink, faintly, as a cell
    IMAGE -- so the hover and lead tints below, which are cell COLOURS, layer

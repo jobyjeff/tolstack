@@ -1349,6 +1349,26 @@
           "HTTP tier fixture");
       });
 
+      await test("the probe's first request is the candidate the page's path " +
+        "names, so a normal load on either mount asks for nothing it 404s on",
+        async function () {
+          // the_demo_path_reads_cleanly_on_a_projector: a repo-root page asked
+          // the sibling mount's ../data first and logged a 404 on every load.
+          var first = async function (pathname) {
+            var asked = [];
+            var adapter = new VA.HttpAdapter({ pathname: pathname,
+              fetchImpl: function (url, init) {
+                asked.push(url);
+                return fetch(httpFixture.dataOrigin + url, init);
+              } });
+            eq(await adapter.init(), VA.STATE.READY);
+            return asked[0];
+          };
+          eq(await first("/apps/viewer/topology.html"), "/data/projections/viewer/topologies.json");
+          eq(await first("/apps/annotate/index.html"), "/data/projections/viewer/topologies.json");
+          eq(await first("/tolstack/viewer/topology.html"), "/tolstack/data/topologies.json");
+        });
+
       await test("neither candidate resolving is DISCONNECTED, not an error", async function () {
         var adapter = httpAdapter("/nowhere/page.html", httpFixture.emptyOrigin);
         eq(await adapter.init(), VA.STATE.DISCONNECTED);
