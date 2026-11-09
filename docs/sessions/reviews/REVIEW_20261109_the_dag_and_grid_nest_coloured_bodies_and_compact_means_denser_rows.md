@@ -177,3 +177,14 @@ result is appended below.
 I added one entry to `docs/prompts/REVIEW_AGENT.md` under Recurring bugs: when a
 diff flips a view setting's default, grep for the sentences and issues that
 leaned on the old default.
+
+## Addendum, after landing: the two capped guards
+
+After `integration` was fast-forwarded to `de5255f0`, I ran each guard alone with
+`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack/data/scratch/nested_bodies/repo --only "<guard>"`:
+
+- `[real] on both models Parts off removes every part outline, Bodies off every body outline, and both off leaves the nodes and bars`: **WITNESSED** (5m55s).
+- `[real] on both models the DAG's body outlines and the grid's body brackets wear the same inks`: **WITNESSED** (5m48s).
+
+All four of this handoff's new browser guards have now been seen failing under
+their mutation.
