@@ -50,3 +50,23 @@ than the projection.
 
 Found while building model v2's 3D shots: v2 reads v1's bindings through
 `ids_from`, and there were none to read.
+
+## 2026-11-08 — fixed on `handoff/the_bindings_projection_folds_the_events_jeff_accepted`
+
+- **Cause confirmed.** Every annotator write numbered its seq off the
+  projection snapshot it loaded plus its own session, never off the folder.
+  The 2026-11-06 session ran the pre-`36bc255c` code
+  (`seq: filenames.length + 1` over `built_from_events`), against a projection
+  that held 55 events while 62 were on disk, so it took 56-59. Its files are
+  named `0001_`… for the same reason: that code counted only this session's
+  own numbered filenames. The current `AA.nextEventSeq` still read only the
+  projection and the session. It now also reads the seq of every event in the
+  folder (`listFeatureIdentityEventSeqs`, on the folder, memory and HTTP
+  adapters).
+- **Both duplicate answers agree, so this is not a `needs: jeff`.** There are
+  four pairs, not one: 2026-11-06 accepts 56/59 (pitch link `to`/`from`) and
+  57/58 (tan link `from`/`to`) were each re-accepted on 2026-11-08 as 68/69 and
+  70/71. Each pair names the same proposal, face, end and reviewer, with no
+  note, so the fold keeps the first and records the second as a repeat.
+- `bindings.json` in the main checkout went from 0 to 8 bindings. The event log
+  is byte-identical before and after.
