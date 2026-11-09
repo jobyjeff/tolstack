@@ -1128,7 +1128,7 @@
   // topped up to `room` where a short row pitch leaves less. Pixels, not
   // rows: the band is the same at either density. `minWidth` is the narrowest
   // a block is drawn, so a drawing number fits on it.
-  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, minWidth: 68 };
+  VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, minWidth: 80 };
 
   // A part container's name: its display name when the record has one, else
   // its drawing number, else its name.
@@ -4184,6 +4184,14 @@
         var f = field(span, pad - 3, 3, "part");
         f.part = span.part;
         f.body = span.body;
+        // As wide as its label needs (VA.CONTAINER_LABEL.minWidth), so a
+        // one-column part still says its number; its body widens to hold it.
+        f.x2 = Math.max(f.x2, f.x1 + VA.CONTAINER_LABEL.minWidth);
+        out.bodies.forEach(function (b) {
+          if (b.body === f.body && b.start <= f.end && b.end >= f.start) {
+            b.x2 = Math.max(b.x2, f.x2 + 3);
+          }
+        });
         return f;
       });
     // The study groups, one entry per `options.groups` item (VA.studyGroups):

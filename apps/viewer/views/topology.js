@@ -3204,7 +3204,7 @@
   // down its rows; a part's brace starts right of that strip and its number
   // fills a `part`-wide one. A row's first words start right of the
   // innermost label strip that holds it (`indent`).
-  VA.GRID_BRACE = { inset: 7, step: 3, text: 14, curlMax: 6,
+  VA.GRID_BRACE = { inset: 7, step: 3, text: 14, curlMax: 6, line: 13,
                     body: BRACE_STRIPS.body, part: BRACE_STRIPS.part };
 
   VA.braceGeometry = function (model, rowHeight, width) {
@@ -3237,12 +3237,16 @@
       // (a body's or a part's), or just inside its stub.
       var strip = b.kind === "body" ? g.body : b.kind === "part" ? g.part : g.inset;
       for (var r = b.start; r <= b.end; r++) indent[r] = Math.max(indent[r] || 4, x + strip);
+      // A label starts on its brace's first row, on that row's text line;
+      // a body's wraps down as many lines as its rows hold, a part's is one.
       if (b.label && (b.kind === "body" || b.kind === "part")) {
+        var line = Math.min(g.line, rowHeight - 2);
+        var lines = b.kind === "body"
+          ? Math.max(1, Math.floor((rows(b) * rowHeight - (rowHeight - line)) / g.line)) : 1;
         labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label,
-                      left: x + 5, width: strip - 8,
-                      top: b.start * rowHeight + Math.max(1, curl - 2),
-                      height: Math.max(rowHeight - 2, rows(b) * rowHeight - 2 * Math.max(1, curl - 2)),
-                      lines: b.kind === "body" ? Math.max(1, Math.floor((rows(b) * rowHeight - 4) / 13)) : 1 });
+                      left: x + 5, width: strip - 8, line: line, lines: lines,
+                      top: b.start * rowHeight + (rowHeight - line) / 2,
+                      height: lines === 1 ? line : lines * g.line });
       }
     });
     return { caps: caps, labels: labels, indent: indent, curl: curl };
@@ -3278,7 +3282,7 @@
       node.setAttribute("data-brace-label", label.id);
       node.setAttribute("title", label.text);
       if (label.lines > 1) node.style.webkitLineClamp = String(label.lines);
-      node.style.lineHeight = (label.lines > 1 ? 13 : Math.max(1, label.height)) + "px";
+      node.style.lineHeight = (label.lines > 1 ? VA.GRID_BRACE.line : label.line) + "px";
       place(node, label);
     });
     return layer;
