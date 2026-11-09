@@ -347,9 +347,8 @@ export const DECLARED_GUARDS = {
   // 2026-11-08 (the_bindings_projection_folds_the_events_jeff_accepted): +1 --
   // an accept numbered against a folder ahead of the projection. It carries a spec.
   // 2026-11-08 (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
-  // leader): +2 -- a model is drawn alone, and a node the skeleton draws is
-  // anchored there. Both carry a spec.
-  annotate: { declared: 305, enrollable: 305, names: "05726eb7ec74" },
+  // leader): +1 -- a model is drawn alone. It carries a spec.
+  annotate: { declared: 304, enrollable: 304, names: "5a10e71c0fa8" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

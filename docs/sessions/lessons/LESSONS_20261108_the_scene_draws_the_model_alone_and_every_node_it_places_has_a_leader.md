@@ -42,12 +42,17 @@ scene posted an anchor.
   leaving out an occurrence far larger than the median, using the sweep's own
   `SWEEP_CONTEXT_RATIO`. Without it the camera ended on whatever the last
   `loadPart` framed: a close-up of the blade, with the mechanism out of shot.
-- `model_layer.js` `AA.modelSkeletonEnds`: a node the run's features name as
-  an end of **any** joint (slide, hinge, actuator) and with no link end or
-  binding anchors at the skeleton's point. It uses the existing `joint`
-  source, read after `bound` and before `section`. This made
-  `hub_blade1_root_bearing_bore` (the blade hinge) placed and led. Before, it
-  fell back to an off-screen section centre and posted `null`.
+- **Deliverable 3 needed no code, and one attempt at it was reverted.** The
+  pane already posts an anchor for every node it places. A node the run's
+  features name gets the solver's point when it is a two-force link end, and
+  its concentric joint group's solver features when its ends merge. I first
+  extended the `joint` source to every feature end (slide, hinge, actuator).
+  The full browser tier caught it (`[real] no unplaced node is drawn: … none
+  at the assembly origin`): an axis joint's `point_a/b` is a **reference
+  point on the axis**, and the blade hinge's sits at the assembly origin, not
+  at the bore. Only a link's ends are located points, which is why
+  `AA.modelLinkEnds` is links-only. Reverted. The hinge node keeps its section
+  anchor.
 - v1 is untouched: it declares no occurrence, so it still draws every
   occurrence and the store as faint context (shot 7).
 
@@ -56,25 +61,29 @@ scene posted an anchor.
 The run's `geometry.features` name **9** distinct nodes, not the handoff's ten.
 `pitch_link.length` and `tan_link.length` name edges.
 
-- **Skeleton / link end (`joint`), 7:** `hub_blade1_root_bearing_bore`,
-  `hub_spindle_bore_axis`, `pitch_plate_spindle_bore_axis`,
-  `pitch_link_lower_sphere_centre`, `pitch_link_upper_sphere_centre`,
-  `tan_link_lower_sphere_centre`, `tan_link_upper_sphere_centre`.
-- **Binding (`bound`), 2:** `gas_spring_mount_bushing_bore`, `gas_spring_piston_body_od`.
-- **Section centre, 16:** every other node.
-- **Neither, 0.** At the +72° stop, `tan_link_lower_sphere_centre`'s point
-  leaves the camera's view and posts `null`, so 24 of 25 are placed there.
+- **Solver point (`joint`, link ends), 4:** the pitch link's and tangential
+  link's two sphere centres.
+- **Binding (`bound`), 2:** `gas_spring_mount_bushing_bore`,
+  `gas_spring_piston_body_od`. Together they're one slide joint, drawn at
+  their solver features.
+- **Section centre, 18** (the spindle pair are one joint dot at their solver
+  features): every other node.
+- **Neither (posted `null`), 1:** `hub_blade1_root_bearing_bore`. Its section
+  centre on the hub is outside the camera's view, and the hinge's skeleton
+  point is the assembly origin, which is no place for it (above). So it has
+  no leader. It gets one once a binding names its bore face.
 
-The two spindle nodes were `bound` against master's projections and are
-`joint` against integration's. The bindings are keyed to v1's edge ids, and
-integration's v2 renamed that spindle edge. They land on the same solver
-point either way, but it's the datum-rename handoff's consequence, not this
-one's.
+With master's projections the two spindle nodes were `bound`. With
+integration's they are not, because the bindings are keyed to v1's edge ids
+and integration's v2 renamed that spindle edge. They are one joint dot at the
+solver's point either way. That's the datum-rename handoff's consequence, not
+this one's.
 
-Leaders with P2 loaded, at the 1500-tall viewport: **21 of 25**. The other 4
-(`pitch_arm_link_bore`, `pitch_arm_root_seat` and the two pitch-link sphere
-centres) are `offDag`: their dots are below the pane's visible height. Every
-skeleton joint node whose dot is on screen has its leader. The browser check
+Leaders with P2 loaded, at the 1500-tall viewport, measured before the revert:
+**21 of 25**. The other 4 (`pitch_arm_link_bore`, `pitch_arm_root_seat` and
+the two pitch-link sphere centres) are `offDag`: their dots are below the
+pane's visible height. After the revert the hinge is `noAnchor` as well, so 20. Every
+node the scene placed at a solver point, with its dot on screen, has its leader. The browser check
 counts this (`[real] with the P2 run loaded and no study, every joint node the
 scene drew has its leader across the seam`).
 

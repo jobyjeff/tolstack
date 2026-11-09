@@ -4411,8 +4411,7 @@ async function buildModel() {
   const bound = await modelBoundPoints(topology, parts, occurrences, "bindings", boundFeatures);
   if (generation !== model.generation || state.sweep !== sweep) return null;
   const anchors = AA.modelAnchors({ topology, bias, parts, bound,
-    linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {},
-    skeletonEnds: sweep ? AA.modelSkeletonEnds(sweep.artifact) : {} });
+    linkEnds: sweep ? AA.modelLinkEnds(sweep.artifact) : {} });
   // A joint is one node (coaxial_ends_share_one_3d_node): the solver's own
   // features win over a binding's, as its joint point wins the anchor.
   const features = Object.assign({}, boundFeatures, sweep ? AA.modelSolverFeatures(sweep.artifact) : {});

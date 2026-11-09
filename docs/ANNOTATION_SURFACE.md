@@ -965,10 +965,6 @@ binding, a stack or a fitted nominal.
    plane's centroid (`point`, as `tolerance_stack/feature_geometry.py`'s
    `fit_plane` names it), at the occurrence the node's body anchors. A binding
    with no `direction` binds an edge, not a node, and anchors nothing.
-   Otherwise, in sweep mode, **the skeleton's point** — a node the run's
-   `geometry.features` name as an end of any other joint (a slide, a hinge,
-   the actuator) sits where the stick figure draws it, the same `joint`
-   source as 1 (2026-11-08, `AA.modelSkeletonEnds`).
 3. **The +X-bias section** of the node's part (`AA.modelPartSection`): the
    part's mesh, at the occurrence the body anchors, cut by the plane spanned by
    the bias and stack axes, through the middle of the occurrence's own box
