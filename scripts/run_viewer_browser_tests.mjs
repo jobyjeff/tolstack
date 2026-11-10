@@ -13525,7 +13525,9 @@ async function testIndexRedirects(browser, url, label) {
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   try {
     await page.goto(url + "/index.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector('[data-nav-kind], tr.tvrow', { timeout: 15000 });
+    // A nav ROW or a grid row: the picker's options carry data-nav-kind too
+    // (2026-11-10) and an <option> is never "visible" to a wait.
+    await page.waitForSelector('#navtree .navtree__row, tr.tvrow', { timeout: 15000 });
     push("index.html redirects to topology.html", page.url().includes("topology.html"));
     push("the query string survives the redirect", page.url().includes("mock=1"));
     return reportSuite(label, checks);
