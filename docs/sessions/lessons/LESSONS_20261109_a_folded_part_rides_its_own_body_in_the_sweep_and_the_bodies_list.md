@@ -190,3 +190,12 @@ now names the list.
   `app.js` was then restored from a copy of the committed file. Once the
   sibling's leader fix is on integration, the runner should witness all three
   unaided.
+
+> **Review correction, 2026-11-09.** "including the four this branch added or
+> re-pointed" in the verification record: three *annotate* specs were added or
+> re-pointed (`8b48e2d1` and `a4282a9d` new, `6067ff56` re-pointed), five
+> mutations in total. The other two new specs are browser entries and are
+> among the three NOT WITNESSED. The review reproduced the 11/14 figure
+> exactly. Also: the Bodies-list wiring line in `cmdSweep` is pinned by no
+> tier (measured in the review; filed as
+> `docs/issues/ISSUE_20261109_the_sweep_bodies_list_reading_the_models_bodies_is_one_unpinned_line_in_app_js.md`).

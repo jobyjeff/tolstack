@@ -2886,6 +2886,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       A selector-set pairing pins words, not rule bodies or the wiring.
       Copy `docs/` into the scratch root too, or five annotate `[real]` checks
       go red on ENOENT.
+      **Fourth sighting, 2026-11-09** (`a_folded_part_rides_its_own_body_…`,
+      APPROVE + high issue, code-red demo day): `state.sweep.tree =
+      AA.sweepModelTree(...)` in `cmdSweep` can be deleted green in every tier.
+      Tell: a new `state.X = AA.helper(state.X, …)` re-read in `app.js` and no
+      browser check that reads the rail's rendered rows for what it changes.
 - [ ] **A shell→scene message the diff starts sending reddens the ANNOTATE
       suites, which a tactical `--only "<its own suite>"` run never reaches.**
       New 2026-10-27 (`leaders_follow_the_active_study_across_the_seam`,
