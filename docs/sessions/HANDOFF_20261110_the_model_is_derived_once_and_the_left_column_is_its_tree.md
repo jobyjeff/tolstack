@@ -56,7 +56,12 @@ and others) are typed, scope a subset of it, and run side by side.
    - **interfaces**: one list for the two authored shapes — a node on two
      parts (a contact) and a gap edge (a joint, fit or clearance) — each with
      its two ends as features, its kind, and whether both ends are in one body
-     or which two bodies it joins;
+     or which two bodies it joins. Interfaces between the same two parts are
+     **one joint with several constraints** (the tan-link mount on the hub is a
+     seat, a pilot and a clocking), and the view groups them by that part
+     pair — Jeff, 2026-11-10: most joints in this mechanism are that compound
+     style, more of them will be authored, and the map he wants draws them as
+     parallel paths;
    - per part: number, name and one label (item 5), mesh and occurrence facts
      the projection already resolves.
    Use `Topology.body_of` / `node_bodies` / `edge_body`
