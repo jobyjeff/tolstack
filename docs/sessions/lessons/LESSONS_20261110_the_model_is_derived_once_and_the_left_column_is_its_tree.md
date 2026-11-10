@@ -182,3 +182,50 @@ witnessing a path the page does not take.
   bracket counts on the page, not off `VA.gridPlan(layout)` in node.
 - The handoff's "v2 then shows 12 part brackets" holds on the page; the raw
   plan's 13 is the hub revisited by the authored walk, not a break rule.
+- **The in-browser fast suite (`apps/viewer/test.html`, the browser tier's
+  "suite file://") loads scripts by hand**: a new module has to be added
+  there as well as to `topology.html` and `run_tests.cjs`, or every test
+  that touches it fails only in the browser.
+- **A `waitForSelector` on `[data-nav-kind]` now matches an `<option>` first**
+  (the picker's options carry the row attributes for the tier's readers), and
+  an option is never "visible": wait for `#navtree .navtree__row` or the
+  picker itself.
+
+## The shots (`docs/sessions/lessons/shots/the_model_is_derived_once_and_the_left_column_is_its_tree/`)
+
+Taken by `node tests/debug_model_tree_20261110.mjs` against this tree's
+`apps/` over the main checkout's `data/`, rebuilt from this tree, at 3840×2160
+and 5120×2160 (`_3840` / `_5120` suffixes). Read before this section was
+written.
+
+| shot | what it shows |
+| --- | --- |
+| `t1_v2_pane_closed` | v2 at rest: the picker, five bodies open to their Parts groups, Joints between bodies, Studies with the sweep row |
+| `t2_v2_body_open_parts_and_interfaces` | ground open to its hub (5 features, one mark each) and its Interfaces; the compound joint "propeller hub and tangential link mount · 3 constraints" open to its seat, pilot and clocking |
+| `t3_v2_pane_open` | the same tree with the 3D pane open: show/hide boxes on the parts with a mesh |
+| `t4_v2_feature_selected_with_faces` | the hub's locating boss selected: the node lit on the DAG and the Preview, and under the row the pane's five element rows for it (scoped by `filter-element`), one with "suggested · medium" |
+| `s1_v2_sweep_playing` | the sweep row played: the mechanism moving, the tree unchanged above it |
+| `s2_v2_feature_selected_in_sweep` | the pitch link's lower bearing centre selected mid-sweep: its joint end (bound, Re-pick) under the row |
+| `s3_v2_binding_with_strip` | binding: the bar reads the instruction, then `▾ Sweep ▶` and the strip `Binding · lower bearing centre to upper bearing centre ✕` |
+| `s4_v2_back_in_sweep_after_exit` | after ✕: the sweep bar back, 15 of 15 parts placed |
+| `m1_v1_tree` | the picker on "Propeller Pitch System (legacy)": 13 bodies, Joints between bodies, Studies (121 rows); 38 part brackets, 19 body brackets |
+| `m2_back_to_v2` | back on v2: the tree identical to the first load (the probe compared the rows) |
+| `g1_v2_grid_brackets`, `g2_v2_page` | the grid: 12 part brackets inside 5 body brackets, the hub one bracket of four rows |
+
+What I looked for and did not find: a row the pane and the tree disagree on
+(the body ids the sweep names are v2's body ids), a console error on any
+shot, a clipped label with no title. What I found and filed is in the
+issues section below.
+
+## Filed
+
+- `ISSUE_20261110_the_dag_and_grid_still_derive_membership_from_the_raw_arrays_and_disagree_with_the_tree.md` (strategy) — the inventory above and the one visible disagreement.
+- `ISSUE_20261110_a_loose_stacks_status_mark_left_the_nav_with_its_row.md` (strategy).
+- `ISSUE_20261110_v1_part_display_names_carry_numbers_and_capitals_the_label_rule_strips.md` (chore).
+- `ISSUE_20261110_the_faces_layer_repeats_the_marks_legend_under_every_selected_feature.md` (strategy).
+- `ISSUE_20261110_a_body_or_part_hovered_in_the_tree_lights_the_scene_in_sweep_mode_only.md`.
+- `ISSUE_20261110_the_sweep_rails_contributor_rows_and_type_chips_left_the_nav.md` (strategy) — where a contributor's Pick lives now.
+
+## One path for both models
+
+`grep -n "ids_from\|walk_order\|studies.length\|occurrence" apps/viewer/model.js apps/viewer/views/nav.js tolerance_stack/model_view.py` finds, in the new code, only `identity_ids` being built in Python from `ids_from` (a list a reader iterates) and `occurrence` copied onto a part as a fact. Neither `model.js` nor `nav.js` branches on a model's id or shape; the picker, the tree and the studies list are the same code for v1 and v2, and the `models` shot pair is the two through it.
