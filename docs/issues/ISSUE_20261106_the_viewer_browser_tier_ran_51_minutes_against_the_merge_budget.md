@@ -72,3 +72,12 @@ led`, both already filed and now routed to
 `HANDOFF_20261109_the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection`.
 The suite count grew from 43 to 44 with this merge. The runner prints no
 per-suite timing, so this measurement has no pareto.
+
+## Measurement 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, from a
+worktree with `node_modules` junctioned to the main checkout: **1896 s (31m36s)**
+against the 30-minute merge budget, 40/44 suites. The default pytest tier ran in
+the same window, so this measurement includes CPU contention from it. One
+`file://` suite timed out on `page.goto` during that overlap, and passed when
+re-run alone.
