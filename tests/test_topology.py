@@ -1159,6 +1159,46 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
         "pitch_plate_pilot_in_piston_id"}
 
 
+def test_model_v2_base_is_a_stack_hub_tan_link_mount_gas_spring_mount_cover():
+    """Jeff, 2026-11-10, asked whether the gas-spring mount seats on the
+    tangential link mount only: "Yes, mount on mount." So the base's contacts
+    run hub -> tangential link mount -> gas-spring mount -> piston cover, the
+    hub touches the gas-spring mount nowhere, and the mount's base reaches the
+    feather stop by one route: 213668-002 dimensions the top face straight
+    from datum A, and the cover flange only from the stop."""
+    v2 = load_topology(MODEL_V2)
+    base = {"hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
+            "piston_cover_214958_002"}
+    contacts = {frozenset(n.parts) for n in v2.nodes
+                if len(n.parts) == 2 and set(n.parts) <= base}
+    assert contacts == {
+        frozenset({"hub", "tan_link_mount_215175_002"}),
+        frozenset({"tan_link_mount_215175_002", "gas_spring_mount_213668_002"}),
+        frozenset({"gas_spring_mount_213668_002", "piston_cover_214958_002"})}
+    assert set(v2.node("tan_link_mount_gas_spring_seat").parts) == {
+        "gas_spring_mount_213668_002", "tan_link_mount_215175_002"}
+    for node in v2.nodes:
+        assert set(node.parts) != {"hub", "gas_spring_mount_213668_002"}, node.id
+    assert "gas_spring_mount_hub_face" not in {n.id for n in v2.nodes}
+    hub_reaches = {e.other_end("hub_spindle_bore_axis")
+                   for e in v2.incident("hub_spindle_bore_axis")}
+    assert not any("gas_spring_mount_213668_002" in v2.node(n).parts for n in hub_reaches)
+    height = v2.edge("tan_link_mount_overall_height")
+    assert (height.part, height.from_node, height.to_node) == (
+        "tan_link_mount_215175_002", "tan_link_mount_gas_spring_seat",
+        "tan_link_mount_hub_face")
+    from_seat = {e.id: e.other_end("tan_link_mount_gas_spring_seat")
+                 for e in v2.incident("tan_link_mount_gas_spring_seat")
+                 if e.part == "gas_spring_mount_213668_002"}
+    assert from_seat == {
+        "gas_spring_mount_seat_to_bushing_bore": "gas_spring_mount_bushing_bore",
+        "gas_spring_mount_datum_a_to_end_stop": "endstop_feather_contact"}
+    into_flange = {e.other_end("piston_cover_mount_flange_seat")
+                   for e in v2.incident("piston_cover_mount_flange_seat")
+                   if e.part == "gas_spring_mount_213668_002"}
+    assert into_flange == {"endstop_feather_contact"}
+
+
 def test_walk_order_is_a_word_the_topology_checks():
     assert WALK_ORDERS[0] == "nearest_fork"
     assert _bare("t").walk_order == WALK_ORDERS[0]

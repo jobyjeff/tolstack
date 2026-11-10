@@ -85,6 +85,27 @@ def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert len(v2_view["interfaces"]) == 17
 
 
+#: The base's parts, (features, dimensions) each, since the gas-spring mount
+#: moved onto the tangential link mount (2026-11-10, handoff ``the_gas_spring_
+#: mount_sits_on_the_tan_link_mount_in_the_end_stop_model``): the hub gave up
+#: the old seat and its dimension to it, so the totals above did not move.
+MODEL_V2_BASE_PARTS = {
+    "hub": (4, 3),
+    "tan_link_mount_215175_002": (5, 4),
+    "gas_spring_mount_213668_002": (4, 3),
+    "piston_cover_214958_002": (2, 1),
+}
+
+
+def test_model_v2_base_parts_carry_their_features_and_dimensions(v2_view):
+    parts = {p["id"]: p for p in v2_view["parts"]}
+    assert {pid: (len(parts[pid]["features"]), len(parts[pid]["dimensions"]))
+            for pid in MODEL_V2_BASE_PARTS} == MODEL_V2_BASE_PARTS
+    assert "tan_link_mount_215175_002@tan_link_mount_gas_spring_seat" in \
+        parts["tan_link_mount_215175_002"]["features"]
+    assert not any("gas_spring_mount" in f for f in parts["hub"]["features"])
+
+
 def test_model_v2_interfaces_inside_a_body_are_grounds_five_the_plates_three_the_blades_one(v2_view):
     within = {}
     for interface in v2_view["interfaces"]:

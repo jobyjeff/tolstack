@@ -1071,13 +1071,32 @@ ID to the head seat), which v1 never needed because it joins those parts only
 through its bodies list, and the tan-link mount's compound datum (2026-11-08):
 its pilot bore on the hub's locating boss (a `pin_in_bore` gap), the pilot to
 its attachment bore, and its clocking by the perimeter fasteners, one node on
-both parts like v1's `pitch_arm_blade_root_clocking`. Its names say what each
+both parts like v1's `pitch_arm_blade_root_clocking`; and the gas-spring
+mount's base-to-bushing dimension (2026-11-10, below). Its names say what each
 datum locates and never "spindle": the hub's axis is its locating boss, the
 plate's its pilot boss (the names were re-cut 2026-11-10, "Naming a feature"
 above; its title is now "Propeller Pitch System", v1's the same with
 "(legacy)"). v1's hub-to-plate coaxiality is not here --
 the plate is located through the piston, the piston through the mount's
-bushings, the mount through its seat on the hub. One blade, one pitch link and one tangential link:
+bushings, the mount through its seat on the tangential link mount.
+
+**The base is a stack** (2026-11-10, handoff
+`the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model`): the
+hub, the tangential link mount on it, the gas-spring mount on *that* and the
+piston cover on top, and no contact between the gas-spring mount and the hub
+(Jeff, asked whether the mount seats on the other mount only: *"Yes, mount on
+mount."*). The seat is v1's `tan_link_mount_gas_spring_seat`, reached from the
+hub face by v1's `tan_link_mount_overall_height`, so the tangential link
+mount's height is on the path from the hub to both stops. From that seat, the
+mount's base (datum A) reaches the feather stop by one edge, v1's
+`gas_spring_mount_datum_a_to_end_stop`, because 213668-002 dimensions its top
+face straight from datum A and the cover flange from nowhere but the model;
+the cover flange is reached from the stop (`gas_spring_mount_flange_to_end_stop`).
+So a study of the feather stop's position sums the datum-A edge, and the
+travel study the flange-to-stop edge; neither sums both. The base-to-bushing
+dimension starts at the same seat under a v2-only id,
+`gas_spring_mount_seat_to_bushing_bore`, since v1's `gas_spring_mount_height`
+still starts at v1's hub seat. One blade, one pitch link and one tangential link:
 each of those parts, and the link's two bearings, declares its `occurrence`,
 blade 1's and the tangential link the P2 sweep poses, with the placement
 recorded in the part's note.
