@@ -198,30 +198,6 @@
       "note": "Was named \"hub blade-1 root bearing bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
-      "id": "tan_link_mount_gas_spring_seat",
-      "name": "gas-spring mount base face",
-      "parts": [
-        "gas_spring_mount_213668_002",
-        "tan_link_mount_215175_002"
-      ],
-      "kind": "mating_surface",
-      "note": "The gas-spring mount's base face, its datum A, seated on the tangential link mount: mount on mount, with no seat on the hub (Jeff, 2026-11-10). Until 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model) v2 seated this face on the hub, as `gas_spring_mount_hub_face`; that node is gone from v2 and v1 keeps it."
-    },
-    {
-      "id": "gas_spring_mount_bushing_bore",
-      "name": "bushing bores",
-      "parts": [
-        "gas_spring_mount_213668_002"
-      ],
-      "kind": "datum_feature",
-      "face": {
-        "part": "gas_spring_mount_213668_002",
-        "surface": "cylindrical"
-      },
-      "hardware_ref": "GR04WB328AT11",
-      "note": "Was named \"gas-spring mount bushing bores -- the two Slydring seats\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
-    },
-    {
       "id": "tan_link_mount_hub_face",
       "name": "tangential link mount base face",
       "parts": [
@@ -262,6 +238,30 @@
       ],
       "kind": "datum_feature",
       "note": "Was named \"tangential link mount attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+    },
+    {
+      "id": "tan_link_mount_gas_spring_seat",
+      "name": "gas-spring mount base face",
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "tan_link_mount_215175_002"
+      ],
+      "kind": "mating_surface",
+      "note": "The gas-spring mount's base face, its datum A, seated on the tangential link mount: mount on mount, with no seat on the hub (Jeff, 2026-11-10). Until 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model) v2 seated this face on the hub, as `gas_spring_mount_hub_face`; that node is gone from v2 and v1 keeps it."
+    },
+    {
+      "id": "gas_spring_mount_bushing_bore",
+      "name": "bushing bores",
+      "parts": [
+        "gas_spring_mount_213668_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "gas_spring_mount_213668_002",
+        "surface": "cylindrical"
+      },
+      "hardware_ref": "GR04WB328AT11",
+      "note": "Was named \"gas-spring mount bushing bores -- the two Slydring seats\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "piston_cover_mount_flange_seat",
@@ -436,15 +436,6 @@
   ],
   "edges": [
     {
-      "id": "hub_blade_axis_offset",
-      "name": "locating boss to blade 1 root bearing bore",
-      "kind": "structural",
-      "part": "hub",
-      "from": "hub_spindle_bore_axis",
-      "to": "hub_blade1_root_bearing_bore",
-      "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
-    },
-    {
       "id": "hub_boss_in_tan_link_mount_pilot",
       "name": "locating boss in pilot bore",
       "kind": "gap",
@@ -472,22 +463,13 @@
       "note": "New in v2 (2026-11-08): the hub's hole pattern for the mount, clocked about the boss. No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
     },
     {
-      "id": "tan_link_mount_overall_height",
-      "name": "gas-spring mount base face to tangential link mount base face",
+      "id": "hub_blade_axis_offset",
+      "name": "locating boss to blade 1 root bearing bore",
       "kind": "structural",
-      "part": "tan_link_mount_215175_002",
-      "from": "tan_link_mount_gas_spring_seat",
-      "to": "tan_link_mount_hub_face",
-      "note": "New in v2 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the tangential link mount's height between its two seats, which puts it on the path from the hub to both end stops. No value recorded; M2 adds the term. What would close it: 215198-A sheet 1, whose 79.00 +/-0.10 v1 cites on this edge (traced)."
-    },
-    {
-      "id": "gas_spring_mount_seat_to_bushing_bore",
-      "name": "gas-spring mount base face to bushing bores",
-      "kind": "structural",
-      "part": "gas_spring_mount_213668_002",
-      "from": "gas_spring_mount_bushing_bore",
-      "to": "tan_link_mount_gas_spring_seat",
-      "note": "v2's own id since 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): v1's `gas_spring_mount_height` runs from the hub seat, so a shared id would name a different pair of features. The same face of the mount, its base, now on its right neighbour. No value recorded; M2 adds the term. What would close it: 213668-002's drawing."
+      "part": "hub",
+      "from": "hub_spindle_bore_axis",
+      "to": "hub_blade1_root_bearing_bore",
+      "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
     },
     {
       "id": "tan_link_mount_height",
@@ -515,6 +497,24 @@
       "from": "tan_link_mount_fastener_clocking",
       "to": "tan_link_mount_bore",
       "note": "New in v2 (2026-11-08): the attachment bore's clocking from the mount's own hole pattern. No value recorded; M2 adds the term. What would close it: 215175-002's drawing."
+    },
+    {
+      "id": "tan_link_mount_overall_height",
+      "name": "gas-spring mount base face to tangential link mount base face",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "tan_link_mount_gas_spring_seat",
+      "to": "tan_link_mount_hub_face",
+      "note": "New in v2 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the tangential link mount's height between its two seats, which puts it on the path from the hub to both end stops. No value recorded; M2 adds the term. What would close it: 215198-A sheet 1, whose 79.00 +/-0.10 v1 cites on this edge (traced)."
+    },
+    {
+      "id": "gas_spring_mount_seat_to_bushing_bore",
+      "name": "gas-spring mount base face to bushing bores",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "tan_link_mount_gas_spring_seat",
+      "to": "gas_spring_mount_bushing_bore",
+      "note": "v2's own id since 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): v1's `gas_spring_mount_height` runs from the hub seat, so a shared id would name a different pair of features. The same face of the mount, its base, now on its right neighbour. No value recorded; M2 adds the term. What would close it: 213668-002's drawing."
     },
     {
       "id": "gas_spring_mount_datum_a_to_end_stop",
@@ -710,6 +710,7 @@
     "Studyless by design for now: M2 adds one term per body and the end-stop study over them (dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md, '2026-11-08 -- the reset').",
     "No edge carries a dimension. Each says what would close it; an untraced zero would read as a measured one.",
     "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener, washer and bushing, and blades 2 to 5. v1 keeps all of them.",
-    "Named once, 2026-11-10 (handoff the_model_is_derived_once_and_the_left_column_is_its_tree): a feature's name says the feature and not the part it is nested under; a feature two parts share names the seated part; a dimension is <from> to <to> in those words; one spelling of each term (locating boss, end stop, tangential link)."
+    "Named once, 2026-11-10 (handoff the_model_is_derived_once_and_the_left_column_is_its_tree): a feature's name says the feature and not the part it is nested under; a feature two parts share names the seated part; a dimension is <from> to <to> in those words; one spelling of each term (locating boss, end stop, tangential link).",
+    "Edge order, 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the walk is authored, and the hub's edges read its joint with the tangential link mount before its blade bore, so the base reads up the stack from the hub. With the blade bore first the parts drawn as blocks crossed once more than the builder's walk."
   ]
 }
