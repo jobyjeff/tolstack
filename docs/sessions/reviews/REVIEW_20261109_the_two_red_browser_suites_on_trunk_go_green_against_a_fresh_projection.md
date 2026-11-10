@@ -158,3 +158,13 @@ tree.
   re-run on the merged tree.
 - **Data pollution:** the main checkout's `git status` was clean after every
   run. The `node_modules` junction was removed after the last tier run.
+
+## Landing note
+
+The review branch had been cut at `43333bdf`, while `integration` was at
+`e3795300`. The commits in between were four board and issue commits (the
+folded-part handoff's `active -> completed` move, its issues marked
+resolved, and two master syncs), with no code. Every merged-tree run above
+was on `36c0cda3`, which already carries the folded-part *code*. After
+`git merge integration`, the prose guards were re-run (201 passed), and the
+branch fast-forwarded `integration` `e3795300 -> d5f0520e`.
