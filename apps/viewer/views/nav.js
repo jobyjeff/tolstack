@@ -571,6 +571,7 @@
       statusIcon(s.navStatus, s.title, row, handlers);
       row.setAttribute("data-nav-kind", "kinematic");
       row.setAttribute("data-nav-id", s.id);
+      row.setAttribute("data-topology-id", group.topologyId);
       row.onclick = function () { if (handlers.onKinematic) handlers.onKinematic(s.id); };
       threeDControl(row, handlers, function () { handlers.onKinematic(s.id); });
       items.push(VA.el("li", "navtree__item", row));

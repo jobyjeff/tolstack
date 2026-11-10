@@ -2110,8 +2110,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "the picture only where one resolves",
       await previewIs("hover", "node|base_post_seat") && await (async () => {
         const p = await preview();
+        // The side's label says the number (`215197 base plate`, the one label
+        // rule), so the record prints no second `drawing 215197` line under it.
         return /215197 base plate ⇔ post/.test(p.body) && /mating_surface/.test(p.body) &&
-          /drawing 215197/.test(p.body) &&
+          !/drawing 215197/.test(p.body) &&
           await page.locator(".detail__previewbody div.detail__side img").count() === 1;
       })());
     await page.locator(dotFor("base_datum")).hover();
@@ -2927,13 +2929,15 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // scale.
       push("[real] not one triangle character is left anywhere on the rail",
         navAlerts.glyphs === 0);
-      // Live tally, pinned: every live row has something to say (11 amber and
-      // 10 red across the studies, both leaves marked, measured 2026-09-22).
+      // Live tally, pinned: every live study row has something to say (11
+      // amber and 10 red across the studies, measured 2026-09-22; the two
+      // leaves are options of the picker since 2026-11-10 and wear no mark --
+      // ISSUE_20261110_a_loose_stacks_status_mark_left_the_nav_with_its_row).
       // The quiet row is real and decided -- the fast tier's synthetic rows
       // cover it -- but no live artifact is in that position yet.
       push(`[real] no live row is silent, so the rail's silence is a promise ` +
         `rather than a gap (${navAlerts.amber} amber, ${navAlerts.red} red)`,
-        navAlerts.silent === 0 && navAlerts.leavesMarked === navAlerts.leaves &&
+        navAlerts.silent === 0 && navAlerts.leavesMarked === 0 &&
         navAlerts.red >= 1 && navAlerts.amber >= 1);
       // The legibility claim, MEASURED, and the border claim off computed
       // style. Both on every icon on the rail, because one row styled
@@ -6035,7 +6039,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
                     topologyId: row.getAttribute("data-topology-id") })));
     const clickRow = async (row) => {
       if (row.kind === "topology") { await pickModel(page, row.id); return; }
-      if (row.kind === "study" &&
+      if ((row.kind === "study" || row.kind === "kinematic") &&
           await page.locator(`#navtree ${navRow(row.kind, row.id)}`).count() === 0) {
         await pickModel(page, row.topologyId);
       }
