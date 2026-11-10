@@ -514,6 +514,91 @@ republish. The builder lists a model ahead of the model it reuses ids from
 parts in both documents, and `tests/test_feature_identity.py` folds the events
 every annotator answer path writes on a shared id through the Python rules.
 
+### The model view — the entities, derived once (2026-11-10)
+
+**A model is the set of entities in the workspace; a study scopes a subset of
+it** (Jeff, 2026-11-09). Until 2026-11-10 the page had no object that *was*
+the model: the viewer answered "which part is in which body, which rows are
+one part, which part owns a face two parts share" with nine rules of its own,
+each reading `nodes[].parts`, `edges[].part` and `bodies[].parts` again, and
+the 3D pane with four more (the strategy session's read,
+`dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`,
+"2026-11-09 — the fresh read"). Handoff
+`the_model_is_derived_once_and_the_left_column_is_its_tree` derives the answer
+once, in Python (`tolerance_stack/model_view.py`), from `Topology`'s own
+`body_of` / `node_bodies` / `edge_body`, and the topology projection carries
+it per topology as `model`, beside `bodies`. The browser builds one model
+object from it (`apps/viewer/model.js`) and the left column is its first
+reader; nothing written since reads the raw arrays to decide membership again.
+
+The entities:
+
+- **bodies** — the authored rigid bodies, in authored order, each listing its
+  parts in authored order.
+- **parts** — every part, with the body it moves with, its label (below), its
+  features, its dimensions, and the mesh and occurrence facts the projection
+  already resolves.
+- **features** — a node *as seen on one part*: a node on two parts is two
+  features, one per part, so a face two parts share is a pin on each. Its id
+  is `<part>@<node>` — a view id, not a feature-identity key; bindings stay
+  keyed by edge end.
+- **dimensions** — the structural edges, each on one part between two of its
+  features.
+- **interfaces** — both authored shapes for "two parts meet" in one list: a
+  node on two parts (`source: "node"`, kind `contact`) and a gap edge
+  (`source: "edge"`, kind = its `interface` word), each with its two ends as
+  features, its two parts, the bodies they move with and `within` — the one
+  body it sits inside, or `null` for a joint between two bodies.
+- **joints** — interfaces between the same two parts, grouped: one joint with
+  several constraints. The tangential link mount on the hub is a seat, a pilot
+  and a clocking (Jeff, 2026-11-10: most joints in this mechanism are that
+  compound style, and the map he wants draws them as parallel paths).
+
+A gap edge's end is a feature on its node's first-listed part; neither
+committed model has a gap edge ending on a node two parts share, so the view
+states no rule for that case. `tests/test_model_view.py` pins v2's counts
+value by value and re-derives every `body`, `bodies` and `within` the view
+emits from `Topology`, so a second membership rule cannot creep in there.
+
+**A part's label is one rule, on every surface** (`model_view.part_label`,
+written on every projected part as `label`): its drawing number, then its
+everyday name — `214698-002 upper piston head` — or the everyday name alone
+for a part with no drawing. The everyday name is `display_name` where the
+title block gave one, else `name`, with any number at its head or tail
+stripped so the number is said once (Jeff, 2026-10-20: a label carries the
+everyday name beside its number, because numbers get renumbered and nobody
+memorises them).
+
+### Naming a feature (2026-11-10)
+
+Model v2's names were rewritten under one rule when the left column became
+the model's tree (nested: body › part › feature), and a new model follows it:
+
+- **A feature's name says the feature**, in GD&T's words — a bore, a face, a
+  boss, a shoulder, a bearing centre — and never "axis" (Jeff: *"we aren't
+  really selecting an axis, we're selecting a feature"*). It is nested under
+  its part, so it carries no part name: `pilot bore`, `attachment bore`,
+  `step face`.
+- **A feature two parts share names the part that seats on it**
+  (`tangential link mount base face`, `piston cover flange`,
+  `pitch arm clamp face`): under the other part that is what tells two seats
+  apart, and under its own part the redundancy is the price of one name per
+  node.
+- **A dimension is `<from> to <to>`** in exactly those feature words, so a
+  dimension's name and the two features it joins agree by construction; a
+  gap edge's name says the joint the same way (`locating boss in pilot bore`,
+  `bushing bores on outer cylinder`).
+- **One spelling of each term**: `locating boss`, `end stop`,
+  `tangential link`, `pitch link`; `gas-spring` keeps its hyphen because the
+  parts' drawing titles do.
+- **Ids are frozen.** A rename moves no id; what the old name said beyond the
+  feature is kept in the node's `note`.
+
+The face-suggestion words (`tolerance_stack/feature_geometry.py`,
+`SUGGESTION_RULE_WORDS`) still classify a node by its name where no `face`
+block is declared, so a renamed feature keeps a classifying word (`bore`,
+`face`, `shoulder`, `centre`, `diameter`) or declares its face.
+
 ### Naming a topology or a study
 
 **One rule, and it lives in the SOP:** `docs/SOP_TOLERANCE_STACK.md`, "Titling
@@ -988,7 +1073,9 @@ its pilot bore on the hub's locating boss (a `pin_in_bore` gap), the pilot to
 its attachment bore, and its clocking by the perimeter fasteners, one node on
 both parts like v1's `pitch_arm_blade_root_clocking`. Its names say what each
 datum locates and never "spindle": the hub's axis is its locating boss, the
-plate's its piston-locating boss. v1's hub-to-plate coaxiality is not here --
+plate's its pilot boss (the names were re-cut 2026-11-10, "Naming a feature"
+above; its title is now "Propeller Pitch System", v1's the same with
+"(legacy)"). v1's hub-to-plate coaxiality is not here --
 the plate is located through the piston, the piston through the mount's
 bushings, the mount through its seat on the hub. One blade, one pitch link and one tangential link:
 each of those parts, and the link's two bearings, declares its `occurrence`,

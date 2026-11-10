@@ -52,6 +52,14 @@ tolerance_stack/
                     and checked at named stops. stdlib only. Added 2026-10-16.
                     Reads a cited artifact; not a solver and not a chain -- see
                     docs/DAG_TOPOLOGY.md.
+  model_view.py     the model view: a topology read as the entities a reader
+                    navigates by -- bodies > parts > features, dimensions,
+                    interfaces (a shared node and a gap edge, listed together)
+                    and joints (interfaces grouped by part pair), with
+                    membership read off Topology's own methods; and the rule
+                    for a part's label. stdlib only. Added 2026-11-10. Pure
+                    and valueless: it never folds -- see docs/DAG_TOPOLOGY.md,
+                    "The model view".
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)

@@ -1,8 +1,8 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "vpa_end_stop_v2",
-  "title": "End-stop pitch linkage, one blade",
-  "description": "The pitch linkage as five rigid bodies and their joints, with the two end stops, at 72 degrees blade pitch; no tolerances yet.",
+  "title": "Propeller Pitch System",
+  "description": "The pitch linkage as five rigid bodies and their joints, with the two end stops, at 72 degrees blade pitch; no tolerances yet. Model v2; v1 is the legacy whole-system model.",
   "units": "mm",
   "ids_from": "vpa_pitch_linkage",
   "walk_order": "authored",
@@ -15,7 +15,7 @@
   "bodies": [
     {
       "id": "base",
-      "name": "ground: the hub, the two mounts and the piston cover",
+      "name": "ground",
       "kind": "body",
       "tags": {
         "component": "propeller-system"
@@ -26,7 +26,7 @@
         "gas_spring_mount_213668_002",
         "piston_cover_214958_002"
       ],
-      "note": "The piston cover is the base's: its flange sits on the gas-spring mount (`piston_cover_mount_flange_seat`). linkage's base lists the first three parts alone; the difference is declared beside the pairing test."
+      "note": "The hub, the two mounts and the piston cover. The piston cover is the base's: its flange sits on the gas-spring mount (`piston_cover_mount_flange_seat`). linkage's base lists the first three parts alone; the difference is declared beside the pairing test."
     },
     {
       "id": "tan_link",
@@ -40,11 +40,11 @@
         "spherical_bearing_tan_link",
         "spherical_bearing_tan_link_ms14103_3"
       ],
-      "note": "Both bearings are pressed into the 212956-005 assembly, so they move with it; linkage lists the assembly alone because its mesh already draws them -- the difference v1 declares."
+      "note": "The 212956-005 assembly and its two bearings. Both bearings are pressed into the 212956-005 assembly, so they move with it; linkage lists the assembly alone because its mesh already draws them -- the difference v1 declares."
     },
     {
       "id": "pitch_plate",
-      "name": "pitch plate, gas-spring piston and piston heads",
+      "name": "pitch plate",
       "kind": "body",
       "tags": {
         "component": "propeller-system"
@@ -55,7 +55,7 @@
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002"
       ],
-      "note": "The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
+      "note": "The plate, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
     },
     {
       "id": "pitch_link",
@@ -67,11 +67,12 @@
       "parts": [
         "pitch_link",
         "spherical_bearing_pitch_link"
-      ]
+      ],
+      "note": "The 213862-002 assembly and its bearing."
     },
     {
       "id": "blade",
-      "name": "blade 1 and its pitch arm",
+      "name": "blade 1",
       "kind": "body",
       "tags": {
         "component": "propeller-system"
@@ -79,7 +80,8 @@
       "parts": [
         "pitch_arm",
         "blade_root"
-      ]
+      ],
+      "note": "Blade 1 and its pitch arm."
     }
   ],
   "parts": [
@@ -117,7 +119,7 @@
       "id": "pitch_plate_215177_001",
       "name": "215177-001 pitch plate",
       "drawing": "215177-001",
-      "display_name": "Pitch plate 215735-001/-002",
+      "display_name": "pitch plate",
       "naming_note": "The lug thicknesses cite the released 215735 A; the superseded PRELIM 215197 survives only in the old ids pitch_plate_215197 and pitch_flange_215197."
     },
     {
@@ -129,7 +131,7 @@
       "id": "pitch_link",
       "name": "pitch link assembly",
       "drawing": "213862-002",
-      "display_name": "Pitch link 213862-002",
+      "display_name": "pitch link",
       "naming_note": "The drawing 213862-002 titles it PITCH LINK ASSEMBLY; Jeff and this repo call the joint \"pitch link\".",
       "occurrence": "217755-001/prd-e-03478612.1/213862-002.1",
       "note": "Drawn once, at blade 1's link: its lower ball is at (83.000, -44.550, -22.700), the sheet's pitch-arm node; recorded on the instrumented link's mesh, as the alias row says. placement_world (row-major 3x4, read off `asm217755_546293_002`'s provenance.json): [0.999826, 0.001381, 0.018606, 83, -0.006147, 0.965959, 0.258621, -44.550326, -0.017616, -0.25869, 0.9658, -22.699525]."
@@ -142,7 +144,7 @@
       "id": "tan_link_212956_005",
       "name": "212956-005 pitch anti-rotation link assembly",
       "drawing": "212956-005",
-      "display_name": "Pitch anti-rotation link 212956-005",
+      "display_name": "pitch anti-rotation link",
       "naming_note": "The 260729 workbook's \"Tan Link\" is this drawing's PITCH ANTI ROTATION LINK ASSEMBLY; the id keeps the workbook's word.",
       "occurrence": "217755-001/prd-e-03478614.1/prd-e-03438709.1",
       "note": "Drawn once, at of the three, the one whose plate-end ball is nearest blade 1's pitch-arm ball (115.6 mm, against 118.4 and 203.3; balls read off the MS14103-3 occurrences), and the one the P2 sweep poses: its `tan_link.point_a` is this occurrence's mount-end ball. placement_world (row-major 3x4, read off `asm217755_212956_005`'s provenance.json): [0.025581, 0.006047, 0.999654, 79.427885, -0.869066, 0.494321, 0.019249, 62.387588, -0.494034, -0.869258, 0.017901, 110]."
@@ -178,34 +180,36 @@
   "nodes": [
     {
       "id": "hub_spindle_bore_axis",
-      "name": "hub locating-boss axis (tan-link mount pilot)",
+      "name": "locating boss",
       "parts": [
         "hub"
       ],
       "kind": "datum_feature",
-      "note": "Concentric by design with the main bearings the whole propeller turns on; those bearings and the shaft are not in this model."
+      "note": "Concentric by design with the main bearings the whole propeller turns on; those bearings and the shaft are not in this model. Was named \"hub locating-boss axis (tan-link mount pilot)\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "hub_blade1_root_bearing_bore",
-      "name": "hub blade-1 root bearing bore",
+      "name": "blade 1 root bearing bore",
       "parts": [
         "hub",
         "blade_root"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"hub blade-1 root bearing bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "gas_spring_mount_hub_face",
-      "name": "gas-spring mount base face against the hub",
+      "name": "gas-spring mount base face",
       "parts": [
         "gas_spring_mount_213668_002",
         "hub"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"gas-spring mount base face against the hub\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "gas_spring_mount_bushing_bore",
-      "name": "gas-spring mount bushing bores -- the two Slydring seats",
+      "name": "bushing bores",
       "parts": [
         "gas_spring_mount_213668_002"
       ],
@@ -214,20 +218,22 @@
         "part": "gas_spring_mount_213668_002",
         "surface": "cylindrical"
       },
-      "hardware_ref": "GR04WB328AT11"
+      "hardware_ref": "GR04WB328AT11",
+      "note": "Was named \"gas-spring mount bushing bores -- the two Slydring seats\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "tan_link_mount_hub_face",
-      "name": "tangential link mount base face against the hub",
+      "name": "tangential link mount base face",
       "parts": [
         "tan_link_mount_215175_002",
         "hub"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"tangential link mount base face against the hub\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "tan_link_mount_pilot_bore",
-      "name": "tan-link mount pilot bore, on the hub's locating boss",
+      "name": "pilot bore",
       "parts": [
         "tan_link_mount_215175_002"
       ],
@@ -236,90 +242,96 @@
         "part": "tan_link_mount_215175_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-08): the bore that locates the mount radially on the hub's circular boss."
+      "note": "New in v2 (2026-11-08): the bore that locates the mount radially on the hub's circular boss. Was named \"tan-link mount pilot bore, on the hub's locating boss\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "tan_link_mount_fastener_clocking",
-      "name": "tan-link mount clocked to the hub by its perimeter fasteners",
+      "name": "tangential link mount fastener pattern",
       "parts": [
         "tan_link_mount_215175_002",
         "hub"
       ],
       "kind": "mating_surface",
-      "note": "New in v2 (2026-11-08): the fasteners round the mount's flange constrain its rotation about the boss. One node on both parts, as v1's `pitch_arm_blade_root_clocking`."
+      "note": "New in v2 (2026-11-08): the fasteners round the mount's flange constrain its rotation about the boss. One node on both parts, as v1's `pitch_arm_blade_root_clocking`. Was named \"tan-link mount clocked to the hub by its perimeter fasteners\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "tan_link_mount_bore",
-      "name": "tangential link mount attachment bore",
+      "name": "attachment bore",
       "parts": [
         "tan_link_mount_215175_002"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"tangential link mount attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "piston_cover_mount_flange_seat",
-      "name": "piston cover bottom flange against the mount flange",
+      "name": "piston cover flange",
       "parts": [
         "piston_cover_214958_002",
         "gas_spring_mount_213668_002"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"piston cover bottom flange against the mount flange\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "piston_cover_end_stop_shoulder",
-      "name": "piston cover internal end-stop shoulder -- the extend stop",
+      "name": "end stop shoulder",
       "parts": [
         "piston_cover_214958_002"
       ],
       "kind": "datum_feature",
-      "note": "The cover's -7 deg stop face: the internal shoulder the upper head's step face reaches at the low stop."
+      "note": "The cover's -7 deg stop face: the internal shoulder the upper head's step face reaches at the low stop. Was named \"piston cover internal end-stop shoulder -- the extend stop\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "endstop_feather_contact",
-      "name": "lower piston head lower face on the gas-spring mount's end-stop surface -- the main datum",
+      "name": "feather stop face",
       "parts": [
         "piston_head_lower_214699_002",
         "gas_spring_mount_213668_002"
       ],
       "kind": "mating_surface",
-      "note": "The feather (+72 deg) stop: the lower head's lower face on the gas-spring mount's end-stop face. One node, because the two touch there (DAG_TOPOLOGY.md, \"What a hard contact is not\")."
+      "note": "The feather (+72 deg) stop: the lower head's lower face on the gas-spring mount's end-stop face. One node, because the two touch there (DAG_TOPOLOGY.md, \"What a hard contact is not\"). Was named \"lower piston head lower face on the gas-spring mount's end-stop surface -- the main datum\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_arm_root_seat",
-      "name": "pitch arm root clamp face against the blade root",
+      "name": "pitch arm clamp face",
       "parts": [
         "pitch_arm",
         "blade_root"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"pitch arm root clamp face against the blade root\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_arm_link_bore",
-      "name": "pitch arm pitch-link attachment bore",
+      "name": "pitch link bore",
       "parts": [
         "pitch_arm"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"pitch arm pitch-link attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_link_lower_sphere_centre",
-      "name": "pitch link lower spherical-bearing centre",
+      "name": "lower bearing centre",
       "parts": [
         "pitch_link"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"pitch link lower spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_link_upper_sphere_centre",
-      "name": "pitch link upper spherical-bearing centre",
+      "name": "upper bearing centre",
       "parts": [
         "pitch_link"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"pitch link upper spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_plate_spindle_bore_axis",
-      "name": "pitch plate piston-locating boss axis",
+      "name": "pilot boss",
       "parts": [
         "pitch_plate_215177_001"
       ],
@@ -328,27 +340,29 @@
         "part": "pitch_plate_215177_001",
         "surface": "cylindrical"
       },
-      "note": "The gas-spring and piston axis: the plate's boss pilots into the piston body's ID (`pitch_plate_pilot_in_piston`)."
+      "note": "The gas-spring and piston axis: the plate's boss pilots into the piston body's ID (`pitch_plate_pilot_in_piston`). Was named \"pitch plate piston-locating boss axis\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_plate_link_attach_bore",
-      "name": "pitch plate pitch-link attachment bore",
+      "name": "pitch link bore",
       "parts": [
         "pitch_plate_215177_001"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"pitch plate pitch-link attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_plate_tan_link_attach_bore",
-      "name": "pitch plate tangential-link attachment bore",
+      "name": "tangential link bore",
       "parts": [
         "pitch_plate_215177_001"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"pitch plate tangential-link attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "pitch_plate_pilot_in_piston_id",
-      "name": "piston body ID datum -- the bore the pitch plate's pilot boss sits in",
+      "name": "inner diameter datum",
       "parts": [
         "gas_spring_piston_214700_002"
       ],
@@ -356,11 +370,12 @@
       "face": {
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
-      }
+      },
+      "note": "Was named \"piston body ID datum -- the bore the pitch plate's pilot boss sits in\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "gas_spring_piston_body_od",
-      "name": "piston body outer cylindrical surface -- rides in the mount's bushings",
+      "name": "outer cylinder",
       "parts": [
         "gas_spring_piston_214700_002"
       ],
@@ -368,56 +383,61 @@
       "face": {
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
-      }
+      },
+      "note": "Was named \"piston body outer cylindrical surface -- rides in the mount's bushings\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "piston_body_head_seat",
-      "name": "lower piston head lower face on the piston body's shoulder",
+      "name": "lower head seat face",
       "parts": [
         "piston_head_lower_214699_002",
         "gas_spring_piston_214700_002"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"lower piston head lower face on the piston body's shoulder\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "piston_heads_seat",
-      "name": "lower piston head upper face against the upper head lower face",
+      "name": "upper head seat face",
       "parts": [
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002"
       ],
-      "kind": "mating_surface"
+      "kind": "mating_surface",
+      "note": "Was named \"lower piston head upper face against the upper head lower face\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "piston_head_upper_step_face",
-      "name": "upper piston head step face -- the extend stop's moving side",
+      "name": "step face",
       "parts": [
         "piston_head_upper_214698_002"
       ],
       "kind": "datum_feature",
-      "note": "The upper head's moving side of the -7 deg stop."
+      "note": "The upper head's moving side of the -7 deg stop. Was named \"upper piston head step face -- the extend stop's moving side\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "tan_link_lower_sphere_centre",
-      "name": "tangential link mount-end spherical-bearing centre",
+      "name": "mount end bearing centre",
       "parts": [
         "tan_link_212956_005"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"tangential link mount-end spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     },
     {
       "id": "tan_link_upper_sphere_centre",
-      "name": "tangential link plate-end spherical-bearing centre",
+      "name": "plate end bearing centre",
       "parts": [
         "tan_link_212956_005"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "note": "Was named \"tangential link plate-end spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
     }
   ],
   "edges": [
     {
       "id": "hub_blade_axis_offset",
-      "name": "locating-boss axis to blade-1 root bore axis",
+      "name": "locating boss to blade 1 root bearing bore",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -426,7 +446,7 @@
     },
     {
       "id": "hub_boss_in_tan_link_mount_pilot",
-      "name": "locating boss in the tan-link mount's pilot bore",
+      "name": "locating boss in pilot bore",
       "kind": "gap",
       "interface": "pin_in_bore",
       "from": "hub_spindle_bore_axis",
@@ -435,7 +455,7 @@
     },
     {
       "id": "hub_spindle_to_tan_link_mount_face",
-      "name": "locating-boss axis to tan-link mount seat",
+      "name": "locating boss to tangential link mount base face",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -444,7 +464,7 @@
     },
     {
       "id": "hub_boss_to_tan_link_mount_fasteners",
-      "name": "locating-boss axis to the mount's fastener pattern",
+      "name": "locating boss to tangential link mount fastener pattern",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -453,7 +473,7 @@
     },
     {
       "id": "hub_spindle_to_gas_spring_mount_face",
-      "name": "locating-boss axis to gas-spring mount seat",
+      "name": "locating boss to gas-spring mount base face",
       "kind": "structural",
       "part": "hub",
       "from": "hub_spindle_bore_axis",
@@ -462,7 +482,7 @@
     },
     {
       "id": "gas_spring_mount_height",
-      "name": "base face to bushing bore",
+      "name": "gas-spring mount base face to bushing bores",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
@@ -471,7 +491,7 @@
     },
     {
       "id": "tan_link_mount_height",
-      "name": "base face to attachment bore",
+      "name": "tangential link mount base face to attachment bore",
       "kind": "structural",
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_hub_face",
@@ -489,7 +509,7 @@
     },
     {
       "id": "tan_link_mount_fasteners_to_bore",
-      "name": "fastener pattern to attachment bore",
+      "name": "tangential link mount fastener pattern to attachment bore",
       "kind": "structural",
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_fastener_clocking",
@@ -498,7 +518,7 @@
     },
     {
       "id": "gas_spring_mount_hub_face_to_cover_seat",
-      "name": "base face to cover flange",
+      "name": "gas-spring mount base face to piston cover flange",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
@@ -507,7 +527,7 @@
     },
     {
       "id": "gas_spring_mount_flange_to_end_stop",
-      "name": "cover flange to end-stop surface",
+      "name": "piston cover flange to feather stop face",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
       "from": "piston_cover_mount_flange_seat",
@@ -516,7 +536,7 @@
     },
     {
       "id": "piston_cover_flange_to_end_stop",
-      "name": "bottom flange to internal end-stop shoulder",
+      "name": "piston cover flange to end stop shoulder",
       "kind": "structural",
       "part": "piston_cover_214958_002",
       "from": "piston_cover_mount_flange_seat",
@@ -525,7 +545,7 @@
     },
     {
       "id": "blade_root_bearing_to_pitch_arm_seat",
-      "name": "bearing bore to pitch arm clamp face",
+      "name": "blade 1 root bearing bore to pitch arm clamp face",
       "kind": "structural",
       "part": "blade_root",
       "from": "hub_blade1_root_bearing_bore",
@@ -534,7 +554,7 @@
     },
     {
       "id": "pitch_arm_radius",
-      "name": "clamp face to link bore",
+      "name": "pitch arm clamp face to pitch link bore",
       "kind": "structural",
       "part": "pitch_arm",
       "from": "pitch_arm_root_seat",
@@ -543,7 +563,7 @@
     },
     {
       "id": "pitch_link_length",
-      "name": "length",
+      "name": "lower bearing centre to upper bearing centre",
       "kind": "structural",
       "part": "pitch_link",
       "from": "pitch_link_lower_sphere_centre",
@@ -552,7 +572,7 @@
     },
     {
       "id": "tan_link_length",
-      "name": "length",
+      "name": "mount end bearing centre to plate end bearing centre",
       "kind": "structural",
       "part": "tan_link_212956_005",
       "from": "tan_link_lower_sphere_centre",
@@ -561,7 +581,7 @@
     },
     {
       "id": "pitch_plate_attach_radius",
-      "name": "piston-boss axis to pitch-link bore radius",
+      "name": "pilot boss to pitch link bore",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
@@ -570,7 +590,7 @@
     },
     {
       "id": "pitch_plate_tan_link_attach_radius",
-      "name": "piston-boss axis to tan-link bore radius",
+      "name": "pilot boss to tangential link bore",
       "kind": "structural",
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
@@ -579,7 +599,7 @@
     },
     {
       "id": "pitch_plate_pilot_in_piston",
-      "name": "pitch plate pilot boss in the piston body's ID datum",
+      "name": "pilot boss in inner diameter datum",
       "kind": "gap",
       "interface": "pin_in_bore",
       "from": "pitch_plate_spindle_bore_axis",
@@ -588,7 +608,7 @@
     },
     {
       "id": "piston_body_id_datum_to_od",
-      "name": "ID datum to outer cylinder",
+      "name": "inner diameter datum to outer cylinder",
       "kind": "structural",
       "part": "gas_spring_piston_214700_002",
       "from": "pitch_plate_pilot_in_piston_id",
@@ -597,7 +617,7 @@
     },
     {
       "id": "piston_body_id_datum_to_head_seat",
-      "name": "piston body ID datum to head seat",
+      "name": "inner diameter datum to lower head seat face",
       "kind": "structural",
       "part": "gas_spring_piston_214700_002",
       "from": "pitch_plate_pilot_in_piston_id",
@@ -606,7 +626,7 @@
     },
     {
       "id": "piston_head_lower_face_flatness",
-      "name": "lower face mount contact to body seat",
+      "name": "feather stop face to lower head seat face",
       "kind": "structural",
       "part": "piston_head_lower_214699_002",
       "from": "endstop_feather_contact",
@@ -615,7 +635,7 @@
     },
     {
       "id": "piston_head_lower_thickness",
-      "name": "thickness",
+      "name": "feather stop face to upper head seat face",
       "kind": "structural",
       "part": "piston_head_lower_214699_002",
       "from": "endstop_feather_contact",
@@ -624,7 +644,7 @@
     },
     {
       "id": "piston_head_upper_thickness",
-      "name": "lower face to step face",
+      "name": "upper head seat face to step face",
       "kind": "structural",
       "part": "piston_head_upper_214698_002",
       "from": "piston_heads_seat",
@@ -633,7 +653,7 @@
     },
     {
       "id": "pitch_arm_link_joint",
-      "name": "pitch arm link bore to pitch link lower bearing centre",
+      "name": "pitch link bore to lower bearing centre",
       "kind": "gap",
       "interface": "spherical",
       "from": "pitch_arm_link_bore",
@@ -642,7 +662,7 @@
     },
     {
       "id": "pitch_plate_link_joint",
-      "name": "pitch plate link bore to pitch link upper bearing centre",
+      "name": "pitch link bore to upper bearing centre",
       "kind": "gap",
       "interface": "spherical",
       "from": "pitch_plate_link_attach_bore",
@@ -651,7 +671,7 @@
     },
     {
       "id": "tan_link_mount_joint",
-      "name": "tangential link mount bore to link mount-end bearing centre",
+      "name": "attachment bore to mount end bearing centre",
       "kind": "gap",
       "interface": "spherical",
       "from": "tan_link_mount_bore",
@@ -660,7 +680,7 @@
     },
     {
       "id": "tan_link_plate_joint",
-      "name": "tangential link plate-end bearing centre to pitch plate bore",
+      "name": "plate end bearing centre to tangential link bore",
       "kind": "gap",
       "interface": "spherical",
       "from": "tan_link_upper_sphere_centre",
@@ -669,7 +689,7 @@
     },
     {
       "id": "pitch_plate_slide_bushings_to_piston_body",
-      "name": "gas-spring mount bushings to piston body",
+      "name": "bushing bores on outer cylinder",
       "kind": "gap",
       "interface": "cylindrical_slide",
       "from": "gas_spring_mount_bushing_bore",
@@ -689,6 +709,7 @@
   "notes": [
     "Studyless by design for now: M2 adds one term per body and the end-stop study over them (dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md, '2026-11-08 -- the reset').",
     "No edge carries a dimension. Each says what would close it; an untraced zero would read as a measured one.",
-    "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener, washer and bushing, and blades 2 to 5. v1 keeps all of them."
+    "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener, washer and bushing, and blades 2 to 5. v1 keeps all of them.",
+    "Named once, 2026-11-10 (handoff the_model_is_derived_once_and_the_left_column_is_its_tree): a feature's name says the feature and not the part it is nested under; a feature two parts share names the seated part; a dimension is <from> to <to> in those words; one spelling of each term (locating boss, end stop, tangential link)."
   ]
 }

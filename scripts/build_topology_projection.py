@@ -95,6 +95,7 @@ from build_viewer_projection import worksheet_for as _stack_worksheet_for  # noq
 # `build_viewer_crops._crop_from_citation`/`render`/`main`.
 from build_viewer_crops import croppable as _croppable  # noqa: E402
 from tolerance_stack.stack import SCHEMA_HARDWARE  # noqa: E402
+from tolerance_stack.model_view import model_view, part_label  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
     Contribution,
     Edge,
@@ -1533,6 +1534,9 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
     """The authored part, plus the one derived fact the viewer cannot compute."""
     row = dataclasses.asdict(part)
     row["mesh"] = mesh_fact(part.id, meshes, aliases)
+    # The one way the part is named on a surface (tolerance_stack.model_view.
+    # part_label, 2026-11-10): written here so no surface composes it again.
+    row["label"] = part_label(part)
     return row
 
 
@@ -1697,6 +1701,11 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # for a topology that declares none. Drawn as the DAG's containers,
         # where `layout.bodies` says.
         "bodies": [project_body(topology, b) for b in topology.bodies],
+        # The model, derived once (tolerance_stack.model_view, 2026-11-10):
+        # bodies > parts > features, dimensions, interfaces and joints, with
+        # membership read off `Topology` and nowhere else. Every surface that
+        # asks which part is in which body reads this block.
+        "model": model_view(topology, lambda part_id: mesh_fact(part_id, meshes, aliases)),
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,

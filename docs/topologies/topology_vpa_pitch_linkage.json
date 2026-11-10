@@ -1,7 +1,7 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "vpa_pitch_linkage",
-  "title": "Propeller pitch system, blade 1",
+  "title": "Propeller Pitch System (legacy)",
   "description": "The propeller pitch system as one graph -- its parts, the interfaces between them and the dimensions and gaps that join them -- whose joints are bound to 3D geometry for the linkage solver and through which every pitch study is a chain. Most of its bands are placeholders; none should be quoted as a tolerance.",
   "units": "mm",
   "provenance": {
