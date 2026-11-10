@@ -5248,7 +5248,7 @@ function buildBindSweepLine() {
   twisty.onclick = () => { setSweepBarFolded(!away); renderDetail(); };
   row.appendChild(twisty);
   const word = document.createElement("span");
-  word.className = "an__sweep-summary";
+  word.className = "an__bindsweep-word";
   word.textContent = AA.BIND_BAR_WORDS.sweep;
   row.appendChild(word);
   if (!away) {

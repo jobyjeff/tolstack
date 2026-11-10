@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] clicking a feature row in the nav selects its node in the scene, and the row shows it selected",
+  "mutations": [
+    {
+      "contract": "A feature row selects its NODE: the page's selection, which the scene's layer selects too.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Selects the feature's own view id as if it were a node, which the scene refuses -- the row lights nothing.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    selectElement(\"node\", feature.node);\n  }\n\n  // An interface row selects",
+      "replace": "    selectElement(\"node\", featureId);\n  }\n\n  // An interface row selects"
+    }
+  ]
+}

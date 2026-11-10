@@ -233,6 +233,54 @@ async function grid(width) {
   await page.close();
 }
 
+// A Take from the faces layer: does the layer survive the pane's redraw?
+async function take() {
+  const page = await open(2560, 1300, V1);
+  await openPane(page);
+  await loadSweep(page);
+  const part = "gas_spring_piston_214700_002", node = "gas_spring_piston_body_od";
+  await toggleNav(page, "p:" + part);
+  await clickNav(page, "feature", part + "@" + node);
+  await page.waitForTimeout(3000);
+  const slotRows = () => page.evaluate(() => Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
+    .map((n) => [n.getAttribute("data-scene-key").slice(0, 120), Array.from(n.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn")).map((b) => b.textContent)]));
+  log("take: layer before", await slotRows());
+  const twisty = page.locator(".navtree__scene .navtree__scenetwisty").first();
+  if (await twisty.count()) await twisty.click();
+  await page.waitForTimeout(1500);
+  log("take: layer with candidates", await slotRows());
+  const takeBtn = page.locator(".navtree__scene .navtree__scenebtn", { hasText: "Take" }).first();
+  log("take: buttons", await takeBtn.count());
+  if (await takeBtn.count()) await takeBtn.click();
+  await page.waitForTimeout(3000);
+  log("take: layer after", await slotRows());
+  log("take: viewer state", await page.evaluate(() => ({ sel: window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.selection,
+    slot: !!document.querySelector(".navtree__scene"), on: Array.from(document.querySelectorAll("#navtree .navtree__row--on")).map((n) => n.getAttribute("data-nav-id")) })));
+  log("take: pane", await frameOf(page).evaluate(() => ({ writes: (window.__mockWrites || []).length, sweep: !!window.__sweep,
+    selected: Array.from(document.querySelectorAll("#sweep-tree li.tree-row.selected")).map((n) => n.dataset.feature) })));
+  log("take: errors", page.__errors);
+  await page.close();
+}
+
+// A body row hovered with the sweep loaded: what reaches the pane.
+async function hover() {
+  const page = await open(2560, 1300, V1);
+  await openPane(page);
+  await loadSweep(page);
+  await page.waitForTimeout(2000);
+  const bodyName = await frameOf(page).evaluate(() => window.__sweep.tree.bodies[0].name);
+  log("hover: body", bodyName);
+  log("hover: row count", await page.locator(`#navtree [data-nav-kind="body"][data-nav-id="${bodyName}"]`).count());
+  await page.locator(`#navtree [data-nav-kind="body"][data-nav-id="${bodyName}"]`).first().hover();
+  await page.waitForTimeout(1500);
+  log("hover: lastHover", await frameOf(page).evaluate(() => window.__lastHover ? window.__lastHover.target : null));
+  log("hover: errors", page.__errors);
+  await page.locator("#navtree h2.navtree__heading").first().hover();
+  await page.waitForTimeout(1000);
+  log("hover: after leave", await frameOf(page).evaluate(() => window.__lastHover ? window.__lastHover.target : null));
+  await page.close();
+}
+
 async function probe() {
   const page = await open(2560, 1300, V2);
   log("probe: nav", await navRows(page));
@@ -246,6 +294,8 @@ async function probe() {
 
 try {
   if (PHASE === "probe" || PHASE === "all") await probe();
+  if (PHASE === "take") await take();
+  if (PHASE === "hover") await hover();
   for (const w of WIDTHS) {
     if (PHASE === "tree" || PHASE === "all") await tree(w);
     if (PHASE === "sweep" || PHASE === "all") await sweep(w);

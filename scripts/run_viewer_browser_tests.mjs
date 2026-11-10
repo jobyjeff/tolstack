@@ -8036,10 +8036,15 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
     const bodyRowSel = `#navtree [data-nav-kind="body"][data-nav-id="${bodyName}"]`;
     await page.locator(bodyRowSel).first().hover({ timeout: 5000 }).catch(() => {});
-    push("[real] resting on a body row in the nav lights that body in the scene",
-      await until((w, name) => w.__lastHover && w.__lastHover.target &&
-        w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
-      bodyName, 10000));
+    const bodyLit = await until((w, name) => w.__lastHover && w.__lastHover.target &&
+      w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
+    bodyName, 10000);
+    if (!bodyLit) {
+      console.log(`      [${label}] DIAG body hover ${bodyName}: rows ` +
+        `${await page.locator(bodyRowSel).count()}; pane says ` +
+        JSON.stringify(await inPane((w) => ({ hover: w.__lastHover && w.__lastHover.target, sweep: !!w.__sweep }))));
+    }
+    push("[real] resting on a body row in the nav lights that body in the scene", bodyLit);
     // Left for a heading -- inside the nav, on no row -- so the only thing
     // that can take the light down is the row's own leave.
     await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
@@ -8092,10 +8097,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
 
     // The other way: a node picked in the scene is the page's selection, so
     // its feature rows light in the nav -- and its part opens to show them.
-    await page.evaluate((id) => {
-      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
-      w.parent.postMessage({ type: window.ViewerApp.SCENE_PICK_MESSAGE, kind: "node", id }, window.location.origin);
-    }, FEATURE_NODE);
+    // Posted from the pane's own realm (the page listens for its frame's
+    // messages only), as the scene's bead click does (AA.pickMessage).
+    const paneFrame = page.frames().find((f) => f.url().indexOf("/annotate/") !== -1);
+    if (paneFrame) {
+      await paneFrame.evaluate((id) => {
+        window.parent.postMessage({ type: window.AnnotateApp.PICK_MESSAGE, kind: "node", id }, window.location.origin);
+      }, FEATURE_NODE).catch(() => {});
+    }
     await page.waitForSelector(featureSel + ".navtree__row--on", { timeout: 5000 }).catch(() => {});
     push("[real] a node picked in the scene is selected in the nav",
       await page.locator(featureSel + ".navtree__row--on").count() === 1);
@@ -8216,10 +8225,13 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       const slot = row && row.parentNode.querySelector(".navtree__scene");
       return !!slot && slot.querySelectorAll('[data-scene-key^="#element-list/"]').length > 0;
     }, chainFeature, { timeout: 15000 }).catch(() => {});
+    // The element rows themselves: a candidate row under one is keyed
+    // `#element-list/<edge>/...` and is not counted.
     const elementRows = await page.evaluate((sel) => {
       const row = document.querySelector(sel);
       const slot = row && row.parentNode.querySelector(".navtree__scene");
-      return slot ? slot.querySelectorAll('[data-scene-key^="#element-list/"]').length : 0;
+      return slot ? Array.from(slot.querySelectorAll('[data-scene-key^="#element-list/"]'))
+        .filter((n) => n.getAttribute("data-scene-key").slice("#element-list/".length).indexOf("/") === -1).length : 0;
     }, chainFeature);
     const railElements = bindMode ? await inPane((w) =>
       Array.from(w.document.querySelectorAll(".an__rail .el-row")).filter((n) => n.getClientRects().length).length) : -1;
@@ -9243,9 +9255,17 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     // legend names the states, the levels step in, and no state recolours a
     // row's words. Read off the shell's tree, from the annotator's words, on
     // the live study -- not from rows a test built by hand.
+    // The layer is read under whichever feature holds it now; none at all is
+    // a diagnosis, not an abort.
+    const layerState = await page.evaluate(() => ({
+      slots: document.querySelectorAll(".navtree__scene").length,
+      on: Array.from(document.querySelectorAll("#navtree .navtree__row--on")).map((n) => n.getAttribute("data-nav-id")),
+      selected: window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.selection }));
+    if (!layerState.slots) console.log("    DIAG no faces layer after the Take: " + JSON.stringify(layerState));
     const look = await page.evaluate(({ upper, lower, joint }) => {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
       const scene = document.querySelector(".navtree__scene");
+      if (!scene) return { kinds: [], unkinded: [], endMarks: [], marks: [], legend: [], step: [null], glyphs: [null], attentionInk: null, ink: "a", inferred: "b" };
       const rows = Array.from(scene.querySelectorAll(".navtree__scenerow[data-scene-key]"));
       const find = (re, kind) => rows.find((n) => new RegExp(re).test(n.getAttribute("data-scene-key")) &&
         n.getAttribute("data-kind") === kind);

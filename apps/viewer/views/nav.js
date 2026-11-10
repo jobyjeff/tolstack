@@ -342,9 +342,7 @@
 
   function bodyItem(model, body, state, handlers) {
     var key = "b:" + body.id;
-    var holds = body.parts.some(function (pid) { return holdsSelection(model, pid, state); });
-    var open = isOpen(state, key, true) || (holds && !isOpen(state, key, true) &&
-      !(state.navOpen && Object.prototype.hasOwnProperty.call(state.navOpen, key)));
+    var open = isOpen(state, key, true);
     var li = VA.el("li", "navtree__item");
     var row = foldRow("navtree__row--body", key, open, handlers);
     row.setAttribute("data-nav-kind", "body");

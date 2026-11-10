@@ -554,7 +554,15 @@ export const DECLARED_GUARDS = {
   // moved to the scene-over-HTTP status check, which now sees the word after
   // a face is picked.
   // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
-  browser: { declared: 866, enrollable: 833, names: "f095291d1d17" },
+  // the_model_is_derived_once_and_the_left_column_is_its_tree, 2026-11-10:
+  // -1 net -- the mirrored rail's checks left with it (the mechanism tree under
+  // a study row, the type chips, a contributor row's click and keyboard, a
+  // part row's second button, the pressed-Isolate line, the chain study's
+  // nested elements) and the tree's own came in (the model's tree with the
+  // pane open, a feature row's click and keyboard, the faces layer's rows, a
+  // node picked in the scene, a body's fold, the bind-mode nest, the binding
+  // strip); six renamed for the faces layer. Every new name carries a spec.
+  browser: { declared: 865, enrollable: 832, names: "214272d13b82" },
 };
 
 

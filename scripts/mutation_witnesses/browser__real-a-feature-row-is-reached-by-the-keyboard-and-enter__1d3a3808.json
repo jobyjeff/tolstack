@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a feature row is reached by the keyboard, and Enter selects its node",
+  "mutations": [
+    {
+      "contract": "A feature row is a button-role row: Enter and Space act as a click.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Enter no longer acts, so a keyboard reader can reach a feature and never select it.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      if (!event || (event.key !== \"Enter\" && event.key !== \" \")) return;\n      if (event.target !== row) return;\n",
+      "replace": "      if (!event || event.key !== \" \") return;\n      if (event.target !== row) return;\n"
+    }
+  ]
+}

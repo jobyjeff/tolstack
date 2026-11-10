@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] with the pane open the left column is the model's tree: one row per body, the study's row marked, the picker on the model, and no rail mirrored under it",
+  "mutations": [
+    {
+      "contract": "The left column lists the model's bodies whatever the pane shows; the pane's rail is never mirrored whole.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Drops the bodies section, which is the column going back to a list of studies with the model nowhere on it.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        root.appendChild(section(\"bodies\", VA.NAV_WORDS.bodies, bodies));\n",
+      "replace": ""
+    }
+  ]
+}

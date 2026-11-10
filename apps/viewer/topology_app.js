@@ -919,7 +919,11 @@
   function onNavHover(target) {
     if (!target) {
       if (VA.lightTopoKeys) VA.lightTopoKeys(null);
-      if (paneRun) schedulePaneCommand(["hover", "clear"]);
+      // Posted at once, not debounced: the pointer's next mouseover anywhere
+      // on the page schedules the grid's own `highlight clear` on the same
+      // timer, and a clear waiting there would be cancelled by it.
+      if (paneRun) { if (paneHoverTimer !== null) clearTimeout(paneHoverTimer); paneHoverTimer = null;
+        if (postToPane(["hover", "clear"])) paneHovered = "hover clear"; }
       return;
     }
     var model = currentModel();
