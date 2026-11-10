@@ -2050,7 +2050,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "the citation", await previewIs("hover", "edge|base_thickness") &&
       await (async () => {
         const p = await preview();
-        return /base plate thickness/.test(p.body) && /a dimension of base plate/.test(p.body) &&
+        return /base plate thickness/.test(p.body) && /a dimension of 215197 base plate/.test(p.body) &&
           /215197/.test(p.body) && p.images >= 1 && !p.pinned;
       })());
     const rowPreview = (await preview()).body;
@@ -2110,7 +2110,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "the picture only where one resolves",
       await previewIs("hover", "node|base_post_seat") && await (async () => {
         const p = await preview();
-        return /base plate ⇔ post/.test(p.body) && /mating_surface/.test(p.body) &&
+        return /215197 base plate ⇔ post/.test(p.body) && /mating_surface/.test(p.body) &&
           /drawing 215197/.test(p.body) &&
           await page.locator(".detail__previewbody div.detail__side img").count() === 1;
       })());
@@ -2873,8 +2873,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const navAlerts = await page.evaluate(() => {
         const rows = Array.from(document.querySelectorAll(
           "#navtree .navtree__row--study"));
+        // A loose stack is an option of the model picker since 2026-11-10, with
+        // no row and so no mark: counted as the leaves, marked never.
         const leaves = Array.from(document.querySelectorAll(
-          "#navtree .navtree__row--stack"));
+          '#navtree option[data-nav-kind="stack"]'));
         const icons = Array.from(document.querySelectorAll("#navtree .navstatus"));
         const measure = (icon) => {
           const svg = icon.querySelector("svg");
@@ -6021,9 +6023,13 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     // Only the open model lists its studies (2026-11-08), so the rail's rows
     // are gathered with each model open in turn, in the order a reader meets
     // them, and `clickRow` opens a study's model before clicking the study.
+    // The rows that NAVIGATE: a model (an option of the picker), a study, a
+    // kinematic study, a loose stack. The tree's body, part, feature and
+    // interface rows carry data-nav-kind too (2026-11-10) and are not pages.
     const listRows = () => page.evaluate(() =>
       Array.prototype.map.call(
-        document.querySelectorAll("#navtree [data-nav-kind]"),
+        document.querySelectorAll('#navtree [data-nav-kind="topology"], #navtree [data-nav-kind="study"], ' +
+          '#navtree [data-nav-kind="kinematic"], #navtree [data-nav-kind="stack"]'),
         (row) => ({ kind: row.getAttribute("data-nav-kind"),
                     id: row.getAttribute("data-nav-id"),
                     topologyId: row.getAttribute("data-topology-id") })));
