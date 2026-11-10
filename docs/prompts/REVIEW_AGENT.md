@@ -659,6 +659,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       source strip's commit. Rebuilding the main checkout's projections from
       integration also leaves 8000 as master code over integration data until the
       batch merge (2026-11-09, `the_integration_walk_reads_the_merged_page_against_jeffs_sentences`).
+      **...and an `after/` shot can be older than the branch's last layout commit.**
+      Shots are committed together with the lesson, but they may have been taken
+      several fixes earlier. `the_demo_path_reads_cleanly_on_a_projector`'s
+      `after/demo_5` showed a chip clipped at the pane's edge, and the lesson said
+      the clip was fixed, which it was (`4aef1610`). Re-shoot the demo phase on
+      the merged tree (`node tests/debug_integration_walk_20261108.mjs --phase
+      demo --shots <scratch>`, about 2 min), then read your shot against theirs.
 
 - [ ] **A message the page acts on at load reaches the URL.** A pane/embed message
       handled on arrival (e.g. `annotate:pose`) that calls `setPose` writes
