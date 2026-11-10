@@ -485,8 +485,8 @@
       "name": "gas-spring mount base face to bushing bores",
       "kind": "structural",
       "part": "gas_spring_mount_213668_002",
-      "from": "tan_link_mount_gas_spring_seat",
-      "to": "gas_spring_mount_bushing_bore",
+      "from": "gas_spring_mount_bushing_bore",
+      "to": "tan_link_mount_gas_spring_seat",
       "note": "v2's own id since 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): v1's `gas_spring_mount_height` runs from the hub seat, so a shared id would name a different pair of features. The same face of the mount, its base, now on its right neighbour. No value recorded; M2 adds the term. What would close it: 213668-002's drawing."
     },
     {
