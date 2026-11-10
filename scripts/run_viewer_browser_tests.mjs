@@ -544,7 +544,7 @@ async function onCellStart(page, selector, action) {
 
 function navRow(kind, id) {
   return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
-
+}
 // Choosing a model (the_model_is_derived_once_and_the_left_column_is_its_tree,
 // 2026-11-10): the models are the options of the nav's picker, not rows, so a
 // click on a topology row became a choice in the <select>. Its options carry
@@ -554,6 +554,11 @@ async function pickModel(page, id) {
   await page.waitForSelector(MODEL_PICKER, { timeout: 20000 });
   await page.selectOption(MODEL_PICKER, `topology:${id}`);
 }
+
+// ...and a loose stack, the same way: an option after the models.
+async function pickStack(page, id) {
+  await page.waitForSelector(MODEL_PICKER, { timeout: 20000 });
+  await page.selectOption(MODEL_PICKER, `stack:${id}`);
 }
 
 // --- the elements table, reached through the ONE nav tree ------------------
@@ -581,24 +586,24 @@ async function testTheApp(browser, url, label) {
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 15000 });
+    await page.waitForSelector(MODEL_PICKER, { timeout: 15000 });
 
-    // One stack row, not two: the fixture holds `demo_joint` (which the demo
+    // One stack option, not two: the fixture holds `demo_joint` (which the demo
     // mechanism re-expresses) and `demo_joint_standalone` (which nothing does),
-    // and only the second is an entry. One system, one entry.
+    // and only the second is an entry. One system, one entry. An option of the
+    // model picker since 2026-11-10, after the models.
     push("the nav lists exactly the stacks no topology re-expresses",
-      await page.locator('[data-nav-kind="stack"]').count() === 1);
+      await page.locator('option[data-nav-kind="stack"]').count() === 1);
     push("and says nothing about a classic view anywhere on the page",
       !(await page.evaluate(() =>
         document.body.textContent.toLowerCase().includes("classic"))));
 
     // Switch from the default topology mode into stack mode — a real click,
     // which is the one thing this test tier exists to exercise.
-    await page.locator(navRow("stack", "demo_joint_standalone")).click();
+    await pickStack(page, "demo_joint_standalone");
     await page.waitForSelector("tr.el-row", { timeout: 15000 });
-    push("picking the stack marks its nav row and hides the toolbar",
-      await page.locator(navRow("stack", "demo_joint_standalone")).evaluate(
-        (n) => n.className.indexOf("navtree__row--on") !== -1) &&
+    push("picking the stack shows it in the picker and hides the toolbar",
+      await page.locator(MODEL_PICKER).evaluate((n) => n.value) === "stack:demo_joint_standalone" &&
       await page.locator("#toolbar").evaluate((n) => getComputedStyle(n).display) === "none");
 
     push("the elements table renders every element",
@@ -1523,8 +1528,7 @@ async function testPopoverMechanics(browser, url, label) {
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 15000 });
-    await page.locator(navRow("stack", "demo_joint_standalone")).click();
+    await pickStack(page, "demo_joint_standalone");
     await page.waitForSelector("#stackview tr.el-row", { timeout: 15000 });
     // The second row's chip, whose card opens under the first row's crop
     // trigger; resolved to a selector once, by index, so every check below
@@ -12425,12 +12429,12 @@ async function testTypographyRules(browser, label, realProjection) {
 
   try {
     await page.goto(`${url}/apps/viewer/topology.html`, { waitUntil: "load" });
-    await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 20000 });
-    if (await page.locator(navRow("stack", STACK)).count() === 0) {
+    await page.waitForSelector(MODEL_PICKER, { timeout: 20000 });
+    if (await page.locator(`option${navRow("stack", STACK)}`).count() === 0) {
       console.log(`[${label}] SKIP: the live nav offers no ${STACK} leaf`);
       return { label, ok: true };
     }
-    await page.locator(navRow("stack", STACK)).click();
+    await pickStack(page, STACK);
     await page.waitForSelector("#stackview tr.el-row", { timeout: 20000 });
 
     // 1. THE GENERIC ONE, and the only one of the five that is about the class

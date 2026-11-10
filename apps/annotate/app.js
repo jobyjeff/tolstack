@@ -5174,13 +5174,15 @@ function renderDetail() {
   const bind = refreshBindStep();
   line.appendChild(task);
   line.appendChild(modelUnplacedSpan());
+  // The play control never goes away (the_model_is_derived_once_and_the_left_
+  // column_is_its_tree): in bind mode it sits on this one line, folded to its
+  // word or open to its play, which puts the sweep back on -- the one that
+  // was playing, else the newest run. On the line, not under it: the bar is
+  // one line at rest.
+  line.appendChild(buildBindSweepLine());
   line.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(line);
   paintModelUnplaced();
-  // The play control never goes away (the_model_is_derived_once_and_the_left_
-  // column_is_its_tree): in bind mode it is one folded line, whose play puts
-  // the sweep back on -- the one that was playing, else the newest run.
-  el.detail.appendChild(buildBindSweepLine());
   // While an element is being bound, the strip names it and carries the way
   // out: leave binding, and back to the sweep if one was playing.
   if (edge) el.detail.appendChild(buildBindStrip(edge));
@@ -5237,8 +5239,8 @@ function renderDetail() {
 // there to open.
 function buildBindSweepLine() {
   const away = sweepBarFolded();
-  const row = document.createElement("div");
-  row.className = "an__detail-line an__bindsweep";
+  const row = document.createElement("span");
+  row.className = "an__bindsweep";
   const twisty = document.createElement("button");
   twisty.className = "an__sweep-twisty";
   twisty.textContent = away ? "\u25b8" : "\u25be";
