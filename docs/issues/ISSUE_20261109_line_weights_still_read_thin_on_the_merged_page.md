@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: high
-status: triaged
+status: resolved
 area: viewer/design
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_the_integration_walk_reads_the_merged_page_against_jeffs_sentences.md
 handoff: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+resolution: handoff completed 2026-11-09 -- closed automatically by dispatch when handoff `the_demo_path_reads_cleanly_on_a_projector` moved to completed/; not independently verified.
 ---
 
 # Line weights still read thin on the merged page
