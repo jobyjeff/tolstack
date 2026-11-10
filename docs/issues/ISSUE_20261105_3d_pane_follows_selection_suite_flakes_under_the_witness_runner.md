@@ -31,3 +31,26 @@ selected". The witness runner's clean baseline of the same suite was red right a
 "tier was red before the mutation"). Run alone with `--only "3D pane follows the selection"`
 it passed 32/32 in 110 s. Same shape as above: batch-only, green alone.
 (found_by: dispatch/docs/sessions/lessons/LESSONS_20261108_triage_sweep.md)
+
+## 2026-11-10 recurrence (review of the_model_is_derived_once_and_the_left_column_is_its_tree, merged tree = `11ba4bd3`)
+
+`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --changed-since integration`
+selected 94 entries and reached 64 under the 30-minute cap; the clean baseline of this suite was
+red, 31/32, on "[real] resting on a body row in the nav lights that body in the scene" (DIAG:
+`rows 1; pane says {"hover":null,"sweep":true}` after the check's own 20 s leave-and-re-enter
+poll), and **17 entries** -- every entry of this suite the diff reached -- read NOT WITNESSED,
+"the tier was red before the mutation". The full browser tier had passed the same suite 32/32
+in the same chain, alone on the slot, 30 minutes earlier. Two isolated re-runs afterwards,
+`--only browser__real-resting-on-a-body-row-in-the-nav-lights-that-body-i__94144d6f` and
+`--only browser__real-with-the-pane-open-the-left-column-is-the-model-s-t__835a52f7`, were clean
+green and WITNESSED (3m40s, 6m11s). So the sub-check is red about one run in four for this
+suite on this tree (1 of 4 across the chain and the re-runs), and the remaining 15 entries of
+the suite are unproven on the merged tree; the sweep should re-check them.
+
+New here: this handoff rewrote the sub-check (`scripts/run_viewer_browser_tests.mjs`, the
+`bodyLit` poll) because the nav's body rows are no longer re-rendered by the pane's rail
+rebuilds, and its own lesson records the pane clearing the hover on every rebuild for seconds
+after a run loads. The red run polled for 20 s and never saw the light on, so the window is
+not always inside 20 s. The fix is the pane's: stop clearing the hover on a rebuild (or re-post
+the held hover after one), not a longer poll.
+(found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md)

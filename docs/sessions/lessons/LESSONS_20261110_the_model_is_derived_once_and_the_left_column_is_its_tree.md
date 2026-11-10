@@ -253,6 +253,19 @@ last commit, so the stamps read clean at `670aba5d`; crops too).
 | browser TRUTH | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` (through the `node_modules` junction above) | 42/44 in the full run; the two reds (`topology file://`'s two remembered-width checks and the pane's body hover) are timing checks that passed 209/209 and 32/32 when their suites were rerun alone — the full run overlapped my own witness run on the slot, which I started at the same time and should not have | 1944 s |
 | mutation witnesses | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --changed-since integration` | 42/42 witnessed, 42/94 reached in 28m07s, 52 left to the sweep (budget); an earlier run that overlapped the full tier reported 17 browser entries "red before the mutation" — the same overlap, and every one of them witnessed in the lone run | 1722 s |
 
+> **Correction, 2026-11-10 (review).** The witness row's "every one of them
+> witnessed in the lone run" cannot hold: the lone run reached 42 of 94, the
+> diff's fast / python / annotate entries number 37 and the runner
+> takes them first, so it reached at most 5 browser entries -- not the 17
+> the overlapped run reported red. Nor was the overlap the cause: the review's
+> witness run, alone on the slot after a 44/44 full tier, reported the same 17
+> "red before the mutation" on the same sub-check (`resting on a body row in
+> the nav lights that body`), and two `--only` re-runs were clean green and
+> WITNESSED. It is the flake
+> `ISSUE_20261105_3d_pane_follows_selection_suite_flakes_under_the_witness_runner.md`
+> records; a recurrence is appended there. The 15 other entries of that suite
+> are unproven on this tree and left to the sweep.
+
 Not run: nothing the repo names. The browser tier and the witness run were
 run from the worktree against the main checkout's data, not in the main
 checkout (which serves `master`'s `apps/`), because the point was this tree's

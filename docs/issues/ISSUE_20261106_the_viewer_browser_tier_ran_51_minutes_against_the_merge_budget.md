@@ -108,3 +108,18 @@ re-run alone.
 The two uncontended worktree runs today landed 22 s and 30 s over
 (1822 s, 1830 s). That points to the tier's own size, not to
 contention.
+
+## Measurement 2026-11-10 (review of the_model_is_derived_once_and_the_left_column_is_its_tree)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, from the review worktree (merged tree, `node_modules` junctioned) |
+| Projections | the main checkout's, stamped from the branch at `670aba5d` |
+| Result | **44/44**, exit 0 |
+| Wall time | **1873 s** (31m13s), against the 30-minute merge budget: over by 1m13s (`dispatch suite-time record`) |
+| Slot | taken by this run alone; the full pytest run (418 s) had finished before it started, and nothing else of this review ran beside it |
+
+Fourth uncontended worktree run in two days over the budget (1822, 1830,
+1896-contended, 1873 s). The tier gained a 44th suite on 2026-11-09 and this
+handoff rewrote the nav suites' walks (the body-hover sub-check alone polls
+for up to 20 s). Still no per-suite timing from the runner, so still no pareto.
