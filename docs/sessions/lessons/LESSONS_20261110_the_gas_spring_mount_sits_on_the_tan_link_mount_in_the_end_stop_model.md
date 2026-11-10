@@ -138,3 +138,30 @@ no root bearing is a part or on the "left out" list. Filed with `needs: jeff`.
   (strategy, `dag_layout_policy`).
 - `ISSUE_20261110_v2_seats_blade_1s_root_on_the_hub_with_no_root_bearing_between.md`
   (`needs: jeff`).
+- Already filed, recurrence appended: `ISSUE_20261104_a_lesson_screenshot_name_overflows_max_path_in_the_shadow_concurrency_test.md`.
+  `test_two_different_repo_roots_both_still_succeed` was red once from this
+  worktree at basetemp `pytest-13373` and green in the three full runs.
+
+## Suite record
+
+The projections were rebuilt from this tree into the main checkout's
+`data/`. Every builder was run by hand from the worktree with
+`--data-root C:/workspace/tolstack/data`, in `rebuild_projections.ps1`'s
+order, at `1c5b427b`. The later commits change only tests, docs and shots,
+none of them a projection input. The viewer tier's freshness gate passed
+after them.
+
+| tier | command (from the worktree) | result | wall |
+| --- | --- | --- | ---: |
+| default | `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider -rfs` at `9bc97d94` | 1 failed, 1927 passed, 1 skipped, 2 deselected. The one red is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the deliberate worktree red. The skip is `test_fit_bound_features.py:424` (the 2026-10-01 bearing re-extraction is not installed). | 424 s, inside budget, recorded with `dispatch suite-time` |
+| viewer fast + `[real]` | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | 676/676 | ~25 s |
+| annotate fast | `node apps/annotate/run_tests.cjs` | 307/307 | ~20 s |
+| browser TRUTH | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` (through a `node_modules` junction, removed afterwards) | 44/44 | 1870 s |
+| mutation witnesses | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --changed-since integration` | 0 of 879 entries reached by this diff | 0 s |
+
+`-n 16 --dist loadfile` is not available: this venv has no xdist
+(`unrecognized arguments: -n`), so the default tier ran single-process.
+Nothing the repo names went unrun. The browser tier and the witness run
+were run from the worktree against the main checkout's data, not in the
+main checkout, because the point was this tree's code. The review merge
+runs both again there.
