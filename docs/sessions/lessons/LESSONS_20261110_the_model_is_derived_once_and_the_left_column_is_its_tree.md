@@ -226,6 +226,26 @@ issues section below.
 - `ISSUE_20261110_a_body_or_part_hovered_in_the_tree_lights_the_scene_in_sweep_mode_only.md`.
 - `ISSUE_20261110_the_sweep_rails_contributor_rows_and_type_chips_left_the_nav.md` (strategy) — where a contributor's Pick lives now.
 
+## Suite record
+
+Projections rebuilt from this tree into the main checkout's `data/` first
+(every builder run by hand from the worktree with `--data-root
+C:/workspace/tolstack/data`, in `rebuild_projections.ps1`'s order, after the
+last commit, so the stamps read clean at `670aba5d`; crops too).
+
+| tier | command (from the worktree) | result | wall |
+| --- | --- | --- | ---: |
+| default | `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q` | 1 failed, 1925 passed, 1 skipped, 2 deselected — the one red is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the deliberate worktree red (its `[real]` tier has no projection under the worktree's `data/`) | 431 s, inside budget, recorded with `dispatch suite-time` |
+| viewer fast + `[real]` | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | 676/676 | ~25 s |
+| annotate fast | `node apps/annotate/run_tests.cjs` | 307/307 | ~20 s |
+| browser TRUTH | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` (through the `node_modules` junction above) | 42/44 in the full run; the two reds (`topology file://`'s two remembered-width checks and the pane's body hover) are timing checks that passed 209/209 and 32/32 when their suites were rerun alone — the full run overlapped my own witness run on the slot, which I started at the same time and should not have | 1944 s |
+| mutation witnesses | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --changed-since integration` | 42/42 witnessed, 42/94 reached in 28m07s, 52 left to the sweep (budget); an earlier run that overlapped the full tier reported 17 browser entries "red before the mutation" — the same overlap, and every one of them witnessed in the lone run | 1722 s |
+
+Not run: nothing the repo names. The browser tier and the witness run were
+run from the worktree against the main checkout's data, not in the main
+checkout (which serves `master`'s `apps/`), because the point was this tree's
+code; the review merge runs both again in the main checkout.
+
 ## One path for both models
 
 `grep -n "ids_from\|walk_order\|studies.length\|occurrence" apps/viewer/model.js apps/viewer/views/nav.js tolerance_stack/model_view.py` finds, in the new code, only `identity_ids` being built in Python from `ids_from` (a list a reader iterates) and `occurrence` copied onto a part as a fact. Neither `model.js` nor `nav.js` branches on a model's id or shape; the picker, the tree and the studies list are the same code for v1 and v2, and the `models` shot pair is the two through it.
