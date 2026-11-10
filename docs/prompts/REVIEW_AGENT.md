@@ -5725,6 +5725,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       false too. For each `*_DEFAULTS` value a diff changes, grep the old
       default's word and "by default" across `docs/`, `apps/viewer/README.md`,
       the CSS comments and the open issues.
+- [ ] **A suite that is already red hides the next defect landing in it.**
+      (2026-11-09, `the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection`.)
+      `annotate rail holds still` was 11/17 when
+      `a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list`
+      landed. That handoff left a body's mesh-less part rows with no
+      `data-kind`, which reddened one of the six sub-checks that were already
+      failing. Nobody saw it until the fix for the other five was merged.
+      When a diff touches a surface that an already-red suite checks, compare
+      that suite's **list of failing sub-check names** before and after the
+      merge. Do not accept "pre-existing red" from the total alone. And when
+      a fix for a red suite merges onto a moved `integration`, re-run that
+      suite on the merged tree: the branch's green is no evidence of the
+      merge's.
 
 ## Architectural errors to check
 

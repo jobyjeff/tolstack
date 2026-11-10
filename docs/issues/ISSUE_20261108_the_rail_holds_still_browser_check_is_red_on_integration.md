@@ -56,3 +56,13 @@ real proposal events, open, and no binding. Everything else is the projection
 as built. `takeTarget` then picks the first joint in rail order whose two rows
 are the two ends of one edge, both open and both listing faces. Today that is
 `plate_slide`. Result: 17/17.
+
+## Review addendum 2026-11-09
+
+This fix is verified: 17/17 on its own branch. After the review merge with
+integration, the suite is **16/17**. The one red is a different defect that
+integration's `a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list`
+introduced while this suite was already red: a body's part with no mesh gets
+no row kind. It is filed as
+`ISSUE_20261109_a_body_part_with_no_mesh_has_no_row_kind_in_the_sweep_rail.md`.
+This issue stays resolved because the six reds it named are fixed.
