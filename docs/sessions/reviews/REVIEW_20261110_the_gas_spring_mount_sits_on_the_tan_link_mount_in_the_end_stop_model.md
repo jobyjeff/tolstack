@@ -101,3 +101,16 @@ None.
 
 Added "A topology data change 'fixed' by reordering its authored edges" to
 Recurring bugs.
+
+## Post-merge
+
+- **Full suite in the review worktree** (merged tree; `integration` contained):
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave **1 failed, 1927 passed, 1 skipped, 2 deselected in 428 s**. It ran
+  single-process because this venv has no xdist. The suite's output carried
+  neither contention header line. The one red is
+  `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the
+  deliberate worktree red. The same tier was green through `--repo` (676/676,
+  above). The time is recorded with `dispatch suite-time`.
+- **The main checkout's `git status`** was clean after the run, so the suite
+  left no data pollution that git can see.
