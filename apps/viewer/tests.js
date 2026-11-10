@@ -265,8 +265,8 @@
         eq(VA.annotateEmbedHref(VA.ANNOTATE_PAGE), "../annotate/index.html?embedded=1");
       });
 
-    await test("the scene's tree under the study row draws the rows the annotator " +
-      "sent, and every gesture goes back as (row, act) -- nothing acts here",
+    await test("the faces layer draws the rows the annotator sent for one feature, " +
+      "and every gesture goes back as (row, act) -- nothing acts here",
       function () {
         var sent = [];
         var send = function (key, act, index) {
@@ -276,7 +276,6 @@
         VA.renderSceneTree(slot, null, { send: send });
         eq(slot.childNodes.length, 0, "no tree yet draws nothing");
         VA.renderSceneTree(slot, {
-          chips: [{ key: "chip:bodies", text: "bodies", pressed: true }],
           rows: [
             { key: "h", head: "bodies (1)" },
             { key: "b", text: "blade · 2 parts", title: "blade · 2 parts", open: true,
@@ -287,9 +286,8 @@
               selected: true, attention: true, alert: "No face bound" },
           ],
         }, { send: send });
-        var chip = slot.querySelector("button.navtree__scenechip");
-        eq(chip.getAttribute("aria-pressed"), "true");
-        chip.click();
+        eq(slot.querySelectorAll("button.navtree__scenechip").length, 0,
+           "no type chips: the layer is one feature's rows, not a rail to filter");
         var summary = slot.querySelector("summary.navtree__scenesummary");
         ok(summary, "a row with children is a disclosure");
         eq(slot.querySelector("details.navtree__scenenode").open, true);
@@ -310,10 +308,42 @@
         contributor.onmouseenter();
         contributor.onfocus();
         contributor.onblur();
-        eq(sent.join(" | "), ["chip:bodies button 0", "b toggle", "b check",
+        eq(sent.join(" | "), ["b toggle", "b check",
           "b/p button 0", "c activate", "c activate", "c enter", "c enter", "c leave"].join(" | "));
         eq(slot.querySelector("span.navtree__scenealert").getAttribute("title"), "No face bound");
         eq(slot.querySelector("span.navtree__scenesub").textContent, "moved to its body");
+      });
+
+    await test("the faces layer picks the pane's rows for one feature: the rows keyed " +
+      "by its node in sweep mode, the scoped element list in bind mode", function () {
+        // Sweep mode: the annotator's keys name a joint end by its node
+        // (`feature=<node>`), at any depth; the row and its children come out.
+        var sweep = { rows: [
+          { key: "#sweep-tree/body=blade", text: "blade", rows: [
+            { key: "#sweep-tree/body=blade/part=pitch_arm", text: "pitch arm" }] },
+          { key: "#sweep-tree/joint=hinge", text: "hinge", open: true, rows: [
+            { key: "#sweep-tree/joint=hinge/feature=hub_bore,end=a", text: "hub bore",
+              rows: [{ key: "#sweep-tree/joint=hinge/feature=hub_bore,end=a/face=3", text: "face 3" }] },
+            { key: "#sweep-tree/joint=hinge/feature=blade_root,end=b", text: "blade root" }] },
+        ] };
+        var picked = VA.sceneRowsForFeature(sweep, "hub_bore");
+        eq(picked.map(function (r) { return r.text; }), ["hub bore"]);
+        eq(picked[0].rows.length, 1, "the end's candidate faces ride under it");
+        eq(VA.sceneRowsForFeature(sweep, "no_such_node"), [],
+           "a node the sweep tree does not name, and no element list: nothing");
+        // Bind mode: the pane scoped its element list to the node, so the
+        // whole list is the feature's; the list's heading is not a row.
+        var bind = { rows: [
+          { key: "#element-list/All 3 interfaces", head: "All 3 interfaces" },
+          { key: "#element-list/base thickness", text: "base thickness", activate: true },
+          { key: "#element-list/post height", text: "post height", activate: true },
+          { key: "#parts-panel/In this model", head: "In this model" },
+          { key: "#parts-panel/base", text: "215197 base plate" },
+        ] };
+        eq(VA.sceneRowsForFeature(bind, "base_post_seat").map(function (r) { return r.text; }),
+           ["base thickness", "post height"]);
+        eq(VA.sceneRowsForFeature(null, "x"), []);
+        eq(VA.sceneRowsForFeature(bind, null), []);
       });
 
     await test("a mirrored row wears its kind and its mark, every row has a twisty column and " +
@@ -4252,9 +4282,10 @@
         eq(plan.rows.map(function (r) { return r.id; }), TOPO_EDGE_ORDER);
         plan.rows.forEach(function (r, i) { eq(r.gridRow, i); });
         eq(plan.groups.length, 6);
-        // The part's NAME, not its id (VA.componentLabel, 2026-09-15).
+        // The part's one LABEL -- its number, then its name (model_view.
+        // part_label, 2026-11-10), never its id (VA.componentLabel).
         eq(plan.groups.map(function (g) { return g.label; }),
-          ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
+          ["215197 base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
            "parallel strut", "post"]);
         // The id is still what the group is keyed by -- it is the handle every
         // lookup and every deep link uses, and only the LABEL changed.
@@ -4395,17 +4426,24 @@
         eq(all(root, "path.rail__leader").length, 0);
       });
 
-    await test("a non-internal node between two same-part edges still breaks " +
-      "the group, so a leader never points inside one", function () {
-        var mini = miniTopo(true);   // n1 now also touches part q's edge (the
+    await test("a non-internal node between two same-part edges no longer breaks " +
+      "the group: the bracket is the part, and the leader lands on a seam inside it",
+      function () {
+        // the_model_is_derived_once_and_the_left_column_is_its_tree
+        // (2026-11-10): v2's hub was 1 + 3 rows in two brackets and the DAG
+        // drew one block, because a group also broke at any boundary node.
+        var mini = miniTopo(true);   // n1 also touches part q's edge (the
                                      // edge itself is off-layout on purpose:
                                      // adjacency reads the DOCUMENT, not the
                                      // serialisation)
         var plan = VA.gridPlan(mini.layout, mini);
         eq(plan.groups.map(function (g) { return g.label + ":" + g.count; }),
-          ["one part:1", "one part:1"]);
+          ["one part:2"]);
+        // n1 is still a boundary: its leader is drawn, to the seam between
+        // the part's two rows.
         eq(plan.leaders.map(function (l) { return l.id + ":" + l.boundary; }),
           ["n1:1"]);
+        eq(plan.leaders[0].beforeEdge, "e2");
       });
 
     await test("leaderGeometry jogs each leader from its node's dot to its " +
@@ -4956,8 +4994,13 @@
     await test("the component label is the part's own name, and an id is what " +
       "it is keyed by -- never what is printed", function () {
         var index = VA.topologyIndex(TOPO);
-        eq(VA.componentLabel(index.parts.base), "base plate");
+        // The builder's one label: number, then everyday name
+        // (tolerance_stack.model_view.part_label, 2026-11-10).
+        eq(VA.componentLabel(index.parts.base), "215197 base plate");
+        eq(index.parts.base.label, "215197 base plate");
         eq(VA.componentLabel(index.parts.strut), "parallel strut");
+        // A part row built before the label existed keeps the older rule.
+        eq(VA.componentLabel({ id: "x", name: "a name", drawing: "1" }), "a name");
         // A part with no name at all falls back to its id rather than to an
         // empty cell: absent is absent, but a blank component column would be
         // a worse lie than a raw id.
@@ -4976,7 +5019,7 @@
 
     await test("an interface's sides, the grid's merged cell and a node's record " +
       "all name a part the SAME way, off one derivation", function () {
-        eq(VA.nodeSideLabels(TOPO, "base_post_seat"), ["base plate", "post"]);
+        eq(VA.nodeSideLabels(TOPO, "base_post_seat"), ["215197 base plate", "post"]);
         // A clearance is a real side and is named, not skipped.
         ok(VA.nodeSideLabels(TOPO, "strut_end")
             .indexOf(VA.CLEARANCE_SIDE_LABEL) !== -1);
@@ -5131,17 +5174,19 @@
         var base = partOf(TOPO, "base_thickness");
         eq(base.references, []);
         eq(base.standardPart, false);
-        eq(base.drawing, "drawing 215197");
-        // ...and it reaches the Preview: a node's side says it beside its
-        // picture, in those words.
+        // Its label already opens with the drawing (`215197 base plate`), so
+        // the record carries no second drawing line: the number is said once.
+        eq(base.label, "215197 base plate");
+        eq(base.drawing, null);
+        // ...and the Preview prints no source line under that side -- the side
+        // label is where the number is.
         var images = {};
         images[TOPOCROPS.by_stack.demo_joint.plate.png] = { url: "blob:plate" };
         var seat = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({ cropImages: images,
             selection: { kind: "node", id: "base_post_seat" } }));
         });
-        eq(all(all(seat, "div.detail__side")[0], "div.detail__partsource")[0].textContent,
-           "drawing 215197");
+        eq(all(all(seat, "div.detail__side")[0], "div.detail__partsource").length, 0);
         // ...and a standard part, in Jeff's words, on the side that is one.
         var standard = VA.renderPartSource(strut);
         eq(standard.textContent, "standard part — dimensions from STRUT-DATASHEET.pdf");
@@ -8711,7 +8756,7 @@
         eq(record.noCropReason, null);
         ok(record.citation, "the citation rides on the record");
         eq(record.values.nominal, edge.dimension.nominal);
-        eq(record.part.label, "base plate");
+        eq(record.part.label, "215197 base plate");
         // base_thickness is traced through its stack element: no binding is
         // wanted -- a binding is identity, never a value source.
         eq(record.binding.wanted, false);
@@ -8783,7 +8828,7 @@
         eq(seat.branch, true);
         eq(seat.internal, false);
         eq(seat.sides.map(function (side) { return side.id; }), ["base", "post"]);
-        eq(seat.sides[0].label, "base plate");
+        eq(seat.sides[0].label, "215197 base plate");
         // A side's picture IS its part's picture, so the node and every row of
         // the part cannot disagree about what that part looks like.
         eq(seat.sides[0].thumb,
@@ -9042,12 +9087,16 @@
           .textContent;
         ok(cited.indexOf("215197") === -1, "the number is already on the line above: " + cited);
         has(cited, "sheet 2");
+        // The fixture's own base plate is labelled `215197 base plate` by the
+        // builder's rule, so its citation line says the number nowhere either.
         var plain = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "edge", id: "base_thickness" } }));
         });
-        has(all(all(plain, "div.detail__citation")[0], "div.detail__where")[0].textContent,
-            "215197 · rev A.1 · sheet 2");
+        var plainCited = all(all(plain, "div.detail__citation")[0], "div.detail__where")[0]
+          .textContent;
+        ok(plainCited.indexOf("215197") === -1, "the label said it: " + plainCited);
+        has(plainCited, "rev A.1 · sheet 2");
       });
 
     await test("renderHoverCard says a card kind it has no branch for out loud",
@@ -10057,7 +10106,7 @@
         eq(all(root, "div.el-export--established").length, 1);
         has(root.textContent, "pinned to this exact file");
         // The part and both interfaces in their own names, not their ids.
-        has(root.textContent, "a dimension of base plate");
+        has(root.textContent, "a dimension of 215197 base plate");
         has(root.textContent, "base datum face → base / post seat");
       });
 
@@ -10284,11 +10333,13 @@
           return node.textContent;
         });
         eq(wheres.length, 2, "the part line, then the citation line");
-        has(wheres[0], "base plate");
-        // The citation's own document is `215197`, which the part line above
-        // does NOT carry, so it is still stated -- dropping it would leave the
-        // line saying only "rev A.1 · sheet 2".
-        has(wheres[1], "215197");
+        // Since 2026-11-10 every part with a drawing is labelled number-first
+        // (model_view.part_label), so the part line carries `215197` and the
+        // citation line below it does not say it again.
+        has(wheres[0], "215197 base plate");
+        ok(wheres[1].indexOf("215197") === -1,
+           "the citation line repeated the part number the line above said: " + wheres[1]);
+        has(wheres[1], "rev A.1");
         var named = render(function (r) {
           var ctx = topoCtx({ selection: { kind: "edge", id: "base_thickness" } });
           // The same edge, with the part renamed after its own drawing: the
@@ -10402,13 +10453,14 @@
         var root = render(function (r) {
           VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPO.id }, {});
         });
-        var ids = all(root, ".navtree__row").map(function (row) {
-          return row.getAttribute("data-nav-id");
+        var ids = all(root, "option").map(function (option) {
+          return option.getAttribute("data-nav-id");
         });
         eq(ids.indexOf("demo_joint"), -1,
-           "a covered stack must have no row of its own");
+           "a covered stack must have no option of its own");
         ok(ids.indexOf("stack_rotor_fastener_length") !== -1,
-           "a stack no topology re-expresses is still a leaf");
+           "a stack no topology re-expresses is an option of the picker");
+        eq(all(root, ".navtree__row--stack").length, 0, "and no stack has a row");
         eq(root.textContent.toLowerCase().indexOf("classic"), -1,
            "no surface says \"classic\" anywhere (deliverable 4)");
       });
@@ -10543,37 +10595,55 @@
            "the rail's mark is a drawn icon -- no glyph on any row");
       });
 
-    await test("the topology row is marked active with no study selected, " +
-      "not the whole-topology view AND a study at once", function () {
+    await test("with no study selected no row is marked active: the open model is " +
+      "the picker's choice, not a row", function () {
         var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         var root = render(function (r) {
           VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPO.id,
             studyId: null, selectedStackId: null }, {});
         });
-        eq(all(root, ".navtree__row--on").length, 1);
-        has(all(root, ".navtree__row--topology")[0].className, "navtree__row--on");
+        eq(all(root, ".navtree__row--on").length, 0);
+        eq(all(root, ".navtree__row--topology").length, 0, "no topology row any more");
+        eq(root.querySelector("select.navtree__select").value,
+           VA.navPickValue(VA.NAV_PICK_KINDS.topology, TOPO.id));
       });
 
-    await test("clicking a topology row, a study row and a stack row each " +
-      "call their own handler with the right ids", function () {
+    await test("the model picker lists every model then every loose stack, shows the " +
+      "open one, and choosing drives the page; a study row calls its own handler",
+      function () {
         var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         var seen = [];
         var root = render(function (r) {
           VA.renderNavTree(r, tree,
-            { mode: "topology", topologyId: null, studyId: null, selectedStackId: null },
+            { mode: "topology", topologyId: TOPO.id, studyId: null, selectedStackId: null },
             {
               onTopology: function (id) { seen.push(["topology", id]); },
               onStudy: function (topologyId, studyId) { seen.push(["study", topologyId, studyId]); },
               onStack: function (id) { seen.push(["stack", id]); },
             });
         });
-        all(root, ".navtree__row--topology")[0].click();
+        var select = root.querySelector("select.navtree__select");
+        ok(select, "the picker is a <select>");
+        var kinds = all(select, "option").map(function (o) { return o.getAttribute("data-nav-kind"); });
+        eq(kinds[0], "topology");
+        ok(kinds.indexOf("stack") > kinds.lastIndexOf("topology"), "models first, then the loose stacks");
+        eq(all(select, "option")[0].textContent, TOPO.title);
+        eq(select.value, VA.navPickValue(VA.NAV_PICK_KINDS.topology, TOPO.id));
+        // A stack's option is in the "Other analyses" group.
+        eq(all(select, "optgroup").length, 1);
+        eq(VA.parseNavPick("topology:t1"), { kind: "topology", id: "t1" });
+        eq(VA.parseNavPick("stack:s:1"), { kind: "stack", id: "s:1" });
+        eq(VA.parseNavPick("banana:x"), null);
+        eq(VA.parseNavPick(""), null);
+        select.value = VA.navPickValue(VA.NAV_PICK_KINDS.stack, "stack_rotor_fastener_length");
+        select.onchange();
+        select.value = VA.navPickValue(VA.NAV_PICK_KINDS.topology, TOPO.id);
+        select.onchange();
         all(root, ".navtree__row--study")[0].click();
-        all(root, ".navtree__row--stack")[0].click();
-        eq(seen[0], ["topology", TOPO.id]);
-        eq(seen[1][0], "study");
-        eq(seen[1][1], TOPO.id);
-        eq(seen[2][0], "stack");
+        eq(seen[0], ["stack", "stack_rotor_fastener_length"]);
+        eq(seen[1], ["topology", TOPO.id]);
+        eq(seen[2][0], "study");
+        eq(seen[2][1], TOPO.id);
       });
 
     await test("an empty projection says so rather than rendering nothing",
@@ -10751,7 +10821,7 @@
     await test("a study row wears ONE status icon and no verdict chip, and a " +
       "row with nothing wrong wears nothing at all", function () {
         var root = render(function (r) {
-          VA.renderNavTree(r, ALERT_TREE, { mode: "topology" },
+          VA.renderNavTree(r, ALERT_TREE, { mode: "topology", topologyId: "t1" },
             { onTopology: function () {}, onStudy: function () {} });
         });
         var rows = all(root, ".navtree__row--study");
@@ -10776,7 +10846,7 @@
     await test("the status icon is drawn, not typed: one sized SVG path that " +
       "takes its colour from the row's level", function () {
         var root = render(function (r) {
-          VA.renderNavTree(r, ALERT_TREE, { mode: "topology" }, {});
+          VA.renderNavTree(r, ALERT_TREE, { mode: "topology", topologyId: "t1" }, {});
         });
         var icon = all(root, ".navstatus")[0];
         eq(icon.className.indexOf("chip"), -1,
@@ -10799,7 +10869,7 @@
     await test("the icon carries its alerts as a tooltip and an aria-label, " +
       "so they are never ONLY in a hover card", function () {
         var root = render(function (r) {
-          VA.renderNavTree(r, ALERT_TREE, { mode: "topology" }, {});
+          VA.renderNavTree(r, ALERT_TREE, { mode: "topology", topologyId: "t1" }, {});
         });
         var icon = all(root, ".navstatus")[0];
         ok(icon, "expected the icon");
@@ -10817,7 +10887,7 @@
         var shown = [];
         var selected = [];
         var root = render(function (r) {
-          VA.renderNavTree(r, ALERT_TREE, { mode: "topology" }, {
+          VA.renderNavTree(r, ALERT_TREE, { mode: "topology", topologyId: "t1" }, {
             onTopology: function () {},
             onStudy: function (topologyId, studyId) { selected.push(studyId); },
             onCardShow: function (card, trigger) { shown.push([card, trigger]); },
@@ -10919,20 +10989,23 @@
         eq(VA.stackNavAlerts(null), []);
       });
 
-    await test("a loose-stack row wears the same one icon, and no chip", function () {
+    await test("a loose stack is an option of the model picker, named, with no row, " +
+      "no chip and no mark of its own", function () {
+        // the_model_is_derived_once_and_the_left_column_is_its_tree
+        // (2026-11-10): Jeff's picker holds the models, then any analysis in
+        // neither. An option carries no mark -- a stack's verdicts are on its
+        // own page -- and the rail below the picker is the open model's.
         var root = render(function (r) {
           VA.renderNavTree(r, { topologies: [], looseStacks: [LOUD_STACK, QUIET_STACK] },
-            { mode: "stack" }, { onStack: function () {} });
+            { mode: "stack", selectedStackId: "quiet" }, { onStack: function () {} });
         });
-        var rows = all(root, ".navtree__row--stack");
-        eq(rows.length, 2);
-        eq(all(root, "span.chip").length, 0,
-           "the counts roll-up left the rail with the verdict chips");
-        eq(all(rows[0], ".navstatus--warn").length, 1);
-        eq(rows[0].textContent, "A loud stack");
-        eq(all(rows[1], ".navstatus").length, 0,
-           "a stack with nothing to admit wears nothing -- the same quiet-row " +
-           "rule the study rows run on");
+        eq(all(root, ".navtree__row--stack").length, 0);
+        eq(all(root, "span.chip").length, 0);
+        eq(all(root, ".navstatus").length, 0);
+        var options = all(root, "option");
+        eq(options.map(function (o) { return o.textContent; }), ["A loud stack", "A quiet stack"]);
+        eq(root.querySelector("select.navtree__select").value,
+           VA.navPickValue(VA.NAV_PICK_KINDS.stack, "quiet"));
       });
 
     // A stack's row reaches the same two levels a study's does, which is the
@@ -10986,26 +11059,18 @@
            "a verdict word this viewer has no branch for is not a verdict");
       });
 
-    await test("a failing stack row is drawn in the one colour this rail " +
-      "spends on failure, and says so in words", function () {
-        var root = render(function (r) {
-          VA.renderNavTree(r, {
-            topologies: [],
-            looseStacks: [FAILING_STACK, PROBE_FAIL_STACK],
-          }, { mode: "stack" }, { onStack: function () {} });
-        });
-        var rows = all(root, ".navtree__row--stack");
-        eq(all(rows[0], ".navstatus--fail").length, 1);
+    await test("a failing stack's status is the one colour this rail spends on " +
+      "failure, in words, under the same scheme as a study's", function () {
+        // The stack's row left the rail for the picker (2026-11-10); the rule
+        // that derives its status stays, read by whatever surface shows it.
         var status = VA.stackNavStatus(FAILING_STACK);
         eq(status.level, VA.NAV_STATUS_WORST);
         eq(status.alerts.length, 1, "no flags on it -- the verdict alone");
         eq(status.alerts[0].kind, "verdict-fail");
         eq(status.alerts[0].text, "fail — " + VA.VERDICTS.fail.says);
-        has(rows[0].querySelector(".navstatus").getAttribute("title"), "fail");
         // The probe-only failure stays silent: a clean result verdict, no
         // flags, nothing to look at.
         eq(VA.stackNavStatus(PROBE_FAIL_STACK), null);
-        eq(all(rows[1], ".navstatus").length, 0);
         // And the scheme is ONE scheme: a stack and a study with the same
         // verdict and no flags produce the same mark, level and words alike.
         var asStudy = VA.studyNavStatus(navStudy(FAILING, []));
@@ -11045,30 +11110,22 @@
       "the hover tooltip on the row's name, and a row without one has none",
       function () {
         var root = render(function (r) {
-          VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology" }, {});
+          VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology", topologyId: "t1" }, {});
         });
         var byId = {};
         all(root, ".navtree__row").forEach(function (row) {
           byId[row.getAttribute("data-nav-id")] =
             row.querySelector(".navtree__label").getAttribute("title");
         });
-        has(byId.t1, "The long qualification the title shed.");
+        // A model's and a loose stack's description is its option's title.
+        all(root, "option").forEach(function (option) {
+          byId[option.getAttribute("data-nav-id")] = option.getAttribute("title");
+        });
+        eq(byId.t1, "The long qualification the title shed.");
         eq(byId.s1, "Hub A datum to blade OML, in degrees.");
         eq(byId.s2, null);
         eq(byId.k2, "A loose stack's own one-liner.");
         eq(byId.k3, null);
-      });
-
-    await test("the topology row's description does not displace the click " +
-      "hint — that hint is the only statement of what clicking it does",
-      function () {
-        var root = render(function (r) {
-          VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology" }, {});
-        });
-        var tip = all(root, ".navtree__row--topology")[0]
-          .querySelector(".navtree__label").getAttribute("title");
-        has(tip, "The long qualification the title shed.");
-        has(tip, "the whole topology, depth-first, with nothing highlighted");
       });
 
     // nav_tooltip_once_and_rail_hover_emphasis (2026-09-30). Jeff, on the
@@ -11085,21 +11142,21 @@
       "mark's card, never a native tooltip stacked under the card",
       function () {
         var described = JSON.parse(JSON.stringify(DESCRIBED_TREE));
-        described.looseStacks[0] = JSON.parse(JSON.stringify(FAILING_STACK));
-        described.looseStacks[0].description = "A loose stack's own one-liner.";
+        described.topologies[0].studies[0] = navStudy(FAILING, []);
+        described.topologies[0].studies[0].description = "A study's own one-liner.";
         var shown = [];
         var root = render(function (r) {
-          VA.renderNavTree(r, described, { mode: "topology" }, {
-            onStack: function () {},
+          VA.renderNavTree(r, described, { mode: "topology", topologyId: "t1" }, {
+            onStudy: function () {},
             onCardShow: function (card, trigger) { shown.push([card, trigger]); },
           });
         });
-        var row = all(root, ".navtree__row--stack")[0];
+        var row = all(root, ".navtree__row--study")[0];
         eq(row.getAttribute("title"), null,
            "the row itself carries nothing: the mark sits on it, and a row " +
            "tooltip is what showed through the card");
         eq(row.querySelector(".navtree__label").getAttribute("title"),
-           "A loose stack's own one-liner.");
+           "A study's own one-liner.");
         var mark = row.querySelector(".navstatus");
         eq(mark.getAttribute("title"), null,
            "the card absorbs the mark's words rather than stacking under them");
@@ -11117,11 +11174,13 @@
     // claim views/stack.js's own badge test makes for the two tables.
     await test("with no card handler the nav mark keeps its native tooltip: " +
       "the alerts are never only in a hover", function () {
+        var failing = JSON.parse(JSON.stringify(DESCRIBED_TREE));
+        failing.topologies[0].studies = [navStudy(FAILING, [])];
         var root = render(function (r) {
-          VA.renderNavTree(r, { topologies: [], looseStacks: [FAILING_STACK] },
-            { mode: "stack" }, { onStack: function () {} });
+          VA.renderNavTree(r, failing, { mode: "topology", topologyId: "t1" },
+            { onStudy: function () {} });
         });
-        var mark = all(root, ".navtree__row--stack")[0].querySelector(".navstatus");
+        var mark = all(root, ".navtree__row--study")[0].querySelector(".navstatus");
         has(mark.getAttribute("title"), "fail");
         eq(mark.className.indexOf("cardtrig"), -1);
       });
@@ -11677,7 +11736,10 @@
     await test("the nav hangs a model's kinematic studies under the model, keeps a " +
       "section only for a group no listed model claims, and says nothing kinematic " +
       "when there is no projection", function () {
-        var state = { mode: "kinematic", kinematicId: KIN_STUDY.id };
+        // A kinematic page has its study's topology open under it (the app's
+        // selectKinematic sets both), which is the model the tree draws.
+        var state = { mode: "kinematic", kinematicId: KIN_STUDY.id,
+                      topologyId: KIN_STUDY.topology };
         var clicked = [];
         var handlers = {
           onTopology: function () {}, onStudy: function () {}, onStack: function () {},
@@ -11691,14 +11753,16 @@
             state, handlers);
         });
         var heading = all(root, "h2.navtree__heading");
+        // No model object in this state, so no entity sections: the studies
+        // and the unclaimed group are the whole tree.
         eq(heading.map(function (h) { return h.textContent; }),
-           ["Models", "Kinematic studies"]);
+           [VA.NAV_WORDS.studies, "Kinematic studies"]);
         var rows = all(root, "div.navtree__row").filter(function (row) {
           return row.getAttribute("data-nav-kind") === "kinematic";
         });
         eq(rows.length, 1);
-        ok(insideOf(all(root, "div.navtree__section--models")[0], rows[0]),
-          "the study hangs under its model, in the Models section");
+        ok(insideOf(all(root, "div.navtree__section--studies")[0], rows[0]),
+          "the study hangs under its model, in the Studies section");
         ok(hasClass(rows[0], "navtree__row--on"), "the open study is marked current");
         has(rows[0].textContent, "Tip angle at the stops");
         // One mark, the chain studies' scheme: a budget-scoped verdict asks
@@ -11709,7 +11773,7 @@
           return row.getAttribute("data-nav-kind") === "kinematic-model";
         });
         eq(model.length, 1);
-        eq(model[0].textContent, "Kinematic model");
+        eq(model[0].textContent, VA.NAV_WORDS.sweep);
         ok(insideOf(all(root, "div.navtree__section--kinematic")[0], model[0]),
           "a topology the projection does not list keeps the old section");
         model[0].click();
@@ -11717,11 +11781,253 @@
 
         var bare = render(function (r) {
           VA.renderNavTree(r, VA.navTree(KIN_TOPOLOGIES, FIXTURE.results, null),
-            { mode: "topology" }, handlers);
+            { mode: "topology", topologyId: KIN_TOPOLOGIES.topologies[0].id }, handlers);
         });
         eq(all(bare, "h2.navtree__heading").map(function (h) { return h.textContent; }),
-           ["Models"]);
+           [VA.NAV_WORDS.studies]);
         eq(bare.textContent.indexOf("Kinematic"), -1);
+      });
+
+    // --- the model object and its tree (the_model_is_derived_once_and_the_
+    // left_column_is_its_tree, 2026-11-10) -----------------------------------
+    //
+    // A small model with bodies, in the shape the builder writes
+    // (tolerance_stack.model_view): two bodies, three parts, a shared node
+    // (one contact inside the first body), a gap edge between the bodies, and
+    // one compound joint. Hand-written here because the demo mechanism
+    // declares no bodies and its model block (TOPOFIX) exercises only the
+    // bodiless shape.
+    function bodiedProj() {
+      var edges = [
+        { id: "d1", kind: "structural", part: "p1", from: "n1", to: "n2" },
+        { id: "d2", kind: "structural", part: "p2", from: "n2", to: "n3" },
+        { id: "g1", kind: "gap", interface: "spherical", from: "n3", to: "n4" },
+        { id: "g2", kind: "gap", interface: "pin_in_bore", from: "n1", to: "n5" },
+      ];
+      return {
+        id: "mini", title: "Mini", edges: edges,
+        bodies: [{ id: "b1", name: "ground", parts: ["p1", "p2"] },
+                 { id: "b2", name: "arm", parts: ["p3"] }],
+        model: {
+          id: "mini", title: "Mini", identity_ids: ["mini", "older"],
+          bodies: [{ id: "b1", name: "ground", kind: "body", parts: ["p1", "p2"] },
+                   { id: "b2", name: "arm", kind: "link", parts: ["p3"] }],
+          parts: [
+            { id: "p1", label: "100-001 hub", number: "100-001", name: "hub", body: "b1",
+              features: ["p1@n1", "p1@n2"], dimensions: ["d1"], occurrence: null,
+              mesh: { installed: true, part_id: "p1" } },
+            { id: "p2", label: "100-002 mount", number: "100-002", name: "mount", body: "b1",
+              features: ["p2@n2", "p2@n3", "p2@n5"], dimensions: ["d2"], occurrence: null,
+              mesh: { installed: false, part_id: null } },
+            { id: "p3", label: "arm", number: null, name: "arm", body: "b2",
+              features: ["p3@n4"], dimensions: [], occurrence: null,
+              mesh: { installed: true, part_id: "p3" } },
+          ],
+          features: [
+            { id: "p1@n1", part: "p1", node: "n1", name: "boss", kind: "datum_feature", shared: false, body: "b1" },
+            { id: "p1@n2", part: "p1", node: "n2", name: "mount seat", kind: "mating_surface", shared: true, body: "b1" },
+            { id: "p2@n2", part: "p2", node: "n2", name: "mount seat", kind: "mating_surface", shared: true, body: "b1" },
+            { id: "p2@n3", part: "p2", node: "n3", name: "bore", kind: "datum_feature", shared: false, body: "b1" },
+            { id: "p2@n5", part: "p2", node: "n5", name: "pilot bore", kind: "datum_feature", shared: false, body: "b1" },
+            { id: "p3@n4", part: "p3", node: "n4", name: "ball centre", kind: "datum_feature", shared: false, body: "b2" },
+          ],
+          dimensions: [
+            { id: "d1", part: "p1", name: "boss to mount seat", from: "p1@n1", to: "p1@n2", body: "b1" },
+            { id: "d2", part: "p2", name: "mount seat to bore", from: "p2@n2", to: "p2@n3", body: "b1" },
+          ],
+          interfaces: [
+            { id: "n2", name: "mount seat", kind: "contact", source: "node", ends: ["p1@n2", "p2@n2"],
+              parts: ["p1", "p2"], bodies: ["b1"], within: "b1", joint: "p1+p2" },
+            { id: "g1", name: "bore to ball centre", kind: "spherical", source: "edge", ends: ["p2@n3", "p3@n4"],
+              parts: ["p2", "p3"], bodies: ["b1", "b2"], within: null, joint: "p2+p3" },
+            { id: "g2", name: "boss in pilot bore", kind: "pin_in_bore", source: "edge", ends: ["p1@n1", "p2@n5"],
+              parts: ["p1", "p2"], bodies: ["b1"], within: "b1", joint: "p1+p2" },
+          ],
+          joints: [
+            { id: "p1+p2", parts: ["p1", "p2"], bodies: ["b1"], within: "b1", constraints: ["n2", "g2"] },
+            { id: "p2+p3", parts: ["p2", "p3"], bodies: ["b1", "b2"], within: null, constraints: ["g1"] },
+          ],
+          counts: { bodies: 2, parts: 3, features: 6, dimensions: 2, interfaces: 3,
+                    contacts: 1, gaps: 2, between_bodies: 1, within_bodies: 2, joints: 2 },
+        },
+      };
+    }
+    // A feature-identity projection: d1 bound at its `to` end (n2 on p1, the
+    // seat), a proposal at g1's `from` end (n3), and a record keyed under the
+    // model this one reuses ids from (`older`) binding d2's `to` end (n3).
+    function bodiedIdentity() {
+      return { stack_keys: [
+        { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "d1" },
+          bindings: [{ event_id: "e1", direction: "to" }], proposals: [] },
+        { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "g1" },
+          bindings: [], proposals: [{ event_id: "e2", direction: "from" }] },
+        { stack_key: { kind: "topology_edge", topology_id: "older", edge_id: "d2" },
+          bindings: [{ event_id: "e3", direction: "to" }], proposals: [] },
+        { stack_key: { kind: "topology_edge", topology_id: "elsewhere", edge_id: "g2" },
+          bindings: [{ event_id: "e4", direction: "to" }], proposals: [] },
+      ] };
+    }
+
+    await test("the model object is built once from the projection's model block: its " +
+      "lookups answer by id, and a feature's status folds the identity projection at " +
+      "its own end", function () {
+        var model = VA.buildModel(bodiedProj(), bodiedIdentity());
+        eq(model.counts.features, 6);
+        eq(model.bodyOf("p2"), "b1");
+        eq(model.bodyOf("p3"), "b2");
+        eq(model.bodyOf("nobody"), null);
+        eq(model.label("p1"), "100-001 hub");
+        eq(model.label("p3"), "arm");
+        eq(model.label("ghost"), "ghost");
+        eq(model.tint("b2"), 1);
+        eq(model.featuresOfNode("n2"), ["p1@n2", "p2@n2"], "a shared node is two features");
+        eq(model.featuresOf("p2").map(function (f) { return f.name; }), ["mount seat", "bore", "pilot bore"]);
+        eq(model.dimensionsOf("p1").map(function (d) { return d.id; }), ["d1"]);
+        eq(model.jointsWithin("b1").map(function (j) { return j.id; }), ["p1+p2"]);
+        eq(model.jointsBetween().map(function (j) { return j.id; }), ["p2+p3"]);
+        eq(model.constraintsOf("p1+p2").map(function (i) { return i.id; }), ["n2", "g2"]);
+        eq(model.hasMesh("p1"), true);
+        eq(model.hasMesh("p2"), false);
+        eq(model.unbodiedParts, []);
+        // Status: d1's `to` end is n2, bound -- on BOTH features of the shared
+        // node, since the binding is the node's end; g1's `from` end is n3,
+        // proposed only -- but n3 is also d2's `to` end, bound under the
+        // reused model's id, so bound wins; n5 is g2's `to` end, bound under
+        // a topology id the model does not read: none.
+        var S = VA.FEATURE_STATUSES;
+        eq(model.status("p1@n2"), S.bound);
+        eq(model.status("p2@n2"), S.bound);
+        eq(model.status("p2@n3"), S.bound);
+        eq(model.status("p2@n5"), S.none);
+        eq(model.status("p1@n1"), S.none, "d1's `from` end and g2's: nothing at them");
+        eq(model.status("p3@n4"), S.none);
+        eq(model.status("nope"), S.none);
+        // A proposal alone is suggested.
+        var proposed = VA.buildModel(bodiedProj(), { stack_keys: [
+          { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "g1" },
+            bindings: [], proposals: [{ direction: "from" }] }] });
+        eq(proposed.status("p2@n3"), S.suggested);
+        eq(proposed.status("p3@n4"), S.none, "a proposal at the other end is not this end's");
+        // No identity projection: every feature is none, and nothing throws.
+        eq(VA.buildModel(bodiedProj(), null).status("p1@n2"), S.none);
+        // A projection built before the block: no model, which every caller
+        // reads as "no tree".
+        eq(VA.buildModel({ id: "old", edges: [] }, null), null);
+        eq(VA.buildModels({ topologies: [bodiedProj(), { id: "old" }] }, null).old, null);
+        // The bodiless demo: its parts are listed where bodies would be.
+        var demo = VA.buildModel(TOPO, null);
+        eq(demo.bodies.length, 0);
+        eq(demo.unbodiedParts, ["base", "post", "arm", "strut"]);
+        eq(demo.jointsBetween().length, demo.joints.length);
+      });
+
+    await test("the left column is the model's tree: bodies open to parts and interfaces, " +
+      "parts to features with one mark each, joints between bodies listed once, and a " +
+      "compound joint to its constraints", function () {
+        var proj = bodiedProj();
+        var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
+                     looseStacks: [], kinematic: [] };
+        var state = { mode: "topology", topologyId: "mini",
+                      models: { mini: VA.buildModel(proj, bodiedIdentity()) },
+                      navOpen: { "p:p1": true, "bi:b1": true, "j:p1+p2": true },
+                      selection: { kind: "node", id: "n2" }, selectedFeature: "p1@n2" };
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree, state, { sceneSlot: true, onVisibility: function () {} });
+        });
+        eq(all(root, "h2.navtree__heading").map(function (h) { return h.textContent; }),
+           [VA.NAV_WORDS.bodies, VA.NAV_WORDS.between]);
+        var bodies = all(root, "div.navtree__row--body");
+        eq(bodies.map(function (b) { return b.querySelector(".navtree__label").textContent; }),
+           ["ground", "arm"]);
+        eq(bodies[0].querySelector(".navtree__count").textContent, "2" + VA.NAV_WORDS.partsCount);
+        eq(bodies[0].querySelector(".navtree__swatch").style.getPropertyValue("--swatch"),
+           "var(--tv-body-ink-0)");
+        // Bodies are open by default, their Parts group too; p1 was opened.
+        var parts = all(root, "div.navtree__row--part");
+        eq(parts.map(function (p) { return p.querySelector(".navtree__label").textContent; }),
+           ["100-001 hub", "100-002 mount", "arm"]);
+        var features = all(root, "div.navtree__row--feature");
+        // p1's two features under it; the open interface group's joint opens
+        // to its two constraints, each closed (no end rows yet).
+        eq(features.map(function (f) { return f.getAttribute("data-nav-id"); }), ["p1@n1", "p1@n2"]);
+        eq(features.map(function (f) { return f.querySelector(".navtree__mark").getAttribute("data-status"); }),
+           [VA.FEATURE_STATUSES.none, VA.FEATURE_STATUSES.bound]);
+        ok(hasClass(features[1], "navtree__row--on"), "the selected node's feature is marked");
+        ok(!hasClass(features[0], "navtree__row--on"));
+        // The faces layer slot sits under the selected feature only.
+        eq(all(root, "div.navtree__scene").length, 1);
+        ok(insideOf(features[1].parentNode, all(root, "div.navtree__scene")[0]));
+        // Show/hide: a part with a mesh has the box, one without has none; a
+        // body with any meshed part has one.
+        eq(parts[0].querySelector("input.navtree__vis") !== null, true);
+        eq(parts[1].querySelector("input.navtree__vis"), null);
+        eq(bodies[0].querySelector("input.navtree__vis").checked, true);
+        // The compound joint inside ground, open to its two constraints.
+        var joint = all(root, "div.navtree__row--joint")[0];
+        eq(joint.querySelector(".navtree__label").textContent, "hub and mount");
+        eq(joint.querySelector(".navtree__count").textContent, "2" + VA.NAV_WORDS.constraintsCount);
+        var interfaces = all(root, "div.navtree__row--interface");
+        eq(interfaces.map(function (i) { return i.getAttribute("data-nav-id"); }), ["n2", "g2", "g1"]);
+        eq(interfaces.map(function (i) { return i.getAttribute("data-interface-kind"); }), ["node", "edge", "edge"]);
+        ok(hasClass(interfaces[0], "navtree__row--on"), "the shared node is the selection");
+        // The one joint between bodies, listed once, under its own heading.
+        ok(insideOf(all(root, "div.navtree__section--joints")[0], interfaces[2]));
+        // No filter, no component chip, no mirrored rail.
+        eq(all(root, "button.navtree__scenechip").length, 0);
+        eq(root.textContent.indexOf("All "), -1);
+        eq(root.textContent.indexOf("In this model"), -1);
+      });
+
+    await test("a feature row selects its node, an interface row its element, a fold is " +
+      "the row's own, and a show/hide box names its part or body", function () {
+        var proj = bodiedProj();
+        var seen = [];
+        var state = { mode: "topology", topologyId: "mini",
+                      models: { mini: VA.buildModel(proj, null) },
+                      navOpen: { "p:p2": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true } };
+        var handlers = {
+          onFeature: function (fid) { seen.push(["feature", fid]); },
+          onInterface: function (kind, id) { seen.push(["interface", kind, id]); },
+          onToggle: function (key, open) { seen.push(["toggle", key, open]); },
+          onVisibility: function (kind, id, shown) { seen.push(["vis", kind, id, shown]); },
+          onHover: function (t) { seen.push(["hover", t ? t.kind + ":" + t.id : null]); },
+        };
+        var root = render(function (r) { VA.renderNavTree(r, { topologies: [
+          { id: "mini", title: "Mini", studies: [] }], looseStacks: [] }, state, handlers); });
+        var feature = all(root, "div.navtree__row--feature")[0];
+        eq(feature.getAttribute("data-nav-id"), "p2@n2");
+        eq(feature.getAttribute("role"), "button");
+        eq(feature.getAttribute("tabindex"), "0");
+        feature.click();
+        feature.onkeydown({ key: "Enter", target: feature, preventDefault: function () {} });
+        feature.onmouseenter();
+        feature.onmouseleave();
+        // The single-constraint joint between bodies is an interface row; the
+        // compound one inside ground opens to n2 (open) and g2.
+        var g1 = all(root, "div.navtree__row--interface").filter(function (r) {
+          return r.getAttribute("data-nav-id") === "g1"; })[0];
+        g1.click();
+        // n2 is open: its two ends are rows naming part and feature.
+        var ends = all(root, "div.navtree__row--feature").filter(function (r) {
+          return r.getAttribute("data-node-id") === "n2" && r.textContent.indexOf("\u00b7") !== -1; });
+        eq(ends.map(function (e) { return e.querySelector(".navtree__label").textContent; }),
+           ["100-001 hub \u00b7 mount seat", "100-002 mount \u00b7 mount seat"]);
+        var body = all(root, "div.navtree__row--body")[0];
+        body.click();
+        body.querySelector("button.navtree__twisty").onclick({ stopPropagation: function () {} });
+        var box = body.querySelector("input.navtree__vis");
+        box.checked = false;
+        box.onclick({ stopPropagation: function () {} });
+        var part = all(root, "div.navtree__row--part")[0];
+        part.querySelector("input.navtree__vis").onclick({ stopPropagation: function () {} });
+        eq(seen, [["feature", "p2@n2"], ["feature", "p2@n2"], ["hover", "feature:p2@n2"], ["hover", null],
+          ["interface", "edge", "g1"], ["toggle", "b:b1", true], ["toggle", "b:b1", true],
+          ["vis", "body", "b1", false], ["vis", "part", "p1", true]]);
+        // Without the scene, no box at all: nothing about a feature that is not there.
+        var bare = render(function (r) { VA.renderNavTree(r, { topologies: [
+          { id: "mini", title: "Mini", studies: [] }], looseStacks: [] }, state, {}); });
+        eq(all(bare, "input.navtree__vis").length, 0);
+        eq(all(bare, "div.navtree__scene").length, 0);
       });
 
     // --- models (model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_
@@ -11765,16 +12071,17 @@
         var onTwo = render(function (r) {
           VA.renderNavTree(r, tree, { mode: "topology", topologyId: "model_two" }, handlers);
         });
-        var models = navRowsOf(onTwo, "topology").map(function (r) {
-          return r.getAttribute("data-nav-id"); });
+        var models = all(onTwo, "option").map(function (o) { return o.getAttribute("data-nav-id"); });
         eq(models, ["model_two", topologies.topologies[1].id], "every model is listed, in order");
-        eq(studyRows(onTwo), 0, "the open model has no study, and the other's are folded away");
+        eq(studyRows(onTwo), 0, "the open model has no study, and the other's are not drawn");
         var onOne = render(function (r) {
           VA.renderNavTree(r, tree, { mode: "topology",
             topologyId: topologies.topologies[1].id }, handlers);
         });
         ok(studyRows(onOne) > 0, "the other model lists its studies once it is open");
-        navRowsOf(onTwo, "topology")[1].click();
+        var select = onTwo.querySelector("select.navtree__select");
+        select.value = VA.navPickValue(VA.NAV_PICK_KINDS.topology, topologies.topologies[1].id);
+        select.onchange();
         eq(seen, [topologies.topologies[1].id]);
       });
 
@@ -17208,9 +17515,9 @@
               });
             });
             var byKind = {};
-            all(root, ".navtree__row").forEach(function (row) {
-              var kind = row.getAttribute("data-nav-kind");
-              (byKind[kind] = byKind[kind] || []).push(row.getAttribute("data-nav-id"));
+            all(root, "option").forEach(function (option) {
+              var kind = option.getAttribute("data-nav-kind");
+              (byKind[kind] = byKind[kind] || []).push(option.getAttribute("data-nav-id"));
             });
             eq((byKind.topology || []).length, liveTopos.length);
 
@@ -17254,74 +17561,11 @@
         // `marginal`. A silent row that carries a marginal result is the
         // quiet-row promise broken on live data, on the first row it was
         // tried against.
-        await test("[real] the two live leaf rows carry the same one mark: m1 " +
-          "in red, m2 amber on a verdict it has no flag for", function () {
-            var tree = VA.navTree(realTopologies, realResults);
-            var root = render(function (r) {
-              VA.renderNavTree(r, tree, { mode: "topology" }, {
-                onTopology: function () {}, onStudy: function () {},
-                onStack: function () {},
-              });
-            });
-            var rows = all(root, ".navtree__row--stack");
-            eq(rows.length, 2);
-            eq(all(root, "span.chip").length, 0,
-               "the counts roll-up left the rail");
-            var m1 = VA.findStack(realResults, "hub_bearing_thermal_fit_m1");
-            var m2 = VA.findStack(realResults, "hub_bearing_thermal_fit_m2");
-
-            // m1: two untraced values, and a FAILING result check. Red, and
-            // the verdict is the first thing its card says -- this row is why
-            // a stack derives a verdict at all.
-            eq(VA.stackVerdict(m1).state, "fail");
-            var failing = (m1.checks || []).filter(function (check) {
-              return check.verdict === "fail" && !check.sensitivity;
-            });
-            eq(failing.map(function (c) { return c.check_id; }),
-               ["lower_seat__sleeve_to_bearing__hot"],
-               "the live result check the red is for");
-            var s1 = VA.stackNavStatus(m1);
-            eq(s1.level, VA.NAV_STATUS_WORST);
-            eq(s1.alerts[0].kind, "verdict-fail");
-            eq(s1.alerts.slice(1).map(function (a) { return a.kind; }),
-               ["unverified"], "its 2 untraced values, and the counts dropped");
-            eq(all(rows[0], ".navstatus--fail").length, 1);
-            eq(rows[0].textContent, m1.title,
-               "not a word of it on a 300px row");
-            has(rows[0].querySelector(".navstatus").getAttribute("title"),
-                VA.VERDICTS.fail.says);
-
-            // m2: nothing to DISTRUST -- all 8 values traced, no zero-width
-            // element, so no flag at all -- but two marginal result checks. It
-            // is amber on its verdict alone, and its card has exactly one line.
-            eq(VA.stackNavAlerts(m2), [],
-               "nothing about m2 asks a reader to distrust a number");
-            eq(VA.stackVerdict(m2).state, "marginal");
-            eq((m2.checks || []).filter(function (check) {
-              return check.verdict === "marginal" && !check.sensitivity;
-            }).map(function (c) { return c.check_id; }),
-               ["upper_seat__hub_to_sleeve__hot",
-                "upper_seat__sleeve_to_bearing__hot"],
-               "the live result checks the amber is for");
-            var s2 = VA.stackNavStatus(m2);
-            eq(s2.level, VA.NAV_STATUS_LOOK);
-            eq(s2.alerts.map(function (a) { return a.kind; }),
-               ["verdict-marginal"],
-               "the verdict is the whole of what this row has to say");
-            eq(all(rows[1], ".navstatus--warn").length, 1);
-            eq(rows[1].textContent, m2.title);
-            // The probes are really there, and "minus the sensitivity probes"
-            // is load-bearing on m1 rather than a precaution about nothing:
-            // two of its three failing checks are probes.
-            ok((m2.checks || []).some(function (c) { return c.sensitivity; }),
-               "expected m2's live probes");
-            eq((m1.checks || []).filter(function (check) {
-              return check.verdict === "fail" && check.sensitivity;
-            }).map(function (c) { return c.check_id; }),
-               ["lower_seat__sleeve_to_bearing__hot__k0",
-                "lower_seat__sleeve_to_bearing__hot__k1"],
-               "the live what-ifs the rail must not draw a verdict off");
-          });
+        // The two live leaf rows' marks (m1 red, m2 amber) left the rail with
+        // the rows on 2026-11-10: a loose stack is an option of the model
+        // picker now, and an option carries no mark. The rule that derives a
+        // stack's status is pinned on synthetic stacks above; a stack's
+        // verdicts are on its own page.
 
         // Every leaf really does render as a page, which is the other half of
         // "reachable": a row that paints nothing is not an entry.

@@ -43,6 +43,12 @@
 //          scripts/build_kinematic_projection.py writes. null if absent, and
 //          absence is the ORDINARY state: no study, no nav section, nothing
 //          else on the page changes.
+//   readIdentityProjection(): Promise<object|null>
+//        -- parsed data/projections/feature-identity/bindings.json
+//          (VA.CONFIG.identityProjection; the http adapter's own per-mount
+//          answer), the fold apps/viewer/model.js reads one status per
+//          feature from. null if absent, which is the ordinary "nothing
+//          bound" reading and never an error. Added 2026-11-10.
 //   readCropImage(relPath): Promise<{ url, name }|null>
 //        — an object URL for data/projections/viewer/<relPath> (a crops/*.png).
 //          null when the file is gone, e.g. a stale crops.json.

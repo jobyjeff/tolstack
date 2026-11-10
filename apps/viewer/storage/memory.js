@@ -11,6 +11,7 @@
     this._crops = opts.crops || null;
     this._topologies = opts.topologies || null;
     this._kinematic = opts.kinematic || null;
+    this._identity = opts.identity || null;   // the feature-identity projection, or null
     this._texts = opts.texts || {};   // "docs/tolerance_stacks/X.md" -> string
     this._images = opts.images || {}; // "crops/x.png" -> any truthy marker
   }
@@ -41,6 +42,11 @@
   MemoryAdapter.prototype.readKinematic = function () {
     VA.requireReady(this);
     return Promise.resolve(this._kinematic);
+  };
+
+  MemoryAdapter.prototype.readIdentityProjection = function () {
+    VA.requireReady(this);
+    return Promise.resolve(this._identity);
   };
 
   MemoryAdapter.prototype.readCropImage = function (relPath) {

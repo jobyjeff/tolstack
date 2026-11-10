@@ -24,6 +24,26 @@
     // is not built -- the ordinary state, in which its nav section is absent
     // and nothing else on the page changes.
     kinematic: null,
+    // The feature-identity projection (bindings.json), or null -- the
+    // ordinary "nothing bound" reading. Folded into one status per feature by
+    // the model object (model.js); this page reads no binding fact itself.
+    identity: null,
+    // The ONE model object per topology (VA.buildModels), built once per
+    // loaded projection and never per paint. The left column is its first
+    // reader (views/nav.js); the DAG's own derivations are a later handoff's
+    // to move onto it.
+    models: {},
+    // Which tree rows the reader opened or closed, by the row's key; a row
+    // the reader never touched takes its kind's default (views/nav.js).
+    navOpen: {},
+    // Parts hidden in the 3D scene from the tree's show/hide, by part id --
+    // the page's own copy, re-posted whenever the scene reloads
+    // (syncSceneVisibility), so a sweep ending cannot un-hide behind the tree.
+    hiddenParts: {},
+    // The feature (`<part>@<node>`, the model's view id) whose row the faces
+    // layer is drawn under, or null. A click on a feature row sets it; it
+    // goes with the selection.
+    selectedFeature: null,
 
     // Which of the three ways a page is being shown. Set only by
     // selectTopology()/selectStack()/selectKinematic(); the nav tree
@@ -548,11 +568,19 @@
       // built" rather than throw.
       typeof adapter.readKinematic === "function"
         ? adapter.readKinematic() : Promise.resolve(null),
+      // The feature-identity projection, where the transport reaches one;
+      // null is "nothing bound", never an error (storage/adapter.js).
+      typeof adapter.readIdentityProjection === "function"
+        ? adapter.readIdentityProjection().catch(function () { return null; })
+        : Promise.resolve(null),
     ]).then(function (all) {
       state.topologies = all[0];
       state.crops = all[1];
       state.stacksResults = all[2];
       state.kinematic = all[3] || null;
+      state.identity = all[4] || null;
+      // One model object per topology, built here and only here.
+      state.models = VA.buildModels(state.topologies, state.identity);
 
       // Apply the inbound deep link against the data just read — ids are
       // validated by VA.resolveDeepLink, and whatever it could not resolve
@@ -612,11 +640,27 @@
     state.studyId = null;
     state.selection = null;
     state.detailImage = null;
+    // The tree's folds, its hidden parts and its faces layer are this
+    // model's; another model starts from the defaults.
+    state.navOpen = {};
+    state.hiddenParts = {};
+    state.selectedFeature = null;
   }
 
   function selectElement(kind, id) {
     state.selection = { kind: kind, id: id };
+    // The faces layer sits under a feature of the selected NODE; any other
+    // selection takes it down.
+    var model = currentModel();
+    var kept = model && state.selectedFeature ? model.feature(state.selectedFeature) : null;
+    if (kind !== "node" || !kept || kept.node !== id) state.selectedFeature = null;
     loadDetailImage().then(render);
+  }
+
+  // The open model's ONE model object (model.js), or null before the
+  // projection is read or on a projection built without the model block.
+  function currentModel() {
+    return (state.models && state.models[state.topologyId]) || null;
   }
 
   // --- selection: stack mode -------------------------------------------------
@@ -814,6 +858,99 @@
     } else if (typeof window.open === "function") {
       window.open(VA.annotateLink(params), "_blank", "noopener");
     }
+  }
+
+  // --- the model tree's own gestures (the_model_is_derived_once_and_the_
+  // left_column_is_its_tree) --------------------------------------------------
+  //
+  // A fold is the nav's alone: nothing else on the page moves, so only the
+  // nav repaints. `open` is what the row showed when it was clicked (views/
+  // nav.js passes it), so the reader's choice is the opposite of it.
+  function onNavToggle(key, open) {
+    state.navOpen[key] = !open;
+    renderNav();
+  }
+
+  // A feature row selects its NODE -- the DAG, the grid, the Preview and the
+  // scene all already light a node selection -- and remembers which of the
+  // node's features was clicked, so the faces layer opens under that row. A
+  // second click on the feature of a node already selected only moves the
+  // layer (a node two parts share is one selection, two rows).
+  function onNavFeature(featureId) {
+    var model = currentModel();
+    var feature = model ? model.feature(featureId) : null;
+    if (!feature) return;
+    var same = state.selection && state.selection.kind === "node" &&
+      state.selection.id === feature.node;
+    state.selectedFeature = featureId;
+    if (same) { render(); return; }
+    selectElement("node", feature.node);
+  }
+
+  // An interface row selects the element it is: a shared node, or a gap edge.
+  function onNavInterface(kind, id) {
+    state.selectedFeature = null;
+    selectElement(kind, id);
+  }
+
+  // Show or hide a part, or every part of a body, in the 3D scene -- the
+  // verbs the sweep rail's checkboxes used (`show` / `hide` by part). Only a
+  // part with an installed mesh is ever named; the tree offers the box only
+  // for those.
+  function onNavVisibility(kind, id, shown) {
+    var model = currentModel();
+    if (!model) return;
+    var body = kind === "body" ? model.body(id) : null;
+    var parts = body ? body.parts : [id];
+    parts.forEach(function (partId) {
+      if (!model.hasMesh(partId)) return;
+      if (shown) delete state.hiddenParts[partId];
+      else state.hiddenParts[partId] = true;
+    });
+    renderNav();
+    syncSceneVisibility();
+  }
+
+  // Resting on a tree row lights its thing: a feature's node on the DAG and
+  // the grid (the page's own lighting), and -- while a sweep is loaded, the
+  // one mode the scene answers `hover part` / `hover body` in -- the part or
+  // body in the scene. A body is posted only when the scene's own tree names
+  // it as a subject of the run, so an unknown name never reaches the pane.
+  function onNavHover(target) {
+    if (!target) {
+      if (VA.lightTopoKeys) VA.lightTopoKeys(null);
+      if (paneRun) schedulePaneCommand(["hover", "clear"]);
+      return;
+    }
+    var model = currentModel();
+    if (!model) return;
+    if (target.kind === "feature") {
+      var feature = model.feature(target.id);
+      if (feature && VA.lightTopoKeys) VA.lightTopoKeys([VA.elementKey("node", feature.node)]);
+      return;
+    }
+    if (!paneRun) return;
+    if (target.kind === "part" && model.hasMesh(target.id)) {
+      schedulePaneCommand(["hover", "part", target.id]);
+    } else if (target.kind === "body" && sceneSubjects()[target.id]) {
+      schedulePaneCommand(["hover", "body", target.id]);
+    }
+  }
+
+  // The run's subjects, as the scene's own tree names them (`body=<name>` in
+  // a row's key): what a `hover body` may name.
+  var SCENE_SUBJECT_KEY = /(?:^|\/)body=([^,\/]+)/;
+  function sceneSubjects() {
+    var out = {};
+    var walk = function (rows) {
+      (rows || []).forEach(function (row) {
+        var m = SCENE_SUBJECT_KEY.exec(String(row.key || ""));
+        if (m) out[m[1]] = true;
+        walk(row.rows);
+      });
+    };
+    if (sceneTree) walk(sceneTree.rows);
+    return out;
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -1310,6 +1447,7 @@
   function unfreeze() {
     if (!state.selection) return;
     state.selection = null;
+    state.selectedFeature = null;
     state.detailImage = null;
     render();
   }
@@ -1778,6 +1916,8 @@
       }
       sceneModelPosted = null;
       sceneSelectPosted = null;
+      sceneVisibilityPosted = null;
+      sceneFilterPosted = null;
       syncSceneModel();
     });
   }
@@ -1817,12 +1957,22 @@
       part: active.getAttribute("data-scene-part") || "" } : null;
   }
 
+  // The faces layer: the pane's rows for the selected feature's node
+  // (VA.sceneRowsForFeature), under that feature's row and nowhere else.
+  function sceneRowsForSelectedFeature() {
+    var model = currentModel();
+    var feature = model && state.selectedFeature ? model.feature(state.selectedFeature) : null;
+    if (!feature || !sceneTree) return null;
+    var rows = VA.sceneRowsForFeature(sceneTree, feature.node);
+    return rows.length ? { rows: rows, legend: sceneTree.legend } : null;
+  }
+
   function renderSceneSlot() {
     var slot = nodes.navtree && nodes.navtree.querySelector
       ? nodes.navtree.querySelector(".navtree__scene") : null;
     if (!slot) return;
     var focus = sceneFocus(slot);
-    VA.renderSceneTree(slot, sceneTree, { send: sceneRail });
+    VA.renderSceneTree(slot, sceneRowsForSelectedFeature(), { send: sceneRail });
     if (sceneRevealPending && sceneTree) {
       sceneRevealPending = false;
       revealSceneRow(slot);
@@ -1880,9 +2030,14 @@
   }
 
   function schedulePaneHover(target) {
-    var command = target
+    schedulePaneCommand(target
       ? VA.annotateHighlightCommand(target.topologyId, target.edgeId)
-      : VA.annotateHighlightCommand();
+      : VA.annotateHighlightCommand());
+  }
+
+  // Any hover-class command to the pane, debounced like a highlight: the
+  // tree's `hover part` / `hover body` rides the same timer.
+  function schedulePaneCommand(command) {
     if (paneHoverTimer !== null) clearTimeout(paneHoverTimer);
     paneHoverTimer = setTimeout(function () {
       paneHoverTimer = null;
@@ -2082,6 +2237,36 @@
       ? ["model", "select", "node", state.selection.id] : ["model", "select", "clear"];
     var selKey = sel.join(" ");
     if (selKey !== sceneSelectPosted && postToPane(sel)) sceneSelectPosted = selKey;
+    // The pane scopes its own rail to the selected node (`filter-element`),
+    // which is what the faces layer under that feature mirrors in bind mode;
+    // no node selected lifts the scope.
+    var scopeTo = state.selection && state.selection.kind === "node"
+      ? ["filter-element", state.selection.id] : ["filter-element"];
+    var scopeToKey = scopeTo.join(" ");
+    if (state.mode !== "stack" && scopeToKey !== sceneFilterPosted && postToPane(scopeTo)) {
+      sceneFilterPosted = scopeToKey;
+    }
+    syncSceneVisibility();
+  }
+
+  // The tree's hidden parts, onto the scene: hide what is newly hidden, show
+  // what came back, by part id (the pane resolves a part id to its mesh as
+  // `isolate parts` does). Posted again from nothing whenever the scene
+  // reloads (sceneVisibilityPosted is cleared with the other posted keys).
+  var sceneVisibilityPosted = null;
+  var sceneFilterPosted = null;
+  function syncSceneVisibility() {
+    if (!nodes.flyout || !nodes.flyout.open || !flyoutLoaded) return;
+    var model = currentModel();
+    if (!model) return;
+    var hidden = Object.keys(state.hiddenParts).filter(function (p) { return model.hasMesh(p); }).sort();
+    var key = hidden.join(" ");
+    if (key === sceneVisibilityPosted) return;
+    var before = (sceneVisibilityPosted || "").split(" ").filter(Boolean);
+    var ok = true;
+    before.forEach(function (p) { if (hidden.indexOf(p) === -1) ok = postToPane(["show", p]) && ok; });
+    hidden.forEach(function (p) { if (before.indexOf(p) === -1) ok = postToPane(["hide", p]) && ok; });
+    if (ok) sceneVisibilityPosted = key;
   }
 
   // A selection made anywhere brings its grid row into view -- an edge's own
@@ -3426,6 +3611,13 @@
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
+      // The model tree's own gestures (views/nav.js).
+      onToggle: onNavToggle,
+      onFeature: onNavFeature,
+      onInterface: onNavInterface,
+      onHover: onNavHover,
+      // Show/hide in 3D: only while the scene is open, where it means something.
+      onVisibility: nodes.flyout && nodes.flyout.open ? onNavVisibility : null,
       // The 3D control on each row: only where the scene is mounted.
       on3D: state.annotateMount ? onNav3D : null,
       // The study row's consolidated ⚠ opens into the SAME popover node every

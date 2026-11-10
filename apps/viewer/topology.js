@@ -1146,7 +1146,10 @@
   // its drawing number, else its name.
   VA.partContainerLabel = function (part) {
     if (!part) return "";
-    return part.display_name || VA.partColumns(part).number || VA.componentLabel(part);
+    // The same label every other surface prints (VA.componentLabel): a block
+    // read `214373-002` beside one reading `Pitch plate…` until 2026-11-10,
+    // because three parts carried a display_name and twelve did not.
+    return VA.componentLabel(part);
   };
 
   // The band above each layout row, in px: `body` above a body field's first
@@ -4378,8 +4381,12 @@
 
   VA.componentLabel = function (part) {
     if (!part) return VA.GAP_COMPONENT_LABEL;
-    // `display_name` follows the drawing's title block; `name` and `id` are the
-    // fallbacks, and the id rides in componentTitle's tooltip.
+    // The projection's one label (tolerance_stack.model_view.part_label,
+    // 2026-11-10: number, then everyday name) where the builder wrote it; the
+    // pre-label rule -- `display_name` off the drawing's title block, else
+    // `name`, else `id` -- for a part row built before it. The id rides in
+    // componentTitle's tooltip either way.
+    if (part.label) return part.label;
     return part.display_name || part.name || part.id;
   };
 
@@ -4399,13 +4406,16 @@
   //   leaders  [{ id, layoutRow, boundary, beforeEdge }]  non-internal nodes
   //   internal { nodeId: bool }
   //
-  // A group breaks where the part changes between consecutive edge rows OR
-  // where the node row between them is non-internal (a boundary node between
-  // two same-part edges is possible at a fork, and honesty says break there
-  // too — the leader and the group border then coincide). NOTE the converse
-  // is not guaranteed: the depth-first walk can revisit a part on a later
-  // branch (the pitch system's hub does), and each contiguous run gets its
-  // own merged cell — reordering the grid to force one row per part would
+  // A group breaks ONLY where the part changes between consecutive edge rows
+  // (the_model_is_derived_once_and_the_left_column_is_its_tree, 2026-11-10).
+  // Until then it also broke at any non-internal node between two same-part
+  // edges, so v2's hub was 1 + 3 rows in two brackets, its tan-link mount
+  // 1 + 2, its gas-spring mount 1 + 1 + 1 and its pitch plate 1 + 1: 18 part
+  // groups for 12 parts, while the DAG drew 12 blocks. A leader may now land
+  // on a seam inside a part's group -- that seam is a feature of the part,
+  // and the bracket is the part. NOTE the depth-first walk can still revisit
+  // a part on a later branch (v1's hub does), and each contiguous run gets
+  // its own group — reordering the grid to force one row per part would
   // cross the leaders and break the walk-order correspondence this page is
   // built on.
   //
@@ -4516,8 +4526,7 @@
       }
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
-      var breakHere = rows.length === 0 || part !== prevPart ||
-        pendingBoundaryNode !== null;
+      var breakHere = rows.length === 0 || part !== prevPart;
       if (breakHere) {
         var partRow = part === null ? null : partsById[part] || { id: part };
         groups.push({
@@ -4735,6 +4744,13 @@
   VA.partColumns = function (part) {
     if (!part) return { number: "", description: VA.GAP_COMPONENT_LABEL };
     var label = VA.componentLabel(part);
+    // The one label opens with the drawing number (model_view.part_label,
+    // 2026-11-10), whatever shape that number has -- a six-dash-three, a
+    // bare `215197`, a standard-part callout -- so the split is read off the
+    // record first and the regex is for a label built before it.
+    if (part.drawing && label.indexOf(String(part.drawing) + " ") === 0) {
+      return { number: String(part.drawing), description: label.slice(String(part.drawing).length + 1) };
+    }
     var hit = PART_NUMBER.exec(label);
     var number = part.drawing || (hit ? hit[0] : "");
     if (!hit) return { number: number, description: label };

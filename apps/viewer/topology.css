@@ -263,6 +263,48 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .navtree__row:hover .navtree__3d, .navtree__3d:focus-visible, .navtree__row--on .navtree__3d { opacity: 1; }
 .navtree__3d:hover { color: var(--accent); }
 
+/* --- the model's tree (the_model_is_derived_once_and_the_left_column_is_
+   its_tree, 2026-11-10) ----------------------------------------------------
+   The picker at the top, then bodies > parts > features, the joints between
+   bodies, the studies. Hierarchy by type and indent, not decoration: a body's
+   name is the one weighted row, a group label is a small muted capital, a
+   feature is body text behind its one mark. */
+.navtree__picker { padding: 2px 4px 8px; }
+.navtree__select {
+  width: 100%; font: inherit; font-size: var(--t-dense); color: var(--ink);
+  background: var(--panel, #1a1d24); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 8px;
+}
+.navtree__row--body, .navtree__row--part, .navtree__row--group, .navtree__row--joint,
+.navtree__row--interface, .navtree__row--feature { flex-wrap: nowrap; align-items: center; gap: 6px; padding: 3px 6px; }
+.navtree__row--body { font-weight: 600; }
+.navtree__row--group { padding-top: 4px; padding-bottom: 2px; cursor: pointer; }
+.navtree__grouplabel { color: var(--muted); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em; }
+.navtree__row--feature, .navtree__row--interface, .navtree__row--joint, .navtree__row--part { font-size: var(--t-dense); }
+.navtree__row--feature:focus-visible, .navtree__row--interface:focus-visible { outline: 1px solid var(--accent); }
+.navtree__row--feature:focus, .navtree__row--interface:focus { outline: none; }
+/* The twisty column: one width whether a row folds or not, so names align. */
+.navtree__twisty, .navtree__twistygap { flex: none; width: 14px; height: 14px; }
+.navtree__twisty { padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; }
+.navtree__twisty::before { content: ""; width: 5px; height: 5px; border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .12s; }
+.navtree__twisty[aria-expanded="true"]::before { transform: rotate(45deg) translate(-1px, -1px); }
+.navtree__row:hover > .navtree__twisty, .navtree__twisty:focus-visible { color: var(--ink); }
+/* A body's swatch: its DAG ink, so the tree, the DAG, the grid's brackets and
+   the scene are one palette. */
+.navtree__swatch { flex: none; width: 9px; height: 9px; border-radius: 2px; background: var(--swatch); }
+/* The one status mark a feature wears: filled for bound, a ring for a
+   suggestion, nothing for none -- the same column either way. */
+.navtree__mark { flex: none; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; }
+.navtree__mark[data-status="bound"] { background: var(--mark-bound); }
+.navtree__mark[data-status="suggested"] { border: 1.5px solid var(--mark-proposed); }
+.navtree__count { flex: none; margin-left: auto; color: var(--muted); font-size: var(--t-micro); white-space: nowrap; }
+/* Show/hide in 3D: a quiet native box at the row's right edge, in one column. */
+.navtree__vis { flex: none; margin: 0 0 0 4px; width: 12px; height: 12px; accent-color: var(--muted); }
+.navtree__row--on .navtree__vis, .navtree__row:hover .navtree__vis { accent-color: var(--ink); }
+.navtree__children .navtree__children { padding-left: 14px; }
+
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_
    scene_beside_the_model) -----------------------------------------------
    The annotator's rail, drawn here while the 3D scene is open

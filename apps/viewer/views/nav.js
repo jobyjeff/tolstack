@@ -1,65 +1,87 @@
-// The single left-rail nav (viewer_v2_single_nav, 2026-09-08): one tree,
-// replacing both the TOPOLOGY/STUDY <select> pickers (views/topology.js's old
-// renderTopoPicker) and the flat stack rail (the retired views/list.js) at
-// once. Every topology lists its studies as children; a stack no topology
-// re-expresses is a leaf of the same tree. Selecting any node drives the whole
-// page — see topology_app.js's onNavTopology / onNavStudy / onNavStack.
+// The left column: the model's tree (the_model_is_derived_once_and_the_left_
+// column_is_its_tree, 2026-11-10).
 //
-// A stack a topology DOES re-express has no row of its own
-// (viewer_nav_wedge_and_classic_retirement, 2026-09-15). It used to get one:
-// nested under its topology, chipped "classic view", rendering the elements
-// table beside the graph. The reason that existed is spent.
-// LESSONS_20260904_viewer_consolidation.md §1 found a stack's own verdict had
-// no field in the topology projection at all, so the elements table was the
-// only place on this whole page a verdict could be read — true until the
-// field landed (2026-09-09) and this page rendered it (2026-09-15,
-// viewer_study_verdicts_and_gaps), along with every gap, excluded term and
-// missing-tolerance warning the table carried. That the graph now states all
-// of it is not an argument in a comment: it is paired stack-against-topology,
-// row for row, by tests/test_topology_conversions.py's coverage section.
+// Until 2026-11-10 this file drew a list of models with the studies under
+// the open one, and -- with the 3D pane open -- a scrape of the pane's hidden
+// rail under the active row (apps/annotate/app.js's embedTree), which is why
+// the column restructured by pane mode and why most of the menu Jeff designed
+// on 2026-11-09 turned out to exist already behind a row labelled "Kinematic
+// model". Now the column is the first reader of the ONE model object
+// (apps/viewer/model.js, built from the projection's `model` block):
 //
-// So one system is one entry, and a reader is never offered the same joint
-// twice in two notations. Jeff's 2026-09-15 review is the whole of the case:
-// "Why is this still here? I had you completely delete that page, and now
-// it's sneaking back into this page." Some entries simply have no DAG (the
-// two thermal-fit stacks); those are the leaves, rendered as plain stack
-// pages, and nothing on the rail labels them as a different kind of page.
+//   [model picker]                 the models, then any analysis in neither
+//   Rigid bodies
+//     body                          swatch in the body's DAG ink; show/hide
+//       Parts
+//         part                      its label (the one rule); show/hide
+//           feature  o              one status mark: bound, suggested, none
+//             (its faces, when selected: the pane's rows for it)
+//       Interfaces                  those inside the body
+//         interface / joint         a joint with several constraints opens to
+//           part · feature          them; each opens to its two ends
+//   Joints between bodies           listed once
+//   Studies                         the model's: chain studies, kinematic
+//                                   studies, the sweep row
 //
-// Titles are short noun phrases (stack_title_style_pass, 2026-09-14 — the rule
-// is docs/SOP_TOLERANCE_STACK.md's "Titling an artifact"), so the rail scans
-// as a list rather than a wall of text. What a title used to carry inline now
-// lives in the artifact's authored `description`, and this is the only place
-// that renders it: as a hover tooltip on the row's NAME. Progressive
-// disclosure, no new chrome — a row with no description simply has no tooltip
-// to show.
+// Gone: the Models list, the component chip, the whole-rail mirror ("All N
+// interfaces", "In this model" / "Other parts"), the Stacks section on a model
+// those stacks are not part of, and any all/unbound/bound filter (Jeff,
+// 2026-11-09: a part has a handful of features). What stays of the mirror is
+// VA.renderSceneTree, which now draws ONE subtree -- the pane's rows for the
+// selected feature -- under that feature's row (topology_app.js's
+// renderSceneSlot picks the rows; VA.sceneRowsForFeature is the rule).
 //
-// On the NAME and not on the row (nav_tooltip_once_and_rail_hover_emphasis,
-// 2026-09-30). A row has two things a pointer can rest on: its label and,
-// where there is something to look at, its alert mark — and the mark opens a
-// formatted card. With the description on the ROW, hovering the mark put the
-// browser's plain tooltip and the card over each other. Jeff: "there is a
-// duplicate hover-over tooltip (unformatted and formatted versions) that
-// sometimes block each other. Keep just the formatted one." So each hover
-// surface says one thing: the name says what the artifact is, the mark says
-// what is wrong with it. It is the rule the rail bars already follow
-// (views/topology.js, viewer_dag_hover_cards 2026-09-14) — one hover surface,
-// never two stacked — and views/dom.js's VA.alertBadge now applies the other
-// half of it to every mark that opens a card.
+// Selecting a study never restructures the tree above it: the Studies
+// section marks the open one and nothing else moves.
+//
+// Titles are short noun phrases (docs/SOP_TOLERANCE_STACK.md, "Titling an
+// artifact"); an artifact's `description` is its name's hover tooltip and
+// nothing else renders it. The name says what the artifact is, a row's one
+// mark says what is wrong with it (nav_tooltip_once_and_rail_hover_emphasis).
 (function (VA) {
   "use strict";
 
-  // The label's `title=`, or null for none. Where a row already carries a hint
-  // about what clicking it does, the description goes ABOVE it rather than
-  // replacing it: the hint is the only statement of that behaviour anywhere.
+  // The picker's option values: `<kind>:<id>` (VA.NAV_PICK_KINDS). A table,
+  // not inline literals, so the pairing scans reach it.
+  VA.NAV_PICK_KINDS = Object.freeze({ topology: "topology", stack: "stack" });
+
+  VA.navPickValue = function (kind, id) { return kind + ":" + id; };
+  VA.parseNavPick = function (value) {
+    var at = String(value || "").indexOf(":");
+    if (at === -1) return null;
+    var kind = value.slice(0, at);
+    if (!VA.NAV_PICK_KINDS[kind]) return null;
+    return { kind: kind, id: value.slice(at + 1) };
+  };
+
+  // The words the tree's headings and rows wear. One table (repo rule), and
+  // the browser tier reads them off the page rather than restating them.
+  VA.NAV_WORDS = Object.freeze({
+    bodies: "Rigid bodies",
+    parts: "Parts",
+    interfaces: "Interfaces",
+    between: "Joints between bodies",
+    studies: "Studies",
+    unbodied: "Parts",
+    // The row that plays the newest published sweep in 3D -- what the row
+    // labelled "Kinematic model" did until 2026-11-10, named for what it does.
+    sweep: "Play the newest sweep",
+    sweepHint: "the mechanism moving through its newest published sweep, in the 3D scene",
+    partsCount: " parts",
+    constraintsCount: " constraints",
+    featuresCount: " features",
+    shown: "shown in 3D",
+    hidden: "hidden in 3D",
+    visibility: "show or hide in 3D",
+    model: "model",
+    empty: "No topologies or stacks in the projection.",
+  });
+
   function tooltip(description, hint) {
     if (description && hint) return description + "\n\n" + hint;
     return description || hint || null;
   }
 
-  // The row's NAME, with whatever the artifact says about itself hung on it.
-  // Built here rather than at each of the three call sites so there is one
-  // place the description can land, and no way for it to creep back onto the
-  // row — which is the defect this helper replaced.
   function label(text, description, hint) {
     var span = VA.el("span", "navtree__label", text);
     var tip = tooltip(description, hint);
@@ -67,42 +89,71 @@
     return span;
   }
 
-  VA.renderNavTree = function (root, tree, state, handlers) {
-    VA.clear(root);
-    root.className = "navtree";
-    var topologies = (tree && tree.topologies) || [];
-    var looseStacks = (tree && tree.looseStacks) || [];
-    var kinematic = (tree && tree.kinematic) || [];
-    if (!topologies.length && !looseStacks.length && !kinematic.length) {
-      root.appendChild(VA.el("p", "muted", "No topologies or stacks in the projection."));
-      return root;
-    }
-    // The models first, under their own heading (2026-11-08,
-    // model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_
-    // models): a model is the top node, and only the open one lists what is
-    // under it -- its studies and its kinematic studies -- so choosing a model
-    // switches everything below. With one model, or none open, every model
-    // lists its own.
-    if (topologies.length) {
-      var openId = topologies.some(function (t) { return t.id === state.topologyId; })
-        ? state.topologyId : null;
-      var models = VA.el("ul", "navtree__list");
-      topologies.forEach(function (t) {
-        var open = topologies.length < 2 || openId === null || t.id === openId;
-        models.appendChild(topologyItem(t, state, handlers, open));
-      });
-      root.appendChild(section("models", "Models", models));
-    }
-    if (looseStacks.length) {
-      var stacks = VA.el("ul", "navtree__list");
-      looseStacks.forEach(function (s) { stacks.appendChild(stackItem(s, state, handlers)); });
-      root.appendChild(topologies.length ? section("stacks", "Stacks", stacks) : stacks);
-    }
-    if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
-    return root;
-  };
+  // Open or closed, by key: the reader's own choice (state.navOpen) wins,
+  // else the row kind's default.
+  function isOpen(state, key, fallback) {
+    var open = state && state.navOpen;
+    if (open && Object.prototype.hasOwnProperty.call(open, key)) return !!open[key];
+    return !!fallback;
+  }
 
-  // One titled block of the rail: a small heading over its list.
+  function twisty(key, open, handlers) {
+    var button = VA.el("button", "navtree__twisty");
+    button.setAttribute("type", "button");
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+    button.setAttribute("data-nav-twisty", key);
+    button.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      if (handlers && handlers.onToggle) handlers.onToggle(key, open);
+    };
+    return button;
+  }
+
+  function leafGap() {
+    return VA.el("span", "navtree__twistygap");
+  }
+
+  // A row that toggles its own disclosure on click (the twisty does the same
+  // on its own, so the keyboard reaches it).
+  function foldRow(className, key, open, handlers) {
+    var row = VA.el("div", "navtree__row " + className);
+    row.appendChild(twisty(key, open, handlers));
+    row.onclick = function () { if (handlers && handlers.onToggle) handlers.onToggle(key, open); };
+    return row;
+  }
+
+  // The one mark a feature wears (VA.FEATURE_STATUSES); the stylesheet draws
+  // it, and a `none` draws nothing in the same column.
+  function mark(status) {
+    var span = VA.el("span", "navtree__mark");
+    span.setAttribute("data-status", status);
+    span.setAttribute("aria-hidden", "true");
+    return span;
+  }
+
+  // A part's or a body's show/hide, as the sweep rail's checkboxes had it:
+  // ticked is shown. Only where the scene is mounted (handlers.onVisibility);
+  // absent, nothing says so.
+  function visibility(kind, id, shown, mixed, handlers) {
+    if (!handlers || !handlers.onVisibility) return null;
+    var box = VA.el("input", "navtree__vis");
+    box.type = "checkbox";
+    box.checked = !!shown;
+    box.indeterminate = !!mixed;
+    box.setAttribute("title", VA.NAV_WORDS.visibility);
+    box.setAttribute("aria-label", VA.NAV_WORDS.visibility + ": " + (shown ? VA.NAV_WORDS.shown : VA.NAV_WORDS.hidden));
+    box.setAttribute("data-nav-vis", kind + ":" + id);
+    box.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      handlers.onVisibility(kind, id, !!box.checked);
+    };
+    return box;
+  }
+
+  function count(text) {
+    return VA.el("span", "navtree__count", text);
+  }
+
   function section(kind, heading, list) {
     var box = VA.el("div", "navtree__section navtree__section--" + kind);
     box.appendChild(VA.el("h2", "navtree__heading", heading));
@@ -110,10 +161,323 @@
     return box;
   }
 
-  // The 3D control every study row wears where the scene is mounted
-  // (handoff every_study_opens_in_3d_showing_only_its_parts): it selects the
-  // row and opens the pane on it, through the row's own handler. Quiet until
-  // the row is hovered or focused; absent where the scene is not served.
+  // Is this node the page's selection? Every feature of a selected node
+  // lights (a node two parts share is one selection, two pins).
+  function nodeSelected(state, nodeId) {
+    return !!(state && state.selection && state.selection.kind === "node" &&
+      state.selection.id === nodeId);
+  }
+
+  function elementSelected(state, kind, id) {
+    return !!(state && state.selection && state.selection.kind === kind &&
+      state.selection.id === id);
+  }
+
+  // Keyboard: a row that does something on a click is a button-role row.
+  function activatable(row, act) {
+    row.setAttribute("tabindex", "0");
+    row.setAttribute("role", "button");
+    row.onclick = act;
+    row.onkeydown = function (event) {
+      if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+      if (event.target !== row) return;
+      if (event.preventDefault) event.preventDefault();
+      act();
+    };
+  }
+
+  // A feature's row: its mark, its name; selected when its node is the
+  // page's selection. `partLabel` is prepended for an end row under an
+  // interface, where the part is not the row's parent.
+  function featureRow(model, fid, state, handlers, withPart) {
+    var feature = model.feature(fid);
+    var row = VA.el("div", "navtree__row navtree__row--feature" +
+      (nodeSelected(state, feature.node) ? " navtree__row--on" : ""));
+    row.setAttribute("data-nav-kind", "feature");
+    row.setAttribute("data-nav-id", fid);
+    row.setAttribute("data-node-id", feature.node);
+    row.appendChild(leafGap());
+    row.appendChild(mark(model.status(fid)));
+    var text = withPart ? model.label(feature.part) + " · " + feature.name : feature.name;
+    var name = label(text, null, null);
+    name.setAttribute("title", text);
+    row.appendChild(name);
+    activatable(row, function () { if (handlers.onFeature) handlers.onFeature(fid); });
+    var hover = function (on) {
+      if (handlers.onHover) handlers.onHover(on ? { kind: "feature", id: fid } : null);
+    };
+    row.onmouseenter = function () { hover(true); };
+    row.onmouseleave = function () { hover(false); };
+    return row;
+  }
+
+  // The faces layer: the slot the pane's rows for the selected feature are
+  // drawn into (topology_app.js's renderSceneSlot fills it). Under the
+  // selected feature only, and only while the scene is open.
+  function featureItem(model, fid, state, handlers, withPart) {
+    var li = VA.el("li", "navtree__item");
+    li.appendChild(featureRow(model, fid, state, handlers, withPart));
+    if (handlers.sceneSlot && state && state.selectedFeature === fid) {
+      li.appendChild(VA.el("div", "navtree__scene"));
+    }
+    return li;
+  }
+
+  // An interface (a shared node or a gap edge) opens to its two ends.
+  function interfaceItem(model, interfaceRow, state, handlers) {
+    var key = "i:" + interfaceRow.id;
+    var open = isOpen(state, key, false);
+    var kind = interfaceRow.source === "node" ? "node" : "edge";
+    var li = VA.el("li", "navtree__item");
+    var row = VA.el("div", "navtree__row navtree__row--interface" +
+      (elementSelected(state, kind, interfaceRow.id) ? " navtree__row--on" : ""));
+    row.setAttribute("data-nav-kind", "interface");
+    row.setAttribute("data-nav-id", interfaceRow.id);
+    row.setAttribute("data-interface-kind", kind);
+    row.appendChild(twisty(key, open, handlers));
+    var name = label(interfaceRow.name, null, null);
+    name.setAttribute("title", interfaceRow.name);
+    row.appendChild(name);
+    row.appendChild(count(String(interfaceRow.kind || "").replace(/_/g, " ")));
+    activatable(row, function () {
+      if (handlers.onInterface) handlers.onInterface(kind, interfaceRow.id);
+    });
+    li.appendChild(row);
+    if (open) {
+      var ends = VA.el("ul", "navtree__children");
+      interfaceRow.ends.forEach(function (fid) {
+        ends.appendChild(featureItem(model, fid, state, handlers, true));
+      });
+      li.appendChild(ends);
+    }
+    return li;
+  }
+
+  // A joint: one constraint is the interface itself; several open to them
+  // (the tangential link mount on the hub is a seat, a pilot and a clocking).
+  function jointItem(model, joint, state, handlers) {
+    var constraints = model.constraintsOf(joint.id);
+    if (constraints.length === 1) return interfaceItem(model, constraints[0], state, handlers);
+    var key = "j:" + joint.id;
+    var open = isOpen(state, key, false);
+    var li = VA.el("li", "navtree__item");
+    var row = foldRow("navtree__row--joint", key, open, handlers);
+    row.setAttribute("data-nav-kind", "joint");
+    row.setAttribute("data-nav-id", joint.id);
+    var names = joint.parts.map(function (pid) {
+      var part = model.part(pid);
+      return part ? part.name : pid;
+    });
+    var text = names.join(" and ");
+    var name = label(text, null, null);
+    name.setAttribute("title", joint.parts.map(function (pid) { return model.label(pid); }).join(" and "));
+    row.appendChild(name);
+    row.appendChild(count(constraints.length + VA.NAV_WORDS.constraintsCount));
+    li.appendChild(row);
+    if (open) {
+      var list = VA.el("ul", "navtree__children");
+      constraints.forEach(function (c) { list.appendChild(interfaceItem(model, c, state, handlers)); });
+      li.appendChild(list);
+    }
+    return li;
+  }
+
+  function partItem(model, partId, state, handlers) {
+    var part = model.part(partId);
+    var key = "p:" + partId;
+    var open = isOpen(state, key, false);
+    var li = VA.el("li", "navtree__item");
+    var row = foldRow("navtree__row--part", key, open, handlers);
+    row.setAttribute("data-nav-kind", "part");
+    row.setAttribute("data-nav-id", partId);
+    var name = label(part.label, null, null);
+    name.setAttribute("title", part.label);
+    row.appendChild(name);
+    row.appendChild(count(part.features.length + VA.NAV_WORDS.featuresCount));
+    if (model.hasMesh(partId)) {
+      var hidden = !!(state && state.hiddenParts && state.hiddenParts[partId]);
+      var box = visibility("part", partId, !hidden, false, handlers);
+      if (box) row.appendChild(box);
+    }
+    var hover = function (on) {
+      if (handlers.onHover) handlers.onHover(on ? { kind: "part", id: partId } : null);
+    };
+    row.onmouseenter = function () { hover(true); };
+    row.onmouseleave = function () { hover(false); };
+    li.appendChild(row);
+    if (open) {
+      var list = VA.el("ul", "navtree__children");
+      part.features.forEach(function (fid) {
+        list.appendChild(featureItem(model, fid, state, handlers, false));
+      });
+      li.appendChild(list);
+    }
+    return li;
+  }
+
+  // A titled group inside a body ("Parts", "Interfaces"), with its own fold.
+  function groupItem(key, heading, state, handlers, fallbackOpen, fill) {
+    var open = isOpen(state, key, fallbackOpen);
+    var li = VA.el("li", "navtree__item");
+    var row = foldRow("navtree__row--group", key, open, handlers);
+    row.setAttribute("data-nav-group", key);
+    row.appendChild(VA.el("span", "navtree__grouplabel", heading));
+    li.appendChild(row);
+    if (open) {
+      var list = VA.el("ul", "navtree__children");
+      fill(list);
+      li.appendChild(list);
+    }
+    return li;
+  }
+
+  function bodyItem(model, body, state, handlers) {
+    var key = "b:" + body.id;
+    var open = isOpen(state, key, true);
+    var li = VA.el("li", "navtree__item");
+    var row = foldRow("navtree__row--body", key, open, handlers);
+    row.setAttribute("data-nav-kind", "body");
+    row.setAttribute("data-nav-id", body.id);
+    var swatch = VA.el("span", "navtree__swatch");
+    swatch.setAttribute("aria-hidden", "true");
+    swatch.style.setProperty("--swatch", "var(--tv-body-ink-" + model.tint(body.id) + ")");
+    row.appendChild(swatch);
+    var name = label(body.name, null, null);
+    name.setAttribute("title", body.name);
+    row.appendChild(name);
+    row.appendChild(count(body.parts.length + VA.NAV_WORDS.partsCount));
+    var meshed = body.parts.filter(function (pid) { return model.hasMesh(pid); });
+    if (meshed.length) {
+      var hiddenCount = meshed.filter(function (pid) {
+        return !!(state && state.hiddenParts && state.hiddenParts[pid]);
+      }).length;
+      var box = visibility("body", body.id, hiddenCount < meshed.length,
+        hiddenCount > 0 && hiddenCount < meshed.length, handlers);
+      if (box) row.appendChild(box);
+    }
+    var hover = function (on) {
+      if (handlers.onHover) handlers.onHover(on ? { kind: "body", id: body.id } : null);
+    };
+    row.onmouseenter = function () { hover(true); };
+    row.onmouseleave = function () { hover(false); };
+    li.appendChild(row);
+    if (open) {
+      var list = VA.el("ul", "navtree__children");
+      list.appendChild(groupItem("bp:" + body.id, VA.NAV_WORDS.parts, state, handlers, true,
+        function (into) {
+          body.parts.forEach(function (pid) { into.appendChild(partItem(model, pid, state, handlers)); });
+        }));
+      var within = model.jointsWithin(body.id);
+      if (within.length) {
+        list.appendChild(groupItem("bi:" + body.id, VA.NAV_WORDS.interfaces, state, handlers, false,
+          function (into) {
+            within.forEach(function (j) { into.appendChild(jointItem(model, j, state, handlers)); });
+          }));
+      }
+      li.appendChild(list);
+    }
+    return li;
+  }
+
+  // The model's tree: bodies (or, with none declared, its parts), the joints
+  // between bodies, then its studies.
+  function modelSections(root, model, t, state, handlers) {
+    if (model) {
+      if (model.bodies.length) {
+        var bodies = VA.el("ul", "navtree__list");
+        model.bodies.forEach(function (body) { bodies.appendChild(bodyItem(model, body, state, handlers)); });
+        root.appendChild(section("bodies", VA.NAV_WORDS.bodies, bodies));
+      }
+      if (model.unbodiedParts.length) {
+        var parts = VA.el("ul", "navtree__list");
+        model.unbodiedParts.forEach(function (pid) { parts.appendChild(partItem(model, pid, state, handlers)); });
+        root.appendChild(section("parts", VA.NAV_WORDS.unbodied, parts));
+      }
+      var between = model.jointsBetween();
+      if (between.length) {
+        var joints = VA.el("ul", "navtree__list");
+        between.forEach(function (j) { joints.appendChild(jointItem(model, j, state, handlers)); });
+        root.appendChild(section("joints", model.bodies.length ? VA.NAV_WORDS.between : VA.NAV_WORDS.interfaces, joints));
+      }
+    }
+    var studies = studiesList(t, state, handlers);
+    if (studies) root.appendChild(section("studies", VA.NAV_WORDS.studies, studies));
+  }
+
+  VA.renderNavTree = function (root, tree, state, handlers) {
+    VA.clear(root);
+    root.className = "navtree";
+    handlers = handlers || {};
+    var topologies = (tree && tree.topologies) || [];
+    var looseStacks = (tree && tree.looseStacks) || [];
+    var kinematic = (tree && tree.kinematic) || [];
+    if (!topologies.length && !looseStacks.length && !kinematic.length) {
+      root.appendChild(VA.el("p", "muted", VA.NAV_WORDS.empty));
+      return root;
+    }
+    root.appendChild(picker(topologies, looseStacks, state, handlers));
+    var open = null;
+    if (state.mode !== "stack") {
+      open = topologies.filter(function (t) { return t.id === state.topologyId; })[0] || null;
+    }
+    if (open) {
+      var model = state.models ? state.models[open.id] : (state.model || null);
+      modelSections(root, model, open, state, handlers);
+    }
+    if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
+    return root;
+  };
+
+  // The model picker: every model, then every analysis in neither (a stack
+  // no topology re-expresses). The chosen one is what the page shows.
+  function picker(topologies, looseStacks, state, handlers) {
+    var box = VA.el("div", "navtree__picker");
+    var select = VA.el("select", "navtree__select");
+    select.setAttribute("data-nav-picker", "1");
+    select.setAttribute("aria-label", VA.NAV_WORDS.model);
+    var current = null;
+    topologies.forEach(function (t) {
+      var option = VA.el("option", "", t.title);
+      option.value = VA.navPickValue(VA.NAV_PICK_KINDS.topology, t.id);
+      option.setAttribute("value", option.value);
+      option.setAttribute("data-nav-kind", "topology");
+      option.setAttribute("data-nav-id", t.id);
+      if (t.description) option.setAttribute("title", t.description);
+      if (state.mode !== "stack" && t.id === state.topologyId) current = option;
+      select.appendChild(option);
+    });
+    if (looseStacks.length) {
+      var group = VA.el("optgroup", "");
+      group.setAttribute("label", "Other analyses");
+      looseStacks.forEach(function (s) {
+        var option = VA.el("option", "", s.title);
+        option.value = VA.navPickValue(VA.NAV_PICK_KINDS.stack, s.id);
+        option.setAttribute("value", option.value);
+        option.setAttribute("data-nav-kind", "stack");
+        option.setAttribute("data-nav-id", s.id);
+        if (s.description) option.setAttribute("title", s.description);
+        if (state.mode === "stack" && s.id === state.selectedStackId) current = option;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
+    }
+    if (current) {
+      select.value = current.value;
+      current.setAttribute("selected", "selected");
+      if (current.getAttribute("title")) select.setAttribute("title", current.getAttribute("title"));
+    }
+    select.onchange = function () {
+      var pick = VA.parseNavPick(select.value);
+      if (!pick) return;
+      if (pick.kind === VA.NAV_PICK_KINDS.topology && handlers.onTopology) handlers.onTopology(pick.id);
+      if (pick.kind === VA.NAV_PICK_KINDS.stack && handlers.onStack) handlers.onStack(pick.id);
+    };
+    box.appendChild(select);
+    return box;
+  }
+
+  // The 3D control a study row wears where the scene is mounted: it selects
+  // the row and opens the pane on it. Quiet until hovered or focused.
   function threeDControl(row, handlers, select) {
     if (!handlers || !handlers.on3D) return;
     var button = VA.el("button", "navtree__3d", "3D");
@@ -128,19 +492,95 @@
     row.appendChild(button);
   }
 
-  // The kinematic studies (handoff the_viewer_shows_a_kinematic_study). Since
-  // 2026-11-08 they hang under their model, after its chain studies and under
-  // a muted label of their own (a kinematic study is not a chain on the walk,
-  // and the label keeps the rail from offering it as one). This section is
-  // left for a group whose model the topology projection does not list --
-  // grouped under the topology's NAME, a plain label. Absent entirely when
-  // there is no such group (VA.navTree's `kinematic`).
-  //
-  // A model with published sweep runs and no study yet gets one model row,
-  // which opens the 3D scene in sweep mode on its newest run.
+  // The open model's studies: the tag chips over them, each chain study, each
+  // kinematic study, and the sweep row for a model with published runs and
+  // no kinematic study. null when the model has none of these.
+  function studiesList(t, state, handlers) {
+    var inThisTopology = state.mode === "topology" && state.topologyId === t.id;
+    var selection = state.tagFilter || {};
+    var items = [];
+    var chips = [];
+    (t.tagAxes || []).forEach(function (axis) {
+      var strip = VA.el("div", "navtree__tags");
+      strip.setAttribute("data-tag-axis", axis.axis);
+      strip.appendChild(VA.el("span", "navtree__tagaxis", axis.axis));
+      axis.values.forEach(function (value) {
+        var on = (selection[axis.axis] || []).indexOf(value) !== -1;
+        var chip = VA.el("button", "navtree__tag" + (on ? " navtree__tag--on" : ""), value);
+        chip.setAttribute("type", "button");
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+        chip.setAttribute("data-tag-value", value);
+        chip.onclick = function () { if (handlers.onTag) handlers.onTag(axis.axis, value); };
+        strip.appendChild(chip);
+      });
+      chips.push(strip);
+    });
+    (t.studies || []).filter(function (s) {
+      return VA.studyMatchesTags(s, selection, t.variantAxis);
+    }).forEach(function (s) {
+      var active = inThisTopology && state.studyId === s.id;
+      var srow = VA.el("div", "navtree__row navtree__row--study" +
+        (active ? " navtree__row--on" : "") +
+        (s.status === "error" ? " navtree__row--warn" : ""));
+      srow.appendChild(label(s.title, s.description, null));
+      // One mark, and only where there is something to look at: VA.
+      // studyNavStatus decides which icon and what it says.
+      statusIcon(VA.studyNavStatus(s), s.title, srow, handlers);
+      srow.setAttribute("data-nav-kind", "study");
+      srow.setAttribute("data-nav-id", s.id);
+      srow.setAttribute("data-topology-id", t.id);
+      srow.onclick = function () { if (handlers.onStudy) handlers.onStudy(t.id, s.id); };
+      threeDControl(srow, handlers, function () { handlers.onStudy(t.id, s.id); });
+      items.push(VA.el("li", "navtree__item", srow));
+    });
+    (t.kinematic ? kinematicRows(t.kinematic, state, handlers) : []).forEach(function (item) {
+      items.push(item);
+    });
+    if (!items.length && !chips.length) return null;
+    var list = VA.el("ul", "navtree__list");
+    chips.forEach(function (strip) { list.appendChild(VA.el("li", "navtree__item", strip)); });
+    items.forEach(function (item) { list.appendChild(item); });
+    return list;
+  }
+
+  // The kinematic studies, and the sweep row (a model with published runs and
+  // no kinematic study of its own, VA.kinematicNav). Kept for a group whose
+  // model the topology projection does not list (kinematicSection, below).
+  function kinematicRows(group, state, handlers) {
+    var items = [];
+    group.studies.forEach(function (s) {
+      var active = state.mode === "kinematic" && state.kinematicId === s.id;
+      var row = VA.el("div", "navtree__row navtree__row--study" +
+        (active ? " navtree__row--on" : "") +
+        (s.failed ? " navtree__row--warn" : ""));
+      row.appendChild(label(s.title, s.description, null));
+      statusIcon(s.navStatus, s.title, row, handlers);
+      row.setAttribute("data-nav-kind", "kinematic");
+      row.setAttribute("data-nav-id", s.id);
+      row.onclick = function () { if (handlers.onKinematic) handlers.onKinematic(s.id); };
+      threeDControl(row, handlers, function () { handlers.onKinematic(s.id); });
+      items.push(VA.el("li", "navtree__item", row));
+    });
+    if (group.model) {
+      var model = group.model;
+      var mrow = VA.el("div", "navtree__row navtree__row--study navtree__row--model");
+      mrow.appendChild(label(VA.NAV_WORDS.sweep, null,
+        VA.NAV_WORDS.sweepHint + (model.ts ? " (" + String(model.ts).slice(0, 10) + ")" : "")));
+      mrow.setAttribute("data-nav-kind", "kinematic-model");
+      mrow.setAttribute("data-nav-id", group.topologyId);
+      mrow.onclick = function () {
+        if (handlers.onKinematicModel) handlers.onKinematicModel(group.topologyId, model.runId);
+      };
+      items.push(VA.el("li", "navtree__item", mrow));
+    }
+    return items;
+  }
+
+  // A kinematic group whose model the topology projection does not list:
+  // under the group's own name, as before. Absent when there is none.
   function kinematicSection(groups, state, handlers) {
-    var section = VA.el("div", "navtree__section navtree__section--kinematic");
-    section.appendChild(VA.el("h2", "navtree__heading", "Kinematic studies"));
+    var box = VA.el("div", "navtree__section navtree__section--kinematic");
+    box.appendChild(VA.el("h2", "navtree__heading", "Kinematic studies"));
     var ul = VA.el("ul", "navtree__list");
     groups.forEach(function (group) {
       var li = VA.el("li", "navtree__item");
@@ -153,142 +593,14 @@
       li.appendChild(children);
       ul.appendChild(li);
     });
-    section.appendChild(ul);
-    return section;
+    box.appendChild(ul);
+    return box;
   }
 
-  // One kinematic group's rows, as list items: each study, then the model row.
-  function kinematicRows(group, state, handlers) {
-    var items = [];
-    group.studies.forEach(function (s) {
-      var active = state.mode === "kinematic" && state.kinematicId === s.id;
-      var row = VA.el("div", "navtree__row navtree__row--study" +
-        (active ? " navtree__row--on" : "") +
-        (s.failed ? " navtree__row--warn" : ""));
-      row.appendChild(label(s.title, s.description, null));
-      statusIcon(s.navStatus, s.title, row, handlers);
-      row.setAttribute("data-nav-kind", "kinematic");
-      row.setAttribute("data-nav-id", s.id);
-      row.onclick = function () { handlers.onKinematic(s.id); };
-      threeDControl(row, handlers, function () { handlers.onKinematic(s.id); });
-      var item = VA.el("li", "navtree__item", row);
-      if (active) sceneSlot(item, handlers);
-      items.push(item);
-    });
-    if (group.model) {
-      var model = group.model;
-      var mrow = VA.el("div", "navtree__row navtree__row--study navtree__row--model");
-      mrow.appendChild(label("Kinematic model", null,
-        "the mechanism moving through its newest sweep" +
-        (model.ts ? " (" + String(model.ts).slice(0, 10) + ")" : "") +
-        ", in the 3D scene"));
-      mrow.setAttribute("data-nav-kind", "kinematic-model");
-      mrow.setAttribute("data-nav-id", group.topologyId);
-      mrow.onclick = function () {
-        handlers.onKinematicModel(group.topologyId, model.runId);
-      };
-      items.push(VA.el("li", "navtree__item", mrow));
-    }
-    return items;
-  }
-
-  function topologyItem(t, state, handlers, open) {
-    var inThisTopology = state.mode === "topology" && state.topologyId === t.id;
-    var li = VA.el("li", "navtree__item");
-    var row = VA.el("div", "navtree__row navtree__row--topology" +
-      (inThisTopology && !state.studyId ? " navtree__row--on" : ""));
-    row.appendChild(label(t.title, t.description,
-      "the whole topology, depth-first, with nothing highlighted"));
-    row.appendChild(VA.el("code", "navtree__id", t.id));
-    row.setAttribute("data-nav-kind", "topology");
-    row.setAttribute("data-nav-id", t.id);
-    row.onclick = function () { handlers.onTopology(t.id); };
-    threeDControl(row, handlers, function () { handlers.onTopology(t.id); });
-    li.appendChild(row);
-    if (inThisTopology && !state.studyId) sceneSlot(li, handlers);
-    if (open === false) return li;
-
-    // One chip row per axis the tags use, over the study list: a value chip is
-    // on or off, any chip on in an axis keeps its studies (OR), every axis with
-    // a chip on must keep them (AND). Nothing when no study or body is tagged.
-    var selection = state.tagFilter || {};
-    (t.tagAxes || []).forEach(function (axis) {
-      var chips = VA.el("div", "navtree__tags");
-      chips.setAttribute("data-tag-axis", axis.axis);
-      chips.appendChild(VA.el("span", "navtree__tagaxis", axis.axis));
-      axis.values.forEach(function (value) {
-        var on = (selection[axis.axis] || []).indexOf(value) !== -1;
-        var chip = VA.el("button", "navtree__tag" + (on ? " navtree__tag--on" : ""),
-          value);
-        chip.setAttribute("type", "button");
-        chip.setAttribute("aria-pressed", on ? "true" : "false");
-        chip.setAttribute("data-tag-value", value);
-        chip.onclick = function () { handlers.onTag(axis.axis, value); };
-        chips.appendChild(chip);
-      });
-      li.appendChild(chips);
-    });
-
-    var children = VA.el("ul", "navtree__children");
-    (t.studies || []).filter(function (s) {
-      return VA.studyMatchesTags(s, selection, t.variantAxis);
-    }).forEach(function (s) {
-      var active = inThisTopology && state.studyId === s.id;
-      var srow = VA.el("div", "navtree__row navtree__row--study" +
-        (active ? " navtree__row--on" : "") +
-        (s.status === "error" ? " navtree__row--warn" : ""));
-      // The row's own name, with no glyph in front of it: a study that does
-      // not sum used to prefix "⚠ " here AND now earns the status icon
-      // below, and two triangles on one row is the loudness this pass exists
-      // to remove. The amber `--warn` tint stays — it is the row's state, not
-      // a badge, and it is what makes the row findable without hovering.
-      srow.appendChild(label(s.title, s.description, null));
-      // One mark, and only where there is something to look at
-      // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). The verdict went
-      // in with it: VA.studyNavStatus (topology.js) decides both which icon
-      // and what it says, and is the only place either vocabulary lives.
-      statusIcon(VA.studyNavStatus(s), s.title, srow, handlers);
-      srow.setAttribute("data-nav-kind", "study");
-      srow.setAttribute("data-nav-id", s.id);
-      srow.setAttribute("data-topology-id", t.id);
-      srow.onclick = function () { handlers.onStudy(t.id, s.id); };
-      threeDControl(srow, handlers, function () { handlers.onStudy(t.id, s.id); });
-      var item = VA.el("li", "navtree__item", srow);
-      if (active) sceneSlot(item, handlers);
-      children.appendChild(item);
-    });
-    var kinematic = t.kinematic ? kinematicRows(t.kinematic, state, handlers) : [];
-    if (kinematic.length && t.kinematic.studies.length) {
-      children.appendChild(VA.el("li", "navtree__item navtree__group", "Kinematic studies"));
-    }
-    kinematic.forEach(function (item) { children.appendChild(item); });
-    if (children.childNodes.length) li.appendChild(children);
-    return li;
-  }
-
-  // The ONE mark a nav row may wear, appended onto the row itself rather than
-  // into a wrapper of its own: it sits at the end of the row's first line,
-  // where the label's `flex: 1 1 auto` pushes it, instead of on a second line
-  // under the name the way the retired `.navtree__chips` strip did. Whitespace
-  // before chrome, and one line per row on a rail that is always on screen.
-  //
-  // Until 2026-09-22 a study row wore two marks — a filled all-caps verdict
-  // pill AND a bordered ⚠ — and before 2026-09-21, up to four. Jeff, on the
-  // two: "get rid of the pass/fail in the left side menu (move it into the
-  // alert along with all the other alerts). Also reformat the alert icon: get
-  // rid of the rounded border around it, make the actual icon larger so it's
-  // legible." So:
-  //
-  //   * ONE icon, drawn (VA.warningIcon) rather than typed, with no chip
-  //     framing around it — a border is a second mark on a row that needs one;
-  //   * everything the row has to say is in the card it opens, verdict first,
-  //     as full sentences. No abbreviation ever lands on a row;
-  //   * a row with nothing to look at — a clean pass, no flags — wears
-  //     nothing. The level says which of the two colours; the words say why.
-  //
-  // `stopClick`: the row underneath selects the study and re-renders the whole
-  // rail, which would replace the icon the pointer is resting on. The icon is
-  // a disclosure, not a second way into the study.
+  // The ONE mark a study row may wear (viewer_nav_verdict_into_alert_and_
+  // icon, 2026-09-22): a drawn icon, no chip framing, everything it has to
+  // say in the card it opens. `stopClick`: the row underneath re-renders the
+  // rail, which would replace the icon the pointer rests on.
   function statusIcon(status, title, row, handlers) {
     if (!status) return;
     row.appendChild(VA.alertBadge(status.alerts, title,
@@ -299,38 +611,46 @@
       }));
   }
 
-  function stackItem(stackProj, state, handlers) {
-    var active = state.mode === "stack" && state.selectedStackId === stackProj.id;
-    var li = VA.el("li", "navtree__item");
-    var row = VA.el("div", "navtree__row navtree__row--stack" +
-      (active ? " navtree__row--on" : ""));
-    row.appendChild(label(stackProj.title, stackProj.description, null));
-    // The same mark a study row wears, over the same scheme
-    // (VA.stackNavStatus). These rows printed every one of VA.summaryChips'
-    // counts as its own chip until 2026-09-22 — five of them on one row, one
-    // filled — which made them the loudest rows on a rail whose study rows had
-    // just been quietened. The scoreboard is on the stack's own page.
-    statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);
-    row.setAttribute("data-nav-kind", "stack");
-    row.setAttribute("data-nav-id", stackProj.id);
-    row.onclick = function () { handlers.onStack(stackProj.id); };
-    li.appendChild(row);
-    return li;
+  // --- the faces layer: the pane's rows for one feature ---------------------
+  //
+  // The annotator still sends its whole rail ({type: "annotate:tree"}, app.js's
+  // embedTree) and takes a gesture back on any row by key. This page now draws
+  // ONE subtree of it, under the selected feature's row: in sweep mode the
+  // rows whose key names the feature's node (a joint end, with its candidate
+  // faces, their reasons and its Pick); in bind mode the element rows the pane
+  // scoped itself to (`filter-element <node>`), each with its ends' candidate
+  // lists. Keys are the annotator's own (`<parent>/<data>=<value>,...`), read
+  // for one thing: does a `=<value>` segment equal the node's id.
+  function keyNames(key, id) {
+    var parts = String(key || "").split("/");
+    for (var i = 0; i < parts.length; i++) {
+      var fields = parts[i].split(",");
+      for (var j = 0; j < fields.length; j++) {
+        var at = fields[j].indexOf("=");
+        if (at !== -1 && fields[j].slice(at + 1) === id) return true;
+      }
+    }
+    return false;
   }
 
-  // --- the scene's tree, under the row it is showing ------------------------
-  //
-  // Handoff the_shell_seats_the_scene_beside_the_model: with the 3D scene
-  // open, the annotator's own rail -- bodies, joints and their surfaces and
-  // parts, the study's contributors in sweep mode; the study's elements and
-  // its parts in bind mode -- is drawn HERE, nested under the active row,
-  // rather than as a second left-hand menu inside the scene. Only the slot is
-  // made at nav-render time; topology_app.js fills it (renderSceneSlot) from
-  // the rows the annotator sends, and refills it whenever they change.
-  function sceneSlot(item, handlers) {
-    if (!handlers || !handlers.sceneSlot) return;
-    item.appendChild(VA.el("div", "navtree__scene"));
-  }
+  VA.SCENE_ELEMENT_ROOT = "#element-list/";
+
+  VA.sceneRowsForFeature = function (tree, nodeId) {
+    if (!tree || !tree.rows || !nodeId) return [];
+    var named = [];
+    var walk = function (rows) {
+      (rows || []).forEach(function (row) {
+        if (keyNames(row.key, nodeId)) { named.push(row); return; }
+        walk(row.rows);
+      });
+    };
+    walk(tree.rows);
+    if (named.length) return named;
+    // Bind mode: the scoped element list, whole.
+    return tree.rows.filter(function (row) {
+      return String(row.key || "").indexOf(VA.SCENE_ELEMENT_ROOT) === 0 && typeof row.head !== "string";
+    });
+  };
 
   // The six gestures a mirrored row can hand back, named once on this side;
   // the annotator's receiver (AA.RAIL_ACTS, apps/annotate/commands.js) names
@@ -346,50 +666,36 @@
   });
 
   // `tree` is the annotator's {chips, rows} (apps/annotate/app.js's
-  // embedTree, which carries the row shape); `opts.send(key, act, index?)`
-  // hands a gesture back to it. Every word and every effect is the
+  // embedTree, which carries the row shape) -- here already narrowed to the
+  // selected feature's rows (VA.sceneRowsForFeature); `opts.send(key, act,
+  // index?)` hands a gesture back to it. Every word and every effect is the
   // annotator's: this draws what it was sent, and a gesture is only ever
   // "this row, this control".
   //
   // Keyboard: a disclosure is a <summary>, a row that does something on a
   // click is a focusable button-role row (Enter or Space), and its checkbox
-  // and buttons are native controls -- so the whole tree is reachable by Tab
-  // (ISSUE_20261021_design_the_sweep_rails_repick_and_contributor_rows_
-  // cannot_be_reached_by_keyboard, for this copy). Focus lights the row in
-  // the scene the way a resting pointer does.
+  // and buttons are native controls -- so the whole tree is reachable by Tab.
+  // Focus lights the row in the scene the way a resting pointer does.
   VA.renderSceneTree = function (slot, tree, opts) {
     VA.clear(slot);
     if (!tree || !tree.rows || !tree.rows.length) return slot;
     var send = (opts && opts.send) || function () {};
-    if (tree.chips && tree.chips.length) {
-      var bar = VA.el("div", "navtree__scenechips");
-      bar.setAttribute("role", "group");
-      tree.chips.forEach(function (chip) {
-        var button = VA.el("button", "navtree__scenechip", chip.text);
-        button.setAttribute("aria-pressed", chip.pressed ? "true" : "false");
-        button.setAttribute("data-scene-chip", chip.key);
-        button.onclick = function () { send(chip.key, VA.SCENE_ACTS.button, 0); };
-        bar.appendChild(button);
-      });
-      slot.appendChild(bar);
-    }
     if (tree.legend && tree.legend.length) slot.appendChild(sceneLegend(tree.legend));
     slot.appendChild(sceneList(tree.rows, send));
     return slot;
   };
 
-  // The marks' legend, above the rows (handoff the_rail_reads_as_a_tree_of_
-  // bodies_joints_and_faces): each mark the annotator can put on a row, drawn
-  // as it is on the row, beside its word; the longer sense on hover.
+  // The marks' legend, above the rows: each mark the annotator can put on a
+  // row, drawn as it is on the row, beside its word; the longer sense on hover.
   function sceneLegend(items) {
     var box = VA.el("div", "navtree__scenelegend");
     items.forEach(function (item) {
       var entry = VA.el("span", "navtree__scenelegenditem");
       if (item.title) entry.setAttribute("title", item.title);
-      var mark = VA.el("span", "navtree__scenemark");
-      mark.setAttribute("data-mark", item.mark);
-      mark.setAttribute("aria-hidden", "true");
-      entry.appendChild(mark);
+      var glyph = VA.el("span", "navtree__scenemark");
+      glyph.setAttribute("data-mark", item.mark);
+      glyph.setAttribute("aria-hidden", "true");
+      entry.appendChild(glyph);
       entry.appendChild(VA.el("span", "navtree__scenelegendword", item.text));
       box.appendChild(entry);
     });
@@ -434,35 +740,28 @@
     if (row.kind) line.setAttribute("data-kind", row.kind);
     if (row.mark) line.setAttribute("data-mark", row.mark);
     if (row.attention) line.setAttribute("data-attention", "true");
-    // A suggestion line (the annotator says which rows carry one) is drawn in
-    // the suggestion colour.
     if (row.suggestion) line.setAttribute("data-suggestion", "true");
     if (row.title) line.setAttribute("title", row.title);
     if (typeof row.twisty === "string") {
       // A row with its own disclosure in front of it -- a joint end's
-      // candidate list (handoff a_joint_end_lists_its_candidate_faces_and_
-      // says_why_each_is_there): the row's click is still the row's (it
-      // selects), and only the twisty opens and closes the list under it.
-      // The chevron is drawn by the stylesheet, the same as a disclosure's,
-      // so the button carries its words as its name rather than a glyph.
-      var twisty = VA.el("button", "navtree__scenetwisty");
-      twisty.setAttribute("aria-expanded", row.open ? "true" : "false");
-      twisty.setAttribute("data-scene-part", "twisty");
+      // candidate list: the row's click is still the row's (it selects), and
+      // only the twisty opens and closes the list under it.
+      var tw = VA.el("button", "navtree__scenetwisty");
+      tw.setAttribute("aria-expanded", row.open ? "true" : "false");
+      tw.setAttribute("data-scene-part", "twisty");
       if (row.twisty) {
-        twisty.setAttribute("title", row.twisty);
-        twisty.setAttribute("aria-label", row.twisty);
+        tw.setAttribute("title", row.twisty);
+        tw.setAttribute("aria-label", row.twisty);
       }
-      twisty.onclick = function (event) {
+      tw.onclick = function (event) {
         if (event) {
           if (event.preventDefault) event.preventDefault();
           if (event.stopPropagation) event.stopPropagation();
         }
         send(row.key, VA.SCENE_ACTS.toggle);
       };
-      line.appendChild(twisty);
+      line.appendChild(tw);
     } else if (typeof row.open === "boolean") {
-      // A disclosure's own twisty: the <summary> is what toggles, so this is
-      // only its picture, in the same column as a list's twisty button.
       var fold = VA.el("span", "navtree__scenetwisty");
       fold.setAttribute("aria-hidden", "true");
       line.appendChild(fold);
@@ -478,15 +777,14 @@
     line.appendChild(text);
     if (row.value) line.appendChild(VA.el("span", "navtree__scenevalue", row.value));
     if (row.alert) {
-      var mark = VA.el("span", "navtree__scenealert");
-      mark.appendChild(VA.warningIcon("navtree__scenealert-mark"));
-      mark.setAttribute("title", row.alert);
-      mark.setAttribute("aria-label", row.alert);
-      mark.setAttribute("tabindex", "0");
-      line.appendChild(mark);
+      var alert = VA.el("span", "navtree__scenealert");
+      alert.appendChild(VA.warningIcon("navtree__scenealert-mark"));
+      alert.setAttribute("title", row.alert);
+      alert.setAttribute("aria-label", row.alert);
+      alert.setAttribute("tabindex", "0");
+      line.appendChild(alert);
     }
     sceneControls(line, row, send);
-    // Resting on a row -- or tabbing to it -- lights its thing in the scene.
     line.onmouseenter = function () { send(row.key, VA.SCENE_ACTS.enter); };
     line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };
 
@@ -530,9 +828,7 @@
 
   // A row's own checkbox and buttons, each a native control that hands its
   // gesture back rather than acting here. The checkbox does not flip on its
-  // own: the annotator's answer redraws it. The buttons sit together in one
-  // group and the checkbox last, so every checkbox in the tree is in one
-  // column at the rail's right edge whatever the row's depth.
+  // own: the annotator's answer redraws it.
   function sceneControls(line, row, send) {
     if (row.buttons && row.buttons.length) {
       var acts = VA.el("span", "navtree__sceneacts");

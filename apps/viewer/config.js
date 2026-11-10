@@ -20,6 +20,10 @@
     // so every transport reaches it exactly as it reaches topologies.json.
     // tests/test_kinematic.py pairs this line with the builder's constants.
     kinematicProjection: ["kinematic", "kinematic_studies.json"],
+    // The feature-identity projection (bindings.json), repo-relative: what
+    // the model object folds into one status per feature (model.js). The
+    // http adapter has its own per-mount answer (storage/http.js, CANDIDATES).
+    identityProjection: ["data", "projections", "feature-identity", "bindings.json"],
     stacksDir: ["docs", "tolerance_stacks"],
 
     // drawing-checker's local web UI. A crop resolved through a run links to

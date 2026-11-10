@@ -90,6 +90,11 @@
     return this._readJson(VA.CONFIG.projectionDir.concat(VA.CONFIG.kinematicProjection));
   };
 
+  // The feature-identity projection under the granted folder, or null.
+  FsaAdapter.prototype.readIdentityProjection = function () {
+    return this._readJson(VA.CONFIG.identityProjection);
+  };
+
   FsaAdapter.prototype.readCropImage = async function (relPath) {
     VA.requireReady(this);
     var segs = VA.CONFIG.projectionDir.concat(String(relPath).split("/"));
