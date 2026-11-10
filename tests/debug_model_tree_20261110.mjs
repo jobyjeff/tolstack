@@ -174,7 +174,9 @@ async function sweep(width) {
   }, null, { timeout: 180000 }).catch(() => {});
   await page.waitForTimeout(6000);
   await shot(page, tag("s1_v2_sweep_playing"), { nav: await navRows(page) });
-  // A feature selected while the sweep plays.
+  // A feature selected while the sweep plays: its part opened first (parts
+  // are folded by default), the way a reader would.
+  await toggleNav(page, "p:pitch_link");
   await clickNav(page, "feature", "pitch_link@pitch_link_lower_sphere_centre");
   await page.waitForTimeout(4000);
   const bar = await frameOf(page).evaluate(() => (document.querySelector("#detail") || {}).innerText);
@@ -208,7 +210,9 @@ async function models(width) {
   await page.selectOption("#navtree select.navtree__select", `topology:${V1}`);
   await settle(page, 2000);
   const v1 = await navRows(page);
-  await shot(page, tag("m1_v1_tree"), { headings: v1.filter((r) => r.tag === "h2").map((r) => r.text), rows: v1.length });
+  const v1Braces = await braces(page);
+  await shot(page, tag("m1_v1_tree"), { headings: v1.filter((r) => r.tag === "h2").map((r) => r.text), rows: v1.length,
+    partBrackets: v1Braces.partLabels.length, bodyBrackets: v1Braces.bodyLabels.length });
   await page.selectOption("#navtree select.navtree__select", `topology:${V2}`);
   await settle(page, 2000);
   const after = await navRows(page);

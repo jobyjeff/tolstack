@@ -11947,12 +11947,17 @@
         eq(parts.map(function (p) { return p.querySelector(".navtree__label").textContent; }),
            ["100-001 hub", "100-002 mount", "arm"]);
         var features = all(root, "div.navtree__row--feature");
-        // p1's two features under it; the open interface group's joint opens
+        // p1 was opened by the reader; p2 opens because it holds a feature of
+        // the selected node (a selection is never marked on a row the reader
+        // cannot see); p3 stays closed. The open interface group's joint opens
         // to its two constraints, each closed (no end rows yet).
-        eq(features.map(function (f) { return f.getAttribute("data-nav-id"); }), ["p1@n1", "p1@n2"]);
+        eq(features.map(function (f) { return f.getAttribute("data-nav-id"); }),
+           ["p1@n1", "p1@n2", "p2@n2", "p2@n3", "p2@n5"]);
+        var S = VA.FEATURE_STATUSES;
         eq(features.map(function (f) { return f.querySelector(".navtree__mark").getAttribute("data-status"); }),
-           [VA.FEATURE_STATUSES.none, VA.FEATURE_STATUSES.bound]);
+           [S.none, S.bound, S.bound, S.bound, S.none]);
         ok(hasClass(features[1], "navtree__row--on"), "the selected node's feature is marked");
+        ok(hasClass(features[2], "navtree__row--on"), "...on both parts it is on");
         ok(!hasClass(features[0], "navtree__row--on"));
         // The faces layer slot sits under the selected feature only.
         eq(all(root, "div.navtree__scene").length, 1);
@@ -16412,15 +16417,22 @@
             // net, a longer walk) -- the pin was one landing behind, and only the
             // README's crossings were updated then
             // (the_viewer_real_tier_follows_the_slide_re_author).
+            // 57 groups since 2026-11-10 (the_model_is_derived_once_and_the_
+            // left_column_is_its_tree): a group breaks only where the part
+            // changes, so a boundary node inside a part no longer splits its
+            // bracket; the leaders are the same 63. v1's walk still revisits
+            // parts on later branches, so 35 parts are 57 groups.
             var plan = VA.gridPlan(livePitch.layout, livePitch);
             eq(plan.leaders.length, 63);
-            eq(plan.groups.length, 74);
-            // The walk opens at the hub spindle bore, a boundary, so its first
-            // hub run is one row. The label is the part's NAME
+            eq(plan.groups.length, 57);
+            // The walk opens at the hub spindle bore and its first two rows are
+            // both the hub's: one group since 2026-11-10 (a boundary node
+            // between two hub rows no longer splits the bracket), two rows
+            // before. The label is the part's one LABEL -- number, then name
             // (VA.componentLabel); `part` is still the id it is keyed by.
             eq(plan.groups[0].part, "hub");
-            eq(plan.groups[0].label, "propeller hub");
-            eq(plan.groups[0].count, 1);
+            eq(plan.groups[0].label, "214373-002 propeller hub");
+            eq(plan.groups[0].count, 2);
             // The walk's tail is the last fastener stack it reaches (the four
             // folded in on 2026-10-27 walk after the mechanism): the VPA
             // output's spherical bearing, a part on its own row.
@@ -16436,9 +16448,12 @@
             plan.groups.forEach(function (g) {
               if (g.part) runsPerPart[g.part] = (runsPerPart[g.part] || 0) + 1;
             });
-            eq(runsPerPart.hub, 7);
-            eq(runsPerPart.pitch_plate_215177_001, 8);
-            eq(runsPerPart.gas_spring, 2);
+            // Since 2026-11-10 a run breaks only where the part changes, so
+            // the hub's 7 runs are 2 and the plate's 8 are 3: what is left is
+            // the walk really revisiting the part on another branch.
+            eq(runsPerPart.hub, 2);
+            eq(runsPerPart.pitch_plate_215177_001, 3);
+            eq(runsPerPart.gas_spring, 1);
             eq(runsPerPart.blade_root, 2);
             // Every gap is its own group, in gap words -- and two gaps walked
             // one after the other (a bearing's centre and the joint it is) are
@@ -17417,12 +17432,17 @@
         await test("[real] every live study row wears at most the one status " +
           "icon, and a silent row is a row with nothing to say", function () {
             var tree = VA.navTree(realTopologies, null);
-            var root = render(function (r) {
-              VA.renderNavTree(r, tree, { mode: "topology" }, {
-                onTopology: function () {}, onStudy: function () {},
-                onStack: function () {},
+            // The tree lists the OPEN model's studies (2026-11-10), so every
+            // model is opened in turn and its rows gathered, in tree order.
+            var roots = tree.topologies.map(function (t) {
+              return render(function (r) {
+                VA.renderNavTree(r, tree, { mode: "topology", topologyId: t.id }, {
+                  onTopology: function () {}, onStudy: function () {},
+                  onStack: function () {},
+                });
               });
             });
+            var root = VA.el("div", "", roots);
             var rows = all(root, ".navtree__row--study");
             var studies = liveTopos.reduce(function (n, t) {
               return n + (t.studies || []).length;

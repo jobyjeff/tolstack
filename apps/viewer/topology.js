@@ -1142,14 +1142,16 @@
   // drawn, so a drawing number fits on it (86px holds `214958-002` beside its mark).
   VA.CONTAINER_LABEL = { room: 14, baseline: 11, inset: 5, beside: 10, minWidth: 86 };
 
-  // A part container's name: its display name when the record has one, else
-  // its drawing number, else its name.
+  // A part container's name on the DAG: its NUMBER, off the one label every
+  // surface shares (VA.componentLabel -> VA.partColumns), and the everyday
+  // name for a part with no number. One rule for blocks: until 2026-11-10 a
+  // block read `214373-002` beside one reading `Pitch plate…`, because three
+  // parts carried a display_name and twelve did not. A block is sized for a
+  // number (VA.CONTAINER_LABEL.minWidth), so the whole label rides its title.
   VA.partContainerLabel = function (part) {
     if (!part) return "";
-    // The same label every other surface prints (VA.componentLabel): a block
-    // read `214373-002` beside one reading `Pitch plate…` until 2026-11-10,
-    // because three parts carried a display_name and twelve did not.
-    return VA.componentLabel(part);
+    var columns = VA.partColumns(part);
+    return columns.number || VA.componentLabel(part);
   };
 
   // The band above each layout row, in px: `body` above a body field's first

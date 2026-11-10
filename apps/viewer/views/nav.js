@@ -282,10 +282,19 @@
     return li;
   }
 
+  // Does this part hold a feature of the selected node? A selection made
+  // anywhere -- the scene, the DAG, the grid -- opens the part that holds it,
+  // so the tree never marks a row the reader cannot see; the reader's own
+  // fold of that part still wins.
+  function holdsSelection(model, partId, state) {
+    if (!state || !state.selection || state.selection.kind !== "node") return false;
+    return model.featuresOf(partId).some(function (f) { return f && f.node === state.selection.id; });
+  }
+
   function partItem(model, partId, state, handlers) {
     var part = model.part(partId);
     var key = "p:" + partId;
-    var open = isOpen(state, key, false);
+    var open = isOpen(state, key, holdsSelection(model, partId, state));
     var li = VA.el("li", "navtree__item");
     var row = foldRow("navtree__row--part", key, open, handlers);
     row.setAttribute("data-nav-kind", "part");
@@ -333,7 +342,9 @@
 
   function bodyItem(model, body, state, handlers) {
     var key = "b:" + body.id;
-    var open = isOpen(state, key, true);
+    var holds = body.parts.some(function (pid) { return holdsSelection(model, pid, state); });
+    var open = isOpen(state, key, true) || (holds && !isOpen(state, key, true) &&
+      !(state.navOpen && Object.prototype.hasOwnProperty.call(state.navOpen, key)));
     var li = VA.el("li", "navtree__item");
     var row = foldRow("navtree__row--body", key, open, handlers);
     row.setAttribute("data-nav-kind", "body");
@@ -500,7 +511,12 @@
     var selection = state.tagFilter || {};
     var items = [];
     var chips = [];
-    (t.tagAxes || []).forEach(function (axis) {
+    // A chip row only where it can filter: an axis every body or study tags
+    // with one value (v2's `component · propeller-system`) is a label, not a
+    // filter, and the column shows nothing about it (Jeff, 2026-11-09).
+    (t.tagAxes || []).filter(function (axis) {
+      return (axis.values || []).length > 1;
+    }).forEach(function (axis) {
       var strip = VA.el("div", "navtree__tags");
       strip.setAttribute("data-tag-axis", axis.axis);
       strip.appendChild(VA.el("span", "navtree__tagaxis", axis.axis));

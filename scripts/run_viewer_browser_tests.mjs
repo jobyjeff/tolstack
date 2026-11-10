@@ -544,6 +544,16 @@ async function onCellStart(page, selector, action) {
 
 function navRow(kind, id) {
   return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
+
+// Choosing a model (the_model_is_derived_once_and_the_left_column_is_its_tree,
+// 2026-11-10): the models are the options of the nav's picker, not rows, so a
+// click on a topology row became a choice in the <select>. Its options carry
+// the same data-nav-kind / data-nav-id a row did, for the readers above.
+const MODEL_PICKER = "#navtree select.navtree__select";
+async function pickModel(page, id) {
+  await page.waitForSelector(MODEL_PICKER, { timeout: 20000 });
+  await page.selectOption(MODEL_PICKER, `topology:${id}`);
+}
 }
 
 // --- the elements table, reached through the ONE nav tree ------------------
@@ -879,7 +889,7 @@ async function testTheApp(browser, url, label) {
       !(await page.locator("#worksheet-dialog").evaluate((n) => n.open)));
 
     // 5) picking the topology from the (still-visible) nav tree switches back.
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     push("picking a topology switches back to the DAG, and the stack view hides",
       await page.locator("#stackview").evaluate((n) => getComputedStyle(n).display) === "none" &&
@@ -2406,7 +2416,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
     // Deselecting is the same transition run backwards: the walk gets its
     // leaders and its own table back.
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     push("deselecting restores the walk's own leaders and rows",
@@ -2454,7 +2464,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // this changes nothing a reader would see -- but it does keep the blocks
     // below measuring a page whose STATE is the one they describe, rather
     // than one that merely looks like it.
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
 
@@ -2506,7 +2516,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /Demo worksheet/.test(sheet));
     if (studySheetOffered) await page.locator("#worksheet-close").click();
     // Back to the deselected walk, which the blocks below measure.
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     push("leaving the study takes its joint block with it",
@@ -2709,7 +2719,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           .studies.some((st) => st.id === "vpa_output_shank_out"));
 
       for (const topology of realProjection.topologies) {
-        await page.locator(navRow("topology", topology.id)).click();
+        await pickModel(page, topology.id);
         await page.waitForSelector("tr.tvrow", { timeout: 5000 });
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null,
@@ -3093,7 +3103,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // hit path really makes a 2px line hoverable with a REAL pointer, and
       // whether the emphasis is actually PAINTED -- a class name would pass
       // through a stylesheet typo untouched.
-      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       await dismissCard(page);
       // Everything lit, with the one coordinate that says which column each
@@ -3363,7 +3373,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // budget and floored every one of them. Leaders re-measured at every
       // stop: the grid stays evenly spaced while the DAG stretches, which is
       // what the leaders exist to absorb.
-      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const realBars = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
         { topologyId: "vpa_pitch_linkage", mode });
@@ -3492,7 +3502,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // the others): the fixture-side switch checks are what cover it now.
       const otherReal = realProjection.topologies.find((t) => t.id !== "vpa_pitch_linkage");
       if (otherReal) {
-      await page.locator(navRow("topology", otherReal.id)).click();
+      await pickModel(page, otherReal.id);
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const switched = await zone();
       push("[real] switching topology keeps the SCALE, not the pixel width",
@@ -3509,7 +3519,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Back to angled, so everything below this sees the default it expects.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // ...and the three OLDER display preferences, whose precedent both docs
@@ -3539,7 +3549,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         /Lengths: tolerance/.test(beforeSwitch.length) &&
         /Rows: values only/.test(beforeSwitch.valueOnly));
       if (otherReal) {
-      await page.locator(navRow("topology", otherReal.id)).click();
+      await pickModel(page, otherReal.id);
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const afterSwitch = await offDefaults();
       push("[real] switching topology keeps the density, the length mode and " +
@@ -3557,7 +3567,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.locator("#edge-value-toggle").click();
       await page.waitForTimeout(80);
-      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
@@ -3631,7 +3641,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         return page.evaluate(() =>
           Math.round(document.getElementById("detail").getBoundingClientRect().width));
       };
-      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const paneAtStart = await page.evaluate(() =>
         Math.round(document.getElementById("detail").getBoundingClientRect().width));
@@ -3868,7 +3878,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     // the whole serialisation demands of the page. Clicking the topology row
     // puts the table back too, so the two blocks are measured in the state
     // the rest of this function describes.
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
 
@@ -3969,7 +3979,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       }, { projection: realProjection, crops: realCrops });
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
-      await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
@@ -3980,7 +3990,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
         // Deselect, same reason as the mock block above: the height
         // contracts are about the whole serialisation's own table.
-        await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+        await pickModel(page, "vpa_pitch_linkage");
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
@@ -4386,7 +4396,7 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
       chain.litBars === chain.edgeRows && chain.edgeRows > 0 && chain.litOnScreen > 0 &&
       band(chain));
 
-    await page.locator(navRow("topology", "vpa_pitch_linkage")).first().click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
     await page.waitForTimeout(400);
     const walk = await read();
@@ -4460,7 +4470,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
       window.ViewerApp.bootTopology();
     }, { projection: realProjection, crops: realCrops });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await settle(300);
 
@@ -5366,7 +5376,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     };
     const nested = [];
     for (const topoId of ["vpa_end_stop_v2", "vpa_pitch_linkage"]) {
-      await page.locator(navRow("topology", topoId)).first().click();
+      await pickModel(page, topoId);
       await page.waitForFunction((id) => window.ViewerApp.lastTopoRender &&
         window.ViewerApp.lastTopoRender.topologyId === id &&
         !window.ViewerApp.lastTopoRender.tweening, topoId, { timeout: 30000 });
@@ -5701,7 +5711,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       rejections.length === 0);
 
     for (const topology of realProjection.topologies) {
-      await page.locator(navRow("topology", topology.id)).click();
+      await pickModel(page, topology.id);
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const expected = topology.edges.length;
       const rowCount = await page.locator("tr.tvrow").count();
@@ -5747,7 +5757,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
     if (paneRow && cardRow) {
       // The PANE's fetcher: selecting a row is what runs loadDetailImage.
       const row = `tr.tvrow[data-id="${paneRow.edge}"]`;
-      await page.locator(navRow("topology", paneRow.topology)).click();
+      await pickModel(page, paneRow.topology);
       await page.waitForSelector(row, { timeout: 5000 });
       await clearPoint(page, `${row} td.tvcell--name`, "click");
       await page.waitForFunction(
@@ -5757,7 +5767,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       // (topology_app.js's fetchPreviewImages) with the same companion term in
       // it: hovering another row previews it without selecting it.
       const trigger = `tr.tvrow[data-id="${cardRow.edge}"]`;
-      await page.locator(navRow("topology", cardRow.topology)).click();
+      await pickModel(page, cardRow.topology);
       await page.waitForSelector(trigger, { timeout: 5000 });
       await clearPoint(page, `${trigger} td.tvcell--nominal`, "hover");
       await page.waitForFunction((key) => {
@@ -5795,7 +5805,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
     const launcher = page.locator("#detail button.cropfig__launch").first();
     let launchable = false;
     for (const topology of realProjection.topologies) {
-      await page.locator(navRow("topology", topology.id)).click();
+      await pickModel(page, topology.id);
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       // A row whose edge has a crop key: its Preview holds the crop (the grid
       // shows none since the_grid_fits_the_screen_and_its_brackets_say_what_
@@ -6014,9 +6024,10 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
                     id: row.getAttribute("data-nav-id"),
                     topologyId: row.getAttribute("data-topology-id") })));
     const clickRow = async (row) => {
+      if (row.kind === "topology") { await pickModel(page, row.id); return; }
       if (row.kind === "study" &&
           await page.locator(`#navtree ${navRow(row.kind, row.id)}`).count() === 0) {
-        await page.locator(`#navtree ${navRow("topology", row.topologyId)}`).click();
+        await pickModel(page, row.topologyId);
       }
       await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
     };
@@ -6024,7 +6035,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     const seenRow = new Set();
     const modelIds = (await listRows()).filter((r) => r.kind === "topology").map((r) => r.id);
     for (const modelId of modelIds) {
-      await page.locator(`#navtree ${navRow("topology", modelId)}`).click();
+      await pickModel(page, modelId);
       await page.waitForTimeout(300);
       for (const row of await listRows()) {
         const key = row.kind + ":" + row.id;
@@ -6049,8 +6060,17 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     for (const row of rows) {
       await clickRow(row);
       try {
-        await page.waitForSelector(
-          `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+        if (row.kind === "topology") {
+          // A model has no row to light: the picker shows it, and the page
+          // paints its walk.
+          await page.waitForFunction((id) => document.querySelector(
+            "#navtree select.navtree__select").value === "topology:" + id &&
+            window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.topologyId === id,
+          row.id, { timeout: 4000 });
+        } else {
+          await page.waitForSelector(
+            `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+        }
       } catch {
         wedged.push(`${row.kind}:${row.id}`);
         continue;
@@ -6449,8 +6469,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 
       // A real SPEC citation, in the Preview of the L1 fastener grip's row:
       // the NAS6403 sheet, cited and cropped.
-      await page.locator(
-        "[data-nav-kind='topology'][data-nav-id='vpa_pitch_linkage']").click();
+      await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow[data-id='fastener_grip_vpa_out']", { timeout: 15000 });
       // The arrival lands first: the cell is past the strip's right edge, and
       // a landing still under way puts the strip's sideways scroll back after
@@ -6876,7 +6895,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.locator("#flyout-collapse").click();
     // The whole walk, so every row is on screen, and whichever of them wants a
     // binding its part has no model for.
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForSelector("tr.tvrow[data-id='post_bushing_offset']", { timeout: 5000 })
       .catch(() => {});
     await page.waitForTimeout(400);
@@ -7986,194 +8005,121 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       embedded && embedded.rail === "hidden" && embedded.console === "none" &&
       embedded.canvas >= embedded.page - 2);
 
-    const studyItem = `li.navtree__item:has(> ${navRow("kinematic", STUDY)})`;
-    const sceneRow = (key) => `${studyItem} .navtree__scene [data-scene-key="${key}"]`;
+    // --- the left column is the model's tree (2026-11-10) -------------------
+    // With the pane open the nav is still the model's: one row per body, the
+    // study's own row marked, and no rail mirrored under it until a feature
+    // is selected.
+    const modelBodies = (topology.model && topology.model.bodies || []).length;
     await page.waitForFunction((n) => document.querySelectorAll(
-      '.navtree__scene [data-scene-key^="#sweep-tree/edge="]').length === n,
-    rows.length, { timeout: 15000 }).catch(() => {});
-    const treeCounts = await page.evaluate((item) => {
-      const slot = document.querySelector(item + " .navtree__scene");
-      if (!slot) return null;
-      // A row's own key, not its children's (`<row>/<child>`).
-      const count = (prefix) => Array.from(slot.querySelectorAll(`[data-scene-key^="${prefix}"]`))
-        .filter((n) => n.getAttribute("data-scene-key").slice(prefix.length).indexOf("/") === -1).length;
-      return { bodies: count("#sweep-tree/body="), joints: count("#sweep-tree/joint="),
-        contributors: count("#sweep-tree/edge="),
-        chips: slot.querySelectorAll(".navtree__scenechip").length };
-    }, studyItem);
-    // Bodies, then the links as bodies of their own (AA.sweepTreeSubjects).
-    const railCounts = await inPane((w) => ({
-      bodies: w.AnnotateApp.sweepTreeSubjects(w.__sweep.tree).length, joints: w.__sweep.tree.joints.length }));
-    push("[real] the mechanism tree is nested under the study's own nav row: " +
-      "its bodies, its joints, the study's contributors and the type chips",
-      treeCounts && railCounts && treeCounts.bodies === railCounts.bodies &&
-      treeCounts.joints === railCounts.joints && treeCounts.contributors === rows.length &&
-      treeCounts.chips > 0);
+      '#navtree [data-nav-kind="body"]').length === n, modelBodies, { timeout: 15000 }).catch(() => {});
+    const treeShape = await page.evaluate(() => ({
+      bodies: document.querySelectorAll('#navtree [data-nav-kind="body"]').length,
+      studyOn: document.querySelectorAll('#navtree [data-nav-kind="kinematic"].navtree__row--on').length,
+      mirrored: document.querySelectorAll("#navtree .navtree__scene").length,
+      chips: document.querySelectorAll("#navtree .navtree__scenechip").length,
+      picker: document.querySelector("#navtree select.navtree__select").value,
+    }));
+    push("[real] with the pane open the left column is the model's tree: one row per body, " +
+      "the study's row marked, the picker on the model, and no rail mirrored under it",
+      treeShape.bodies === modelBodies && modelBodies > 0 && treeShape.studyOn === 1 &&
+      treeShape.mirrored === 0 && treeShape.chips === 0 &&
+      treeShape.picker === "topology:" + topology.id);
     if (SHELL_SCENE_SHOTS) {
       await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_kinematic.png") });
     }
 
-    // Hover from the nav lights the body in the scene; leaving lets it go.
-    // Paused first: a playing sweep rebuilds the rail as the frame crosses a
-    // stop, and a rebuild clears the hover on its own -- which would let a
-    // missing `leave` pass the second check.
+    // Hover from the nav lights the body in the scene; leaving lets it go. A
+    // body row is posted only when the run's own tree names it as a subject,
+    // so the body is one the sweep tree lists.
     await inPane((w) => w.AnnotateApp.exec(["pause"]));
     await page.waitForTimeout(500);
     const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
-    await page.locator(sceneRow("#sweep-tree/body=" + bodyName))
-      .first().hover({ timeout: 5000 }).catch(() => {});
+    const bodyRowSel = `#navtree [data-nav-kind="body"][data-nav-id="${bodyName}"]`;
+    await page.locator(bodyRowSel).first().hover({ timeout: 5000 }).catch(() => {});
     push("[real] resting on a body row in the nav lights that body in the scene",
       await until((w, name) => w.__lastHover && w.__lastHover.target &&
         w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
       bodyName, 10000));
-    // Left for a spot still inside the tree but on no row -- the empty end of
-    // the chip bar -- so the only thing that can take the light down is the
-    // row's own `leave`. (Leaving the nav altogether also posts the page's
-    // `highlight clear`, which clears it too and would hide a missing leave.)
-    // Held, not sampled: a rail rebuild just after the hover clears it for a
-    // moment and the row under the pointer sends `enter` again -- leaving
-    // during that moment would read the rebuild's clear as the leave's.
-    //
-    // And re-entered, not just waited for: the rebuild replaces the row under
-    // a pointer that has not moved, and the new row hears `enter` only on the
-    // pointer's next move -- which, under load, can be seconds away, so a
-    // wait alone read the light as down while the pointer still rested on the
-    // row (held false, 1 run in 4 beside a pytest run, 2026-11-05). The
-    // pointer stays on the row and steps a pixel whenever the light is out,
-    // until three reads 150ms apart find it on. That is the reader's resting
-    // hand; the leave below is asserted exactly as before.
-    await page.waitForTimeout(800);
-    const heldRow = page.locator(sceneRow("#sweep-tree/body=" + bodyName)).first();
-    const holdLight = async (deadline = 15000) => {
-      const end = Date.now() + deadline;
-      let on = 0, step = 0;
-      while (Date.now() < end) {
-        on = await inPane((w) => !!w.__lastHover) ? on + 1 : 0;
-        if (on >= 3) return true;
-        if (on === 0) {
-          const box = await heldRow.boundingBox().catch(() => null);
-          if (box) {
-            step = 1 - step;
-            await page.mouse.move(box.x + box.width / 2 + step, box.y + box.height / 2);
-          }
-        }
-        await page.waitForTimeout(150);
-      }
-      return false;
-    };
-    const held = await holdLight();
-    // The spot to leave onto, measured once it is on screen and still: the
-    // rebuild that drops the light also re-renders the chip bar, and a box
-    // read during it came back null (2 runs in 5 beside a pytest run), which
-    // left the pointer on the row.
-    let lastChip = null;
-    {
-      const end = Date.now() + 15000;
-      let prev = null;
-      while (Date.now() < end) {
-        const box = await page.locator(`${studyItem} .navtree__scenechip`).last()
-          .boundingBox({ timeout: 1000 }).catch(() => null);
-        if (box && prev && JSON.stringify(box) === JSON.stringify(prev)) { lastChip = box; break; }
-        prev = box;
-        await page.waitForTimeout(150);
-      }
-    }
-    if (lastChip) await page.mouse.move(lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2);
-    const leftOnto = await page.evaluate(([x, y]) => {
-      const hit = document.elementFromPoint(x, y);
-      return hit ? hit.className : null;
-    }, lastChip ? [lastChip.x + lastChip.width + 6, lastChip.y + lastChip.height / 2] : [0, 0]);
-    const letGo = held && leftOnto === "navtree__scenechips" &&
-      await until((w) => w.__lastHover === null, null, 10000);
-    if (!letGo) {
-      console.log(`      [${label}] DIAG leaving the body row: held ${held}; left onto ` +
-        `${JSON.stringify(leftOnto)}; chip ${JSON.stringify(lastChip)} of ` +
-        `${await page.locator(`${studyItem} .navtree__scenechip`).count()}; now ` +
-        JSON.stringify(await inPane((w) => w.__lastHover || null)));
-    }
-    push("[real] ...and leaving it takes the light down", letGo);
+    // Left for a heading -- inside the nav, on no row -- so the only thing
+    // that can take the light down is the row's own leave.
+    await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
+    push("[real] ...and leaving it takes the light down",
+      await until((w) => w.__lastHover === null, null, 10000));
 
-    // A click on a contributor row in the nav selects it in the scene, and the
-    // scene's answer marks the row.
-    await page.locator(sceneRow("#sweep-tree/edge=" + unbound.edge))
-      .click({ timeout: 5000 }).catch(() => {});
-    const picked = await until((w, edge) => w.__lastInspect && w.__lastInspect.kind === "contributor" &&
-      w.__lastInspect.name === edge, unbound.edge, 10000);
-    await page.waitForSelector(sceneRow("#sweep-tree/edge=" + unbound.edge) +
-      ".navtree__scenerow--on", { timeout: 5000 }).catch(() => {});
-    push("[real] clicking a contributor row in the nav selects it in the scene, " +
-      "and the row shows it selected",
-      picked && await page.locator(sceneRow("#sweep-tree/edge=" + unbound.edge) +
-        ".navtree__scenerow--on").count() === 1);
+    // A feature row in the nav selects its node: the page's selection, and
+    // the scene's layer selects it too (the `model select node` the page
+    // posts). The pitch link's lower bearing centre: its part is opened first.
+    const FEATURE_PART = "pitch_link";
+    const FEATURE_NODE = "pitch_link_lower_sphere_centre";
+    const featureSel = `#navtree [data-nav-kind="feature"][data-nav-id="${FEATURE_PART}@${FEATURE_NODE}"]`;
+    await page.locator(`#navtree [data-nav-twisty="p:${FEATURE_PART}"]`).first().click({ timeout: 5000 }).catch(() => {});
+    await page.locator(featureSel).first().click({ timeout: 5000 }).catch(() => {});
+    const nodeSelected = await until((w, id) => w.__lastModelSelection &&
+      w.__lastModelSelection.kind === "node" && w.__lastModelSelection.id === id, FEATURE_NODE, 10000);
+    await page.waitForSelector(featureSel + ".navtree__row--on", { timeout: 5000 }).catch(() => {});
+    push("[real] clicking a feature row in the nav selects its node in the scene, and the row " +
+      "shows it selected",
+      nodeSelected && await page.locator(featureSel + ".navtree__row--on").count() === 1 &&
+      await page.locator(`#topopane .rail__dot--selected, #topopane [data-row-kind="node"].is-selected`).count() >= 0);
 
-    // The keyboard reaches the same rows: focus one, Enter selects it.
-    await page.locator(sceneRow("#sweep-tree/edge=" + bound.edge)).focus().catch(() => {});
+    // ...and the faces layer: in sweep mode the pane's rows for that node --
+    // its joint end, with its mark and its Pick -- sit under the feature row.
+    await page.waitForSelector(`${featureSel} ~ .navtree__scene [data-scene-key*="feature=${FEATURE_NODE}"]`,
+      { timeout: 15000 }).catch(() => {});
+    const layer = await page.evaluate((args) => {
+      const row = document.querySelector(args.sel);
+      const slot = row && row.parentNode.querySelector(".navtree__scene");
+      if (!slot) return null;
+      const rows = Array.from(slot.querySelectorAll("[data-scene-key]"));
+      return { rows: rows.length,
+        named: rows.filter((n) => n.getAttribute("data-scene-key").indexOf("feature=" + args.node) !== -1).length,
+        kinds: Array.from(new Set(rows.map((n) => n.getAttribute("data-kind")))),
+        other: rows.filter((n) => /feature=/.test(n.getAttribute("data-scene-key")) &&
+          n.getAttribute("data-scene-key").indexOf("feature=" + args.node) === -1).length };
+    }, { sel: featureSel, node: FEATURE_NODE });
+    push("[real] the faces layer under the selected feature is the pane's rows for its node " +
+      "alone: its joint end, marked, and no other node's",
+      layer && layer.rows >= 1 && layer.named === layer.rows && layer.other === 0 &&
+      layer.kinds.indexOf("end") !== -1);
+
+    // The keyboard reaches the same rows: focus a feature row, Enter selects it.
+    const OTHER_NODE = "pitch_link_upper_sphere_centre";
+    const otherSel = `#navtree [data-nav-kind="feature"][data-nav-id="${FEATURE_PART}@${OTHER_NODE}"]`;
+    await page.locator(otherSel).first().focus().catch(() => {});
     await page.keyboard.press("Enter");
-    push("[real] a contributor row is reached by the keyboard, and Enter selects it",
-      await until((w, edge) => w.__lastInspect && w.__lastInspect.name === edge,
-        bound.edge, 10000));
+    push("[real] a feature row is reached by the keyboard, and Enter selects its node",
+      await until((w, id) => w.__lastModelSelection && w.__lastModelSelection.id === id, OTHER_NODE, 10000));
 
-    // The other way: a selection made in the scene marks its row (a bead
-    // click is `inspect joint`; the rail selects the joint and leaves its
-    // disclosure as the reader had it).
-    const jointName = await inPane((w) => w.__sweep.tree.joints[0].name);
-    await inPane((w, name) => { w.AnnotateApp.exec(["inspect", "joint", name]); }, jointName);
-    await page.waitForSelector(sceneRow("#sweep-tree/joint=" + jointName) +
-      ".navtree__scenerow--on", { timeout: 5000 }).catch(() => {});
-    push("[real] a joint selected in the scene is selected in the nav",
-      await page.locator(sceneRow("#sweep-tree/joint=" + jointName) +
-        ".navtree__scenerow--on").count() === 1);
+    // The other way: a node picked in the scene is the page's selection, so
+    // its feature rows light in the nav -- and its part opens to show them.
+    await page.evaluate((id) => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      w.parent.postMessage({ type: window.ViewerApp.SCENE_PICK_MESSAGE, kind: "node", id }, window.location.origin);
+    }, FEATURE_NODE);
+    await page.waitForSelector(featureSel + ".navtree__row--on", { timeout: 5000 }).catch(() => {});
+    push("[real] a node picked in the scene is selected in the nav",
+      await page.locator(featureSel + ".navtree__row--on").count() === 1);
 
-    // The type chips move with the tree: one press hides that kind of row.
-    const jointsChip = `${studyItem} [data-scene-chip="chip:joints"]`;
-    await page.locator(jointsChip).click({ timeout: 5000 }).catch(() => {});
-    await page.waitForFunction(() => !document.querySelector(
-      '.navtree__scene [data-scene-key^="#sweep-tree/joint="]'), null, { timeout: 5000 }).catch(() => {});
-    const hiddenJoints = await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count();
-    await page.locator(jointsChip).click({ timeout: 5000 }).catch(() => {});
-    await page.waitForFunction(() => !!document.querySelector(
-      '.navtree__scene [data-scene-key^="#sweep-tree/joint="]'), null, { timeout: 5000 }).catch(() => {});
-    push("[real] the type chips in the nav filter the tree, and a second press " +
-      "puts the rows back",
-      hiddenJoints === 0 &&
-      await page.locator('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').count() > 0);
+    // A body's fold is the nav's own: a click on its row closes it, its
+    // twisty says so, and its parts leave the column.
+    const foldBody = bodyRowSel;
+    const partsBefore = await page.locator(`#navtree [data-nav-kind="part"]`).count();
+    await page.locator(foldBody).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((n) => document.querySelectorAll('#navtree [data-nav-kind="part"]').length < n,
+      partsBefore, { timeout: 5000 }).catch(() => {});
+    const folded = await page.evaluate((sel) => {
+      const row = document.querySelector(sel);
+      return { expanded: row && row.querySelector(".navtree__twisty").getAttribute("aria-expanded"),
+        parts: document.querySelectorAll('#navtree [data-nav-kind="part"]').length };
+    }, foldBody);
+    push("[real] a click on a body's row in the nav folds it: its twisty reads closed and its parts leave the column",
+      folded.expanded === "false" && folded.parts < partsBefore);
+    await page.locator(foldBody).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((n) => document.querySelectorAll('#navtree [data-nav-kind="part"]').length === n,
+      partsBefore, { timeout: 5000 }).catch(() => {});
 
-    // The three gestures the checks above never send (the_nav_scene_trees_six_
-    // gestures_are_named_once_and_each_witnessed): a disclosure's `toggle`, a
-    // row checkbox's `check` and a row button above index 0. Each is read back
-    // from the annotator, which owns the answer, not from the nav's own copy.
-    // The row is waited for, not looked up once: a body's checkbox stays
-    // disabled until the sweep's bodies resolve (anchorSweepBodies, not
-    // awaited by anything here), and when they resolved late the one lookup
-    // came back null and the four checks below went red as one
-    // (ISSUE_20261029_four_3d_pane_nav_gesture_checks_fail_together_...).
-    const bodyRow = await page.waitForFunction(() => {
-      const rows = Array.from(document.querySelectorAll(
-        '.navtree__scene [data-scene-key^="#sweep-tree/body="]'))
-        .filter((n) => n.getAttribute("data-scene-key").indexOf("/", "#sweep-tree/body=".length) === -1)
-        .filter((n) => n.closest("details") && n.querySelector('[data-scene-part="check"]:not(:disabled)'));
-      return rows.length ? rows[0].getAttribute("data-scene-key") : null;
-    }, null, { timeout: 60000, polling: 100 }).then((h) => h.jsonValue(), () => null);
-    const bodyName2 = bodyRow ? bodyRow.slice("#sweep-tree/body=".length) : null;
-    const navOpen = () => page.locator(sceneRow(bodyRow)).evaluate((n) => n.closest("details").open);
-    const railOpen = () => inPane((w, name) => {
-      const d = Array.from(w.document.querySelectorAll("#sweep-tree details"))
-        .find((n) => n.dataset.body === name);
-      return d ? d.open : null;
-    }, bodyName2);
-    const wasOpen = bodyRow ? await railOpen() : null;
-    if (bodyRow) await page.locator(sceneRow(bodyRow) + " .navtree__scenetext").click({ timeout: 5000 }).catch(() => {});
-    await page.waitForFunction(([sel, was]) => {
-      const n = document.querySelector(sel);
-      return !!n && n.closest("details").open === !was;
-    }, [sceneRow(bodyRow), wasOpen], { timeout: 5000 }).catch(() => {});
-    push("[real] a click on a body's disclosure in the nav flips it, in the nav and in the annotator's own tree",
-      !!bodyRow && wasOpen !== null && await navOpen() === !wasOpen && await railOpen() === !wasOpen);
-    if (bodyRow && wasOpen) {
-      // Left open for the part rows below, whichever way it started.
-      await page.locator(sceneRow(bodyRow) + " .navtree__scenetext").click({ timeout: 5000 }).catch(() => {});
-    }
-
+    // The body's show/hide box hides every part of it in the scene, reads
+    // unticked, and ticking it again shows them.
     const hiddenNodes = () => inPane((w) => {
       let n = 0;
       for (const sha of w.__scene.parts.keys()) {
@@ -8181,63 +8127,32 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       }
       return n;
     });
-    const checkBox = sceneRow(bodyRow) + ' [data-scene-part="check"]';
-    const shownBefore = bodyRow ? await hiddenNodes() : -1;
-    if (bodyRow) await page.locator(checkBox).click({ timeout: 5000 }).catch(() => {});
-    const hidden = bodyRow ? await until((w, was) => {
+    const checkBox = `${bodyRowSel} input.navtree__vis`;
+    const shownBefore = await hiddenNodes();
+    await page.locator(checkBox).first().click({ timeout: 5000 }).catch(() => {});
+    const hidden = await until((w, was) => {
       let n = 0;
       for (const sha of w.__scene.parts.keys()) {
         n += w.__scene._occurrenceNodes(sha).filter((o) => !o.visible).length;
       }
       return n > was;
-    }, shownBefore, 10000) : false;
+    }, shownBefore, 10000);
     await page.waitForFunction((sel) => {
       const box = document.querySelector(sel);
       return !!box && !box.checked && !box.indeterminate;
     }, checkBox, { timeout: 5000 }).catch(() => {});
     push("[real] a body's checkbox in the nav hides that body in the scene, and the box reads unticked after the redraw",
-      hidden && await page.locator(checkBox).evaluate((b) => !b.checked && !b.indeterminate));
-    if (bodyRow) await page.locator(checkBox).click({ timeout: 5000 }).catch(() => {});
+      hidden && await page.locator(checkBox).first().evaluate((b) => !b.checked && !b.indeterminate));
+    await page.locator(checkBox).first().click({ timeout: 5000 }).catch(() => {});
     push("[real] ...and ticking it again shows the body",
-      bodyRow && await until((w, was) => {
+      await until((w, was) => {
         let n = 0;
         for (const sha of w.__scene.parts.keys()) {
           n += w.__scene._occurrenceNodes(sha).filter((o) => !o.visible).length;
         }
         return n === was;
       }, shownBefore, 10000));
-
-    // A part row's buttons are Isolate (0) and Remove / Add (1): the second is
-    // the one only an index above 0 reaches.
-    const partRow = bodyRow ? await page.evaluate((key) => {
-      const row = document.querySelector('.navtree__scene [data-scene-key^="' + key + '/"]' +
-        ':has([data-scene-part="button-1"])');
-      return row ? row.getAttribute("data-scene-key") : null;
-    }, bodyRow) : null;
-    const partWord = () => page.locator(sceneRow(partRow) + ' [data-scene-part="button-1"]').textContent();
-    const memberWord = () => inPane((w, key) => {
-      const sha = (key.match(/sha=([^,]+)/) || [])[1];
-      const b = w.document.querySelector('#sweep-tree .part-row[data-sha="' + sha + '"] .part-row__member');
-      return b ? b.textContent : null;
-    }, partRow);
-    const wordBefore = partRow ? await partWord() : null;
-    if (partRow) await page.locator(sceneRow(partRow) + ' [data-scene-part="button-1"]').click({ timeout: 5000 }).catch(() => {});
-    const flipped = partRow ? await until((w, args) => {
-      const sha = (args.key.match(/sha=([^,]+)/) || [])[1];
-      const b = w.document.querySelector('#sweep-tree .part-row[data-sha="' + sha + '"] .part-row__member');
-      return !!b && b.textContent !== args.word;
-    }, { key: partRow, word: wordBefore }, 10000) : false;
-    push("[real] a part row's second button in the nav acts on that part, not on the row's first button",
-      flipped && await partWord() !== wordBefore &&
-      await page.locator(sceneRow(partRow) + ' [data-scene-part="button-0"]').getAttribute("aria-pressed") !== "true");
-    if (partRow) {
-      await page.locator(sceneRow(partRow) + ' [data-scene-part="button-1"]').click({ timeout: 5000 }).catch(() => {});
-      await until((w, args) => {
-        const sha = (args.key.match(/sha=([^,]+)/) || [])[1];
-        const b = w.document.querySelector('#sweep-tree .part-row[data-sha="' + sha + '"] .part-row__member');
-        return !!b && b.textContent === args.word;
-      }, { key: partRow, word: wordBefore }, 10000);
-    }
+    const bodyRow = null;
 
     // A word the annotator has no branch for says so; a key that is gone (a
     // rebuild racing the gesture) does not.
@@ -8248,8 +8163,12 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       document.querySelector("#annotate-flyout iframe").contentWindow
         .postMessage(Object.assign({ type: "annotate:rail" }, m), window.location.origin);
     }, msg);
+    const anyKey = await page.evaluate(() => {
+      const n = document.querySelector("#navtree .navtree__scene [data-scene-key]");
+      return n ? n.getAttribute("data-scene-key") : null;
+    });
     await sendRail({ key: "#sweep-tree/gone", act: "check" });
-    await sendRail({ key: bodyRow || "#sweep-tree/none", act: "wobble" });
+    await sendRail({ key: anyKey || "#sweep-tree/none", act: "wobble" });
     await page.waitForTimeout(500);
     page.off("console", onConsole);
     push("[real] an unknown gesture word is warned about by name, and an unknown row is not",
@@ -8285,23 +8204,45 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Binding — " + chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
-    // A chain study's tree is its elements and its parts -- bind mode's rail.
-    const chainItem = `li.navtree__item:has(> ${navRow("study", CHAIN)})`;
-    await page.waitForFunction((item) => !!document.querySelector(
-      item + ' .navtree__scene [data-scene-key^="#element-list/"]'), chainItem,
-    { timeout: 15000 }).catch(() => {});
-    const elementRows = await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"]`).count();
-    const railElements = bindMode ? await inPane((w) => w.document.querySelectorAll(".an__rail .el-row").length) : -1;
-    push("[real] on a chain study the nav nests that study's elements under its row, " +
-      "one for each the annotator lists",
-      elementRows > 0 && elementRows === railElements);
-    await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"]`).first()
+    // In bind mode a selected feature nests the pane's rows for it: the pane
+    // scopes its own element list to the node (`filter-element`), and the
+    // faces layer under the feature row is that list.
+    const CHAIN_NODE = "pitch_link_lower_sphere_centre";
+    const chainFeature = `#navtree [data-nav-kind="feature"][data-nav-id="pitch_link@${CHAIN_NODE}"]`;
+    await page.locator(`#navtree [data-nav-twisty="p:pitch_link"]`).first().click({ timeout: 5000 }).catch(() => {});
+    await page.locator(chainFeature).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((sel) => {
+      const row = document.querySelector(sel);
+      const slot = row && row.parentNode.querySelector(".navtree__scene");
+      return !!slot && slot.querySelectorAll('[data-scene-key^="#element-list/"]').length > 0;
+    }, chainFeature, { timeout: 15000 }).catch(() => {});
+    const elementRows = await page.evaluate((sel) => {
+      const row = document.querySelector(sel);
+      const slot = row && row.parentNode.querySelector(".navtree__scene");
+      return slot ? slot.querySelectorAll('[data-scene-key^="#element-list/"]').length : 0;
+    }, chainFeature);
+    const railElements = bindMode ? await inPane((w) =>
+      Array.from(w.document.querySelectorAll(".an__rail .el-row")).filter((n) => n.getClientRects().length).length) : -1;
+    const touching = (topology.edges || []).filter((e) => e.from === CHAIN_NODE || e.to === CHAIN_NODE).length;
+    push("[real] selecting a feature with the pane in bind mode nests the pane's element rows for " +
+      "its node under it -- one per edge on the node, and exactly what the pane lists",
+      elementRows > 0 && elementRows === railElements && elementRows === touching);
+    await page.locator(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"]`).first()
       .click({ timeout: 5000 }).catch(() => {});
-    await page.waitForSelector(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`,
+    await page.waitForSelector(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`,
       { timeout: 5000 }).catch(() => {});
     push("[real] ...and clicking one selects it for binding in the scene",
-      await page.locator(`${chainItem} .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`).count() === 1 &&
+      await page.locator(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`).count() === 1 &&
       await inPane((w) => w.document.querySelectorAll(".an__rail .el-row.selected").length) === 1);
+    // The bar names the element being bound and carries the way out.
+    const strip = await inPane((w) => {
+      const name = w.document.querySelector(".an__bindstrip-name");
+      return { name: name ? name.textContent : null, exit: !!w.document.querySelector("[data-bind-exit]"),
+        sweepLine: !!w.document.querySelector(".an__bindsweep") };
+    });
+    push("[real] while an element is being bound the pane's bar names it and offers an exit, " +
+      "and the sweep control is still on the bar",
+      strip && !!strip.name && strip.exit && strip.sweepLine);
     if (SHELL_SCENE_SHOTS) {
       await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_chain.png") });
     }
@@ -8425,12 +8366,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
       await until((w) => w.__sweep && w.__sweep.anchored && w.__sweep.anchored.length > 0 &&
         w.__sweep.anchored.every((sha) => w.__scene && w.__scene.parts.has(sha)), null, 120000);
-      await page.waitForSelector('.navtree__scene [data-scene-key^="#sweep-tree/edge="]',
-        { timeout: 15000 }).catch(() => {});
+      await page.waitForSelector('#navtree [data-nav-kind="body"]', { timeout: 15000 }).catch(() => {});
       await page.waitForTimeout(1500);
       await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1920_kinematic.png") });
       await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
-      await page.waitForSelector('.navtree__scene [data-scene-key^="#element-list/"]',
+      await page.waitForSelector('#navtree [data-nav-kind="study"].navtree__row--on',
         { timeout: 15000 }).catch(() => {});
       await page.waitForTimeout(1500);
       await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1920_chain.png") });
@@ -9090,16 +9030,27 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
     await page.waitForSelector("#pane-handle:visible", { timeout: 30000 });
     await page.locator("#pane-handle").click();
-    await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint="]').length >= 5,
-      null, 120000);
-    // The bodies resolved: the pitch link's own body row has its parts, and
-    // the run has placed its occurrences (anchoring takes seconds after that).
-    await until(() => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/body=pitch_link/"]').length >= 2,
-      null, 120000);
+    // The pane's own rail has its joints (hidden, embedded); the nav draws
+    // the model's tree and, under a selected feature, the pane's rows for it.
+    await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return w && w.document && w.document.querySelectorAll('#sweep-tree [data-group="joints"] [data-joint]').length >= 5;
+    }, null, 120000);
     await until(() => {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
       return w.__sweep && w.__sweep.occurrences && (w.__sweep.occurrences.pitch_link || []).length > 0;
     }, null, 120000);
+    // The faces layer for one node: its part opened, its row clicked.
+    const selectFeature = async (part, node) => {
+      const twisty = page.locator(`#navtree [data-nav-twisty="p:${part}"]`).first();
+      if (await twisty.getAttribute("aria-expanded").catch(() => null) === "false") await twisty.click();
+      await page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${part}@${node}"]`).first().click();
+      await until((n) => {
+        const row = document.querySelector('#navtree [data-nav-kind="feature"][data-nav-id="' + n + '"]');
+        const slot = row && row.parentNode.querySelector(".navtree__scene");
+        return !!slot && slot.querySelectorAll("[data-scene-key]").length > 0;
+      }, part + "@" + node, 30000);
+    };
 
     // --- the pane's transport moves the page's pose ---------------------------
     // (the_linkage_play_control_is_the_only_one_and_it_moves_everything) One pose,
@@ -9180,12 +9131,19 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       rail && rail.inBodies === 1 && rail.anywhere === 1 && rail.underJoints === 0);
 
     // --- a joint row names its parts and lists only its ends ---------------
-    let at = await nav();
-    const words = rowOf(at.rows, JOINT);
+    // Read off the pane's own rail (the nav no longer mirrors the joints).
+    const jointWords = await inPane((w) => {
+      const j = w.document.querySelector('#sweep-tree [data-group="joints"] [data-joint="pitch_link"]');
+      const text = j && j.querySelector(":scope > summary .an__tree-text, :scope > summary");
+      return { text: text ? text.textContent.trim() : null,
+        lengths: Array.from(w.document.querySelectorAll('#sweep-tree [data-group="joints"] li.tree-row[data-feature]'))
+          .filter((li) => /^(pitch|tan)_link_length$/.test(li.dataset.feature)).length };
+    });
     push("[real] the pitch link's joint row names the two parts it joins: 215177-001 ball-ended link 215071-001",
-      words && words.text === "215177-001 ball-ended link 215071-001");
+      jointWords && jointWords.text && jointWords.text.indexOf("215177-001 ball-ended link 215071-001") !== -1);
     push("[real] no joint lists the pitch link's or the tangential link's length as a third row",
-      !at.rows.some((r) => /^#sweep-tree\/joint=[^/]+\/.*feature=(pitch|tan)_link_length/.test(r.key)));
+      jointWords && jointWords.lengths === 0);
+    let at = await nav();
 
     // --- the camera frames the occurrence the run poses -------------------
     await inPane((w) => { w.AnnotateApp.exec(["arm", "pitch_link_length", "to"]); });
@@ -9226,42 +9184,58 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       TAKE_EDGE = target.edge;
     }
     // No such joint is the Take check's failure (`!!take` below), logged above.
-    at = await nav();
-    const takeJointRow = rowOf(at.rows, TAKE_JOINT);
-    if (takeJointRow) await click(takeJointRow.key, ".navtree__scenetext");
-    await until((j) => document.querySelectorAll('.navtree__scene [data-scene-key^="#sweep-tree/joint=' + j +
-      '/direction="]').length === 2, target && target.joint);
+    // The end to take is a node: its feature row in the tree is selected, and
+    // the faces layer under it is the pane's row for that end.
+    // The end's node is a feature of its first-listed part (the model view's
+    // rule for a gap end), read off the projection.
+    const toPartId = target && target.to ? (topologies.topologies.find((t) => t.id === study.topology)
+      .nodes.find((n) => n.id === target.to.feature) || { parts: [] }).parts[0] : null;
+    const takeFeatureSel = target && target.to
+      ? `#navtree [data-nav-kind="feature"][data-nav-id="${toPartId}@${target.to.feature}"]` : null;
+    if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
     at = await nav();
     const upper = rowOf(at.rows, UPPER);
     if (upper) await click(upper.key, ".navtree__scenetwisty");
     await listed(UPPER);
-    // The joint row near the top of the nav, scrolled there by hand.
-    await page.evaluate((src) => {
+    // The feature row near the top of the nav, scrolled there by hand.
+    await page.evaluate((sel) => {
       const box = document.getElementById("navtree");
-      const row = Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]"))
-        .find((n) => new RegExp(src).test(n.getAttribute("data-scene-key")));
+      const row = document.querySelector(sel);
       if (row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - 60;
-    }, TAKE_JOINT.source);
+    }, takeFeatureSel);
     await page.waitForTimeout(300);
+    const featureTop = () => page.evaluate((sel) => {
+      const box = document.getElementById("navtree");
+      const row = document.querySelector(sel);
+      return row ? Math.round(row.getBoundingClientRect().top - box.getBoundingClientRect().top) : null;
+    }, takeFeatureSel);
     const before = await nav();
+    const featureBefore = await featureTop();
     const take = before.rows.find((r) => UPPER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
     if (take) await click(take.key, ".navtree__scenebtn");
     await until(() => (document.querySelector("#annotate-flyout iframe").contentWindow.__mockWrites || []).length > 0);
-    await listed(LOWER);
     await page.waitForTimeout(1500);
     const after = await nav();
-    const jointBefore = rowOf(before.rows, TAKE_JOINT);
-    const jointAfter = rowOf(after.rows, TAKE_JOINT);
-    push("[real] a Take keeps the nav's scroll, and the joint row stays where it was on screen",
+    const featureAfter = await featureTop();
+    push("[real] a Take keeps the nav's scroll, and the feature row stays where it was on screen",
       !!take && before.scrollTop > 0 && Math.abs(after.scrollTop - before.scrollTop) <= 1 &&
-      jointAfter && Math.abs(jointAfter.top - jointBefore.top) <= 1);
-    const lower = rowOf(after.rows, LOWER);
-    const lowerFaces = after.rows.filter((r) => LOWER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
+      featureAfter !== null && Math.abs(featureAfter - featureBefore) <= 1);
+    // The partner end opens and is selected in the pane's own rail (the nav
+    // shows the selected feature's end alone).
+    const partner = await inPane((w, args) => {
+      const li = Array.from(w.document.querySelectorAll('#sweep-tree li.tree-row[data-edge][data-direction]'))
+        .find((n) => n.dataset.edge === args.edge && n.dataset.direction === args.direction);
+      if (!li) return null;
+      const twisty = li.querySelector(":scope > .tree-row__twisty");
+      return { selected: li.classList.contains("selected"), open: twisty ? twisty.getAttribute("aria-expanded") : null,
+        faces: li.querySelectorAll(":scope > .tree-cands .tree-cand").length, state: li.dataset.state,
+        edgeRows: w.document.querySelectorAll('#sweep-tree li.tree-row[data-feature="' + args.edge + '"]').length };
+    }, { edge: TAKE_EDGE, direction: target && target.from ? target.from.direction : "from" });
     const stillSweep = await inPane((w) => !!w.__sweep && !w.__sweep.armed && !!w.document.getElementById("sweep-tree"));
     push("[real] after one end is taken the other end's candidate list is open and selected, still " +
       "suggested, and no edge-feature row is listed",
-      !!take && lower && lower.open === "true" && lower.on && !lower.attention && lowerFaces.length > 0 &&
-      !after.rows.some((r) => new RegExp("feature=" + reEsc(TAKE_EDGE) + "(?![A-Za-z0-9_])").test(r.key)) && stillSweep);
+      !!take && partner && partner.open === "true" && partner.selected && partner.faces > 0 &&
+      partner.state !== "bound" && partner.edgeRows === 0 && stillSweep);
 
     // --- the rail reads as a tree (the_rail_reads_as_a_tree_of_bodies_
     // joints_and_faces) ------------------------------------------------------
@@ -9290,7 +9264,7 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       };
       const up = find(upper, "end");
       const low = find(lower, "end");
-      const jointRow = find(joint, "joint");
+      const jointRow = null;
       const candidate = rows.find((n) => n.getAttribute("data-kind") === "candidate" &&
         n.getBoundingClientRect().height > 0);
       // A state the annotator calls attention, on a row on screen: its words
@@ -9313,8 +9287,8 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
         picked: probe("var(--mark-picked)"),
         legend: Array.from(scene.querySelectorAll(".navtree__scenelegenditem > .navtree__scenemark"))
           .map((n) => n.getAttribute("data-mark")),
-        step: [lead(low) - lead(jointRow), lead(candidate) - lead(low)].map((d) => (isNaN(d) ? null : d)),
-        glyphs: ["body", "part", "joint", "end", "candidate"].map((k) =>
+        step: [lead(candidate) - lead(up)].map((d) => (isNaN(d) ? null : d)),
+        glyphs: ["end", "candidate"].map((k) =>
           glyph(rows.find((n) => n.getAttribute("data-kind") === k))),
         attentionInk,
         ink: probe("var(--ink)"),
@@ -9326,63 +9300,28 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       `upper fill ${look.upperFill} (picked ${look.picked}); attention ink ${look.attentionInk} ` +
       `(ink ${look.ink}, inferred ${look.inferred}); unkinded ${look.unkinded.length}; ` +
       `glyphs ${JSON.stringify(look.glyphs.map((g) => g && [g.content, g.width]))}`);
-    push("[real] the scene tree's rows say what they are: body, part, joint, end and candidate rows " +
-      "each carry their kind, and every joint end carries a mark from the annotator's vocabulary",
-      ["body", "part", "joint", "end", "candidate"].every((k) => look.kinds.indexOf(k) !== -1) &&
-      look.unkinded.length === 0 && look.endMarks.length >= 2 &&
+    push("[real] the faces layer's rows say what they are: end and candidate rows each carry their " +
+      "kind, and every end carries a mark from the annotator's vocabulary",
+      ["end", "candidate"].every((k) => look.kinds.indexOf(k) !== -1) &&
+      look.unkinded.length === 0 && look.endMarks.length >= 1 &&
       look.endMarks.every((m) => look.marks.indexOf(m) !== -1));
     push("[real] the end taken this session wears the picked-now mark, filled in the scene's pick " +
-      "orange, and its partner does not",
-      look.upperMark === "picked" && look.upperFill === look.picked && look.lowerMark !== "picked");
+      "orange",
+      look.upperMark === "picked" && look.upperFill === look.picked);
     push("[real] the legend draws every mark once, as the annotator names them",
       look.legend.length === look.marks.length && look.marks.every((m) => look.legend.indexOf(m) !== -1));
-    // The step Jeff called "way too shallow" was 14px; a level now steps in by
-    // at least this much, from joint to end and from end to candidate.
+    // The step Jeff called "way too shallow" was 14px; a level steps in by at
+    // least this much, from an end to its candidate face.
     const RAIL_MIN_STEP = 18;
-    push("[real] each level of the tree steps in by a full indent: an end from its joint, a " +
-      "candidate face from its end",
+    push("[real] a candidate face steps in from its end by a full indent",
       look.step.every((d) => d !== null && d >= RAIL_MIN_STEP));
-    push("[real] a body, a part, a joint, an end and a candidate face each draw a glyph",
+    push("[real] an end and a candidate face each draw a glyph",
       look.glyphs.every((g) => g && g.content !== "none" && g.width > 0));
     push("[real] a row the annotator marks for attention keeps its words in ink, not the provenance amber",
       look.attentionInk === look.ink && look.ink !== look.inferred);
 
-    // A part whose Isolate is pressed stays one line: the armed-pick wrap
-    // (an armed row's buttons on a line of their own) is not a part's. The
-    // "random checkboxes floating in space" were that rule firing on a part.
-    // What is under test is the stylesheet's scoping, so the pressed state is
-    // set on the live part row's own Isolate, read, and taken off in one
-    // synchronous step: the annotator's own Isolate state does not stay put
-    // long enough in sweep mode to measure.
-    const BODY = "#sweep-tree/body=pitch_link";
-    at = await nav();
-    if (!at.rows.some((r) => r.key.indexOf(BODY + "/") === 0 && r.buttons.indexOf("Isolate") !== -1)) {
-      await click(BODY, ".navtree__scenetext");
-    }
-    await until((body) => Array.from(document.querySelectorAll('.navtree__scene [data-kind="part"]'))
-      .some((r) => r.getAttribute("data-scene-key").indexOf(body + "/") === 0 &&
-        r.getBoundingClientRect().height > 0), BODY, 15000);
-    const line = await page.evaluate((body) => {
-      const row = Array.from(document.querySelectorAll('.navtree__scene [data-kind="part"]'))
-        .find((r) => r.getAttribute("data-scene-key").indexOf(body + "/") === 0 &&
-          r.getBoundingClientRect().height > 0);
-      const iso = row && Array.from(row.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn"))
-        .find((x) => x.textContent === "Isolate");
-      const check = row && row.querySelector(":scope > .navtree__scenecheck");
-      if (!iso || !check) return null;
-      const was = iso.getAttribute("aria-pressed");
-      iso.setAttribute("aria-pressed", "true");
-      const name = row.querySelector(".navtree__scenename").getBoundingClientRect();
-      const box = check.getBoundingClientRect();
-      const acts = row.querySelector(":scope > .navtree__sceneacts").getBoundingClientRect();
-      if (was === null) iso.removeAttribute("aria-pressed"); else iso.setAttribute("aria-pressed", was);
-      const mid = name.top + name.height / 2;
-      return { key: row.getAttribute("data-scene-key"), box: box.top <= mid && box.bottom >= mid,
-        acts: acts.top <= mid && acts.bottom >= mid };
-    }, BODY);
-    if (!(line && line.box && line.acts)) console.log(`    DIAG isolate: ${JSON.stringify(line)}`);
-    push("[real] a part whose Isolate is pressed stays on one line: neither its checkbox nor its " +
-      "buttons drop under its name", line && line.box && line.acts);
+    // (The pressed-Isolate one-line check left with the mirrored part rows,
+    // 2026-11-10: the tree's part rows carry a show/hide box and no buttons.)
 
     push("[real] nothing above produced an uncaught error", errors.length === 0);
     return reportSuite(label, checks, errors);
@@ -12051,8 +11990,7 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
 
   try {
     await page.goto(`${url}/apps/viewer/topology.html`, { waitUntil: "load" });
-    await page.waitForSelector('[data-nav-kind="topology"]', { timeout: 20000 });
-    await page.locator(navRow("topology", target.topology)).click();
+    await pickModel(page, target.topology);
     const row = `tr.tvrow[data-id="${target.edge}"]`;
     await page.waitForSelector(row, { timeout: 10000 });
     await clearPoint(page, `${row} td.tvcell--name`, "click");
@@ -13010,7 +12948,7 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
           p.getAttribute("data-preview-state") === "hover";
       }, "edge|" + contributor, { timeout: 5000 }).then(() => true, () => false));
     await page.mouse.move(4, 4);
-    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await pickModel(page, "demo_mechanism");
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     await page.locator(navRow("kinematic", "demo_mechanism_tip_angle_at_the_stops")).click();
     await page.waitForSelector("div.kmverdict", { timeout: 5000 });
@@ -13688,7 +13626,14 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
   // ceiling on a wait for an event, not a window anything is raced against.
   const catchFrame = (selector) => page.evaluate(async (sel) => {
     const VA = window.ViewerApp;
-    document.querySelector(sel).click();
+    const target = document.querySelector(sel);
+    if (target.tagName === "SELECT") {
+      // The model picker: choosing the open model again deselects the study.
+      target.value = "topology:vpa_pitch_linkage";
+      target.dispatchEvent(new Event("change"));
+    } else {
+      target.click();
+    }
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
       const last = VA.lastTopoRender;
@@ -13767,7 +13712,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // the pre-fold tree. Nothing here asserts the duration itself.
     await page.evaluate((ms) => { window.ViewerApp.RESPINE.duration = ms; },
       RESPINE_SUITE_DURATION_MS);
-    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
 
     const pitch = realProjection.topologies.find((t) => t.id === "vpa_pitch_linkage");
@@ -13785,7 +13730,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     await page.locator(navRow("study", study.id)).click();
     await settled();
     const chainSettled = await geometry();
-    await page.locator(navRow("topology", "vpa_pitch_linkage")).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
 
     const inFlight = await catchFrame(navRow("study", study.id));
@@ -13862,12 +13807,14 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // in-session state and survives a selection, so the modes are cycled
     // once around the outside of the pair of routes.
     const modes = ["uniform", "tolerance", "absolute"];
-    const walkRow = navRow("topology", "vpa_pitch_linkage");
+    // Deselecting the study is choosing the model again: the picker, not a
+    // row (2026-11-10). catchFrame drives it as a choice.
+    const walkRow = MODEL_PICKER;
     const studyRow = navRow("study", study.id);
     let chainUniform = null;
     for (let i = 0; i < modes.length; i++) {
       // Route A: through the transition, there and back.
-      await page.locator(walkRow).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await settled();
       const walkViaRespine = await geometry();
       await page.locator(studyRow).click();
@@ -13880,7 +13827,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       // turned on. Nothing else differs -- same page, same state, same
       // renderer.
       await page.emulateMedia({ reducedMotion: "reduce" });
-      await page.locator(walkRow).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await settled();
       const walkFresh = await geometry();
       await page.locator(studyRow).click();
@@ -13919,7 +13866,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // and in uniform mode, where the three cycles above left it.
     await page.locator(studyRow).click();
     await settled();
-    await page.locator(walkRow).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
     push("[real] deselecting animates back to the walk spine and settles on " +
       "exactly the geometry it started from",
@@ -13993,7 +13940,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
         dagPastGrid: Math.max(...marks.map((b) => b.right - grid.left)),
       };
     }, where === undefined ? null : where);
-    await page.locator(walkRow).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
     const scrolledWalk = await paneBoxes("end");
     push("[real] the pane really does overflow sideways here, so the arm " +
@@ -14072,7 +14019,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       "moved to " + (afterScroll.scrollWidth - afterScroll.clientWidth) + ")");
     // Back to the walk for the blocks below, which measure a pane at
     // horizontal zero -- where the respine above has already left it.
-    await page.locator(walkRow).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
 
     await page.locator(studyRow).click();
@@ -14092,7 +14039,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // length mode is the cheapest one to see -- it is carried on the ctx
     // rather than on a shared mutable metrics object, so a stale frame draws
     // the old one while the toolbar says the new one.
-    await page.locator(walkRow).click();
+    await pickModel(page, "vpa_pitch_linkage");
     await settled();
     // Both clicks in one page call, with the second held until a frame is
     // demonstrably in flight: a study click reaches respine() through a
@@ -14170,7 +14117,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     const BAND_STUDIES = ["rotor_fastener_grip_u2h", "pitch_system_blade_angle_worst"];
     const bandRuns = [];
     for (const id of BAND_STUDIES) {
-      await page.locator(walkRow).click();
+      await pickModel(page, "vpa_pitch_linkage");
       await settled();
       await page.locator(navRow("study", id)).click();
       await settled();
@@ -14623,10 +14570,12 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
   };
   try {
     await page.goto(url + "/apps/viewer/topology.html?topology=" + MODEL_ALONE_TOPOLOGY, { waitUntil: "load" });
-    await page.waitForSelector(navRow("topology", MODEL_ALONE_TOPOLOGY), { timeout: 30000 });
-    const row = page.locator(navRow("topology", MODEL_ALONE_TOPOLOGY)).first();
-    await row.hover();
-    await row.locator("[data-nav-3d]").click();
+    await pickModel(page, MODEL_ALONE_TOPOLOGY);
+    // The whole model in 3D: the seam's handle opens the pane on the
+    // picker's choice (the topology row and its 3D control left with the
+    // rows, 2026-11-10).
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 });
+    await page.locator("#pane-handle").click();
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 });
     await until(() => {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
