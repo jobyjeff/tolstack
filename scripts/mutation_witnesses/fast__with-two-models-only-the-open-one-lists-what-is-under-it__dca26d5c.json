@@ -6,10 +6,10 @@
     {
       "contract": "Only the open model lists its studies; the others are one row each.",
       "issue": null,
-      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Every model lists everything again, which is the switcher becoming a long flat list.",
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Every model lists everything again, which is the switcher becoming a long flat list. Re-anchored 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): the models are a picker now, and the tree below it is the OPEN model's; the mutation draws the last model's instead.",
       "file": "apps/viewer/views/nav.js",
-      "find": "    if (open === false) return li;\n",
-      "replace": ""
+      "find": "      open = topologies.filter(function (t) { return t.id === state.topologyId; })[0] || null;\n",
+      "replace": "      open = topologies[topologies.length - 1] || null;\n"
     }
   ]
 }

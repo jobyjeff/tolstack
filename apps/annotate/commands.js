@@ -319,6 +319,21 @@
     backContext: "As-modelled pose",
   });
 
+  // The top bar in bind mode (the_model_is_derived_once_and_the_left_column_
+  // is_its_tree, 2026-11-10): the play control stays, folded or not, and a
+  // strip names the element being bound with the one way out of binding --
+  // back to the sweep that was playing, or simply to nothing selected. Until
+  // then the only way back was a bar that existed after some exits and a
+  // console verb.
+  AA.BIND_BAR_WORDS = Object.freeze({
+    sweep: "Sweep",
+    play: "play the newest sweep in 3D",
+    playBack: "back to the sweep, playing",
+    binding: "Binding",
+    leave: "leave binding",
+    leaveBack: "leave binding and go back to the sweep",
+  });
+
   // Whether a `goto` onto an EDGE could show anything at all: null when it
   // could, else {edgeId, kind: "no-part" | "no-mesh", text, missingParts,
   // nodeIds}. Asked BEFORE the verb leaves sweep mode or unloads a part --

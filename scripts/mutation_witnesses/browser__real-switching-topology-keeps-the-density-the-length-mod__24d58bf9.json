@@ -22,10 +22,10 @@
     {
       "contract": "state.edgeValueOnly is a display preference, so selectTopology() never resets it.",
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
-      "note": "The sibling of the two entries above; see the first one's note.",
+      "note": "The sibling of the two entries above; see the first one's note. Re-anchored 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): selectTopology also resets the tree's folds, hidden parts and faces layer now, so the reset lands after those.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;\n  }",
-      "replace": "    state.studyId = null;\n    state.edgeValueOnly = false;\n    state.selection = null;\n    state.detailImage = null;\n  }"
+      "find": "    state.navOpen = {};\n    state.hiddenParts = {};\n    state.selectedFeature = null;\n  }",
+      "replace": "    state.navOpen = {};\n    state.hiddenParts = {};\n    state.selectedFeature = null;\n    state.edgeValueOnly = false;\n  }"
     }
   ]
 }

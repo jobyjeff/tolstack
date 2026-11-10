@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a feature row selects its node, an interface row its element, a fold is the row's own, and a show/hide box names its part or body",
+  "mutations": [
+    {
+      "contract": "A feature row hands back its own feature id (part@node), so the faces layer opens under the row clicked.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Hands back the node id instead, which loses which of a shared node's two features was clicked.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    activatable(row, function () { if (handlers.onFeature) handlers.onFeature(fid); });\n",
+      "replace": "    activatable(row, function () { if (handlers.onFeature) handlers.onFeature(feature.node); });\n"
+    },
+    {
+      "contract": "A body's show/hide box reports the body, so every part of it is shown or hidden together.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Reports the body's first part instead of the body, which hides one part when the reader unticked a body.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      var box = visibility(\"body\", body.id, hiddenCount < meshed.length,\n",
+      "replace": "      var box = visibility(\"part\", body.parts[0], hiddenCount < meshed.length,\n"
+    }
+  ]
+}

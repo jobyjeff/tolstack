@@ -416,6 +416,18 @@ body {
 }
 
 .an__sweep-controls { display: flex; align-items: center; gap: 8px; }
+/* Bind mode's sweep line and the binding strip (the_model_is_derived_once_
+   and_the_left_column_is_its_tree): one quiet line each, the strip's name
+   ellipsizing like the instruction above it and its exit at the end. */
+.an__bindsweep { gap: 6px; }
+.an__bindsweep .an__sweep-summary { flex: none; }
+.an__bindstrip { gap: 8px; }
+.an__bindstrip-label { flex: none; color: #9aa1ab; font-size: var(--t-meta); }
+.an__bindstrip-name {
+  flex: 1; min-width: 0; color: #e8e8e8;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.an__bindstrip-x { margin-left: auto; }
 /* Quiet until hover, like every other affordance here. Fixed width so the
    play glyph swapping for pause does not shift the row. */
 .an__sweep-btn {

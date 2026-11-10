@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the faces layer picks the pane's rows for one feature: the rows keyed by its node in sweep mode, the scoped element list in bind mode",
+  "mutations": [
+    {
+      "contract": "A row keyed by the feature's node is taken whole, with its children, and the walk does not descend into it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Descends into a matched row, so its candidate faces come out as rows of their own beside their end.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        if (keyNames(row.key, nodeId)) { named.push(row); return; }\n",
+      "replace": "        if (keyNames(row.key, nodeId)) { named.push(row); }\n"
+    }
+  ]
+}

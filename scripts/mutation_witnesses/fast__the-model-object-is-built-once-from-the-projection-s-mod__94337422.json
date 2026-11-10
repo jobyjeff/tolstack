@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the model object is built once from the projection's model block: its lookups answer by id, and a feature's status folds the identity projection at its own end",
+  "mutations": [
+    {
+      "contract": "A feature whose end carries a committed binding is bound; bound wins over suggested over none.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Reports a bound end as merely suggested, which is every bound feature on the tree wearing the wrong mark.",
+      "file": "apps/viewer/model.js",
+      "find": "      if (bound) return S.bound;\n",
+      "replace": "      if (bound) return S.suggested;\n"
+    },
+    {
+      "contract": "A binding counts at THIS end only: the end the node is on, read off the edge's from/to.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Ignores the direction, so a binding at the far end of an edge marks this end bound too -- the per-end rule the pane's rail keeps.",
+      "file": "apps/viewer/model.js",
+      "find": "      var bound = (record.bindings || []).some(function (b) { return b && b.direction === end; });\n",
+      "replace": "      var bound = (record.bindings || []).length > 0;\n"
+    }
+  ]
+}

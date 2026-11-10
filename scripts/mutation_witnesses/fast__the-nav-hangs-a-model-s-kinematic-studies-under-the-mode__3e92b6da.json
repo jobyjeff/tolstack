@@ -6,9 +6,9 @@
     {
       "contract": "A model's kinematic studies are listed under the model in the Models section.",
       "issue": null,
-      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Never appends them, which is the kinematic studies silently leaving the rail for every model the projection lists.",
+      "note": "Declared with the guard by handoff model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models (2026-11-08). Never appends them, which is the kinematic studies silently leaving the rail for every model the projection lists. Re-anchored 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): the kinematic rows hang under the model's Studies section now; the mutation still drops them.",
       "file": "apps/viewer/views/nav.js",
-      "find": "    kinematic.forEach(function (item) { children.appendChild(item); });\n",
+      "find": "    (t.kinematic ? kinematicRows(t.kinematic, state, handlers) : []).forEach(function (item) {\n      items.push(item);\n    });\n",
       "replace": ""
     }
   ]

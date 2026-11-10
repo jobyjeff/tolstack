@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the model picker lists every model then every loose stack, shows the open one, and choosing drives the page; a study row calls its own handler",
+  "mutations": [
+    {
+      "contract": "Choosing a loose stack in the picker opens that stack; choosing a model opens that model.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Routes a stack's choice to the topology handler, the likeliest slip when the two kinds share one select.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      if (pick.kind === VA.NAV_PICK_KINDS.stack && handlers.onStack) handlers.onStack(pick.id);\n",
+      "replace": "      if (pick.kind === VA.NAV_PICK_KINDS.stack && handlers.onTopology) handlers.onTopology(pick.id);\n"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a loose stack is an option of the model picker, named, with no row, no chip and no mark of its own",
+  "mutations": [
+    {
+      "contract": "Every analysis that belongs to no model is reachable: an option of the picker, after the models.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Drops the loose stacks from the picker, which is the two thermal-fit stacks leaving the page with nothing red.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (looseStacks.length) {\n      var group = VA.el(\"optgroup\", \"\");\n",
+      "replace": "    if (false) {\n      var group = VA.el(\"optgroup\", \"\");\n"
+    }
+  ]
+}

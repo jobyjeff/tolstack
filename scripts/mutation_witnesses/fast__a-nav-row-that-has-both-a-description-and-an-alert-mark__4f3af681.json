@@ -6,10 +6,10 @@
     {
       "contract": "A nav row offers one hover surface per thing a pointer can rest on. The description belongs to the NAME; the alert mark opens a card and says nothing natively while it can.",
       "issue": null,
-      "note": "The defect Jeff reported was the ROW's title showing through the mark's card -- two levels above the pixel the pointer was on -- so the mutation puts it back exactly where it was rather than on the mark. A guard that only looked at the mark would stay green on this.",
+      "note": "The defect Jeff reported was the ROW's title showing through the mark's card -- two levels above the pixel the pointer was on -- so the mutation puts it back exactly where it was rather than on the mark. A guard that only looked at the mark would stay green on this. Re-anchored 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): the stack row left the rail for the picker, so the ROW title goes back onto a study row, the one row with a description and a mark now.",
       "file": "apps/viewer/views/nav.js",
-      "find": "    statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);\n    row.setAttribute(\"data-nav-kind\", \"stack\");",
-      "replace": "    statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);\n    if (stackProj.description) row.setAttribute(\"title\", stackProj.description);\n    row.setAttribute(\"data-nav-kind\", \"stack\");"
+      "find": "      srow.setAttribute(\"data-nav-kind\", \"study\");\n      srow.setAttribute(\"data-nav-id\", s.id);\n",
+      "replace": "      if (s.description) srow.setAttribute(\"title\", s.description);\n      srow.setAttribute(\"data-nav-kind\", \"study\");\n      srow.setAttribute(\"data-nav-id\", s.id);\n"
     }
   ]
 }

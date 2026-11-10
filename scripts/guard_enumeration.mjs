@@ -291,7 +291,16 @@ export const DECLARED_GUARDS = {
   // 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): +3 -- a part's
   // number said once, every value source's line in plain copy, and the HTTP
   // probe's first request. Each carries a spec.
-  fast: { declared: 674, enrollable: 674, names: "2c6db5f60b5e" },
+  // the_model_is_derived_once_and_the_left_column_is_its_tree, 2026-11-10:
+  // +2 net -- six out with the rows they pinned (the topology row and its
+  // click hint, a stack's row and its two mark tests, the two live leaf rows,
+  // the mirrored rail's chips), eight in (the model object, the tree, its
+  // gestures, the picker twice, a loose stack as an option, the faces
+  // layer's row pick, the grid's one break) and three renamed (the faces
+  // layer's draw, the part-level break, a failing stack's status as a pure
+  // rule). Every new name carries a spec; the retired names' specs are
+  // deleted or renamed with their guard.
+  fast: { declared: 676, enrollable: 676, names: "28bec26b7b52" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the left column is the model's tree: bodies open to parts and interfaces, parts to features with one mark each, joints between bodies listed once, and a compound joint to its constraints",
+  "mutations": [
+    {
+      "contract": "A body is open by default, so the tree shows its parts without a click.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Closes every body by default, which is a left column of five one-line rows and nothing under them.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    var key = \"b:\" + body.id;\n    var open = isOpen(state, key, true);\n",
+      "replace": "    var key = \"b:\" + body.id;\n    var open = isOpen(state, key, false);\n"
+    },
+    {
+      "contract": "A feature row wears one status mark, read off the model object.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
+      "note": "Draws every mark as none, which is the bound/suggested state leaving the column silently.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    row.appendChild(mark(model.status(fid)));\n",
+      "replace": "    row.appendChild(mark(VA.FEATURE_STATUSES.none));\n"
+    }
+  ]
+}

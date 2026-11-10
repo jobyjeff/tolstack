@@ -5177,6 +5177,13 @@ function renderDetail() {
   line.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(line);
   paintModelUnplaced();
+  // The play control never goes away (the_model_is_derived_once_and_the_left_
+  // column_is_its_tree): in bind mode it is one folded line, whose play puts
+  // the sweep back on -- the one that was playing, else the newest run.
+  el.detail.appendChild(buildBindSweepLine());
+  // While an element is being bound, the strip names it and carries the way
+  // out: leave binding, and back to the sweep if one was playing.
+  if (edge) el.detail.appendChild(buildBindStrip(edge));
 
   const work = document.createElement("div");
   work.className = "an__detail-work";
@@ -5221,6 +5228,74 @@ function renderDetail() {
 
   if (work.childNodes.length) el.detail.appendChild(work);
   renderHintPanel();
+}
+
+// Bind mode's sweep line: the twisty the sweep bar folds by (the same
+// remembered key), the word, and a play that runs the sweep -- back to the
+// one a goto left, with its study, else the newest published run -- and
+// plays it. Folded, the twisty and the word stay: the control is always
+// there to open.
+function buildBindSweepLine() {
+  const away = sweepBarFolded();
+  const row = document.createElement("div");
+  row.className = "an__detail-line an__bindsweep";
+  const twisty = document.createElement("button");
+  twisty.className = "an__sweep-twisty";
+  twisty.textContent = away ? "\u25b8" : "\u25be";
+  twisty.title = away ? "show the sweep control" : "fold the sweep control away";
+  twisty.setAttribute("aria-label", twisty.title);
+  twisty.setAttribute("aria-expanded", away ? "false" : "true");
+  twisty.onclick = () => { setSweepBarFolded(!away); renderDetail(); };
+  row.appendChild(twisty);
+  const word = document.createElement("span");
+  word.className = "an__sweep-summary";
+  word.textContent = AA.BIND_BAR_WORDS.sweep;
+  row.appendChild(word);
+  if (!away) {
+    const back = state.sweepReturn;
+    row.appendChild(sweepButton("\u25b6", back ? AA.BIND_BAR_WORDS.playBack : AA.BIND_BAR_WORDS.play,
+      () => resumeSweep(true)));
+  }
+  return row;
+}
+
+// Back into sweep mode from bind mode: the sweep a goto left, with the study
+// it was opened from, else the newest run; `play` puts it in motion. The lists
+// the goto scoped are unscoped on the way, as the rail's own back control does.
+async function resumeSweep(play) {
+  const back = state.sweepReturn;
+  clearPanelFilter();
+  renderElementList();
+  renderPartsPanel();
+  await AA.exec(back ? ["sweep", back.runId, back.studyId || ""] : ["sweep", "latest"]);
+  if (play) await AA.exec(["play"]);
+}
+
+// The binding strip: what is being bound, and the one exit. The exit lets go
+// of the element and the face (`deselect all`) and, where a sweep was playing
+// before the goto that brought the reader here, puts it back.
+function buildBindStrip(edge) {
+  const strip = document.createElement("div");
+  strip.className = "an__detail-line an__bindstrip";
+  const label = document.createElement("span");
+  label.className = "an__bindstrip-label";
+  label.textContent = AA.BIND_BAR_WORDS.binding;
+  strip.appendChild(label);
+  const name = document.createElement("span");
+  name.className = "an__bindstrip-name";
+  name.textContent = edge.name || edge.id;
+  name.title = name.textContent;
+  strip.appendChild(name);
+  const back = state.sweepReturn;
+  const exit = sweepButton("\u2715", back ? AA.BIND_BAR_WORDS.leaveBack : AA.BIND_BAR_WORDS.leave,
+    async () => {
+      await AA.exec(["deselect", "all"]);
+      if (state.sweepReturn) await resumeSweep(false);
+    });
+  exit.classList.add("an__bindstrip-x");
+  exit.dataset.bindExit = "1";
+  strip.appendChild(exit);
+  return strip;
 }
 
 // The faces that touch, listed: per row, a muted heading and the top
