@@ -94,3 +94,17 @@ against the 30-minute merge budget, 40/44 suites. The default pytest tier ran in
 the same window, so this measurement includes CPU contention from it. One
 `file://` suite timed out on `page.goto` during that overlap, and passed when
 re-run alone.
+
+## Measurement 2026-11-09 (review of the_demo_path_reads_cleanly_on_a_projector)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, from the review worktree (merged tree, `node_modules` junctioned) |
+| Projections | the main checkout's |
+| Result | **42/44**, exit 1 (see that review report for the two reds) |
+| Wall time | **1830 s** (30m30s), against the 30-minute merge budget: over by 30 s (`dispatch suite-time record`) |
+| Slot | taken by this run alone; the full pytest run had finished before it started |
+
+The two uncontended worktree runs today landed 22 s and 30 s over
+(1822 s, 1830 s). That points to the tier's own size, not to
+contention.

@@ -17,7 +17,9 @@ gone in all five demo clicks. PART through ELEMENT are on screen beside the open
 pane at 1920. The Preview copy has no backticks, negation or field names. The
 lines are heavier. The HTTP probe asks the right mount first. The gap is
 coverage: the layout fix and the line weights can be reverted with every tier
-green. I measured this and filed it.
+green. I measured this and filed it. The post-merge browser tier is 42/44, and
+both reds reproduce on integration without this branch (one filed already, one
+filed here); see Tests.
 
 ## What I verified
 
@@ -93,7 +95,45 @@ green. I measured this and filed it.
     **249 passed**.
 - **The mutation that found S1:**
   `--only "annotate flyout"` with the deliverable-2 lines reverted: **41/41, green**.
-- POST-MERGE-PLACEHOLDER
+- **Post-merge, on the merged tree (`3cab31a1`), in the worktree, with `--repo
+  C:/workspace/tolstack` and `node_modules` junctioned in for the browser runs:**
+  - `pytest -q`: **1 failed, 1890 passed, 1 skipped, 2 deselected**, in 409s.
+    - The one red is the deliberate worktree red,
+      `test_viewer_js_suite_is_green`. With `--repo`, the tier it wraps is
+      674/674 (above).
+    - Recorded with `dispatch suite-time record --tier default`: inside budget.
+    - I did not capture the contention header lines. My filter returned neither
+      line, so this report does not say whether the run saw other load.
+  - `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`:
+    **42/44, exit 1, in 1830s**. That is over the 30-minute merge budget by
+    30s, recorded with `dispatch suite-time` and appended to
+    `ISSUE_20261106_…_merge_budget.md`. Both reds are integration's:
+    - `annotate rail holds still`, 16/17: `the scene tree's rows say what they
+      are` (`unkinded 4`). Run alone it is the same single red on this tree and
+      on a detached worktree at integration `5fec3b0f`. Already filed at high
+      priority: `ISSUE_20261109_a_body_part_with_no_mesh_has_no_row_kind_in_the_sweep_rail.md`,
+      by the two-red-suites handoff.
+    - `3D pane follows the selection`, 31/32. Run alone on this tree it was
+      28/32, on four *different* sub-checks. Alone on integration it aborted
+      after 19, with 17 failed. The branch touches neither the nav tree nor the
+      pane's boot. Filed as
+      `ISSUE_20261109_the_3d_pane_follows_the_selection_suite_fails_a_different_set_of_sub_checks_each_run.md`.
+    - Every suite the branch's deliverables live in is green: `annotate flyout`
+      41/41, `topology file://` and its respine 44/44, the leaders across the
+      seam 26/26, served mode 15/15, the model drawn alone 4/4.
+  - `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+    --changed-since integration`: **23/23 witnessed, 23/37 reached in 29m12s,
+    14 left to the sweep (budget), exit 0**. That is a pass under the cap.
+    - The re-checked seam-leader spec
+      (`browser__the-leaders-across-the-seam-rest-in-the-same-dimmed-ink__50620c99`,
+      N3) is among the 23 witnessed, at 3m28s.
+    - So is `…nav-stays-beside-the-open-pane…__25decf2b`, which the author
+      recorded as NOT WITNESSED on trunk.
+  - **What the worktree could not exercise:** nothing tier-wise. The `[real]`
+    and browser tiers ran against the main checkout's data and
+    `node_modules`. The projections are the main checkout's, which the runner
+    accepted. This branch changes no projection input, so they were not
+    rebuilt.
 
 ## Findings
 
