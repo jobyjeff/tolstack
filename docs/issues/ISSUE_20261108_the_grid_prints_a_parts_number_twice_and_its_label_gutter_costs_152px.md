@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: viewer/grid
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md
 handoff: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+resolution: handoff completed 2026-11-09 -- closed automatically by dispatch when handoff `the_demo_path_reads_cleanly_on_a_projector` moved to completed/; not independently verified.
 ---
 
 # The grid prints a part's number twice, and the brackets' label gutter costs 152px

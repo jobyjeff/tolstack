@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: annotate/pane
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_integration_walk_reads_the_merged_page_against_jeffs_sentences.md
 handoff: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+resolution: handoff completed 2026-11-09 -- closed automatically by dispatch when handoff `the_demo_path_reads_cleanly_on_a_projector` moved to completed/; not independently verified.
 ---
 
 # The 3D pane wears an amber "folder needed" chip through the whole demo
