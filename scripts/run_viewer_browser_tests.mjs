@@ -6039,6 +6039,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
                     topologyId: row.getAttribute("data-topology-id") })));
     const clickRow = async (row) => {
       if (row.kind === "topology") { await pickModel(page, row.id); return; }
+      if (row.kind === "stack") { await pickStack(page, row.id); return; }
       if ((row.kind === "study" || row.kind === "kinematic") &&
           await page.locator(`#navtree ${navRow(row.kind, row.id)}`).count() === 0) {
         await pickModel(page, row.topologyId);
@@ -6081,6 +6082,12 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
             "#navtree select.navtree__select").value === "topology:" + id &&
             window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.topologyId === id,
           row.id, { timeout: 4000 });
+        } else if (row.kind === "stack") {
+          // A loose stack is an option too: the picker shows it and its page
+          // paints the elements table.
+          await page.waitForFunction((id) => document.querySelector(
+            "#navtree select.navtree__select").value === "stack:" + id &&
+            document.querySelector("#stackview tr.el-row"), row.id, { timeout: 4000 });
         } else {
           await page.waitForSelector(
             `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
