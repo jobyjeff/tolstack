@@ -72,3 +72,16 @@ led`, both already filed and now routed to
 `HANDOFF_20261109_the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection`.
 The suite count grew from 43 to 44 with this merge. The runner prints no
 per-suite timing, so this measurement has no pareto.
+
+## Measurement 2026-11-09 (the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, run from that handoff's worktree |
+| Projections | the main checkout's, rebuilt from `3d04f5cd` |
+| Result | **44/44**, exit 0 |
+| Wall time | **1822 s** (30m22s), against the 30-minute merge budget: over by 22 s |
+| Slot | taken by this run alone; the six `--only` witness runs before it had finished |
+
+It is the first all-green full run since the two reds were fixed. The runner
+still prints no per-suite timing, so this measurement has no pareto either.
