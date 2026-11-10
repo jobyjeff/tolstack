@@ -6046,6 +6046,19 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
       }
       await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
     };
+    // "The click landed": a study's or kinematic study's row lights; a model
+    // or a loose stack is the picker's value, and its page is painted.
+    const rowShown = async (row, timeout = 4000) => {
+      if (row.kind === "topology" || row.kind === "stack") {
+        await page.waitForFunction(([kind, id]) => document.querySelector(
+          "#navtree select.navtree__select").value === kind + ":" + id &&
+          (kind === "stack" ? !!document.querySelector("#stackview tr.el-row")
+            : !!(window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.topologyId === id)),
+        [row.kind, row.id], { timeout });
+      } else {
+        await page.waitForSelector(`#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout });
+      }
+    };
     const gathered = [];
     const seenRow = new Set();
     const modelIds = (await listRows()).filter((r) => r.kind === "topology").map((r) => r.id);
@@ -6075,23 +6088,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     for (const row of rows) {
       await clickRow(row);
       try {
-        if (row.kind === "topology") {
-          // A model has no row to light: the picker shows it, and the page
-          // paints its walk.
-          await page.waitForFunction((id) => document.querySelector(
-            "#navtree select.navtree__select").value === "topology:" + id &&
-            window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.topologyId === id,
-          row.id, { timeout: 4000 });
-        } else if (row.kind === "stack") {
-          // A loose stack is an option too: the picker shows it and its page
-          // paints the elements table.
-          await page.waitForFunction((id) => document.querySelector(
-            "#navtree select.navtree__select").value === "stack:" + id &&
-            document.querySelector("#stackview tr.el-row"), row.id, { timeout: 4000 });
-        } else {
-          await page.waitForSelector(
-            `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
-        }
+        await rowShown(row);
       } catch {
         wedged.push(`${row.kind}:${row.id}`);
         continue;
@@ -6162,15 +6159,11 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
         window.__WORKSHEETS_FAIL__ = false;
       }, STALE_MARKER);
       await clickRow(readers[0]);
-      await page.waitForSelector(
-        `#navtree ${navRow(readers[0].kind, readers[0].id)}.navtree__row--on`,
-        { timeout: 4000 });
+      await rowShown(readers[0]);
       afterRead = await openSheet();
       await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = true; });
       await clickRow(readers[1]);
-      await page.waitForSelector(
-        `#navtree ${navRow(readers[1].kind, readers[1].id)}.navtree__row--on`,
-        { timeout: 4000 });
+      await rowShown(readers[1]);
       afterFailedRead = await openSheet();
       await page.evaluate(() => { delete window.__WORKSHEET_MARKER__; });
     }
@@ -6203,8 +6196,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
       await page.waitForSelector(".banner__error", { timeout: 4000 });
       await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
       await clickRow(reader);
-      await page.waitForSelector(
-        `#navtree ${navRow(reader.kind, reader.id)}.navtree__row--on`, { timeout: 4000 });
+      await rowShown(reader);
       cleared = (await page.locator(".banner__error").count()) === 0;
     } catch {
       // Swallowed on purpose. A wedged page never raises the banner this waits
@@ -6222,8 +6214,7 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     for (const row of rows) {
       await clickRow(row);
       try {
-        await page.waitForSelector(
-          `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+        await rowShown(row);
       } catch {
         wedged.push(`${row.kind}:${row.id} (reads working)`);
         continue;
@@ -6253,10 +6244,10 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     const sheetsReached = [];
     const jointsShown = [];
     const sheetlessHidden = [];
-    for (const [stackId, { study }] of byStack) {
-      await page.locator(`#navtree ${navRow("study", study.id)}`).click();
-      await page.waitForSelector(
-        `#navtree ${navRow("study", study.id)}.navtree__row--on`, { timeout: 4000 });
+    for (const [stackId, { topology, study }] of byStack) {
+      // The study's row exists only with its model open (2026-11-08).
+      await clickRow({ kind: "study", id: study.id, topologyId: topology.id });
+      await rowShown({ kind: "study", id: study.id });
       const jointText = await page.locator("#topojoint").textContent();
       if (jointText.includes(String(study.stack.joint.assembly_drawing)) &&
           jointText.includes(String(study.stack.joint.view))) {
