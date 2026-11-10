@@ -5190,6 +5190,12 @@
       });
     });
     var index = VA.topologyIndex(topoProj);
+    // A joint end's row is the NODE it is on (the_model_is_derived_once_and_
+    // the_left_column_is_its_tree, 2026-11-10): the tree lists it as that
+    // node's feature, and the faces layer follows the pane to it. A row with
+    // an edge and no feature -- a contributor, a bind-mode element -- is the
+    // edge, as before.
+    if (fields.feature && index.nodes[fields.feature]) return { kind: "node", id: fields.feature };
     if (fields.edge) return index.edges[fields.edge] ? { kind: "edge", id: fields.edge } : null;
     var bodyId = fields.subject || fields.body || fields.joint;
     var body = bodyId ? (topoProj.bodies || []).filter(function (b) {

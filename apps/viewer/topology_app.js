@@ -2334,6 +2334,24 @@
         state.selection.id === target.id)) return;
     hideCrop();
     selectElement(target.kind, target.id);
+    // The pane selected a joint end: the faces layer moves to that node's
+    // feature, under which its row is drawn, and the row is brought into view.
+    if (target.kind === "node") followFeatureOfNode(target.id);
+  }
+
+  // The faces layer onto a feature of `nodeId`: the one already selected
+  // where it is that node's, else the node's first feature (a node two parts
+  // share is one selection and two rows; the layer sits under one).
+  function followFeatureOfNode(nodeId) {
+    var model = currentModel();
+    if (!model) return;
+    var kept = state.selectedFeature ? model.feature(state.selectedFeature) : null;
+    if (kept && kept.node === nodeId) return;
+    var features = model.featuresOfNode(nodeId);
+    if (!features.length) return;
+    state.selectedFeature = features[0];
+    sceneRevealPending = true;
+    renderNav();
   }
 
   // After every paint: the scene told, the grid row brought up, the leaders

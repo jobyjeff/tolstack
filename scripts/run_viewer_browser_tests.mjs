@@ -8035,10 +8035,30 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await page.waitForTimeout(500);
     const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
     const bodyRowSel = `#navtree [data-nav-kind="body"][data-nav-id="${bodyName}"]`;
-    await page.locator(bodyRowSel).first().hover({ timeout: 5000 }).catch(() => {});
-    const bodyLit = await until((w, name) => w.__lastHover && w.__lastHover.target &&
-      w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name,
-    bodyName, 10000);
+    // Held, not sampled: the pane's rail rebuilds for seconds after the run
+    // loads (its bodies anchoring), and a rebuild clears the hover on its own.
+    // The tree's row is not rebuilt with it, so the pointer has to LEAVE the
+    // row and come back for a new `mouseenter` -- the reader's hand moving
+    // off and on -- until a read finds the light on. One read, not three:
+    // while the bodies anchor the pane clears the hover every few hundred
+    // milliseconds, and the claim is that resting lights it, not that the
+    // pane holds it through its own rebuilds.
+    const heldRow = page.locator(bodyRowSel).first();
+    const lit = (w, name) => !!(w.__lastHover && w.__lastHover.target &&
+      w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name);
+    let bodyLit = false;
+    {
+      const end = Date.now() + 20000;
+      await heldRow.hover({ timeout: 5000 }).catch(() => {});
+      while (Date.now() < end) {
+        // Polled, not sampled: between two of the pane's rebuilds the light is
+        // on for a moment, and a read 300ms later missed it every time.
+        if (await until(lit, bodyName, 1500)) { bodyLit = true; break; }
+        await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(100);
+        await heldRow.hover({ timeout: 2000 }).catch(() => {});
+      }
+    }
     if (!bodyLit) {
       console.log(`      [${label}] DIAG body hover ${bodyName}: rows ` +
         `${await page.locator(bodyRowSel).count()}; pane says ` +
@@ -9216,22 +9236,29 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       if (row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - 60;
     }, takeFeatureSel);
     await page.waitForTimeout(300);
-    const featureTop = () => page.evaluate((sel) => {
-      const box = document.getElementById("navtree");
-      const row = document.querySelector(sel);
-      return row ? Math.round(row.getBoundingClientRect().top - box.getBoundingClientRect().top) : null;
-    }, takeFeatureSel);
     const before = await nav();
-    const featureBefore = await featureTop();
     const take = before.rows.find((r) => UPPER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
     if (take) await click(take.key, ".navtree__scenebtn");
     await until(() => (document.querySelector("#annotate-flyout iframe").contentWindow.__mockWrites || []).length > 0);
-    await page.waitForTimeout(1500);
-    const after = await nav();
-    const featureAfter = await featureTop();
-    push("[real] a Take keeps the nav's scroll, and the feature row stays where it was on screen",
-      !!take && before.scrollTop > 0 && Math.abs(after.scrollTop - before.scrollTop) <= 1 &&
-      featureAfter !== null && Math.abs(featureAfter - featureBefore) <= 1);
+    // The pane selects the partner end next (nextEndToPick); the page follows
+    // its selection to that end's node, so the faces layer moves to the
+    // partner's feature row, which is brought on screen.
+    const partnerNode = target && target.from ? target.from.feature : null;
+    await until((node) => !!document.querySelector('#navtree [data-nav-kind="feature"][data-node-id="' + node +
+      '"].navtree__row--on'), partnerNode, 15000);
+    await page.waitForTimeout(1000);
+    const followed = await page.evaluate((node) => {
+      const row = document.querySelector('#navtree [data-nav-kind="feature"][data-node-id="' + node + '"].navtree__row--on');
+      const slot = row && row.parentNode.querySelector(".navtree__scene");
+      const nav = document.getElementById("navtree").getBoundingClientRect();
+      const r = row && row.getBoundingClientRect();
+      return { on: !!row,
+        layer: !!slot && slot.querySelectorAll('[data-scene-key*="feature=' + node + '"]').length > 0,
+        visible: !!r && r.top >= nav.top - 1 && r.bottom <= nav.bottom + 1 };
+    }, partnerNode);
+    push("[real] after a Take the faces layer follows the partner end: its feature row is selected " +
+      "and on screen, with the pane's row for it beneath",
+      !!take && followed.on && followed.layer && followed.visible);
     // The partner end opens and is selected in the pane's own rail (the nav
     // shows the selected feature's end alone).
     const partner = await inPane((w, args) => {
@@ -9255,6 +9282,14 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     // legend names the states, the levels step in, and no state recolours a
     // row's words. Read off the shell's tree, from the annotator's words, on
     // the live study -- not from rows a test built by hand.
+    // The look is read on the TAKEN end: its feature re-selected (the layer
+    // followed the partner), its candidate list opened under it.
+    if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
+    at = await nav();
+    const upperAgain = rowOf(at.rows, UPPER);
+    if (upperAgain && upperAgain.open !== "true") await click(upperAgain.key, ".navtree__scenetwisty");
+    await listed(UPPER);
+    await page.waitForTimeout(500);
     // The layer is read under whichever feature holds it now; none at all is
     // a diagnosis, not an abort.
     const layerState = await page.evaluate(() => ({
@@ -9290,10 +9325,11 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       // A state the annotator calls attention, on a row on screen: its words
       // stay ink (the old rule painted them --inferred; Jeff's "turned orange").
       let attentionInk = null;
-      if (low) {
-        low.setAttribute("data-attention", "true");
-        attentionInk = getComputedStyle(low.querySelector(".navtree__scenename")).color;
-        low.removeAttribute("data-attention");
+      const inkRow = low || up;
+      if (inkRow) {
+        inkRow.setAttribute("data-attention", "true");
+        attentionInk = getComputedStyle(inkRow.querySelector(".navtree__scenename")).color;
+        inkRow.removeAttribute("data-attention");
       }
       const marks = Object.keys(w.AnnotateApp.RAIL_MARKS);
       return {

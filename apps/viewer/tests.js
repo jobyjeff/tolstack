@@ -13895,6 +13895,13 @@
         var proj = twoBodyProjection();
         eq(VA.sceneRowElement("#sweep-tree/group=contributors/edge=eB", proj, null),
           { kind: "edge", id: "eB" });
+        // A joint end's row is its NODE (2026-11-10): the tree lists it as that
+        // node's feature, and the faces layer follows the pane to it.
+        var endNode = proj.nodes[0].id;
+        eq(VA.sceneRowElement("#sweep-tree/joint=A/direction=from,edge=eA,feature=" + endNode + ",state=bound",
+          proj, null), { kind: "node", id: endNode });
+        eq(VA.sceneRowElement("#sweep-tree/joint=A/direction=from,edge=eA,feature=not_a_node", proj, null),
+          { kind: "edge", id: "eA" }, "a feature the topology lacks falls back to the edge");
         eq(VA.sceneRowElement("#sweep-tree/group=contributors/edge=nope", proj, null), null);
         eq(VA.sceneRowElement("#sweep-tree/group=bodies/body=A/sha=ab12,subject=A", proj, null),
           { kind: "edge", id: "eA" }, "body A carries one edge");

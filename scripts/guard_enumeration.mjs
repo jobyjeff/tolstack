@@ -562,7 +562,7 @@ export const DECLARED_GUARDS = {
   // pane open, a feature row's click and keyboard, the faces layer's rows, a
   // node picked in the scene, a body's fold, the bind-mode nest, the binding
   // strip); six renamed for the faces layer. Every new name carries a spec.
-  browser: { declared: 865, enrollable: 832, names: "214272d13b82" },
+  browser: { declared: 865, enrollable: 832, names: "155a71734609" },
 };
 
 

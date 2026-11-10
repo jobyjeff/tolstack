@@ -28,3 +28,157 @@ v2's counts match the strategy session's derivation exactly: 5 bodies, 15
 parts, 34 features, 22 dimensions, 17 interfaces (9 contacts + 8 gaps), 8
 between bodies, 9 inside one (ground 5, pitch plate 3, blade 1), 15 joints of
 which one is compound (hub + tangential link mount: seat, pilot, clocking).
+v1 for comparison: 13 bodies, 35 parts, 113 features, 82 dimensions, 51
+interfaces (34 + 17), 29 between, 22 inside, 47 joints (4 compound).
+
+A gap edge's end is a feature on the end node's **first-listed part**. Neither
+model has a gap edge ending on a node two parts share (measured), so the view
+states no rule for that case rather than one nothing exercises.
+
+## Decisions the handoff left to me
+
+- **A feature two parts share names the seated part** (`tangential link
+  mount base face`, `piston cover flange`, `pitch arm clamp face`). The
+  handoff's rule — no part name inside a name nested under its part — holds
+  for single-part features; a shared node is nested under *two* parts, and
+  under the hub `base face` twice (two mounts) would be ambiguous. The
+  redundancy under the mount's own row is the price of one name per node.
+  Dimension names are literally `<from> to <to>` in those words, so a hub
+  dimension reads `locating boss to tangential link mount base face`.
+- **A renamed node keeps a face-suggestion word** (`bore`, `face`,
+  `shoulder`, `centre`, `diameter`) or already declares its `face` block:
+  `tolerance_stack/feature_geometry.py`'s `SUGGESTION_RULE_WORDS` classify a
+  node by its name where no face is declared, and `locating boss` (no word,
+  as before) and `bushing bores` (declared) are the two that carry none.
+  `piston body ID datum` became `inner diameter datum` for this reason.
+- **The old name is kept in the node's `note`** ("Was named … until
+  2026-11-10") so a reader of the sweep's or a binding's history can still
+  find the feature; ids are untouched.
+- **v2's body names are short** (`ground`, `tangential link`, `pitch plate`,
+  `pitch link`, `blade 1`); each body's roster moved into its `note`. The
+  handoff scoped "names in v2", and a body row that read `ground: the hub,
+  the two mounts and the piston cover` in a 300px column was the loudest
+  thing on it.
+- **A DAG block says the part's number**, one rule for every block, with the
+  whole label on hover: the first pass made a block print the full label and
+  it clipped to `214958-00…`, worse than the bare number. The tree, the
+  Preview and the grid's description column print the full label; the grid's
+  bracket, like a block, says the number (Jeff's two-column grid of
+  2026-11-05 is where the description lives).
+- **The loose stacks are options of the picker** ("then any analysis that
+  belongs to neither") and lose their red/amber mark with their rows; filed
+  (`ISSUE_20261110_a_loose_stacks_status_mark_left_the_nav_with_its_row.md`).
+- **A tag axis with one value draws no chips**: v2's `component ·
+  propeller-system` was the "component chip" the handoff listed as gone, and a
+  filter with one value filters nothing. v1's `variant` axis (gas / brake)
+  keeps its chips under Studies.
+- **A selection opens the part that holds it** (nav.js `holdsSelection`):
+  a node picked in the scene or the DAG would otherwise light a row the
+  reader cannot see. The reader's own fold of that part still wins.
+
+## What the faces layer is built on
+
+The pane still sends its whole rail (`annotate:tree`, `apps/annotate/app.js`
+`embedTree`); the page draws ONE subtree of it under the selected feature
+(`VA.sceneRowsForFeature`, `views/nav.js`): in sweep mode the rows whose key
+carries `feature=<node>` — a joint end, with its mark, its Pick/Re-pick and its
+candidate list; in bind mode the element list, which the page has the pane
+scope to the node first (`filter-element <node>`, posted from
+`syncSceneModel`). The pane's keys are its own (`<root>/<data>=<value>,...`);
+the page reads them for one thing, whether a `=<value>` segment equals the
+node's id. Gestures go back on the same channel as before (`annotate:rail`).
+The legend rides with it and repeats under every selected feature; filed
+(`…the_faces_layer_repeats_the_marks_legend…`). This is the "mirror one
+subtree" option the handoff allowed, not a rows-per-feature API from the pane.
+
+## Functions that still derive membership on their own
+
+Filed with the sites and the one visible disagreement (a shared face is one
+pin on the DAG, two features in the tree):
+`ISSUE_20261110_the_dag_and_grid_still_derive_membership_from_the_raw_arrays_and_disagree_with_the_tree.md`.
+In `apps/viewer/topology.js`, 25 `VA.*` functions read `nodes[].parts`,
+`edges[].part` or `bodies[].parts`; seven of them answer the membership
+question the model object answers (`bodyOfPart`, `bodyTint`, `partPins`,
+`partSpans`, `gridPlan`'s part-of-row, `gridBraces`, `litPartIds`). In the
+pane, 13 sites in `app.js` and `sweep.js` (`rides_with`, occurrence
+containment, the ride chooser, `parts[0]`). Nothing this handoff wrote reads
+those arrays; `apps/viewer/model.js` is the one reader of the model block.
+
+## The grid
+
+`VA.gridPlan` breaks a group only where the part changes. Raw plan on v1: 63
+leaders (unchanged) and **57 groups** (74 before), the hub 2 runs (7), the
+plate 3 (8), the gas spring 1 (2), the blade root 2. Raw plan on v2: 13 part
+groups for 12 parts — the walk leaves the hub after one row for the mount's
+pilot and comes back — but the **page** draws 12 part brackets and 5 body
+brackets, because the blocks layout gathers a revisited part into one run
+before the plan is cut (`VA.blockLayout`); the probe's count is in the shots'
+log. v1 on the page: 38 part brackets for 35 parts, 19 body brackets for 13
+bodies.
+
+## Witness counts — what this handoff cost the registry
+
+The number the handoff asked for, so F1b and F1c can be cut:
+
+| tier | guards | specs added | renamed with their guard | re-anchored | retired with their guard |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| fast (`apps/viewer/tests.js`) | 674 → 676 (8 in, 6 out, 3 renamed) | 9 | 1 | 3 | 0 (the six retired tests carried no spec) |
+| browser (`scripts/run_viewer_browser_tests.mjs`) | 866 → 865 | 8 | 5 | 4 | 9 |
+| annotate (`apps/annotate/run_tests.cjs`) | 307 | 0 | 0 | 0 | 0 |
+| python | +1 file, `tests/test_model_view.py` | — | — | — | — |
+
+Retired fast tests: the topology row's active mark and click hint, a stack
+row's two mark tests, the two live leaf rows' marks, the mirrored rail's
+chips, "a non-internal node still breaks the group" (replaced by its
+opposite). Retired browser checks: the mechanism tree nested under a study
+row, the type chips, a contributor row's click and keyboard, a part row's
+second button, the pressed-Isolate line, the chain study's nested elements,
+a body's disclosure flipping "in the annotator's own tree", a joint selected
+in the scene (replaced by a node picked in the scene). Every retired spec is
+deleted; every renamed one keeps its mutation where the code it anchors
+still exists.
+
+The one decay the rewrite exposed and fixed: two browser specs anchored on
+`selectTopology`'s last lines, which the tree's per-model resets extended;
+and `browser__real-a-body-s-checkbox…` / `…resting-on-a-body-row…` anchored
+the mirrored row's `check` / `enter` acts, which the tree's own box and hover
+no longer travel through -- both re-anchored onto the tree's code, not left
+witnessing a path the page does not take.
+
+## Gotchas
+
+- **`--repo` is not enough to run the browser tier from a worktree.**
+  `scripts/run_viewer_browser_tests.mjs` imports `playwright-core` by name at
+  its top, and the package lives only in the main checkout, so the tier dies
+  before its first suite (`ERR_MODULE_NOT_FOUND`). A junction does it:
+  `New-Item -ItemType Junction -Path <worktree>\node_modules -Target
+  C:\workspace\tolstack\node_modules` (gitignored; `scripts/browser_runner.mjs`
+  already resolves the main checkout's copy for the debug probes). Remove the
+  junction before the worktree is cleaned up -- a recursive delete that
+  follows it would take the main checkout's `node_modules` with it.
+- **A projection built with a dirty tree is refused by the fixture tier's
+  freshness gate** even when the dirt is two staged deletions: commit, then
+  rebuild. `scripts/rebuild_projections.ps1` runs the MAIN checkout's
+  scripts, so from a worktree each builder is run by hand with `--data-root
+  C:/workspace/tolstack/data` in its order (the walk lesson of 2026-11-09 did
+  the same).
+- **The pane's `hover part` / `hover body` verbs answer in sweep mode only**
+  (`cmdHover` calls `sweepState()` first); the tree posts them only while the
+  pane has reported a run, and posts `hover clear` at once rather than
+  debounced, because the page's own `mouseover` handler schedules the grid's
+  `highlight clear` on the same timer and would cancel a debounced clear.
+- **The pane's rail rebuilds for seconds after a run loads** (its bodies
+  anchoring) and each rebuild clears the hover; the tree's rows are not
+  rebuilt with it, so a browser check that rests on a row must leave and
+  re-enter for a new `mouseenter`. The old mirrored row got one for free
+  because the nav re-rendered it on every tree.
+- **A selected joint-end row in the pane is its NODE** (`VA.sceneRowElement`,
+  `feature=` before `edge=`): after a Take the pane selects the partner end,
+  and the page follows to that node's feature so the faces layer moves with
+  it. Before this the follow read the row as its edge, which took the layer
+  down -- the first run of the rail suite aborted on a `null` layer for
+  exactly that.
+- **The grid's raw plan and the page differ on purpose** (above): judge
+  bracket counts on the page, not off `VA.gridPlan(layout)` in node.
+- The handoff's "v2 then shows 12 part brackets" holds on the page; the raw
+  plan's 13 is the hub revisited by the authored walk, not a break rule.
