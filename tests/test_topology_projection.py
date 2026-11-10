@@ -1451,7 +1451,9 @@ def test_model_v2_reads_in_its_authored_body_and_part_order(topologies):
     ``bodies[]`` order, one block each, and each body's parts first appear in
     its ``parts`` order (a part with no row of its own, a pressed bearing,
     has nothing to order). The hub's first row after its own is the tan-link
-    mount's."""
+    mount's: since 2026-11-10 (the mount-on-mount seat) the hub's edges are
+    authored joint first and blade bore last, so the walk enters the tan-link
+    mount through its pilot and climbs the stack from there."""
     topology = topologies["vpa_end_stop_v2"]
     layout = B.serialize_topology(topology).as_dict()
     assert [s["body"] for s in layout["bodies"]] == [b.id for b in topology.bodies]
@@ -1466,10 +1468,10 @@ def test_model_v2_reads_in_its_authored_body_and_part_order(topologies):
         assert seen == [p for p in body.parts if p in seen], body.id
         assert seen, body.id
     rows = layout["rows"]
-    assert [r["id"] for r in rows[:3]] == ["hub_spindle_bore_axis", "hub_blade_axis_offset",
-                                           "hub_blade1_root_bearing_bore"]
-    assert rows[3]["kind"] == "edge" and rows[4]["kind"] == "node"
-    assert topology.node(rows[4]["id"]).parts == ("tan_link_mount_215175_002",)
+    assert [r["id"] for r in rows[:3]] == ["hub_spindle_bore_axis",
+                                           "hub_boss_in_tan_link_mount_pilot",
+                                           "tan_link_mount_pilot_bore"]
+    assert topology.node(rows[2]["id"]).parts == ("tan_link_mount_215175_002",)
 
 
 def test_the_authored_walk_is_not_the_product_models(topologies):

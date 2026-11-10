@@ -31,3 +31,12 @@ The shots also break the lessons convention, which puts screenshots under
 `docs/sessions/lessons/shots/<slug>/`. Moving the two files there shortens
 the path. A guard on the longest tracked path would keep this from coming
 back.
+
+## Recurrence 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model)
+
+`tests/test_mutation_witness_shadow_concurrency.py::test_two_different_repo_roots_both_still_succeed`
+was red from the worktree at basetemp `pytest-13373`, on the same two
+`LESSONS_20261103_every_study_opens_in_3d_…_pane_already_open.png` files
+(`[WinError 3]`). It was green in two full runs earlier the same day. It
+depends on how many digits pytest's temp counter has, not on the change
+under test.
