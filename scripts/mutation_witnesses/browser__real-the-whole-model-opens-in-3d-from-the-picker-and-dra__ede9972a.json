@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "every study opens in 3D showing only its parts",
-  "expect_red": "[real] the topology row offers 3D and draws every one of its parts ghost",
+  "expect_red": "[real] the whole model opens in 3D from the picker and draws every one of its parts ghost",
   "mutations": [
     {
       "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
       "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
-      "note": "Renamed (it drew them solid) by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face. Breaks the one place this guard's claim is decided.",
+      "note": "Renamed (it drew them solid) by handoff everything_in_3d_is_transparent_until_an_action_needs_a_face. Breaks the one place this guard's claim is decided. Renamed again 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): the topology row left the nav; the model's 3D is the seam's handle on the picker's choice.",
       "file": "apps/viewer/topology.js",
       "find": "if (lit && !(lit.edges && lit.edges[edge.id])) return;",
       "replace": "if (!(lit && lit.edges && lit.edges[edge.id])) return;"

@@ -8506,6 +8506,15 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     return Array.from(new Set(parts)).sort();
   };
   const press3D = async (kind, id) => {
+    if (kind === "topology") {
+      // The whole model's 3D is the seam's handle on the picker's choice: the
+      // topology row and its control left with the rows (2026-11-10). A pane
+      // already open re-drives on the pick itself.
+      await pickModel(page, id);
+      const handle = page.locator("#pane-handle");
+      if (await handle.isVisible().catch(() => false)) await handle.click();
+      return true;
+    }
     const row = page.locator(`[data-nav-kind="${kind}"]${id ? `[data-nav-id="${id}"]` : ""}`).first();
     await row.hover();
     const btn = row.locator("[data-nav-3d]");
@@ -8612,7 +8621,7 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     const top = await press3D("topology", topology.id);
     want = await wanted("topology", topology.id, null);
     now = await scene((n) => same(n.ghost, want));
-    push("[real] the topology row offers 3D and draws every one of its parts ghost",
+    push("[real] the whole model opens in 3D from the picker and draws every one of its parts ghost",
       top && same(now.ghost, want) && want.length > 0 && now.solid.length === 0);
 
     await run(["model", "unlit", "hide"]);
