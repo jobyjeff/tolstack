@@ -35,6 +35,10 @@
   // it existed, because no literal in it spells a run id and none could.
   var BANNED = [
     ["sha256", "an algorithm's name -- nothing a reader can act on"],
+    // Added 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): a row's
+    // Preview printed `closes` with its backticks, a code span from a source
+    // comment's habit, rendered as text and naming a field besides.
+    ["`", "a code span's backtick -- markdown printed as text, usually around a field name"],
     ["source_ref", "a field name out of the schema"],
     ["crop_key", "a field name out of the schema"],
     ["crops.json", "an internal artifact's filename"],

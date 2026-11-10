@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every value source's hover and no-crop line is plain copy: no code span, no negation, one line",
+  "mutations": [
+    {
+      "contract": "A value source's reader-facing line has no code span and says what it is.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "Puts back the demo path's string: backticks around a field name and a 'not a term' clause.",
+      "file": "apps/viewer/topology.js",
+      "find": "      title: \"The gap between two real interfaces that a study computes as its answer.\",",
+      "replace": "      title: \"This is the answer, not a term -- a study names it in `closes` instead.\","
+    }
+  ]
+}

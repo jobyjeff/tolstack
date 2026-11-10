@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "a pane just opened wears no status chip in its header until a write begins -- and the pane has no banner band of its own",
+  "mutations": [
+    {
+      "contract": "An untouched pane's header wears no status chip.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "The chip at boot, as the integration walk shot it.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "    return writeBegun ? status : null;",
+      "replace": "    return status;"
+    }
+  ]
+}

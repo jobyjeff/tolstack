@@ -288,7 +288,10 @@ export const DECLARED_GUARDS = {
   // leaderBands unit test; five band-asserting guards were reworded (the
   // three with specs re-keyed) and one rowPositions guard renamed, with a spec.
   // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
-  fast: { declared: 671, enrollable: 671, names: "e57b83e4620b" },
+  // 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): +3 -- a part's
+  // number said once, every value source's line in plain copy, and the HTTP
+  // probe's first request. Each carries a spec.
+  fast: { declared: 674, enrollable: 674, names: "2c6db5f60b5e" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -356,7 +359,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-09 (a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_
   // list): +2 -- the Bodies list reads the model's bodies, and a folded part
   // rides its own body's subject. Each carries a spec.
-  annotate: { declared: 306, enrollable: 306, names: "93fdc1ceb9e7" },
+  // 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): +1, the pane's
+  // status shown only once a write begins. It carries a spec.
+  // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
+  annotate: { declared: 307, enrollable: 307, names: "448f901a9e4d" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -532,7 +538,14 @@ export const DECLARED_GUARDS = {
   // list): +2 in "the model drawn alone and led" -- the in-sweep drawn count
   // (was logged only) and every part of the model's bodies posed with its own
   // body. Each carries a spec.
-  browser: { declared: 866, enrollable: 833, names: "1e9c2ad93f3b" },
+  // 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): two out (the
+  // flyout's "folder still needed" word at boot and its no-File-System-Access
+  // SKIPPED push) and two in (no chip on a pane just opened; none while only
+  // watching a sweep). Both new names carry a spec; the old word's mutation
+  // moved to the scene-over-HTTP status check, which now sees the word after
+  // a face is picked.
+  // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
+  browser: { declared: 866, enrollable: 833, names: "f095291d1d17" },
 };
 
 

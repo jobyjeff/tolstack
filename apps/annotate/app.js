@@ -217,6 +217,15 @@ function setBanner(text, kind) {
 // the transport line on the full page. AA.paneStatus picks it; the words are
 // AA.PANE_STATUS's, and the shell prints them verbatim.
 let servedTransport = false;
+// Set by the first gesture that begins a write (beginWrite); the status is
+// shown only from then on (AA.paneStatusShown).
+let writeBegun = false;
+
+function beginWrite() {
+  if (writeBegun) return;
+  writeBegun = true;
+  renderPaneStatus();
+}
 
 function paneStatusNow() {
   const storage = state.storage;
@@ -228,9 +237,10 @@ function paneStatusNow() {
 }
 
 function renderPaneStatus() {
-  const status = paneStatusNow();
-  if (!status) return;
+  if (!state.storage) return;
   if (window.parent === window) return;
+  // Not shown yet: an empty word, which the shell reads as "no chip".
+  const status = AA.paneStatusShown(paneStatusNow(), writeBegun) || { word: "", tone: "", sentence: "" };
   try {
     window.parent.postMessage({ type: "annotate:status", word: status.word,
       tone: status.tone, sentence: status.sentence }, window.location.origin);
@@ -771,6 +781,7 @@ function cmdSelectFace(identifier, faceIdText) {
   if (!record) throw new Error("part \"" + identifier + "\" has no face " + faceIdText);
   state.scene.highlightFace(mesh.sha256, faceId);
   state.currentPick = { sha256: mesh.sha256, faceId, record };
+  beginWrite();
   renderDetail();
   // The pick needs its own opaque overlay while the body is faded -- a vertex
   // tint at ghost opacity is not a selection a reader can see -- and the face
@@ -2847,6 +2858,7 @@ async function cmdArm(what, direction) {
   if (AA.DIRECTIONS.indexOf(direction) === -1) {
     throw new Error("arm <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
   }
+  beginWrite();
   if (sweep.armed) {
     const again = sweep.armed.edgeId === edge.id && sweep.armed.direction === direction;
     disarmPick("cancel");
@@ -5403,6 +5415,7 @@ function slugify(text) {
 // folder's projection first when the served transport has not been granted
 // write yet.
 async function nextEventSeq() {
+  beginWrite();
   // Reading over HTTP, the first write asks for the folder HERE -- inside the
   // click that wrote, before a number is counted -- and the projection the
   // count comes from is then re-read from the folder, which the served origin

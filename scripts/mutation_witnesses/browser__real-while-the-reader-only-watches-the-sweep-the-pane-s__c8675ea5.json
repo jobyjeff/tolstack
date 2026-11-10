@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the scene pane reads over HTTP (drawing-checker's mounts, no grant)",
+  "expect_red": "[real] while the reader only watches the sweep, the pane's header wears no status chip",
+  "mutations": [
+    {
+      "contract": "A pane playing a sweep, with nothing picked, wears no status chip.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "The chip at boot, through the sweep.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "    return writeBegun ? status : null;",
+      "replace": "    return status;"
+    }
+  ]
+}

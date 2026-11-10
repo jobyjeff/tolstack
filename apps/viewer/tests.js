@@ -1349,6 +1349,26 @@
           "HTTP tier fixture");
       });
 
+      await test("the probe's first request is the candidate the page's path " +
+        "names, so a normal load on either mount asks for nothing it 404s on",
+        async function () {
+          // the_demo_path_reads_cleanly_on_a_projector: a repo-root page asked
+          // the sibling mount's ../data first and logged a 404 on every load.
+          var first = async function (pathname) {
+            var asked = [];
+            var adapter = new VA.HttpAdapter({ pathname: pathname,
+              fetchImpl: function (url, init) {
+                asked.push(url);
+                return fetch(httpFixture.dataOrigin + url, init);
+              } });
+            eq(await adapter.init(), VA.STATE.READY);
+            return asked[0];
+          };
+          eq(await first("/apps/viewer/topology.html"), "/data/projections/viewer/topologies.json");
+          eq(await first("/apps/annotate/index.html"), "/data/projections/viewer/topologies.json");
+          eq(await first("/tolstack/viewer/topology.html"), "/tolstack/data/topologies.json");
+        });
+
       await test("neither candidate resolving is DISCONNECTED, not an error", async function () {
         var adapter = httpAdapter("/nowhere/page.html", httpFixture.emptyOrigin);
         eq(await adapter.init(), VA.STATE.DISCONNECTED);
@@ -8500,6 +8520,35 @@
            "parallel strut", "post"]);
       });
 
+    await test("a part's number is said once: by its bracket where parts are " +
+      "grouped, by its row's PART cell where they are not", function () {
+        // the_demo_path_reads_cleanly_on_a_projector: both printed it, side by
+        // side (`214373-002 214373-002 propeller hub`), and the second copy
+        // cost the column 68px.
+        var base = function (root) {
+          return all(root, "tr.tvrow--edge").filter(function (r) {
+            return r.getAttribute("data-id") === "base_thickness";
+          })[0].querySelector("td.tvcell--part");
+        };
+        var grouped = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ groupKinds: { bodies: true, parts: true } }));
+        });
+        var label = all(grouped, ".tvbrace__label--part").filter(function (n) {
+          return n.getAttribute("data-brace-label") === "part:base";
+        })[0];
+        ok(label, "the base plate's bracket is labelled");
+        eq(label.textContent, "215197");
+        eq(base(grouped).textContent, "");
+        var flat = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ groupKinds: { bodies: true, parts: false } }));
+        });
+        eq(all(flat, ".tvbrace__label--part").length, 0);
+        eq(base(flat).textContent, "215197");
+        // The column is the words' 112px and the body names' gutter, no more.
+        eq(VA.TOPO_COLUMNS[0].width, 112 + VA.braceGutter());
+        eq(VA.braceGutter(), VA.GRID_BRACE.body);
+      });
+
     await test("a part's number and its description are two columns, out of the " +
       "part record, whichever way round its name puts them", function () {
         // Jeff, 2026-11-05: "half of the Component column start with
@@ -8678,11 +8727,11 @@
         var arm = VA.elementRecord(TOPO, "edge|arm_pin_to_tip", { crops: TOPOCROPS });
         eq(arm.crop, null);
         eq(arm.noCropReason,
-          VA.VALUE_SOURCES[VA.topologyIndex(TOPO).edges.arm_pin_to_tip.value_source].title);
+          VA.VALUE_SOURCES[VA.topologyIndex(TOPO).edges.arm_pin_to_tip.value_source].crop);
         eq(arm.binding.params, { topologyId: "demo_mechanism", edgeId: "arm_pin_to_tip",
           studyId: undefined, part: "arm" });
         var derived = VA.elementRecord(TOPO, "edge|tip_to_strut_end", { crops: TOPOCROPS });
-        has(derived.noCropReason, "derived gap");
+        eq(derived.noCropReason, VA.VALUE_SOURCES.derived.crop);
         eq(derived.part, null);
         // post_bushing_offset is a NO CITATION row on a part with no installed
         // mesh: the binding is wanted and cannot be made, so the record offers
@@ -10020,7 +10069,9 @@
         });
         has(root.textContent, "No document backs this number");
         has(root.textContent, VA.ATTENTION.no_tolerance.text);
-        has(root.textContent, "linear_to_rotary");
+        // Its own transform, in its units -- never the transform's kind word.
+        has(root.textContent, "scaled 2.5 deg per mm");
+        eq(/linear_to_rotary/.test(root.textContent), false);
       });
 
     await test("an untraced edge's pane offers an annotate-this link, carrying " +
@@ -10113,6 +10164,23 @@
         has(root.textContent, "This dimension cites nothing at all");
       });
 
+    await test("every value source's hover and no-crop line is plain copy: no " +
+      "code span, no negation, one line", function () {
+        // the_demo_path_reads_cleanly_on_a_projector: the derived gap's line
+        // printed `closes` in its backticks and two "not" clauses on the demo
+        // path. Every branch, including the ones no fixture row reaches.
+        Object.keys(VA.VALUE_SOURCES).forEach(function (key) {
+          ["title", "crop"].forEach(function (field) {
+            var text = VA.VALUE_SOURCES[key][field];
+            ok(typeof text === "string" && text.length > 0, key + "." + field);
+            ok(text.length <= 160, key + "." + field + " is one line: " + text);
+            ok(!/`/.test(text), key + "." + field + " prints a backtick: " + text);
+            ok(!/(not|never|no crop index)/i.test(text),
+               key + "." + field + " says what it is not: " + text);
+          });
+        });
+      });
+
     await test("the pane explains a missing crop rather than reporting a stale " +
       "index", function () {
         // Three different facts, and the page must not collapse them: an edge
@@ -10123,7 +10191,7 @@
             selection: { kind: "edge", id: "post_bushing_offset" } }));
         });
         eq(all(inline, "div.detail__crop--no-key").length, 1);
-        has(inline.textContent, "No crop index covers it");
+        has(inline.textContent, VA.VALUE_SOURCES.inline.crop);
         has(inline.textContent, "cites nothing at all");
 
         var derived = render(function (r) {
@@ -10250,10 +10318,10 @@
         });
         has(root.textContent, "In this study — contribution #");
         has(root.textContent, "with the edge's orientation");
-        has(root.textContent, "No sign is authored anywhere");
+        has(root.textContent, "Its sign is read off the direction the chain crosses this edge.");
         // This edge's transform is its OWN default, not a study override, and
-        // the pane distinguishes the two.
-        has(root.textContent, "The edge's own default transform applied.");
+        // the pane distinguishes the two: only an override is said.
+        eq(/its own way/.test(root.textContent), false);
       });
 
     await test("a study override says it is one", function () {
@@ -10262,7 +10330,7 @@
           study: topoStudy("demo_base_to_tip"),
           selection: { kind: "edge", id: "base_thickness" } }));
       });
-      has(root.textContent, "OVERRIDES the edge's default transform");
+      has(root.textContent, "This study scales it its own way.");
     });
 
     await test("nothing selected tells you what pointing and clicking do", function () {
@@ -17929,7 +17997,18 @@
                 // its drawing number and that name.
                 var words = VA.partColumns(part);
                 eq(rendered[i].textContent, words.description, where);
-                eq(numbered[group.start].textContent, words.number, where);
+                // The number is said once (the_demo_path_reads_cleanly_on_a_
+                // projector): by the part's bracket where one is drawn, else
+                // by the row's own PART cell.
+                var bracket = all(root, ".tvbrace__label--part").filter(function (n) {
+                  return n.getAttribute("data-brace-label") === "part:" + group.part;
+                })[0];
+                if (bracket) {
+                  eq(bracket.textContent, VA.gridPartLabel(part), where + " (its bracket)");
+                  eq(numbered[group.start].textContent, "", where + " (the cell under its bracket)");
+                } else {
+                  eq(numbered[group.start].textContent, words.number, where);
+                }
                 var whole = part.display_name || part.name;
                 ok(whole.indexOf(words.description) !== -1 &&
                    (!words.number || whole.indexOf(words.number) !== -1 ||

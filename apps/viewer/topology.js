@@ -60,24 +60,26 @@
   // study computes — and rendering it like a dimension nobody filled in would
   // invert the meaning.
   VA.VALUE_SOURCES = VOCAB.table("VALUE_SOURCES", {
+    // `title` is the chip's hover and `crop` the Preview's line where the
+    // edge has no crop -- both reader-facing, so both in plain words: no code
+    // spans, no field names, and each says what the thing IS
+    // (the_demo_path_reads_cleanly_on_a_projector rewrote all six).
     inline: {
       label: "authored in the topology",
-      title: "This edge's dimension is written in the topology document itself " +
-        "(topology-first authoring, for a system with no stack behind it). It is " +
-        "in no stack file, so no crop index covers it.",
+      title: "Its dimension is written in the topology document itself, for a " +
+        "system authored topology-first.",
+      crop: "Its crop appears here once this number cites a drawing.",
     },
     stack_ref: {
       label: "from a committed stack",
-      title: "This edge carries no number of its own: it names an element of a " +
-        "committed stack (dimension_ref) and the loader resolved the value, its " +
-        "citation and its role out of that file. The topology cannot drift away " +
-        "from the stack it re-expresses.",
+      title: "Its dimension is an element of a committed stack, read with its " +
+        "value, citation and role.",
+      crop: "Its crop appears here once the stack's element cites a drawing.",
     },
     derived: {
       label: "DERIVED — the quantity a study computes",
-      title: "A derived gap: two real interfaces with no dimension between them. " +
-        "This is the answer, not a term — a study is refused if it puts this edge " +
-        "in its selection, and names it in `closes` instead.",
+      title: "The gap between two real interfaces that a study computes as its answer.",
+      crop: "A study computes it from the dimensions on either side.",
     },
   });
 
@@ -333,6 +335,15 @@
 
   // A transform, as the sensitivity it is. `identity` is the default and says so
   // rather than printing "× 1", which would read as a declared conversion.
+  // How the Preview says an edge's own transform: nothing for one-to-one
+  // (the usual case, and a row with nothing to say shows nothing), else the
+  // ratio in its units -- `0.5 mm per deg`.
+  VA.transformWords = function (transform) {
+    if (!transform || transform.kind === "identity") return null;
+    return "scaled " + VA.fmt(transform.ratio) + " " +
+      (transform.units_out || "?") + " per " + (transform.units_in || "?");
+  };
+
   VA.transformText = function (transform) {
     if (!transform) return "—";
     if (transform.kind === "identity") return "identity";
@@ -4551,7 +4562,7 @@
   //   level  how deep it nests, 0 = outermost -- what the inset is made of;
   //   start, end  plan row indices, inclusive; `end` may run past the plan's
   //          rows into the foot (the study's brace holds its totals);
-  //   label  a body's name, a part's drawing number (VA.partContainerLabel);
+  //   label  a body's name, a part's number (VA.gridPartLabel);
   //          a study and a sub-stack are titled by their own header rows;
   //   body   on a part, the body brace it sits in (absent where Bodies are
   //          switched off, or the part has no body).
@@ -4568,6 +4579,16 @@
   // kind), `opts.topoProj` names the labels and the inks. Pure: the geometry
   // is views/topology.js's.
   VA.GRID_BRACE_KINDS = Object.freeze(["kinematic", "chain", "body", "part"]);
+
+  // A part's bracket label in the grid: the PART column's own number
+  // (VA.partColumns), said there and nowhere else on the row -- the rows it
+  // holds print no number of their own (the_demo_path_reads_cleanly_on_a_
+  // projector; it was printed in both, `214373-002 214373-002 propeller hub`).
+  // A part with no number keeps the DAG container's label.
+  VA.gridPartLabel = function (part) {
+    if (!part) return "";
+    return VA.partColumns(part).number || VA.partContainerLabel(part);
+  };
 
   VA.gridBraces = function (plan, opts) {
     opts = opts || {};
@@ -4643,7 +4664,7 @@
         braces.push({ kind: "part", id: "part:" + g.part, part: g.part,
                       level: at ? at.level + 1 : levelIn(containerOf(rows[g.start])),
                       start: g.start, end: g.start + g.count - 1, gap: false,
-                      label: VA.partContainerLabel(record),
+                      label: VA.gridPartLabel(record),
                       tint: VA.bodyTint(topo, own !== null && own !== undefined ? own
                                                 : bodyOfPart[g.part]),
                       body: at || null });

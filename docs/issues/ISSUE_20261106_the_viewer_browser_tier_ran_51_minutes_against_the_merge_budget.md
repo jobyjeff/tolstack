@@ -85,3 +85,12 @@ per-suite timing, so this measurement has no pareto.
 
 It is the first all-green full run since the two reds were fixed. The runner
 still prints no per-suite timing, so this measurement has no pareto either.
+
+## Measurement 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, from a
+worktree with `node_modules` junctioned to the main checkout: **1896 s (31m36s)**
+against the 30-minute merge budget, 40/44 suites. The default pytest tier ran in
+the same window, so this measurement includes CPU contention from it. One
+`file://` suite timed out on `page.goto` during that overlap, and passed when
+re-run alone.

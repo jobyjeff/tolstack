@@ -6820,42 +6820,33 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
 
     // The iframe is the real annotate app, same-origin, no mock. It has no
     // banner in the pane any more (handoff the_scene_pane_is_one_flyout_that_
-    // reads_over_http): it says what it can read and write as a dot and one
-    // word in THIS page's pane header, and it says so whichever transport it
-    // booted on -- over HTTP where /data/ serves the projections, on the
-    // folder grant where it does not. A browser with File System Access on
-    // this loopback origin can grant a folder, which nobody has done yet, so
-    // either way the word is the one that asks for it.
+    // reads_over_http), and since the_demo_path_reads_cleanly_on_a_projector
+    // its status word in THIS page's pane header waits for the first write:
+    // a pane just opened, which nobody has picked anything in, wears no chip
+    // whichever transport it booted on. (The word itself, once a write
+    // begins, is testScenePaneOverHttp's.)
     //
-    // Waited for on the effect -- the word -- not on the node, which ships
-    // present and hidden.
-    const status = await page.waitForFunction(() => {
-      const node = document.querySelector("#flyout-status");
-      const word = node && node.style.display !== "none" ? node.textContent.trim() : "";
-      return word ? { word, tone: node.getAttribute("data-tone"),
-        sentence: node.getAttribute("title") || "" } : null;
-    }, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => null);
-    const flyoutHasFsa = await page.evaluate(() => {
+    // Read once the annotator has booted far enough to have posted a status
+    // (its storage is chosen before it reads anything), so a hidden chip is
+    // the answer rather than a message still in flight.
+    await page.waitForFunction(() => {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
-      return !!w && typeof w.showDirectoryPicker === "function";
+      return !!w && !!w.AnnotateApp && typeof w.AnnotateApp.exec === "function" &&
+        !!w.document.body && w.document.readyState === "complete";
+    }, null, { timeout: 15000 }).catch(() => null);
+    await page.waitForTimeout(1500);
+    const chipShown = await page.evaluate(() => {
+      const node = document.querySelector("#flyout-status");
+      return !!node && node.style.display !== "none" && node.textContent.trim() !== "";
     });
     const noBand = await page.evaluate(() => {
       const doc = document.querySelector("#annotate-flyout iframe")?.contentDocument;
       const band = doc && doc.querySelector("#banner");
       return !!band && band.offsetParent === null;
     });
-    if (flyoutHasFsa) {
-      push("the pane's header says the folder is still needed, as a dot and one " +
-        "word, the sentence on hover -- and the pane has no banner band of its own",
-        !!status && status.word === "folder needed" && status.tone === "warn" &&
-        status.sentence.length > 0 && !/File System Access/.test(status.sentence) &&
-        noBand);
-    } else {
-      push("SKIPPED: the embedded annotator in a browser WITHOUT File System " +
-        "Access -- what that reader should be shown is " +
-        "BRIEF_20260915_origin_posture_and_absent_feature_rule's open " +
-        "question, so this tier asserts no copy for it", true);
-    }
+    push("a pane just opened wears no status chip in its header until a write " +
+      "begins -- and the pane has no banner band of its own",
+      !chipShown && noBand);
     // The pane's ONE close control: the chevron on its own divider.
     await page.locator("#flyout-collapse").click();
     push("the divider's chevron closes the flyout",
@@ -11640,6 +11631,18 @@ async function testScenePaneOverHttp(browser, label) {
     await inPane((w) => w.AnnotateApp.exec(["pause"]));
 
     // --- the status dot, in the pane's header -------------------------------
+    //
+    // None while the reader only watches the sweep (the_demo_path_reads_
+    // cleanly_on_a_projector): an amber word through a whole demo reads as a
+    // fault. It appears once a write begins -- here, a face picked to bind --
+    // and is then the word that asks for the folder.
+    const chipWhileWatching = await page.evaluate(() => {
+      const node = document.querySelector("#flyout-status");
+      return !!node && node.style.display !== "none" && node.textContent.trim() !== "";
+    });
+    push("[real] while the reader only watches the sweep, the pane's header wears " +
+      "no status chip", !chipWhileWatching);
+    await inPane((w) => w.AnnotateApp.exec(["select-face", w.__sweep.anchored[0], "0"]));
     const status = await page.waitForFunction(() => {
       const node = document.querySelector("#flyout-status");
       const word = node && node.style.display !== "none" ? node.textContent.trim() : "";
@@ -11655,6 +11658,7 @@ async function testScenePaneOverHttp(browser, label) {
       "asked for at the first bind, never at boot",
       !!status && !!expected && status.word === expected.word &&
       status.tone === expected.tone && status.sentence === expected.sentence);
+    await inPane((w) => w.AnnotateApp.exec(["deselect"]));
     push("[real] the pane itself shows no banner and no Connect button, and the head " +
       "has no link out to a page of its own",
       await inPane((w) => {

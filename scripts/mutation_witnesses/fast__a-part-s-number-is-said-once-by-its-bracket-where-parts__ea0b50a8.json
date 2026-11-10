@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's number is said once: by its bracket where parts are grouped, by its row's PART cell where they are not",
+  "mutations": [
+    {
+      "contract": "A row under its part's labelled bracket prints no number of its own.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "Puts the second copy back: `214373-002 214373-002 propeller hub`.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words && !bracketed ? words.number : \"\");",
+      "replace": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words ? words.number : \"\");"
+    }
+  ]
+}

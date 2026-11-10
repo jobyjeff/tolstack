@@ -453,8 +453,13 @@ body {
 /* The numbers. A two-column grid repeated across the bar: label muted and
    left, value bright, right-aligned and tabular so a digit never moves
    sideways under a scrub. */
+/* A label and its value are two cells, so the narrowest grid is TWO columns:
+   the floor shrinks to half the bar where 190px would not fit twice -- at the
+   scene's 400px floor, the width it opens at beside the grid at 1920
+   (the_demo_path_reads_cleanly_on_a_projector), each value had dropped onto a
+   line of its own under its label. */
 .an__sweep-readouts {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, calc(50% - 10px)), 1fr));
   gap: 1px 20px; margin: 0; width: 100%; font-size: var(--t-meta);
 }
 .an__sweep-readouts dt {

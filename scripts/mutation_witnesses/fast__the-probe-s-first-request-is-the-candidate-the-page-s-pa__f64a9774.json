@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the probe's first request is the candidate the page's path names, so a normal load on either mount asks for nothing it 404s on",
+  "mutations": [
+    {
+      "contract": "A page under the repo's own apps/ asks the repo-root candidate first.",
+      "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
+      "note": "The order before: the sibling mount first, a 404 on every repo-root load.",
+      "file": "apps/viewer/storage/http.js",
+      "find": "    return repoRoot ? [CANDIDATES[1], CANDIDATES[0]] : CANDIDATES.slice();",
+      "replace": "    return CANDIDATES.slice();"
+    }
+  ]
+}

@@ -4,6 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>tolstack — viewer</title>
+  <!-- An empty icon, inline: no mount serves a favicon, and the browser's own
+       request for one was the 404 every load logged on port 8000
+       (the_demo_path_reads_cleanly_on_a_projector). Served pages only: on
+       file:// there is no request to silence, and the data: icon there made
+       a reload restore the remembered pane widths late. -->
+  <script>
+    if (location.protocol !== "file:") {
+      var icon = document.createElement("link");
+      icon.rel = "icon"; icon.href = "data:,";
+      document.head.appendChild(icon);
+    }
+  </script>
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./topology.css" />
 </head>

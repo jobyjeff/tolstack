@@ -56,7 +56,7 @@
 
   function sourceText(valueSource) {
     var source = VA.VALUE_SOURCES[valueSource];
-    return source ? source.title : VA.valueSourceText(valueSource);
+    return source ? source.crop : VA.valueSourceText(valueSource);
   }
 
   function confidenceLabel(confidence) {
