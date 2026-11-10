@@ -127,6 +127,18 @@ The number the handoff asked for, so F1b and F1c can be cut:
 | annotate (`apps/annotate/run_tests.cjs`) | 307 | 0 | 0 | 0 | 0 |
 | python | +1 file, `tests/test_model_view.py` | — | — | — | — |
 
+> **Correction, 2026-11-10 (review).** The browser row's "renamed with their
+> guard" is **6**, not 5, by the spec files: `each-level-of-the-tree-steps-in`
+> → `a-candidate-face-steps-in`, `the-scene-tree-s-rows-say-what-they-are` →
+> `the-faces-layer-s-rows-say-what-they-are`, `the-topology-row-offers-3d` →
+> `the-whole-model-opens-in-3d-from-the-picker`, `the-end-taken-this-session`
+> (same words, new hash), `a-body-a-part-a-joint-an-end-and-a-candidate-face-
+> each-draw-a-glyph` → `an-end-and-a-candidate-face-each-draw-a-glyph`, and
+> `a-take-keeps-the-nav-s-scroll` → `after-a-take-the-faces-layer-follows-the-
+> partner-end`. `scripts/guard_enumeration.mjs`'s own comment says six. The
+> other four cells re-derive as written (8 added, 4 re-anchored, 9 retired;
+> 866 + 8 − 9 = 865).
+
 Retired fast tests: the topology row's active mark and click hint, a stack
 row's two mark tests, the two live leaf rows' marks, the mirrored rail's
 chips, "a non-internal node still breaks the group" (replaced by its

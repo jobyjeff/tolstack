@@ -5746,6 +5746,34 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       suite on the merged tree: the branch's green is no evidence of the
       merge's.
 
+- [ ] **A Python vocabulary born in the same diff as the JS that branches on
+      it has no registry row, and the inline-literal scan is quiet.** New
+      2026-11-10 (`the_model_is_derived_once_and_the_left_column_is_its_tree`).
+      `model_view.py` declared `INTERFACE_SOURCES = ("node", "edge")` and
+      `CONTACT_KIND` as module constants (the Python rule, obeyed), and
+      `views/nav.js` read `interfaceRow.source === "node"` the same hour --
+      no `scripts/js_vocabulary.py` row, nothing in `vocab.gen.js`, and
+      `tests/test_js_python_vocabulary.py` green. The same file also restated
+      two vocabularies that ARE generated (`DIRECTIONS` as `VA.EDGE_ENDS`,
+      `STACK_KEY_KINDS` as `"topology_edge"`). The "regenerate" rule has a
+      trigger for a *changed* word and none for a *new* vocabulary, so: for
+      every new `UPPER_CASE = (...)` tuple of strings a diff adds under
+      `tolerance_stack/` or `scripts/`, grep the diff's JS for each word in
+      it, and grep `vocab.gen.js` for any string the new JS compares a
+      projection field against. A hit with no registry row is the finding
+      (`ISSUE_20261110_the_model_object_hand_copies_three_python_vocabularies_instead_of_reading_vocab_gen.md`).
+
+- [ ] **A lesson says a thing is gone; find the shot of the place it was.**
+      Same review. The lesson's "a tag axis with one value draws no chips" and
+      the handoff's "gone from the column: the `component` chip" were true of
+      HEAD, but the only shot of the Studies section (`t2_v2_body_open_...`)
+      shows `component · propeller-system` under it -- the rule and the shots
+      landed in one commit (`a14bc991`) with the shots taken first, and no
+      fast test pins the one-value rule (the fixtures carry no tag axes). A
+      removal is the claim a screenshot can refute cheapest, so read the shot
+      for the absence, not only for the presence the caption names, and when
+      the two disagree re-shoot before correcting either.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
