@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: code-red
-status: triaged
+status: resolved
 area: annotate/sweep-posing
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
 handoff: docs/sessions/HANDOFF_20261109_a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list.md
+resolution: handoff completed 2026-11-09 -- closed automatically by dispatch when handoff `a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list` moved to completed/; not independently verified.
 ---
 
 # The sweep leaves model v2's folded piston heads standing still
