@@ -5773,6 +5773,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       removal is the claim a screenshot can refute cheapest, so read the shot
       for the absence, not only for the presence the caption names, and when
       the two disagree re-shoot before correcting either.
+- [ ] **A topology data change "fixed" by reordering its authored edges.**
+      2026-11-10 (`the_gas_spring_mount_sits_on_...`): moving one seat made a
+      `[real]` block-crossing guard red. The author reordered the hub's edges
+      in the JSON and it went green, because `VA.gatherParts` does not
+      guarantee that guard. When a diff reorders `edges[]` or `nodes[]` with no
+      change in meaning, ask which viewer guard the order is holding up, and
+      check that a `notes` line says so and an issue names the guard
+      (`ISSUE_20261110_v2s_whole_walk_draws_the_hub_twice_...`).
 
 ## Architectural errors to check
 
