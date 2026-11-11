@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: topology/notes
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
 handoff: docs/sessions/HANDOFF_20261110_the_end_stop_models_notes_say_where_the_value_comes_from.md
+resolution: handoff completed 2026-11-10 -- closed automatically by dispatch when handoff `the_end_stop_models_notes_say_where_the_value_comes_from` moved to completed/; not independently verified.
 ---
 
 # The end-stop model's edge notes say "M2 adds the term" in the Preview on the demo path
