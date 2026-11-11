@@ -123,3 +123,16 @@ Fourth uncontended worktree run in two days over the budget (1822, 1830,
 1896-contended, 1873 s). The tier gained a 44th suite on 2026-11-09 and this
 handoff rewrote the nav suites' walks (the body-hover sub-check alone polls
 for up to 20 s). Still no per-suite timing from the runner, so still no pareto.
+
+## Measurement 2026-11-10, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261110_triage_sweep.md)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs`, main checkout |
+| Tree | master `46ed0380` (fast-forwarded from `382ff99e`), right after a fresh `scripts/rebuild_projections.ps1` |
+| Result | **44/44**, exit 0 |
+| Wall time | **1937 s** (32m17s), against the 30-minute merge budget: `suite-time record` printed **OVER BUDGET by 2m17s** |
+| Slot | nothing else held it; the witness gate ran after this, not beside it |
+
+Fifth uncontended run over the budget in two days (1822, 1830, 1873, 1985,
+1937 s). The runner still prints no per-suite timing, so still no pareto.

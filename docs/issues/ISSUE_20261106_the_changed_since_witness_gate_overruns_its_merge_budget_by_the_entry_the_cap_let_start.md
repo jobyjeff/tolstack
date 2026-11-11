@@ -83,3 +83,31 @@ overrun shape, from the last browser entry the cap let start.
 post-merge `--changed-since integration --repo C:/workspace/tolstack` run
 selected 18, reached 16 in 32m44s, left 2 to the sweep, and took 33m04s wall
 (`dispatch suite-time`: `OVER BUDGET by 3m04s`). Same shape as above.
+
+## 2026-11-10 measurement (triage batch merge)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since 382ff99ecc42c5546f27836d3eb2ae7a1b79b95e`
+(the pre-merge trunk sha, because the merge was a fast-forward), main checkout at `46ed0380`,
+run right after a full browser tier with the slot uncontended: **1936 s wall** against the
+30-minute merge budget. `suite-time record --tier merge` printed **OVER BUDGET by 2m16s**.
+Runner summary: "62/62 witnessed, 62/144 reached in 31m37s; 82 left to the sweep", exit 0.
+Same shape as above: the runner's own clock is past the cap by the last entry it let start.
+Slowest entries (runner's own timing):
+
+    3m46s  browser__real-a-body-s-checkbox-in-the-nav-hides-that-body-in-the__f978b14a
+    1m07s  annotate__a-folded-part-rides-its-own-body-s-subject-a-rider-body__8b48e2d1#1
+      54s  python__test-each-study-carries-the-folded-stack-its-chain-re-ex__f7e89f1b
+      54s  fast__a-failing-stack-s-status-is-the-one-colour-this-rail-spe__51e4b8ac
+      35s  annotate__sweep-a-part-the-topology-puts-in-a-body-rides-it-one-re__28550e1f#1
+      34s  annotate__the-bodies-list-reads-the-model-s-bodies-a-folded-part-u__a4282a9d#1
+      34s  annotate__a-run-s-links-are-bodies-of-their-own-after-the-bodies-n__6067ff56
+      34s  annotate__the-bodies-list-reads-the-model-s-bodies-a-folded-part-u__a4282a9d#2
+      34s  annotate__a-folded-part-rides-its-own-body-s-subject-a-rider-body__8b48e2d1#2
+      34s  annotate__the-mechanism-tree-lists-the-run-s-bodies-with-their-par__321b5d40
+      34s  annotate__plangotorefusal-a-gap-edge-with-part-null-is-refused-wit__5e136fbb
+      34s  annotate__parts-a-row-reads-number-name-the-id-is-on-the-hover-and__5eb08744
+      34s  annotate__context-membership-is-the-scope-plus-what-the-reader-add__68080d24
+      34s  annotate__rail-a-studyless-topology-s-head-says-how-many-interface__9b360014
+      34s  annotate__real-the-part-names-projection-names-the-six-drawn-parts__a1799b68
+
+(found_by for this measurement: dispatch/docs/sessions/lessons/LESSONS_20261110_triage_sweep.md)
