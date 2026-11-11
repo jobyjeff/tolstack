@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: annotate/sweep-rail
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261109_the_two_red_browser_suites_on_trunk_go_green_against_a_fresh_projection.md
 handoff: docs/sessions/HANDOFF_20261110_the_sweep_rails_part_rows_carry_their_kind_and_the_bodies_call_is_pinned.md
+resolution: handoff completed 2026-11-11 -- closed automatically by dispatch when handoff `the_sweep_rails_part_rows_carry_their_kind_and_the_bodies_call_is_pinned` moved to completed/; not independently verified.
 ---
 
 # A body's part with no 3D model has no row kind in the sweep rail, so "annotate rail holds still" is red on integration
