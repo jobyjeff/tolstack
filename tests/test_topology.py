@@ -1151,7 +1151,7 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
                          "tan_link_mount_fastener_clocking"}
     for edge in v2.edges:
         assert edge.dimension is None, edge.id
-        assert "What would close it" in (edge.note or ""), edge.id
+        assert "Value to come" in (edge.note or ""), edge.id
     assert "hub_to_pitch_plate_spindle_coaxiality" not in {e.id for e in v2.edges}
     assert {e.other_end("pitch_plate_spindle_bore_axis")
             for e in v2.incident("pitch_plate_spindle_bore_axis")} == {

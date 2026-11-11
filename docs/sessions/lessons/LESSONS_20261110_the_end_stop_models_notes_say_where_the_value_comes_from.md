@@ -14,3 +14,13 @@
   `docs/issues/ISSUE_20261110_rebuild_projections_cannot_run_from_a_worktree_so_a_handoff_cannot_prove_a_projection_input_change.md`.
   Not worked around; the main checkout's projection is untouched.
 - Viewer unit tier: 554/554 passed, node-fs tier SKIPPED (no projection in the worktree).
+- One test pinned the old wording: `tests/test_topology.py` (v2 mount test) asserted
+  `"What would close it"` in every edge note; it now asserts `"Value to come"`.
+  Found only by the full suite (my first grep missed it because I searched for
+  "adds the term").
+- Full default tier (serial; `pytest-xdist` is absent from `venv-win`), worktree,
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`: 2 failed, 1926
+  passed, 1 skipped, 687s (over the 10 min budget, but serial not `-n 16`). The two
+  failures: the topology test above (fixed after, passes alone) and
+  `test_viewer_js_suite_is_green`, red by design in a worktree (node-fs tier has no
+  projection). The browser TRUTH tier and witnesses were not run.
