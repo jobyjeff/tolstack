@@ -46,11 +46,11 @@
 // THIS tree.
 import { chromium } from "playwright-core";
 import { createServer } from "node:http";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile, appendFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
-import { takeTheBrowserSlot, launchBrowser } from "./browser_runner.mjs";
+import { takeTheBrowserSlot, launchBrowser, slotWaitMs } from "./browser_runner.mjs";
 import { CLOCK } from "./virtual_clock.mjs";
 import { ranNotDeclared } from "./guard_enumeration.mjs";
 
@@ -58,6 +58,7 @@ process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 // Queues for the machine's browser slot, re-running this file under it, before
 // anything below starts a server or a browser (scripts/browser_runner.mjs).
 takeTheBrowserSlot();
+const SLOT_WAIT_S = slotWaitMs() / 1000;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
@@ -327,6 +328,51 @@ function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) 
 // `ran ⊆ declared` check against the guard scan (`ranNotDeclared`). Filled at
 // the two places a suite reports, which is the only seam every suite shares.
 const RAN_NAMES = [];
+
+// Where the tier's wall time goes (handoff the_browser_tier_says_where_its_half_
+// hour_goes): one line per suite, slowest first, and a total. The slot is held
+// for the whole process, so the wait is one number before the first suite, not
+// a per-suite column. A FULL run also appends one row to dispatch's suite-time
+// ledger (the file `dispatch suite-time report` reads), carrying the same rows
+// under `suites`; a filtered run writes nothing, so a witness `--only` per
+// mutation never touches it. That row IS the record of the run -- do not also
+// `suite-time record` this command.
+const LEDGER = process.env.DISPATCH_SUITE_TIMES || "C:/workspace/dispatch/data/suite_times.jsonl";
+const LEDGER_FALLBACK_BUDGET_S = 1800;
+
+async function reportTimings(timings, runSeconds) {
+  const rows = [...timings].sort((a, b) => b.seconds - a.seconds);
+  const checks = rows.reduce((n, r) => n + r.checks, 0);
+  console.log(`\nTIMING -- ${rows.length} suites, slowest first (slot wait ` +
+    `${SLOT_WAIT_S.toFixed(0)}s, before the first suite)`);
+  for (const r of rows) {
+    console.log(`  ${r.seconds.toFixed(1).padStart(7)}s ${String(r.checks).padStart(4)} checks  ${r.suite}`);
+  }
+  console.log(`  ${runSeconds.toFixed(1).padStart(7)}s ${String(checks).padStart(4)} checks  TOTAL running`);
+  if (ONLY !== null) return;
+  try {
+    let budget = LEDGER_FALLBACK_BUDGET_S;
+    try {
+      const last = (await readFile(LEDGER, "utf8")).split(/\r?\n/).filter(Boolean)
+        .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+        .filter((r) => r && r.repo === "tolstack" && r.tier === "merge" && r.budget_s).pop();
+      if (last) budget = last.budget_s;
+    } catch { /* no ledger yet */ }
+    const seconds = Math.round(runSeconds + SLOT_WAIT_S);
+    const row = {
+      ts: new Date().toISOString().replace(/\.\d+Z$/, "Z"), repo: "tolstack",
+      tier: "merge", seconds, budget_s: budget, over: seconds > budget,
+      command: "node scripts/run_viewer_browser_tests.mjs", handoff: null, role: null,
+      slot_wait_s: Math.round(SLOT_WAIT_S), checks,
+      suites: rows.map((r) => ({ suite: r.suite, checks: r.checks,
+        seconds: Math.round(r.seconds * 10) / 10 })),
+    };
+    await mkdir(dirname(LEDGER), { recursive: true });
+    await appendFile(LEDGER, JSON.stringify(row) + "\n", "utf8");
+  } catch (err) {
+    console.log(`(timing ledger not written: ${err.message})`);
+  }
+}
 
 function printCollectedFailures(failed, errors) {
   for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
@@ -16171,8 +16217,14 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     // tests/test_mutation_witnesses.py requires that name to appear verbatim
     // in this source -- an interpolated label would satisfy neither.
     const results = [];
+    const timings = [];
+    const runStarted = Date.now();
     for (const [label, runSuiteFn] of chosen) {
+      const suiteStarted = Date.now();
+      const checksBefore = RAN_NAMES.length;
       const result = await runSuiteFn(label);
+      timings.push({ suite: label, checks: RAN_NAMES.length - checksBefore,
+        seconds: (Date.now() - suiteStarted) / 1000 });
       if (!result || result.label !== label) {
         console.log(`    dispatched as ${JSON.stringify(label)}, reported ` +
           `itself as ${JSON.stringify(result && result.label)}`);
@@ -16208,6 +16260,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       console.log(`\nSKIPPED -- ${skipped.length} sub-check(s) passed without running ` +
         `(no data under ${DATA_REPO}):` + skipped.map((n) => `\n  ${n}`).join(""));
     }
+
+    await reportTimings(timings, (Date.now() - runStarted) / 1000);
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser ` +

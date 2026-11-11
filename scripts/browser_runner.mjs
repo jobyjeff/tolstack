@@ -58,6 +58,15 @@ export const SLOT_GAVE_UP = 75;
 // killed outright would otherwise leave the real run going underneath it.
 const WRAPPER_ENV = "TOLSTACK_BROWSER_SLOT_WRAPPER";
 const WRAPPER_POLL_MS = 2000;
+// When the wrapper began queueing (ms since the epoch): the run under the slot
+// reads it to say how long it waited, apart from how long it ran.
+const QUEUED_AT_ENV = "TOLSTACK_BROWSER_SLOT_QUEUED_AT";
+
+/** Milliseconds this run spent queued for the browser slot; 0 when it never queued. */
+export function slotWaitMs(startedAt = Date.now()) {
+  const queuedAt = Number(process.env[QUEUED_AT_ENV]);
+  return queuedAt > 0 ? Math.max(0, startedAt - queuedAt) : 0;
+}
 
 /** True when an ancestor already holds the browser slot for this process. */
 export function slotHeld(env = process.env) {
@@ -82,7 +91,8 @@ export function takeTheBrowserSlot() {
   const run = spawnSync(DISPATCH_PYTHON,
     ["-m", "dispatch.cli", "slot", "run", "--class", SLOT_CLASS, "--",
      process.execPath, ...argv],
-    { stdio: "inherit", env: { ...process.env, [WRAPPER_ENV]: String(process.pid) } });
+    { stdio: "inherit", env: { ...process.env, [WRAPPER_ENV]: String(process.pid),
+      [QUEUED_AT_ENV]: String(Date.now()) } });
   if (run.error) {
     console.error(`browser slot: could not start dispatch (${run.error.message}); running unqueued`);
     return;
