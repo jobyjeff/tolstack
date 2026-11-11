@@ -6,8 +6,8 @@ area: kinematic study / S461-607
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_a_contributor_may_be_a_study.md
-defer_until: 2026-11-10
-resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3
+defer_until: 2026-11-24
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3 | woke 2026-11-10 -- date trigger passed; re-triage | deferred 2026-11-10 (triage) -- med beyond BUDGET=3
 class: acceptance_limit_borrowed_from_another_chain
 ---
 

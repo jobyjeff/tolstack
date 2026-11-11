@@ -1,12 +1,14 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 class: dag_layout_policy
 found_by: docs/sessions/HANDOFF_20261110_the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model.md
+defer_until: 2026-11-24
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
 ---
 
 # v2's whole walk draws the hub twice, and its block guard holds only by edge order

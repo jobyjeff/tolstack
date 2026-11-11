@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: annotate/sweep
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261109_a_folded_part_rides_its_own_body_in_the_sweep_and_the_bodies_list.md
+handoff: docs/sessions/HANDOFF_20261110_the_sweep_rails_part_rows_carry_their_kind_and_the_bodies_call_is_pinned.md
 ---
 
 # The sweep Bodies list reading the model's bodies is one unpinned line in `app.js`

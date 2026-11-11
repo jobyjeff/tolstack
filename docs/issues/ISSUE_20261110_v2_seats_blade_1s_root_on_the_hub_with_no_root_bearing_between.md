@@ -4,9 +4,9 @@ priority: low
 status: open
 area: topology/v2
 reporter: agent
-needs: jeff
-ask: Say whether blade 1's root seats straight in the hub bore or through a root bearing in the end-stop model
 found_by: docs/sessions/HANDOFF_20261110_the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model.md
+audience: strategy
+resolution: 2026-11-10 triage -- needs: jeff demoted (a question whose answer an agent then acts on fails the todo test); a domain call for the tolstack strategy thread to ask in-session
 ---
 
 # v2 seats blade 1's root on the hub with no root bearing between

@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: annotate/sweep-bar
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+defer_until: 2026-11-24
+class: layout_at_minimum_width
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
 ---
 
 # At the scene's 400px floor the sweep bar's head row clips "Export points" and the loop select

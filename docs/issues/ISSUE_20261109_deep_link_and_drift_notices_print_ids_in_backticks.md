@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/copy
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+defer_until: 2026-12-10
+class: internals_on_a_user_surface
+resolution: deferred 2026-11-10 (triage) -- low defers by default
 ---
 
 # The viewer's deep-link and drift notices print ids in literal backticks

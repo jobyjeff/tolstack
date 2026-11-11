@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: model_view
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md
+defer_until: class:silent_failure
+class: silent_failure
+resolution: deferred 2026-11-10 (triage) -- low defers by default
 ---
 
 # A gap edge ending on a shared node would take `parts[0]` silently in the model view

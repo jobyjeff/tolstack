@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/browser-tests
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+defer_until: 2026-11-24
+class: flaky_browser_suite
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
 ---
 
 # "3D pane follows the selection" fails a different set of sub-checks each run

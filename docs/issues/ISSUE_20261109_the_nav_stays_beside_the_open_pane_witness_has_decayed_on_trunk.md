@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/mutation-witness
 reporter: agent
 class: decayed_witness
 found_by: docs/sessions/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+defer_until: 2026-11-24
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
 ---
 
 # The "nav stays beside the open pane" witness no longer reddens its own check, on trunk too

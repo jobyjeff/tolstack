@@ -6,8 +6,8 @@ area: topology/tags
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_bodies_and_studies_carry_forge_tags.md
-defer_until: 2026-11-10
-resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3; needs: jeff demoted (a decide question, fails the two-part test) -> audience: strategy
+defer_until: 2026-11-24
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3; needs: jeff demoted (a decide question, fails the two-part test) -> audience: strategy | woke 2026-11-10 -- date trigger passed; re-triage | deferred 2026-11-10 (triage) -- med beyond BUDGET=3
 class: forge_identity_axis_missing
 ---
 

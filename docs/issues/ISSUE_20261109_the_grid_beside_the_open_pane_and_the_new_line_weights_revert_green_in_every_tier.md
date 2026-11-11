@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: viewer/layout
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
+defer_until: 2026-11-24
+class: guard_cannot_fail
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
 ---
 
 # The grid beside the open 3D pane, and the new line weights, revert green in every tier

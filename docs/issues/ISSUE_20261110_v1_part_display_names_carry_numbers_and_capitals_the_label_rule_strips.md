@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topologies
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md
+defer_until: 2026-12-10
+class: internal_id_as_display_name
+resolution: deferred 2026-11-10 (triage) -- low defers by default
 ---
 
 # v1's part `display_name`s carry numbers and capitals the label rule strips

@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/nav
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md
+defer_until: 2026-12-10
+class: internals_on_a_user_surface
+resolution: deferred 2026-11-10 (triage) -- low defers by default
 ---
 
 # The faces layer repeats the marks' legend under every selected feature
