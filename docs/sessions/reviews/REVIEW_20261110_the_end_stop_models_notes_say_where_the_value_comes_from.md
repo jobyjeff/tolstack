@@ -24,3 +24,4 @@ blockers: 0
 - Merged into the review branch; `tests/test_topology.py` 171 passed. The full
   suite minus the viewer JS suite was run post-merge (result appended below if it
   finished). Browser/viewer tiers were not run here.
+- Full suite post-merge (minus viewer JS suite, which cannot run in a worktree): 1927 passed, 1 skipped.
