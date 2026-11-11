@@ -13,6 +13,7 @@
 - **Blocked: the projection rebuild.** See
   `docs/issues/ISSUE_20261110_rebuild_projections_cannot_run_from_a_worktree_so_a_handoff_cannot_prove_a_projection_input_change.md`.
   Not worked around; the main checkout's projection is untouched.
+- Remaining old-shape notes filed: `docs/issues/ISSUE_20261110_topology_notes_still_say_what_would_close_it_and_open_with_history.md`; the test accepts either wording until then (my earlier commit says it asserts only "Value to come" — superseded; topology tests: 171 passed).
 - Viewer unit tier: 554/554 passed, node-fs tier SKIPPED (no projection in the worktree).
 - One test pinned the old wording: `tests/test_topology.py` (v2 mount test) asserted
   `"What would close it"` in every edge note; it now asserts `"Value to come"`.
