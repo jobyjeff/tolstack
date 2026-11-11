@@ -3266,6 +3266,7 @@ function treeHead(text) {
 function missingPartRow(partId) {
   const li = document.createElement("li");
   li.className = "part-row part-row--missing";
+  railLook(li, AA.RAIL_ROW_KINDS.part);
   const label = document.createElement("span");
   label.className = "part-row__label";
   label.textContent = AA.measureLabel(partId);

@@ -9183,6 +9183,22 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       "row, and no joint lists a part",
       rail && rail.inBodies === 1 && rail.anywhere === 1 && rail.underJoints === 0);
 
+    // The rows the nav's faces layer never reaches: the pane's own Bodies list,
+    // every part row in it -- one with no installed model included -- says it is
+    // a part (railLook), or it has no glyph and no type-filter chip.
+    const partKinds = await inPane((w) => Array.from(w.document.querySelectorAll(
+      "#sweep-tree [data-group=\"bodies\"] .part-row")).map((r) => ({
+      key: r.closest("[data-body]").dataset.body + "/" + r.textContent.trim().slice(0, 40),
+      missing: r.classList.contains("part-row--missing"),
+      kind: Array.from(r.classList).filter((c) => c.indexOf("rail-kind--") === 0).join(",") })));
+    console.log("    part rows without the part kind: " + JSON.stringify((partKinds || [])
+      .filter((r) => r.kind !== "rail-kind--part").map((r) => r.key)) + "; with no model: " +
+      (partKinds || []).filter((r) => r.missing).length);
+    push("[real] every part row under Bodies carries the part kind, a part with no installed model " +
+      "included",
+      partKinds && partKinds.length > 0 && partKinds.some((r) => r.missing) &&
+      partKinds.every((r) => r.kind === "rail-kind--part"));
+
     // --- a joint row names its parts and lists only its ends ---------------
     // Read off the pane's own rail (the nav no longer mirrors the joints).
     const jointWords = await inPane((w) => {
@@ -14721,6 +14737,27 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
         scroll: [document.scrollingElement.scrollTop, (document.querySelector("#topopane .tv__hscroll") || {}).scrollTop],
         inner: [innerWidth, innerHeight] };
     });
+    // The Bodies list reads the model (cmdSweep's AA.sweepModelTree call): its
+    // rows follow the topology's bodies[] -- order and part counts -- and
+    // pitch_plate lists both piston heads. Derived from the projection, not
+    // literals; deleting that call leaves the run's own bodies, in the run's order.
+    const bodiesRail = await inPane((w) => Array.from(w.document.querySelectorAll(
+      '#sweep-tree [data-group="bodies"] [data-body]')).map((n) => ({ id: n.dataset.body,
+      parts: n.querySelectorAll(":scope > .an__tree-parts > .part-row").length,
+    })));
+    const declared = (model.bodies || []).map((b) => ({ id: b.id, parts: (b.parts || []).length }));
+    const railIds = (bodiesRail || []).map((b) => b.id);
+    const ordered = railIds.filter((id) => declared.some((d) => d.id === id));
+    console.log(`      [${label}] Bodies list: ${JSON.stringify(bodiesRail && bodiesRail.map((b) => [b.id, b.parts]))}; ` +
+      `declared ${JSON.stringify(declared.map((d) => [d.id, d.parts]))}`);
+    push("[real] the Bodies list reads the model: its bodies come in the topology's bodies[] order, " +
+      "each with that body's part count",
+      declared.length > 0 && ordered.join() === declared.map((d) => d.id).join() &&
+      declared.every((d) => (bodiesRail.find((b) => b.id === d.id) || {}).parts === d.parts));
+    const plate = (model.bodies || []).find((b) => b.id === "pitch_plate");
+    push("[real] and pitch_plate lists both piston heads",
+      !!plate && (plate.parts || []).filter((p) => /^piston_head_/.test(p)).length === 2 &&
+      (bodiesRail.find((b) => b.id === "pitch_plate") || {}).parts === plate.parts.length);
     const sweepDrawn = await drawnSettled();
     const why = (id) => ["noAnchor", "offDag", "offScene"].filter((k) => led.skipped[k].indexOf(id) !== -1)
       .concat(led.noDot.indexOf(id) !== -1 ? ["noDot"] : []).join("+") || "?";
