@@ -451,7 +451,7 @@
       "part": "hub",
       "from": "hub_spindle_bore_axis",
       "to": "tan_link_mount_hub_face",
-      "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
+      "note": "Value to come from 214373-002's drawing."
     },
     {
       "id": "hub_boss_to_tan_link_mount_fasteners",
@@ -460,7 +460,7 @@
       "part": "hub",
       "from": "hub_spindle_bore_axis",
       "to": "tan_link_mount_fastener_clocking",
-      "note": "New in v2 (2026-11-08): the hub's hole pattern for the mount, clocked about the boss. No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
+      "note": "Value to come from 214373-002's drawing."
     },
     {
       "id": "hub_blade_axis_offset",
@@ -469,7 +469,7 @@
       "part": "hub",
       "from": "hub_spindle_bore_axis",
       "to": "hub_blade1_root_bearing_bore",
-      "note": "No value recorded; M2 adds the term. What would close it: 214373-002's drawing."
+      "note": "Value to come from 214373-002's drawing."
     },
     {
       "id": "tan_link_mount_height",
@@ -478,7 +478,7 @@
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_hub_face",
       "to": "tan_link_mount_bore",
-      "note": "No value recorded; M2 adds the term. What would close it: 215175-002's drawing."
+      "note": "Value to come from 215175-002's drawing."
     },
     {
       "id": "tan_link_mount_pilot_to_bore",
@@ -487,7 +487,7 @@
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_pilot_bore",
       "to": "tan_link_mount_bore",
-      "note": "New in v2 (2026-11-08): where the attachment bore sits radially from the pilot. No value recorded; M2 adds the term. What would close it: 215175-002's drawing."
+      "note": "Value to come from 215175-002's drawing."
     },
     {
       "id": "tan_link_mount_fasteners_to_bore",
@@ -496,7 +496,7 @@
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_fastener_clocking",
       "to": "tan_link_mount_bore",
-      "note": "New in v2 (2026-11-08): the attachment bore's clocking from the mount's own hole pattern. No value recorded; M2 adds the term. What would close it: 215175-002's drawing."
+      "note": "Value to come from 215175-002's drawing."
     },
     {
       "id": "tan_link_mount_overall_height",
@@ -505,7 +505,7 @@
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_gas_spring_seat",
       "to": "tan_link_mount_hub_face",
-      "note": "New in v2 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the tangential link mount's height between its two seats, which puts it on the path from the hub to both end stops. No value recorded; M2 adds the term. What would close it: 215198-A sheet 1, whose 79.00 +/-0.10 v1 cites on this edge (traced)."
+      "note": "Value to come from 215198-A sheet 1's drawing."
     },
     {
       "id": "gas_spring_mount_seat_to_bushing_bore",
@@ -514,7 +514,7 @@
       "part": "gas_spring_mount_213668_002",
       "from": "tan_link_mount_gas_spring_seat",
       "to": "gas_spring_mount_bushing_bore",
-      "note": "v2's own id since 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): v1's `gas_spring_mount_height` runs from the hub seat, so a shared id would name a different pair of features. The same face of the mount, its base, now on its right neighbour. No value recorded; M2 adds the term. What would close it: 213668-002's drawing."
+      "note": "Value to come from 213668-002's drawing."
     },
     {
       "id": "gas_spring_mount_datum_a_to_end_stop",
@@ -523,7 +523,7 @@
       "part": "gas_spring_mount_213668_002",
       "from": "tan_link_mount_gas_spring_seat",
       "to": "endstop_feather_contact",
-      "note": "New in v2 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): 213668-002 dimensions its top face, the feather stop, straight from datum A, the base face (sheet 1, SECTION C-C), and gives the cover flange no dimension from datum A, so the base reaches the stop in this one edge and the cover flange is reached from the stop (`gas_spring_mount_flange_to_end_stop`). A study placing the feather stop sums this edge; the travel study sums the flange-to-stop edge and never this one. Replaces `gas_spring_mount_hub_face_to_cover_seat`, a base-to-flange edge the drawing does not dimension. No value recorded; M2 adds the term. What would close it: 213668-002 A.1 sheet 1, whose 76.86 +/-0.10 v1 cites on this edge (traced)."
+      "note": "Value to come from 213668-002 A.1 sheet 1's drawing."
     },
     {
       "id": "gas_spring_mount_flange_to_end_stop",
@@ -532,7 +532,7 @@
       "part": "gas_spring_mount_213668_002",
       "from": "piston_cover_mount_flange_seat",
       "to": "endstop_feather_contact",
-      "note": "No value recorded; M2 adds the term. What would close it: 213668-002's drawing."
+      "note": "Value to come from 213668-002's drawing."
     },
     {
       "id": "piston_cover_flange_to_end_stop",
@@ -541,7 +541,7 @@
       "part": "piston_cover_214958_002",
       "from": "piston_cover_mount_flange_seat",
       "to": "piston_cover_end_stop_shoulder",
-      "note": "No value recorded; M2 adds the term. What would close it: 214958-002 A, sheet 3 (in hand: the 82.154 mm v1 cites)."
+      "note": "Value to come from 214958-002 A, sheet 3's drawing."
     },
     {
       "id": "blade_root_bearing_to_pitch_arm_seat",
@@ -550,7 +550,7 @@
       "part": "blade_root",
       "from": "hub_blade1_root_bearing_bore",
       "to": "pitch_arm_root_seat",
-      "note": "No value recorded; M2 adds the term. What would close it: 216332-001's drawing."
+      "note": "Value to come from 216332-001's drawing."
     },
     {
       "id": "pitch_arm_radius",
@@ -559,7 +559,7 @@
       "part": "pitch_arm",
       "from": "pitch_arm_root_seat",
       "to": "pitch_arm_link_bore",
-      "note": "No value recorded; M2 adds the term. What would close it: 215071-001's drawing."
+      "note": "Value to come from 215071-001's drawing."
     },
     {
       "id": "pitch_link_length",
@@ -568,7 +568,7 @@
       "part": "pitch_link",
       "from": "pitch_link_lower_sphere_centre",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "No value recorded; M2 adds the term. What would close it: 213862-002's drawing."
+      "note": "Value to come from 213862-002's drawing."
     },
     {
       "id": "tan_link_length",
@@ -577,7 +577,7 @@
       "part": "tan_link_212956_005",
       "from": "tan_link_lower_sphere_centre",
       "to": "tan_link_upper_sphere_centre",
-      "note": "No value recorded; M2 adds the term. What would close it: 212956-005 and 213863-004's drawings."
+      "note": "Value to come from 212956-005 and 213863-004's drawings."
     },
     {
       "id": "pitch_plate_attach_radius",
@@ -586,7 +586,7 @@
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_link_attach_bore",
-      "note": "No value recorded; M2 adds the term. What would close it: 215177-001's drawing."
+      "note": "Value to come from 215177-001's drawing."
     },
     {
       "id": "pitch_plate_tan_link_attach_radius",
@@ -595,7 +595,7 @@
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_tan_link_attach_bore",
-      "note": "No value recorded; M2 adds the term. What would close it: 215177-001's drawing."
+      "note": "Value to come from 215177-001's drawing."
     },
     {
       "id": "pitch_plate_pilot_in_piston",
@@ -613,7 +613,7 @@
       "part": "gas_spring_piston_214700_002",
       "from": "pitch_plate_pilot_in_piston_id",
       "to": "gas_spring_piston_body_od",
-      "note": "No value recorded; M2 adds the term. What would close it: 214700-002's drawing."
+      "note": "Value to come from 214700-002's drawing."
     },
     {
       "id": "piston_body_id_datum_to_head_seat",
@@ -622,7 +622,7 @@
       "part": "gas_spring_piston_214700_002",
       "from": "pitch_plate_pilot_in_piston_id",
       "to": "piston_body_head_seat",
-      "note": "New in v2: the piston body's one dimension between where the plate pilots it and where the lower head sits, which v1 reaches only through its top face. No value recorded; M2 adds the term. What would close it: 214700-002's drawing."
+      "note": "Value to come from 214700-002's drawing."
     },
     {
       "id": "piston_head_lower_face_flatness",
@@ -631,7 +631,7 @@
       "part": "piston_head_lower_214699_002",
       "from": "endstop_feather_contact",
       "to": "piston_body_head_seat",
-      "note": "No value recorded; M2 adds the term. What would close it: 214699-002's drawing."
+      "note": "Value to come from 214699-002's drawing."
     },
     {
       "id": "piston_head_lower_thickness",
@@ -640,7 +640,7 @@
       "part": "piston_head_lower_214699_002",
       "from": "endstop_feather_contact",
       "to": "piston_heads_seat",
-      "note": "No value recorded; M2 adds the term. What would close it: 214699-002's drawing."
+      "note": "Value to come from 214699-002's drawing."
     },
     {
       "id": "piston_head_upper_thickness",
@@ -649,7 +649,7 @@
       "part": "piston_head_upper_214698_002",
       "from": "piston_heads_seat",
       "to": "piston_head_upper_step_face",
-      "note": "No value recorded; M2 adds the term. What would close it: 214698-002 A (in hand: its general profile note bands v1's mesh fit)."
+      "note": "Value to come from 214698-002 A's drawing."
     },
     {
       "id": "pitch_arm_link_joint",
