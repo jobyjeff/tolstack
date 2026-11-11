@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] the Bodies list reads the model: its bodies come in the topology's bodies[] order, each with that body's part count",
+  "mutations": [
+    {
+      "contract": "The sweep's Bodies list is read through the model the run plays on.",
+      "issue": "docs/issues/ISSUE_20261109_the_sweep_bodies_list_reading_the_models_bodies_is_one_unpinned_line_in_app_js.md",
+      "note": "Declared with the guard at the_sweep_rails_part_rows_carry_their_kind_and_the_bodies_call_is_pinned (2026-11-10): deleting cmdSweep's one AA.sweepModelTree call left every tier green (measured 2026-11-09) and the Bodies list falls back to the run's own bodies, in the run's order.",
+      "file": "apps/annotate/app.js",
+      "find": "\n  state.sweep.tree = AA.sweepModelTree(state.sweep.tree, sweepTopology());\n",
+      "replace": "\n"
+    }
+  ]
+}

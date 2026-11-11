@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] every part row under Bodies carries the part kind, a part with no installed model included",
+  "mutations": [
+    {
+      "contract": "A part row with no installed model carries the part kind like every other part row.",
+      "issue": "docs/issues/ISSUE_20261109_a_body_part_with_no_mesh_has_no_row_kind_in_the_sweep_rail.md",
+      "note": "Declared with the guard at the_sweep_rails_part_rows_carry_their_kind_and_the_bodies_call_is_pinned (2026-11-10): missingPartRow built its row without railLook, so the row had no kind, glyph or type-filter chip, and the suite stayed green because its kind check had been narrowed to the nav's faces layer (a14bc991).",
+      "file": "apps/annotate/app.js",
+      "find": "  li.className = \"part-row part-row--missing\";\n  railLook(li, AA.RAIL_ROW_KINDS.part);\n",
+      "replace": "  li.className = \"part-row part-row--missing\";\n"
+    }
+  ]
+}
