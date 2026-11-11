@@ -346,13 +346,70 @@ projection.
 
 ## The one nav
 
-The left rail (`#navtree`, `views/nav.js`) is a single tree, not a picker plus
-a separate stack rail: every topology lists its studies as children, and every
-stack no topology re-expresses is a leaf beside them. Clicking a topology or a
-study draws the rail diagram + grid (topology mode); clicking a leaf switches
-the centre pane to the elements/paths/checks/gaps view (`views/stack.js`, stack
-mode) instead. The active node is the one thing driving the page — there is no
-second "which mode am I in" state to keep in sync with it.
+**The left column is the model's tree** (`#navtree`, `views/nav.js`; since
+2026-11-10, `the_model_is_derived_once_and_the_left_column_is_its_tree`). At
+the top a **picker**: every model (a topology), then, under *Other analyses*,
+every stack no topology re-expresses. Choosing a model draws the DAG + grid
+(topology mode); choosing a stack switches the centre pane to the
+elements/paths/checks/gaps view (`views/stack.js`, stack mode). Under the
+picker the chosen model's tree, read off the projection's one `model` block
+(`model.js`, built once per load, never per paint):
+
+```
+[model picker]                 the models, then any analysis in neither
+Rigid bodies
+  body                          swatch in the body's DAG ink; show/hide in 3D
+    Parts
+      part                      number, then everyday name; show/hide in 3D
+        ▸ feature  ○            one status mark: bound, suggested, none
+            state line          the pane's words for it (a bound face, a
+            candidate faces     suggestion count, an armed pick), the faces
+            Pick a face…        it could be, then the one pick action
+    Interfaces                  those inside the body
+      interface / joint         a joint with several constraints opens to
+        part · feature          them; each opens to its two ends
+Joints between bodies           listed once
+Studies                         the model's chain studies, its kinematic
+                                studies, the sweep row
+```
+
+Every row is what its model entity is. **One selection and one hover** light
+it (`state.focus`, "One selection, one hover, four surfaces" below): the
+selected feature's row is `--on` and so is the other row of its node (a node
+two parts share is one thing, two rows); a hovered row, or the row of whatever
+is hovered on the DAG, in the grid or in the 3D scene, is `--hot`. A selection
+made anywhere opens the part that holds it, so the tree never marks a row the
+reader cannot see; the reader's own fold of that part still wins.
+
+**A feature row is its own disclosure** (2026-11-10, Jeff: *"The features
+inside of a part aren't shown as collapsible elements, and then when you click
+them a second collapsible element appears underneath it with the same title.
+It's jarring"*). While the 3D scene is open the row carries a twisty, and it is
+open when it is the selected feature (the reader's fold wins after that). Its
+body is the pane's rows for the feature, with the pane's own head row for it
+**not** drawn — the feature row above is the one title — laid out the same way
+whatever the feature has: the **state line** (the pane's second line for the
+end: `no face bound`, `face 110 of 214698-002`, `candidates · 3`, `suggested ·
+high`, `at the as-modelled pose for picking`), the end's own actions where it
+has any (**Accept** on an open proposal), then its list — the **candidate
+faces** if any, each with why it is there and a Take, and last the **one pick
+action**, `Pick a face…`, in the same words whether nothing is bound, a face is
+bound or a face is suggested (`Cancel`, pressed, while the pick is armed). The
+hover-revealed Pick / Re-pick button the row used to wear is gone, everywhere
+(`apps/annotate/app.js`'s `endPickAction` is the one place), as is the candidate
+list's own ▸ in sweep mode: the list is always under the end, and the feature
+row is the disclosure. No marks legend repeats under a row, and opening a row
+never scrolls the column; only a selection the *scene* made brings its row into
+view. With the scene closed the row is a leaf — there is no body to open, and
+a control with nothing behind it is shown as nothing. In bind mode the body is
+the pane's element rows for the edges at the feature's node, cut from the pane's
+whole list by the page (`VA.sceneRowsForFeature`), each with its own disclosure
+and its two ends' candidate lists.
+
+Gone since 2026-11-10: the Models list, the component chip, the whole-rail
+mirror ("All N interfaces", "In this model" / "Other parts"), the Stacks
+section on a model those stacks are not part of, the all/unbound/bound filter,
+and the pane's `filter-element` scope (the page cuts the rows it needs).
 
 A topology is extra authoring for a mechanism-shaped question, not a free side
 effect of having a stack, so some stacks have one and some do not — and what
@@ -878,13 +935,23 @@ measured in every combination of them.
   premise and the zero on every view of every committed topology, at every
   density, length mode and style. The counts before the fix are in that
   handoff's lesson.
-* **Angled or jogged**, from the toolbar. **Angled is the default** — flat out
-  of the diagram, then one straight segment to the seam. Jogged is what shipped first:
-  out from the dot, down a lane of the leader's own, into the grid. Jeff asked
-  for both so he could try them against a real mechanism, and since only the
-  path between the ends changes, the endpoint checks pass in either. The
-  default lives in exactly one place, `VA.DEFAULT_LEADER_STYLE` (`topology.js`);
-  the app shell's initial state and the toolbar's fallback both read it.
+* **Off, angled or jogged**, from the toolbar's one **Leaders** control, which
+  covers both the DAG↔grid leaders and the leaders across the seam to the 3D
+  scene. **Off is the default** (2026-11-10,
+  `one_selection_one_hover_and_leaders_off`): no leader is built on either
+  tier and nothing re-measures on scroll or resize; what links the surfaces is
+  the one selection and the one hover (below). Turning them off moves nothing
+  else — the jog zone keeps its width and the grid its rows, and a selected
+  node still finds its grid row (`VA.lastTopoRender.boundaryEdge`, the plan's
+  seam per node, drawn or not). Angled — flat out of the diagram, then one
+  straight segment to the seam — is the first drawn style; jogged is what
+  shipped first: out from the dot, down a lane of the leader's own, into the
+  grid. Jeff asked for both so he could try them against a real mechanism, and
+  since only the path between the ends changes, the endpoint checks pass in
+  either. The default lives in exactly one place, `VA.DEFAULT_LEADER_STYLE`
+  (`topology.js`); the app shell's initial state and the toolbar's fallback
+  both read it, and the browser tier turns leaders on (`VA.LEADER_STYLE_ON`)
+  before it reads one.
 
   **2026-09-21: jogged is kept and deprioritized.** Jeff, having read both
   against the real mechanisms: *"angled by default (jogged isn't really usable
@@ -1399,18 +1466,44 @@ statement of an edge's name and not three). The merged component cell, and a row
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
 
-### One hover state, two surfaces (`nav_tooltip_once_and_rail_hover_emphasis`)
+### One selection, one hover, four surfaces (`one_selection_one_hover_and_leaders_off`)
 
-Jeff, 2026-09-30, tracing a leg through a crossing: *"add an emphasis
-(bold/glow etc) to the edges when you hover over them, again makes it easier to
-trace them"* — and, minutes later, *"it would be awesome if the DAG and the
-table/grid shared their highlighted state, so everything lit up together."*
+Since 2026-11-10 what is selected and what is hovered are **one state object**,
+`state.focus = { selected, hovered }` (`topology_app.js`), each a model entity
+`{kind, id}` — body, part, feature, dimension, interface or joint
+(`VA.FOCUS_KINDS`, `model.js`) — or null, written by exactly one setter each
+(`setSelected`, `setHovered`). The tree, the DAG, the grid, the Preview and the
+3D scene each light from it (`applyFocus`, run on every change and after every
+paint, so a repaint loses nothing) and each can set it: a tree row, a DAG mark
+or a grid row, a scene anchor, the pane's own rail. The DAG and the grid draw
+*elements* (a node, an edge), so `model.js` carries the only translation —
+which entity an element is (`VA.focusEntityOf`: a shared node is the interface
+it is, a node on one part that part's feature of it; a gap edge the interface,
+any other edge the dimension), which element an entity is shown as
+(`VA.focusElementOf`), which element keys it lights (`VA.focusElementKeysOf`: a
+part's or a body's are everything they hold) and which tree rows
+(`VA.focusNavRowsOf`). `state.selection`, the element form every view keys by,
+is derived in the setter and written nowhere else. The pane is told by message
+(`model select node`, `highlight`, `hover part|body|feature`, a rail
+`activate` on the selected feature's end row) and answers by message (its
+anchors' hover and pick, its tree's selected row); what it keeps of its own —
+the sweep rail's `inspect`, the model layer's `selected` — is the session
+lesson's inventory. Lighting only: no DAG node moves and no grid row is added.
 
-So hover is **state**, not a `:hover` rule: one key — an edge, an interface or a
-rail — set in one place (`setHot`, `views/topology.js`) and read by both panes.
-A stylesheet cannot light a bar from a grid row, and two stylesheets each
-lighting their own half is the pair that drifts; `.tvrow:hover` was exactly
-that half and is gone. Two levels:
+Within the DAG and the grid the mechanism is the older one, below — Jeff,
+2026-09-30, tracing a leg through a crossing: *"add an emphasis (bold/glow etc)
+to the edges when you hover over them, again makes it easier to trace them"* —
+and, minutes later, *"it would be awesome if the DAG and the table/grid shared
+their highlighted state, so everything lit up together."*
+
+So hover there is **state**, not a `:hover` rule: one key — an edge, an
+interface or a rail — and one lighter (`lightKeys`, `views/topology.js`) with
+two doors into it: the pane's own pointer (`setHot`, which also tells the page)
+and the page's one hover (`VA.lightTopoKeys`, from the tree, the scene or a
+repaint; the pane's own pointer wins while it holds a key, since what it lit
+*is* the page's hover). A stylesheet cannot light a bar from a grid row, and
+two stylesheets each lighting their own half is the pair that drifts;
+`.tvrow:hover` was exactly that half and is gone. Two levels:
 
 * **`--lead`** — what the pointer is on, and its counterpart on the other
   surface. An edge's bar, its two dots, its leader and its grid row; an

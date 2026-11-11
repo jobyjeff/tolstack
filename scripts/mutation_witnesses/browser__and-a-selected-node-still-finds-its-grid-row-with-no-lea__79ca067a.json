@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "...and a selected node still finds its grid row with no leader to read it from",
+  "mutations": [
+    {
+      "contract": "The paint reports each node's seam row whether or not a leader is drawn.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Reports no seam rows.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "                          boundaryEdge: leaderGeo.boundaryEdge,",
+      "replace": "                          boundaryEdge: {},"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] selecting a feature with the pane in bind mode nests the pane's element rows for its node under it -- one per edge on the node, cut from the pane's whole list",
+  "mutations": [
+    {
+      "contract": "In bind mode a feature's body is the element rows of the edges at its node, cut from the pane's whole list by the page.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Stops cutting: every element row of the list lands under the feature.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      return edges.some(function (id) { return keyNames(row.key, id); });",
+      "replace": "      return true;"
+    }
+  ]
+}

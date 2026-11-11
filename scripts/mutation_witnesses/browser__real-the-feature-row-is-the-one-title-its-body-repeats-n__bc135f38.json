@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] the feature row is the one title: its body repeats neither its name nor a marks legend",
+  "mutations": [
+    {
+      "contract": "The pane's own row for the feature is not drawn under the feature row.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Draws the end row, name and all, under the feature row.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (rows.length !== 1 || typeof row.head === \"string\") {",
+      "replace": "    if (rows.length !== 0) {"
+    }
+  ]
+}

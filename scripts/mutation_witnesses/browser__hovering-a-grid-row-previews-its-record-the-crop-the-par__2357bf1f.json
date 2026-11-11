@@ -6,10 +6,10 @@
     {
       "contract": "The pane's hover reaches the Preview.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). onHot no longer tells the Preview.",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). onHot no longer tells the Preview. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/topology_app.js",
-      "find": "          scheduleSeamDraw();\n          setPreviewHot(\"pane\", key);",
-      "replace": "          scheduleSeamDraw();"
+      "find": "    followHoverInPreview();\n    syncPaneHover();",
+      "replace": "    syncPaneHover();"
     }
   ]
 }

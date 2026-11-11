@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
-  "expect_red": "[real] the faces layer's rows say what they are: end and candidate rows each carry their kind, and every end carries a mark from the annotator's vocabulary",
+  "expect_red": "[real] the faces layer's rows say what they are: the end's state line and the candidate rows each carry their kind, and every end carries a mark from the annotator's vocabulary",
   "mutations": [
     {
       "contract": "Every mirrored row the annotator sends says what kind of thing it is and, for a face-bearing row, its state.",
@@ -10,6 +10,14 @@
       "file": "apps/annotate/app.js",
       "find": "    if (sub) row.sub = sub;\n    railLookInto(node, row);",
       "replace": "    if (sub) row.sub = sub;"
+    },
+    {
+      "contract": "The end's state line carries the pane's kind and mark for the end.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Draws the state line without the end's kind.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    line.setAttribute(\"data-scene-key\", row.key);\n    if (row.kind) line.setAttribute(\"data-kind\", row.kind);\n",
+      "replace": "    line.setAttribute(\"data-scene-key\", row.key);\n"
     }
   ]
 }

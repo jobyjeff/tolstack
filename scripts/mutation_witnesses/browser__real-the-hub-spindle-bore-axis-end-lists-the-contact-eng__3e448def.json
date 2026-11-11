@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
-  "expect_red": "[real] the hub spindle bore axis end opens to the contact engine's faces, the top-ranked first, each naming its class and radius and why it is there, then show all and Pick another face",
+  "expect_red": "[real] the hub spindle bore axis end lists the contact engine's faces, the top-ranked first, each naming its class and radius and why it is there, then show all and the one pick action",
   "mutations": [
     {
       "contract": "A candidate row names its face the way the armed pick does: number, class, fitted radius.",

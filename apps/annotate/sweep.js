@@ -1956,7 +1956,9 @@
   };
 
   //: The candidate list's own words. `takeTitle` is the Take button's hover;
-  //: `pickOther` is the row that ends every list and arms the pick there.
+  //: `pickOther` is the row that ends every list -- the ONE pick action a
+  //: joint end has, in one wording whatever the end's state (nothing bound,
+  //: bound, suggested), since 2026-11-10 -- and arms the pick there.
   //: `more` is the row under a list cut at AA.CANDIDATES_LISTED.
   AA.CANDIDATE_LIST_WORDS = Object.freeze({
     open: "show the suggested faces",
@@ -1964,7 +1966,7 @@
     take: "Take",
     takeTitle: "bind this face at this end",
     bound: "bound",
-    pickOther: "Pick another face…",
+    pickOther: "Pick a face…",
     pickOtherTitle: "pick any face of this end's part in the 3D view",
     pickOtherBind: "select this element, then click a face in the 3D view",
     more: "show all {n}",

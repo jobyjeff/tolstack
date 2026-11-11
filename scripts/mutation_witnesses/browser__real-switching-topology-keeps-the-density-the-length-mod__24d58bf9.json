@@ -6,26 +6,26 @@
     {
       "contract": "state.rowDensity is a display preference, so selectTopology() never resets it -- the precedent the other three preferences' comments all invoke.",
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
-      "note": "Found chasing that issue's closing question -- whether the OLDER preferences had the same hole. They did: this reddened nothing in any tier on 2026-09-15, for the same reason leaderStyle did not, and is entered beside the two below it as one contract in three parts.",
+      "note": "Found chasing that issue's closing question -- whether the OLDER preferences had the same hole. They did: this reddened nothing in any tier on 2026-09-15, for the same reason leaderStyle did not, and is entered beside the two below it as one contract in three parts. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.studyId = null;\n    state.selection = null;",
-      "replace": "    state.studyId = null;\n    state.rowDensity = \"comfortable\";\n    state.selection = null;"
+      "find": "    state.studyId = null;\n    state.detailImage = null;\n    // The tree's folds",
+      "replace": "    state.studyId = null;\n    state.rowDensity = \"comfortable\";\n    state.detailImage = null;\n    // The tree's folds"
     },
     {
       "contract": "state.edgeLengthMode is a display preference, so selectTopology() never resets it.",
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
-      "note": "The sibling of the entry above; see its note.",
+      "note": "The sibling of the entry above; see its note. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;",
-      "replace": "    state.studyId = null;\n    state.edgeLengthMode = \"uniform\";\n    state.selection = null;\n    state.detailImage = null;"
+      "find": "    state.detailImage = null;\n    // The tree's folds, its hidden parts and its selection are this model's;",
+      "replace": "    state.detailImage = null;\n    state.edgeLengthMode = \"uniform\";\n    // The tree's folds, its hidden parts and its selection are this model's;"
     },
     {
       "contract": "state.edgeValueOnly is a display preference, so selectTopology() never resets it.",
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
-      "note": "The sibling of the two entries above; see the first one's note. Re-anchored 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): selectTopology also resets the tree's folds, hidden parts and faces layer now, so the reset lands after those.",
+      "note": "The sibling of the two entries above; see the first one's note. Re-anchored 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): selectTopology also resets the tree's folds, hidden parts and faces layer now, so the reset lands after those. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.navOpen = {};\n    state.hiddenParts = {};\n    state.selectedFeature = null;\n  }",
-      "replace": "    state.navOpen = {};\n    state.hiddenParts = {};\n    state.selectedFeature = null;\n    state.edgeValueOnly = false;\n  }"
+      "find": "    state.navOpen = {};\n    state.hiddenParts = {};\n    setSelected(null);\n  }",
+      "replace": "    state.navOpen = {};\n    state.hiddenParts = {};\n    setSelected(null);\n    state.edgeValueOnly = false;\n  }"
     }
   ]
 }

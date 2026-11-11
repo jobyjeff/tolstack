@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
-  "expect_red": "[real] after one end is taken the other end's candidate list is open and selected, still suggested, and no edge-feature row is listed",
+  "expect_red": "[real] after one end is taken the other end is selected with its candidate faces listed under it (no disclosure of its own), still suggested, and no edge-feature row is listed",
   "mutations": [
     {
       "contract": "After an answer at one end the edge's other end opens its list, selected.",

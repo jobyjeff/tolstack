@@ -6,10 +6,10 @@
     {
       "contract": "A hovered mark draws its one-line label.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). setHot no longer draws the label.",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). setHot no longer draws the label. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    if (hot.onChange) hot.onChange(key);\n    drawHoverLabel(hot, key);",
-      "replace": "    if (hot.onChange) hot.onChange(key);"
+      "find": "    hot.on = key;\n    drawHoverLabel(hot, key);\n    lightKeys(hot, key ? [key] : []);",
+      "replace": "    hot.on = key;\n    lightKeys(hot, key ? [key] : []);"
     }
   ]
 }

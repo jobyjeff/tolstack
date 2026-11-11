@@ -214,7 +214,7 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
   padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: var(--t-dense);
 }
-.navtree__row:hover { background: #20242c; }
+.navtree__row:hover, .navtree__row--hot { background: #20242c; }
 .navtree__row--on { background: #202634; outline: 1px solid var(--accent); }
 .navtree__row--topology { font-weight: 600; }
 /* A study's and a stack's own name is the STRUCTURE of this menu, so it reads
@@ -304,6 +304,21 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .navtree__vis { flex: none; margin: 0 0 0 4px; width: 12px; height: 12px; accent-color: var(--muted); }
 .navtree__row--on .navtree__vis, .navtree__row:hover .navtree__vis { accent-color: var(--ink); }
 .navtree__children .navtree__children { padding-left: 14px; }
+/* A feature's body (one_selection_one_hover_and_leaders_off, 2026-11-10):
+   under its row, stepped in to the row's name -- past the twisty's column
+   and the mark's -- so it reads as the row's own. The state line is
+   metadata (muted, micro), the actions a quiet line at the right, and the
+   list under them is the scene tree's own rows (candidate faces, then the
+   one pick action), at the scene tree's step. */
+.navtree__featurebody { padding: 0 0 4px 22px; }
+.navtree__featurestate { display: flex; align-items: center; gap: 6px; padding: 2px 6px;
+  color: var(--muted); font-size: var(--t-micro); line-height: 1.4; border-radius: 4px; }
+.navtree__featurestate--hot { background: #20242c; }
+.navtree__featurewords { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.navtree__featurestate[data-suggestion="true"] .navtree__featurewords { color: var(--mark-proposed); }
+.navtree__featureacts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; padding: 2px 6px; }
+.navtree__scene .navtree__scenerow--act[aria-pressed="true"] .navtree__scenename { color: var(--accent); }
 
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_
    scene_beside_the_model) -----------------------------------------------

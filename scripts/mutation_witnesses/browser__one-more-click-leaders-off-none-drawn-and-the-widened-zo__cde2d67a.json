@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "one more click: leaders off, none drawn, and the widened zone keeps its width",
+  "mutations": [
+    {
+      "contract": "Jogged cycles to off, and off draws no leader and keeps the zone's width.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Cycles jogged straight back to angled.",
+      "file": "apps/viewer/topology.js",
+      "find": "    jogged: {\n      label: \"jogged\",\n      next: \"off\",",
+      "replace": "    jogged: {\n      label: \"jogged\",\n      next: \"angled\","
+    }
+  ]
+}

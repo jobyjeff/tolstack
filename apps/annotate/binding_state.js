@@ -402,8 +402,6 @@
     candidates: "candidates · {n}",
     accept: "Accept",
     acceptTitle: "bind the suggested face at this end",
-    pickOther: "Pick a different face",
-    pickOtherTitle: "pick the face yourself; binding another face turns the suggestion down",
   });
 
   // A list of open proposals, surest first (AA.PROPOSAL_CONFIDENCES' order),

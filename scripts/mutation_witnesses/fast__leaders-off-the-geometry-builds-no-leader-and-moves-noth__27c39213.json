@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "leaders off: the geometry builds no leader and moves nothing else -- the zone, the width and each node's seam row are what the drawn styles have -- and the pane draws none",
+  "mutations": [
+    {
+      "contract": "With leaders off no leader is built.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Builds the leaders whatever the style.",
+      "file": "apps/viewer/topology.js",
+      "find": "    var leaders = (off ? [] : plan.leaders).map(function (leader, i) {",
+      "replace": "    var leaders = plan.leaders.map(function (leader, i) {"
+    },
+    {
+      "contract": "Each non-internal node's seam row is reported drawn or not.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Forgets every node's seam row.",
+      "file": "apps/viewer/topology.js",
+      "find": "        out[leader.id] = leader.beforeEdge || null;",
+      "replace": "        out[leader.id] = null;"
+    }
+  ]
+}

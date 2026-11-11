@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
-  "expect_red": "...with its candidate disclosure: closed, a toggle from the shell opens it, and the mirrored list carries the proposal's reason, its Take, and Pick another face, wrapping",
+  "expect_red": "...with its candidate list in the same tree, no disclosure of its own: the proposal's reason, its Take, and the one pick action last, wrapping",
   "mutations": [
     {
       "contract": "The shell's nav receives an open candidate list's rows.",

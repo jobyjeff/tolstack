@@ -3298,24 +3298,49 @@ function treePartRows(partIds, subject) {
   return list;
 }
 
-// A joint end's row, and -- when the end has an agent's proposal or the
-// contact engine's faces -- the disclosure in front of it that opens its
-// candidate list under it (handoff a_joint_end_lists_its_candidate_faces_
-// and_says_why_each_is_there). The row itself is featureRowBase's.
+// A joint end's row and, under it, its list: the end's candidate faces --
+// an agent's proposal, the contact engine's ranked faces (handoff a_joint_
+// end_lists_its_candidate_faces_and_says_why_each_is_there) -- and, last,
+// the ONE pick action (endPickAction). Always, in every state (one_selection_
+// one_hover_and_leaders_off, 2026-11-10): an end with nothing suggested lists
+// the action alone, so the row reads the same way whatever it has. The list
+// has no disclosure of its own here any more -- the shell's feature row is
+// the disclosure, and this rail is laid out unseen while embedded. The row
+// itself is featureRowBase's.
 function featureRow(topology, joint, feature) {
   const li = featureRowBase(topology, joint, feature);
   const via = { edgeId: li.dataset.edge || null, direction: li.dataset.direction || null };
+  if (!via.edgeId) return li;
   const rows = AA.endCandidates(mergedIdentityProjection(), state.contactSuggestions,
     topology.id, via, state.faceClasses);
-  if (!rows.length) return li;
   const key = candidateKey(topology.id, via.edgeId, via.direction);
-  li.insertBefore(candidateTwisty(key, renderSweepRail), li.firstChild);
-  if (state.candidatesOpen[key]) {
-    li.appendChild(candidateList(key, [{ edgeId: via.edgeId, direction: via.direction, rows }],
-      () => railExec(["arm", via.edgeId, via.direction]), AA.CANDIDATE_LIST_WORDS.pickOtherTitle,
-      renderSweepRail));
-  }
+  li.appendChild(candidateList(key, [{ edgeId: via.edgeId, direction: via.direction, rows }],
+    endPickAction(topology, via), renderSweepRail));
   return li;
+}
+
+// The one pick action under a joint end, in one place with one wording
+// (AA.CANDIDATE_LIST_WORDS.pickOther), whatever the end's state: it arms the
+// pick in place (AA.ARMED_PICK_WORDS) -- the sweep goes to the as-modelled
+// pose itself, the scene filters to the end's part, and the face then
+// clicked binds. While armed the same row reads Cancel, pressed, and a press
+// ends the pick. An edge feature has two ends and no default between them
+// (the 2026-10-21 wrong-end rule), so its action is still the jump to bind
+// mode, where the end is chosen by name. Until 2026-11-10 the row ALSO wore
+// a Pick / Re-pick button at its right, shown on hover, and an end with
+// suggestions had both (Jeff: "redundant with the 'pick' hover button").
+function endPickAction(topology, via) {
+  const words = AA.CANDIDATE_LIST_WORDS;
+  if (isArmedRow(topology, via)) {
+    return { text: AA.ARMED_PICK_WORDS.cancel, title: AA.ARMED_PICK_WORDS.cancelTitle, pressed: true,
+      run: () => railExec(["arm", "off"]) };
+  }
+  if (via.direction) {
+    return { text: words.pickOther, title: words.pickOtherTitle,
+      run: () => railExec(["arm", via.edgeId, via.direction]) };
+  }
+  return { text: words.pickOther, title: AA.SWEEP_RAIL_WORDS.repickTitle,
+    run: () => railExec(["goto", topology.id, via.edgeId]) };
 }
 
 function featureRowBase(topology, joint, feature) {
@@ -3401,10 +3426,10 @@ function featureRowBase(topology, joint, feature) {
         : ["inspect", "feature", via.edgeId].concat(via.direction ? [via.direction] : []));
     };
     if (!armed && via.direction && suggestion && suggestion.kind === AA.SUGGESTION_KINDS[0]) {
-      // An end with an open proposal: its two answers, on the selected row
-      // only. Accept binds the suggested face; "Pick a different face" arms
-      // the pick exactly as Pick does, and the face then clicked turns the
-      // suggestion down and binds (armedClick).
+      // An end with an open proposal: Accept, on the selected row only,
+      // binds the suggested face. Picking a different face is the one pick
+      // action under the row's list (endPickAction), as on every end; the
+      // face then clicked turns the suggestion down and binds (armedClick).
       if (selected) {
         const words = AA.SUGGESTION_ROW_WORDS;
         const accept = document.createElement("button");
@@ -3416,45 +3441,11 @@ function featureRowBase(topology, joint, feature) {
           railExec(["accept", via.edgeId, via.direction]);
         };
         li.appendChild(accept);
-        const other = document.createElement("button");
-        other.className = "tree-row__repick tree-row__pick-other";
-        other.textContent = words.pickOther;
-        other.title = words.pickOtherTitle;
-        other.onclick = (ev) => {
-          ev.stopPropagation();
-          railExec(["arm", via.edgeId, via.direction]);
-        };
-        li.appendChild(other);
       }
       return li;
     }
-    const repick = document.createElement("button");
-    repick.className = "tree-row__repick";
-    if (via.direction) {
-      // A joint END arms the pick in place (AA.ARMED_PICK_WORDS): the sweep
-      // goes to the as-modelled pose itself, and the scene filters to the
-      // end's part. Pressed while armed; a second press ends it.
-      repick.textContent = armed ? AA.ARMED_PICK_WORDS.cancel
-        : (bindingState === AA.BINDING_STATES.BOUND ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick);
-      repick.title = armed ? AA.ARMED_PICK_WORDS.cancelTitle : AA.ARMED_PICK_WORDS.pickTitle;
-      repick.setAttribute("aria-pressed", armed ? "true" : "false");
-      repick.onclick = (ev) => {
-        ev.stopPropagation();
-        railExec(armed ? ["arm", "off"] : ["arm", via.edgeId, via.direction]);
-      };
-    } else {
-      // An edge feature has two ends and no default between them (the
-      // 2026-10-21 wrong-end rule), so its Pick is still the jump to bind
-      // mode, where the end is chosen by name.
-      repick.textContent = bindingState === AA.BINDING_STATES.BOUND
-        ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
-      repick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
-      repick.onclick = (ev) => {
-        ev.stopPropagation();
-        railExec(["goto", topology.id, via.edgeId]);
-      };
-    }
-    li.appendChild(repick);
+    // (The row's own Pick / Re-pick / Cancel button left on 2026-11-10: the
+    // one pick action is the last row of the end's list, endPickAction.)
     if (armed && state.sweep.armed.parts.length > 1) {
       // The end's other part, one click away; the filter follows.
       const a = state.sweep.armed;
@@ -3561,13 +3552,14 @@ function candidateTwisty(key, repaint) {
   return node;
 }
 
-// The open list: per end, its rows (cut at AA.CANDIDATES_LISTED with a
-// "show all n" row past the cut), and "Pick another face…" last. `ends` is
-// [{edgeId, direction, rows, head?}]; a `head` names the end above its rows
-// (bind mode's element row has two). `pickOther(end)` is what that last row
-// runs, `pickTitle` its hover. Clicks stay in the list: the row it hangs
-// under selects on a click of its own.
-function candidateList(key, ends, pickOther, pickTitle, repaint) {
+// The list: per end, its rows (cut at AA.CANDIDATES_LISTED with a "show all
+// n" row past the cut), and the pick action last. `ends` is [{edgeId,
+// direction, rows, head?}]; a `head` names the end above its rows (bind
+// mode's element row has two). `action` is {text, title, run, pressed?} or
+// a function of the end returning one: what that last row says and runs.
+// Clicks stay in the list: the row it hangs under selects on a click of its
+// own.
+function candidateList(key, ends, action, repaint) {
   const words = AA.CANDIDATE_LIST_WORDS;
   const list = document.createElement("ul");
   list.className = "tree-cands";
@@ -3593,8 +3585,10 @@ function candidateList(key, ends, pickOther, pickTitle, repaint) {
       more.classList.add("tree-cand--more");
       list.appendChild(more);
     }
-    const other = candidateAction(words.pickOther, pickTitle, () => pickOther(end));
+    const act = typeof action === "function" ? action(end) : action;
+    const other = candidateAction(act.text, act.title, act.run);
     other.classList.add("tree-cand--other");
+    if (act.pressed) other.setAttribute("aria-pressed", "true");
     other.dataset.direction = end.direction;
     list.appendChild(other);
   }
@@ -4918,6 +4912,10 @@ function renderElementList() {
     // and Jeff asked to keep it ("keep the *color* signal on the row"). What
     // came off is the WORDS: the badge used to print the raw state value.
     li.className = "el-row el-row--" + bindingState;
+    // The edge's id, which keys the shell's mirror of this row (railKey):
+    // the shell cuts a feature's elements out of this list by the edges at
+    // its node (one_selection_one_hover_and_leaders_off, 2026-11-10).
+    li.dataset.edge = edge.id;
     // The mark the shell's mirror draws: the edge as a whole (an element row
     // is both ends), so no end's suggestion or declared face refines it.
     railLook(li, AA.RAIL_ROW_KINDS.element, AA.railMark(bindingState,
@@ -4954,8 +4952,9 @@ function renderElementList() {
       const key = candidateKey(state.currentTopology.id, edgeId, null);
       li.insertBefore(candidateTwisty(key, renderElementList), li.firstChild);
       if (state.candidatesOpen[key]) {
-        li.appendChild(candidateList(key, ends, () => railExec(["select-edge", edgeId]),
-          AA.CANDIDATE_LIST_WORDS.pickOtherBind, renderElementList));
+        li.appendChild(candidateList(key, ends, { text: AA.CANDIDATE_LIST_WORDS.pickOther,
+          title: AA.CANDIDATE_LIST_WORDS.pickOtherBind, run: () => railExec(["select-edge", edgeId]) },
+        renderElementList));
       }
     }
     li.onclick = () => {
@@ -6294,6 +6293,7 @@ function railRow(node, parentKey, seen) {
     if (node.classList.contains("selected")) row.selected = true;
     if (node.classList.contains("is-scene-hover")) row.sceneHover = true;
     if (node.onclick) row.activate = true;
+    if (node.getAttribute("aria-pressed") === "true") row.pressed = true;
     const controls = railControls(node, node, row);
     // A row with a candidate list: its disclosure (open or not), and the
     // list's rows under it when open. A candidate row's words wrap rather

@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
-  "expect_red": "the twisty opens the end's candidate list: one row per face in rank order, each saying why it is there, then Pick another face",
+  "expect_red": "the end's candidate list is under it: one row per face in rank order, each saying why it is there, then the one pick action",
   "mutations": [
     {
       "contract": "Each candidate row says why it is there, on the row.",

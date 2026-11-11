@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "the selected row offers Accept and nothing else; the pick action stays where it was, under the list",
+  "mutations": [
+    {
+      "contract": "The selected suggested row carries Accept and no second button; the pick action is the list's.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Puts a second button on the selected row.",
+      "file": "apps/annotate/app.js",
+      "find": "        li.appendChild(accept);\n      }\n      return li;",
+      "replace": "        li.appendChild(accept);\n        li.appendChild(accept.cloneNode(true));\n      }\n      return li;"
+    }
+  ]
+}

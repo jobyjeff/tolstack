@@ -161,17 +161,42 @@
     return box;
   }
 
-  // Is this node the page's selection? Every feature of a selected node
-  // lights (a node two parts share is one selection, two pins).
-  function nodeSelected(state, nodeId) {
-    return !!(state && state.selection && state.selection.kind === "node" &&
-      state.selection.id === nodeId);
+  // The rows the page's ONE selection and ONE hover light (one_selection_one_
+  // hover_and_leaders_off): `state.focus` is {selected, hovered}, each a model
+  // entity or null, and VA.focusNavRowsOf says which `<kind>:<id>` rows each
+  // reaches. Computed once per render; a row asks by its own kind and id.
+  var lit = { on: {}, hot: {} };
+
+  function litRows(model, entity) {
+    var out = {};
+    VA.focusNavRowsOf(model, entity).forEach(function (key) { out[key] = true; });
+    return out;
   }
 
-  function elementSelected(state, kind, id) {
-    return !!(state && state.selection && state.selection.kind === kind &&
-      state.selection.id === id);
+  function rowClasses(kind, id) {
+    var key = kind + ":" + id;
+    return (lit.on[key] ? " navtree__row--on" : "") + (lit.hot[key] ? " navtree__row--hot" : "");
   }
+
+  // The hovered rows, re-lit in place on a tree already drawn: the one hover
+  // moves many times between two paints, and only the class moves with it.
+  VA.lightNavTree = function (root, model, hovered) {
+    if (!root || !root.querySelectorAll) return 0;
+    var hot = litRows(model, hovered);
+    lit.hot = hot;
+    var count = 0;
+    var rows = root.querySelectorAll("div.navtree__row");
+    for (var i = 0; i < rows.length; i++) {
+      var kind = rows[i].getAttribute("data-nav-kind");
+      var id = rows[i].getAttribute("data-nav-id");
+      if (!kind || !id || !rows[i].classList) continue;
+      var on = !!hot[kind + ":" + id];
+      if (on) count++;
+      if (on) rows[i].classList.add("navtree__row--hot");
+      else rows[i].classList.remove("navtree__row--hot");
+    }
+    return count;
+  };
 
   // Keyboard: a row that does something on a click is a button-role row.
   function activatable(row, act) {
@@ -186,17 +211,35 @@
     };
   }
 
-  // A feature's row: its mark, its name; selected when its node is the
-  // page's selection. `partLabel` is prepended for an end row under an
-  // interface, where the part is not the row's parent.
-  function featureRow(model, fid, state, handlers, withPart) {
+  // The feature the page has selected (`state.focus.selected`, a feature
+  // entity), or null: the one row that is open by default.
+  function selectedFeatureId(state) {
+    var sel = state && state.focus && state.focus.selected;
+    return sel && sel.kind === VA.FOCUS_KINDS.feature ? sel.id : null;
+  }
+
+  VA.navFeatureKey = function (fid) { return "f:" + fid; };
+
+  // A feature's row: its twisty, its mark, its name; lit when the page's
+  // selection or hover reaches it. `withPart` prepends the part for an end
+  // row under an interface, where the part is not the row's parent.
+  //
+  // The row is its own disclosure (one_selection_one_hover_and_leaders_off,
+  // Jeff 2026-11-10: "there is nothing suggesting that the first element is
+  // collapsible, and then the whole menu jumps"): a click selects it, the
+  // twisty opens and closes what is under it, and it is open when it is the
+  // selected feature unless the reader folded it. The twisty is drawn only
+  // where there is a body to open -- the scene's rows for it, while the 3D
+  // scene is open (handlers.sceneSlot); with the scene closed the row is a
+  // leaf, and a control with nothing behind it is shown as nothing.
+  function featureRow(model, fid, state, handlers, withPart, open) {
     var feature = model.feature(fid);
-    var row = VA.el("div", "navtree__row navtree__row--feature" +
-      (nodeSelected(state, feature.node) ? " navtree__row--on" : ""));
+    var row = VA.el("div", "navtree__row navtree__row--feature" + rowClasses("feature", fid));
     row.setAttribute("data-nav-kind", "feature");
     row.setAttribute("data-nav-id", fid);
     row.setAttribute("data-node-id", feature.node);
-    row.appendChild(leafGap());
+    if (handlers.sceneSlot) row.appendChild(twisty(VA.navFeatureKey(fid), open, handlers));
+    else row.appendChild(leafGap());
     row.appendChild(mark(model.status(fid)));
     var text = withPart ? model.label(feature.part) + " · " + feature.name : feature.name;
     var name = label(text, null, null);
@@ -211,14 +254,18 @@
     return row;
   }
 
-  // The faces layer: the slot the pane's rows for the selected feature are
-  // drawn into (topology_app.js's renderSceneSlot fills it). Under the
-  // selected feature only, and only while the scene is open.
+  // A feature's item: its row and, when open, its body -- the slot the
+  // scene's rows for it are drawn into (topology_app.js's renderSceneSlot):
+  // the feature's state line, its candidate faces, its one pick action.
+  // Only while the scene is open; closed, there is no body.
   function featureItem(model, fid, state, handlers, withPart) {
     var li = VA.el("li", "navtree__item");
-    li.appendChild(featureRow(model, fid, state, handlers, withPart));
-    if (handlers.sceneSlot && state && state.selectedFeature === fid) {
-      li.appendChild(VA.el("div", "navtree__scene"));
+    var open = !!handlers.sceneSlot && isOpen(state, VA.navFeatureKey(fid), selectedFeatureId(state) === fid);
+    li.appendChild(featureRow(model, fid, state, handlers, withPart, open));
+    if (open) {
+      var slot = VA.el("div", "navtree__scene");
+      slot.setAttribute("data-scene-feature", fid);
+      li.appendChild(slot);
     }
     return li;
   }
@@ -229,8 +276,7 @@
     var open = isOpen(state, key, false);
     var kind = interfaceRow.source === "node" ? "node" : "edge";
     var li = VA.el("li", "navtree__item");
-    var row = VA.el("div", "navtree__row navtree__row--interface" +
-      (elementSelected(state, kind, interfaceRow.id) ? " navtree__row--on" : ""));
+    var row = VA.el("div", "navtree__row navtree__row--interface" + rowClasses("interface", interfaceRow.id));
     row.setAttribute("data-nav-kind", "interface");
     row.setAttribute("data-nav-id", interfaceRow.id);
     row.setAttribute("data-interface-kind", kind);
@@ -261,7 +307,7 @@
     var key = "j:" + joint.id;
     var open = isOpen(state, key, false);
     var li = VA.el("li", "navtree__item");
-    var row = foldRow("navtree__row--joint", key, open, handlers);
+    var row = foldRow("navtree__row--joint" + rowClasses("joint", joint.id), key, open, handlers);
     row.setAttribute("data-nav-kind", "joint");
     row.setAttribute("data-nav-id", joint.id);
     var names = joint.parts.map(function (pid) {
@@ -282,21 +328,22 @@
     return li;
   }
 
-  // Does this part hold a feature of the selected node? A selection made
+  // Does this part hold a feature the selection lights? A selection made
   // anywhere -- the scene, the DAG, the grid -- opens the part that holds it,
   // so the tree never marks a row the reader cannot see; the reader's own
   // fold of that part still wins.
-  function holdsSelection(model, partId, state) {
-    if (!state || !state.selection || state.selection.kind !== "node") return false;
-    return model.featuresOf(partId).some(function (f) { return f && f.node === state.selection.id; });
+  function holdsSelection(model, partId) {
+    return (model.part(partId) || { features: [] }).features.some(function (fid) {
+      return !!lit.on["feature:" + fid];
+    });
   }
 
   function partItem(model, partId, state, handlers) {
     var part = model.part(partId);
     var key = "p:" + partId;
-    var open = isOpen(state, key, holdsSelection(model, partId, state));
+    var open = isOpen(state, key, holdsSelection(model, partId));
     var li = VA.el("li", "navtree__item");
-    var row = foldRow("navtree__row--part", key, open, handlers);
+    var row = foldRow("navtree__row--part" + rowClasses("part", partId), key, open, handlers);
     row.setAttribute("data-nav-kind", "part");
     row.setAttribute("data-nav-id", partId);
     var name = label(part.label, null, null);
@@ -344,7 +391,7 @@
     var key = "b:" + body.id;
     var open = isOpen(state, key, true);
     var li = VA.el("li", "navtree__item");
-    var row = foldRow("navtree__row--body", key, open, handlers);
+    var row = foldRow("navtree__row--body" + rowClasses("body", body.id), key, open, handlers);
     row.setAttribute("data-nav-kind", "body");
     row.setAttribute("data-nav-id", body.id);
     var swatch = VA.el("span", "navtree__swatch");
@@ -431,6 +478,9 @@
     }
     if (open) {
       var model = state.models ? state.models[open.id] : (state.model || null);
+      // The rows the one selection and the one hover reach, for this paint.
+      var focus = state.focus || {};
+      lit = { on: litRows(model, focus.selected), hot: litRows(model, focus.hovered) };
       modelSections(root, model, open, state, handlers);
     }
     if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
@@ -650,7 +700,11 @@
 
   VA.SCENE_ELEMENT_ROOT = "#element-list/";
 
-  VA.sceneRowsForFeature = function (tree, nodeId) {
+  // `edgeIds` are the edges at the node (the page reads them off the
+  // topology): in bind mode a feature's rows are the element rows of those
+  // edges, cut from the pane's whole list here rather than by a scope posted
+  // to the pane, so any open feature row has its rows (2026-11-10).
+  VA.sceneRowsForFeature = function (tree, nodeId, edgeIds) {
     if (!tree || !tree.rows || !nodeId) return [];
     var named = [];
     var walk = function (rows) {
@@ -661,10 +715,71 @@
     };
     walk(tree.rows);
     if (named.length) return named;
-    // Bind mode: the scoped element list, whole.
+    // Bind mode: the element rows of the node's edges.
+    var edges = edgeIds || [];
     return tree.rows.filter(function (row) {
-      return String(row.key || "").indexOf(VA.SCENE_ELEMENT_ROOT) === 0 && typeof row.head !== "string";
+      if (String(row.key || "").indexOf(VA.SCENE_ELEMENT_ROOT) !== 0 || typeof row.head === "string") return false;
+      return edges.some(function (id) { return keyNames(row.key, id); });
     });
+  };
+
+  // A feature's body, under its row (one_selection_one_hover_and_leaders_
+  // off, deliverable 3): the pane's rows for the feature, with the pane's
+  // own head row for it NOT drawn -- the feature row above is the one title.
+  // One end row (sweep mode, the usual case) is drawn as its state line, its
+  // actions and its list -- the candidate faces, if any, then the one pick
+  // action the pane puts last -- so a feature with no suggestion, with some
+  // and with an open proposal all read the same way. Several rows (a node
+  // that is the end of two joints; bind mode's element rows) are drawn as
+  // they are, since each needs its own name. No marks legend: a row's own
+  // words say what its mark means, on hover.
+  VA.renderFeatureBody = function (slot, rows, opts) {
+    VA.clear(slot);
+    if (!rows || !rows.length) return slot;
+    var send = (opts && opts.send) || function () {};
+    var row = rows[0];
+    if (rows.length !== 1 || typeof row.head === "string") {
+      slot.appendChild(sceneList(rows, send));
+      return slot;
+    }
+    var body = VA.el("div", "navtree__featurebody");
+    // The state line: the pane's second line for the row -- a bound face, a
+    // suggestion count, an armed pick's words. The feature row's own mark is
+    // the one mark; the pane's kind and mark for the end ride here as data
+    // for the stylesheet and the tier, drawn as words.
+    var line = VA.el("div", "navtree__featurestate" +
+      (row.selected ? " navtree__featurestate--on" : "") +
+      (row.sceneHover ? " navtree__featurestate--hot" : ""));
+    line.setAttribute("data-scene-key", row.key);
+    if (row.kind) line.setAttribute("data-kind", row.kind);
+    if (row.mark) line.setAttribute("data-mark", row.mark);
+    if (row.attention) line.setAttribute("data-attention", "true");
+    if (row.suggestion) line.setAttribute("data-suggestion", "true");
+    var words = VA.el("span", "navtree__featurewords", row.sub || row.text || "");
+    if (row.title) words.setAttribute("title", row.title);
+    line.appendChild(words);
+    if (row.alert) {
+      var alert = VA.el("span", "navtree__scenealert");
+      alert.appendChild(VA.warningIcon("navtree__scenealert-mark"));
+      alert.setAttribute("title", row.alert);
+      alert.setAttribute("aria-label", row.alert);
+      alert.setAttribute("tabindex", "0");
+      line.appendChild(alert);
+    }
+    line.onmouseenter = function () { send(row.key, VA.SCENE_ACTS.enter); };
+    line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };
+    body.appendChild(line);
+    // The row's own actions, where it has any (Accept on an open proposal;
+    // an armed pick's part switch), on a line of their own.
+    if (row.buttons && row.buttons.length) {
+      var acts = VA.el("div", "navtree__featureacts");
+      row.buttons.forEach(function (spec, i) { acts.appendChild(sceneButton(row, spec, i, send)); });
+      body.appendChild(acts);
+    }
+    // The list: candidate faces, then the pick action (the pane's order).
+    if (row.rows && row.rows.length) body.appendChild(sceneList(row.rows, send));
+    slot.appendChild(body);
+    return slot;
   };
 
   // The six gestures a mirrored row can hand back, named once on this side;
@@ -722,7 +837,7 @@
   // page knows an Esc here has something to cancel.
   VA.sceneRowsPressed = function (rows) {
     return (rows || []).some(function (row) {
-      return (row.buttons || []).some(function (b) { return !!b.pressed; }) ||
+      return !!row.pressed || (row.buttons || []).some(function (b) { return !!b.pressed; }) ||
         VA.sceneRowsPressed(row.rows);
     });
   };
@@ -826,6 +941,8 @@
       line.setAttribute("tabindex", "0");
       line.setAttribute("role", "button");
       line.classList.add("navtree__scenerow--act");
+      // An action row that is pressed (an armed pick's Cancel) says so.
+      if (row.pressed) line.setAttribute("aria-pressed", "true");
       line.onclick = function () { send(row.key, VA.SCENE_ACTS.activate); };
       line.onkeydown = function (event) {
         if (!event || (event.key !== "Enter" && event.key !== " ")) return;
@@ -837,7 +954,10 @@
       line.onblur = function () { send(row.key, VA.SCENE_ACTS.leave); };
     }
     li.appendChild(line);
-    if (row.open && row.rows && row.rows.length) li.appendChild(sceneList(row.rows, send));
+    // A row's list: under an open disclosure, or under a row with no
+    // disclosure of its own (an end's list is always sent since 2026-11-10;
+    // the feature row above is its disclosure).
+    if (row.open !== false && row.rows && row.rows.length) li.appendChild(sceneList(row.rows, send));
     return li;
   }
 

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] a candidate face steps in from its feature row by a full indent",
+  "mutations": [
+    {
+      "contract": "A feature's body steps in from its row by a full indent, not the 14px Jeff called way too shallow.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Flattens the body's indent, so a candidate face sits under its feature row's twisty.",
+      "file": "apps/viewer/topology.css",
+      "find": ".navtree__featurebody { padding: 0 0 4px 22px; }",
+      "replace": ".navtree__featurebody { padding: 0 0 4px 0; }"
+    }
+  ]
+}

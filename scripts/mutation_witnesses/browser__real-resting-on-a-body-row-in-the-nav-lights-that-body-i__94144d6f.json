@@ -6,10 +6,10 @@
     {
       "contract": "A pointer resting on a mirrored row runs that row's own hover in the annotator.",
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
-      "note": "A row that renders and clicks but never passes the pointer over loses the coupling silently. Re-pointed 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): the nav is the model's tree and the pane's rows are drawn under the selected feature only. A body row's hover posts the pane's own `hover body` verb; the mirrored row's `enter` act is not on this path.",
+      "note": "A row that renders and clicks but never passes the pointer over loses the coupling silently. Re-pointed 2026-11-10 (the_model_is_derived_once_and_the_left_column_is_its_tree): the nav is the model's tree and the pane's rows are drawn under the selected feature only. A body row's hover posts the pane's own `hover body` verb; the mirrored row's `enter` act is not on this path. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/topology_app.js",
-      "find": "      schedulePaneCommand([\"hover\", \"body\", target.id]);\n",
-      "replace": "      schedulePaneCommand([\"hover\", \"clear\"]);\n"
+      "find": "    if (h.kind === VA.FOCUS_KINDS.body) return sceneSubjects()[h.id] ? [\"hover\", \"body\", h.id] : HOVER_CLEAR;",
+      "replace": "    if (h.kind === VA.FOCUS_KINDS.body) return HOVER_CLEAR;"
     }
   ]
 }

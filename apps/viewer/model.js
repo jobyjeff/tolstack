@@ -174,6 +174,156 @@
     return model;
   };
 
+  // --- the ONE selection and the ONE hover, in the model's terms ---------------
+  // (one_selection_one_hover_and_leaders_off, 2026-11-10)
+  //
+  // What the page selects or hovers is a model ENTITY -- {kind, id} with kind
+  // one of VA.FOCUS_KINDS -- held in one place (topology_app.js's
+  // `state.focus`) and written by one setter each. The DAG and the grid draw
+  // ELEMENTS (a node, an edge), so the four functions below are the only
+  // translation: which entity an element is, which element an entity is
+  // shown as, which element keys an entity lights, and which tree rows. A
+  // projection built before the model block (model null) has no entities;
+  // there an element stands for itself, so the page still lights what it
+  // can, and the tree -- which needs the model -- lights nothing.
+  VA.FOCUS_KINDS = Object.freeze({
+    body: "body",
+    part: "part",
+    feature: "feature",
+    dimension: "dimension",
+    interface: "interface",
+    joint: "joint",
+  });
+
+  function sameEntity(a, b) {
+    return !!a && !!b && a.kind === b.kind && a.id === b.id;
+  }
+  VA.sameFocus = sameEntity;
+
+  // The entity a DAG element is: a node two parts share is the interface it
+  // is, a node on one part is that part's feature of it; a gap edge is the
+  // interface it is, any other edge the dimension it is. Null for an id the
+  // model does not know; the element itself where there is no model.
+  VA.focusEntityOf = function (model, kind, id) {
+    if (!kind || !id) return null;
+    if (!model) return { kind: kind, id: id };
+    var F = VA.FOCUS_KINDS;
+    var iface = model.interface(id);
+    if (kind === "node") {
+      if (iface && iface.source === "node") return { kind: F.interface, id: id };
+      var features = model.featuresOfNode(id);
+      return features.length ? { kind: F.feature, id: features[0] } : null;
+    }
+    if (kind === "edge") {
+      if (iface && iface.source === "edge") return { kind: F.interface, id: id };
+      return model.dimension(id) ? { kind: F.dimension, id: id } : null;
+    }
+    return null;
+  };
+
+  // The element an entity is shown as (the Preview's record, the scene's
+  // `model select node`, the deep link): a feature its node, an interface
+  // its node or edge, a dimension its edge; a body, a part or a joint is no
+  // one element, so null.
+  VA.focusElementOf = function (model, entity) {
+    if (!entity) return null;
+    if (!model) return entity.kind === "node" || entity.kind === "edge" ? { kind: entity.kind, id: entity.id } : null;
+    var F = VA.FOCUS_KINDS;
+    if (entity.kind === F.feature) {
+      var f = model.feature(entity.id);
+      return f ? { kind: "node", id: f.node } : null;
+    }
+    if (entity.kind === F.interface) {
+      var i = model.interface(entity.id);
+      return i ? { kind: i.source === "edge" ? "edge" : "node", id: i.id } : null;
+    }
+    if (entity.kind === F.dimension) return model.dimension(entity.id) ? { kind: "edge", id: entity.id } : null;
+    return null;
+  };
+
+  // Every element key (`node|<id>`, `edge|<id>`) an entity lights on the DAG
+  // and in the grid: its own element, or -- for a part, a body or a joint --
+  // the elements of everything it holds.
+  VA.focusElementKeysOf = function (model, entity) {
+    if (!entity) return [];
+    var F = VA.FOCUS_KINDS;
+    var out = [];
+    var seen = {};
+    var add = function (kind, id) {
+      if (!id) return;
+      var key = VA.elementKey(kind, id);
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(key);
+    };
+    var addEntity = function (e) {
+      var el = VA.focusElementOf(model, e);
+      if (el) add(el.kind, el.id);
+    };
+    var addPart = function (partId) {
+      model.featuresOf(partId).forEach(function (f) { if (f) add("node", f.node); });
+      model.dimensionsOf(partId).forEach(function (d) { if (d) add("edge", d.id); });
+    };
+    var addJoint = function (jointId) {
+      model.constraintsOf(jointId).forEach(function (c) {
+        if (c) addEntity({ kind: F.interface, id: c.id });
+      });
+    };
+    if (!model || entity.kind === F.feature || entity.kind === F.interface || entity.kind === F.dimension) {
+      addEntity(entity);
+    } else if (entity.kind === F.part) {
+      addPart(entity.id);
+    } else if (entity.kind === F.body) {
+      var body = model.body(entity.id);
+      (body ? body.parts : []).forEach(addPart);
+      model.jointsWithin(entity.id).forEach(function (j) { addJoint(j.id); });
+    } else if (entity.kind === F.joint) {
+      addJoint(entity.id);
+    }
+    return out;
+  };
+
+  // The tree rows an entity lights, as `<kind>:<id>` (the row's data-nav-kind
+  // and data-nav-id): a feature's own row and the other rows of its node (a
+  // node two parts share is one thing, two rows) and the interface row that
+  // node is; an interface's row and its ends' feature rows; a dimension's two
+  // end features; a part's, a body's or a joint's own row.
+  VA.focusNavRowsOf = function (model, entity) {
+    if (!model || !entity) return [];
+    var F = VA.FOCUS_KINDS;
+    var out = [];
+    var seen = {};
+    var add = function (kind, id) {
+      if (!id) return;
+      var key = kind + ":" + id;
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(key);
+    };
+    var addNode = function (nodeId) {
+      model.featuresOfNode(nodeId).forEach(function (fid) { add(F.feature, fid); });
+      var iface = model.interface(nodeId);
+      if (iface && iface.source === "node") add(F.interface, nodeId);
+    };
+    if (entity.kind === F.feature) {
+      var f = model.feature(entity.id);
+      if (f) { add(F.feature, f.id); addNode(f.node); }
+    } else if (entity.kind === F.interface) {
+      var i = model.interface(entity.id);
+      if (i) {
+        add(F.interface, i.id);
+        if (i.source === "node") addNode(i.id);
+        else (i.ends || []).forEach(function (fid) { add(F.feature, fid); });
+      }
+    } else if (entity.kind === F.dimension) {
+      var d = model.dimension(entity.id);
+      if (d) { add(F.feature, d.from); add(F.feature, d.to); }
+    } else if (entity.kind === F.part || entity.kind === F.body || entity.kind === F.joint) {
+      add(entity.kind, entity.id);
+    }
+    return out;
+  };
+
   // The models of a whole projection, keyed by topology id: built once per
   // loaded projection (topology_app.js's load), never per paint.
   VA.buildModels = function (topologies, identity) {

@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] the feature row and a candidate face each draw a glyph",
+  "mutations": [
+    {
+      "contract": "A candidate face draws its glyph in the feature's body.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Takes the candidate row's glyph off.",
+      "file": "apps/viewer/topology.css",
+      "find": ".navtree__scene [data-kind=\"candidate\"] > .navtree__scenemark::before { content: \"\"; width: 7px; height: 7px;",
+      "replace": ".navtree__scene [data-kind=\"candidate\"] > .navtree__scenemark::before { content: none; width: 7px; height: 7px;"
+    },
+    {
+      "contract": "A feature row draws its one mark.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Collapses the feature row's mark to nothing.",
+      "file": "apps/viewer/topology.css",
+      "find": ".navtree__mark { flex: none; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; }",
+      "replace": ".navtree__mark { flex: none; width: 0; height: 0; border-radius: 50%; box-sizing: border-box; }"
+    }
+  ]
+}

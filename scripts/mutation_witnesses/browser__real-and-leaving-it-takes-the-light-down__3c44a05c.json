@@ -6,10 +6,10 @@
     {
       "contract": "Leaving a mirrored row takes its light down in the scene.",
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
-      "note": "The rail's own hover is two halves; the leave half is the one nobody notices missing until the scene stays lit.",
-      "file": "apps/viewer/views/nav.js",
-      "find": "    line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };",
-      "replace": "    line.onmouseleave = function () { };"
+      "note": "The rail's own hover is two halves; the leave half is the one nobody notices missing until the scene stays lit. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state. A body row's hover is the tree's own now, and its leave the one hover's clear.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    setHovered(target ? { kind: target.kind, id: target.id } : null, \"tree\");",
+      "replace": "    if (target) setHovered({ kind: target.kind, id: target.id }, \"tree\");"
     }
   ]
 }

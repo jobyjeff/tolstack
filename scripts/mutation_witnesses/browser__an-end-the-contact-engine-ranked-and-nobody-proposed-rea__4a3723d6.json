@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
-  "expect_red": "an end the contact engine ranked and nobody proposed reads 'candidates · 3' and keeps plain Pick",
+  "expect_red": "an end the contact engine ranked and nobody proposed reads 'candidates · 3', wears no button, and ends its list in the same pick action",
   "mutations": [
     {
       "contract": "An end with ranked contact candidates and no proposal says so.",

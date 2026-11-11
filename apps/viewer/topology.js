@@ -1391,9 +1391,19 @@
   // CORRESPONDENCE_IN_PAGE passes in either style without being taught about
   // styles at all.
   VA.LEADER_STYLES = {
+    // Off (one_selection_one_hover_and_leaders_off, 2026-11-10): no leader is
+    // built, DAG<->grid or DAG<->3D, and nothing re-measures on scroll;
+    // highlight is what links the surfaces. The jog zone keeps its width, so
+    // turning leaders on or off moves nothing else on the page.
+    off: {
+      label: "off",
+      next: "angled",
+      title: "No leader lines. What is selected or hovered lights on every " +
+        "surface instead: the tree, the diagram, the grid and the 3D scene.",
+    },
     jogged: {
       label: "jogged",
-      next: "angled",
+      next: "off",
       title: "Leader lines run in right angles (GD&T ordinate style): out " +
         "from the interface, down a lane of their own, then into the grid.",
     },
@@ -1405,19 +1415,26 @@
     },
   };
 
-  // Which style a preference-less load draws. ANGLED since 2026-09-21
-  // (viewer_nav_alert_badge_and_angled_default) -- Jeff, having tried both
-  // against the real mechanisms: "angled by default (jogged isn't really
-  // usable yet and arguably isn't worth putting more effort into since the
-  // angled lines look just fine)." The toggle keeps both; jogged is kept and
-  // deprioritized, and apps/viewer/README.md's leaders section is where that
-  // decision is written down.
+  // Which style a preference-less load draws. OFF since 2026-11-10
+  // (one_selection_one_hover_and_leaders_off): with one selection and one
+  // hover lighting all four surfaces, the leaders are a second way of saying
+  // the same thing, and on v1's ~100 nodes they were most of the ink. Angled
+  // was the default from 2026-09-21 (viewer_nav_alert_badge_and_angled_
+  // default) -- Jeff, having tried both against the real mechanisms: "angled
+  // by default (jogged isn't really usable yet and arguably isn't worth
+  // putting more effort into since the angled lines look just fine)." The
+  // toggle keeps all three; jogged is kept and deprioritized, and
+  // apps/viewer/README.md's leaders section is where that decision is
+  // written down.
   //
   // A named constant rather than a literal at each of the three sites that
   // needed one (the app's initial state, the toolbar's fallback preset, and
   // the toggle's fallback when a state value is not in the table): three
   // copies of a default is how a default half-moves.
-  VA.DEFAULT_LEADER_STYLE = "angled";
+  VA.DEFAULT_LEADER_STYLE = "off";
+  // The style whose geometry a bare `options.style` draws, and the one the
+  // browser tier turns on when it reads a leader: the first drawn style.
+  VA.LEADER_STYLE_ON = "angled";
 
   // How far the jog zone may be dragged open, as a MULTIPLE of its natural
   // width (leaderPad/leaderLane over the leader count). A multiple rather
@@ -4830,6 +4847,9 @@
     // on every real render (views/topology.js's renderTopoPane), so flipping
     // that default does not silently re-point this primitive.
     var angled = options.style === "angled";
+    // Off: the zone and the width are computed as ever (the layout does not
+    // move with the preference), and no leader is.
+    var off = options.style === "off";
     // VA.respineX's, on a transition frame only. A leader crosses the whole
     // pane, so both its ends move: the node end rides the interpolated
     // columns, the same x railGeometry's marks are drawn at, and the grid end
@@ -4902,7 +4922,7 @@
       slots[i] = descending[descending.length - 1 - n];
     });
 
-    var leaders = plan.leaders.map(function (leader, i) {
+    var leaders = (off ? [] : plan.leaders).map(function (leader, i) {
       var x1 = ends[i].x1;
       var y1 = ends[i].y1;
       var y2 = ends[i].y2;
@@ -4934,7 +4954,14 @@
       zoneLeft: zoneLeftK, width: widthK, naturalZone: naturalZone,
       // The reader's own preference, clamped -- not the stretch a transition
       // frame's lanes are spread by, which is `width` minus `zoneLeft`.
-      zoneScale: zone.scale, style: angled ? "angled" : "jogged",
+      zoneScale: zone.scale, style: off ? "off" : angled ? "angled" : "jogged",
+      // Which grid row each non-internal node's seam is above (the plan's
+      // `beforeEdge`), whatever is drawn: the page scrolls a selected node's
+      // row into view off this, with or without a leader to read it from.
+      boundaryEdge: plan.leaders.reduce(function (out, leader) {
+        out[leader.id] = leader.beforeEdge || null;
+        return out;
+      }, {}),
       // The SVG's height at this zoom, and the zoom itself: the DAG's content
       // is drawn under `translate(0 y0) scale(k) translate(0 -y0)`.
       height: height, zoom: k, y0: y0,

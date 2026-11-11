@@ -577,6 +577,27 @@ async function pickStack(page, id) {
 // — `demo_joint_standalone`, the same rich stack under an id no crop_key names,
 // which is the shape the real repo is in: two thermal-fit stacks with no
 // topology, and every other stack re-expressed as one.
+// Leaders are OFF by default since 2026-11-10 (one_selection_one_hover_and_
+// leaders_off): a suite that reads a leader -- a DAG<->grid path, the overlay
+// across the seam -- turns them on first, to the first drawn style
+// (VA.LEADER_STYLE_ON), by the toolbar's own control. Returns whether it got
+// there; a page with no toolbar (a stack page) has nothing to turn on.
+async function leadersOn(page) {
+  for (let i = 0; i < 4; i++) {
+    const at = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const t = document.getElementById("leader-style-toggle");
+      if (!t || !VA || !VA.LEADER_STYLES) return null;
+      return t.textContent.indexOf("Leaders: " + VA.LEADER_STYLES[VA.LEADER_STYLE_ON].label) !== -1;
+    });
+    if (at === null) return false;
+    if (at) return true;
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(60);
+  }
+  return false;
+}
+
 async function testTheApp(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];
@@ -1855,6 +1876,20 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    // Off by default (one_selection_one_hover_and_leaders_off): the toggle
+    // says so, no leader is built on either tier, and the grid is whole.
+    push("leaders are off by default: the toggle says so, no leader is drawn, and the grid is whole",
+      /Leaders: off/.test(await page.locator("#leader-style-toggle").textContent()) &&
+      await page.locator("path.rail__leader").count() === 0 &&
+      await page.locator("path.rail__leaderhit").count() === 0 &&
+      await page.locator("svg.seamleaders path").count() === 0 &&
+      await page.locator("tr.tvrow").count() === 6);
+    push("...and a selected node still finds its grid row with no leader to read it from",
+      await page.evaluate(() => {
+        const seams = window.ViewerApp.lastTopoRender.boundaryEdge || {};
+        return Object.keys(seams).length === 5 && seams.base_post_seat !== undefined;
+      }));
+    push("turned on, they draw in the first drawn style", await leadersOn(page));
 
     push("the rails render as SVG, not as unknown HTML elements",
       await page.locator("svg.tv__rails circle.rail__dot").count() > 0 &&
@@ -2577,17 +2612,17 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // angled, and the jog zone at two widths.
     const bands = () => page.evaluate(GRID_IN_PAGE);
 
-    // ANGLED is the default since 2026-09-21 (viewer_nav_alert_badge_and_
-    // angled_default), so the default style is measured FIRST and jogged is
-    // the one reached by a click. Jeff: "angled by default (jogged isn't
-    // really usable yet and arguably isn't worth putting more effort into
-    // since the angled lines look just fine)."
+    // ANGLED is the first drawn style (leadersOn turned the page's leaders
+    // on above; OFF is the default since 2026-11-10), so angled is measured
+    // FIRST and jogged is the one reached by a click. Jeff, 2026-09-21:
+    // "angled by default (jogged isn't really usable yet and arguably isn't
+    // worth putting more effort into since the angled lines look just fine)."
     const angledBands = await bands();
     push("no band is drawn behind the leaders, and no grid row wears a tint",
       angledBands.bad.length === 0 && angledBands.drawn === 0 &&
       angledBands.tinted > 0);
     if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
-    push("the leader-style toggle starts at angled",
+    push("the leader-style toggle reads angled once the leaders are turned on",
       /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
     // Flat out of the rails to the zone's edge, then straight to the seam
     // (descending_leaders_take_a_path_that_cannot_cross: the common turn is
@@ -2636,9 +2671,19 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     if (widened.bad.length) console.log("    bands: " + widened.bad.slice(0, 5).join(" | "));
     push("jogged lanes really did spread across the widened zone",
       widened.leaderPaths.every((d) => / H .* V .* H /.test(d)));
+    // One more click is OFF: no leader, and the zone stays exactly as wide
+    // as the drag left it -- turning leaders off moves nothing else.
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(50);
+    const widenedOff = await bands();
+    push("one more click: leaders off, none drawn, and the widened zone keeps its width",
+      /Leaders: off/.test(await page.locator("#leader-style-toggle").textContent()) &&
+      widenedOff.leaderPaths.length === 0 && widenedOff.drawn === 0 &&
+      Math.abs(widenedOff.svgWidth - widened.svgWidth) < 0.5 &&
+      widenedOff.rowHeights.join() === widened.rowHeights.join());
     // ...and the same, back in angled style: the resized zone × both styles
-    // is the matrix, not two separate one-offs. Ends on the DEFAULT style, so
-    // everything below this block sees the state a fresh load would have.
+    // is the matrix, not two separate one-offs. Ends on ANGLED, the style the
+    // rest of this suite reads its leaders in.
     await page.locator("#leader-style-toggle").click();
     await page.waitForTimeout(50);
     const widenedAngled = await bands();
@@ -3426,9 +3471,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
         realBands.provenanceLayers >= 20);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
-      // Both styles against the real mechanism. The page arrives in ANGLED
-      // (VA.DEFAULT_LEADER_STYLE since 2026-09-21), so the click reaches
-      // jogged and the one after it comes home.
+      // Both drawn styles against the real mechanism. The page is in ANGLED
+      // here (turned on above; off is the default since 2026-11-10), so one
+      // click reaches jogged, the next is off, and the one after comes home.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       const realJogged = await page.evaluate(GRID_IN_PAGE);
@@ -3438,6 +3483,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         realJogged.leaderPaths.length === realJogged.leaders &&
         realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
       if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      push("[real] the next click is off: no leader on the product graph either, its rows unchanged",
+        /Leaders: off/.test(await page.locator("#leader-style-toggle").textContent()) &&
+        (await page.evaluate(GRID_IN_PAGE)).leaderPaths.length === 0 &&
+        await page.locator("tr.tvrow").count() === realJogged.rowHeights.length);
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       const realAngled = await page.evaluate(GRID_IN_PAGE);
@@ -3526,7 +3577,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         push("[real] SKIPPED -- the live projection has one topology, so there is " +
           "nothing to switch to (ISSUE_20261027_no_real_topology_switch_since_the_fold.md)", true);
       }
-      // Back to angled, so everything below this sees the default it expects.
+      // Back to angled (through off), so everything below this sees the
+      // leaders it reads.
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       await pickModel(page, "vpa_pitch_linkage");
@@ -4470,6 +4524,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     }
     await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await leadersOn(page);
     await page.evaluate(({ projection, crops }) => {
       window.ViewerApp.demoTopologyFixture = function () {
         return {
@@ -8245,9 +8300,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Binding — " + chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
-    // In bind mode a selected feature nests the pane's rows for it: the pane
-    // scopes its own element list to the node (`filter-element`), and the
-    // faces layer under the feature row is that list.
+    // In bind mode a selected feature nests the pane's rows for it: the
+    // element rows of the edges at its node, cut from the pane's whole list
+    // by the page (since 2026-11-10; the pane is no longer scoped to it).
     const CHAIN_NODE = "pitch_link_lower_sphere_centre";
     const chainFeature = `#navtree [data-nav-kind="feature"][data-nav-id="pitch_link@${CHAIN_NODE}"]`;
     await page.locator(`#navtree [data-nav-twisty="p:pitch_link"]`).first().click({ timeout: 5000 }).catch(() => {});
@@ -8265,12 +8320,15 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       return slot ? Array.from(slot.querySelectorAll('[data-scene-key^="#element-list/"]'))
         .filter((n) => n.getAttribute("data-scene-key").slice("#element-list/".length).indexOf("/") === -1).length : 0;
     }, chainFeature);
-    const railElements = bindMode ? await inPane((w) =>
-      Array.from(w.document.querySelectorAll(".an__rail .el-row")).filter((n) => n.getClientRects().length).length) : -1;
+    const railElements = bindMode ? await inPane((w, node) =>
+      Array.from(w.document.querySelectorAll(".an__rail .el-row")).filter((n) => n.getClientRects().length &&
+        (n.dataset.edge === undefined || true)).length, CHAIN_NODE) : -1;
     const touching = (topology.edges || []).filter((e) => e.from === CHAIN_NODE || e.to === CHAIN_NODE).length;
+    console.log(`    bind mode: ${elementRows} element rows under the feature, ${touching} edges at its node, ` +
+      `${railElements} element rows in the pane's whole list`);
     push("[real] selecting a feature with the pane in bind mode nests the pane's element rows for " +
-      "its node under it -- one per edge on the node, and exactly what the pane lists",
-      elementRows > 0 && elementRows === railElements && elementRows === touching);
+      "its node under it -- one per edge on the node, cut from the pane's whole list",
+      elementRows > 0 && elementRows === touching && railElements >= elementRows);
     await page.locator(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"]`).first()
       .click({ timeout: 5000 }).catch(() => {});
     await page.waitForSelector(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`,
@@ -8735,8 +8793,9 @@ async function testAnnotateArmedPick(browser, label) {
         return c.distanceTo(s.controls.target);
       })(),
       line: line ? line.textContent : null,
-      pressed: (document.querySelector(sel + " .tree-row__repick") || { getAttribute: () => null })
+      pressed: (document.querySelector(sel + " > .tree-cands > .tree-cand--other") || { getAttribute: () => null })
         .getAttribute("aria-pressed"),
+      action: (document.querySelector(sel + " > .tree-cands > .tree-cand--other") || {}).textContent || null,
       preselected: s.preselected(),
       cursor: s.renderer.domElement.style.cursor,
       writes: (window.__mockWrites || []).length,
@@ -8767,7 +8826,7 @@ async function testAnnotateArmedPick(browser, label) {
 
     // --- arm: the pose, the isolation, the frame, one template -------------
     await page.locator(ROW).hover();
-    await page.locator(ROW + " .tree-row__repick").click();
+    await page.locator(ROW + " > .tree-cands > .tree-cand--other").click();
     await page.waitForFunction(() => window.__sweep.armed && window.__scene.pickFilter(), null, { timeout: 5000 });
     const armed = await scene();
     // What the arm saved to give back -- the camera at the moment of arming
@@ -8785,8 +8844,9 @@ async function testAnnotateArmedPick(browser, label) {
     push("arming filters the pick to the end's part and moves the camera onto it",
       JSON.stringify(armed.filter) === JSON.stringify([await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha)]) &&
       before.targetToPart > 5 && armed.targetToPart < 0.5);
-    push("the armed row says it is at the as-modelled pose, and its Pick reads pressed",
-      armed.line === "at the as-modelled pose for picking" && armed.pressed === "true");
+    push("the armed row says it is at the as-modelled pose, and its pick action reads Cancel, pressed",
+      armed.line === "at the as-modelled pose for picking" && armed.pressed === "true" &&
+      armed.action === "Cancel" && before.action === "Pick a face\u2026");
     push("one row template away from the pose and armed at it: name and state line, then " +
       "the actions at the right", JSON.stringify(shapeAway.slice(0, 1)) === JSON.stringify(shapeArmed.slice(0, 1)) &&
       shapeArmed.slice(1).every((s) => s.indexOf("BUTTON.") === 0) &&
@@ -8879,7 +8939,7 @@ async function testAnnotateArmedPick(browser, label) {
 
     // --- Esc restores ------------------------------------------------------------
     await page.locator(ROW).hover();
-    await page.locator(ROW + " .tree-row__repick").click();
+    await page.locator(ROW + " > .tree-cands > .tree-cand--other").click();
     await page.waitForFunction(() => window.__sweep.armed, null, { timeout: 5000 });
     const savedAgain = await page.evaluate(() => window.__sweep.armed.restore.camera);
     await page.mouse.move(away.x, away.y);
@@ -9040,7 +9100,8 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
         on: n.classList.contains("navtree__scenerow--on"),
         attention: n.getAttribute("data-attention") === "true",
         open: (n.querySelector(":scope > .navtree__scenetwisty") || { getAttribute: () => null }).getAttribute("aria-expanded"),
-        buttons: Array.from(n.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn")).map((b) => b.textContent) })) };
+        buttons: Array.from(n.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn, " +
+          ":scope ~ .navtree__featureacts > .navtree__scenebtn")).map((b) => b.textContent) })) };
   });
   const rowOf = (rows, re) => rows.find((r) => re.test(r.key)) || null;
   const click = (key, sel) => page.evaluate(([k, sel]) => {
@@ -9070,7 +9131,7 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     for (const j of joints) {
       const ends = Array.from(j.querySelectorAll("li.tree-row[data-edge][data-direction]")).map((li) => ({
         edge: li.dataset.edge, direction: li.dataset.direction, feature: li.dataset.feature,
-        open: open.indexOf(li.dataset.state) !== -1, listed: !!li.querySelector(":scope > .tree-row__twisty") }));
+        open: open.indexOf(li.dataset.state) !== -1, listed: !!li.querySelector(":scope > .tree-cands .tree-cand[data-face]") }));
       const to = ends.find((e) => e.direction === "to");
       const from = ends.find((e) => e.direction === "from");
       if (ends.length === 2 && to && from && to.edge === from.edge &&
@@ -9263,8 +9324,8 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       ? `#navtree [data-nav-kind="feature"][data-nav-id="${toPartId}@${target.to.feature}"]` : null;
     if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
     at = await nav();
-    const upper = rowOf(at.rows, UPPER);
-    if (upper) await click(upper.key, ".navtree__scenetwisty");
+    // The end's list is under the feature row with no disclosure of its own
+    // (2026-11-10): its faces are there as soon as the row is open.
     await listed(UPPER);
     // The feature row near the top of the nav, scrolled there by hand.
     await page.evaluate((sel) => {
@@ -9302,15 +9363,14 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       const li = Array.from(w.document.querySelectorAll('#sweep-tree li.tree-row[data-edge][data-direction]'))
         .find((n) => n.dataset.edge === args.edge && n.dataset.direction === args.direction);
       if (!li) return null;
-      const twisty = li.querySelector(":scope > .tree-row__twisty");
-      return { selected: li.classList.contains("selected"), open: twisty ? twisty.getAttribute("aria-expanded") : null,
-        faces: li.querySelectorAll(":scope > .tree-cands .tree-cand").length, state: li.dataset.state,
+      return { selected: li.classList.contains("selected"), twisty: !!li.querySelector(":scope > .tree-row__twisty"),
+        faces: li.querySelectorAll(":scope > .tree-cands .tree-cand[data-face]").length, state: li.dataset.state,
         edgeRows: w.document.querySelectorAll('#sweep-tree li.tree-row[data-feature="' + args.edge + '"]').length };
     }, { edge: TAKE_EDGE, direction: target && target.from ? target.from.direction : "from" });
     const stillSweep = await inPane((w) => !!w.__sweep && !w.__sweep.armed && !!w.document.getElementById("sweep-tree"));
-    push("[real] after one end is taken the other end's candidate list is open and selected, still " +
-      "suggested, and no edge-feature row is listed",
-      !!take && partner && partner.open === "true" && partner.selected && partner.faces > 0 &&
+    push("[real] after one end is taken the other end is selected with its candidate faces listed " +
+      "under it (no disclosure of its own), still suggested, and no edge-feature row is listed",
+      !!take && partner && !partner.twisty && partner.selected && partner.faces > 0 &&
       partner.state !== "bound" && partner.edgeRows === 0 && stillSweep);
 
     // --- the rail reads as a tree (the_rail_reads_as_a_tree_of_bodies_
@@ -9323,8 +9383,6 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     // followed the partner), its candidate list opened under it.
     if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
     at = await nav();
-    const upperAgain = rowOf(at.rows, UPPER);
-    if (upperAgain && upperAgain.open !== "true") await click(upperAgain.key, ".navtree__scenetwisty");
     await listed(UPPER);
     await page.waitForTimeout(500);
     // The layer is read under whichever feature holds it now; none at all is
@@ -9338,13 +9396,28 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
       const scene = document.querySelector(".navtree__scene");
       if (!scene) return { kinds: [], unkinded: [], endMarks: [], marks: [], legend: [], step: [null], glyphs: [null], attentionInk: null, ink: "a", inferred: "b" };
-      const rows = Array.from(scene.querySelectorAll(".navtree__scenerow[data-scene-key]"));
+      // The faces layer's rows: the END is the feature body's state line
+      // (one_selection_one_hover_and_leaders_off: the pane's own row for the
+      // feature is not drawn; the feature row above is the title and wears
+      // the one mark), the faces are scene rows under it.
+      const rows = Array.from(scene.querySelectorAll(
+        ".navtree__scenerow[data-scene-key], .navtree__featurestate[data-scene-key]"));
       const find = (re, kind) => rows.find((n) => new RegExp(re).test(n.getAttribute("data-scene-key")) &&
         n.getAttribute("data-kind") === kind);
+      const featureRow = scene.parentNode.querySelector(":scope > .navtree__row--feature");
       const lead = (n) => n && n.firstElementChild ? n.firstElementChild.getBoundingClientRect().left : NaN;
+      // A glyph is drawn by a ::before (the scene rows' marks) or by the mark's
+      // own box (the feature row's one mark, a filled or ringed circle).
       const glyph = (n) => {
-        const s = n && getComputedStyle(n.querySelector(":scope > .navtree__scenemark"), "::before");
-        return s ? { content: s.content, width: parseFloat(s.width) || 0, fill: s.backgroundColor } : null;
+        const mark = n && (n.querySelector(":scope > .navtree__scenemark") || n.querySelector(":scope > .navtree__mark"));
+        if (!mark) return null;
+        const s = getComputedStyle(mark, "::before");
+        const own = getComputedStyle(mark);
+        const box = mark.getBoundingClientRect();
+        const byBox = s.content === "none" && box.width > 0 &&
+          (own.backgroundColor !== "rgba(0, 0, 0, 0)" || parseFloat(own.borderTopWidth) > 0);
+        return { content: byBox ? "box" : s.content, width: byBox ? box.width : (parseFloat(s.width) || 0),
+          fill: s.content === "none" ? own.backgroundColor : s.backgroundColor };
       };
       const probe = (css) => {
         const p = document.createElement("span");
@@ -9363,9 +9436,9 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       // stay ink (the old rule painted them --inferred; Jeff's "turned orange").
       let attentionInk = null;
       const inkRow = low || up;
-      if (inkRow) {
+      if (inkRow && featureRow) {
         inkRow.setAttribute("data-attention", "true");
-        attentionInk = getComputedStyle(inkRow.querySelector(".navtree__scenename")).color;
+        attentionInk = getComputedStyle(featureRow.querySelector(".navtree__label")).color;
         inkRow.removeAttribute("data-attention");
       }
       const marks = Object.keys(w.AnnotateApp.RAIL_MARKS);
@@ -9376,39 +9449,46 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
         marks,
         upperMark: up && up.getAttribute("data-mark"),
         lowerMark: low && low.getAttribute("data-mark"),
-        upperFill: glyph(up) && glyph(up).fill,
-        picked: probe("var(--mark-picked)"),
-        legend: Array.from(scene.querySelectorAll(".navtree__scenelegenditem > .navtree__scenemark"))
-          .map((n) => n.getAttribute("data-mark")),
-        step: [lead(candidate) - lead(up)].map((d) => (isNaN(d) ? null : d)),
-        glyphs: ["end", "candidate"].map((k) =>
-          glyph(rows.find((n) => n.getAttribute("data-kind") === k))),
+        // The feature row's one mark, and what the tree says it is.
+        featureStatus: featureRow && featureRow.querySelector(".navtree__mark") &&
+          featureRow.querySelector(".navtree__mark").getAttribute("data-status"),
+        featureFill: glyph(featureRow) && glyph(featureRow).fill,
+        bound: probe("var(--mark-bound)"),
+        legend: Array.from(scene.querySelectorAll(".navtree__scenelegenditem")).length,
+        titles: Array.from(scene.querySelectorAll(".navtree__scenename, .navtree__featurewords"))
+          .map((n) => n.textContent),
+        featureName: featureRow ? featureRow.querySelector(".navtree__label").textContent : null,
+        step: [lead(candidate) - lead(featureRow)].map((d) => (isNaN(d) ? null : d)),
+        glyphs: [glyph(featureRow), glyph(rows.find((n) => n.getAttribute("data-kind") === "candidate"))],
         attentionInk,
         ink: probe("var(--ink)"),
         inferred: probe("var(--inferred)"),
       };
     }, { upper: UPPER.source, lower: LOWER.source, joint: TAKE_JOINT.source });
     console.log(`    rail look: kinds ${look.kinds.join(" ")}; ends ${look.endMarks.join(" ")}; ` +
-      `legend ${look.legend.length}/${look.marks.length}; steps ${look.step.join(" ")}; ` +
-      `upper fill ${look.upperFill} (picked ${look.picked}); attention ink ${look.attentionInk} ` +
+      `legend items ${look.legend}; steps ${look.step.join(" ")}; ` +
+      `feature mark ${look.featureStatus} ${look.featureFill} (bound ${look.bound}); attention ink ${look.attentionInk} ` +
       `(ink ${look.ink}, inferred ${look.inferred}); unkinded ${look.unkinded.length}; ` +
-      `glyphs ${JSON.stringify(look.glyphs.map((g) => g && [g.content, g.width]))}`);
-    push("[real] the faces layer's rows say what they are: end and candidate rows each carry their " +
-      "kind, and every end carries a mark from the annotator's vocabulary",
+      `glyphs ${JSON.stringify(look.glyphs.map((g) => g && [g.content, g.width]))}; titles ${JSON.stringify(look.titles)}`);
+    push("[real] the faces layer's rows say what they are: the end's state line and the candidate rows " +
+      "each carry their kind, and every end carries a mark from the annotator's vocabulary",
       ["end", "candidate"].every((k) => look.kinds.indexOf(k) !== -1) &&
       look.unkinded.length === 0 && look.endMarks.length >= 1 &&
       look.endMarks.every((m) => look.marks.indexOf(m) !== -1));
-    push("[real] the end taken this session wears the picked-now mark, filled in the scene's pick " +
-      "orange",
-      look.upperMark === "picked" && look.upperFill === look.picked);
-    push("[real] the legend draws every mark once, as the annotator names them",
-      look.legend.length === look.marks.length && look.marks.every((m) => look.legend.indexOf(m) !== -1));
+    push("[real] the end taken this session wears the picked-now mark on its state line, and the feature " +
+      "row's one mark reads bound, filled in the bound colour",
+      look.upperMark === "picked" && look.featureStatus === "bound" && look.featureFill === look.bound);
+    // The feature row is the one title: the body under it repeats neither the
+    // feature's name nor the marks legend (Jeff, 2026-11-10).
+    push("[real] the feature row is the one title: its body repeats neither its name nor a marks legend",
+      look.legend === 0 && !!look.featureName &&
+      look.titles.every((t) => t.trim() !== look.featureName.trim()));
     // The step Jeff called "way too shallow" was 14px; a level steps in by at
-    // least this much, from an end to its candidate face.
+    // least this much, from the feature row to its candidate face.
     const RAIL_MIN_STEP = 18;
-    push("[real] a candidate face steps in from its end by a full indent",
+    push("[real] a candidate face steps in from its feature row by a full indent",
       look.step.every((d) => d !== null && d >= RAIL_MIN_STEP));
-    push("[real] an end and a candidate face each draw a glyph",
+    push("[real] the feature row and a candidate face each draw a glyph",
       look.glyphs.every((g) => g && g.content !== "none" && g.width > 0));
     push("[real] a row the annotator marks for attention keeps its words in ink, not the provenance amber",
       look.attentionInk === look.ink && look.ink !== look.inferred);
@@ -9457,6 +9537,12 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       suggestedColour: !!(line && line.classList.contains("tree-row__face--suggested")),
       title: li ? li.title : "",
       buttons: li ? Array.from(li.querySelectorAll(":scope > button")).map((b) => b.textContent) : [],
+      // The one pick action: the last row of the end's list, in one wording.
+      action: (() => {
+        const a = li && li.querySelector(":scope > .tree-cands > .tree-cand--other");
+        return a ? { text: a.textContent, pressed: a.getAttribute("aria-pressed") === "true",
+          last: a === li.querySelector(":scope > .tree-cands").lastElementChild } : null;
+      })(),
       selected: !!(li && li.classList.contains("selected")),
       focus: s.suggestionFocus(),
       drawn: mesh ? s.drawnPlacements(sha).length : 0,
@@ -9473,10 +9559,11 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     await enterSweep(page);
     const rest = await read(page);
     push("a joint end with an open proposal reads 'suggested · high' in the suggestion colour, " +
-      "with who and why on the hover and no action until it is selected",
+      "with who and why on the hover, no button until it is selected, and the one pick action last in its list",
       rest.line === "suggested · high" && rest.suggestedColour &&
       rest.title.indexOf("Proposed by agent (high): flat face; the one face of the demo triangle") !== -1 &&
-      rest.buttons.length === 0 && !/proposal|ratif|[0-9a-f]{12}/.test(rest.line));
+      rest.buttons.length === 0 && !/proposal|ratif|[0-9a-f]{12}/.test(rest.line) &&
+      rest.action && rest.action.text === "Pick a face\u2026" && rest.action.last && !rest.action.pressed);
     await page.locator(ROW).click();
     await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null,
       { timeout: 5000 }).catch(() => {});
@@ -9489,8 +9576,9 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     push("...frames the camera on it, dims every other part, and emphasises the node's hollow marker",
       lit.targetToPart !== null && lit.targetToPart < 0.5 && lit.bracketGhost && !lit.triangleGhost &&
       lit.focus.node === "a" && lit.focus.markerEmphasised);
-    push("the selected row offers Accept and Pick a different face, and nothing else",
-      JSON.stringify(lit.buttons) === JSON.stringify(["Accept", "Pick a different face"]));
+    push("the selected row offers Accept and nothing else; the pick action stays where it was, under the list",
+      JSON.stringify(lit.buttons) === JSON.stringify(["Accept"]) &&
+      lit.action && lit.action.text === "Pick a face\u2026" && lit.action.last);
     await page.locator(ROW + " .tree-row__accept").click();
     await page.waitForFunction(() => (window.__mockWrites || []).length > 0, null, { timeout: 5000 }).catch(() => {});
     await page.waitForFunction((sel) => {
@@ -9504,10 +9592,11 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       e.ratifies === "proposal-0009-demo_edge_traced-from" && e.direction === "from" &&
       e.geometry_key.face_id === 0 && e.recorded_by === "annotate-app:jeff" &&
       /_accepted\.json$/.test(accepted.writes[0].filename));
-    push("...the row reads bound, the solid face and the dimming come down, and Pick is back",
+    push("...the row reads bound, the solid face and the dimming come down, and the one pick action " +
+      "is still there in the same words",
       accepted.line === "bound · face 0" && !accepted.suggestedColour &&
       !accepted.focus.faces.length && accepted.bracketLook === rest.bracketLook &&
-      accepted.buttons.indexOf("Re-pick") !== -1);
+      accepted.buttons.length === 0 && accepted.action && accepted.action.text === "Pick a face\u2026");
   } catch (err) {
     await page.close();
     server.close();
@@ -9521,11 +9610,13 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     await enterSweep(page);
     await page.locator(ROW).click();
     await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null, { timeout: 5000 });
-    await page.locator(ROW + " .tree-row__pick-other").click();
+    await page.locator(ROW + " > .tree-cands > .tree-cand--other").click();
     await page.waitForFunction(() => window.__sweep.armed && window.__scene.pickFilter(), null, { timeout: 5000 });
     const armed = await read(page);
-    push("Pick a different face arms the pick exactly as Pick does, and the selected face's fill goes",
-      armed.armed && armed.line === "at the as-modelled pose for picking" && !armed.focus.faces.length);
+    push("the pick action under a proposal arms the pick, the selected face's fill goes, and the " +
+      "same row now reads Cancel, pressed",
+      armed.armed && armed.line === "at the as-modelled pose for picking" && !armed.focus.faces.length &&
+      armed.action && armed.action.text === "Cancel" && armed.action.pressed);
     await page.evaluate(() => window.__scene.onPick(
       { sha256: window.AnnotateApp.FIXTURES.demoSha, faceId: 1 }, null, null));
     await page.waitForFunction(() => (window.__mockWrites || []).length >= 2 && !window.__sweep.armed,
@@ -9554,9 +9645,10 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
   try {
     await enterSweep(page);
     const rest = await read(page);
-    push("an end the contact engine ranked and nobody proposed reads 'candidates · 3' and keeps plain Pick",
+    push("an end the contact engine ranked and nobody proposed reads 'candidates · 3', wears no button, " +
+      "and ends its list in the same pick action",
       rest.line === "candidates · 3" && rest.suggestedColour &&
-      JSON.stringify(rest.buttons) === JSON.stringify(["Pick"]));
+      rest.buttons.length === 0 && rest.action && rest.action.text === "Pick a face\u2026" && rest.action.last);
     await page.locator(ROW).click();
     await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null,
       { timeout: 5000 }).catch(() => {});
@@ -9566,20 +9658,21 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       lit.focus.faces[0].drawn > 0 && lit.focus.node === null);
 
     // a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there: the
-    // row's twisty opens its list; a row's hover washes its face; Take binds it.
-    await page.locator(ROW + " > .tree-row__twisty").click();
+    // end's list is under it (the shell's feature row is the disclosure since
+    // 2026-11-10; this rail has none); a row's hover washes its face; Take
+    // binds it.
     await page.waitForSelector(ROW + " .tree-cands .tree-cand", { timeout: 5000 });
     const list = await page.evaluate((sel) => Array.from(
       document.querySelectorAll(sel + " .tree-cands > li")).map((li) => ({
       name: (li.querySelector(".tree-row__name") || {}).textContent || "",
       reason: (li.querySelector(".tree-row__face") || {}).textContent || "",
       title: li.title, take: !!li.querySelector(".tree-cand__take") })), ROW);
-    push("the twisty opens the end's candidate list: one row per face in rank order, each saying " +
-      "why it is there, then Pick another face",
+    push("the end's candidate list is under it: one row per face in rank order, each saying " +
+      "why it is there, then the one pick action",
       list.length === 4 && list.slice(0, 3).map((r) => r.name).join() === "face 1 · flat,face 0 · flat,face 2 · flat" &&
       list.slice(0, 3).every((r) => r.reason === "coincident with the mating face" && r.take &&
         r.title.indexOf("coincident with the mating face") !== -1) &&
-      list[3].name === "Pick another face…" && !list[3].take);
+      list[3].name === "Pick a face\u2026" && !list[3].take);
     const cam = await settledCamera(page);
     await page.locator(ROW + ' .tree-cand[data-face="0"]').hover();
     await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 5000 }).catch(() => {});
@@ -9662,44 +9755,20 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     push("the shell's mirror carries the row's suggestion line, marked as a suggestion, " +
       "selectable, and not amber", row && row.suggestion === true && row.activate === true &&
       !row.attention);
-    // The candidate list crosses the seam: the row carries its twisty closed,
-    // a toggle gesture from the shell opens it, and the next tree carries the
-    // list's rows with their reason, Take, and Pick another face.
-    const shut = row && typeof row.twisty === "string" && row.open === false && !row.rows;
-    if (row) {
-      await page.evaluate((key) => {
-        const frame = document.querySelector("iframe");
-        frame.contentWindow.postMessage({ type: "annotate:rail", key, act: "toggle" }, location.origin);
-      }, row.key);
-    }
-    await page.waitForFunction((key) => window.__trees.some((t) => {
-      const find = (rows) => (rows || []).some((r) => (r.key === key && r.open) || find(r.rows));
-      return find(t.rows);
-    }), row && row.key, { timeout: 10000 }).catch(() => {});
-    const opened = await page.evaluate((key) => {
-      const find = (rows) => {
-        for (const r of rows || []) {
-          if (r.key === key) return r;
-          const k = find(r.rows);
-          if (k) return k;
-        }
-        return null;
-      };
-      for (let i = window.__trees.length - 1; i >= 0; i--) {
-        const hit = find(window.__trees[i].rows);
-        if (hit) return hit;
-      }
-      return null;
-    }, row && row.key);
+    // The candidate list crosses the seam with the row, always (since
+    // 2026-11-10 the end has no disclosure of its own; the shell's feature
+    // row is the disclosure): the row carries no twisty, and its rows are the
+    // list's -- each face with its reason and its Take, and the one pick
+    // action last.
     // Bind mode's element row (the row found first) names the end above its faces.
-    const heads = ((opened && opened.rows) || []).filter((r) => typeof r.head === "string");
-    const kids = ((opened && opened.rows) || []).filter((r) => typeof r.head !== "string");
-    push("...with its candidate disclosure: closed, a toggle from the shell opens it, and the " +
-      "mirrored list carries the proposal's reason, its Take, and Pick another face, wrapping",
-      shut && opened && opened.open === true && kids.length === 2 && heads.length === 1 &&
+    const heads = ((row && row.rows) || []).filter((r) => typeof r.head === "string");
+    const kids = ((row && row.rows) || []).filter((r) => typeof r.head !== "string");
+    push("...with its candidate list in the same tree, no disclosure of its own: the proposal's " +
+      "reason, its Take, and the one pick action last, wrapping",
+      row && typeof row.twisty !== "string" && kids.length === 2 && heads.length === 1 &&
       kids[0].sub === "agent suggested · high" && kids[0].wrap === true &&
       JSON.stringify((kids[0].buttons || []).map((b) => b.text)) === JSON.stringify(["Take"]) &&
-      kids[1].text === "Pick another face…" && kids[1].activate === true);
+      kids[1].text === "Pick a face\u2026" && kids[1].activate === true && kids[1].kind === "action");
   } catch (err) {
     await page.close();
     server.close();
@@ -10051,7 +10120,6 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       const r = document.querySelector(sel);
       for (let d = r && r.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
     }, HUB_END);
-    await page.locator(HUB_END + " > .tree-row__twisty").first().click({ timeout: 5000 }).catch(() => {});
     await page.waitForSelector(HUB_END + " .tree-cands .tree-cand[data-face]", { timeout: 15000 }).catch(() => {});
     const hubList = await page.evaluate((sel) => Array.from(
       document.querySelectorAll(sel + " .tree-cands > .tree-cand")).map((li) => ({
@@ -10061,12 +10129,12 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     const listed = hubList.filter((r) => r.face !== null);
     console.log(`    hub spindle bore axis: ${listed.length} candidate rows listed, ` +
       `${hubList.length - listed.length} action rows`);
-    push("[real] the hub spindle bore axis end opens to the contact engine's faces, the top-ranked " +
-      "first, each naming its class and radius and why it is there, then show all and Pick another face",
+    push("[real] the hub spindle bore axis end lists the contact engine's faces, the top-ranked " +
+      "first, each naming its class and radius and why it is there, then show all and the one pick action",
       !!spindleTop && listed.length > 0 && Number(listed[0].face) === spindleTop.faces[0] &&
       listed.every((r) => /^face \d+ · round · r [0-9.]+ mm$/.test(r.name) &&
         /^coaxial with the mating |^fits the mating /.test(r.reason)) &&
-      hubList[hubList.length - 1].name === "Pick another face…");
+      hubList[hubList.length - 1].name === "Pick a face\u2026");
     const hubCam = await settledCamera(page);
     await page.locator(HUB_END + " .tree-cands > .tree-cand[data-face]").first().hover({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 15000 }).catch(() => {});
@@ -10077,7 +10145,6 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       hubWash.w.faceId === spindleTop.faces[0] && hubWash.w.overlays > 0 &&
       hubWash.w.color === hubWash.w.preselectColor && sameCameraState(hubWash.cam, hubCam));
     await page.mouse.move(5, 5);
-    await page.locator(HUB_END + " > .tree-row__twisty").first().click({ timeout: 5000 }).catch(() => {});
 
     // --- Jeff's reproduction: a joint end's Pick arms on its own part ----------
     // a_face_is_picked_the_way_cad_picks_it: Pick on `hub blade-1 root bearing
@@ -10090,7 +10157,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     }, BORE);
     const boreRow = page.locator(`#sweep-tree .tree-row[data-feature="${BORE}"][data-direction]`).first();
     await boreRow.hover({ timeout: 5000 }).catch(() => {});
-    await boreRow.locator(".tree-row__repick").first().click({ timeout: 5000 }).catch(() => {});
+    await boreRow.locator(":scope > .tree-cands > .tree-cand--other").first().click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction(() => window.__sweep && window.__sweep.armed && window.__scene.pickFilter(),
       null, { timeout: 30000 }).catch(() => {});
     const armedBore = await page.evaluate(() => {
@@ -13789,6 +13856,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await leadersOn(page);
     await page.evaluate(({ projection, crops }) => {
       window.ViewerApp.demoTopologyFixture = function () {
         return {
@@ -14666,6 +14734,8 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
   try {
     await page.goto(url + "/apps/viewer/topology.html?topology=" + MODEL_ALONE_TOPOLOGY, { waitUntil: "load" });
     await pickModel(page, MODEL_ALONE_TOPOLOGY);
+    await page.waitForSelector("tr.tvrow", { timeout: 30000 }).catch(() => {});
+    await leadersOn(page);
     // The whole model in 3D: the seam's handle opens the pane on the
     // picker's choice (the topology row and its 3D control left with the
     // rows, 2026-11-10).
@@ -14918,6 +14988,7 @@ async function testSeamLeaders(browser, label, topologies) {
     // --- the TRUTH half: the fixture model, a synthetic anchors message ----
     await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await leadersOn(page);
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("#study-3d", { timeout: 15000 });
     await settled();
@@ -15286,6 +15357,7 @@ async function testSeamLeaders(browser, label, topologies) {
   try {
     await live.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
     await live.waitForSelector("div.kmverdict", { timeout: 30000 });
+    await leadersOn(live);
     await live.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
     await live.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
     const runId = study.sweep.run_id;

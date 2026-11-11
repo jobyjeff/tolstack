@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the leader default is off, is a real style the toggle cycles through with the two drawn ones, and the toolbar names it",
+  "mutations": [
+    {
+      "contract": "Leaders are off by default.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Puts the default back to angled.",
+      "file": "apps/viewer/topology.js",
+      "find": "VA.DEFAULT_LEADER_STYLE = \"off\";",
+      "replace": "VA.DEFAULT_LEADER_STYLE = \"angled\";"
+    },
+    {
+      "contract": "The browser tier turns leaders on to the first drawn style, angled.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Names jogged as the drawn style the tier turns on.",
+      "file": "apps/viewer/topology.js",
+      "find": "VA.LEADER_STYLE_ON = \"angled\";",
+      "replace": "VA.LEADER_STYLE_ON = \"jogged\";"
+    }
+  ]
+}

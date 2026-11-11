@@ -528,6 +528,9 @@
                           floor: VA.drawnColumn(0, xTween),
                           links: linkAlpha,
                           width: leaderGeo.width, tweening: !!tween,
+                          // Each non-internal node's seam row, drawn or not
+                          // (VA.leaderGeometry's `boundaryEdge`).
+                          boundaryEdge: leaderGeo.boundaryEdge,
                           // The DAG ends of the leaders across the seam, in
                           // this SVG's pixels: the page adds the SVG's rect
                           // (VA.seamDots, topology_app.js's drawSeamLeaders).
@@ -2158,45 +2161,19 @@
     return spec.el;
   }
 
-  function setHot(hot, key) {
-    if (!hot || hot.on === key) return;
-    hot.on = key;
-    if (hot.onChange) hot.onChange(key);
-    drawHoverLabel(hot, key);
-    while (hot.marked.length) {
-      var was = hot.marked.pop();
-      was.el.setAttribute("class", was.base);
-    }
-    if (!key) return;
-    var light = function (entry, extra) {
-      entry.el.setAttribute("class", entry.base + " " + extra);
-      hot.marked.push(entry);
-    };
-    var railId = hot.railOf[key];
-    (railId ? hot.rail[railId] || [] : []).forEach(function (entry) {
-      light(entry, entry.hot);
-    });
-    // After the line, so an element that is both keeps the stronger of the
-    // two. A `--lead` carries `--hot` with it where it has one, which is what
-    // lets the browser tier ask the handoff's question ("hovering the bar
-    // marks the row `--hot`") of either level.
-    // A registered node may carry only one of the two (a hit path has a halo
-    // and no lead state of its own; a leader has a lead state and no place in
-    // the leg's glow), so the pair is joined rather than branched on -- a
-    // missing half used to arrive in the class string as the word "null".
-    (hot.lead[key] || []).forEach(function (entry) {
-      light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
-    });
-  }
-
-  // The scene's pointer, lighting this pane (coaxial_ends_share_one_3d_node):
-  // every key's line and lead marks at once -- a joint's one 3D dot stands
-  // for several nodes -- or none. The pane's own pointer wins: while it holds
-  // the state this does nothing, and it tells no listener (the scene is
-  // where the pointer is). Returns how many keys it lit.
-  VA.lightTopoKeys = function (keys) {
-    var hot = VA.lastTopoHot;
-    if (!hot || hot.on) return 0;
+  // ONE lighter (one_selection_one_hover_and_leaders_off, 2026-11-10): every
+  // key's line and lead marks at once, or none. setHot (the pane's own
+  // pointer) and VA.lightTopoKeys (the page's one hover, from the tree, the
+  // scene or a repaint) both arrive here, so there is one place a class is
+  // written. A `--lead` carries `--hot` with it where it has one, which is
+  // what lets the browser tier ask the handoff's question ("hovering the bar
+  // marks the row `--hot`") of either level; the line is lit first so an
+  // element that is both keeps the stronger of the two. A registered node
+  // may carry only one of the two (a hit path has a halo and no lead state
+  // of its own; a leader has a lead state and no place in the leg's glow),
+  // so the pair is joined rather than branched on -- a missing half used to
+  // arrive in the class string as the word "null".
+  function lightKeys(hot, keys) {
     while (hot.marked.length) {
       var was = hot.marked.pop();
       was.el.setAttribute("class", was.base);
@@ -2216,12 +2193,44 @@
       });
     });
     return list.length;
+  }
+
+  // The pane's own pointer (or keyboard focus) on a mark, a row, a rail: lit
+  // here, labelled, and told to the page (`onChange`), which holds the one
+  // hover and lights the other surfaces from it. A leave with nothing held
+  // (`key` null while `on` is already null -- the pointer rested on a mark
+  // through a repaint, which rebuilt this state) still tells the page, so
+  // the hover the repaint carried over is let go of.
+  function setHot(hot, key) {
+    if (!hot) return;
+    if (hot.on === key) {
+      if (key === null && hot.onChange) hot.onChange(null);
+      return;
+    }
+    hot.on = key;
+    drawHoverLabel(hot, key);
+    lightKeys(hot, key ? [key] : []);
+    if (hot.onChange) hot.onChange(key);
+  }
+
+  // The page's one hover, lighting this pane (coaxial_ends_share_one_3d_node
+  // first; every surface since 2026-11-10): the keys of what is hovered in
+  // the tree, in the scene, or still hovered across a repaint -- a joint's
+  // one 3D dot stands for several nodes -- or none. The pane's own pointer
+  // wins: while it holds the state (`on`) this does nothing, since what it
+  // lit is what the page's hover IS. Returns how many keys it lit.
+  VA.lightTopoKeys = function (keys) {
+    var hot = VA.lastTopoHot;
+    if (!hot || hot.on) return 0;
+    return lightKeys(hot, keys);
   };
 
   // Hover and keyboard focus drive the same state, and leaving clears it only
-  // if this element is still the one holding it: moving the pointer from a bar
-  // onto the rail under it fires the new element's `mouseenter` and the old
-  // one's `mouseleave`, and a clear that did not check would race the set.
+  // if this element is still the one holding it -- or nothing is: moving the
+  // pointer from a bar onto the rail under it fires the new element's
+  // `mouseenter` and the old one's `mouseleave`, and a clear that did not
+  // check would race the set; a leave on a pane repainted under the pointer
+  // (`on` null again) is the one way the page learns the pointer has gone.
   //
   // Composed onto whatever the node already carries rather than assigned: a
   // bar's hit path opens a card on the same two events (cardOnHover above), and
@@ -2229,8 +2238,8 @@
   function hotHover(hot, node, key) {
     chain(node, "onmouseenter", function () { setHot(hot, key); });
     chain(node, "onfocus", function () { setHot(hot, key); });
-    chain(node, "onmouseleave", function () { if (hot.on === key) setHot(hot, null); });
-    chain(node, "onblur", function () { if (hot.on === key) setHot(hot, null); });
+    chain(node, "onmouseleave", function () { if (hot.on === key || hot.on === null) setHot(hot, null); });
+    chain(node, "onblur", function () { if (hot.on === key || hot.on === null) setHot(hot, null); });
     return node;
   }
 

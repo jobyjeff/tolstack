@@ -331,19 +331,93 @@
         eq(picked[0].rows.length, 1, "the end's candidate faces ride under it");
         eq(VA.sceneRowsForFeature(sweep, "no_such_node"), [],
            "a node the sweep tree does not name, and no element list: nothing");
-        // Bind mode: the pane scoped its element list to the node, so the
-        // whole list is the feature's; the list's heading is not a row.
+        // Bind mode: the pane sends its whole element list, keyed by edge,
+        // and the feature's rows are the elements of the edges at its node
+        // (the page hands them in); the list's heading is not a row, and a
+        // part is not an element.
         var bind = { rows: [
           { key: "#element-list/All 3 interfaces", head: "All 3 interfaces" },
-          { key: "#element-list/base thickness", text: "base thickness", activate: true },
-          { key: "#element-list/post height", text: "post height", activate: true },
+          { key: "#element-list/edge=base_thickness", text: "base thickness", activate: true },
+          { key: "#element-list/edge=post_height", text: "post height", activate: true },
+          { key: "#element-list/edge=arm_reach", text: "arm reach", activate: true },
           { key: "#parts-panel/In this model", head: "In this model" },
           { key: "#parts-panel/base", text: "215197 base plate" },
         ] };
-        eq(VA.sceneRowsForFeature(bind, "base_post_seat").map(function (r) { return r.text; }),
+        eq(VA.sceneRowsForFeature(bind, "base_post_seat", ["base_thickness", "post_height"])
+             .map(function (r) { return r.text; }),
            ["base thickness", "post height"]);
+        eq(VA.sceneRowsForFeature(bind, "base_post_seat", []), [],
+           "no edges at the node: no rows, never the whole list");
+        eq(VA.sceneRowsForFeature(bind, "base_post_seat"), []);
         eq(VA.sceneRowsForFeature(null, "x"), []);
         eq(VA.sceneRowsForFeature(bind, null), []);
+      });
+
+    await test("a feature's body is the pane's end row without its head: the state line " +
+      "carrying the end's kind and mark, its actions, then its list with the one pick action " +
+      "last -- and several rows, or bind mode's elements, are drawn as rows", function () {
+        var sent = [];
+        var send = function (key, act, index) {
+          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
+        };
+        var stop = { preventDefault: function () {}, stopPropagation: function () {} };
+        var slot = document.createElement("div");
+        var end = { key: "#sweep-tree/joint=j/edge=g1,feature=n3,direction=from", text: "bore",
+          sub: "candidates \u00b7 2", kind: "end", mark: "contact", suggestion: true, activate: true,
+          selected: true, title: "bore\ncandidates \u00b7 2",
+          buttons: [{ text: "Accept", title: "bind the suggested face at this end" }],
+          rows: [
+            { key: "#sweep-tree/joint=j/edge=g1,feature=n3,direction=from/face=3", text: "face 3 \u00b7 round",
+              sub: "coaxial with the mating pin", kind: "candidate", suggestion: true, wrap: true,
+              buttons: [{ text: "Take" }] },
+            { key: "#sweep-tree/joint=j/edge=g1,feature=n3,direction=from/direction=from", text: "Pick a face\u2026",
+              kind: "action", activate: true, wrap: true },
+          ] };
+        VA.renderFeatureBody(slot, [end], { send: send });
+        var endRows = function (box) {
+          return box.querySelectorAll("div.navtree__scenerow").filter(function (r) {
+            return r.getAttribute("data-kind") === "end";
+          });
+        };
+        eq(endRows(slot).length, 0,
+           "the pane's own row for the feature is not drawn: the feature row above is the title");
+        eq(slot.textContent.indexOf("bore"), -1, "...so its name is not repeated");
+        var line = slot.querySelector(".navtree__featurestate");
+        eq(line.getAttribute("data-kind"), "end");
+        eq(line.getAttribute("data-mark"), "contact");
+        eq(line.getAttribute("data-suggestion"), "true");
+        eq(line.querySelector("span.navtree__featurewords").textContent, "candidates \u00b7 2");
+        eq(line.querySelector("span.navtree__featurewords").getAttribute("title"), "bore\ncandidates \u00b7 2");
+        eq(slot.querySelectorAll("div.navtree__scenelegend").length, 0, "no legend under a row");
+        var order = Array.prototype.map.call(slot.querySelector("div.navtree__featurebody").childNodes,
+          function (n) { return n.className.split(" ")[0]; });
+        eq(order, ["navtree__featurestate", "navtree__featureacts", "navtree__scenelist"],
+           "state line, actions, list -- in that order");
+        eq(slot.querySelector("div.navtree__featureacts").querySelector("button").textContent, "Accept");
+        var rows = slot.querySelector("ul.navtree__scenelist").querySelectorAll("div.navtree__scenerow");
+        eq(rows.length, 2);
+        eq(rows[1].getAttribute("data-kind"), "action");
+        eq(rows[1].textContent, "Pick a face\u2026", "the pick action is the list's last row");
+        line.onmouseenter();
+        rows[1].onclick();
+        eq(sent, [end.key + " enter", end.rows[1].key + " activate"]);
+        // An armed pick's Cancel row is pressed, and an Esc here has it.
+        var armed = { key: "e", text: "bore", sub: "at the as-modelled pose for picking", kind: "end",
+          activate: true, rows: [{ key: "e/c", text: "Cancel", kind: "action", activate: true, pressed: true }] };
+        var slot2 = document.createElement("div");
+        VA.renderFeatureBody(slot2, [armed], { send: send });
+        eq(slot2.querySelector("div.navtree__scenerow--act").getAttribute("aria-pressed"), "true");
+        eq(VA.sceneRowsPressed([armed]), true);
+        // Two end rows on one node, or bind mode's element rows: drawn as rows.
+        var slot3 = document.createElement("div");
+        VA.renderFeatureBody(slot3, [end, Object.assign({}, end, { key: "other", text: "bore (other joint)" })],
+          { send: send });
+        eq(endRows(slot3).length, 2);
+        var slot4 = document.createElement("div");
+        VA.renderFeatureBody(slot4, [], { send: send });
+        eq(slot4.childNodes.length, 0, "no rows draws nothing");
+        VA.renderFeatureBody(slot4, null, { send: send });
+        eq(slot4.childNodes.length, 0);
       });
 
     await test("a mirrored row wears its kind and its mark, every row has a twisty column and " +
@@ -7002,6 +7076,37 @@
         ok(nothingLit(root));
       });
 
+    await test("the pane's pointer tells the page its key and its leave; a pane repainted under the " +
+      "pointer is lit again from the page's one hover, and the leave after it still reaches the page",
+      function () {
+        var told = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
+        });
+        var bar = all(root, "line.rail__barhit")[0];
+        var key = "edge|" + bar.getAttribute("data-id");
+        bar.onmouseenter({});
+        eq(told, [key], "the pointer on a bar is told as its key");
+        ok(litState(root).leadRows.length > 0, "...and the pane lights it itself");
+        bar.onmouseleave({});
+        eq(told, [key, null], "the pointer leaving is told");
+        ok(nothingLit(root));
+        // A repaint under the resting pointer: the new state holds nothing,
+        // the page re-lights what it knows is hovered, and the pointer's
+        // leave from the rebuilt bar reaches the page even so.
+        told = [];
+        root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
+        });
+        eq(VA.lightTopoKeys([key]), 1, "the page's hover lights the repainted pane");
+        ok(litState(root).leadRows.length > 0);
+        bar = all(root, "line.rail__barhit")[0];
+        bar.onmouseleave({});
+        eq(told, [null], "a leave with nothing held still tells the page");
+        VA.lightTopoKeys(null);
+        ok(nothingLit(root), "...and the page's clear takes the light down");
+      });
+
     await test("the scene's pointer on a joint lights every node it stands for here " +
       "-- their dots and their rows -- and the pane's own pointer wins", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
@@ -11457,11 +11562,15 @@
     // effort into since the angled lines look just fine)." Both styles stay on
     // the toggle; apps/viewer/README.md's leaders section carries the decision
     // and the note that jogged is deprioritized.
-    await test("the leader default is angled, is a real style, and the " +
-      "toolbar names it", function () {
-        eq(VA.DEFAULT_LEADER_STYLE, "angled");
+    // ...and since 2026-11-10 (one_selection_one_hover_and_leaders_off) OFF is
+    // the default: the one selection and the one hover light every surface,
+    // and a leader is a second way of saying so, drawn on request.
+    await test("the leader default is off, is a real style the toggle cycles through " +
+      "with the two drawn ones, and the toolbar names it", function () {
+        eq(VA.DEFAULT_LEADER_STYLE, "off");
         ok(VA.LEADER_STYLES[VA.DEFAULT_LEADER_STYLE],
            "the default must be a style the toggle can cycle to");
+        eq(VA.LEADER_STYLE_ON, "angled", "the first drawn style is the one the tier turns on");
         // A preference-less state: the toolbar falls back to the default
         // rather than to whichever style happened to ship first.
         var root = render(function (r) {
@@ -11472,10 +11581,37 @@
           return n.getAttribute("id") === "leader-style-toggle";
         })[0];
         ok(toggle, "expected #leader-style-toggle on the toolbar");
-        has(toggle.textContent, "Leaders: " + VA.LEADER_STYLES.angled.label);
-        // Both are still reachable, in both directions.
+        has(toggle.textContent, "Leaders: " + VA.LEADER_STYLES.off.label);
+        // All three are reachable from any one, in one cycle.
+        eq(VA.LEADER_STYLES.off.next, "angled");
         eq(VA.LEADER_STYLES.angled.next, "jogged");
-        eq(VA.LEADER_STYLES.jogged.next, "angled");
+        eq(VA.LEADER_STYLES.jogged.next, "off");
+      });
+
+    await test("leaders off: the geometry builds no leader and moves nothing else -- the " +
+      "zone, the width and each node's seam row are what the drawn styles have -- and the " +
+      "pane draws none", function () {
+        var layout = TOPO.layout;
+        var plan = VA.gridPlan(layout, TOPO);
+        var M = VA.RAIL_METRICS;
+        var on = VA.leaderGeometry(layout, plan, M, null, { style: "angled" });
+        var off = VA.leaderGeometry(layout, plan, M, null, { style: "off" });
+        ok(on.leaders.length > 0, "the demo mechanism has leaders when on");
+        eq(off.leaders.length, 0);
+        eq(off.style, "off");
+        eq(off.width, on.width, "the grid starts where it did");
+        eq(off.zoneLeft, on.zoneLeft, "the jog zone keeps its place...");
+        eq(off.naturalZone, on.naturalZone, "...and its width");
+        eq(off.height, on.height);
+        // Every non-internal node's seam row, drawn or not: what the page
+        // scrolls a selected node's row into view by.
+        eq(Object.keys(off.boundaryEdge).sort(), plan.leaders.map(function (l) { return l.id; }).sort());
+        on.leaders.forEach(function (leader) { eq(off.boundaryEdge[leader.id], leader.beforeEdge); });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ leaderStyle: "off" })); });
+        eq(all(root, "path.rail__leader").length, 0);
+        eq(all(root, "path.rail__leaderhit").length, 0);
+        ok(all(root, "tr.tvrow").length > 0, "the grid is still drawn");
+        eq(VA.lastTopoRender.boundaryEdge, off.boundaryEdge);
       });
 
     // One default, one place. The app shell's initial state and the toggle's
@@ -11921,6 +12057,103 @@
         eq(demo.jointsBetween().length, demo.joints.length);
       });
 
+    // --- the one selection and the one hover (one_selection_one_hover_and_
+    // leaders_off, 2026-11-10) ----------------------------------------------
+    await test("the model names what an element is and what an entity lights: a shared node is " +
+      "its interface, a node on one part that part's feature, a gap edge its interface, a " +
+      "dimension its edge; a part, a body and a joint light everything they hold; and without " +
+      "a model an element stands for itself", function () {
+        var model = VA.buildModel(bodiedProj(), bodiedIdentity());
+        var F = VA.FOCUS_KINDS;
+        eq(VA.focusEntityOf(model, "node", "n2"), { kind: F.interface, id: "n2" });
+        eq(VA.focusEntityOf(model, "node", "n1"), { kind: F.feature, id: "p1@n1" });
+        eq(VA.focusEntityOf(model, "edge", "g1"), { kind: F.interface, id: "g1" });
+        eq(VA.focusEntityOf(model, "edge", "d1"), { kind: F.dimension, id: "d1" });
+        eq(VA.focusEntityOf(model, "node", "nope"), null);
+        eq(VA.focusEntityOf(model, "edge", "nope"), null);
+        eq(VA.focusEntityOf(model, null, "n1"), null);
+        // ...and back: the element an entity is shown as.
+        eq(VA.focusElementOf(model, { kind: F.feature, id: "p2@n3" }), { kind: "node", id: "n3" });
+        eq(VA.focusElementOf(model, { kind: F.interface, id: "n2" }), { kind: "node", id: "n2" });
+        eq(VA.focusElementOf(model, { kind: F.interface, id: "g2" }), { kind: "edge", id: "g2" });
+        eq(VA.focusElementOf(model, { kind: F.dimension, id: "d1" }), { kind: "edge", id: "d1" });
+        eq(VA.focusElementOf(model, { kind: F.part, id: "p1" }), null, "a part is no one element");
+        eq(VA.focusElementOf(model, { kind: F.body, id: "b1" }), null);
+        eq(VA.focusElementOf(model, { kind: F.joint, id: "p1+p2" }), null);
+        eq(VA.focusElementOf(model, null), null);
+        // What lights on the DAG and in the grid.
+        eq(VA.focusElementKeysOf(model, { kind: F.feature, id: "p1@n2" }), ["node|n2"]);
+        eq(VA.focusElementKeysOf(model, { kind: F.dimension, id: "d1" }), ["edge|d1"]);
+        eq(VA.focusElementKeysOf(model, { kind: F.part, id: "p1" }).sort(), ["edge|d1", "node|n1", "node|n2"],
+           "a part: its features' nodes and its dimensions' edges");
+        eq(VA.focusElementKeysOf(model, { kind: F.joint, id: "p1+p2" }).sort(), ["edge|g2", "node|n2"],
+           "a joint: its constraints");
+        var body = VA.focusElementKeysOf(model, { kind: F.body, id: "b1" });
+        ok(body.indexOf("node|n1") !== -1 && body.indexOf("edge|g2") !== -1 && body.indexOf("node|n3") !== -1,
+           "a body: every part's elements and the joints inside it");
+        eq(VA.focusElementKeysOf(model, null), []);
+        // Which tree rows.
+        eq(VA.focusNavRowsOf(model, { kind: F.feature, id: "p1@n2" }).sort(),
+           ["feature:p1@n2", "feature:p2@n2", "interface:n2"],
+           "a feature: its row, the other row of its node, and the interface the node is");
+        eq(VA.focusNavRowsOf(model, { kind: F.feature, id: "p1@n1" }), ["feature:p1@n1"]);
+        eq(VA.focusNavRowsOf(model, { kind: F.interface, id: "g1" }).sort(),
+           ["feature:p2@n3", "feature:p3@n4", "interface:g1"], "a gap: its row and its two ends");
+        eq(VA.focusNavRowsOf(model, { kind: F.dimension, id: "d1" }).sort(), ["feature:p1@n1", "feature:p1@n2"]);
+        eq(VA.focusNavRowsOf(model, { kind: F.part, id: "p2" }), ["part:p2"]);
+        eq(VA.focusNavRowsOf(model, { kind: F.body, id: "b2" }), ["body:b2"]);
+        eq(VA.focusNavRowsOf(model, { kind: F.joint, id: "p2+p3" }), ["joint:p2+p3"]);
+        eq(VA.focusNavRowsOf(model, null), []);
+        // No model (a projection built before the block): the element itself.
+        eq(VA.focusEntityOf(null, "node", "x"), { kind: "node", id: "x" });
+        eq(VA.focusElementOf(null, { kind: "edge", id: "e" }), { kind: "edge", id: "e" });
+        eq(VA.focusElementKeysOf(null, { kind: "node", id: "x" }), ["node|x"]);
+        eq(VA.focusNavRowsOf(null, { kind: "node", id: "x" }), []);
+        ok(VA.sameFocus({ kind: "a", id: "1" }, { kind: "a", id: "1" }));
+        ok(!VA.sameFocus({ kind: "a", id: "1" }, { kind: "a", id: "2" }));
+        ok(!VA.sameFocus(null, { kind: "a", id: "1" }));
+      });
+
+    await test("the tree lights from the one hover in place: VA.lightNavTree marks the hovered " +
+      "entity's rows --hot and no other, a feature lights the other row of its node, and " +
+      "a render draws the hovered rows lit too", function () {
+        var proj = bodiedProj();
+        var model = VA.buildModel(proj, null);
+        var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
+                     looseStacks: [], kinematic: [] };
+        var state = { mode: "topology", topologyId: "mini", models: { mini: model },
+                      navOpen: { "p:p1": true, "p:p2": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true },
+                      focus: { selected: null, hovered: { kind: "part", id: "p2" } }, selection: null };
+        var root = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
+        var hot = function () {
+          return all(root, "div.navtree__row").filter(function (r) { return hasClass(r, "navtree__row--hot"); })
+            .map(function (r) { return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id"); });
+        };
+        eq(hot(), ["part:p2"], "a render draws the hovered part lit");
+        // Five rows carry the three keys: n2's two features under their
+        // parts, the interface row, and the two end rows under it (open).
+        eq(VA.lightNavTree(root, model, { kind: "feature", id: "p1@n2" }), 5);
+        var unique = function (list) {
+          return list.filter(function (k, i) { return list.indexOf(k) === i; }).sort();
+        };
+        eq(unique(hot()), ["feature:p1@n2", "feature:p2@n2", "interface:n2"].sort());
+        eq(VA.lightNavTree(root, model, { kind: "body", id: "b1" }), 1);
+        eq(hot(), ["body:b1"]);
+        eq(VA.lightNavTree(root, model, null), 0);
+        eq(hot(), [], "nothing hovered, nothing lit");
+        eq(VA.lightNavTree(null, model, { kind: "body", id: "b1" }), 0, "no tree, nothing to light");
+        // The selected rows are untouched by the hover.
+        state.focus = { selected: { kind: "interface", id: "g1" }, hovered: null };
+        root = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
+        var on = all(root, "div.navtree__row").filter(function (r) { return hasClass(r, "navtree__row--on"); })
+          .map(function (r) { return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id"); });
+        eq(on.sort(), ["feature:p2@n3", "feature:p3@n4", "interface:g1"],
+           "the gap's row and its two ends -- the selection opens the parts that hold them");
+        VA.lightNavTree(root, model, { kind: "feature", id: "p1@n1" });
+        eq(all(root, "div.navtree__row").filter(function (r) { return hasClass(r, "navtree__row--on"); }).length, 3,
+           "a hover lights nothing --on and takes nothing --on down");
+      });
+
     await test("the left column is the model's tree: bodies open to parts and interfaces, " +
       "parts to features with one mark each, joints between bodies listed once, and a " +
       "compound joint to its constraints", function () {
@@ -11930,7 +12163,8 @@
         var state = { mode: "topology", topologyId: "mini",
                       models: { mini: VA.buildModel(proj, bodiedIdentity()) },
                       navOpen: { "p:p1": true, "bi:b1": true, "j:p1+p2": true },
-                      selection: { kind: "node", id: "n2" }, selectedFeature: "p1@n2" };
+                      focus: { selected: { kind: "feature", id: "p1@n2" }, hovered: null },
+                      selection: { kind: "node", id: "n2" } };
         var root = render(function (r) {
           VA.renderNavTree(r, tree, state, { sceneSlot: true, onVisibility: function () {} });
         });
@@ -11956,12 +12190,20 @@
         var S = VA.FEATURE_STATUSES;
         eq(features.map(function (f) { return f.querySelector(".navtree__mark").getAttribute("data-status"); }),
            [S.none, S.bound, S.bound, S.bound, S.none]);
-        ok(hasClass(features[1], "navtree__row--on"), "the selected node's feature is marked");
-        ok(hasClass(features[2], "navtree__row--on"), "...on both parts it is on");
+        ok(hasClass(features[1], "navtree__row--on"), "the selected feature is marked");
+        ok(hasClass(features[2], "navtree__row--on"), "...and the other row of its node");
         ok(!hasClass(features[0], "navtree__row--on"));
-        // The faces layer slot sits under the selected feature only.
+        // The selected feature's row is open -- its own twisty says so -- and
+        // its body's slot sits under it and nowhere else; the other rows are
+        // closed, each with a twisty of its own (the scene is open).
         eq(all(root, "div.navtree__scene").length, 1);
         ok(insideOf(features[1].parentNode, all(root, "div.navtree__scene")[0]));
+        eq(all(root, "div.navtree__scene")[0].getAttribute("data-scene-feature"), "p1@n2");
+        eq(features.map(function (f) {
+          var tw = f.querySelector("button.navtree__twisty");
+          return tw ? tw.getAttribute("aria-expanded") : "leaf";
+        }), ["false", "true", "false", "false", "false"]);
+        eq(features[1].querySelector("button.navtree__twisty").getAttribute("data-nav-twisty"), "f:p1@n2");
         // Show/hide: a part with a mesh has the box, one without has none; a
         // body with any meshed part has one.
         eq(parts[0].querySelector("input.navtree__vis") !== null, true);

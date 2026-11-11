@@ -300,7 +300,11 @@ export const DECLARED_GUARDS = {
   // layer's draw, the part-level break, a failing stack's status as a pure
   // rule). Every new name carries a spec; the retired names' specs are
   // deleted or renamed with their guard.
-  fast: { declared: 676, enrollable: 676, names: "28bec26b7b52" },
+  // 2026-11-10 (one_selection_one_hover_and_leaders_off): +5 -- the leader
+  // default (off) and the off geometry, a feature's body, the model's focus
+  // resolvers, the tree lit in place, the pane's pointer telling the page;
+  // the leader-default guard renamed. Every new name carries a spec.
+  fast: { declared: 681, enrollable: 681, names: "217592c844c6" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -562,7 +566,12 @@ export const DECLARED_GUARDS = {
   // pane open, a feature row's click and keyboard, the faces layer's rows, a
   // node picked in the scene, a body's fold, the bind-mode nest, the binding
   // strip); six renamed for the faces layer. Every new name carries a spec.
-  browser: { declared: 868, enrollable: 835, names: "3ae1a7b2a1dc" },
+  // 2026-11-10 (one_selection_one_hover_and_leaders_off): +5 -- leaders off by
+  // default (the default, the seam row with no leader, turned on, off keeps
+  // the zone, the real graph's off stop), the feature row as the one title;
+  // the legend check retired; sixteen of the nit's checks renamed with their
+  // specs. Every new name carries a spec.
+  browser: { declared: 873, enrollable: 840, names: "39f122f0cb6a" },
 };
 
 

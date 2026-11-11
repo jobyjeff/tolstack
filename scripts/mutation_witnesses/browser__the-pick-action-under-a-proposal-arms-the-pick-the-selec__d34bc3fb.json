@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
-  "expect_red": "Pick a different face arms the pick exactly as Pick does, and the selected face's fill goes",
+  "expect_red": "the pick action under a proposal arms the pick, the selected face's fill goes, and the same row now reads Cancel, pressed",
   "mutations": [
     {
       "contract": "Arming takes the selected suggestion down first, so the arm captures and restores the scene as it really was.",
@@ -10,6 +10,14 @@
       "file": "apps/annotate/app.js",
       "find": "  clearSuggestionFocus();\n  const refuse = (text) => {",
       "replace": "  const refuse = (text) => {"
+    },
+    {
+      "contract": "While a pick is armed the one pick action reads Cancel and is pressed.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Leaves the armed action row unpressed.",
+      "file": "apps/annotate/app.js",
+      "find": "    return { text: AA.ARMED_PICK_WORDS.cancel, title: AA.ARMED_PICK_WORDS.cancelTitle, pressed: true,",
+      "replace": "    return { text: AA.ARMED_PICK_WORDS.cancel, title: AA.ARMED_PICK_WORDS.cancelTitle, pressed: false,"
     }
   ]
 }

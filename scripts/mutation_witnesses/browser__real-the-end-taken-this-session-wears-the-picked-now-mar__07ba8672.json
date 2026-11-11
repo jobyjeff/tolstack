@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
-  "expect_red": "[real] the end taken this session wears the picked-now mark, filled in the scene's pick orange",
+  "expect_red": "[real] the end taken this session wears the picked-now mark on its state line, and the feature row's one mark reads bound, filled in the bound colour",
   "mutations": [
     {
       "contract": "An end Jeff bound in this session reads `picked now` in the nav, in the scene's pick orange.",

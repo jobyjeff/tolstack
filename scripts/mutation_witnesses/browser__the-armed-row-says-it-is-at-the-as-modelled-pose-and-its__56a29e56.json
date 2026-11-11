@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "the armed row says it is at the as-modelled pose, and its pick action reads Cancel, pressed",
+  "mutations": [
+    {
+      "contract": "The armed end's pick action reads pressed.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Never marks the action row pressed.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (act.pressed) other.setAttribute(\"aria-pressed\", \"true\");",
+      "replace": "    void act.pressed;"
+    }
+  ]
+}

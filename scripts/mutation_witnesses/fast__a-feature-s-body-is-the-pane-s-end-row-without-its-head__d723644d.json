@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a feature's body is the pane's end row without its head: the state line carrying the end's kind and mark, its actions, then its list with the one pick action last -- and several rows, or bind mode's elements, are drawn as rows",
+  "mutations": [
+    {
+      "contract": "A feature's body ends in the end's list: its candidate faces and the one pick action.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Drops the list from the body.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (row.rows && row.rows.length) body.appendChild(sceneList(row.rows, send));\n    slot.appendChild(body);",
+      "replace": "    slot.appendChild(body);"
+    },
+    {
+      "contract": "The pane's own head row for the feature is not drawn: the feature row above is the one title.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Draws one end row as the pane's row, head and all.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (rows.length !== 1 || typeof row.head === \"string\") {",
+      "replace": "    if (rows.length !== 0) {"
+    }
+  ]
+}

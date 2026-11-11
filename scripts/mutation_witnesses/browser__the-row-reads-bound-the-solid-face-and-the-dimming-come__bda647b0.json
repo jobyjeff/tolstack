@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
-  "expect_red": "...the row reads bound, the solid face and the dimming come down, and Pick is back",
+  "expect_red": "...the row reads bound, the solid face and the dimming come down, and the one pick action is still there in the same words",
   "mutations": [
     {
       "contract": "Letting a suggestion go puts every part back as it was drawn before.",

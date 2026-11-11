@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "leaders are off by default: the toggle says so, no leader is drawn, and the grid is whole",
+  "mutations": [
+    {
+      "contract": "Leaders are off by default on the page.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Puts the default back to angled.",
+      "file": "apps/viewer/topology.js",
+      "find": "VA.DEFAULT_LEADER_STYLE = \"off\";",
+      "replace": "VA.DEFAULT_LEADER_STYLE = \"angled\";"
+    }
+  ]
+}

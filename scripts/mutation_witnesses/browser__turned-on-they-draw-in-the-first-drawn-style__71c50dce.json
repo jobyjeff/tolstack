@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "turned on, they draw in the first drawn style",
+  "mutations": [
+    {
+      "contract": "Off cycles to angled, the first drawn style.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Cycles off straight to jogged.",
+      "file": "apps/viewer/topology.js",
+      "find": "    off: {\n      label: \"off\",\n      next: \"angled\",",
+      "replace": "    off: {\n      label: \"off\",\n      next: \"jogged\","
+    }
+  ]
+}

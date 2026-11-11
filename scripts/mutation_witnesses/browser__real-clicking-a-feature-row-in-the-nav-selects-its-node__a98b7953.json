@@ -6,10 +6,10 @@
     {
       "contract": "A feature row selects its NODE: the page's selection, which the scene's layer selects too.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
-      "note": "Selects the feature's own view id as if it were a node, which the scene refuses -- the row lights nothing.",
+      "note": "Selects the feature's own view id as if it were a node, which the scene refuses -- the row lights nothing. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    selectElement(\"node\", feature.node);\n  }\n\n  // An interface row selects",
-      "replace": "    selectElement(\"node\", featureId);\n  }\n\n  // An interface row selects"
+      "find": "    if (!model || !model.feature(featureId)) return;\n    selectEntity({ kind: VA.FOCUS_KINDS.feature, id: featureId });",
+      "replace": "    if (!model || !model.feature(featureId)) return;"
     }
   ]
 }
