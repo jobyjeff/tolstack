@@ -58,8 +58,11 @@ const frameOf = (page) => page.frames().find((f) => f.url().includes("/annotate/
 const run = (page, cmd) => frameOf(page).evaluate((c) => window.AnnotateApp.exec(c), cmd);
 
 async function settle(page, ms = 800) {
+  // A transition that never settles is a finding, not an abort: logged, and
+  // the shots go on.
   await page.waitForFunction(() => !window.ViewerApp.lastTopoRender ||
-    !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 30000 });
+    !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 30000 })
+    .catch(() => log("settle", "still tweening after 30s"));
   await page.waitForTimeout(ms);
 }
 
@@ -182,17 +185,9 @@ async function focus(width) {
   await repaint(page, width, H);
   await shot(page, tag("f2b_dag_node_after_repaint"));
 
-  // 3. the grid: a row.
-  const row = page.locator('tr.tvrow[data-id="tan_link_mount_height"] td.tvcell--name').first();
-  await row.scrollIntoViewIfNeeded().catch(() => {});
-  await row.click().catch((e) => log("grid click", e.message));
-  await settle(page, 2500);
-  await shot(page, tag("f3_grid_row_selected"));
-  await repaint(page, width, H);
-  await shot(page, tag("f3b_grid_row_after_repaint"));
-
-  // 4. the 3D pane: an end selected in the scene (what a bead or face click
-  //    does in sweep mode: the rail's own `inspect`), and an anchor picked.
+  // 3. the 3D pane: an end selected in the scene (what a bead or face click
+  //    does in sweep mode: the rail's own `inspect`); a picked anchor where
+  //    the pane is not in sweep mode.
   await run(page, ["inspect", "feature", "pitch_plate_slide_bushings_to_piston_body", "from"]).catch(async (e) => {
     log("inspect", e.message);
     await frameOf(page).evaluate(() => window.parent.postMessage(
@@ -202,6 +197,19 @@ async function focus(width) {
   await shot(page, tag("f4_scene_end_selected"));
   await repaint(page, width, H);
   await shot(page, tag("f4b_scene_end_after_repaint"));
+
+  // 4. the grid: a row. Last: on this page an edge selection takes the pane
+  //    to bind mode (VA.annotateParamsFor's rule for an edge), which ends the
+  //    sweep. Dispatched, not driven: the pane's reload under the click held
+  //    Playwright's own click for 30s.
+  await page.evaluate(() => {
+    const cell = document.querySelector('tr.tvrow[data-id="tan_link_mount_height"] td.tvcell--name');
+    if (cell) { cell.scrollIntoView({ block: "center" }); cell.click(); }
+  });
+  await settle(page, 3000);
+  await shot(page, tag("f3_grid_row_selected"));
+  await repaint(page, width, H);
+  await shot(page, tag("f3b_grid_row_after_repaint"));
 
   // Hover from the grid and from the tree: the other surfaces light.
   await page.locator('tr.tvrow[data-id="hub_blade_axis_offset"] td.tvcell--name').first().hover().catch(() => {});
