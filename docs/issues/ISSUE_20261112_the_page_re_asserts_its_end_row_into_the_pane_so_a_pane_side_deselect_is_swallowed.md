@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/pane
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20261112_one_selection_one_hover_and_leaders_off.md
 class: one_selection_many_surfaces
 handoff: docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
-resolution: triage 2026-11-11 -- F1b fix-up; the deselect-unfreezes call made in the handoff
+resolution: triage 2026-11-11 -- F1b fix-up; the deselect-unfreezes call made in the handoff -- handoff completed 2026-11-12 -- closed automatically by dispatch when handoff `the_pane_follows_the_one_selection_both_ways` moved to completed/; not independently verified.
 ---
 
 # The page re-asserts its end row into the pane, so a pane-side deselect is swallowed and an `activate` is re-posted while the pane's answer is in flight

@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/pane-redrive
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
 class: sweep_mode_exit
-resolution: triage 2026-11-09 -- med beyond the per-repo budget (3 staged: two demo handoffs + the red-suites fix); 14-day date; triage 2026-11-11 -- pulled forward into the one_selection_many_surfaces class handoff (option 1, highlight not goto); its 11-11 re-filing closed into this one
+resolution: triage 2026-11-09 -- med beyond the per-repo budget (3 staged: two demo handoffs + the red-suites fix); 14-day date; triage 2026-11-11 -- pulled forward into the one_selection_many_surfaces class handoff (option 1, highlight not goto); its 11-11 re-filing closed into this one -- handoff completed 2026-11-12 -- closed automatically by dispatch when handoff `the_pane_follows_the_one_selection_both_ways` moved to completed/; not independently verified.
 handoff: docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
 ---
 
