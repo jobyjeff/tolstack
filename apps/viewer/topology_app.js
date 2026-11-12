@@ -2159,6 +2159,23 @@
   // mirrored row sent), and a feature deselected here lets the pane's row go
   // the same way. The pane's answer is the next tree, whose selected row
   // followScenePick reads back -- the same entity, so it stops there.
+  var sceneInspectPosted = null;
+
+  // The first edge end at a node as the pane names an end, a gap edge's (a
+  // joint end, which the sweep rail lists) before any other.
+  function jointEndAtNode(nodeId) {
+    var index = VA.topologyIndex(currentTopology());
+    var ids = Object.keys(index.edges || {}).sort();
+    var pick = null;
+    ids.forEach(function (id) {
+      var edge = index.edges[id];
+      var end = edge.from === nodeId ? VA.EDGE_ENDS.from : edge.to === nodeId ? VA.EDGE_ENDS.to : null;
+      if (!end) return;
+      if (!pick || (edge.kind === "gap" && pick.kind !== "gap")) pick = { edgeId: id, direction: end, kind: edge.kind };
+    });
+    return pick;
+  }
+
   function syncSceneInspect() {
     if (!sceneTree || !flyoutLoaded) return;
     var model = currentModel();
@@ -2172,9 +2189,23 @@
       if (!endRows.some(function (row) { return row.selected; })) {
         sceneRail(endRows[0].key, VA.SCENE_ACTS.activate);
       }
+      sceneInspectPosted = feature.node;
       return;
     }
-    if (feature) return;
+    if (feature) {
+      // The node's joint is folded in the pane, so its end rows are not in
+      // the tree to be activated: the pane's own verb for the row's click
+      // (`inspect feature <edge> <end>`) selects the end, which opens its
+      // joint, and the next tree carries the rows. Sweep mode only -- the
+      // verb is the sweep rail's -- and once per node.
+      if (!paneRun || sceneInspectPosted === feature.node) return;
+      var end = jointEndAtNode(feature.node);
+      if (end && postToPane(["inspect", "feature", end.edgeId, end.direction])) {
+        sceneInspectPosted = feature.node;
+      }
+      return;
+    }
+    sceneInspectPosted = null;
     // Nothing selected here: a selected end row in the pane is let go.
     var selected = null;
     var walk = function (list) {
