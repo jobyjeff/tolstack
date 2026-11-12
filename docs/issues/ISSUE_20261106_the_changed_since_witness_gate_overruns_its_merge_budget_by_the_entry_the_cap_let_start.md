@@ -120,3 +120,17 @@ sweep; the runner's own line says 30m03s, the wall clock 19:43:39 to 20:14:11
 (1832 s, over by 32 s -- the shadow build and teardown around the cap). The
 slowest reached entry was 4m11s (`real-a-reload-reopens-the-pane...`), and
 five of the 40 were browser entries; the other 35 were fast and annotate.
+
+## Measurement 2026-11-11, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261111_triage_sweep.md)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since ccfd178381cb562e72394e523b1f3f17ae306acf`, main checkout at master `6a165ddc` (fast-forwarded from `ccfd1783`), run alone right after the browser tier finished: **40/40 witnessed, 40/139 reached in 29m54s; 99 left to the sweep (budget)**, exit 0. Wall **1825 s**, `suite-time record` printed **OVER BUDGET by 0m25s** — the same shape this issue names: the cap stops starting entries at 30 min, process wall lands just past it. Slowest entries:
+
+```
+    4m11s  browser__real-a-reload-reopens-the-pane-the-reader-left-open-at-t__09a1cf0a
+    3m48s  browser__real-a-body-s-checkbox-in-the-nav-hides-that-body-in-the__f978b14a
+    3m38s  browser__real-a-click-on-a-body-s-row-in-the-nav-folds-it-its-twi__46d66d1d
+    2m06s  browser__real-a-feature-row-is-reached-by-the-keyboard-and-enter__1d3a3808
+    1m56s  browser__real-a-node-picked-in-the-scene-is-selected-in-the-nav__3489e223
+    1m02s  annotate__an-end-s-proposals-are-its-own-surest-first-the-other-en__9fb8193c
+      49s  fast__a-feature-row-selects-its-node-an-interface-row-its-elem__c5a1c9bc#1
+```
