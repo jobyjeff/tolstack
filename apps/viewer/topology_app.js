@@ -762,6 +762,9 @@
       var kind = row.getAttribute("data-nav-kind");
       return VA.FOCUS_KINDS[kind] ? { kind: kind, id: row.getAttribute("data-nav-id") } : null;
     }
+    // A leader's hit path is wired bare (no row kind): it is its node's.
+    var leader = node.closest("[data-leader-id]");
+    if (leader) return VA.focusEntityOf(currentModel(), "node", leader.getAttribute("data-leader-id"));
     var mark = node.closest("[data-row-kind][data-id]");
     if (!mark) return null;
     var el = VA.parseElementKey(VA.elementKey(mark.getAttribute("data-row-kind"), mark.getAttribute("data-id")));
