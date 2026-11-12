@@ -2036,19 +2036,33 @@
     });
   }
 
-  // The entity under the scene's pointer: a joint's one dot stands for every
-  // node it merged (`members`), which here is the model's joint one of them
-  // is an interface of; else the node's own entity.
+  // The entity under the scene's pointer. A joint's one dot stands for every
+  // node it merged (`members`: coaxial ends drawn as one 3D node), and those
+  // nodes are the two ends of the edge that joins them -- so the entity is
+  // that edge's (a gap interface: its bar, its two dots and its row light);
+  // several such edges that are one model joint's constraints are that
+  // joint. Else the node's own entity.
   function sceneHoverEntity(msg) {
     if (!msg || !msg.kind || !msg.id) return null;
     var model = currentModel();
     var members = Array.isArray(msg.members) && msg.members.length > 1 ? msg.members : null;
-    if (model && members) {
-      for (var i = 0; i < members.length; i++) {
-        var iface = model.interface(members[i]);
-        if (iface && iface.joint && model.joint(iface.joint)) {
-          return { kind: VA.FOCUS_KINDS.joint, id: iface.joint };
+    if (members && msg.kind === "node") {
+      var index = VA.topologyIndex(currentTopology());
+      var joining = Object.keys(index.edges || {}).sort().filter(function (id) {
+        var edge = index.edges[id];
+        return edge && members.indexOf(edge.from) !== -1 && members.indexOf(edge.to) !== -1;
+      });
+      if (joining.length) {
+        var joints = joining.map(function (id) {
+          var iface = model ? model.interface(id) : null;
+          return iface && iface.joint ? iface.joint : null;
+        });
+        var one = joints[0];
+        if (model && one && joints.every(function (j) { return j === one; }) && model.joint(one) &&
+            joining.length > 1) {
+          return { kind: VA.FOCUS_KINDS.joint, id: one };
         }
+        return VA.focusEntityOf(model, "edge", joining[0]);
       }
     }
     return VA.focusEntityOf(model, msg.kind, msg.id);
