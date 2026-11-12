@@ -115,6 +115,13 @@ while off. `VA.LEADER_STYLE_ON` (`angled`) is what the browser tier turns
 leaders on to (`leadersOn(page)`, called after every page open in the eight
 suites that read a leader).
 
+> **Correction (review, 2026-11-12).** Eleven suites read a leader, not
+> eight. `kinematic study page` asserts `leaders > 0` in three `[real]`
+> checks and was red 24/27 in the review's whole-tier run (it was not on
+> this handoff's `--only` list); `topology height budget` and `parts as
+> blocks` read leaders only for drift and were green over zero of them.
+> All three turn leaders on since `5e998fbf` and are green with them drawn.
+
 ## Which pick affordance stayed
 
 **The last row of the end's list stayed; the hover Pick / Re-pick button
