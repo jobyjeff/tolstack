@@ -10152,9 +10152,17 @@ async function testAnnotateSweepRail(browser, label, topologies) {
         /^coaxial with the mating |^fits the mating /.test(r.reason)) &&
       hubList[hubList.length - 1].name === "Pick a face\u2026");
     const hubCam = await settledCamera(page);
-    const hubHover = await page.locator(HUB_END + " .tree-cands > .tree-cand[data-face]").first().hover({ timeout: 5000 })
+    // The top-ranked face's own row, by its face id: the rail rebuilds for
+    // seconds after a run loads, and Chrome re-evaluates hover under a
+    // resting pointer when the rows shift, so "the first row" can wash the
+    // row that slid under the pointer instead. The wash waited for is the
+    // top face's.
+    const topFace = spindleTop ? spindleTop.faces[0] : null;
+    const topRow = page.locator(HUB_END + ` .tree-cands > .tree-cand[data-face="${topFace}"]`).first();
+    const hubHover = await topRow.hover({ timeout: 5000 })
       .then(() => "ok").catch((e) => "hover failed: " + String(e.message).slice(0, 160));
-    await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 15000 }).catch(() => {});
+    await page.waitForFunction((f) => window.__scene.washed() && window.__scene.washed().faceId === f, topFace,
+      { timeout: 15000 }).catch(() => {});
     const hubWash = await page.evaluate(() => ({ w: window.__scene.washed(), cam: window.__scene.cameraState(),
       lastWash: window.__lastWash || null }));
     const hubOk = !!spindleTop && hubWash.w && hubWash.w.sha256 === spindleTop.sha256 &&
