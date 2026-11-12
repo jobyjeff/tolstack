@@ -2928,7 +2928,7 @@ async function cmdArm(what, direction, topologyId, partId) {
   const restore = {
     camera: state.scene.cameraState(),
     parts: state.scene.listOpenParts().map((sha) => ({ sha, visible: state.scene.isVisible(sha),
-      ghost: state.scene.isGhosted(sha) })),
+      ghost: state.scene.isGhosted(sha), look: state.scene.lookOf(sha) })),
     opened: [],
   };
   for (const t of targets) {
@@ -3117,6 +3117,9 @@ function disarmPick(reason) {
   state.scene.setPickFilter(null);
   for (const entry of a.restore.parts) state.scene.setVisible(entry.sha, entry.visible);
   for (const sha of a.restore.opened) state.scene.unloadPart(sha);
+  // Outside sweep mode nothing owns the looks at rest, so each part gets back
+  // the look it had when the pick was armed.
+  if (!sweep) for (const entry of a.restore.parts) if (entry.look) state.scene.setLook(entry.sha, entry.look);
   // Back to rest -- or to whatever action is still in view under the arm.
   applyLooks();
   state.scene.setCameraState(a.restore.camera);
