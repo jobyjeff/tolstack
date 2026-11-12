@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/nav
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261110_one_selection_one_hover_and_leaders_off.md
 class: dead_code_under_test
+defer_until: 2026-12-11
+resolution: triage 2026-11-11 -- low, deferred by default; class has no registry row; 30-day date
 ---
 
 # `VA.renderSceneTree` and the marks legend are tested but the app no longer draws them

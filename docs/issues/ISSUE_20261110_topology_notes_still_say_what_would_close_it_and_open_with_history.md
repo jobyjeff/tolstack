@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topologies/notes
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261110_the_end_stop_models_notes_say_where_the_value_comes_from.md
+class: stale_doc_after_refactor
+defer_until: 2026-12-11
+resolution: triage 2026-11-11 -- low, deferred by default; class has no program; 30-day date
 ---
 
 # Remaining topology notes still use the "What would close it" shape

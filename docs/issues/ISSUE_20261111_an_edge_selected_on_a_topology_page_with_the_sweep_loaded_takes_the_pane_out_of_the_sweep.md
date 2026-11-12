@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: closed
 area: viewer/pane
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261110_one_selection_one_hover_and_leaders_off.md
 class: one_selection_many_surfaces
+resolution: triage 2026-11-11 -- duplicate of ISSUE_20261108_a_grid_row_selected_on_a_studyless_model_leaves_the_sweep_and_its_leaders.md (review finding 2); its two new sentences carried there; fixed by docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
 ---
 
 # An edge selected on a topology page with the sweep loaded takes the pane out of the sweep

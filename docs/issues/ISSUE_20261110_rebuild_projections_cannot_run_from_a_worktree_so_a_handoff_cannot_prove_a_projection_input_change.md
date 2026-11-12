@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: scripts/rebuild_projections
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261110_the_end_stop_models_notes_say_where_the_value_comes_from.md
+class: shared_mutable_state_across_worktrees
+strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
+resolution: triage 2026-11-11 -- same question as the open real-tier coupling brief (a worktree builds and reads its own projection); appended there as a dated addendum
 ---
 
 # `rebuild_projections.ps1` cannot run from a worktree, yet a handoff's DoD asks for it

@@ -1,12 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: viewer/nav
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261110_one_selection_one_hover_and_leaders_off.md
 class: internals_on_a_user_surface
+defer_until: 2026-12-11
+resolution: triage 2026-11-11 -- low, deferred by default (a viewer refinement; F1c is next on the strategy chain); class has no program; 30-day date
 ---
 
 # A feature the newest sweep does not carry opens to an empty body

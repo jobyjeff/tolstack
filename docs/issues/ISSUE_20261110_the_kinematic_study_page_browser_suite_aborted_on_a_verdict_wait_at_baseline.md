@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261110_the_browser_tier_says_where_its_half_hour_goes.md
+class: flaky_browser_suite
+handoff: docs/sessions/HANDOFF_20261111_the_topology_real_loop_runs_on_one_origin.md
+resolution: triage 2026-11-11 -- folded with the topology-pair cut into one browser-runner handoff (same file, same tier)
 ---
 
 # The kinematic study page browser suite ABORTED on a verdict wait, on an untouched tree

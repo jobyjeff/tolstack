@@ -1,12 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: annotate
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261110_one_selection_one_hover_and_leaders_off.md
 class: one_selection_many_surfaces
+handoff: docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
+resolution: triage 2026-11-11 -- folded into the one_selection_many_surfaces class handoff (F1b residue)
 ---
 
 # The pane keeps two selections of its own beside the page's one

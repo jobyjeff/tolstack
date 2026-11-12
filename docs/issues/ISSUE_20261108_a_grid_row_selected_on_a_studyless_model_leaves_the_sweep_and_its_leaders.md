@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: viewer/pane-redrive
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
 class: sweep_mode_exit
-defer_until: 2026-11-23
-resolution: triage 2026-11-09 -- med beyond the per-repo budget (3 staged: two demo handoffs + the red-suites fix); 14-day date
+resolution: triage 2026-11-09 -- med beyond the per-repo budget (3 staged: two demo handoffs + the red-suites fix); 14-day date; triage 2026-11-11 -- pulled forward into the one_selection_many_surfaces class handoff (option 1, highlight not goto); its 11-11 re-filing closed into this one
+handoff: docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
 ---
 
 # A grid row selected on a studyless model leaves the sweep, and takes every leader with it
@@ -56,3 +56,14 @@ Re-filed by that handoff as
 the pane on the sweep from the Studies row). Same mechanism, same recommended
 option 1; that file carries the one-selection argument for it. One issue, this
 one, should survive.
+
+## Addendum 2026-11-11 (triage sweep) -- carried over from the closed re-filing
+
+From `ISSUE_20261111_an_edge_selected_on_a_topology_page_with_the_sweep_loaded_takes_the_pane_out_of_the_sweep.md`,
+now closed into this one: (1) under one selection, a plain click should
+*light* the other surfaces, never change the pane's mode -- entering bind mode
+is the row's 3D control or the Preview's "attach to 3D"; (2) the sweep row in
+the Studies section (2026-11-10) is a third way to have a sweep loaded on a
+topology page, beside the pane's run picker and `sweep latest`. Option 1 is
+taken by `docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md`
+(item 3), for every way the run was loaded.

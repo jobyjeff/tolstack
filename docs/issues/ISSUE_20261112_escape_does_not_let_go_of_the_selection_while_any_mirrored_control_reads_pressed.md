@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: viewer/pane
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261112_one_selection_one_hover_and_leaders_off.md
 class: one_key_two_owners
+handoff: docs/sessions/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
+resolution: triage 2026-11-11 -- folded into the one_selection_many_surfaces class handoff (F1b residue)
 ---
 
 # Escape does not let go of the selection while any mirrored control reads pressed

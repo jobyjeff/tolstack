@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261110_the_browser_tier_says_where_its_half_hour_goes.md
+class: suite_over_budget
+handoff: docs/sessions/HANDOFF_20261111_the_topology_real_loop_runs_on_one_origin.md
+resolution: triage 2026-11-11 -- the origin call made in the handoff (loop stays on http), below the brief bar; the tier is over its 30-minute merge budget
 ---
 
 # `topology http` re-runs the per-study `[real]` loop `topology file://` already ran

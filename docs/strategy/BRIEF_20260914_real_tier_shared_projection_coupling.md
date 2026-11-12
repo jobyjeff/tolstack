@@ -335,3 +335,32 @@ the kinematic study build as `error`. The result was five invented reds,
 cleared by bridging the input. A per-worktree projection is only as good as
 its declared inputs. Declaring that path is staged in
 `docs/sessions/HANDOFF_20261021_the_kinematic_study_checks_its_run_its_units_and_shows_its_limit.md`.
+
+## 2026-11-11 triage sweep — the gap now blocks a handoff's own definition of done, not only its `[real]` tier
+
+New source: `docs/issues/ISSUE_20261110_rebuild_projections_cannot_run_from_a_worktree_so_a_handoff_cannot_prove_a_projection_input_change.md`
+(med, filed by `the_end_stop_models_notes_say_where_the_value_comes_from`).
+That handoff's DoD asked it to run `scripts/rebuild_projections.ps1` "from your
+worktree, writing into your worktree's own `data/`" so the provenance stamp
+would name its branch and the Preview would read its new note. The script's
+preflight refuses in a worktree (`venv-win` and `data/` exist only in the main
+checkout, exit 1, nothing built); `-RepoRoot C:\workspace\tolstack` passes the
+preflight but rebuilds the **main** checkout's shared projection, which port
+8000 serves and the same handoff forbade touching. So a handoff that changes a
+projection input has no supported way to show its own projection -- the same
+"a worktree builds and reads its own projection" question this brief and
+`ISSUE_20260930_a_worktree_has_no_supported_way_to_run_the_real_tiers_against_its_own_projection.md`
+ask, reached from the authoring side rather than the test side.
+
+The filer's two options, for this brief's decision: (a) a `-DataRoot` /
+scratch-projection mode on the script (the builders already take
+`--data-root`), using the main checkout's venv against the worktree's sources;
+(b) drop "rebuild and show it" from projection-input handoffs and let the batch
+merge's rebuild prove it. Side note from the same filing: `pytest -n 16 --dist
+loadfile` (CLAUDE.md's documented parallelism) fails because `pytest-xdist` is
+not installed in `venv-win`.
+
+Until this is decided, the 2026-11-11 sweep's rule for any handoff it stages
+that changes a projection input: say in the handoff how it proves the
+projection (today: option (b), the batch merge's rebuild, with the handoff's
+own proof limited to its builders' unit tests).
