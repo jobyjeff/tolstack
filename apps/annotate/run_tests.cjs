@@ -64,6 +64,11 @@ const VOCAB_GEN = path.join(here, "..", "viewer", "vocab.gen.js");
 vm.runInContext(fs.readFileSync(VOCAB_GEN, "utf8"), sandbox,
   { filename: "../viewer/vocab.gen.js" });
 
+// ...and the feature-identity fold, one module for both apps: AA.addEventToRecord
+// and AA.foldEvents (binding_state.js) delegate straight to it.
+vm.runInContext(fs.readFileSync(path.join(here, "..", "viewer", "identity_fold.js"), "utf8"), sandbox,
+  { filename: "../viewer/identity_fold.js" });
+
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
   "commands.js", "face_geometry.js", "suggestions.js", "sweep.js", "model_layer.js",
   "exec_queue.js", "fixtures.js"];

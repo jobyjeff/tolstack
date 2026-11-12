@@ -519,47 +519,46 @@
 
   // --- correcting a binding ---------------------------------------------------
   // A later event names the earlier one it corrects; the fold hides it and
-  // history keeps it. These are the browser's copy of that fold for the events
-  // written THIS session (the projection on disk is rebuilt by Python).
+  // history keeps it. The browser's fold is apps/viewer/identity_fold.js, one
+  // file for both apps (loaded beside this one, as warning_icon.js is).
+  function viewerFold() {
+    var viewer = window.ViewerApp;
+    if (!viewer || !viewer.addIdentityEvent) {
+      throw new Error("the shared identity fold did not load: this app is served beside apps/viewer/ " +
+        "(its index.html loads ../viewer/identity_fold.js)");
+    }
+    return viewer;
+  }
+
+  // The whole log folded, in the projection's shape (VA.foldIdentityEvents).
+  AA.foldEvents = function (events) {
+    return viewerFold().foldIdentityEvents(events, AA.VERDICTS);
+  };
 
   // Add one session event to a projection row, as build_projection would.
   AA.addEventToRecord = function (row, event) {
-    row.history.push(event.event_id);
-    row.proposals = row.proposals || [];
-    row.rejected_proposals = row.rejected_proposals || [];
-    row.accepted_proposals = row.accepted_proposals || [];
-    // An answer takes its proposal out of the open list: a reject keeps it
-    // under `rejected_proposals` (the face is never proposed again), an accept
-    // records its id and binds below.
-    var answered = event.ratifies || event.rejects;
-    if (answered) {
-      var open = [];
-      row.proposals.forEach(function (p) {
-        if (p.event_id !== answered) { open.push(p); return; }
-        if (event.rejects) row.rejected_proposals.push(p);
-        else row.accepted_proposals.push(p.event_id);
-      });
-      row.proposals = open;
+    return viewerFold().addIdentityEvent(row, event);
+  };
+
+  // An unbind: a `retracted` event naming the standing binding it takes back.
+  // It carries no face; the fold hides that binding and history keeps both.
+  AA.buildRetractEvent = function (binding, fields) {
+    if (!binding || binding.verdict !== "bound") throw new Error("only a binding can be taken back");
+    if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {
+      throw new Error("an agent only proposes -- a human unbinds");
     }
-    if (event.verdict === "proposed") {
-      row.proposals.push(event);
-      return row;
-    }
-    if (event.verdict === "rejected") return row;
-    if (event.verdict !== "bound") {
-      row.owner_not_in_set.push(event);
-      return row;
-    }
-    row.superseded = row.superseded || [];
-    if (event.supersedes) {
-      var kept = [];
-      row.bindings.forEach(function (b) {
-        (b.event_id === event.supersedes ? row.superseded : kept).push(b);
-      });
-      row.bindings = kept;
-    }
-    row.bindings.push(event);
-    return row;
+    var event = {
+      schema: "joby.tolerance_stack/feature-identity/v0",
+      event_id: fields.eventId,
+      seq: fields.seq,
+      created_at: fields.createdAt,
+      recorded_by: fields.recordedBy,
+      stack_key: binding.stack_key,
+      verdict: "retracted",
+      retracts: binding.event_id,
+    };
+    if (fields.note) event.note = fields.note;
+    return event;
   };
 
   // The event a correction writes: the binding it corrects, with the face

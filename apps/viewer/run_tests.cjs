@@ -372,6 +372,7 @@ const files = [
   "viewer.js",
   "topology.js",
   "model.js",
+  "identity_fold.js",
   "element_record.js",
   "sweep_export.js",
   "fixtures.js",

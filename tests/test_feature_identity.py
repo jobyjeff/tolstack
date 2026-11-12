@@ -152,7 +152,7 @@ def test_owner_not_in_set_event_must_carry_no_geometry_or_direction():
 
 
 def test_verdict_must_be_one_of_the_vocabulary():
-    assert VERDICTS == ("bound", "owner_not_in_set", "proposed", "rejected")
+    assert VERDICTS == ("bound", "owner_not_in_set", "proposed", "rejected", "retracted")
     with pytest.raises(ValueError):
         FeatureIdentityEvent(**{**_bound_kwargs(), "verdict": "maybe"})
 
@@ -508,6 +508,69 @@ def test_supersedes_round_trips_and_is_absent_when_unset():
     b = _bound("b", 2, 110, "to", supersedes="a")
     assert FeatureIdentityEvent.from_dict(b.as_dict()).supersedes == "a"
     assert "supersedes" not in _bound("a", 1, 110, "from").as_dict()
+
+
+def _retract(event_id, seq, target, *, edge="piston_head_upper_thickness", by="annotate-app:jeff"):
+    return FeatureIdentityEvent(
+        event_id=event_id, seq=seq, created_at="2026-11-12T00:00:00Z", recorded_by=by,
+        stack_key=StackKey(kind="topology_edge", topology_id="vpa_pitch_linkage", edge_id=edge),
+        verdict="retracted", retracts=target,
+    )
+
+
+def test_an_unbind_hides_the_binding_it_retracts_and_keeps_both():
+    a = _bound("a", 1, 110, "from")
+    b = _bound("b", 2, 111, "to")
+    projection = build_projection([a, b, _retract("u", 3, "a")])
+    record = _record(projection)
+    assert [e.event_id for e in record.bindings] == ["b"]
+    assert [e.event_id for e in record.retracted] == ["a"]
+    assert [e.event_id for e in record.history] == ["a", "b", "u"]
+    assert [e["event_id"] for e in record.as_dict()["retracted"]] == ["a"]
+    assert projection.counts()["retracted"] == 1
+
+
+def test_unbinding_the_only_binding_leaves_the_key_unbound():
+    record = _record(build_projection([_bound("a", 1, 110, "from"), _retract("u", 2, "a")]))
+    assert record.bindings == [] and record.state == "unbound"
+
+
+def test_a_correction_then_an_unbind_takes_back_the_correction():
+    record = _record(build_projection([_bound("a", 1, 110, "from"), _bound("b", 2, 111, "from", supersedes="a"),
+                                       _retract("u", 3, "b")]))
+    assert ([e.event_id for e in record.superseded], [e.event_id for e in record.retracted]) == (["a"], ["b"])
+    assert record.bindings == []
+
+
+def test_a_retraction_carries_no_face_and_must_name_its_binding():
+    with pytest.raises(ValueError, match="requires retracts"):
+        _retract("u", 2, None)
+    with pytest.raises(ValueError, match="no geometry_key"):
+        FeatureIdentityEvent(**{**_retract("u", 2, "a").__dict__, "geometry_key": GeometryKey(_SHA, 1, 1.0, (0, 0, 0))})
+    with pytest.raises(ValueError, match="only a retracted event may carry retracts"):
+        FeatureIdentityEvent(**{**_bound("b", 2, 110, "to").__dict__, "retracts": "a"})
+    with pytest.raises(ValueError, match="an agent only proposes"):
+        _retract("u", 2, "a", by="agent:tests")
+
+
+def test_a_retraction_round_trips():
+    u = _retract("u", 2, "a")
+    assert FeatureIdentityEvent.from_dict(u.as_dict()).retracts == "a"
+    assert "retracts" not in _bound("a", 1, 110, "from").as_dict()
+
+
+def test_only_a_standing_binding_can_be_retracted():
+    a = _bound("a", 1, 110, "from")
+    with pytest.raises(ValueError, match=r"'u'.*'ghost'.*not in the log"):
+        build_projection([a, _retract("u", 2, "ghost")])
+    with pytest.raises(ValueError, match=r"'u'.*'a'.*different stack key"):
+        build_projection([a, _retract("u", 2, "a", edge="other_edge")])
+    with pytest.raises(ValueError, match=r"'u'.*'a'.*already superseded"):
+        build_projection([a, _bound("b", 2, 111, "from", supersedes="a"), _retract("u", 3, "a")])
+    with pytest.raises(ValueError, match=r"'v'.*'a'.*already retracted"):
+        build_projection([a, _retract("u", 2, "a"), _retract("v", 3, "a")])
+    with pytest.raises(ValueError, match=r"'u'.*'a'.*not earlier"):
+        build_projection([_retract("u", 1, "a"), _bound("a", 2, 110, "from")])
 
 
 def test_only_a_bound_event_may_supersede():

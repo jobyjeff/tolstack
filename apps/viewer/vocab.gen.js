@@ -186,7 +186,9 @@
     STACK_KEY_KINDS: ["topology_edge", "stack_element"],
 
     // tolerance_stack/feature_identity.py: VERDICTS
-    VERDICTS: ["bound", "owner_not_in_set", "proposed", "rejected"],
+    VERDICTS: [
+      "bound", "owner_not_in_set", "proposed", "rejected", "retracted"
+    ],
 
     // tolerance_stack/feature_identity.py: DIRECTIONS
     DIRECTIONS: ["from", "to"],

@@ -115,12 +115,17 @@ STACK_KEY_KINDS = ("topology_edge", "stack_element")
 # names the proposal a human turned down (`rejects`), carrying no face. A human
 # accepting a proposal writes an ordinary `bound` event naming it in
 # `ratifies`. Agents propose; only a human binds or rejects (`AGENT_ACTOR`).
-VERDICTS = ("bound", "owner_not_in_set", "proposed", "rejected")
+#
+# Since 2026-11-12 (handoff a_binding_shows_the_moment_it_is_made_and_is_
+# corrected_where_it_is_shown) one more: `retracted` is an unbind. It names
+# the standing `bound` event it takes back (`retracts`) and carries no face;
+# the fold hides that binding and history keeps both, as a `supersedes` does.
+VERDICTS = ("bound", "owner_not_in_set", "proposed", "rejected", "retracted")
 # The verdicts that name a face (a geometry_key and a direction), and the ones
 # only a human may write. Subsets of VERDICTS, named so the checks below never
 # spell a verdict set inline.
 FACE_VERDICTS = ("bound", "proposed")
-HUMAN_ONLY_VERDICTS = ("bound", "rejected")
+HUMAN_ONLY_VERDICTS = ("bound", "rejected", "retracted")
 
 # How sure the proposing agent is. `high`: the contact engine's one clear top
 # pair, or a shape class plus a drawing crop that leave one face. `medium`: a
@@ -321,6 +326,8 @@ class FeatureIdentityEvent:
     # The proposal a `bound` event accepts, or a `rejected` event turns down.
     ratifies: Optional[str] = None
     rejects: Optional[str] = None
+    # The standing `bound` event a `retracted` event takes back (an unbind).
+    retracts: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.verdict not in VERDICTS:
@@ -333,7 +340,7 @@ class FeatureIdentityEvent:
                     f"event {self.event_id!r}: verdict={self.verdict} requires direction in {DIRECTIONS}, "
                     f"got {self.direction!r}"
                 )
-        else:  # owner_not_in_set, rejected
+        else:  # owner_not_in_set, rejected, retracted
             if self.geometry_key is not None:
                 raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} must carry no geometry_key")
             if self.direction is not None:
@@ -379,6 +386,13 @@ class FeatureIdentityEvent:
                 raise ValueError(f"{name}: verdict=rejected requires rejects, the proposal it turns down")
         elif self.rejects is not None:
             raise ValueError(f"{name}: only a rejected event may carry rejects")
+        if self.verdict == "retracted":
+            if not self.retracts:
+                raise ValueError(f"{name}: verdict=retracted requires retracts, the binding it takes back")
+            if self.retracts == self.event_id:
+                raise ValueError(f"{name}: retracts names itself")
+        elif self.retracts is not None:
+            raise ValueError(f"{name}: only a retracted event may carry retracts")
         if self.verdict in HUMAN_ONLY_VERDICTS and actor_kind(self.recorded_by) == AGENT_ACTOR:
             raise ValueError(
                 f"{name}: recorded_by {self.recorded_by!r} is an agent, and an agent only proposes -- "
@@ -412,6 +426,7 @@ class FeatureIdentityEvent:
             contact_rank=int(d["contact_rank"]) if d.get("contact_rank") is not None else None,
             ratifies=d.get("ratifies"),
             rejects=d.get("rejects"),
+            retracts=d.get("retracts"),
         )
 
     def as_dict(self) -> Dict[str, Any]:
@@ -429,7 +444,7 @@ class FeatureIdentityEvent:
         if self.direction is not None:
             out["direction"] = self.direction
         for key in ("composition_note", "owner_part", "gdt_modifier", "general_tol_regime", "note", "supersedes",
-                    "confidence", "basis", "surface_class", "contact_rank", "ratifies", "rejects"):
+                    "confidence", "basis", "surface_class", "contact_rank", "ratifies", "rejects", "retracts"):
             value = getattr(self, key)
             if value is not None:
                 out[key] = value
@@ -513,6 +528,9 @@ class StackKeyBindings:
     rejected_proposals: List[FeatureIdentityEvent] = field(default_factory=list)
     # Proposals a `bound` event ratified; the binding itself is in `bindings`.
     accepted_proposals: List[FeatureIdentityEvent] = field(default_factory=list)
+    # `bound` events a `retracted` event took back (an unbind): hidden from
+    # `bindings`, kept here, as `superseded` keeps a corrected one.
+    retracted: List[FeatureIdentityEvent] = field(default_factory=list)
 
     @property
     def state(self) -> str:
@@ -550,6 +568,7 @@ class StackKeyBindings:
             "proposals": [e.as_dict() for e in self.proposals],
             "rejected_proposals": [e.as_dict() for e in self.rejected_proposals],
             "accepted_proposals": [e.event_id for e in self.accepted_proposals],
+            "retracted": [e.as_dict() for e in self.retracted],
         }
 
 
@@ -596,6 +615,10 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
     A proposal answered twice with the same answer stands once: the repeat is
     in ``history`` and nowhere else, and superseding either supersedes the
     answer (:attr:`FeatureIdentityProjection.restated`).
+
+    A ``retracted`` event (an unbind) takes back the binding it names in
+    ``retracts``: that binding leaves ``bindings`` for ``retracted`` and stays
+    in ``history`` (:func:`_retracted_bindings` says what it may name).
     """
     events = sorted(events, key=log_order)
     seen_ids: Dict[str, FeatureIdentityEvent] = {}
@@ -624,6 +647,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
         if position[target.event_id] >= position[event.event_id]:
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not earlier")
         hidden[restated.get(target.event_id, target.event_id)] = event.event_id
+    retracted = _retracted_bindings(events, seen_ids, position, restated, hidden)
     for event in events:
         key = event.stack_key.as_key()
         record = projection.by_stack_key.get(key)
@@ -634,7 +658,12 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
         if event.event_id in restated:
             continue  # the answer it repeats is already folded, once
         if event.verdict == "bound":
-            (record.superseded if event.event_id in hidden else record.bindings).append(event)
+            if event.event_id in hidden:
+                record.superseded.append(event)
+            elif event.event_id in retracted:
+                record.retracted.append(event)
+            else:
+                record.bindings.append(event)
         elif event.verdict == "proposed":
             answer = answered.get(event.event_id)
             if answer is None:
@@ -645,8 +674,47 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
                 record.accepted_proposals.append(event)
         elif event.verdict == "owner_not_in_set":
             record.owner_not_in_set.append(event)
-        # a `rejected` event lives in history; what it does is to its proposal
+        # a `rejected` or `retracted` event lives in history; what it does is
+        # to the event it names
     return projection
+
+
+def _retracted_bindings(events: List[FeatureIdentityEvent],
+                        seen_ids: Dict[str, FeatureIdentityEvent],
+                        position: Dict[str, int],
+                        restated: Dict[str, str],
+                        hidden: Dict[str, str]) -> Dict[str, str]:
+    """``{binding id: the retracted event that took it back}``.
+
+    Only a standing binding can be taken back: a ``retracts`` naming an id
+    that is not in the log, one on a different key, one that is not a
+    ``bound`` event, one that is not earlier, or one a ``supersedes`` or an
+    earlier retraction already hid, is a load error naming both ids -- the
+    posture a bad ``supersedes`` has. A binding taken back is not corrected
+    afterwards either: a later pick binds afresh, so a ``supersedes`` naming a
+    retracted binding is refused the same way.
+    """
+    out: Dict[str, str] = {}
+    for event in events:
+        if event.verdict != "retracted":
+            continue
+        target = seen_ids.get(event.retracts)
+        what = f"event {event.event_id!r} retracts {event.retracts!r}"
+        if target is None:
+            raise ValueError(f"{what}, which is not in the log")
+        if target.stack_key.as_key() != event.stack_key.as_key():
+            raise ValueError(f"{what}, which is on a different stack key")
+        if target.verdict != "bound":
+            raise ValueError(f"{what}, which is not a bound event")
+        if position[target.event_id] >= position[event.event_id]:
+            raise ValueError(f"{what}, which is not earlier")
+        standing = restated.get(target.event_id, target.event_id)
+        if standing in hidden:
+            raise ValueError(f"{what}, which {hidden[standing]!r} already superseded")
+        if standing in out:
+            raise ValueError(f"{what}, which {out[standing]!r} already retracted")
+        out[standing] = event.event_id
+    return out
 
 
 # What two answers to one proposal may differ in and still be the same answer:
@@ -803,6 +871,49 @@ PROJECTION_NAME = "bindings.json"
 
 BUILT_BY = "tolerance_stack/feature_identity.py"
 
+#: The served copy of the log (handoff a_binding_shows_the_moment_it_is_made_
+#: and_is_corrected_where_it_is_shown). No mount serves
+#: ``data/inbox/feature-identity/`` or ``projections/feature-identity/`` --
+#: drawing-checker serves ``projections/viewer/`` as ``/tolstack/data/`` and
+#: nothing else -- and a static mount lists no directory, so a page reading
+#: with no folder grant reads the log HERE: every event, verbatim, in log
+#: order, plus the installed meshes' sha256 (what a binding's face is checked
+#: against). The pages fold it themselves (``apps/viewer/identity_fold.js``),
+#: and the annotator rewrites it through its folder grant after every event
+#: it writes, so a reload shows the write with no rebuild. A copy of inputs,
+#: not a derivation: it carries no tree provenance and needs no gate.
+SCHEMA_SERVED_LOG = "joby.tolerance_stack/feature-identity-log/v0"
+SERVED_LOG_SUBDIR = Path("projections") / "viewer" / "feature-identity"
+SERVED_LOG_NAME = "log.json"
+MESHES_SUBDIR = Path("meshes")
+MESH_PROVENANCE_NAME = "provenance.json"
+
+
+def installed_mesh_shas(data_root: Path) -> List[str]:
+    """Every ``data/meshes/<sha256>/`` with a ``provenance.json``, sorted."""
+    meshes = Path(data_root) / MESHES_SUBDIR
+    if not meshes.is_dir():
+        return []
+    return sorted(d.name for d in meshes.iterdir() if (d / MESH_PROVENANCE_NAME).is_file())
+
+
+def served_log(events: Iterable[FeatureIdentityEvent], installed: List[str]) -> Dict[str, Any]:
+    """The served log's document: the events in log order, and the meshes."""
+    return {
+        "schema": SCHEMA_SERVED_LOG,
+        "events": [e.as_dict() for e in sorted(events, key=log_order)],
+        "installed_meshes": list(installed),
+    }
+
+
+def write_served_log(events_dir: Path, data_root: Path) -> Path:
+    """Write ``<data-root>/projections/viewer/feature-identity/log.json``."""
+    out = Path(data_root) / SERVED_LOG_SUBDIR / SERVED_LOG_NAME
+    out.parent.mkdir(parents=True, exist_ok=True)
+    doc = served_log(load_events(events_dir), installed_mesh_shas(data_root))
+    out.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return out
+
 
 def _provenance():
     """``scripts/projection_provenance.py``, imported lazily -- same reason
@@ -913,6 +1024,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     events = load_events(events_dir)
     projection = build_projection(events)
     print(f"wrote {out}")
+    print(f"wrote {write_served_log(events_dir, data_root)}")
     counts = projection.counts()
     print(f"  {len(projection.by_stack_key)} stack key(s) from {len(projection.events)} event(s): "
           + ", ".join(f"{counts[v]} {v}" for v in VERDICTS)
