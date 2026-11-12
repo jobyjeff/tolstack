@@ -70,6 +70,14 @@ outside the DAG pane and the tree -- none exists on the page today, kept as
 the one listener for one that arrives), and the flyout's `close` (clears a
 scene hover).
 
+> **Correction (review, 2026-11-12).** Not quite all through `setHovered`:
+> `revalidateHover` (next paragraph) writes `state.focus.hovered = null` and
+> `hoverSource = null` directly, on purpose -- it runs before `applyFocus` at
+> the end of a paint and must not re-enter it. So hover has one setter and one
+> paint-time clearer (`grep -n "focus.hovered = " apps/viewer/topology_app.js`:
+> three sites, two in `setHovered`, one in `revalidateHover`). Selection's
+> "one writer" claim above re-derives exactly.
+
 **A hover survives a repaint only where the pointer still is.** The first
 browser run of the topology suite found the Preview stuck on a hovered row
 with the pointer parked at (4, 4): the old `mountPreview` nulled every hover

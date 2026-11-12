@@ -5785,6 +5785,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       change in meaning, ask which viewer guard the order is holding up, and
       check that a `notes` line says so and an issue names the guard
       (`ISSUE_20261110_v2s_whole_walk_draws_the_hub_twice_...`).
+- [ ] **A page-side "follow" that re-asserts the page's state into the pane
+      on every state change, with the pane's reply as its only
+      acknowledgement.** New 2026-11-12
+      (`one_selection_one_hover_and_leaders_off`, should-fix, filed as
+      `ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md`).
+      `syncSceneInspect` runs inside `applyFocus` (every hover change, every
+      paint) and posts a rail `activate` whenever the LAST tree the page
+      received shows no selected end row -- so a feature click followed by a
+      pointer sweep over the DAG posted the toggle twice before the pane had
+      answered once, and a pane-side `inspect clear` was re-asserted within a
+      debounce. The lesson's "no second copy that can disagree" is true of
+      the state and false of the *gesture*: a toggle re-sent while its answer
+      is in flight is a second copy with a parity. Two cheap measurements for
+      any shell→pane follow a diff adds: install a `message` listener in the
+      iframe that counts posts by act, click once and sweep the pointer, and
+      expect exactly one; then make the pane let go on its own side and check
+      which side wins. A dedupe flag cleared by the reply, and a reading of
+      "the pane let go" as a selection change, are the two fix shapes.
+- [ ] **A reviewer's `git checkout <branch> -- .` lands the other branch's
+      tree in the working copy, not a merge.** Self-inflicted 2026-11-12: run
+      to read the handoff tree in place, it staged every file of the handoff
+      into the review worktree before the merge. `git reset --hard HEAD` is the
+      remedy when the dirt is wholly your own (nothing else was in the tree);
+      the found-dirt rule's ban on it is about *other* sessions' work. Read
+      another branch's files with `git show <ref>:<path>` or `git grep <ref>`
+      and never check them out.
 
 ## Architectural errors to check
 
