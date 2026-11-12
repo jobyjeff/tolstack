@@ -1164,6 +1164,7 @@
     faceSuggestions: "tolstack.annotate.faceSuggestions",
     sweepRowKinds: "tolstack.annotate.sweepRowKinds",
     armOthers: "tolstack.annotate.armOthers",
+    boundFaces: "tolstack.annotate.boundFaces",
   });
 
   // Translucent by default: a scope entry is transparent by Jeff's own
@@ -1241,6 +1242,30 @@
   AA.writeStoredSuggestions = function (store, on) {
     AA.writeStoredOnOff(store, AA.PREF_KEYS.faceSuggestions, on);
   };
+
+  // Bound faces (handoff a_binding_shows_the_moment_it_is_made_and_is_
+  // corrected_where_it_is_shown): every standing binding of an open part
+  // marked green, from the record. On by default -- a bound face is what a
+  // reader binding the next one most needs to see -- and one box in the top
+  // bar's Display group hides them.
+  AA.DEFAULT_BOUND_FACES = true;
+  AA.BOUND_FACES_SETTING_LABEL = "Bound faces";
+  AA.BOUND_FACES_SETTING_HINT = "marks every face already bound on the parts shown, in green";
+
+  AA.readStoredBoundFaces = function (store) {
+    return AA.readStoredOnOff(store, AA.PREF_KEYS.boundFaces, AA.DEFAULT_BOUND_FACES);
+  };
+
+  AA.writeStoredBoundFaces = function (store, on) {
+    AA.writeStoredOnOff(store, AA.PREF_KEYS.boundFaces, on);
+  };
+
+  // What the shell's feature body's Unbind and Flip say once written
+  // (app.js's cmdUnbind / cmdFlip), as a toast.
+  AA.BODY_VERB_WORDS = Object.freeze({
+    unbound: "unbound: {end}",
+    flipped: "moved to {end}",
+  });
 
   // --- embedded in the viewer's 3D pane (handoff the_3d_pane_opens_in_the_
   // mode_the_study_wants) ------------------------------------------------------

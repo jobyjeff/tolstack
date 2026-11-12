@@ -150,3 +150,43 @@ def test_an_unbind_and_a_flip_the_annotator_writes_fold_in_python():
     assert [e.event_id for e in record.retracted] == ["js-flip"]
     assert record.retracted[0].direction == "to", "the flip moved the face to the other end"
     assert record.bindings == [] and record.state == "unbound"
+
+
+def test_the_served_log_is_where_and_what_every_reader_says_it_is():
+    """One path, one schema, one message name -- each written in Python and in
+    both apps, so each pair is read here rather than trusted."""
+    from tolerance_stack import feature_identity as fi
+
+    viewer = (REPO / "apps" / "viewer" / "config.js").read_text(encoding="utf-8")
+    annotate = (REPO / "apps" / "annotate" / "config.js").read_text(encoding="utf-8")
+    binding_state = (REPO / "apps" / "annotate" / "binding_state.js").read_text(encoding="utf-8")
+    topology = (REPO / "apps" / "viewer" / "topology.js").read_text(encoding="utf-8")
+    sub = fi.SERVED_LOG_SUBDIR.parts
+    assert sub[:2] == ("projections", "viewer"), "the log is under the one directory drawing-checker serves"
+    under_viewer = list(sub[2:]) + [fi.SERVED_LOG_NAME]
+    quoted = lambda parts: "[" + ", ".join(f'"{p}"' for p in parts) + "]"
+    assert f"identityLog: {quoted(under_viewer)}" in viewer
+    assert f"servedIdentityLog: {quoted(['data', *sub, fi.SERVED_LOG_NAME])}" in annotate
+    assert f'AA.SERVED_LOG_SCHEMA = "{fi.SCHEMA_SERVED_LOG}"' in binding_state
+    message = 'AA.IDENTITY_MESSAGE = "annotate:identity"'
+    assert message in binding_state and 'VA.SCENE_IDENTITY_MESSAGE = "annotate:identity"' in topology
+
+
+def test_the_builder_writes_the_served_log_beside_the_projection(tmp_path):
+    from tolerance_stack.feature_identity import SCHEMA_SERVED_LOG, main
+
+    data_root = tmp_path / "data"
+    events_dir = data_root / "inbox" / "feature-identity"
+    events_dir.mkdir(parents=True)
+    for event in _log()[-4:]:
+        (events_dir / f"{event.seq:04d}_{event.event_id}.json").write_text(
+            json.dumps(event.as_dict()), encoding="utf-8")
+    (data_root / "meshes" / ("ab" * 32)).mkdir(parents=True)
+    (data_root / "meshes" / ("ab" * 32) / "provenance.json").write_text("{}", encoding="utf-8")
+    (data_root / "meshes" / "no_provenance").mkdir()
+    assert main(["--data-root", str(data_root)]) == 0
+    log = json.loads((data_root / "projections" / "viewer" / "feature-identity" / "log.json")
+                     .read_text(encoding="utf-8"))
+    assert log["schema"] == SCHEMA_SERVED_LOG
+    assert [e["event_id"] for e in log["events"]] == ["o1", "c1", "c2", "f1"], "in log order"
+    assert log["installed_meshes"] == ["ab" * 32]

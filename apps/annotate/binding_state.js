@@ -530,6 +530,42 @@
     return viewer;
   }
 
+  // The served log's schema (tolerance_stack/feature_identity.py's
+  // SCHEMA_SERVED_LOG; tests/test_identity_fold_is_paired.py pairs the two),
+  // and the message this app posts the shell after every event it writes:
+  // {type, projection, installedMeshes} (the viewer's
+  // VA.SCENE_IDENTITY_MESSAGE).
+  AA.SERVED_LOG_SCHEMA = "joby.tolerance_stack/feature-identity-log/v0";
+  AA.IDENTITY_MESSAGE = "annotate:identity";
+
+  // The served log's document, as tolerance_stack/feature_identity.py's
+  // served_log writes it: the events in log order, and the meshes, sorted.
+  AA.servedLogDoc = function (events, installedMeshes) {
+    return {
+      schema: AA.SERVED_LOG_SCHEMA,
+      events: (events || []).slice().sort(viewerFold().identityLogOrder),
+      installed_meshes: (installedMeshes || []).slice().sort(),
+    };
+  };
+
+  // The faces to mark bound: every standing binding in the record whose part
+  // `isOpen(sha256)` -- each face once, [{sha256, faceId}].
+  AA.planBoundMarks = function (identity, isOpen) {
+    var seen = {};
+    var out = [];
+    ((identity && identity.stack_keys) || []).forEach(function (row) {
+      (row.bindings || []).forEach(function (b) {
+        var key = b && b.geometry_key;
+        if (!key || !isOpen(key.source_step_sha256)) return;
+        var id = key.source_step_sha256 + "#" + key.face_id;
+        if (seen[id]) return;
+        seen[id] = true;
+        out.push({ sha256: key.source_step_sha256, faceId: key.face_id });
+      });
+    });
+    return out;
+  };
+
   // The whole log folded, in the projection's shape (VA.foldIdentityEvents).
   AA.foldEvents = function (events) {
     return viewerFold().foldIdentityEvents(events, AA.VERDICTS);

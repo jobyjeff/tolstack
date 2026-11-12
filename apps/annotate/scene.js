@@ -333,6 +333,9 @@ export class AnnotateScene {
     // note above keeps off the pointer rate, so it runs once per settle --
     // PART_HOVER_SETTLE_MS after the last move -- and never during a drag.
     this.onPartHover = function () {};
+    // ...and with the sha256 of every part that finishes loading, whoever
+    // asked for it (app.js marks its bound faces).
+    this.onPartLoaded = function () {};
     // ...and after every frame drawn with the model layer up (see animate),
     // and with the node id of a model dot that was clicked.
     this.onModelRendered = function () {};
@@ -468,7 +471,7 @@ export class AnnotateScene {
     // A FAILED load must not be cached as in-flight forever: the next caller
     // should be able to try again (a transport can be re-granted).
     return promise.then(
-      (mesh) => { this._loading.delete(sha256); return mesh; },
+      (mesh) => { this._loading.delete(sha256); this.onPartLoaded(sha256); return mesh; },
       (err) => { this._loading.delete(sha256); throw err; });
   }
 

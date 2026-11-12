@@ -889,7 +889,12 @@
     if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length) return null;
     var part = model.part(feature.part);
     var partWords = (part && (part.number || part.label)) || feature.part;
-    var verb = function (name, e) { return [name, e.edgeId, e.end, topologyId]; };
+    // `arm` also names the feature's own part, armed first (a shared node is
+    // two features); unbind and flip need only the end.
+    var verb = function (name, e) {
+      var cmd = [name, e.edgeId, e.end, topologyId];
+      return name === V.arm ? cmd.concat([feature.part]) : cmd;
+    };
     if (status === VA.FEATURE_STATUSES.bound) {
       var plan = { kind: K.bound, lines: [], actions: [] };
       model.bindingsOf(fid).forEach(function (b) {
@@ -961,7 +966,7 @@
       words.setAttribute("title", line.text);
       row.appendChild(words);
       if (line.face) {
-        row.setAttribute("data-face", line.face.faceId);
+        row.setAttribute("data-face", String(line.face.faceId));
         row.onmouseenter = function () { hoverFace(line.face); };
         row.onmouseleave = function () { hoverFace(null); };
       }

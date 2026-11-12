@@ -176,6 +176,42 @@
 
   // Append-only: never overwrites. A target that already exists is bumped to
   // the next free number, and the name actually written is returned.
+  // The log, read off the folder itself: every event in the inbox (the
+  // freshest source there is -- an agent's proposals land there with no
+  // rebuild) and the installed meshes. The served log's shape.
+  FsaAdapter.prototype.readFeatureIdentityLog = async function () {
+    AA.requireReady(this);
+    var dir = await this._dir(AA.CONFIG.featureIdentityEventsDir, false);
+    var events = [];
+    if (dir) {
+      var names = [];
+      for await (var entry of dir.entries()) {
+        if (entry[1].kind === "file" && /\.json$/i.test(entry[0])) names.push(entry[0]);
+      }
+      for (var i = 0; i < names.length; i++) {
+        var event = await this._readJson(AA.CONFIG.featureIdentityEventsDir.concat([names[i]]));
+        if (event && typeof event.event_id === "string") events.push(event);
+      }
+    }
+    var meshes = (await this.listMeshes()).map(function (m) { return m.sha256; }).sort();
+    return { schema: AA.SERVED_LOG_SCHEMA, events: events, installed_meshes: meshes };
+  };
+
+  // Rewrite the served log (AA.CONFIG.servedIdentityLog). A copy of the
+  // inbox, not an event: it is replaced whole, and the next rebuild writes
+  // the same bytes from Python.
+  FsaAdapter.prototype.writeServedIdentityLog = async function (doc) {
+    AA.requireReady(this);
+    var segs = AA.CONFIG.servedIdentityLog.slice();
+    var leaf = segs.pop();
+    var dir = await this._dir(segs, /* create */ true);
+    var fileHandle = await dir.getFileHandle(leaf, { create: true });
+    var writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(doc, null, 2) + "\n");
+    await writable.close();
+    return leaf;
+  };
+
   FsaAdapter.prototype.writeFeatureIdentityEvent = async function (filename, eventObject) {
     AA.requireReady(this);
     var dir = await this._dir(AA.CONFIG.featureIdentityEventsDir, /* create */ true);

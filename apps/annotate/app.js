@@ -72,6 +72,13 @@ const state = {
   // event file; this app never re-implements that fold, it just doesn't want
   // a bound row to look unbound until the next rebuild.
   sessionEvents: [],
+  // The installed meshes' sha256 the log listed (readIdentity), or null.
+  installedMeshes: null,
+  // An armed pick (cmdArm), in either mode, or null.
+  armed: null,
+  // Whether every standing binding of an open part is marked green
+  // (paintBoundMarks; the top bar's Bound faces box). Persists.
+  boundFaces: AA.readStoredBoundFaces(prefStore()),
   // The bind form's interface choice: {edgeId, sha256, faceId, direction}, or
   // null. Keyed to the element and the face it was made on (bindContext), so
   // it can never outlive either.
@@ -391,7 +398,7 @@ function cmdSceneView() {
 function applyPartScope() {
   const scope = state.partScope;
   if (!scope || !scope.targets.length) return;
-  if (state.sweep && state.sweep.armed) return;
+  if (state.armed) return;
   const plan = AA.planPartScope(state.scene.listOpenParts(), scope.targets, scopeHidesRest());
   // A model drawn alone keeps only its own parts; the rest is not context.
   const off = AA.modelAloneHides(plan.ghost.concat(plan.faint), aloneShas());
@@ -472,9 +479,9 @@ function restLook(sha) {
 // pointer on a candidate row; a rail row selected; the edge the page has
 // highlighted (a grid row hovered or selected).
 function actionInView() {
+  if (state.armed) return { about: state.armed.shas, near: state.armed.near };
   const sweep = state.sweep;
   if (!sweep) return null;
-  if (sweep.armed) return { about: sweep.armed.shas, near: sweep.armed.near };
   return sweep.washAction || sweep.focus || sweep.highlightAction || null;
 }
 
@@ -1566,7 +1573,7 @@ function leaveSweep() {
   const sweep = state.sweep;
   if (!sweep) return null;
   // An armed pick ends first: it holds parts it opened and a camera to give back.
-  if (sweep.armed) disarmPick("left");
+  if (state.armed) disarmPick("left");
   clearSuggestionFocus();
   state.sweep = null;
   showSweepTip(null, null);
@@ -2015,7 +2022,7 @@ function applySweepFrame() {
   applyModelFrame();
   // An armed pick's drawing outranks the per-frame visibility above (a
   // layer toggled while armed must not bring the other parts back solid).
-  if (sweep.armed) applyArmDisplay();
+  if (state.armed) applyArmDisplay();
   postEmbedPose();
   return frame;
 }
@@ -2428,7 +2435,7 @@ function buildSweepBack() {
 
 function sweepBackShown() {
   const sweep = state.sweep;
-  return !!sweep && sweep.returnIndex != null && !sweep.armed && sweep.index === sweep.asModelledIndex;
+  return !!sweep && sweep.returnIndex != null && !state.armed && sweep.index === sweep.asModelledIndex;
 }
 
 // A click the frame rule refuses points at the gate line -- the one place the
@@ -2819,20 +2826,29 @@ function occurrencesShown(list) {
 
 // --- an armed pick (handoff a_face_is_picked_the_way_cad_picks_it) ----------
 //
-// arm <edge> <from|to> | arm off | arm others <ghost|hide> -- a joint end's
-// Pick, in sweep mode. Arming moves the sweep to the as-modelled pose itself
-// (no prompt), draws the end's part opaque and every other part ghosted or
-// hidden, frames the occurrence the end's body anchors, and narrows the
-// raycast to that part: a hover pre-selects and a click binds. Ending it --
-// a bind, `arm off`, Esc, the row's Cancel, any transport verb, leaving
-// sweep mode -- puts back exactly what was shown and where the camera was.
-async function cmdArm(what, direction) {
+// arm <edge> <from|to> [<topology> [<part>]] | arm off | arm others
+// <ghost|hide> -- a joint end's Pick. Arming draws the end's part opaque and
+// every other part ghosted or hidden, frames the occurrence the end's body
+// anchors, and narrows the raycast to that part: a hover pre-selects and a
+// click binds. In sweep mode it first moves the sweep to the as-modelled pose
+// (no prompt). Ending it -- a bind, `arm off`, Esc, the row's Cancel, any
+// transport verb, leaving sweep mode -- puts back exactly what was shown and
+// where the camera was.
+//
+// Since 2026-11-12 (handoff a_binding_shows_the_moment_it_is_made_and_is_
+// corrected_where_it_is_shown) it is not sweep mode's alone: the shell's
+// feature body arms it to Pick a face or to Correct one, in either mode and
+// for a feature the loaded run does not carry. `<topology>` names the model
+// the edge is on (the run's, by default) and `<part>` the feature's own part,
+// armed first. A click on a face supersedes the end's one standing binding,
+// which is what Correct is.
+async function cmdArm(what, direction, topologyId, partId) {
   // `off` is safe anywhere: the shell posts it on any Esc while it shows a
   // pressed row, and a sweep may have ended in between.
   if (what === "off") return disarmPick("cancel");
-  const sweep = sweepState();
+  const sweep = state.sweep;
   if (what === "part") {
-    const armed = sweep.armed;
+    const armed = state.armed;
     if (!armed) throw new Error("arm part needs an armed pick");
     const i = armed.parts.findIndex((t) => t.partId === direction);
     if (i === -1) throw new Error("this end has no part \"" + direction + "\" to pick on");
@@ -2844,23 +2860,24 @@ async function cmdArm(what, direction) {
       throw new Error("arm others takes " + AA.ARM_OTHERS_MODES.join(" or ") + ", got " + JSON.stringify(direction));
     }
     AA.writeArmOthers(prefStore(), direction);
-    if (sweep.armed) {
-      sweep.armed.others = direction;
+    if (state.armed) {
+      state.armed.others = direction;
       applyArmDisplay();
       renderSweepRail();
     }
     return direction;
   }
-  const topology = sweepTopology();
-  if (!topology) throw new Error("this run names no topology, so it has no ends to pick");
+  const topology = topologyId ? topologyNamed(topologyId) : (sweep ? sweepTopology() : state.currentTopology);
+  if (!topology) throw new Error(sweep ? "this run names no topology, so it has no ends to pick"
+    : "no topology is open, so there is no end to pick");
   const edge = (topology.edges || []).find((e) => e.id === what);
   if (!edge) throw new Error("unknown edge \"" + what + "\" in topology \"" + topology.id + "\"");
   if (AA.DIRECTIONS.indexOf(direction) === -1) {
     throw new Error("arm <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
   }
   beginWrite();
-  if (sweep.armed) {
-    const again = sweep.armed.edgeId === edge.id && sweep.armed.direction === direction;
+  if (state.armed) {
+    const again = state.armed.edgeId === edge.id && state.armed.direction === direction;
     disarmPick("cancel");
     if (again) return { armed: false };
   }
@@ -2871,10 +2888,14 @@ async function cmdArm(what, direction) {
   const refuse = (text) => {
     state.rowNotes[edge.id] = { text, nodeIds: [] };
     renderSweepRail();
+    if (!sweep) showToast(text);
     return { armed: false, note: text };
   };
-  if (sweep.asModelledIndex === null) return refuse(AA.ARMED_PICK_WORDS.noPose);
-  const partIds = AA.pickEndPartIds(topology, edge.id, direction);
+  if (sweep && sweep.asModelledIndex === null) return refuse(AA.ARMED_PICK_WORDS.noPose);
+  // The feature's own part first, when the shell names it (a node two parts
+  // share is two features, and each picks on its own part).
+  const partIds = AA.pickEndPartIds(topology, edge.id, direction).slice()
+    .sort((a, b) => (b === partId) - (a === partId));
   // Every named part with an installed mesh, in AA.pickEndPartIds' order: the
   // first is armed, and the row offers a switch to the other.
   const targets = [];
@@ -2887,11 +2908,13 @@ async function cmdArm(what, direction) {
   if (!targets.length) return refuse(AA.ARMED_PICK_WORDS.noPart);
 
   // To the as-modelled pose, remembering where the reader was.
-  const from = sweep.index;
-  sweep.playing = false;
-  if (from !== sweep.asModelledIndex) {
-    sweep.returnIndex = from;
-    setSweepIndex(sweep.asModelledIndex);
+  if (sweep) {
+    const from = sweep.index;
+    sweep.playing = false;
+    if (from !== sweep.asModelledIndex) {
+      sweep.returnIndex = from;
+      setSweepIndex(sweep.asModelledIndex);
+    }
   }
   const restore = {
     camera: state.scene.cameraState(),
@@ -2910,8 +2933,8 @@ async function cmdArm(what, direction) {
   // picked sits against.
   const near = targets.map((t) => t.sha256)
     .concat(edgeAction(topology, edge, direction).near);
-  sweep.armed = {
-    topologyId: topology.id, edgeId: edge.id, direction,
+  state.armed = {
+    topologyId: topology.id, topology, edgeId: edge.id, direction,
     endName: names[direction] || edge.id,
     parts: targets, active: 0,
     shas: [targets[0].sha256],
@@ -2922,10 +2945,10 @@ async function cmdArm(what, direction) {
     flash: false,
     restore,
   };
-  sweep.armed.line = armedIdleLine(sweep.armed);
-  sweep.lastBound = null;
+  state.armed.line = armedIdleLine(state.armed);
+  if (sweep) sweep.lastBound = null;
   applyArmDisplay();
-  state.scene.setPickFilter(sweep.armed.shas);
+  state.scene.setPickFilter(state.armed.shas);
   state.scene.frameOccurrences(anchoredOccurrences([targets[0]]));
   // The pre-selection line reads the suggestion engine's fit; classify now,
   // and say the face again when the classes land -- a hover that arrived
@@ -2933,13 +2956,89 @@ async function cmdArm(what, direction) {
   // check_hovers_the_real_bore_so_the_dods_class_and_radius_line_is_unwitnessed).
   for (const t of targets) {
     ensureFaceClasses(t.sha256).then(() => {
-      const face = state.sweep && state.sweep.armed ? state.scene.preselected() : null;
+      const face = state.armed ? state.scene.preselected() : null;
       if (face && face.sha256 === t.sha256) onPreselect(face);
     }).catch(() => null);
   }
   renderSweepRail();
   renderDetail();
-  return { armed: true, edgeId: edge.id, direction, parts: sweep.armed.shas };
+  postEmbedTree(false);
+  return { armed: true, edgeId: edge.id, direction, parts: state.armed.shas };
+}
+
+// A topology of the projection by id, or a throw naming it.
+function topologyNamed(topologyId) {
+  const topologies = (state.topologyProjection && state.topologyProjection.topologies) || [];
+  const t = topologies.find((x) => x.id === topologyId);
+  if (!t) throw new Error("no topology \"" + topologyId + "\" in the projection");
+  return t;
+}
+
+// The bindings as `topology` reads them (mergedIdentityProjection's rule,
+// for a topology that need not be the open one).
+function identityFor(topology) {
+  return AA.identityReadThrough(sessionIdentityProjection(), topology);
+}
+
+// The edge and end a body verb names, checked: {topology, edge, record,
+// standing, names}.
+function bodyTarget(verb, edgeId, direction, topologyId) {
+  const topology = topologyId ? topologyNamed(topologyId) : (state.sweep ? sweepTopology() : state.currentTopology);
+  if (!topology) throw new Error("no topology is open, so there is nothing to " + verb);
+  const edge = (topology.edges || []).find((e) => e.id === edgeId);
+  if (!edge) throw new Error("unknown edge \"" + edgeId + "\" in topology \"" + topology.id + "\"");
+  if (AA.DIRECTIONS.indexOf(direction) === -1) {
+    throw new Error(verb + " <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
+  }
+  const record = AA.findBindingRecord(identityFor(topology), AA.topologyEdgeKey(topology.id, edge.id));
+  const names = AA.edgeEndNames(topology, edge);
+  return { topology, edge, record, standing: AA.endBindings(record, direction), names };
+}
+
+// unbind <edge> <from|to> [<topology>] -- take back every standing binding at
+// that end: one `retracted` event each (AA.buildRetractEvent). The fold hides
+// them and history keeps them; the face is unbound everywhere at once.
+async function cmdUnbind(edgeId, direction, topologyId) {
+  const t = bodyTarget("unbind", edgeId, direction, topologyId);
+  if (!t.standing.length) throw new Error("nothing is bound at " + (t.names[direction] || direction));
+  if (state.armed) disarmPick("cancel");
+  const seq = await nextEventSeq();
+  const base = "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-unbind";
+  const events = t.standing.map((b, i) => AA.buildRetractEvent(b, { eventId: base + (i ? "-" + i : ""),
+    seq: seq + i, createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) }));
+  const toast = AA.BODY_VERB_WORDS.unbound.replace("{end}", t.names[direction] || direction);
+  for (const event of events) {
+    await writeIdentityEvent(AA.eventFilename(event.seq, slugify(t.edge.id) + "_unbound"), event, toast);
+  }
+  showToast(toast);
+  renderSweepRail();
+  return { retracted: t.standing.map((b) => b.event_id), events: events.map((e) => e.event_id) };
+}
+
+// flip <edge> <from|to> [<topology>] -- the end's one standing binding is the
+// edge's OTHER end: a correction (AA.buildCorrectionEvent) with the direction
+// swapped, refused when that end already has a face (two faces at one end are
+// never what a one-click flip should make).
+async function cmdFlip(edgeId, direction, topologyId) {
+  const t = bodyTarget("flip", edgeId, direction, topologyId);
+  if (t.standing.length !== 1) {
+    throw new Error("flip needs exactly one face bound at " + (t.names[direction] || direction) +
+      ", found " + t.standing.length);
+  }
+  const other = AA.otherDirection(direction);
+  if (AA.endBindings(t.record, other).length) {
+    throw new Error((t.names[other] || other) + " already has a face, so this one cannot move there");
+  }
+  const seq = await nextEventSeq();
+  const event = AA.buildCorrectionEvent(t.standing[0], {
+    eventId: "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-flip", seq,
+    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer), direction: other,
+  });
+  const toast = AA.BODY_VERB_WORDS.flipped.replace("{end}", t.names[other] || other);
+  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.edge.id) + "_flipped"), event, toast);
+  showToast(toast);
+  renderSweepRail();
+  return { supersedes: t.standing[0].event_id, direction: other, event: event.event_id };
 }
 
 // What the armed row says at rest: the generic line, or -- when the end has
@@ -2951,7 +3050,7 @@ function armedIdleLine(a) {
 // Move an armed pick to another of the end's parts: the filter, the solid
 // part, the frame and the row's line follow; the pose and the restore stay.
 function switchArmedPart(i) {
-  const a = state.sweep.armed;
+  const a = state.armed;
   a.active = i;
   const t = a.parts[i];
   a.shas = [t.sha256];
@@ -2986,7 +3085,7 @@ function anchoredOccurrences(targets) {
 // neighbours as they were, the rest as they were or hidden (`others`). How
 // each looks -- solid, ghost, faint -- is lookOf's (applyLooks).
 function applyArmDisplay() {
-  const a = state.sweep && state.sweep.armed;
+  const a = state.armed;
   if (!a) return;
   for (const entry of a.restore.parts.concat(a.restore.opened.map((sha) => ({ sha, visible: true })))) {
     if (a.shas.indexOf(entry.sha) !== -1) {
@@ -3003,9 +3102,9 @@ function applyArmDisplay() {
 // End the arm and put the scene back. `reason` is what the result says.
 function disarmPick(reason) {
   const sweep = state.sweep;
-  const a = sweep && sweep.armed;
+  const a = state.armed;
   if (!a) return { armed: false, reason: "not armed" };
-  sweep.armed = null;
+  state.armed = null;
   state.scene.setPickFilter(null);
   for (const entry of a.restore.parts) state.scene.setVisible(entry.sha, entry.visible);
   for (const sha of a.restore.opened) state.scene.unloadPart(sha);
@@ -3014,6 +3113,7 @@ function disarmPick(reason) {
   state.scene.setCameraState(a.restore.camera);
   renderSweepRail();
   renderDetail();
+  postEmbedTree(false);
   return { armed: false, reason };
 }
 
@@ -3022,18 +3122,20 @@ function disarmPick(reason) {
 function transportEndsArm() {
   const sweep = state.sweep;
   if (!sweep) return;
-  if (sweep.armed) disarmPick("moved");
+  if (state.armed) disarmPick("moved");
   sweep.returnIndex = null;
 }
 
 // The state line of the armed row, rewritten in place: the pointer moves
 // faster than a rebuilt rail should, and the mirror follows the text.
 function setArmedLine(text, flash) {
-  const a = state.sweep && state.sweep.armed;
+  const a = state.armed;
   if (!a) return;
   a.line = text;
   a.flash = !!flash;
   const node = document.querySelector("#sweep-tree .tree-row--armed .tree-row__face");
+  // Outside sweep mode the line lives only in the shell's feature body.
+  if (!state.sweep) { postEmbedTree(false); return; }
   if (!node) { renderSweepRail(); return; }
   node.textContent = text;
   node.classList.remove("tree-row__note--flash");
@@ -3055,7 +3157,7 @@ function setArmedHover(text) {
 }
 
 function onPreselect(face) {
-  const a = state.sweep && state.sweep.armed;
+  const a = state.armed;
   if (!a) return;
   const classes = face ? state.faceClasses[face.sha256] : null;
   setArmedLine(face ? AA.preselectWords(face.faceId, classes ? classes[face.faceId] : null)
@@ -3064,8 +3166,8 @@ function onPreselect(face) {
 
 // One click while armed (AA.planArmedClick decides; this does).
 async function armedClick(pick, other) {
-  const a = state.sweep.armed;
-  const record = AA.findBindingRecord(mergedIdentityProjection(),
+  const a = state.armed;
+  const record = AA.findBindingRecord(identityFor(a.topology),
     AA.topologyEdgeKey(a.topologyId, a.edgeId));
   const plan = AA.planArmedClick(pick, other, AA.endBindings(record, a.direction));
   const acts = AA.ARMED_CLICK_ACTIONS;
@@ -3098,7 +3200,7 @@ async function armedClick(pick, other) {
     disarmPick("bound");
     // What follows is the rail Take's own (answeredAtEnd): the bound tint, the
     // row's line, the toast, and the edge's other end opened next.
-    const topology = sweepTopology();
+    const topology = a.topology;
     await answeredAtEnd(topology, topology.edges.find((e) => e.id === a.edgeId), a.direction,
       { sha256: full.sha256, faceId: full.faceId }, events, toast);
     return { action: plan.action, faceId: full.faceId, supersedes: answer.supersedes,
@@ -3406,12 +3508,12 @@ function featureRowBase(topology, joint, feature) {
   const justBound = !armed && !note && lb && topology && lb.topologyId === topology.id &&
     lb.edgeId === via.edgeId && lb.direction === via.direction;
   const suggestionLine = !armed && !note && !justBound ? AA.suggestionWords(suggestion) : null;
-  face.textContent = armed ? state.sweep.armed.line
+  face.textContent = armed ? state.armed.line
     : (note ? note.text : (justBound ? AA.armedWords("bound", { face: lb.faceId })
       : (suggestionLine || faceWords)));
   if (suggestionLine) face.classList.add("tree-row__face--suggested");
   if (justBound) li.title += "\n" + [lb.by, lb.at].filter(Boolean).join(" · ");
-  if (armed && state.sweep.armed.flash) face.classList.add("tree-row__note--flash");
+  if (armed && state.armed.flash) face.classList.add("tree-row__note--flash");
   text.appendChild(face);
   li.appendChild(text);
   if (armed) li.classList.add("tree-row--armed");
@@ -3446,9 +3548,9 @@ function featureRowBase(topology, joint, feature) {
     }
     // (The row's own Pick / Re-pick / Cancel button left on 2026-11-10: the
     // one pick action is the last row of the end's list, endPickAction.)
-    if (armed && state.sweep.armed.parts.length > 1) {
+    if (armed && state.armed.parts.length > 1) {
       // The end's other part, one click away; the filter follows.
-      const a = state.sweep.armed;
+      const a = state.armed;
       const other = a.parts[(a.active + 1) % a.parts.length];
       const sw = document.createElement("button");
       sw.className = "tree-row__repick tree-row__switch-part";
@@ -3464,7 +3566,7 @@ function featureRowBase(topology, joint, feature) {
       // The other-parts toggle names what a press switches TO.
       const others = document.createElement("button");
       others.className = "tree-row__repick tree-row__others";
-      const next = AA.ARM_OTHERS_MODES.find((m) => m !== state.sweep.armed.others);
+      const next = AA.ARM_OTHERS_MODES.find((m) => m !== state.armed.others);
       others.textContent = AA.ARMED_PICK_WORDS.others[next];
       others.title = AA.ARMED_PICK_WORDS.othersTitle;
       others.onclick = (ev) => {
@@ -3506,7 +3608,7 @@ function isSelectedFeature(topology, via) {
 }
 
 function isArmedRow(topology, via) {
-  const a = state.sweep && state.sweep.armed;
+  const a = state.armed;
   return !!(a && topology && a.topologyId === topology.id && a.edgeId === via.edgeId &&
     a.direction === via.direction);
 }
@@ -4105,7 +4207,6 @@ async function cmdAccept(edgeId, direction) {
 async function answeredAtEnd(topology, edge, direction, face, events, toast) {
   if (state.sweep) {
     clearSuggestionFocus();
-    state.scene.markFace(face.sha256, face.faceId, "bound");
     state.sweep.lastBound = { topologyId: topology.id, edgeId: edge.id, direction,
       faceId: face.faceId, by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
     showToast(toast);
@@ -4183,7 +4284,7 @@ async function cmdTake(edgeId, direction, meshId, faceText) {
   const pick = { sha256: mesh.sha256, faceId, record: face };
   const plan = AA.planArmedClick(pick, null, standing);
   if (plan.action === AA.ARMED_CLICK_ACTIONS[2]) return { action: plan.action, faceId };
-  if (state.sweep && state.sweep.armed) disarmPick("taken");
+  if (state.armed) disarmPick("taken");
   const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
     pick: { geometryKey: AA.geometryKeyOfPick(pick), direction, stackKey },
     open: AA.endProposals(record, direction),
@@ -4775,6 +4876,9 @@ commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
 commands.register("accept", cmdAccept);
 commands.register("take", cmdTake);
+commands.register("unbind", cmdUnbind);
+commands.register("flip", cmdFlip);
+commands.register("bound-faces", cmdBoundFaces);
 AA.exec = (input) => commands.exec(input);
 
 // The last arrival, run again -- what ticking an auto-setup box back on does.
@@ -5435,6 +5539,8 @@ function renderHintPanel() {
     display.appendChild(settingCheckbox("See-through parts", state.transparentParts,
       "renders the bodies translucent, so the joints and links show through them",
       (on) => AA.exec(["transparency", AA.onOff(on)])));
+    display.appendChild(settingCheckbox(AA.BOUND_FACES_SETTING_LABEL, state.boundFaces,
+      AA.BOUND_FACES_SETTING_HINT, (on) => AA.exec(["bound-faces", AA.onOff(on)])));
     el.hintPanel.appendChild(display);
     return;
   }
@@ -5446,6 +5552,8 @@ function renderHintPanel() {
     (on) => AA.exec(["auto-suggest", AA.onOff(on)])));
   display.appendChild(settingCheckbox(SWEEP_LAYER_LABELS.model, state.model.bindOn,
     SWEEP_LAYER_HINTS.model, (on) => AA.exec(["layer", "model", AA.onOff(on)])));
+  display.appendChild(settingCheckbox(AA.BOUND_FACES_SETTING_LABEL, state.boundFaces,
+    AA.BOUND_FACES_SETTING_HINT, (on) => AA.exec(["bound-faces", AA.onOff(on)])));
   el.hintPanel.appendChild(display);
 }
 
@@ -5526,7 +5634,7 @@ async function nextEventSeq() {
   // may not publish at all (storage/http.js).
   if (servedTransport && !state.storage.writeGranted()) {
     await state.storage.ensureWriter();
-    state.identityProjection = await state.storage.readFeatureIdentityProjection();
+    adoptIdentity(await readIdentity());
     renderPaneStatus();
   }
   const onDisk = await state.storage.listFeatureIdentityEventSeqs();
@@ -5649,10 +5757,96 @@ function correctionTarget(record, edge) {
 async function writeIdentityEvent(filename, event, banner) {
   const written = (await state.storage.writeFeatureIdentityEvent(filename, event)) || filename;
   state.sessionEvents.push(event);
+  await publishIdentity(true);
   buildModel().catch(() => { /* the layer keeps its last anchors */ });
   setBanner(typeof banner === "function" ? banner(written) : banner, "ok");
   renderElementList();
   renderDetail();
+}
+
+// --- the log, read and published (handoff a_binding_shows_the_moment_it_is_
+// made_and_is_corrected_where_it_is_shown, deliverable 1) --------------------
+//
+// The bindings come from the LOG wherever the transport reaches it -- the
+// folder's own inbox once granted, the served copy over HTTP with no grant --
+// folded in the page (AA.foldEvents); the built projection only where no log
+// is reached. It was the projection alone until 2026-11-12, a snapshot from
+// the last rebuild, which is why a reload lost every binding made since.
+async function readIdentity() {
+  const log = typeof state.storage.readFeatureIdentityLog === "function"
+    ? await state.storage.readFeatureIdentityLog().catch(() => null) : null;
+  if (log && Array.isArray(log.events)) {
+    state.installedMeshes = Array.isArray(log.installed_meshes) ? log.installed_meshes : null;
+    return AA.foldEvents(log.events);
+  }
+  return state.storage.readFeatureIdentityProjection();
+}
+
+// A freshly read record replaces the page's; the session's own events that it
+// already holds are dropped, so none is folded twice.
+function adoptIdentity(projection) {
+  state.identityProjection = projection;
+  const folded = new Set((projection && projection.built_from_events) || []);
+  state.sessionEvents = state.sessionEvents.filter((e) => !folded.has(e.event_id));
+}
+
+// After a write (`rewrite`), and once the log is first read: the served log is
+// rewritten from the folder through the grant, so a reload with no grant shows
+// the write; the bound faces are repainted from the record; and the shell is
+// sent the merged record, so its tree changes with no reload. Rewriting is
+// best-effort -- the event is already on disk, and the next rebuild writes the
+// same bytes -- so a failure says so in the console and nothing else.
+async function publishIdentity(rewrite) {
+  if (rewrite && typeof state.storage.writeServedIdentityLog === "function" &&
+      (!servedTransport || state.storage.writeGranted())) {
+    const started = performance.now();
+    try {
+      const log = await state.storage.readFeatureIdentityLog();
+      if (log && Array.isArray(log.events)) {
+        await state.storage.writeServedIdentityLog(AA.servedLogDoc(log.events, log.installed_meshes));
+        state.installedMeshes = Array.isArray(log.installed_meshes) ? log.installed_meshes : state.installedMeshes;
+        adoptIdentity(AA.foldEvents(log.events));
+      }
+    } catch (err) {
+      console.warn("the served log was not rewritten:", err);
+    }
+    window.__lastServedLogMs = performance.now() - started;
+  }
+  paintBoundMarks();
+  postToShell({ type: AA.IDENTITY_MESSAGE, projection: sessionIdentityProjection(),
+    installedMeshes: state.installedMeshes });
+}
+
+// --- bound faces, from the record (deliverable 5) ---------------------------
+//
+// Every standing binding of a part the scene has open is marked green, from
+// the merged record -- this session's bindings and every earlier one's --
+// and repainted on every refresh: a part loading, a write, the box. Until
+// 2026-11-12 only an accept in this session marked a face and nothing ever
+// took a mark down, so today's binds piled up green and last week's were
+// never marked at all.
+let boundMarksTimer = null;
+function paintBoundMarks() {
+  if (!state.scene) return;
+  state.scene.clearMarks("bound");
+  if (!state.boundFaces) return;
+  const open = new Set(state.scene.listOpenParts());
+  for (const f of AA.planBoundMarks(sessionIdentityProjection(), (sha) => open.has(sha))) {
+    state.scene.markFace(f.sha256, f.faceId, "bound");
+  }
+}
+function scheduleBoundMarks() {
+  if (boundMarksTimer !== null) return;
+  boundMarksTimer = setTimeout(() => { boundMarksTimer = null; paintBoundMarks(); }, 0);
+}
+
+// bound-faces [on|off] -- show or hide the bound marks; no argument toggles.
+function cmdBoundFaces(value) {
+  state.boundFaces = value === undefined ? !state.boundFaces : AA.parseOnOff(value);
+  AA.writeStoredBoundFaces(prefStore(), state.boundFaces);
+  paintBoundMarks();
+  renderHintPanel();
+  return state.boundFaces;
 }
 
 // What an element's bindings say about themselves, in the bar: one line per
@@ -6373,8 +6567,13 @@ function embedTree() {
   // `armed`: a pick is armed, so the shell's Esc cancels it (and only it).
   // Said here rather than left to be read off a pressed row: a part row's
   // Isolate and the type chips are pressed too, and are no pick.
+  // `armedEnd`/`armedLine`: which end it is armed at and what its line says,
+  // so the shell's feature body for that end shows the line and a Cancel.
   return { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
-    armed: !!(state.sweep && state.sweep.armed),
+    armed: !!(state.armed),
+    armedEnd: state.armed ? { topologyId: state.armed.topologyId, edgeId: state.armed.edgeId,
+      direction: state.armed.direction } : null,
+    armedLine: state.armed ? state.armed.line : null,
     chips: state.sweep ? railChips() : [], legend: rows.length ? AA.railLegend() : [], rows };
 }
 
@@ -6472,7 +6671,7 @@ window.addEventListener("message", (ev) => {
 async function loadAll() {
   try {
     state.topologyProjection = await state.storage.readTopologyProjection();
-    state.identityProjection = await state.storage.readFeatureIdentityProjection();
+    adoptIdentity(await readIdentity());
     if (!state.topologyProjection) {
       setBanner(AA.NO_PROJECTION_NOTICE, "warn");
       // Loaded-but-empty: queued commands should fail loudly ("no topology
@@ -6492,6 +6691,10 @@ async function loadAll() {
     await loadOccurrences();
     renderPartsPanel();
     renderRailFilter();
+    // The shell is told what this pane read (it may be fresher than the
+    // shell's own read: a granted folder's inbox), and which meshes exist.
+    if (!state.installedMeshes) state.installedMeshes = state.meshList.map((m) => m.sha256).sort();
+    publishIdentity(false);
 
     await runPendingDeepLink();
     execQueue.markLoaded();
@@ -6636,6 +6839,8 @@ async function main() {
   // The part under a pointer that has come to rest, into the rail (sweep
   // mode only; the scene asks nothing outside it).
   state.scene.onPartHover = sceneHoverPart;
+  // A part that opens shows its bound faces (paintBoundMarks), whoever opened it.
+  state.scene.onPartLoaded = scheduleBoundMarks;
   state.scene.onPreselect = onPreselect;
   // ...and in bind mode, the proposal under a resting pointer: who proposed
   // it, how sure, and why, in the one tooltip node the joint hover uses.
@@ -6685,9 +6890,15 @@ async function main() {
   // reader is typing into the command box, and while a control that uses the
   // same keys (the scrubber itself) has focus.
   window.addEventListener("keydown", (ev) => {
+    // Esc cancels an armed pick, wherever focus is -- the CAD gesture, in
+    // either mode.
+    if (ev.key === "Escape" && state.armed && !state.sweep) {
+      ev.preventDefault();
+      AA.exec(["arm", "off"]);
+      return;
+    }
     if (!state.sweep) return;
-    // Esc cancels an armed pick, wherever focus is -- the CAD gesture.
-    if (ev.key === "Escape" && state.sweep.armed) {
+    if (ev.key === "Escape" && state.armed) {
       ev.preventDefault();
       AA.exec(["arm", "off"]);
       return;
@@ -6717,7 +6928,7 @@ async function main() {
   state.scene.onPick = (pick, bead, other) => {
     // An ARMED pick owns the click: the scene has already filtered the ray
     // to the armed part (AA.planArmedClick says what the click does).
-    if (state.sweep && state.sweep.armed) {
+    if (state.armed) {
       return armedClick(pick, other || null).catch((err) => setBanner(err.message, "error"));
     }
     // IN SWEEP MODE A CLICK SELECTS IN THE RAIL, at any frame (handoff

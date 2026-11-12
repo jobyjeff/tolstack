@@ -12300,6 +12300,138 @@
         eq(root.textContent.indexOf("In this model"), -1);
       });
 
+    // --- a binding shows the moment it is made and is corrected where it is
+    // shown (handoff 2026-11-12): the body from the model, the orphans, the log.
+    function boundIdentity() {
+      return { stack_keys: [
+        { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "d1" },
+          bindings: [{ event_id: "e1", direction: "to", verdict: "bound",
+            geometry_key: { source_step_sha256: "aa", face_id: 12 } }], proposals: [] },
+        { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "g1" },
+          bindings: [], proposals: [{ event_id: "e2", direction: "from", confidence: "medium" },
+            { event_id: "e5", direction: "from", confidence: "high" }] },
+      ] };
+    }
+
+    await test("a feature's body says what it is: bound with its face, part number, Correct, " +
+      "Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane " +
+      "lists is the pane's rows; an armed end is its line and Cancel", function () {
+        var model = VA.buildModel(bodiedProj(), boundIdentity());
+        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
+        var bound = VA.featureBodyPlan(model, "p1@n2", "mini", [], null);
+        eq(bound.kind, K.bound);
+        eq(bound.lines.map(function (l) { return l.text; }), ["bound · face 12 of 100-001"]);
+        eq(bound.lines[0].face, { sha256: "aa", faceId: 12 });
+        eq(bound.lines[0].actions.map(function (a) { return a.command; }), [
+          ["arm", "d1", "to", "mini", "p1"], ["unbind", "d1", "to", "mini"], ["flip", "d1", "to", "mini"]],
+          "Correct arms the pick on the feature's own part; Flip because d1's other end is free");
+        // p2's side of the shared node: nothing bound, and p2 has no mesh.
+        var noMesh = VA.featureBodyPlan(model, "p2@n2", "mini", [], null);
+        eq([noMesh.kind, noMesh.lines[0].text, noMesh.actions.length], [K.none, W.noMesh, 0]);
+        // p1@n1: nothing at its ends; p1 has a mesh, so Pick a face at its first own end.
+        var none = VA.featureBodyPlan(model, "p1@n1", "mini", [], null);
+        eq(none.lines[0].text, W.none);
+        eq(none.actions.map(function (a) { return [a.text, a.command]; }),
+           [[W.pick, ["arm", "d1", "from", "mini", "p1"]]]);
+        // A suggestion with no rows from the pane (the run does not carry it):
+        // its surest confidence, and Pick at the proposal's end.
+        var meshed = bodiedProj();
+        meshed.model.parts[1].mesh = { installed: true, part_id: "p2" };
+        var suggested = VA.buildModel(meshed, { stack_keys: [boundIdentity().stack_keys[1]] });
+        var s = VA.featureBodyPlan(suggested, "p2@n3", "mini", [], null);
+        eq(s.lines[0].text, "suggested · high");
+        eq(s.actions[0].command, ["arm", "g1", "from", "mini", "p2"]);
+        eq(VA.featureBodyPlan(suggested, "p2@n3", "mini", [{ key: "k" }], null), null,
+           "a suggestion the pane lists rows for is the pane's rows");
+        // Armed at one of the feature's ends: the pane's line and Cancel.
+        var armed = VA.featureBodyPlan(model, "p1@n2", "mini", [],
+          { armedEnd: { topologyId: "mini", edgeId: "d1", direction: "to" }, armedLine: "click a face" });
+        eq([armed.kind, armed.lines[0].text, armed.actions[0].command], [K.armed, "click a face", ["arm", "off"]]);
+        eq(VA.featureBodyPlan(model, "p1@n1", "mini", [],
+          { armedEnd: { topologyId: "mini", edgeId: "d1", direction: "to" } }).kind, K.none,
+          "an arm at another feature's end is not this one's");
+        // Flip is not offered when the other end already has a face.
+        var both = boundIdentity();
+        both.stack_keys[0].bindings.push({ event_id: "e9", direction: "from", verdict: "bound",
+          geometry_key: { source_step_sha256: "aa", face_id: 3 } });
+        var two = VA.featureBodyPlan(VA.buildModel(bodiedProj(), both), "p1@n2", "mini", [], null);
+        eq(two.lines[0].actions.map(function (a) { return a.command[0]; }), ["arm", "unbind"]);
+      });
+
+    await test("a planned body renders its lines and actions: a bound line lights its face on " +
+      "hover and lets go on leave, and each button posts its own verb", function () {
+        var model = VA.buildModel(bodiedProj(), boundIdentity());
+        var posted = [], hovered = [];
+        var slot = document.createElement("div");
+        VA.renderFeatureBody(slot, [], { plan: VA.featureBodyPlan(model, "p1@n2", "mini", [], null),
+          command: function (c) { posted.push(c.join(" ")); }, hoverFace: function (f) { hovered.push(f); } });
+        var body = slot.querySelector(".navtree__featurebody");
+        eq(body.getAttribute("data-body-kind"), "bound");
+        var line = slot.querySelector(".navtree__featurestate");
+        eq(line.getAttribute("data-face"), "12");
+        line.onmouseenter();
+        line.onmouseleave();
+        eq(hovered, [{ sha256: "aa", faceId: 12 }, null]);
+        var buttons = Array.prototype.slice.call(slot.querySelectorAll("button"));
+        eq(buttons.map(function (b) { return b.textContent; }), ["Correct", "Unbind", "Flip"]);
+        buttons.forEach(function (b) { b.click(); });
+        eq(posted, ["arm d1 to mini p1", "unbind d1 to mini", "flip d1 to mini"]);
+      });
+
+    await test("a binding that names an interface no model has, or a mesh not installed, is " +
+      "counted in one line at the foot of the tree, opening to the list", function () {
+        var identity = boundIdentity();
+        identity.stack_keys.push({ stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "gone" },
+          bindings: [{ event_id: "e7", direction: "to", created_at: "2026-11-01T00:00:00Z",
+            geometry_key: { source_step_sha256: "aa", face_id: 4 } }] });
+        identity.stack_keys.push({ stack_key: { kind: "topology_edge", topology_id: "older", edge_id: "d2" },
+          bindings: [{ event_id: "e8", direction: "to", created_at: "2026-10-01T00:00:00Z",
+            geometry_key: { source_step_sha256: "old-sha", face_id: 5 } }] });
+        var topologies = { topologies: [bodiedProj()] };
+        var orphans = VA.orphanBindings(identity, topologies, ["aa"]);
+        eq(orphans.map(function (o) { return [o.event.event_id, o.reason]; }),
+           [["e7", VA.ORPHAN_REASONS.edge], ["e8", VA.ORPHAN_REASONS.mesh]],
+           "d2 is reached under the reused id `older`, so only its mesh is gone");
+        eq(VA.orphanBindings(identity, topologies, null).map(function (o) { return o.event.event_id; }), ["e7"],
+           "no mesh list: no mesh is judged");
+        var state = { mode: "topology", topologyId: "mini", models: { mini: VA.buildModel(bodiedProj(), identity) } };
+        var root = render(function (r) {
+          VA.renderNavTree(r, { topologies: [{ id: "mini", title: "Mini", studies: [] }], looseStacks: [] },
+            state, { orphans: orphans });
+        });
+        var foot = root.querySelector(".navtree__orphans");
+        ok(!!foot, "the foot is drawn");
+        eq(foot.querySelector(".navtree__orphanwords").textContent,
+           VA.NAV_WORDS.orphanMany.replace("{n}", "2"));
+        eq(all(foot, "li.navtree__orphan").map(function (li) { return li.textContent; }), [
+          "gone · face 4 · 2026-11-01 · that interface is gone",
+          "d2 · face 5 · 2026-10-01 · that part's 3D model was replaced"]);
+        var none = render(function (r) {
+          VA.renderNavTree(r, { topologies: [{ id: "mini", title: "Mini", studies: [] }], looseStacks: [] },
+            state, { orphans: [] });
+        });
+        eq(none.querySelector(".navtree__orphans"), null, "nothing gone draws nothing");
+      });
+
+    await test("the page reads the log where one is reached and the projection only where none " +
+      "is, and an unbind folds the binding away", function () {
+        var bind = { event_id: "b", seq: 1, created_at: "t", verdict: "bound", direction: "to",
+          stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "d1" },
+          geometry_key: { source_step_sha256: "aa", face_id: 1 } };
+        var log = { events: [bind], installed_meshes: ["aa"] };
+        var read = VA.identityFromSources(log, { stack_keys: [] }, null);
+        eq(read.installedMeshes, ["aa"]);
+        eq(read.projection.stack_keys[0].bindings.map(function (b) { return b.event_id; }), ["b"]);
+        var unbind = { event_id: "u", seq: 2, created_at: "t", verdict: "retracted", retracts: "b",
+          stack_key: bind.stack_key };
+        var after = VA.identityFromSources({ events: [unbind, bind] }, null, null).projection.stack_keys[0];
+        eq([after.bindings.length, after.retracted.map(function (b) { return b.event_id; }), after.state],
+           [0, ["b"], "unbound"], "folded in log order whatever order the log lists");
+        var projection = { stack_keys: [{ stack_key: bind.stack_key, bindings: [bind] }] };
+        eq(VA.identityFromSources(null, projection, null), { projection: projection, installedMeshes: null });
+        eq(VA.identityFromSources(null, null, null), { projection: null, installedMeshes: null });
+      });
+
     await test("a feature row selects its node, an interface row its element, a fold is " +
       "the row's own, and a show/hide box names its part or body", function () {
         var proj = bodiedProj();

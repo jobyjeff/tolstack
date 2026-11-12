@@ -438,6 +438,54 @@ check("two independent bindings on one key both stand", () => {
   assertEqual(row.bindings.length, 2);
   assertEqual(row.superseded.length, 0);
 });
+// --- an unbind, the bound marks, the served log (handoff a_binding_shows_the_
+// moment_it_is_made_and_is_corrected_where_it_is_shown) ------------------------
+check("an unbind is a retracted event naming the binding it takes back, carrying no face, and folds it away", () => {
+  const row = { stack_key: AA.topologyEdgeKey("p", "e"), bindings: [], owner_not_in_set: [], history: [] };
+  AA.addEventToRecord(row, boundFixture("a", 1, 110, "from"));
+  const unbind = AA.buildRetractEvent(row.bindings[0], { eventId: "u", seq: 2, createdAt: "t2",
+    recordedBy: AA.humanActor("tester") });
+  assertEqual([unbind.verdict, unbind.retracts, unbind.geometry_key, unbind.direction],
+    ["retracted", "a", undefined, undefined]);
+  assertEqual(unbind.stack_key, row.bindings[0].stack_key);
+  AA.addEventToRecord(row, unbind);
+  assertEqual([row.bindings.length, row.retracted.map((b) => b.event_id), row.state], [0, ["a"], "unbound"]);
+  assertEqual(row.history, ["a", "u"]);
+  let refused = null;
+  try { AA.buildRetractEvent(boundFixture("b", 3, 1, "to"), { eventId: "x", seq: 4, createdAt: "t",
+    recordedBy: "agent:someone" }); } catch (err) { refused = err.message; }
+  assertEqual(/an agent only proposes/.test(refused || ""), true, "an agent cannot unbind: " + refused);
+  refused = null;
+  try { AA.buildRetractEvent({ verdict: "proposed" }, { recordedBy: "annotate-app:r" }); } catch (err) { refused = err.message; }
+  assertEqual(/only a binding/.test(refused || ""), true, "only a binding is taken back: " + refused);
+});
+check("the bound marks are every standing binding on an open part, each face once", () => {
+  const identity = { stack_keys: [
+    { bindings: [boundFixture("a", 1, 110, "from"), boundFixture("b", 2, 110, "to")] },
+    { bindings: [Object.assign(boundFixture("c", 3, 7, "to"), { geometry_key: { source_step_sha256: "closed", face_id: 7 } })] },
+    { bindings: [] },
+  ] };
+  const open = (sha) => sha !== "closed";
+  assertEqual(AA.planBoundMarks(identity, open), [{ sha256: "a".repeat(64), faceId: 110 }]);
+  assertEqual(AA.planBoundMarks(null, open), []);
+});
+check("the served log the page writes is Python's shape: events in log order, meshes sorted", () => {
+  const doc = AA.servedLogDoc([boundFixture("b", 2, 1, "to"), boundFixture("a", 1, 1, "from"),
+    boundFixture("c", 2, 1, "from", { createdAt: "2026-10-21T09:00:00Z" })], ["z", "a"]);
+  assertEqual(doc.schema, AA.SERVED_LOG_SCHEMA);
+  assertEqual(doc.events.map((e) => e.event_id), ["a", "c", "b"], "seq, then when it was written");
+  assertEqual(doc.installed_meshes, ["a", "z"]);
+});
+check("Bound faces is on by default, remembered, and a store that throws is the default", () => {
+  const store = (() => { const m = {}; return { getItem: (k) => m[k] || null, setItem: (k, v) => { m[k] = v; } }; })();
+  assertEqual(AA.readStoredBoundFaces(store), true);
+  AA.writeStoredBoundFaces(store, false);
+  assertEqual(AA.readStoredBoundFaces(store), false);
+  assertEqual(AA.readStoredBoundFaces({ getItem: () => { throw new Error("blocked"); } }), true);
+});
+check("the identity message is the viewer's word for it", () => {
+  assertEqual(AA.IDENTITY_MESSAGE, "annotate:identity");
+});
 check("recordWithout opens the end the corrected binding held", () => {
   const row = { bindings: [boundFixture("a", 1, 110, "from")] };
   assertEqual(AA.bindingDirectionsNeeded(AA.recordWithout(row, "a")).length, 2);

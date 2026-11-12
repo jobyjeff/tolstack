@@ -148,6 +148,17 @@
     return this._writer;
   };
 
+  // The log: the folder's own inbox once granted (fresher than any served
+  // copy), else the served copy -- which no grant is needed to read.
+  HttpAdapter.prototype.readFeatureIdentityLog = function () {
+    if (this.writeGranted()) return this._writer.readFeatureIdentityLog();
+    return this._va.readIdentityLog();
+  };
+  HttpAdapter.prototype.writeServedIdentityLog = function (doc) {
+    if (!this.writeGranted()) throw new Error(AA.READ_ONLY_WRITE);
+    return this._writer.writeServedIdentityLog(doc);
+  };
+
   // Only the folder can be listed; before it is granted there is nothing to
   // number past but the projection (and a write asks for the folder first).
   HttpAdapter.prototype.listFeatureIdentityEventSeqs = async function () {

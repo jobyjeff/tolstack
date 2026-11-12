@@ -49,6 +49,10 @@
     annotateSweepsDir: ["data", "projections", "viewer", "kinematic", "sweeps"],
     featureIdentityEventsDir: ["data", "inbox", "feature-identity"],
     featureIdentityProjection: ["data", "projections", "feature-identity", "bindings.json"],
+    // The served copy of the log (tolerance_stack/feature_identity.py's
+    // SERVED_LOG_SUBDIR): read with no grant over HTTP, and rewritten through
+    // the folder after every event this app writes, so a reload shows it.
+    servedIdentityLog: ["data", "projections", "viewer", "feature-identity", "log.json"],
     // Which faces could be each gap edge's interface (handoff
     // an_interface_suggests_the_faces_that_touch), built by
     // scripts/build_contact_suggestions.py. A folder grant reads it here; over
