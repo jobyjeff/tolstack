@@ -181,9 +181,85 @@ Pins: fast 676 -> 681, browser 868 -> 873 (`scripts/guard_enumeration.mjs`).
   the tree (1053 on this branch),** not only the branch's own; grep it for
   the names you added. The derived file name is in its `write` line.
 
-## Shots
+## Shots (`docs/sessions/lessons/shots/one_selection_one_hover_and_leaders_off/`)
 
-(filled in below once the projections are rebuilt and the page is read)
+Taken by `node tests/debug_one_focus_20261110.mjs` against this tree's `apps/`
+over the main checkout's `data/`, rebuilt from this tree (`af383764` and
+after), on the end-stop model v2 with the pane open on the newest sweep (the
+P2 run) and leaders off, at 3840×2160 (`_3840`) and one pass at 5120×2160
+(`_5120`); beside each the probe prints what is lit on every surface and what
+the pane holds, and I read every one before writing this. The nit shots are
+the nav column alone (`n*_nav_*`), the page cut away.
+
+| shot | what it shows |
+| --- | --- |
+| `f0_v2_sweep_loaded_leaders_off_3840` | at rest: `Leaders: off`, no leader on either tier, the sweep playing |
+| `f1_tree_feature_selected_3840`, `_5120` | the hub's `locating boss` clicked in the tree: its row open to `candidates · 2`, two faces with why, `Pick a face…`; its dot selected on the DAG, the Preview frozen on it, the pane's end row selected |
+| `f1b_tree_feature_after_repaint_3840` | the same after the window was resized (a full repaint): every surface still lit |
+| `f2_dag_node_selected_3840` | the tangential link mount's `pilot bore` dot clicked on the DAG: its part opened, its row selected and open, the Preview frozen, the pane's end selected -- and its body empty, since the P2 run (v1's) carries no end for a v2-only node (`ISSUE_20261111_a_feature_the_newest_sweep_does_not_carry_opens_to_an_empty_body.md`) |
+| `f4_scene_end_selected_3840`, `_5120`; `f4b_..._after_repaint_3840` | an end selected in the 3D pane (the rail's `inspect`, what a bead or face click does in sweep mode): the gas-spring mount's `bushing bores` row selected and open to `face 53 of 213668-002`, eight candidate faces, `show all 10`, `Pick a face…`; its dot selected; the Preview on the DAG dot the pointer still rests on |
+| `f3_grid_row_selected_3840` | the grid row `tangential link mount base face to attachment bore` clicked: the row selected, the dimension's two end features lit in the tree, the Preview frozen on the edge -- and the pane taken to bind mode by its follow rule (`ISSUE_20261111_an_edge_selected_on_a_topology_page_with_the_sweep_loaded_takes_the_pane_out_of_the_sweep.md`) |
+| `f5_grid_row_hovered_3840` | a grid row hovered: the edge's two end features `--hot` in the tree, its bar and dots `--lead` on the DAG, the Preview on it |
+| `f6_tree_part_hovered_3840` | the hub's part row hovered: its four features' dots and its dimensions' bars lit on the DAG and in the grid |
+| `f7_leaders_on_3840` | the toggle clicked once: `Leaders: angled`, 25 leaders drawn, the selected edge's two on top |
+| `n1_nav_hub_open_features_closed_3840` | the hub open: four feature rows, each with a closed twisty, one mark each |
+| `n2_locating_boss_open_3840`, `n2_nav_...` | `locating boss` (has suggestions) opened in place: state line, two candidate faces, `Pick a face…` |
+| `n3_root_bearing_bore_open_3840`, `n3_nav_...` | `blade 1 root bearing bore` (has none) opened in place: `no face bound`, `Pick a face…` -- the same layout and one title; both rows of the shared node and the interface row under Joints between bodies lit |
+| `n4_nav_selected_row_folded_3840` | the selected row folded by its twisty: closed, still selected |
+
+What I looked for and did not find: a second title under an open row, a legend
+under a row, the column scrolling when a row opened (the probe reads
+`scrollTop`), a leader drawn with the toggle off, a console error on any shot
+(`errors: []` beside every one). What I found and filed is above and in
+Filed below.
+
+## What the browser tier taught, run by run
+
+Five passes of the thirteen suites this handoff touched, each red one read
+and fixed before the next:
+
+- **A hover outlived the pointer across a paint** (topology suites: the
+  Preview stuck on a row with the pointer at (4, 4)) -- `revalidateHover`,
+  above.
+- **A fresh document has leaders off again** (the zoom suite's kinematic page
+  is a second `goto`): `leadersOn` after every page open that reads a
+  leader, not once per suite.
+- **A row that holds its list is clicked on its text**: the end row's centre
+  is now inside its list, and the list stops clicks (rail suggestion suite).
+- **The pane's rebuilds take its hover down, and the page's dedupe kept
+  saying "already posted"** (the 3D pane suite's body hover): every
+  `annotate:tree` resets the posted hover and re-posts; a clear is posted at
+  once rather than debounced, or a leave-and-enter within 150 ms coalesced it
+  away. This also replaces the old "clear at once" special case with one rule.
+- **A bind-mode element the pane selects is the pane's own step**: with
+  element rows keyed by edge, `followScenePick` would have selected the edge
+  and closed the feature row over the list the reader was using.
+- **A joint's 3D dot stands for two nodes, and the hover had to light both
+  ends' rows** (seam leaders suite): the entity is the edge joining the
+  members, and a gap interface now lights its edge and its two ends' nodes.
+- **A selected feature whose joint is folded in the pane had no row to
+  activate** (the pilot bore from the DAG): `syncSceneInspect` posts the
+  pane's own `inspect feature <edge> <end>`, which opens the joint, and the
+  next tree carries the rows.
+- **The mirror check had always tested bind mode by accident**: its page is
+  opened with `?embedded=1` and `page.frames().find(url includes
+  "embedded=1")` returned the main frame, so the sweep ran in the outer page
+  (whose rail posts to nobody) and the only tree ever read was the iframe's
+  boot tree. It drives the child frame now and reads the sweep end's row.
+- **Playwright's `.first()` row and Chrome's hover under a resting pointer**:
+  the hub's candidate list hover washed face 3469, not the top face 3460 --
+  the rail rebuilds for seconds after a run loads and the row under the
+  pointer changes; the check hovers the top face's row by id and waits for
+  its wash.
+
+## Filed
+
+- `ISSUE_20261111_the_pane_keeps_two_selections_of_its_own_beside_the_pages_one.md` (strategy).
+- `ISSUE_20261111_renderscenetree_and_the_marks_legend_are_tested_but_the_app_no_longer_draws_them.md` (chore).
+- `ISSUE_20261111_the_panes_hidden_rail_still_wears_a_pick_button_on_contributor_rows.md` (chore).
+- `ISSUE_20261111_an_edge_selected_on_a_topology_page_with_the_sweep_loaded_takes_the_pane_out_of_the_sweep.md` (strategy, med).
+- `ISSUE_20261111_a_feature_the_newest_sweep_does_not_carry_opens_to_an_empty_body.md` (strategy).
+- Addenda on `ISSUE_20261110_the_faces_layer_repeats_the_marks_legend_under_every_selected_feature.md` and `ISSUE_20261110_a_body_or_part_hovered_in_the_tree_lights_the_scene_in_sweep_mode_only.md`.
 
 ## Suite record
 
