@@ -144,3 +144,14 @@ http 378, kinematic study page 275 (aborted), DAG zoom 238, 3D pane follows the
 selection 105, no nav click wedges 101, topology respine 90, leaders across the seam
 86, height budget 78, face suggestions 69. Fixed sleeps in the whole file total 42 s.
 The runner now prints this table itself and appends it to the suite-time ledger.
+
+## Measurement 2026-11-12 (review of one_selection_one_hover_and_leaders_off)
+
+Whole tier, review worktree, `--repo C:/workspace/tolstack`, under the slot
+with nothing else holding it: the runner's own table says **1914.0 s / 1176
+checks TOTAL running** (31m54s), against the 30-minute merge budget -- over
+by 1m54s, the smallest overrun recorded here so far. Top of the table:
+annotate flyout 59.3 s, annotate rail suggestion 50.6 s, annotate sweep rail
+50.5 s, annotate rail and scene 45.7 s, the scene pane over HTTP 44.5 s, the
+model drawn alone 30.1 s. The two slow outliers the 2026-11-06 measurement
+named are not in this run's top six.

@@ -3975,6 +3975,12 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       window.ViewerApp.bootTopology();
     });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    // This suite reads leaders only for their drift (`correspondence()`), so
+    // with leaders off by default (2026-11-10) every one of those checks was
+    // vacuous over zero leaders: turned on here (review, one_selection_one_
+    // hover_and_leaders_off), after the reboot above, which starts fresh.
+    await leadersOn(page);
+    await page.waitForTimeout(200);
     push("the provenance alarm shows as a one-line badge",
       /needs a rebuild/.test(await page.locator("#banner").textContent()));
 
@@ -4088,6 +4094,10 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
         window.ViewerApp.bootTopology();
       }, { projection: realProjection, crops: realCrops });
       await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+      // A fresh boot: leaders off again until turned on (the [real] drift
+      // checks below read them).
+      await leadersOn(page);
+      await page.waitForTimeout(200);
 
       await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
@@ -4455,6 +4465,12 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
     await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 });
     await settled();
     await page.waitForTimeout(600);
+    // The drift checks below read leaders; off by default since 2026-11-10,
+    // so they were vacuous over zero leaders (review, one_selection_one_
+    // hover_and_leaders_off).
+    await leadersOn(page);
+    await settled();
+    await page.waitForTimeout(300);
     const band = (r) => r.blocks.every((b) =>
       b.ratio >= 0.5 && b.ratio <= 2);
     const glyphsOnJoints = (r) => r.jointDots.length > 0 &&
@@ -13218,6 +13234,12 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       // one), so the model is read after the second paint has settled.
       await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
       await page.waitForTimeout(600);
+      // Three checks below read a leader (CORRESPONDENCE_IN_PAGE's
+      // `leaders > 0`): off by default since 2026-11-10, turned on here like
+      // every other suite that reads one (review, one_selection_one_hover_
+      // and_leaders_off: the one leader-reading suite the handoff missed).
+      await leadersOn(page);
+      await page.waitForTimeout(300);
       const verdicts = await page.locator("div.kmverdict").allTextContents();
       push("[real] the study page reads one verdict chip per stop",
         verdicts.length === 2 &&
