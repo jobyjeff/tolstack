@@ -321,6 +321,7 @@
       // posted describes a box that is no longer there.
       sceneModelPosted = null;
       sceneSelectPosted = null;
+      sceneInspect = { posted: null, held: null };
       forgetSeamAnchors(false);
       // The page is back to the width the band was centred for.
       if (state.landed) {
@@ -453,7 +454,7 @@
         if (!event || event.key !== "Escape") return;
         if (nodes.crop && nodes.crop.style.display === "block") { hideCrop(); return; }
         hideCrop();
-        if (modalOpen() || (sceneTree && VA.sceneRowsPressed(sceneTree.rows))) return;
+        if (modalOpen() || VA.scenePickArmed(sceneTree)) return;
         if (state.selection) unfreeze();
       });
       // The pointer's own track, for the hover-intent corridor below. Cheap on
@@ -1742,15 +1743,22 @@
   // page, as against state.flyoutWidth, which is what the current page allows.
   var flyoutWanted = null;
 
-  function currentAnnotateParams() {
-    return VA.annotateParamsFor({
+  // What the pane follows: the page's view, and the run the pane says it has
+  // loaded (VA.annotateEdgeIsHighlight reads it).
+  function paneView() {
+    return {
       mode: state.mode,
       topologyId: state.topologyId,
       studyId: state.studyId,
       selection: state.selection,
       kinematicStudy: state.mode === "kinematic"
         ? VA.findKinematicStudy(state.kinematic, state.kinematicId) : null,
-    });
+      paneRunTopology: paneRun ? paneTopology : null,
+    };
+  }
+
+  function currentAnnotateParams() {
+    return VA.annotateParamsFor(paneView());
   }
 
   function paramsKey(params) {
@@ -1781,12 +1789,12 @@
       if (params) drivePane(params);
       refitPane();
     }
-    // On a kinematic page the scene stays in sweep mode whatever is selected
-    // (VA.annotateParamsFor keeps returning the sweep), and a selected edge
-    // is HIGHLIGHTED there instead: the same `highlight` a hover posts, never
+    // While the scene shows a sweep -- a kinematic page's, or a run loaded on
+    // this topology -- a selected edge is HIGHLIGHTED there instead
+    // (VA.annotateEdgeIsHighlight): the same `highlight` a hover posts, never
     // a `goto`, which would take the scene out of the sweep.
+    if (VA.annotateEdgeIsHighlight(paneView())) syncPaneHover();
     if (state.mode === "kinematic") {
-      syncPaneHover();
       // ...and posed where the page is read (syncPanePose).
       var study = poseStudy();
       var at = poseIndex(study);
@@ -1794,11 +1802,12 @@
     }
   }
 
-  // The edge a kinematic page has selected, as a hover target: what the
-  // scene shows highlighted while the pointer rests on nothing in particular.
+  // The edge selected while the scene shows a sweep, as a hover target: what
+  // the scene shows highlighted while the pointer rests on nothing in
+  // particular.
   function selectedPaneTarget() {
-    if (state.mode !== "kinematic" || !state.selection ||
-        state.selection.kind !== "edge") return null;
+    if (!state.selection || state.selection.kind !== "edge" ||
+        !VA.annotateEdgeIsHighlight(paneView())) return null;
     return { topologyId: state.topologyId, edgeId: state.selection.id };
   }
 
@@ -1963,12 +1972,12 @@
     // Esc cancels an armed pick (a_face_is_picked_the_way_cad_picks_it) even
     // when focus is HERE -- the reader pressed Pick on a mirrored row, so the
     // keypress lands in this document and never reaches the scene's frame.
-    // Armed is the annotator's own word for it: a mirrored row with a
-    // pressed button. Nothing here knows the verb's meaning beyond its name.
+    // Armed is the annotator's own word for it, on its tree message
+    // (VA.scenePickArmed). Nothing here knows the verb's meaning beyond its name.
     if (document.addEventListener) {
       document.addEventListener("keydown", function (event) {
         if (!event || event.key !== "Escape" || !sceneTree) return;
-        if (VA.sceneRowsPressed(sceneTree.rows)) postToPane(["arm", "off"]);
+        if (VA.scenePickArmed(sceneTree)) postToPane(["arm", "off"]);
       });
     }
     window.addEventListener("message", function (event) {
@@ -2015,7 +2024,19 @@
         return;
       }
       if (!msg || msg.type !== "annotate:state") return;
+      var runWas = paneRun, topologyWas = paneTopology;
       paneRun = msg.run || null;
+      paneTopology = msg.topology || null;
+      // A run loaded or left changes what a selected edge asks of the pane
+      // (VA.annotateEdgeIsHighlight). What the pane now shows is the pane's
+      // own doing, so it is what the page follows from here -- not a reason
+      // to drive it back out of the run it just loaded.
+      if (paneRun !== runWas || paneTopology !== topologyWas) {
+        paneFollowed = paramsKey(currentAnnotateParams());
+        paneHighlightPosted = null;
+        // ...and the scene reloaded: its rail holds nothing the page told it.
+        sceneInspect = { posted: null, held: null };
+      }
       setPaneTitle(msg.title || null);
       // What the scene shows changed: its anchors are asked for afresh, and
       // the page keeps drawing from the last ones until they land -- they are
@@ -2154,13 +2175,11 @@
     nav.scrollTop += r.top - n.top - 8;
   }
 
-  // The pane's own selection follows the page's: the selected feature's row
-  // in the pane's rail (the end row that names its node) is selected there
-  // too, through the row's own gesture (`activate`, what a click on the
-  // mirrored row sent), and a feature deselected here lets the pane's row go
-  // the same way. The pane's answer is the next tree, whose selected row
-  // followScenePick reads back -- the same entity, so it stops there.
-  var sceneInspectPosted = null;
+  // The pane's own selection follows the page's, and the page's follows the
+  // pane's -- one selection, either side may set it or let it go
+  // (VA.sceneInspectStep has the rule). With the pane closed no tree
+  // arrives, and none of this runs.
+  var sceneInspect = { posted: null, held: null };
 
   // The first edge end at a node as the pane names an end, a gap edge's (a
   // joint end, which the sweep rail lists) before any other.
@@ -2182,41 +2201,11 @@
     var model = currentModel();
     var fid = selectedFeatureId();
     var feature = model && fid ? model.feature(fid) : null;
-    var rows = feature ? VA.sceneRowsForFeature(sceneTree, feature.node, []) : [];
-    var endRows = rows.filter(function (row) { return row.kind === "end" && row.activate; });
-    if (endRows.length) {
-      // The node's end row -- its first, where the node is the end of more
-      // than one joint -- unless one of them is already the pane's.
-      if (!endRows.some(function (row) { return row.selected; })) {
-        sceneRail(endRows[0].key, VA.SCENE_ACTS.activate);
-      }
-      sceneInspectPosted = feature.node;
-      return;
-    }
-    if (feature) {
-      // The node's joint is folded in the pane, so its end rows are not in
-      // the tree to be activated: the pane's own verb for the row's click
-      // (`inspect feature <edge> <end>`) selects the end, which opens its
-      // joint, and the next tree carries the rows. Sweep mode only -- the
-      // verb is the sweep rail's -- and once per node.
-      if (!paneRun || sceneInspectPosted === feature.node) return;
-      var end = jointEndAtNode(feature.node);
-      if (end && postToPane(["inspect", "feature", end.edgeId, end.direction])) {
-        sceneInspectPosted = feature.node;
-      }
-      return;
-    }
-    sceneInspectPosted = null;
-    // Nothing selected here: a selected end row in the pane is let go.
-    var selected = null;
-    var walk = function (list) {
-      (list || []).forEach(function (row) {
-        if (row.selected && row.kind === "end" && row.activate) selected = row;
-        walk(row.rows);
-      });
-    };
-    walk(sceneTree.rows);
-    if (selected) sceneRail(selected.key, VA.SCENE_ACTS.activate);
+    var step = VA.sceneInspectStep(sceneTree, feature ? feature.node : null, sceneInspect,
+      { sweep: !!paneRun, endAtNode: jointEndAtNode });
+    if (step.command && !postToPane(step.command)) return;
+    sceneInspect = { posted: step.posted, held: step.held };
+    if (step.letGo) unfreeze();
   }
 
   // --- hover crosses the seam (deliverable 3; the one hover since 2026-11-10)
@@ -4184,6 +4173,8 @@
   var POSE_SETTLE_MS = 160;
   var panePlaying = false;
   var paneRun = null;
+  // The topology the pane's run plays on (its `annotate:state`).
+  var paneTopology = null;
   var paneDriver = null;
   var settleTimer = null;
   // The run the pane reported when it is not the study's: the page refuses its

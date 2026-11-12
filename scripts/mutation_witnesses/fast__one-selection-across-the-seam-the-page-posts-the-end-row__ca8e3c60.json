@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "one selection across the seam: the page posts the end row's verb once per node, reads the pane's answer, lets go when the pane lets go, and clears once",
+  "mutations": [
+    {
+      "contract": "A post is made once per node, not on every paint before the pane answers.",
+      "issue": "docs/issues/ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md",
+      "note": "Declared with the guard (2026-11-12). Without the once-per-node gate a pointer sweeping the DAG re-posts on every paint -- the measured double activate.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      if (!o.sweep || posted === nodeId) return result(null, false, posted, held);",
+      "replace": "      if (!o.sweep) return result(null, false, posted, held);"
+    },
+    {
+      "contract": "A pane that let go of the row it held lets go of the page's selection, rather than being re-asserted.",
+      "issue": "docs/issues/ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md",
+      "note": "Without the let-go branch the page keeps its selection and the pane's deselect is swallowed.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      if (endRows.length && held === nodeId) return result(null, true, null, null);",
+      "replace": "      if (false) return result(null, true, null, null);"
+    },
+    {
+      "contract": "The clear is posted once.",
+      "issue": null,
+      "note": "Without the CLEARED gate every paint posts `inspect clear` again.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (posted === VA.SCENE_INSPECT_CLEARED) return result(null, false, posted, null);",
+      "replace": ""
+    }
+  ]
+}

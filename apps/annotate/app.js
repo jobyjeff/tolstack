@@ -3716,8 +3716,10 @@ function contributorsGroup(topology) {
     li.dataset.edge = row.edge;
     hoverOn(li, ["hover", "contributor", row.edge]);
     li.title = row.name + (row.magnitude ? " · " + row.magnitude : "");
-    // The feature row's template: name, then the state line a refused Pick
-    // leaves, then the value and the actions at the right.
+    // The feature row's template: name, then a state line, then the value
+    // at the right. No Pick: a contributor row is the hidden rail's alone (the
+    // shell never draws one under a feature), so a jump to bind mode from it
+    // was a control no reader could reach (retired 2026-11-12).
     const text = document.createElement("span");
     text.className = "tree-row__text";
     const words = document.createElement("span");
@@ -3739,24 +3741,9 @@ function contributorsGroup(topology) {
       li.appendChild(value);
     }
     // The badge's {state, text} shape, which every other badge is handed: the
-    // gap sentence, the drawing(s) to read, and what the row's Pick does.
+    // gap sentence and the drawing(s) to read.
     const alerts = AA.contributorAlerts(row, topology);
     if (alerts.length) li.appendChild(alertBadge(alerts));
-    // The same jump to bind mode a feature row's Pick makes: the edge, at the
-    // as-modelled frame, where a binding may be written. Nothing is written
-    // from here.
-    const bound = AA.elementBindingState(AA.findBindingRecord(mergedIdentityProjection(),
-      AA.topologyEdgeKey(topology.id, row.edge)), state.identityProjection &&
-      state.identityProjection.staleness) === AA.BINDING_STATES.BOUND;
-    const pick = document.createElement("button");
-    pick.className = "tree-row__repick";
-    pick.textContent = bound ? AA.SWEEP_RAIL_WORDS.repick : AA.SWEEP_RAIL_WORDS.pick;
-    pick.title = AA.SWEEP_RAIL_WORDS.repickTitle;
-    pick.onclick = (ev) => {
-      ev.stopPropagation();
-      railExec(["goto", topology.id, row.edge]);
-    };
-    li.appendChild(pick);
     if (selected === row.edge) li.classList.add("selected");
     li.onclick = () => {
       railExec(selected === row.edge ? ["inspect", "clear"]
@@ -6343,7 +6330,11 @@ function embedTree() {
     if (!railRendered(root)) continue;
     rows.push(...railRows(root, "#" + root.id, seen));
   }
+  // `armed`: a pick is armed, so the shell's Esc cancels it (and only it).
+  // Said here rather than left to be read off a pressed row: a part row's
+  // Isolate and the type chips are pressed too, and are no pick.
   return { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
+    armed: !!(state.sweep && state.sweep.armed),
     chips: state.sweep ? railChips() : [], legend: rows.length ? AA.railLegend() : [], rows };
 }
 

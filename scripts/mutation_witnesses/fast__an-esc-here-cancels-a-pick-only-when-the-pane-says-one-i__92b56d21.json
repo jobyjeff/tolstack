@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an Esc here cancels a pick only when the pane says one is armed, never because a mirrored control reads pressed",
+  "mutations": [
+    {
+      "contract": "Armed is the pane's own word on its tree message, not any pressed control.",
+      "issue": "docs/issues/ISSUE_20261112_escape_does_not_let_go_of_the_selection_while_any_mirrored_control_reads_pressed.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). Any tree reading as armed is the shape of the defect it replaced: a sweep that isolates parts swallowed every Esc.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    return !!(tree && tree.armed === true);",
+      "replace": "    return !!tree;"
+    }
+  ]
+}

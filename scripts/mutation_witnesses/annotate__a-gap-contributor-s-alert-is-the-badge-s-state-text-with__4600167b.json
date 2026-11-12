@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a gap contributor's alert is the badge's {state, text} with its gap and the drawings to read",
+  "mutations": [
+    {
+      "contract": "A contributor's alert names the drawings to read to close its gap.",
+      "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
+      "note": "Renamed with its guard 2026-11-12: the alert no longer says what the row's Pick does (the Pick is retired), so the mutation moved to the drawings sentence, the alert's remaining addition to the gap.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (drawings.length) {\n      text += \" \" + (drawings.length === 1",
+      "replace": "    if (false) {\n      text += \" \" + (drawings.length === 1"
+    }
+  ]
+}

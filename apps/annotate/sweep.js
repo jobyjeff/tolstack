@@ -1594,14 +1594,12 @@
     };
   };
 
-  //: The rail's own words in sweep mode: the three group heads and the one
-  //: control a feature row carries.
+  //: The rail's own words in sweep mode: the three group heads, and the
+  //: title of an edge feature's pick action (the jump to bind mode).
   AA.SWEEP_RAIL_WORDS = Object.freeze({
     bodies: "bodies",
     joints: "joints",
     contributors: "contributors",
-    repick: "Re-pick",
-    pick: "Pick",
     repickTitle: "leave the sweep and pick this feature's face at the as-modelled pose",
     showBody: "show or hide this body where the mechanism draws it",
   });
@@ -2231,17 +2229,17 @@
   };
 
   //: What a contributor's alert adds to its gap sentence: the drawing(s) to
-  //: read to close it, and what the row's Pick does.
+  //: read to close it.
   AA.CONTRIBUTOR_ALERT_WORDS = Object.freeze({
     drawing: "Drawing to read: {list}.",
     drawings: "Drawings to read: {list}.",
-    pick: "Pick binds its faces at the as-modelled pose.",
   });
 
   // A contributor row's alerts, in the {state, text} shape every badge in
   // this app is handed (AA.elementAlerts). One alert: the gap sentence, the
   // drawings of the edge's parts (number and everyday name, from the
-  // topology's own `parts[]`), and what Pick does. [] for a row with no gap.
+  // topology's own `parts[]`). [] for a row with no gap. Until 2026-11-12 it
+  // also said what the row's Pick did; the row has no Pick any more.
   AA.contributorAlerts = function (row, topology) {
     if (!row || !row.gap) return [];
     var parts = (topology && topology.parts) || [];
@@ -2260,7 +2258,6 @@
       text += " " + (drawings.length === 1 ? AA.CONTRIBUTOR_ALERT_WORDS.drawing
         : AA.CONTRIBUTOR_ALERT_WORDS.drawings).replace("{list}", drawings.join("; "));
     }
-    text += " " + AA.CONTRIBUTOR_ALERT_WORDS.pick;
     return [{ state: AA.CONTRIBUTOR_ALERT_STATE, text: text }];
   };
 

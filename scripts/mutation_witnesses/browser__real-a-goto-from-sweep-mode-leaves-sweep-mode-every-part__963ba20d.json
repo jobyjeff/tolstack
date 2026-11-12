@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] a goto from sweep mode leaves sweep mode, every part back at its as-modelled placement, and lands in bind mode with that edge selected",
+  "mutations": [
+    {
+      "contract": "A goto is the jump to bind mode: it leaves sweep mode and lands in the bind flow on that edge.",
+      "issue": "docs/sessions/lessons/LESSONS_20261020_the_sweep_rail_shows_the_mechanism.md",
+      "note": "Re-anchored 2026-11-12 (the_pane_follows_the_one_selection_both_ways): the contributor row's Pick that the check pressed is retired, so the check runs the goto verb the shell's row 3D control posts, and the mutation sits on the verb's own leave-the-sweep step. A goto that stays in sweep mode is the near miss.",
+      "file": "apps/annotate/app.js",
+      "find": "    }\n  }\n  leaveSweepForBind();\n  const arrival = AA.planArrival({",
+      "replace": "    }\n  }\n  const arrival = AA.planArrival({"
+    }
+  ]
+}

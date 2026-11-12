@@ -2142,15 +2142,14 @@ const ALERT_TOPOLOGY = {
   edges: [{ id: "tan_len", part: "tan", from: "a", to: "b" }],
 };
 
-check("a gap contributor's alert is the badge's {state, text} with its gap, the drawings to " +
-  "read and Pick", () => {
+check("a gap contributor's alert is the badge's {state, text} with its gap and the drawings " +
+  "to read", () => {
   assertEqual(AA.edgePartIds(ALERT_TOPOLOGY, "tan_len"), ["tan", "bearing", "plate"]);
   const alerts = AA.contributorAlerts({ edge: "tan_len", gap: "No band is cited." }, ALERT_TOPOLOGY);
   assertEqual(alerts.length, 1);
   assertEqual(alerts[0].state, AA.CONTRIBUTOR_ALERT_STATE);
   assertEqual(alerts[0].text, "No band is cited. Drawings to read: " +
-    "212956-005 pitch anti-rotation link assembly; 215177-001 pitch plate. " +
-    AA.CONTRIBUTOR_ALERT_WORDS.pick);
+    "212956-005 pitch anti-rotation link assembly; 215177-001 pitch plate.");
   assertEqual(AA.contributorAlerts({ edge: "tan_len", gap: null }, ALERT_TOPOLOGY), []);
   assertNothingBanned(alerts[0].text, "a contributor alert");
 });

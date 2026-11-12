@@ -10352,13 +10352,13 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       /^Pick on /.test(switched.button));
     await page.evaluate(() => window.AnnotateApp.exec(["arm", "off"]));
 
-    // --- re-pick is the jump to bind mode ---------------------------------------
-    // On the bound edge's contributor row: since 2026-11-05 no joint lists the
-    // pitch link's length (its two ends are the joint's rows), and a
-    // contributor's Pick is the jump that remains.
-    const row = page.locator('#sweep-tree [data-group="contributors"] .tree-row[data-edge="pitch_link_length"]');
-    await row.hover({ timeout: 5000 }).catch(() => {});
-    await row.locator(".tree-row__repick").click({ timeout: 5000 }).catch(() => {});
+    // --- a goto is the jump to bind mode ----------------------------------------
+    // The verb the shell's row 3D control posts (and an edge feature's pick
+    // action). Until 2026-11-12 a contributor row carried a Pick that ran it;
+    // the row is the hidden rail's alone, so the button went and the check
+    // runs the verb itself, on the bound edge no joint lists.
+    await page.evaluate((t) => window.AnnotateApp.exec(["goto", t, "pitch_link_length"]), topology.id)
+      .catch(() => {});
     await page.waitForFunction(() => !window.__sweep &&
       document.querySelector("#element-list li.selected"), null, { timeout: 15000 }).catch(() => {});
     const landed = await page.evaluate(() => ({
@@ -10368,7 +10368,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       list: getComputedStyle(document.getElementById("element-list")).display !== "none",
     }));
     const edgeName = topology.edges.find((e) => e.id === "pitch_link_length").name;
-    push("[real] re-pick on a bound feature leaves sweep mode, every part back at its " +
+    push("[real] a goto from sweep mode leaves sweep mode, every part back at its " +
       "as-modelled placement, and lands in bind mode with that edge selected",
       !landed.sweep && !landed.inSweep && !landed.tree && landed.list && landed.selected === edgeName);
 
@@ -10388,7 +10388,7 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       parts: window.__scene.listOpenParts().length,
       back: (document.getElementById("sweep-return") && getComputedStyle(document.getElementById("sweep-return")).display) || "none",
     }));
-    push("[real] the return control shows after a re-pick and restores sweep mode with " +
+    push("[real] the return control shows after a goto and restores sweep mode with " +
       "its parts, no filter, and the control gone",
       hasReturn && restored.sweep && restored.inSweep && restored.parts >= openedBefore &&
       restored.back === "none");
@@ -10568,10 +10568,6 @@ async function testAnnotateRailAndScene(browser, label, topologies) {
       "unbound one says none is bound",
       lowerEnd && /^face 0 of .+$/.test(lowerEnd.text) && upperEnd && /^face 1 of .+$/.test(upperEnd.text) &&
       faceWords.every((f) => /^face \d+ of |^no face bound$/.test(f.text)));
-    const contributorPick = await page.evaluate(() => [...document.querySelectorAll(
-      '#sweep-tree [data-group="contributors"] .tree-row')].every((n) =>
-      n.querySelector(".tree-row__repick")));
-    push("[real] every contributor row carries the Pick control a feature row does", contributorPick);
 
     // --- 3. scene to rail ---------------------------------------------------
     await page.evaluate((f) => window.__scene.onPick({ sha256: f.armSha, faceId: 0, key: f.armKey }), facts);

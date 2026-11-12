@@ -832,14 +832,85 @@
     return box;
   }
 
-  // Does any mirrored row (at any depth) carry a pressed button? The
-  // annotator presses a row's Pick while a pick is armed, so this is how the
-  // page knows an Esc here has something to cancel.
-  VA.sceneRowsPressed = function (rows) {
-    return (rows || []).some(function (row) {
-      return !!row.pressed || (row.buttons || []).some(function (b) { return !!b.pressed; }) ||
-        VA.sceneRowsPressed(row.rows);
+  // Is a pick armed in the scene? The annotator says so on its tree message
+  // (`armed`, apps/annotate/app.js's embedTree), so an Esc here knows it has
+  // a pick to cancel. Asked of the pane, never read off its rows: a pressed
+  // control is not an armed pick (a part row's Isolate is pressed whenever
+  // the sweep isolates parts, the type chips by default).
+  VA.scenePickArmed = function (tree) {
+    return !!(tree && tree.armed === true);
+  };
+
+  // A mirrored row's key read as the end it names -- `{edgeId, direction}`,
+  // direction null on an edge feature's row -- or null when it names no
+  // edge. The key is the annotator's (`<parent>/<data k=v,...>`, its
+  // railKey); a deeper segment's field replaces a shallower one's.
+  VA.sceneRowEnd = function (key) {
+    var fields = {};
+    String(key || "").split("/").forEach(function (segment) {
+      segment.replace(/#\d+$/, "").split(",").forEach(function (pair) {
+        var at = pair.indexOf("=");
+        if (at > 0) fields[pair.slice(0, at)] = pair.slice(at + 1);
+      });
     });
+    return fields.edge ? { edgeId: fields.edge, direction: fields.direction || null } : null;
+  };
+
+  // One selection across the seam: what the page does about the pane's rail
+  // given the page's selected feature (its node, or null) -- the decision
+  // behind topology_app.js's syncSceneInspect, here so the fast tier pins it.
+  //
+  // `memo` = {posted, held}: the node the page last posted the rail's verb
+  // for (VA.SCENE_INSPECT_CLEARED after it posted the clear), and the node
+  // whose end row a tree was last seen holding. `opts.sweep`: the pane has a
+  // run loaded (the verb is the sweep rail's); `opts.endAtNode(node)`: the
+  // end to name when the node's joint is folded and its rows are not in the
+  // tree. Returns {command, letGo, posted, held}: the command to post (null
+  // for none) -- the memo is the one to keep once it is posted -- and
+  // whether the page lets go of its selection.
+  //
+  //   - the node's end row selected in the tree: the pane holds it;
+  //   - the node's end rows in the tree, none selected, after the pane was
+  //     seen holding one: the pane let go, and the page does too -- never a
+  //     re-assert (a second click on the bead or the face is the pane's
+  //     deselect);
+  //   - otherwise `inspect feature <edge> <end>`, once per node: the row's
+  //     own verb, not its click, which toggles. A tree arriving before the
+  //     pane's answer shows nothing selected and nothing held -- not caught
+  //     up yet -- and posts nothing more;
+  //   - no feature selected and an end row selected in the pane:
+  //     `inspect clear`, once.
+  VA.SCENE_INSPECT_CLEARED = "#cleared";
+  VA.sceneInspectStep = function (tree, nodeId, memo, opts) {
+    var posted = memo ? memo.posted || null : null;
+    var held = memo ? memo.held || null : null;
+    var o = opts || {};
+    var result = function (command, letGo, p, h) {
+      return { command: command, letGo: !!letGo, posted: p, held: h };
+    };
+    var isEnd = function (row) { return row.kind === "end" && !!row.activate; };
+    if (nodeId) {
+      var endRows = VA.sceneRowsForFeature(tree, nodeId, []).filter(isEnd);
+      if (endRows.some(function (row) { return !!row.selected; })) return result(null, false, nodeId, nodeId);
+      if (endRows.length && held === nodeId) return result(null, true, null, null);
+      if (!o.sweep || posted === nodeId) return result(null, false, posted, held);
+      var end = endRows.length ? VA.sceneRowEnd(endRows[0].key)
+        : (o.endAtNode ? o.endAtNode(nodeId) : null);
+      if (!end) return result(null, false, posted, held);
+      return result(["inspect", "feature", end.edgeId].concat(end.direction ? [end.direction] : []),
+        false, nodeId, held);
+    }
+    var selected = false;
+    var walk = function (rows) {
+      (rows || []).forEach(function (row) {
+        if (row.selected && isEnd(row)) selected = true;
+        walk(row.rows);
+      });
+    };
+    walk(tree && tree.rows);
+    if (!selected) return result(null, false, null, null);
+    if (posted === VA.SCENE_INSPECT_CLEARED) return result(null, false, posted, null);
+    return result(["inspect", "clear"], false, VA.SCENE_INSPECT_CLEARED, null);
   };
 
   function sceneList(rows, send) {

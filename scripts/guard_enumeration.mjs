@@ -304,7 +304,12 @@ export const DECLARED_GUARDS = {
   // default (off) and the off geometry, a feature's body, the model's focus
   // resolvers, the tree lit in place, the pane's pointer telling the page;
   // the leader-default guard renamed. Every new name carries a spec.
-  fast: { declared: 681, enrollable: 681, names: "217592c844c6" },
+  // 2026-11-12 (the_pane_follows_the_one_selection_both_ways): +2 net -- the
+  // pressed-row Esc test out with VA.sceneRowsPressed, three in (the pane's
+  // own armed word; one selection across the seam; an edge a highlight while
+  // a run is loaded). Every new name carries a spec; the retired one's is
+  // deleted.
+  fast: { declared: 683, enrollable: 683, names: "372abe095bc0" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -375,7 +380,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): +1, the pane's
   // status shown only once a write begins. It carries a spec.
   // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
-  annotate: { declared: 307, enrollable: 307, names: "448f901a9e4d" },
+  // 2026-11-12 (the_pane_follows_the_one_selection_both_ways): 0 net -- the
+  // contributor alert's guard renamed (it no longer says what a retired Pick
+  // does); its spec renamed with it.
+  annotate: { declared: 307, enrollable: 307, names: "437fdb835dbc" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

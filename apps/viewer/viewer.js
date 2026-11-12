@@ -270,7 +270,12 @@
   // moving from a kinematic study to a chain study needs no extra command.
   //
   // `view` = { mode, topologyId, studyId, selection: {kind, id} | null,
-  // kinematicStudy: the kinematic projection's study object | null }.
+  // kinematicStudy: the kinematic projection's study object | null,
+  // paneRunTopology: the topology of the run the pane reports loaded | null }.
+  //
+  // An edge selected while the pane shows a run is HIGHLIGHTED there, never
+  // a goto (VA.annotateEdgeIsHighlight): a goto leaves sweep mode, and the
+  // pose, the sweep bar and every leader across the seam go with it.
   VA.annotateParamsFor = function (view) {
     if (!view) return null;
     if (view.mode === "kinematic") {
@@ -281,8 +286,23 @@
     if (view.mode !== "topology" || !view.topologyId) return null;
     var params = { topologyId: view.topologyId };
     if (view.studyId) params.studyId = view.studyId;
-    if (view.selection && view.selection.kind === "edge") params.edgeId = view.selection.id;
+    if (view.selection && view.selection.kind === "edge" && !VA.annotateEdgeIsHighlight(view)) {
+      params.edgeId = view.selection.id;
+    }
     return params;
+  };
+
+  // Does a selected edge light in the pane (`highlight <topology> <edge>`)
+  // rather than drive it? On a kinematic page always -- the pane stays in
+  // the study's sweep -- and on a topology page whenever the pane reports a
+  // run loaded on this page's own topology, however it was loaded (its run
+  // picker, `sweep latest`, the Studies row). Entering bind mode stays the
+  // row's own 3D control, never a plain click.
+  VA.annotateEdgeIsHighlight = function (view) {
+    if (!view) return false;
+    if (view.mode === "kinematic") return true;
+    return view.mode === "topology" && !!view.topologyId &&
+      view.paneRunTopology === view.topologyId;
   };
 
   // A hover over an edge's row, as the annotator command that tints that
