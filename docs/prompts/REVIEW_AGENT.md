@@ -5803,6 +5803,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       expect exactly one; then make the pane let go on its own side and check
       which side wins. A dedupe flag cleared by the reply, and a reading of
       "the pane let go" as a selection change, are the two fix shapes.
+- [ ] **A default flip turns every browser check that reads the flipped thing
+      for DRIFT into a pass over nothing, and the one that needs `> 0` goes
+      red only in the whole tier.** New 2026-11-12
+      (`one_selection_one_hover_and_leaders_off`): leaders went off by
+      default, the author added `leadersOn(page)` to the suites whose checks
+      assert a leader exists, and three leader-reading suites were missed --
+      `kinematic study page` (24/27, red only in the review's whole-tier
+      run, since it was not on the handoff's `--only` list) and `topology
+      height budget` + `parts as blocks`, whose `correspondence().drift.length
+      === 0` was **green over zero leaders**. The "default flip voids
+      sentences" entry above covers prose; this is its harness twin. The
+      count that finds them in one command: for each `async function test*`
+      in `scripts/run_viewer_browser_tests.mjs`, the number of lines reading
+      the flipped thing (`CORRESPONDENCE_IN_PAGE`, `rail__leader`,
+      `leaderPaths`, `leaders > 0`) against the number of `leadersOn(`
+      calls -- any suite with reads and no call is either red or vacuous.
+      Re-run those suites `--only` with the call added; a red then is the
+      product's.
 - [ ] **A reviewer's `git checkout <branch> -- .` lands the other branch's
       tree in the working copy, not a merge.** Self-inflicted 2026-11-12: run
       to read the handoff tree in place, it staged every file of the handoff
