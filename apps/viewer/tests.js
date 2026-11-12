@@ -12087,8 +12087,11 @@
         eq(VA.focusElementKeysOf(model, { kind: F.dimension, id: "d1" }), ["edge|d1"]);
         eq(VA.focusElementKeysOf(model, { kind: F.part, id: "p1" }).sort(), ["edge|d1", "node|n1", "node|n2"],
            "a part: its features' nodes and its dimensions' edges");
-        eq(VA.focusElementKeysOf(model, { kind: F.joint, id: "p1+p2" }).sort(), ["edge|g2", "node|n2"],
-           "a joint: its constraints");
+        eq(VA.focusElementKeysOf(model, { kind: F.interface, id: "g2" }).sort(), ["edge|g2", "node|n1", "node|n5"],
+           "a gap interface: its edge and its two ends' nodes");
+        eq(VA.focusElementKeysOf(model, { kind: F.interface, id: "n2" }), ["node|n2"]);
+        eq(VA.focusElementKeysOf(model, { kind: F.joint, id: "p1+p2" }).sort(), ["edge|g2", "node|n1", "node|n2", "node|n5"],
+           "a joint: its constraints, a gap's ends included");
         var body = VA.focusElementKeysOf(model, { kind: F.body, id: "b1" });
         ok(body.indexOf("node|n1") !== -1 && body.indexOf("edge|g2") !== -1 && body.indexOf("node|n3") !== -1,
            "a body: every part's elements and the joints inside it");

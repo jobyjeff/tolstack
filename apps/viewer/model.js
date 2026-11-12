@@ -242,8 +242,10 @@
   };
 
   // Every element key (`node|<id>`, `edge|<id>`) an entity lights on the DAG
-  // and in the grid: its own element, or -- for a part, a body or a joint --
-  // the elements of everything it holds.
+  // and in the grid: its own element -- a gap interface's its edge AND its
+  // two ends' nodes, since the gap and the two features it stands between
+  // are one interface (a joint's one 3D dot is those two nodes) -- or, for
+  // a part, a body or a joint, the elements of everything it holds.
   VA.focusElementKeysOf = function (model, entity) {
     if (!entity) return [];
     var F = VA.FOCUS_KINDS;
@@ -259,6 +261,15 @@
     var addEntity = function (e) {
       var el = VA.focusElementOf(model, e);
       if (el) add(el.kind, el.id);
+      if (model && e.kind === F.interface) {
+        var iface = model.interface(e.id);
+        if (iface && iface.source === "edge") {
+          (iface.ends || []).forEach(function (fid) {
+            var f = model.feature(fid);
+            if (f) add("node", f.node);
+          });
+        }
+      }
     };
     var addPart = function (partId) {
       model.featuresOf(partId).forEach(function (f) { if (f) add("node", f.node); });
