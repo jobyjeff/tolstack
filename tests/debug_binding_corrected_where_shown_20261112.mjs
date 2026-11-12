@@ -16,8 +16,8 @@
 //
 // Phase "real" (read-only, the scratch copy untouched): the hub's side of the
 // tangential link mount base face bound, the mount's side not; every v2
-// feature row's twisty opens to something. Phase "scratch": pick a face on the
-// mount's side, reload, Correct it, reload, Unbind it, reload; shots of each.
+// feature row's twisty opens to something. Phase "scratch": pick a face on a
+// feature with nothing bound, reload, Correct it, reload, Unbind it, reload; shots of each.
 import { createServer } from "node:http";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, cpSync, rmSync } from "node:fs";
@@ -40,6 +40,9 @@ const V2 = "vpa_end_stop_v2";
 const MOUNT_PART = "tan_link_mount_215175_002";
 const MOUNT_FEATURE = MOUNT_PART + "@tan_link_mount_hub_face";
 const HUB_FEATURE = "hub@tan_link_mount_hub_face";
+// The scratch phase picks a feature with nothing bound and nothing suggested
+// (the mount's side carries an open proposal, so its body is the pane's rows).
+const PICK_FEATURE = flag("--feature") || "hub@tan_link_mount_fastener_clocking";
 
 // --- the scratch copy: the viewer projections and the log, then the served log
 rmSync(SCRATCH, { recursive: true, force: true });
@@ -256,7 +259,7 @@ async function pickInScene(page, fid, before) {
 }
 
 // --- phase real (read-only: the scratch copy is still the real log) -----------
-{
+if (!argv.includes("--skip-real")) {
   const page = await open();
   log("real: before the pane", { hub: await (async () => { await showFeature(page, HUB_FEATURE); return tree(page, HUB_FEATURE); })(),
     mount: await (async () => { await showFeature(page, MOUNT_FEATURE); return tree(page, MOUNT_FEATURE); })() });
@@ -293,52 +296,52 @@ async function pickInScene(page, fid, before) {
 {
   let page = await open();
   await openPane(page);
-  await selectFeature(page, MOUNT_FEATURE);
-  const before = await tree(page, MOUNT_FEATURE);
-  await clickBody(page, MOUNT_FEATURE, "Pick a face");
+  await selectFeature(page, PICK_FEATURE);
+  const before = await tree(page, PICK_FEATURE);
+  await clickBody(page, PICK_FEATURE, "Pick a face");
   await page.waitForTimeout(4000);
-  await shot(page, "04_pick_armed", MOUNT_FEATURE);
-  const bound = await pickInScene(page, MOUNT_FEATURE, before.body);
+  await shot(page, "04_pick_armed", PICK_FEATURE);
+  const bound = await pickInScene(page, PICK_FEATURE, before.body);
   log("bound", bound);
   await page.mouse.move(4, 4);
   await page.waitForTimeout(1500);
-  await shot(page, "05_bound_no_reload", MOUNT_FEATURE);
+  await shot(page, "05_bound_no_reload", PICK_FEATURE);
   await page.close();
 
   page = await open();
-  log("reloaded, pane closed", { mount: await (async () => { await showFeature(page, MOUNT_FEATURE); return tree(page, MOUNT_FEATURE); })() });
+  log("reloaded, pane closed", { mount: await (async () => { await showFeature(page, PICK_FEATURE); return tree(page, PICK_FEATURE); })() });
   await openPane(page);
-  await selectFeature(page, MOUNT_FEATURE);
+  await selectFeature(page, PICK_FEATURE);
   // Hover the bound line: its face is washed in the scene.
-  await featureRow(page, MOUNT_FEATURE).locator("xpath=..").locator(".navtree__featurestate[data-face]").first().hover();
+  await featureRow(page, PICK_FEATURE).locator("xpath=..").locator(".navtree__featurestate[data-face]").first().hover();
   await page.waitForTimeout(1500);
   log("hover bound line", await frameOf(page).evaluate(() => window.__lastWash || null));
-  await shot(page, "06_bound_after_reload_green", MOUNT_FEATURE);
+  await shot(page, "06_bound_after_reload_green", PICK_FEATURE);
   await page.mouse.move(4, 4);
 
-  const was = (await tree(page, MOUNT_FEATURE)).body;
-  await clickBody(page, MOUNT_FEATURE, "Correct");
+  const was = (await tree(page, PICK_FEATURE)).body;
+  await clickBody(page, PICK_FEATURE, "Correct");
   await page.waitForTimeout(4000);
-  const corrected = await pickInScene(page, MOUNT_FEATURE, was);
+  const corrected = await pickInScene(page, PICK_FEATURE, was);
   log("corrected", { from: was, to: corrected });
   await page.mouse.move(4, 4);
   await page.waitForTimeout(1500);
-  await shot(page, "07_corrected_no_reload", MOUNT_FEATURE);
+  await shot(page, "07_corrected_no_reload", PICK_FEATURE);
   await page.close();
 
   page = await open();
   await openPane(page);
-  await selectFeature(page, MOUNT_FEATURE);
-  await shot(page, "08_corrected_after_reload", MOUNT_FEATURE);
-  await clickBody(page, MOUNT_FEATURE, "Unbind");
+  await selectFeature(page, PICK_FEATURE);
+  await shot(page, "08_corrected_after_reload", PICK_FEATURE);
+  await clickBody(page, PICK_FEATURE, "Unbind");
   await page.waitForTimeout(4000);
-  await shot(page, "09_unbound_no_reload", MOUNT_FEATURE);
+  await shot(page, "09_unbound_no_reload", PICK_FEATURE);
   await page.close();
 
   page = await open();
   await openPane(page);
-  await selectFeature(page, MOUNT_FEATURE);
-  await shot(page, "10_unbound_after_reload", MOUNT_FEATURE);
+  await selectFeature(page, PICK_FEATURE);
+  await shot(page, "10_unbound_after_reload", PICK_FEATURE);
   log("orphan line", await page.evaluate(() => {
     const f = document.querySelector(".navtree__orphans");
     return f ? { head: f.querySelector(".navtree__orphanwords").textContent,
