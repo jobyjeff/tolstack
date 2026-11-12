@@ -2166,8 +2166,12 @@
     var feature = model && fid ? model.feature(fid) : null;
     var rows = feature ? VA.sceneRowsForFeature(sceneTree, feature.node, []) : [];
     var endRows = rows.filter(function (row) { return row.kind === "end" && row.activate; });
-    if (endRows.length === 1 && !endRows[0].selected) {
-      sceneRail(endRows[0].key, VA.SCENE_ACTS.activate);
+    if (endRows.length) {
+      // The node's end row -- its first, where the node is the end of more
+      // than one joint -- unless one of them is already the pane's.
+      if (!endRows.some(function (row) { return row.selected; })) {
+        sceneRail(endRows[0].key, VA.SCENE_ACTS.activate);
+      }
       return;
     }
     if (feature) return;
