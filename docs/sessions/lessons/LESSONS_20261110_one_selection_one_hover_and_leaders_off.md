@@ -263,4 +263,24 @@ and fixed before the next:
 
 ## Suite record
 
-(filled in below)
+Projections rebuilt from this tree into the main checkout's `data/` first
+(every builder run by hand from the worktree with `--data-root
+C:/workspace/tolstack/data`, in `rebuild_projections.ps1`'s order, after the
+first commit `af383764`; the merge of `integration` that followed touched no
+builder input, so the stamps still agree). Every run below was made from this
+worktree; the browser and witness runs read the main checkout's data through
+`--repo` and the `node_modules` junction (removed before sign-off).
+
+| tier | command (from the worktree) | result | wall |
+| --- | --- | --- | ---: |
+| default | `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q` | 1 failed, 1927 passed, 1 skipped, 2 deselected -- the one red is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the deliberate worktree red (its `[real]` tier has no projection under the worktree's `data/`); an earlier run on the tree before the browser fixes also found `test_no_viewer_vocabulary_is_spelled_as_a_comparison_chain` red on `model.js`, fixed in `96174c56` | 470 s, inside budget, recorded with `dispatch suite-time record` |
+| viewer fast + `[real]` | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | 681/681 (676 before; the six new, one renamed) | ~25 s |
+| annotate fast | `node apps/annotate/run_tests.cjs` | 307/307 | ~20 s |
+| browser, `--only` per suite this handoff changed (13 suites, final pass) | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "<suite>"` | suite http 544/544 · topology file:// 214/214 · topology http 214/214 · the DAG zoom, Fit and the grid header 48/48 · topology file:// respine 44/44 · 3D pane follows the selection 32/32 · annotate sweep rail 24/24 (`--write-bind-rail-snapshot`, the element rows' new `data-edge`) · annotate armed pick 17/17 · annotate rail suggestion 19/19 · annotate rail holds still 42/42 · the Preview from the scene 11/11 · leaders across the seam 26/26 · the model drawn alone and led 6/6 | 10 + 305 + 213 + 176 + 93 + 97 + 50 + 11 + 60 + 72 + 13 + 98 + 45 s across five passes (each red read and fixed between passes, above) |
+| mutation witnesses, fast (`--only` per spec: 6 new, 3 re-anchored) | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only "<guard>"` | 15/15 mutations WITNESSED | ~8 min |
+| mutation witnesses, browser (`--only` per spec: 6 new, 17 renamed, 11 re-anchored) | same | WITNESS_BROWSER_RESULT | WITNESS_BROWSER_WALL |
+
+Not run: the whole browser tier and the witness `--changed-since` gate --
+the review's, after the merge (CLAUDE.md's table). The suite-time ledger row
+for the default tier is recorded with `dispatch suite-time record`; `--only`
+runs write nothing.
