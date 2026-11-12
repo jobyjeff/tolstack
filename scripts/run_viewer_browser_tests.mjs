@@ -9782,7 +9782,15 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       kids[0].sub === "agent suggested \u00b7 high" && kids[0].wrap === true &&
       JSON.stringify((kids[0].buttons || []).map((b) => b.text)) === JSON.stringify(["Take"]) &&
       last.text === "Pick a face\u2026" && last.activate === true && last.kind === "action";
-    if (!mirrorOk) console.log("    DIAG mirrored end row: " + JSON.stringify(row).slice(0, 900));
+    if (!mirrorOk) {
+      const trees = await page.evaluate(() => {
+        const flat = (rows, out) => { (rows || []).forEach((r) => { out.push([r.key, r.sub || null, r.kind || null]); flat(r.rows, out); }); return out; };
+        const last = window.__trees[window.__trees.length - 1];
+        return { count: window.__trees.length, mode: last && last.mode, rows: last ? flat(last.rows, []).slice(0, 40) : null };
+      });
+      console.log("    DIAG mirrored end row: " + JSON.stringify(row).slice(0, 900));
+      console.log("    DIAG last tree: " + JSON.stringify(trees).slice(0, 2500));
+    }
     push("...with its candidate list in the same tree, no disclosure of its own: the proposal's " +
       "reason, its Take, and the one pick action last, wrapping", mirrorOk);
   } catch (err) {
