@@ -8851,10 +8851,16 @@ async function testAnnotateArmedPick(browser, label) {
     push("the armed row says it is at the as-modelled pose, and its pick action reads Cancel, pressed",
       armed.line === "at the as-modelled pose for picking" && armed.pressed === "true" &&
       armed.action === "Cancel" && before.action === "Pick a face\u2026");
+    // The row's children: its text (name and state line), then its own
+    // buttons where it has any (an armed pick's), then its list last -- the
+    // candidate faces and the one pick action (2026-11-10).
+    const rowTemplate = (shape) => shape && shape.length >= 2 &&
+      shape.slice(1, -1).every((s) => s.indexOf("BUTTON.") === 0) &&
+      shape[shape.length - 1].indexOf("UL.tree-cands") === 0;
     push("one row template away from the pose and armed at it: name and state line, then " +
-      "the actions at the right", JSON.stringify(shapeAway.slice(0, 1)) === JSON.stringify(shapeArmed.slice(0, 1)) &&
-      shapeArmed.slice(1).every((s) => s.indexOf("BUTTON.") === 0) &&
-      shapeAway.slice(1).every((s) => s.indexOf("BUTTON.") === 0));
+      "the actions, then the list with the one pick action last",
+      JSON.stringify(shapeAway.slice(0, 1)) === JSON.stringify(shapeArmed.slice(0, 1)) &&
+      rowTemplate(shapeArmed) && rowTemplate(shapeAway));
 
     // --- the others toggle --------------------------------------------------
     await page.locator(ROW + " .tree-row__others").click();
@@ -9568,7 +9574,8 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       rest.title.indexOf("Proposed by agent (high): flat face; the one face of the demo triangle") !== -1 &&
       rest.buttons.length === 0 && !/proposal|ratif|[0-9a-f]{12}/.test(rest.line) &&
       rest.action && rest.action.text === "Pick a face\u2026" && rest.action.last && !rest.action.pressed);
-    await page.locator(ROW).click();
+    // The row holds its list now: the row's own click is on its text.
+    await page.locator(ROW + " > .tree-row__text").click();
     await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null,
       { timeout: 5000 }).catch(() => {});
     await page.waitForFunction(() => window.__scene.suggestionFocus().markerEmphasised, null,
@@ -9612,7 +9619,8 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
   page = await openSuggestionPage(browser, url, "proposal", errors);
   try {
     await enterSweep(page);
-    await page.locator(ROW).click();
+    // The row holds its list now: the row's own click is on its text.
+    await page.locator(ROW + " > .tree-row__text").click();
     await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null, { timeout: 5000 });
     await page.locator(ROW + " > .tree-cands > .tree-cand--other").click();
     await page.waitForFunction(() => window.__sweep.armed && window.__scene.pickFilter(), null, { timeout: 5000 });
@@ -9653,7 +9661,8 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       "and ends its list in the same pick action",
       rest.line === "candidates · 3" && rest.suggestedColour &&
       rest.buttons.length === 0 && rest.action && rest.action.text === "Pick a face\u2026" && rest.action.last);
-    await page.locator(ROW).click();
+    // The row holds its list now: the row's own click is on its text.
+    await page.locator(ROW + " > .tree-row__text").click();
     await page.waitForFunction(() => window.__scene.suggestionFocus().faces.length > 0, null,
       { timeout: 5000 }).catch(() => {});
     const lit = await read(page);
@@ -10140,9 +10149,15 @@ async function testAnnotateSweepRail(browser, label, topologies) {
         /^coaxial with the mating |^fits the mating /.test(r.reason)) &&
       hubList[hubList.length - 1].name === "Pick a face\u2026");
     const hubCam = await settledCamera(page);
-    await page.locator(HUB_END + " .tree-cands > .tree-cand[data-face]").first().hover({ timeout: 5000 }).catch(() => {});
+    const hubHover = await page.locator(HUB_END + " .tree-cands > .tree-cand[data-face]").first().hover({ timeout: 5000 })
+      .then(() => "ok").catch((e) => "hover failed: " + String(e.message).slice(0, 160));
     await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 15000 }).catch(() => {});
-    const hubWash = await page.evaluate(() => ({ w: window.__scene.washed(), cam: window.__scene.cameraState() }));
+    const hubWash = await page.evaluate(() => ({ w: window.__scene.washed(), cam: window.__scene.cameraState(),
+      lastWash: window.__lastWash || null }));
+    if (!(hubWash.w && spindleTop && hubWash.w.sha256 === spindleTop.sha256)) {
+      console.log(`    DIAG hub candidate hover: ${hubHover}; washed ${JSON.stringify(hubWash.w)}; ` +
+        `lastWash ${JSON.stringify(hubWash.lastWash)}; top ${JSON.stringify(spindleTop)}`);
+    }
     push("[real] hovering its first candidate washes that face on the hub in the pre-selection's " +
       "yellow, and the camera stays",
       !!spindleTop && hubWash.w && hubWash.w.sha256 === spindleTop.sha256 &&
