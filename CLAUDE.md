@@ -153,11 +153,21 @@ Know these before you write code; each has a test standing on it.
   browser TRUTH tier needs `node_modules/playwright-core` — both are gitignored
   and exist only in the main checkout. So a worktree's `pytest -q` is red on
   `tests/test_viewer_js_suite.py` (deliberately, since 2026-09-18: a skipped
-  tier is not a passed one), and before trusting any green — a batch merge's
-  most of all — run **in the main checkout**:
+  tier is not a passed one). The four node commands are
   `node apps/viewer/run_tests.cjs`, `node apps/annotate/run_tests.cjs`,
-  `node scripts/run_viewer_browser_tests.mjs`
-  and `node scripts/run_mutation_witness_tests.mjs --changed-since master`.
+  `node scripts/run_viewer_browser_tests.mjs` and
+  `node scripts/run_mutation_witness_tests.mjs --changed-since master`, run
+  **in the main checkout**, and **who runs which is this table** (dispatch's
+  rule — a tactical branch runs a merge-only tier only for what it added or
+  changed — applied to this repo; the browser runner prints a per-suite timing
+  table and records a full run in dispatch's suite-time ledger itself):
+
+  | Who | Runs |
+  |---|---|
+  | tactical session | default pytest once; the two fast node tiers; the browser runner with `--only "<suite>"` for each suite it added or changed; the witness runner with `--only "<guard>"` for each spec it added or changed |
+  | review, after the merge | the whole browser tier and the witness `--changed-since` gate, once |
+  | batch merge | the same two again, only when it merged more than one handoff |
+
   **Rebuild the projections BEFORE those four, never after**
   (`scripts/rebuild_projections.ps1`): the `[real]` checks read
   `data/projections/`, so a tier run against a projection built from an older

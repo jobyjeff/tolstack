@@ -136,3 +136,11 @@ for up to 20 s). Still no per-suite timing from the runner, so still no pareto.
 
 Fifth uncontended run over the budget in two days (1822, 1830, 1873, 1985,
 1937 s). The runner still prints no per-suite timing, so still no pareto.
+
+## Measurement 2026-11-10 (the_browser_tier_says_where_its_half_hour_goes)
+
+Full run 2,723 s (slot wait 1 s), 44 suites. Slowest: topology file:// 394, topology
+http 378, kinematic study page 275 (aborted), DAG zoom 238, 3D pane follows the
+selection 105, no nav click wedges 101, topology respine 90, leaders across the seam
+86, height budget 78, face suggestions 69. Fixed sleeps in the whole file total 42 s.
+The runner now prints this table itself and appends it to the suite-time ledger.

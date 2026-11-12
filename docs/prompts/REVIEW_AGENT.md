@@ -328,6 +328,10 @@ must be confirmed before the property is looked up.
   review owes comes **after** the merge, and the entry that owns it is *"…and the
   same thing in reverse: run the suite in BOTH checkouts"* under "Recurring bugs
   to check". Nothing in this overlay asks for a full suite before the merge.
+  The whole browser tier and the witness `--changed-since` gate run **once, here,
+  after the merge** — a tactical session runs them only with `--only` for what it
+  added or changed — and the batch merge re-runs them only when it merged more
+  than one handoff (`CLAUDE.md`'s test table).
 - **Green is not the whole verdict here — and that, not distrust of the author,
   is the repo-specific reason this needs its own sentence.** This suite is a
   **transcription** check rather than a self-consistency check, and it is one
