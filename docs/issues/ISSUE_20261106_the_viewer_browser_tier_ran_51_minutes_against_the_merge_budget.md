@@ -172,3 +172,15 @@ topology http 200.2 s, the DAG zoom/Fit/grid header 168.7 s, 3D pane follows
 the selection 101.1 s, no nav click wedges the page 99.2 s, topology file://
 respine 93.8 s, leaders across the seam 91.9 s, kinematic study page 79.9 s.
 The two topology suites alone are 409 s, 22% of the tier.
+
+## Measurement 2026-11-12 (review of the_pane_follows_the_one_selection_both_ways)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, from the review
+worktree on the merged tree (integration `9a17df0f` + the handoff, a fast-forward to
+`3a90d2be`). **44/44, 1134 checks, exit 0, 1885 s**: the runner's own ledger row says
+over by 85 s. The default pytest tier ran in parallel for its first 7 minutes, and one
+short reviewer probe ran during the run, so this run was not uncontended. Top of the
+runner's table: topology http 206.8 s, the DAG zoom/Fit/grid header 179.1 s, topology
+file:// 159.1 s, 3D pane follows the selection 106.0 s, no nav click wedges the page
+105.0 s, topology file:// respine 94.5 s, leaders across the seam 93.0 s, kinematic study
+page 80.7 s.

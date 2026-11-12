@@ -86,6 +86,13 @@ What the page posts for the selection: `model select node|clear` only. The
 
 ## Witness specs
 
+> **Correction (review, 2026-11-12).** The fast count below is **3**, not 2:
+> the three items it lists are three spec files (`fast__an-esc-here…`,
+> `fast__one-selection-across-the-seam…`, `fast__an-edge-selected…`), which
+> is also what the fast pin's +2 net (three in, one retired) says. And the
+> contributor-alert guard renamed below is an **annotate** guard
+> (`annotate__a-gap-contributor-s-alert…`), not a fast one.
+
 - **Added (fast 2, annotate 1, browser 5):** the pane's armed word; one
   selection read back (two mutations); an edge as a highlight (two);
   `AA.sweepNodeEnd`/`sweepEndNode` (two); and, on the end-stop model with

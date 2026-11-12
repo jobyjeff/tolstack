@@ -5829,6 +5829,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the found-dirt rule's ban on it is about *other* sessions' work. Read
       another branch's files with `git show <ref>:<path>` or `git grep <ref>`
       and never check them out.
+- [ ] **A coarse selection posted into a finer one picks a representative,
+      and a re-post overwrites the finer choice the reader made.** New
+      2026-11-12 (`the_pane_follows_the_one_selection_both_ways`, nit): the
+      page posts `model select node <id>`, and the pane's `selectInSweep`
+      maps it to the node's FIRST joint row end (`AA.sweepNodeEnd`). It keeps
+      the current inspect only if it is that same end, so a different end of
+      the same node is replaced on every re-post, and the page re-posts after
+      every `annotate:state` (`sceneSelectPosted = null`). The code it replaced
+      kept "any end row of the node, if one is already the pane's". Ask of
+      any many-to-one selection mapping: *if the finer side already holds one
+      of the representatives, does a re-post keep it?* Then measure whether a
+      gesture can reach a non-first end.
 
 ## Architectural errors to check
 
