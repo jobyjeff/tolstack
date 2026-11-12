@@ -47,3 +47,12 @@ Options, for a strategy call:
    in sweep mode and selections there are highlights.
 3. Bind mode turns the model layer on by default when embedded, so the
    leaders survive the jump (they then point at as-modelled positions).
+
+## Addendum 2026-11-12 (review of one_selection_one_hover_and_leaders_off)
+
+Re-filed by that handoff as
+`ISSUE_20261111_an_edge_selected_on_a_topology_page_with_the_sweep_loaded_takes_the_pane_out_of_the_sweep.md`
+(reproduced from its four-surface shots, `f3_grid_row_selected_3840.png`, with
+the pane on the sweep from the Studies row). Same mechanism, same recommended
+option 1; that file carries the one-selection argument for it. One issue, this
+one, should survive.
