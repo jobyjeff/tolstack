@@ -86,8 +86,9 @@
     // The DAG's zoom (VA.DAG_ZOOM, topology.js): per page state, never stored.
     // 1 is the drawing at its own size; the wheel, Fit and `0` move it.
     dagZoom: 1,
-    // "jogged" (right-angle jogs, what shipped first) or "angled" (one
-    // straight segment, the default since 2026-09-21). VA.LEADER_STYLES and
+    // "off" (the default since 2026-11-10: no leader is built), "angled"
+    // (one straight segment, the default from 2026-09-21) or "jogged"
+    // (right-angle jogs, what shipped first). VA.LEADER_STYLES and
     // VA.DEFAULT_LEADER_STYLE, topology.js. A display preference like the
     // three above -- selectTopology() never resets it.
     leaderStyle: VA.DEFAULT_LEADER_STYLE,

@@ -101,11 +101,12 @@
       root.appendChild(fit);
     }
 
-    // How a leader is DRAWN (viewer_leader_grid_legibility): one straight
-    // angled segment (VA.DEFAULT_LEADER_STYLE since 2026-09-21) or right-angle
-    // jogs (what shipped first). Jeff asked for both so he could try them
-    // against a real mechanism and, having done so, made angled the default --
-    // the same shape as the labelled/values-only toggle above, cycling through
+    // How a leader is DRAWN (viewer_leader_grid_legibility): off (none
+    // built; VA.DEFAULT_LEADER_STYLE since 2026-11-10), one straight angled
+    // segment (the default from 2026-09-21) or right-angle jogs (what shipped
+    // first). Jeff asked for both drawn styles so he could try them against a
+    // real mechanism and, having done so, made angled the default -- the same
+    // shape as the labelled/values-only toggle above, cycling through
     // VA.LEADER_STYLES' own `next`. Both ends of a leader are unchanged in
     // either style, so the page's correspondence contract does not know this
     // control exists.
