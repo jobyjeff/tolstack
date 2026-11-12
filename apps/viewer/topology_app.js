@@ -1981,6 +1981,11 @@
         // The pane's rows are what the page's selection is drawn as there:
         // a fresh tree is asked to agree with it.
         syncSceneInspect();
+        // A rebuilt rail took the pane's hover down with it (its bodies keep
+        // anchoring for seconds after a run loads, F1a's lesson), so what the
+        // page remembers as posted is stale: the one hover is posted again.
+        paneHoverPosted = HOVER_CLEAR.join(" ");
+        syncPaneHover();
         return;
       }
       // The scene's pointer on an anchor is the one hover: previewed, lit on
@@ -2223,15 +2228,20 @@
 
   function syncPaneHover() {
     if (paneHoverTimer !== null) clearTimeout(paneHoverTimer);
-    paneHoverTimer = setTimeout(function () {
-      paneHoverTimer = null;
+    var post = function () {
       var highlight = paneHighlightCommand();
       var key = highlight.join(" ");
       if (key !== paneHighlightPosted && postToPane(highlight)) paneHighlightPosted = key;
       var hover = paneHoverCommand();
       var hoverKey = hover.join(" ");
       if (hoverKey !== paneHoverPosted && postToPane(hover)) paneHoverPosted = hoverKey;
-    }, VA.PANE_HOVER_DEBOUNCE_MS);
+    };
+    // Nothing hovered posts its clears at once -- a pointer leaving a row
+    // and arriving on the next within the debounce would otherwise coalesce
+    // the clear away, and the pane would be told the same hover it already
+    // holds (or has since dropped). A hover waits for the pointer to settle.
+    if (!state.focus.hovered) { paneHoverTimer = null; post(); return; }
+    paneHoverTimer = setTimeout(function () { paneHoverTimer = null; post(); }, VA.PANE_HOVER_DEBOUNCE_MS);
   }
 
   function clearPaneHover() {
@@ -2539,6 +2549,13 @@
     walk(tree && tree.rows);
     if (found === sceneTreeSelected) return;
     sceneTreeSelected = found;
+    // A bind-mode element row the pane selected is the pane's own binding
+    // step ("select this element, then click a face"), under the feature
+    // whose body lists it -- not a selection of the edge here, which would
+    // close that feature's row over it. (Until 2026-11-11 the mirror's key
+    // for an element row carried no edge, so this was the behaviour by
+    // accident; it is the behaviour on purpose now.)
+    if (String(found || "").indexOf(VA.SCENE_ELEMENT_ROOT) === 0) return;
     var target = VA.sceneRowElement(found, currentTopology(), pageLitSet());
     if (!target) return;
     // A joint end the pane selected is that node's FEATURE here (the row its

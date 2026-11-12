@@ -153,9 +153,9 @@ mode's rows are the whole rail's and every open row has its end.
   pane's pointer telling the page) and six browser guards (leaders off by
   default; the seam row with no leader; turned on; off keeps the zone; the
   real graph's off stop; the feature row is the one title).
-- **Renamed with their guard (16):** the rail suggestion suite's seven, the
+- **Renamed with their guard (17):** the rail suggestion suite's seven, the
   rail-holds-still suite's six, the sweep rail's hub end, the armed pick's
-  pressed row, the 3D pane's bind-mode check -- each spec moved to its
+  pressed row and its row template, the 3D pane's bind-mode check -- each spec moved to its
   derived name with `expect_red` rewritten; where the mutation's anchor was
   the code that left (the twisty, the Pick button, `filter-element`, the
   legend's glyph), the mutation was re-pointed at the code that replaced it.
