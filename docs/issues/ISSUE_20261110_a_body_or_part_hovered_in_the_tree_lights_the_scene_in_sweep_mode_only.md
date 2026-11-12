@@ -22,3 +22,12 @@ grid in both modes.
 
 Teach `hover part` to answer in bind mode (the part's open mesh, every
 occurrence), then let the tree post it whatever the pane shows.
+
+## Addendum 2026-11-11 (one_selection_one_hover_and_leaders_off)
+
+The hover is now the one page hover (`state.focus.hovered`, `topology_app.js`),
+and `paneHoverCommand` is the one place it becomes a pane verb: `hover part`
+and `hover body` while a sweep is loaded, and -- new -- `hover feature <edge>
+<end>` for a hovered feature, interface or DAG node, also sweep-mode only
+(the pane throws outside it). Bind mode still receives only `highlight` for an
+edge. The fix shape is unchanged: a `hover` the pane answers in bind mode.

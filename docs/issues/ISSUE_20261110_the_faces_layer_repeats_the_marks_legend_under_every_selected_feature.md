@@ -23,3 +23,14 @@ The legend exists because a bare mark says nothing. Options: a hover title on
 each mark instead (one hover surface per mark, the rule the nav already
 follows for its own marks); the legend once, at the foot of the column; or the
 legend folded. Jeff's "whitespace before chrome" argues for the first.
+
+## Addendum 2026-11-11 (one_selection_one_hover_and_leaders_off)
+
+The legend no longer appears under a feature at all: a feature row is its own
+disclosure and its body is drawn by `VA.renderFeatureBody` (`apps/viewer/views/nav.js`),
+which draws no legend. The marks' words are on each row's hover. Whether the
+legend belongs anywhere on the page (once, for the whole tree) is still this
+issue's question; the repetition it names is gone. The browser check
+`[real] the legend draws every mark once, as the annotator names them` was
+retired with its spec. See also
+`ISSUE_20261111_renderscenetree_and_the_marks_legend_are_tested_but_the_app_no_longer_draws_them.md`.
