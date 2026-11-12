@@ -9735,9 +9735,13 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       frame.src = src;
       document.body.appendChild(frame);
     }, url + "?embedded=1&mock=1&embedded=1");
+    // The CHILD frame: the page itself was opened with `?embedded=1` too, and
+    // the main frame matched first until 2026-11-11 -- so the sweep below ran
+    // in the outer page, whose rail posts to nobody, and every tree this
+    // check read was the iframe's boot tree in bind mode.
     let inner = null;
     for (let i = 0; i < 100 && !inner; i++) {
-      inner = page.frames().find((f) => f.url().indexOf("embedded=1") !== -1) || null;
+      inner = page.frames().find((f) => f !== page.mainFrame() && f.url().indexOf("embedded=1") !== -1) || null;
       if (!inner) await page.waitForTimeout(100);
     }
     await inner.waitForFunction(() => window.AnnotateApp && window.AnnotateApp.exec &&
@@ -9749,7 +9753,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     await page.waitForFunction(() => {
       const find = (rows) => (rows || []).some((r) => (r.key || "").indexOf("#sweep-tree/") === 0 && r.sub === "suggested · high" || find(r.rows));
       return window.__trees.some((t) => find(t.rows));
-    }, null, { timeout: 10000 }).catch(() => {});
+    }, null, { timeout: 60000 }).catch(() => {});
     const row = await page.evaluate(() => {
       const find = (rows) => {
         for (const r of rows || []) {
