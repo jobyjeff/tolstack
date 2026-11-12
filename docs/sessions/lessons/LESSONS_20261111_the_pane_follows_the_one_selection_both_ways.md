@@ -116,9 +116,15 @@ browser 873 → 877.
   separate line.
 - **The witness runner's `--only` is one substring.** The four `--only`
   flags I passed together ran only one spec. Use one run per spec.
-- **The 3D pane at 3840 is narrow** in every shot (about 290 px between the
-  nav and the DAG, with the sweep bar covering its top). That is the page's
-  fixed layout, which is F1c's to change, so I left it alone.
+- **The 3D pane at 3840 is narrow** in every shot (about 560 device px
+  between the nav and the DAG, with the sweep bar covering its top). That is
+  the page's fixed layout, which is F1c's to change, so I left it alone and
+  filed it: `ISSUE_20261112_at_3840_the_3d_pane_is_a_narrow_strip_under_the_sweep_bar.md`.
+- **A hover does not repaint.** The first one-post check swept the pointer
+  over the DAG only. A mutation that removed the post's dedupe stayed green,
+  because `syncSceneModel` runs after a *paint* and hovering does not paint.
+  The check now also resizes the window twice, which is a real repaint, and
+  the mutation turns it red.
 
 ## Shots (`docs/sessions/lessons/shots/the_pane_follows_the_one_selection_both_ways/`)
 
@@ -167,3 +173,26 @@ needed.
 
 Not run, and owned by the review after the merge: the whole browser tier and
 the witness `--changed-since` gate.
+
+## Witness runs (`--only`, one spec per run, under the browser slot)
+
+Every spec below was WITNESSED, with mutations counted per spec:
+
+- **fast:** the armed word (1), an edge as a highlight (2), one selection
+  read back (2), the re-anchored `annotateParamsFor` (2).
+- **annotate:** the contributor alert renamed (1), the one pane selection
+  (2).
+- **browser, model drawn alone:** told once with one verb (2), the let-go
+  (1), a grid row as a highlight (1), Escape with nothing armed (1),
+  Escape while armed (1).
+- **browser, sweep rail:** the goto (1), the return control (1), the gap
+  popup (1).
+
+The one-post spec came up NOT WITNESSED on its first run (the dedupe
+mutation; see "A hover does not repaint" above). After the check was fixed
+it was WITNESSED 2/2 under its renamed file. Walls: fast/annotate 85–109 s
+each; browser 128–263 s each.
+
+I looked at the shots again once the branch was checked against
+`integration`. No rebase was needed, since `integration` is an ancestor of
+this branch, and the shots show what the table above says.
