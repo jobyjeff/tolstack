@@ -10154,15 +10154,16 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     await page.waitForFunction(() => window.__scene.washed(), null, { timeout: 15000 }).catch(() => {});
     const hubWash = await page.evaluate(() => ({ w: window.__scene.washed(), cam: window.__scene.cameraState(),
       lastWash: window.__lastWash || null }));
-    if (!(hubWash.w && spindleTop && hubWash.w.sha256 === spindleTop.sha256)) {
+    const hubOk = !!spindleTop && hubWash.w && hubWash.w.sha256 === spindleTop.sha256 &&
+      hubWash.w.faceId === spindleTop.faces[0] && hubWash.w.overlays > 0 &&
+      hubWash.w.color === hubWash.w.preselectColor && sameCameraState(hubWash.cam, hubCam);
+    if (!hubOk) {
       console.log(`    DIAG hub candidate hover: ${hubHover}; washed ${JSON.stringify(hubWash.w)}; ` +
-        `lastWash ${JSON.stringify(hubWash.lastWash)}; top ${JSON.stringify(spindleTop)}`);
+        `lastWash ${JSON.stringify(hubWash.lastWash)}; top ${JSON.stringify(spindleTop)}; ` +
+        `camera ${JSON.stringify(hubCam)} -> ${JSON.stringify(hubWash.cam)}`);
     }
     push("[real] hovering its first candidate washes that face on the hub in the pre-selection's " +
-      "yellow, and the camera stays",
-      !!spindleTop && hubWash.w && hubWash.w.sha256 === spindleTop.sha256 &&
-      hubWash.w.faceId === spindleTop.faces[0] && hubWash.w.overlays > 0 &&
-      hubWash.w.color === hubWash.w.preselectColor && sameCameraState(hubWash.cam, hubCam));
+      "yellow, and the camera stays", hubOk);
     await page.mouse.move(5, 5);
 
     // --- Jeff's reproduction: a joint end's Pick arms on its own part ----------
