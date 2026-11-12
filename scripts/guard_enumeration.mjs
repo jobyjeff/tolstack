@@ -571,7 +571,7 @@ export const DECLARED_GUARDS = {
   // the zone, the real graph's off stop), the feature row as the one title;
   // the legend check retired; sixteen of the nit's checks renamed with their
   // specs. Every new name carries a spec.
-  browser: { declared: 873, enrollable: 840, names: "39f122f0cb6a" },
+  browser: { declared: 873, enrollable: 840, names: "cf918921ed2c" },
 };
 
 
