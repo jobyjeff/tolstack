@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
-  "expect_red": "[real] selecting a feature with the pane in bind mode nests the pane's element rows for its node under it -- one per edge on the node, cut from the pane's whole list",
+  "expect_red": "[real] selecting a feature with the pane in bind mode nests the pane's element rows for its node under it -- one per edge on the node, cut from the pane's scoped list",
   "mutations": [
     {
       "contract": "The page scopes the pane's element list to the selected node (`filter-element`); the feature's body is then its node's elements.",
