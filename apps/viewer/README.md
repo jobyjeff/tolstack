@@ -2033,7 +2033,7 @@ shows whenever the pointer is resting on nothing in particular.
 with `embedded=1` (`VA.annotateEmbedHref`; the full-page ↗ link keeps
 the plain url): the annotator then lays its rail out but does not show it,
 hides its command box, takes the page's background, and sends the rows its
-rail has just rendered as `{type: "annotate:tree", mode, chips, rows}`. The
+rail has just rendered as `{type: "annotate:tree", mode, armed, chips, rows}`. The
 page draws them under the nav row the scene is showing — a kinematic study's
 bodies, joints with their surfaces and parts, and contributors, with the type
 chips; a chain study's elements and parts (`VA.renderSceneTree`). A gesture
@@ -2079,8 +2079,15 @@ and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
   edge ending at its node, so a hovered row lights its two ends' leaders and
   no other (until 2026-10-29 it lit the leaders whose seam its row starts at,
   up to three from nodes the edge does not name). The scene's
-  line lights through the `highlight` a kinematic page already posts; a
-  selected node is selected in the scene's layer (`model select node`). A pick
+  line lights through the `highlight` a kinematic page already posts -- and,
+  since 2026-11-12, a topology page whose pane reports a run loaded on its
+  own topology (`VA.annotateEdgeIsHighlight`): a selected edge there lights
+  in the sweep and never re-drives the pane into bind mode. A selected node
+  is posted with one verb, `model select node`, which in sweep mode is the
+  rail's end row for it; a tree that then shows the pane let go of that row
+  (a second click on the bead or the face) lets the page go too
+  (`VA.sceneInspectStep`), and Escape cancels a pick only when the pane's
+  tree says one is armed (`VA.scenePickArmed`). A pick
   in the scene selects its row in the scene's rail, and the tree it sends back
   marks that row: a row naming an edge, or a body carrying exactly one lit
   edge, selects it here (`VA.sceneRowElement`), so a pick and a click on its

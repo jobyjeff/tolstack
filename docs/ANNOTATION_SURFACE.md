@@ -672,8 +672,9 @@ copies from the solver; the artifact never states one.
 through); selecting a joint or a contributor is the `inspect` verb, which
 tints and emphasises and nothing else. *Superseded in part 2026-10-29:* a
 joint **end**'s Pick now arms a pick in place and its click writes a `bound`
-event ("Picking a face", below). An edge feature's and a contributor's Pick
-still run `goto <topology> <edge>`: that leaves sweep
+event ("Picking a face", below). An edge feature's pick action still runs
+`goto <topology> <edge>` (a contributor row's Pick, which did too, was
+retired 2026-11-12: the shell never draws that row): that leaves sweep
 mode — every part back at its as-modelled placement — and lands in the bind
 flow on that edge, where an edge's two ends are chosen by name. The tree
 is built on entering sweep mode and removed on leaving it, so the bind-mode
@@ -787,9 +788,9 @@ no row says one. Every candidate row on the real projection has a reason.
   but the event schema has no retraction (`docs/issues/ISSUE_20261029_an_armed_
   pick_cannot_unbind_because_the_event_schema_has_no_retraction.md`). An edge
   feature's Pick (two ends, no default between them) still jumps to bind mode
-  where one is listed. Since 2026-11-05 no live joint lists one, but a
-  contributor's Pick still jumps
-  (`docs/issues/ISSUE_20261105_a_contributor_rows_pick_still_leaves_sweep_mode_for_bind_mode.md`).
+  where one is listed. Since 2026-11-05 no live joint lists one; a
+  contributor's Pick jumped too until 2026-11-12, when it was retired with
+  the button.
 
 **One row template.** A rail row is the name, one state line under it, then
 its actions at the right — at every frame and in either mode. A refused Pick
@@ -837,9 +838,10 @@ the state line now.
   whichever part draws it, and so is its as-modelled ghost copy.
 - **What defines a joint.** A feature row's second line names its bound face
   (`face 110 of 214698-002`, the sha on hover) or says `no face bound`.
-  Contributor rows carry the same **Pick** / **Re-pick** jump as feature rows,
-  and a gap contributor's alert says the gap, the drawing(s) of the edge's
-  parts to read, and what Pick does.
+  A gap contributor's alert says the gap and the drawing(s) of the edge's
+  parts to read. Contributor rows carry no Pick since 2026-11-12: the row is
+  the hidden rail's alone, and the jump to bind mode is the shell row's 3D
+  control.
 - **A type filter.** Chips above the tree — bodies · joints · surfaces ·
   contributors — hide row kinds from the list. A view filter: what is listed,
   never what is drawn or what the run's context is; remembered per browser.
@@ -1028,7 +1030,13 @@ posted set always wins). `highlight <topology> <edge>` lights that edge's line
 in the accent. No glyphs in 3D; a selected node (`model select node <id>`, or a
 click on its dot) draws its section plane and cut region faintly, and a
 selected body (`model select body <id>`, or a pick in the scene) its name at
-its +X anchor.
+its +X anchor. **In sweep mode a selected node is the rail's end row for it**
+(since 2026-11-12): `model select node` selects the first joint row that
+lists the node (`AA.sweepNodeEnd`, the same `inspect feature` a click on the
+row makes), a selected end row is its node's dot, and `model select clear`
+lets a feature row go -- one pane-side selection, which the rail and the
+model layer both read. Only a node no joint row names, or a body, is the
+layer's own selection there.
 
 ## Talking to the shell — the messages (embedded, same-origin only)
 
@@ -1038,7 +1046,7 @@ its +X anchor.
 | shell → scene | `{type: "annotate:rail", key, act, index?}` | a gesture on a row of the nav's scene tree |
 | scene → shell | `{type: "annotate:result", id, ok, result\|error}` | every exec; ignored by the shell |
 | scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb |
-| scene → shell | `{type: "annotate:tree", mode, chips, rows}` | the rail's rendered rows changed, or an announced verb completed |
+| scene → shell | `{type: "annotate:tree", mode, armed, chips, rows}` | the rail's rendered rows changed, or an announced verb completed; `armed`: a pick is armed, so the shell's Escape cancels it |
 | scene → shell | `{type: "annotate:status", word, tone, sentence}` | at boot, and whenever what it can read or write changes (a folder granted at the first bind); the pane header's dot and word (`AA.PANE_STATUS`) |
 | scene → shell | `{type: "annotate:anchors", nodes: {<node id>: [x, y] \| null}, edges: {<edge id>: [[x, y], [x, y]]}}` | after a drawn frame whose anchors moved — a camera change or a sweep frame — so at most once per animation frame |
 | scene → shell | `{type: "annotate:hover", kind, id, members?}` | the pointer reaches or leaves a model dot; `members` lists every node a joint's dot stands for, and the shell lights each one's DAG dot, grid rows and leader |
