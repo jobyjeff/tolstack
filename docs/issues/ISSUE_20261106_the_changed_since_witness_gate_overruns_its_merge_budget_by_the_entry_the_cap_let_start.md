@@ -111,3 +111,12 @@ Slowest entries (runner's own timing):
       34s  annotate__real-the-part-names-projection-names-the-six-drawn-parts__a1799b68
 
 (found_by for this measurement: dispatch/docs/sessions/lessons/LESSONS_20261110_triage_sweep.md)
+
+## Measurement 2026-11-12 (review of one_selection_one_hover_and_leaders_off)
+
+`--changed-since integration`, review worktree, `--repo C:/workspace/tolstack`:
+132 of 903 entries selected, 40 reached, 40/40 witnessed, 92 left to the
+sweep; the runner's own line says 30m03s, the wall clock 19:43:39 to 20:14:11
+(1832 s, over by 32 s -- the shadow build and teardown around the cap). The
+slowest reached entry was 4m11s (`real-a-reload-reopens-the-pane...`), and
+five of the 40 were browser entries; the other 35 were fast and annotate.
