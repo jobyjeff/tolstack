@@ -131,6 +131,23 @@ folder (`AA.nextEventSeq`), not past the projection it loaded. A seq two events
 already share folds in the order they were written, and a proposal accepted
 twice the same way stands once; the builder prints both.
 
+**The pages read the log, not the projection (2026-11-12).** The same builder
+also writes the **served log**, `data/projections/viewer/feature-identity/log.json`:
+every event verbatim in log order, plus the sha256 of every installed mesh
+(`feature_identity.write_served_log`). It sits under `projections/viewer/`
+because that is the one directory drawing-checker serves (as `/tolstack/data/`),
+so a page on 8000 reads it with no folder grant. Both pages fold it themselves
+in `apps/viewer/identity_fold.js` (`VA.foldIdentityEvents`, one file for both
+apps; `tests/test_identity_fold_is_paired.py` folds one log in Python and in
+it and compares every record). With the folder granted, the pane reads the
+inbox itself, which is fresher still: an agent's proposal lands there with no
+rebuild. After **every event it writes**, the pane rewrites the served log
+from the folder through the grant, repaints its bound faces, and posts its
+merged record to the shell (`annotate:identity`, below), so the tree changes
+at once and a reload, with or without a grant, shows the write. `bindings.json`
+is still what the fitter and every Python reader use, and the rebuild rail
+still refreshes it; a page reads it only where no log is reached.
+
 ### The fit projection — where placement produces a value
 
 `scripts/fit_bound_features.py` folds the same event stream a second way
@@ -871,6 +888,61 @@ the surface has always allowed.
   projection's standing bindings, so a superseded binding produces no fit;
   `fits.json` never carries a feature for an event another event supersedes.
 
+### A binding shows where it is made, and is corrected or taken back there (2026-11-12)
+
+Handoff `a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown`,
+from Jeff's note of that morning: he bound a face and the feature's row opened
+to nothing, with no way to correct it; the same face showed under two parts;
+bound faces piled up green; and binds "keep getting wiped" on code updates.
+Nothing was ever wiped -- the pages read a projection a day old, and on 8000
+the tree read none at all. What changed:
+
+- **Unbind is an event.** `verdict: "retracted"` names the standing `bound`
+  event it takes back in `retracts` and carries no face. The fold moves that
+  binding from `bindings` to `retracted`, and history keeps both, as
+  `supersedes` does. Only a standing binding can be taken back: one already
+  superseded or retracted, a later one, one on another key, or a missing one
+  fails the build naming both ids, and a binding taken back is not corrected
+  afterwards (a new pick binds afresh). Human-only, like `bound`. The
+  builder's counts line gains a `retracted` figure.
+- **A feature belongs to one part.** A node two parts share is two features
+  (`<part>@<node>`, `DAG_TOPOLOGY.md`, "The model view"), and each reads only
+  its own part's edge ends: a dimension's own `part`, a gap edge's end part
+  (the node's first part). Its status mark, its rows and its hover read those
+  ends only, so binding the hub's side of the tangential link mount base face
+  marks the hub's feature bound and leaves the mount's feature unbound and
+  pickable (`VA.buildModel`'s `endsOf` / `bindingsOf`).
+- **A feature's body always says something** in the shell's tree, planned
+  from the model (`VA.featureBodyPlan`): **bound** is one line,
+  `bound · face <id> of <part number>`, which lights the face while the
+  pointer rests on it, with **Correct** (arms the pick below on the feature's
+  own part; the face clicked supersedes this one), **Unbind** (`unbind`, one
+  `retracted` event) and **Flip** where the binding is on a dimension whose
+  other end is free (`flip`, a correction with the direction swapped). An open
+  suggestion is the pane's candidate rows, as before -- or, for a feature the
+  loaded run does not carry, its line and **Pick a face**. **Neither** is
+  `not bound` and **Pick a face**, which arms the same pick. While a pick is
+  armed at one of the feature's ends, the body is the pick's own line and
+  **Cancel**. The twisty is drawn only while the scene is open, and opens to
+  one of these.
+- **The pick is armed in either mode.** `arm <edge> <end> [<topology>
+  [<part>]]` is the gesture table's armed pick ("Picking a face", above),
+  with or without a sweep, on any model the projection carries; in sweep mode
+  it still moves to the as-modelled pose first. The event is keyed as every
+  write is (`identityWriteKey`), on the end the body names: the binding's own
+  for Correct, the feature's first own end, or the proposal's end, for Pick.
+- **Every standing binding of an open part is marked green, from the
+  record** -- this session's and every earlier one's -- and repainted whenever
+  a part loads or an event is written (`paintBoundMarks`). Nothing marks a
+  face on the accept path alone, so an unbound or corrected face loses its
+  mark. **Bound faces**, a box in the top bar's Display group (`bound-faces`),
+  hides them; on by default, remembered.
+- **A binding that names something gone is said once.** A standing binding
+  whose edge no loaded model has (under any of a model's identity ids), or
+  whose mesh sha the log does not list as installed, is counted in one line at
+  the foot of the tree -- "2 bindings name something that no longer exists" --
+  opening to the list (`VA.orphanBindings`). It refuses nothing.
+
 ### Proposals — an agent proposes, a human ratifies (2026-10-28)
 
 Seven weeks after the surface could bind, nothing was bound, and every node in
@@ -1046,7 +1118,8 @@ layer's own selection there.
 | shell → scene | `{type: "annotate:rail", key, act, index?}` | a gesture on a row of the nav's scene tree |
 | scene → shell | `{type: "annotate:result", id, ok, result\|error}` | every exec; ignored by the shell |
 | scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb |
-| scene → shell | `{type: "annotate:tree", mode, armed, chips, rows}` | the rail's rendered rows changed, or an announced verb completed; `armed`: a pick is armed, so the shell's Escape cancels it |
+| scene → shell | `{type: "annotate:tree", mode, armed, armedEnd, armedLine, chips, rows}` | the rail's rendered rows changed, or an announced verb completed; `armed`: a pick is armed, so the shell's Escape cancels it; `armedEnd` (`{topologyId, edgeId, direction}`) and `armedLine`: where, and what the pick says, which the feature body for that end shows |
+| scene → shell | `{type: "annotate:identity", projection, installedMeshes}` | once the log is read, and after every event the pane writes: its merged record (the log folded, plus this session's events), which replaces the shell's own; the tree's marks and bodies repaint from it |
 | scene → shell | `{type: "annotate:status", word, tone, sentence}` | at boot, and whenever what it can read or write changes (a folder granted at the first bind); the pane header's dot and word (`AA.PANE_STATUS`) |
 | scene → shell | `{type: "annotate:anchors", nodes: {<node id>: [x, y] \| null}, edges: {<edge id>: [[x, y], [x, y]]}}` | after a drawn frame whose anchors moved — a camera change or a sweep frame — so at most once per animation frame |
 | scene → shell | `{type: "annotate:hover", kind, id, members?}` | the pointer reaches or leaves a model dot; `members` lists every node a joint's dot stands for, and the shell lights each one's DAG dot, grid rows and leader |

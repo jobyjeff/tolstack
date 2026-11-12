@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Bound faces is on by default, remembered, and a store that throws is the default",
+  "mutations": [
+    {
+      "contract": "Bound faces is on by default.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). A first visit shows no bound face.",
+      "file": "apps/annotate/commands.js",
+      "find": "  AA.DEFAULT_BOUND_FACES = true;",
+      "replace": "  AA.DEFAULT_BOUND_FACES = false;",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

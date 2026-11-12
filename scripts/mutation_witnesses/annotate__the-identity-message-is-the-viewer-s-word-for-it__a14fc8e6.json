@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the identity message is the viewer's word for it",
+  "mutations": [
+    {
+      "contract": "The pane posts its record under the word the shell listens for.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). A renamed message the shell never hears: its tree stops changing after a write.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "  AA.IDENTITY_MESSAGE = \"annotate:identity\";",
+      "replace": "  AA.IDENTITY_MESSAGE = \"annotate:bindings\";",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

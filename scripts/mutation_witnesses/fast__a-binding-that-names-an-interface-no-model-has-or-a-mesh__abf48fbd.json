@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a binding that names an interface no model has, or a mesh not installed, is counted in one line at the foot of the tree, opening to the list",
+  "mutations": [
+    {
+      "contract": "A binding on an edge the model reaches only under a reused id is not gone.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). Reads a model's edges under its own id alone, so every binding kept on the source model's key reads as gone.",
+      "file": "apps/viewer/model.js",
+      "find": "      var ids = (t.model && t.model.identity_ids) || [t.id];",
+      "replace": "      var ids = [t.id];",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    },
+    {
+      "contract": "No mesh list means no mesh is judged.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). With no list every binding's mesh reads as gone.",
+      "file": "apps/viewer/model.js",
+      "find": "    var meshes = installed ? {} : null;",
+      "replace": "    var meshes = {};",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the page reads the log where one is reached and the projection only where none is, and an unbind folds the binding away",
+  "mutations": [
+    {
+      "contract": "An unbind takes its binding out of the standing list.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). The retraction is recorded and the binding still stands.",
+      "file": "apps/viewer/identity_fold.js",
+      "find": "      row.bindings = take(row.bindings, standingId(row, event.retracts), row.retracted).kept;",
+      "replace": "      take(row.bindings, standingId(row, event.retracts), row.retracted);",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    },
+    {
+      "contract": "The log is folded in log order, whatever order it lists.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). Folds in listing order, so an unbind listed before its binding takes back nothing.",
+      "file": "apps/viewer/identity_fold.js",
+      "find": "    var sorted = (events || []).filter(function (e) { return e && e.event_id; }).slice().sort(VA.identityLogOrder);",
+      "replace": "    var sorted = (events || []).filter(function (e) { return e && e.event_id; }).slice();",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

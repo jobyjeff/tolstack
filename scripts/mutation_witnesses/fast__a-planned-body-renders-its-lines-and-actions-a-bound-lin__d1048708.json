@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a planned body renders its lines and actions: a bound line lights its face on hover and lets go on leave, and each button posts its own verb",
+  "mutations": [
+    {
+      "contract": "Leaving a bound line lets its face go.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). The face stays lit after the pointer leaves.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        row.onmouseleave = function () { hoverFace(null); };",
+      "replace": "        row.onmouseleave = function () {};",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

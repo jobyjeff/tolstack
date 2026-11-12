@@ -8,16 +8,16 @@
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
       "note": "Reports a bound end as merely suggested, which is every bound feature on the tree wearing the wrong mark.",
       "file": "apps/viewer/model.js",
-      "find": "      if (bound) return S.bound;\n",
-      "replace": "      if (bound) return S.suggested;\n"
+      "find": "    if (featureEvents(ends, identity, identityIds, \"bindings\").length) return S.bound;\n",
+      "replace": "    if (featureEvents(ends, identity, identityIds, \"bindings\").length) return S.suggested;\n"
     },
     {
       "contract": "A binding counts at THIS end only: the end the node is on, read off the edge's from/to.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
       "note": "Ignores the direction, so a binding at the far end of an edge marks this end bound too -- the per-end rule the pane's rail keeps.",
       "file": "apps/viewer/model.js",
-      "find": "      var bound = (record.bindings || []).some(function (b) { return b && b.direction === end; });\n",
-      "replace": "      var bound = (record.bindings || []).length > 0;\n"
+      "find": "        if (ev && ev.direction === e.end) out.push({ edgeId: e.edgeId, end: e.end, event: ev });\n",
+      "replace": "        if (ev) out.push({ edgeId: e.edgeId, end: e.end, event: ev });\n"
     }
   ]
 }

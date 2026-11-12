@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the bound marks are every standing binding on an open part, each face once",
+  "mutations": [
+    {
+      "contract": "Only an open part's faces are marked.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). Marks faces on parts the scene has not opened.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "        if (!key || !isOpen(key.source_step_sha256)) return;",
+      "replace": "        if (!key) return;",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

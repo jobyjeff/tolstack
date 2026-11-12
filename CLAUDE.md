@@ -84,7 +84,12 @@ traced ratio" — never restate the rule elsewhere).
   (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures"). Since
   2026-11-03 every end with a proposal or contact faces opens to that list,
   each face saying why it is there, and any one can be taken from it (same
-  table, "Taking a suggested face").
+  table, "Taking a suggested face"). Since 2026-11-12 both pages read the
+  feature-identity **log** (a served copy under `projections/viewer/`, folded
+  in the browser) rather than the rebuilt projection, a binding is corrected
+  or unbound (a `retracted` event) from the feature's own body in the tree,
+  and a feature reads only its own part's edge ends
+  (`docs/ANNOTATION_SURFACE.md`, "A binding shows where it is made").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

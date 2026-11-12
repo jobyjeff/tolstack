@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the served log the page writes is Python's shape: events in log order, meshes sorted",
+  "mutations": [
+    {
+      "contract": "The page writes the log in log order, as Python does.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). Writes the events in the order the folder listed them.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      events: (events || []).slice().sort(viewerFold().identityLogOrder),",
+      "replace": "      events: (events || []).slice(),",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

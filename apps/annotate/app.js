@@ -479,9 +479,11 @@ function restLook(sha) {
 // pointer on a candidate row; a rail row selected; the edge the page has
 // highlighted (a grid row hovered or selected).
 function actionInView() {
-  if (state.armed) return { about: state.armed.shas, near: state.armed.near };
+  // An armed pick outside sweep mode is the scene's action too.
+  if (!state.sweep && state.armed) return { about: state.armed.shas, near: state.armed.near };
   const sweep = state.sweep;
   if (!sweep) return null;
+  if (sweep.armed) return { about: sweep.armed.shas, near: sweep.armed.near };
   return sweep.washAction || sweep.focus || sweep.highlightAction || null;
 }
 
@@ -1400,6 +1402,7 @@ async function cmdSweep(target, studyId) {
   study = paired.study;
   artifact.topologyId = AA.sweepPlaysOn(artifact.topologyId, !!study, state.currentTopology);
 
+  if (state.armed) disarmPick("left");
   if (state.sweep) leaveSweep();
   const structure = AA.sweepStructure(artifact);
   const trails = AA.sweepTrails(artifact);
@@ -1464,11 +1467,17 @@ async function cmdSweep(target, studyId) {
     study,
     studyDecimals,
     stopId: null,
-    // The armed pick (cmdArm), or null; and the frame an armed pick moved
-    // away from, which the bar offers to go back to once the pick ends.
-    armed: null,
+    // The frame an armed pick moved away from, which the bar offers to go
+    // back to once the pick ends. (The armed pick itself is `state.armed`
+    // since 2026-11-12, when it stopped being sweep mode's alone; `armed`
+    // below reads and writes it, so a sweep still answers for its pick.)
     returnIndex: null,
   };
+  Object.defineProperty(state.sweep, "armed", {
+    get: () => state.armed,
+    set: (value) => { state.armed = value; },
+    enumerable: false,
+  });
   // The Bodies list lists the model's bodies, as the DAG does: a part the
   // model folds into a body is listed under it even where the run is silent.
   state.sweep.tree = AA.sweepModelTree(state.sweep.tree, sweepTopology());
@@ -2435,7 +2444,7 @@ function buildSweepBack() {
 
 function sweepBackShown() {
   const sweep = state.sweep;
-  return !!sweep && sweep.returnIndex != null && !state.armed && sweep.index === sweep.asModelledIndex;
+  return !!sweep && sweep.returnIndex != null && !sweep.armed && sweep.index === sweep.asModelledIndex;
 }
 
 // A click the frame rule refuses points at the gate line -- the one place the
@@ -6569,12 +6578,15 @@ function embedTree() {
   // Isolate and the type chips are pressed too, and are no pick.
   // `armedEnd`/`armedLine`: which end it is armed at and what its line says,
   // so the shell's feature body for that end shows the line and a Cancel.
-  return { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
-    armed: !!(state.armed),
+  const tree = { type: "annotate:tree", mode: state.sweep ? "sweep" : "bind",
+    armed: !!(state.sweep && state.sweep.armed),
     armedEnd: state.armed ? { topologyId: state.armed.topologyId, edgeId: state.armed.edgeId,
       direction: state.armed.direction } : null,
     armedLine: state.armed ? state.armed.line : null,
     chips: state.sweep ? railChips() : [], legend: rows.length ? AA.railLegend() : [], rows };
+  // A pick armed outside sweep mode (the shell's feature body) is armed too.
+  if (!state.sweep && state.armed) tree.armed = true;
+  return tree;
 }
 
 // Posted when what the rail shows changes (a MutationObserver on the rail,
@@ -6898,7 +6910,7 @@ async function main() {
       return;
     }
     if (!state.sweep) return;
-    if (ev.key === "Escape" && state.armed) {
+    if (ev.key === "Escape" && state.sweep.armed) {
       ev.preventDefault();
       AA.exec(["arm", "off"]);
       return;

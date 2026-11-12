@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a feature's body says what it is: bound with its face, part number, Correct, Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane lists is the pane's rows; an armed end is its line and Cancel",
+  "mutations": [
+    {
+      "contract": "Pick and Correct arm the pick on the feature's OWN part.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). Drops the part, so a node two parts share arms whichever part the end lists first.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      return name === V.arm ? cmd.concat([feature.part]) : cmd;",
+      "replace": "      return cmd;",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    },
+    {
+      "contract": "Flip is offered only where the dimension's other end is free.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). Offers Flip into an end that already has a face.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        if (model.dimension(b.edgeId) && !model.bindingsAt(b.edgeId, other).length) {",
+      "replace": "        if (model.dimension(b.edgeId)) {",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

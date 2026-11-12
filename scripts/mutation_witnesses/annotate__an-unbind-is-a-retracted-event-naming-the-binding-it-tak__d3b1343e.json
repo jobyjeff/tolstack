@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an unbind is a retracted event naming the binding it takes back, carrying no face, and folds it away",
+  "mutations": [
+    {
+      "contract": "Only a human unbinds.",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). An agent's actor is let write a retraction.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      throw new Error(\"an agent only proposes -- a human unbinds\");",
+      "replace": "      void 0;",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    }
+  ]
+}

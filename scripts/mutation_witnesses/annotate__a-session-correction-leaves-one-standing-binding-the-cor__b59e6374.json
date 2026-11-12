@@ -6,10 +6,10 @@
     {
       "contract": "The browser's fold hides the superseded binding and keeps it as history, as build_projection does.",
       "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
-      "note": "Without the move a corrected binding keeps standing and the row shows both ends bound.",
-      "file": "apps/annotate/binding_state.js",
-      "find": "        (b.event_id === event.supersedes ? row.superseded : kept).push(b);",
-      "replace": "        kept.push(b);"
+      "note": "Without the move a corrected binding keeps standing and the row shows both ends bound. The fold moved to apps/viewer/identity_fold.js on 2026-11-12 (one fold for both apps); AA.addEventToRecord delegates to it.",
+      "file": "apps/viewer/identity_fold.js",
+      "find": "      if (event.supersedes) row.bindings = take(row.bindings, standingId(row, event.supersedes), row.superseded).kept;",
+      "replace": "      if (event.supersedes) take(row.bindings, standingId(row, event.supersedes), row.superseded);"
     }
   ]
 }
