@@ -39,3 +39,8 @@ before the test's `VA.bootTopology()` re-boot with the fake adapter.
 Suggested fix: after `reboot()`, wait for the drawn width to match
 `readDagView`'s value (or for `lastTopoRender` from the second boot), rather
 than a fixed delay.
+
+## Addendum 2026-11-11 (the_topology_real_loop_runs_on_one_origin)
+Seen again: 1 of 3 consecutive `--only` runs of the kinematic study page suite failed
+`[real] picking a graph width in View ... survives a reload` and `[real] colouring by body ... survives a reload`
+(same code, no product change). Reproduces roughly 1 in 3 on an idle box.

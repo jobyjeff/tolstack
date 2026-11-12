@@ -2896,7 +2896,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           await page.locator("#worksheet-close").click();
         }
 
-        for (const study of topology.studies) {
+        // The per-study loop reads the projection through
+        // `demoTopologyFixture`, so nothing in it depends on the origin: it
+        // runs on the http origin (the one Jeff reads) and not on file://,
+        // where it was ~8 s per study click for the same assertions.
+        const studiesHere = url.startsWith("file:") ? [] : topology.studies;
+        for (const study of studiesHere) {
           // Observed once (ISSUE_20260914_topology_file_url_real_study_loop_
           // hung_once.md): this click's own actionability wait never saw the
           // row go stable and the raw playwright timeout gave no hint which
@@ -13698,7 +13703,11 @@ async function testKinematicStudyPage(browser, fileBase, label, realProjection,
       await page.goto(servedBase + "/apps/viewer/topology.html?kinematic=" + STUDY,
         { waitUntil: "load" });
       // Either the page, or the notice that says the projection was not read.
-      await page.waitForSelector("div.kmverdict, .banner__notice", { timeout: 15000 });
+      // `:visible` on both arms: a bare alternation resolves to every match and
+      // waitForSelector waits on the DOM-first one, which a hidden verdict
+      // (aborted this suite once, on the +72 stop's) never lets go.
+      await page.waitForSelector("div.kmverdict:visible, .banner__notice:visible",
+        { timeout: 15000 });
       push("[real] served over HTTP, the page reads the projection through the same transport",
         await page.locator("div.kmverdict").count() === 2 &&
         await page.locator("#topopane tr.tvrow--edge").count() === 6);
