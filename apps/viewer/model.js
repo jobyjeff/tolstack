@@ -227,7 +227,7 @@
   // one element, so null.
   VA.focusElementOf = function (model, entity) {
     if (!entity) return null;
-    if (!model) return entity.kind === "node" || entity.kind === "edge" ? { kind: entity.kind, id: entity.id } : null;
+    if (!model) return VA.TOPO_ROW_KINDS.indexOf(entity.kind) !== -1 ? { kind: entity.kind, id: entity.id } : null;
     var F = VA.FOCUS_KINDS;
     if (entity.kind === F.feature) {
       var f = model.feature(entity.id);
