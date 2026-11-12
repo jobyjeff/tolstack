@@ -4917,6 +4917,10 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     await page.waitForSelector("div.kmverdict", { timeout: 15000 });
     await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 });
     await settle(600);
+    // A fresh document: leaders are off again until turned on (the leader
+    // ink check below reads one).
+    await leadersOn(page);
+    await settle(300);
     const kin = () => page.evaluate(() => {
       const pane = document.querySelector("#topopane");
       const pr = { top: window.__pinnedBottom(), bottom: window.innerHeight };
