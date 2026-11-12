@@ -9747,13 +9747,13 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       { timeout: 15000 });
     await inner.evaluate(() => { document.querySelector('#sweep-tree [data-joint="pitch_link"]').open = true; });
     await page.waitForFunction(() => {
-      const find = (rows) => (rows || []).some((r) => r.sub === "suggested · high" || find(r.rows));
+      const find = (rows) => (rows || []).some((r) => (r.key || "").indexOf("#sweep-tree/") === 0 && r.sub === "suggested · high" || find(r.rows));
       return window.__trees.some((t) => find(t.rows));
     }, null, { timeout: 10000 }).catch(() => {});
     const row = await page.evaluate(() => {
       const find = (rows) => {
         for (const r of rows || []) {
-          if (r.sub === "suggested · high") return r;
+          if ((r.key || "").indexOf("#sweep-tree/") === 0 && r.sub === "suggested · high") return r;
           const k = find(r.rows);
           if (k) return k;
         }
