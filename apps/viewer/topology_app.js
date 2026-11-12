@@ -735,6 +735,39 @@
     return el ? VA.elementKey(el.kind, el.id) : null;
   }
 
+  // A paint rebuilt the DAG, the grid and the tree, and the new element under
+  // a resting pointer fires no mouseenter -- nor does the old one fire a
+  // mouseleave once it is gone. So after a paint the hover is kept only
+  // where the pointer still is: what is under its last position (pointerAt,
+  // the popover corridor's mousemove) is asked which entity it is, and a
+  // hover on anything else is let go of. The scene is not repainted by this
+  // page and keeps its own; a pointer that never moved has hovered nothing.
+  function revalidateHover() {
+    var h = state.focus.hovered;
+    if (!h || hoverSource === "scene") return;
+    var under = pointerAt && typeof document !== "undefined" && document.elementFromPoint
+      ? document.elementFromPoint(pointerAt.x, pointerAt.y) : null;
+    if (VA.sameFocus(entityUnder(under), h)) return;
+    state.focus.hovered = null;
+    hoverSource = null;
+  }
+
+  // The entity a page node is part of: a tree row's (body, part, feature,
+  // interface, joint), or a DAG mark's / grid row's element as the entity it
+  // is. Null for anything else -- a heading, a study row, a rail's hit path.
+  function entityUnder(node) {
+    if (!node || !node.closest) return null;
+    var row = node.closest("[data-nav-kind][data-nav-id]");
+    if (row && node.closest("#navtree")) {
+      var kind = row.getAttribute("data-nav-kind");
+      return VA.FOCUS_KINDS[kind] ? { kind: kind, id: row.getAttribute("data-nav-id") } : null;
+    }
+    var mark = node.closest("[data-row-kind][data-id]");
+    if (!mark) return null;
+    var el = VA.parseElementKey(VA.elementKey(mark.getAttribute("data-row-kind"), mark.getAttribute("data-id")));
+    return el ? VA.focusEntityOf(currentModel(), el.kind, el.id) : null;
+  }
+
   function applyFocus() {
     var model = currentModel();
     var keys = VA.focusElementKeysOf(model, state.focus.hovered);
@@ -2207,7 +2240,12 @@
   // A row anywhere else on the page that names an element hovers through one
   // delegated listener; the DAG's and the grid's marks register their own
   // (views/topology.js's hotHover, through ctx.onHot) and the tree's rows
-  // theirs (views/nav.js, through onNavHover).
+  // theirs (views/nav.js, through onNavHover). A pointer arriving on nothing
+  // -- outside the DAG pane and the tree, on no element's row -- lets any
+  // hover this page set go, whichever surface set it: there is one pointer,
+  // and it is demonstrably here (a mark rebuilt under the pointer by a paint
+  // fires no mouseleave when the pointer later leaves it). The scene's own
+  // hover is the scene's to clear.
   function wirePageHover() {
     if (typeof document === "undefined" || !document.addEventListener) return;
     document.addEventListener("mouseover", function (event) {
@@ -2217,7 +2255,11 @@
       var row = target.closest("[data-row-kind][data-id]");
       var el = row ? VA.parseElementKey(VA.elementKey(row.getAttribute("data-row-kind"),
         row.getAttribute("data-id"))) : null;
-      setHovered(el ? VA.focusEntityOf(currentModel(), el.kind, el.id) : null, "page");
+      if (el) {
+        setHovered(VA.focusEntityOf(currentModel(), el.kind, el.id), "page");
+      } else if (state.focus.hovered && hoverSource !== "scene") {
+        setHovered(null, hoverSource);
+      }
     });
   }
 
@@ -3740,7 +3782,9 @@
     syncPaneHandle();
     followSelection();
     followSeam();
-    // Everything just drawn, lit from the one selection and the one hover.
+    // Everything just drawn, lit from the one selection and the one hover --
+    // the hover kept only where the pointer still is (revalidateHover).
+    revalidateHover();
     applyFocus();
     // A kinematic DAG that moves with the pose builds its film while idle.
     if (state.mode === "kinematic" && (!respineHandle || respineHandle.done)) prebuildFilm();

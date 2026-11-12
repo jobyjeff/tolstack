@@ -70,6 +70,19 @@ outside the DAG pane and the tree -- none exists on the page today, kept as
 the one listener for one that arrives), and the flyout's `close` (clears a
 scene hover).
 
+**A hover survives a repaint only where the pointer still is.** The first
+browser run of the topology suite found the Preview stuck on a hovered row
+with the pointer parked at (4, 4): the old `mountPreview` nulled every hover
+key on each render, so a stale hover never outlived a paint; the one state
+does outlive it, and the mark rebuilt under a pointer that has since moved on
+fires no mouseleave. Two fixes, both in `topology_app.js`: `revalidateHover`
+runs before `applyFocus` at the end of every paint and keeps a `dag`/`tree`/
+`page` hover only if `document.elementFromPoint(pointerAt)` is still part of
+that entity (`entityUnder`; the scene's hover is the scene's, since this page
+does not repaint it), and the page-level `mouseover` on anything outside the
+DAG pane and the tree that is no element's row lets any non-scene hover go
+(one pointer, demonstrably elsewhere).
+
 What the pane still keeps of its own, honestly: the sweep rail's `inspect`
 (its selected end row) and the model layer's `model.selected` (its selected
 dot) are two pane-side selections. The page drives both -- `model select
