@@ -3080,6 +3080,8 @@ function switchArmedPart(i) {
 // suggestion both frame.
 function anchoredOccurrences(targets) {
   const sweep = state.sweep;
+  // With no sweep there are no bodies to anchor: every occurrence of each part.
+  if (!sweep) return targets.map((t) => ({ sha256: t.sha256, key: null }));
   const out = [];
   for (const t of targets) {
     const body = t.partId ? AA.sweepTreeSubjects(sweep.tree).find((b) => b.parts.indexOf(t.partId) !== -1) : null;

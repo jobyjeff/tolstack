@@ -245,14 +245,38 @@ async function pickInScene(page, fid, before) {
     const r = c.getBoundingClientRect();
     return { x: r.left, y: r.top, w: r.width, h: r.height };
   });
-  const offsets = [[0, 0], [0.08, 0], [-0.08, 0], [0, 0.08], [0, -0.08], [0.15, 0.05], [-0.15, -0.05], [0.05, 0.15]];
-  for (const [dx, dy] of offsets) {
-    const x = box.x + canvas.x + canvas.w * (0.5 + dx), y = box.y + canvas.y + canvas.h * (0.5 + dy);
+  // Where the armed part is under the pointer: the scene's own filtered ray,
+  // scanned over the canvas, one point per distinct face (biggest first is
+  // not knowable here, so the scan order decides).
+  const hits = await frameOf(page).evaluate(() => {
+    const out = [], seen = {};
+    for (let gy = -0.8; gy <= 0.8; gy += 0.1) for (let gx = -0.8; gx <= 0.8; gx += 0.1) {
+      const h = window.__scene.pick(gx, gy);
+      if (h && !seen[h.faceId]) { seen[h.faceId] = true; out.push({ fx: (gx + 1) / 2, fy: (1 - gy) / 2, faceId: h.faceId }); }
+    }
+    return out.slice(0, 8);
+  });
+  log("armed-part faces on screen", hits.map((h) => h.faceId));
+  for (const h of hits) {
+    const dx = h.fx - 0.5, dy = h.fy - 0.5;
+    const x = box.x + canvas.x + canvas.w * h.fx, y = box.y + canvas.y + canvas.h * h.fy;
     await page.mouse.move(x, y);
     await page.waitForTimeout(400);
-    await page.mouse.click(x, y);
-    await page.waitForTimeout(2500);
-    const now = await tree(page, fid);
+    const pre = await frameOf(page).evaluate(() => window.__scene.preselected());
+    await page.mouse.down();
+    await page.mouse.up();
+    const t0 = Date.now();
+    let now = await tree(page, fid);
+    while (Date.now() - t0 < 30000 && !(now && now.body !== before && /bound · face|not on|already|failed|could not/.test(now.body || ""))) {
+      await page.waitForTimeout(500);
+      now = await tree(page, fid);
+    }
+    log("click to body", { ms: Date.now() - t0 });
+    log("pick attempt", { dx, dy, preselected: pre, body: now && now.body, scratchEvents: scratchEvents(),
+      notice: await frameOf(page).evaluate(() => (document.getElementById("notice-text") || {}).textContent || null),
+      armedLine: await frameOf(page).evaluate(() => (window.__embedTree || {}).armedLine || null),
+      errors: page.__errors.splice(0) });
+    if (argv.includes("--diagnose")) process.exit(0);
     if (now && now.body !== before && /bound · face/.test(now.body || "")) return now;
   }
   return await tree(page, fid);
@@ -334,7 +358,12 @@ if (!argv.includes("--skip-real")) {
   await selectFeature(page, PICK_FEATURE);
   await shot(page, "08_corrected_after_reload", PICK_FEATURE);
   await clickBody(page, PICK_FEATURE, "Unbind");
-  await page.waitForTimeout(4000);
+  // The first write after a reload asks for the folder again and re-reads it.
+  const t0 = Date.now();
+  while (Date.now() - t0 < 60000 && /bound · face/.test((await tree(page, PICK_FEATURE)).body || "")) {
+    await page.waitForTimeout(500);
+  }
+  log("unbind to body", { ms: Date.now() - t0 });
   await shot(page, "09_unbound_no_reload", PICK_FEATURE);
   await page.close();
 
