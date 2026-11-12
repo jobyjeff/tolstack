@@ -211,3 +211,20 @@ Triage should fold them into this one, per the one-issue-per-repo-per-tier rule.
 
 ## Addendum 2026-11-08 (review of model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models)
 `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs` (serial), review worktree with candidate inputs bridged and projections rebuilt from the merge sha: **2161 s (36m01s)**, 1869 passed, 1 skipped, recorded `OVER BUDGET by 26m01s`. **Contended, so this is not a clean measurement:** `run_mutation_witness_tests.mjs --changed-since integration` (29m44s, browser entries under the slot) ran beside it the whole time. The same tree ran 553 s alone on the tactical branch (its lesson's rework record). No `--durations` taken; evidence for "contention, not suite growth".
+
+## Measurement 2026-11-11, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261111_triage_sweep.md)
+
+`PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q --durations=15` (serial), cwd = the merge-candidate worktree at `6a165ddc` (inputs bridged, projections rebuilt there first), nothing else running: **1928 passed, 1 skipped, 2 deselected in 605.28 s; wall 606 s**, recorded `OVER BUDGET by 0m06s`. Uncontended. The 11-10 sweep measured 588 s on the same tier, so it sits right at the line. Top of `--durations=15`:
+
+```
+118.51s call  tests/test_feature_geometry.py::test_real_both_readers_classify_every_installed_face_the_same
+ 75.33s call  tests/test_mutation_witness_shadow_concurrency.py::test_a_stale_lock_pid_dead_is_cleared_with_a_message
+ 67.06s call  tests/test_mutation_witness_shadow_concurrency.py::test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale
+ 61.38s setup tests/test_mutation_witnesses.py::test_the_scan_and_the_run_agree_on_which_guards_exist
+ 41.74s call  tests/test_annotate_js_suite.py::test_annotate_js_suite_is_green
+ 22.63s call  tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green
+ 19.98s call  tests/test_mutation_witnesses.py::test_closing_the_concatenation_seam_is_load_bearing
+ 16.61s call  tests/test_mutation_witnesses.py::test_passing_over_the_skip_arm_is_load_bearing
+ 11.71s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False]
+ 11.58s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[exit-False]
+```
