@@ -3952,6 +3952,9 @@ function sceneHoverPart(pick) {
 function cmdInspect(what, name, face, subject) {
   const sweep = sweepState();
   const target = AA.parseInspect(what, name, face, subject);
+  // One selection: whatever the rail selects (or lets go), the model layer's
+  // own goes (selectInSweep).
+  state.model.selected = null;
   // Whatever was selected before, its suggestion goes with it.
   clearSuggestionFocus();
   if (target.kind === AA.INSPECT_TARGETS[3]) return inspectPart(target);
@@ -4544,18 +4547,52 @@ function modelSectionDrawing(anchor) {
   };
 }
 
-// What is selected in the layer: a node (model select node), a body (model
-// select body, or -- in sweep mode -- the body a pick in the scene selected
-// in the rail). A node shows its section plane and region; a body shows its
-// name at its +X anchor, with the plane it was cut on.
+// THE PANE'S ONE SELECTION (the_pane_follows_the_one_selection_both_ways,
+// 2026-11-12). In sweep mode a node selected -- `model select node`, which
+// the shell posts for its selection, or a click on the node's dot -- IS the
+// rail's end row for it (AA.sweepNodeEnd): written to `sweep.inspect`, the
+// one field the rail and the model layer both read (modelSelection). Only a
+// node no joint row names, or a body, is the model layer's own
+// (`model.selected`), and then a feature row the rail held lets go. Until
+// 2026-11-12 the two were separate selections the shell drove one by one.
+function selectInSweep(select) {
+  const sweep = state.sweep;
+  const topology = sweepTopology();
+  const via = select && select.kind === AA.MODEL_SELECT_KINDS[0] && topology
+    ? AA.sweepNodeEnd(topology, sweep.tree.joints, select.id) : null;
+  if (via) {
+    state.model.selected = null;
+    if (isSelectedFeature(topology, via)) applyModelSelection();
+    else cmdInspect(AA.INSPECT_TARGETS[4], via.edgeId, via.direction);
+    return;
+  }
+  if (sweep.inspect && sweep.inspect.kind === AA.INSPECT_TARGETS[4]) cmdInspect("clear");
+  state.model.selected = select;
+  applyModelSelection();
+}
+
+// What the model layer shows selected: its own selection, else -- in sweep
+// mode -- the node of the rail's selected end row, or the body a pick in the
+// scene selected there.
+function modelSelection() {
+  if (state.model.selected) return state.model.selected;
+  const i = state.sweep && state.sweep.inspect;
+  if (!i) return null;
+  if (i.kind === AA.INSPECT_TARGETS[4]) {
+    const node = AA.sweepEndNode(sweepTopology(), i.name, i.direction);
+    if (node) return { kind: AA.MODEL_SELECT_KINDS[0], id: node };
+  }
+  return i.subject ? { kind: AA.MODEL_SELECT_KINDS[1], id: i.subject } : null;
+}
+
+// What is selected in the layer (modelSelection): a node or a body. A node
+// shows its section plane and region; a body shows its name at its +X
+// anchor, with the plane it was cut on.
 function applyModelSelection() {
   const model = state.model;
   if (!model.built) return null;
   const anchors = model.built.anchors;
-  let sel = model.selected;
-  if (!sel && state.sweep && state.sweep.inspect && state.sweep.inspect.subject) {
-    sel = { kind: AA.MODEL_SELECT_KINDS[1], id: state.sweep.inspect.subject };
-  }
+  const sel = modelSelection();
   if (!sel) { state.scene.setModelSelection(null); return null; }
   if (sel.kind === AA.MODEL_SELECT_KINDS[0]) {
     const anchor = anchors[sel.id];
@@ -4625,8 +4662,11 @@ function cmdModel(...args) {
       throw new Error("this topology has no " + plan.select.kind + " \"" + plan.select.id + "\"");
     }
   }
-  model.selected = plan.select;
-  applyModelSelection();
+  if (state.sweep) selectInSweep(plan.select);
+  else {
+    model.selected = plan.select;
+    applyModelSelection();
+  }
   const anchor = plan.select && plan.select.kind === AA.MODEL_SELECT_KINDS[0] && model.built
     ? model.built.anchors[plan.select.id] : null;
   const joint = anchor && model.built.joints.groups.find((g) => g.id === model.built.joints.of[plan.select.id]);
@@ -6604,7 +6644,7 @@ async function main() {
   // of its dots selects that node (a second click lets it go).
   state.scene.onModelRendered = () => postModelAnchors(false);
   state.scene.onModelPick = (nodeId) => {
-    const was = state.model.selected;
+    const was = modelSelection();
     const again = was && was.kind === AA.MODEL_SELECT_KINDS[0] && was.id === nodeId;
     AA.exec(again ? ["model", "select", "clear"] : ["model", "select", "node", nodeId])
       .catch((err) => setBanner(err.message, "error"));

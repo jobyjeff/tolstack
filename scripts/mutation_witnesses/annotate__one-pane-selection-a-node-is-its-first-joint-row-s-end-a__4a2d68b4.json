@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "one pane selection: a node is its first joint row's end, an end row is its node, and a node no joint row names is no end",
+  "mutations": [
+    {
+      "contract": "A node selected is its joint row's end, in that row's own direction.",
+      "issue": "docs/issues/ISSUE_20261111_the_pane_keeps_two_selections_of_its_own_beside_the_pages_one.md",
+      "note": "Declared with the guard (2026-11-12). The end's direction flipped selects the other end's row -- the node's partner, a plausible wrong row.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return direction === AA.DIRECTIONS[1] ? edge.to : edge.from;",
+      "replace": "    return direction === AA.DIRECTIONS[1] ? edge.from : edge.to;"
+    },
+    {
+      "contract": "A node no joint row names is no end, never the first edge that touches it.",
+      "issue": "docs/issues/ISSUE_20261111_the_pane_keeps_two_selections_of_its_own_beside_the_pages_one.md",
+      "note": "Falling through to any node feature would select a row the rail does not list.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        if (rows[j].kind !== \"node\" || rows[j].id !== nodeId) continue;",
+      "replace": "        if (rows[j].kind !== \"node\") continue;"
+    }
+  ]
+}

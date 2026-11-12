@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] Escape with a pick armed cancels the pick and keeps the selection",
+  "mutations": [
+    {
+      "contract": "The pane says on its tree whether a pick is armed.",
+      "issue": "docs/issues/ISSUE_20261112_escape_does_not_let_go_of_the_selection_while_any_mirrored_control_reads_pressed.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). A tree that never says armed: the page's Escape lets go of the selection and leaves the pick armed.",
+      "file": "apps/annotate/app.js",
+      "find": "    armed: !!(state.sweep && state.sweep.armed),",
+      "replace": "    armed: false,"
+    }
+  ]
+}

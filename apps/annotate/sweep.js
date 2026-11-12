@@ -1728,6 +1728,37 @@
     });
   };
 
+  // The pane's ONE selection, read either way (the_pane_follows_the_one_
+  // selection_both_ways, 2026-11-12). In sweep mode a node selected -- the
+  // model layer's dot, the shell's `model select node` -- is the rail's end
+  // row for it, and a selected end row is that node's dot: one field
+  // (`sweep.inspect`), which the rail and the model layer both read.
+  //
+  // The end row a node is selected as: the first joint, in rail order, that
+  // lists the node as a row, and that row's edge end (AA.sweepFeatureEdge);
+  // null when no joint row names it (a node the run's joints do not carry).
+  AA.sweepNodeEnd = function (topology, joints, nodeId) {
+    var list = joints || [];
+    for (var i = 0; i < list.length; i++) {
+      var rows = AA.sweepJointRowFeatures(topology, list[i]);
+      for (var j = 0; j < rows.length; j++) {
+        if (rows[j].kind !== "node" || rows[j].id !== nodeId) continue;
+        var via = AA.sweepFeatureEdge(topology, rows[j], list[i].features);
+        if (via.edgeId && via.direction) return via;
+      }
+    }
+    return null;
+  };
+
+  // ...and the other way: the node a selected end row is (its edge's end in
+  // its direction); null for an edge feature's row, which is no one node.
+  AA.sweepEndNode = function (topology, edgeId, direction) {
+    if (!direction) return null;
+    var edge = ((topology && topology.edges) || []).filter(function (e) { return e.id === edgeId; })[0];
+    if (!edge) return null;
+    return direction === AA.DIRECTIONS[1] ? edge.to : edge.from;
+  };
+
   // A feature's binding state, in AA.BINDING_STATES -- the element rows'
   // vocabulary, so the rows are coloured by the same rules. An edge feature
   // is its edge's state; a node feature is the state of the binding at ITS

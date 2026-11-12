@@ -1954,6 +1954,21 @@ check("a joint lists an edge feature only when its two ends are not already the 
   assertEqual(AA.sweepJointRowFeatures(RAIL_TOPOLOGY, half).map((f) => f.id), ["n_top", "rod_len"]);
 });
 
+check("one pane selection: a node is its first joint row's end, an end row is its node, " +
+  "and a node no joint row names is no end", () => {
+  const joints = AA.sweepMechanismTree(AA.readSweepArtifact(railDoc())).joints;
+  // n_top's own joint row is bound through the rod's length, at its to end.
+  assertEqual(AA.sweepNodeEnd(RAIL_TOPOLOGY, joints, "n_top"), { edgeId: "rod_len", direction: "to" });
+  assertEqual(AA.sweepNodeEnd(RAIL_TOPOLOGY, joints, "n_bot"), { edgeId: "rod_len", direction: "from" });
+  assertEqual(AA.sweepNodeEnd(RAIL_TOPOLOGY, joints, "n_alone"), null);
+  assertEqual(AA.sweepNodeEnd(RAIL_TOPOLOGY, null, "n_top"), null);
+  // Round trip: the end row's node is the node that selected it.
+  const end = AA.sweepNodeEnd(RAIL_TOPOLOGY, joints, "n_top");
+  assertEqual(AA.sweepEndNode(RAIL_TOPOLOGY, end.edgeId, end.direction), "n_top");
+  assertEqual(AA.sweepEndNode(RAIL_TOPOLOGY, "rod_len", null), null, "an edge feature is no one node");
+  assertEqual(AA.sweepEndNode(RAIL_TOPOLOGY, "no_such_edge", "from"), null);
+});
+
 check("a node feature's colour is the binding at its own end of the edge, and a " +
   "length's is its whole edge's", () => {
   const identity = { stack_keys: [{

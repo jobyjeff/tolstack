@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] a grid row selected with the run loaded lights its edge in the sweep: no goto, the sweep stays, and the leaders stay drawn",
+  "mutations": [
+    {
+      "contract": "An edge selected while the pane shows a run on this topology is a highlight, not a goto.",
+      "issue": "docs/issues/ISSUE_20261108_a_grid_row_selected_on_a_studyless_model_leaves_the_sweep_and_its_leaders.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). The goto leaves the sweep: the pose resets and every leader across the seam goes.",
+      "file": "apps/viewer/viewer.js",
+      "find": "    if (view.selection && view.selection.kind === \"edge\" && !VA.annotateEdgeIsHighlight(view)) {",
+      "replace": "    if (view.selection && view.selection.kind === \"edge\") {"
+    }
+  ]
+}

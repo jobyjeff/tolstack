@@ -5888,8 +5888,9 @@
         eq(VA.scenePickArmed(null), false, "the pane closed: no tree");
       });
 
-    await test("one selection across the seam: the page posts the end row's verb once per " +
-      "node, reads the pane's answer, lets go when the pane lets go, and clears once", function () {
+    await test("one selection across the seam: the pane's tree says it holds the node's end " +
+      "row, a tree that has not caught up says nothing, and a pane that let go lets the page go",
+      function () {
         var key = "#sweep-tree/joint=hinge/direction=from,edge=e1,feature=n1,state=bound";
         var end = function (selected) {
           return { key: key, text: "bore", kind: "end", activate: true, selected: !!selected };
@@ -5898,40 +5899,28 @@
           return { type: "annotate:tree", mode: "sweep",
             rows: [{ key: "#sweep-tree/joint=hinge", text: "hinge", rows: row ? [row] : [] }] };
         };
-        var none = { posted: null, held: null };
-        var opts = { sweep: true, endAtNode: function () { return { edgeId: "e9", direction: "to" }; } };
-        eq(VA.sceneRowEnd(key), { edgeId: "e1", direction: "from" });
-        eq(VA.sceneRowEnd("#sweep-tree/joint=hinge"), null);
-        // A feature selected here: the row's own verb, never its toggling click.
-        var first = VA.sceneInspectStep(tree(end(false)), "n1", none, opts);
-        eq(first.command, ["inspect", "feature", "e1", "from"]);
-        eq(first.letGo, false);
-        // Every paint before the pane answers -- a pointer sweeping the DAG --
-        // and a tree that has not caught up: nothing more is posted.
-        var memo = { posted: first.posted, held: first.held };
-        for (var i = 0; i < 12; i++) eq(VA.sceneInspectStep(tree(end(false)), "n1", memo, opts).command, null);
+        // The page has just told the pane (`model select node n1`): every tree
+        // before the pane's answer -- a pointer sweeping the DAG repaints the
+        // page a dozen times -- says nothing, and nothing is let go.
+        var held = null;
+        for (var i = 0; i < 12; i++) {
+          var waiting = VA.sceneInspectStep(tree(end(false)), "n1", held);
+          eq([waiting.letGo, waiting.held], [false, null]);
+          held = waiting.held;
+        }
         // The pane's answer: it holds the row.
-        var held = VA.sceneInspectStep(tree(end(true)), "n1", memo, opts);
-        eq([held.command, held.letGo, held.held], [null, false, "n1"]);
-        // The pane lets go (a second click on the bead): the page lets go too,
-        // and re-asserts nothing.
-        var gone = VA.sceneInspectStep(tree(end(false)), "n1", { posted: held.posted, held: held.held }, opts);
-        eq([gone.command, gone.letGo, gone.posted, gone.held], [null, true, null, null]);
-        // Nothing selected here, the pane's end row still selected: one clear.
-        var clear = VA.sceneInspectStep(tree(end(true)), null, none, opts);
-        eq(clear.command, ["inspect", "clear"]);
-        eq(VA.sceneInspectStep(tree(end(true)), null,
-          { posted: clear.posted, held: clear.held }, opts).command, null, "the clear is posted once");
-        eq(VA.sceneInspectStep(tree(end(false)), null, none, opts).command, null, "nothing to let go");
-        // The node's joint folded in the pane: the first edge end at the node, once.
-        var folded = VA.sceneInspectStep(tree(null), "n1", none, opts);
-        eq(folded.command, ["inspect", "feature", "e9", "to"]);
-        eq(VA.sceneInspectStep(tree(null), "n1", { posted: folded.posted, held: folded.held }, opts).command,
-          null);
-        // No run loaded: the verb is the sweep rail's, and nothing is posted.
-        eq(VA.sceneInspectStep(tree(end(false)), "n1", none, { sweep: false }).command, null);
-        // A tree with no end rows for the node (bind mode) never lets go.
-        eq(VA.sceneInspectStep(tree(null), "n1", { posted: "n1", held: "n1" }, { sweep: false }).letGo, false);
+        var holds = VA.sceneInspectStep(tree(end(true)), "n1", held);
+        eq([holds.letGo, holds.held], [false, "n1"]);
+        // The pane lets go (a second click on the bead): the page lets go too.
+        var gone = VA.sceneInspectStep(tree(end(false)), "n1", holds.held);
+        eq([gone.letGo, gone.held], [true, null]);
+        // Held for another node, or nothing selected here: nothing to let go.
+        eq(VA.sceneInspectStep(tree(end(false)), "n1", "n2").letGo, false);
+        eq(VA.sceneInspectStep(tree(end(true)), null, "n1"), { letGo: false, held: null });
+        // A tree with no end row for the node (bind mode; a node the run does
+        // not carry) never lets go, and keeps what was held.
+        eq(VA.sceneInspectStep(tree(null), "n1", "n1"), { letGo: false, held: "n1" });
+        eq(VA.sceneInspectStep(null, "n1", null), { letGo: false, held: null });
       });
 
     // --- the nav's width (a_face_is_picked_the_way_cad_picks_it) ------------

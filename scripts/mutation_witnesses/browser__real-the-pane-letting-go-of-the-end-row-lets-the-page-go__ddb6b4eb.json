@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] the pane letting go of the end row lets the page go: no row, dot or Preview stays selected, and nothing re-selects it",
+  "mutations": [
+    {
+      "contract": "A pane that let go of the row it held lets go of the page's selection.",
+      "issue": "docs/issues/ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). Without it the page keeps its selection beside a pane that let go.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (step.letGo) unfreeze();",
+      "replace": "    if (false) unfreeze();"
+    }
+  ]
+}

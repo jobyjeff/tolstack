@@ -15000,6 +15000,131 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       `${unposed.join(", ") || "-"}`);
     push("[real] with the P2 run loaded every part of the end-stop model's bodies is posed with " +
       "its own body", (model.bodies || []).length > 0 && unposed.length === 0);
+
+    // --- one selection across the seam (the_pane_follows_the_one_selection_
+    // both_ways, 2026-11-12) -------------------------------------------------
+    // With the run loaded: the page tells the pane its selection once, with
+    // one verb; the pane letting go lets the page go; a grid row lights its
+    // edge in the sweep rather than leaving it; Escape asks the pane whether a
+    // pick is armed. Every command and rail gesture the page posts is heard
+    // in the pane's own window.
+    await inPane((w) => {
+      w.__heard = [];
+      w.addEventListener("message", (e) => {
+        const m = e.data;
+        if (m && m.type === "annotate:exec") w.__heard.push(m.command.join(" "));
+        if (m && m.type === "annotate:rail") w.__heard.push("rail " + m.act);
+      });
+      return true;
+    });
+    const heard = () => inPane((w) => w.__heard.splice(0));
+    const paneHolds = () => inPane((w) => ({ sweep: !!w.__sweep, armed: !!(w.__sweep && w.__sweep.armed),
+      inspect: w.__sweep && w.__sweep.inspect ? w.__sweep.inspect.kind + " " + w.__sweep.inspect.name : null,
+      dot: w.__model && w.__model.selected ? w.__model.selected.id : null }));
+    const pageHolds = () => page.evaluate(() => ({
+      rows: document.querySelectorAll("#navtree .navtree__row--on").length,
+      dots: document.querySelectorAll("svg.tv__rails circle.rail__dot--selected").length,
+      preview: (document.querySelector(".detail__preview") || { getAttribute: () => null })
+        .getAttribute("data-preview-state"),
+    }));
+    const ONE_FEATURE = "hub@hub_spindle_bore_axis";
+    const selectOneFeature = async () => {
+      if (!(await page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${ONE_FEATURE}"]`).count())) {
+        await page.locator('#navtree [data-nav-twisty="p:hub"]').first().click().catch(() => {});
+      }
+      const row = page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${ONE_FEATURE}"]`).first();
+      await row.scrollIntoViewIfNeeded().catch(() => {});
+      await row.click({ timeout: 5000 }).catch(() => {});
+      await until(() => {
+        const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+        return w.__sweep && w.__sweep.inspect && w.__sweep.inspect.kind === "feature";
+      }, null, 15000);
+      await page.waitForTimeout(800);
+    };
+    await heard();
+    await selectOneFeature();
+    const dots = page.locator("svg.tv__rails circle.rail__dot");
+    const dotCount = Math.min(12, await dots.count());
+    for (let i = 0; i < dotCount; i++) await dots.nth(i).hover({ force: true, timeout: 2000 }).catch(() => {});
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(1500);
+    const toldA = (await heard()).filter((c) => /^model select node |^inspect feature |^rail activate$/.test(c));
+    const heldA = await paneHolds();
+    console.log(`      [${label}] a feature selected, ${dotCount} DAG marks swept: told the pane ` +
+      `${JSON.stringify(toldA)}; the pane holds ${JSON.stringify(heldA)}`);
+    push("[real] a feature row selected, the pointer swept over a dozen DAG marks: the page tells " +
+      "the pane once, with one verb, and the pane's rail holds the feature's end",
+      dotCount >= 6 && toldA.length === 1 && /^model select node /.test(toldA[0]) &&
+      /^feature /.test(heldA.inspect || "") && heldA.dot === null);
+
+    // The pane lets go -- a second click on the bead or the bound face runs
+    // `inspect clear` -- and the page lets go on every surface, re-asserting
+    // nothing.
+    await inPane((w) => { w.AnnotateApp.exec(["inspect", "clear"]); return true; });
+    await until(() => !document.querySelector("svg.tv__rails circle.rail__dot--selected"), null, 10000);
+    await page.waitForTimeout(1500);
+    const toldB = (await heard()).filter((c) => /^model select node |^inspect feature |^rail activate$/.test(c));
+    const pageB = await pageHolds();
+    const heldB = await paneHolds();
+    console.log(`      [${label}] the pane let go: the page holds ${JSON.stringify(pageB)}, told the ` +
+      `pane ${JSON.stringify(toldB)}; the pane holds ${JSON.stringify(heldB)}`);
+    push("[real] the pane letting go of the end row lets the page go: no row, dot or Preview stays " +
+      "selected, and nothing re-selects it",
+      pageB.rows === 0 && pageB.dots === 0 && pageB.preview !== "frozen" && toldB.length === 0 &&
+      heldB.inspect === null);
+
+    // A grid row: lit in the sweep, never a goto.
+    await leadersOn(page);
+    await page.evaluate(() => {
+      const cell = document.querySelector('tr.tvrow[data-id="tan_link_mount_height"] td.tvcell--name');
+      if (cell) { cell.scrollIntoView({ block: "center" }); cell.click(); }
+    });
+    await page.waitForTimeout(3000);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(1500);
+    const toldC = await heard();
+    const heldC = await paneHolds();
+    const leadersC = await page.evaluate(() =>
+      document.querySelectorAll("svg.seamleaders path.seam__leader").length);
+    console.log(`      [${label}] a grid row selected: told the pane ` +
+      `${JSON.stringify(toldC.filter((c) => /^goto |^highlight |^sweep /.test(c)))}; the pane holds ` +
+      `${JSON.stringify(heldC)}; ${leadersC} leaders across the seam`);
+    push("[real] a grid row selected with the run loaded lights its edge in the sweep: no goto, the " +
+      "sweep stays, and the leaders stay drawn",
+      heldC.sweep && !toldC.some((c) => /^goto /.test(c)) &&
+      toldC.indexOf("highlight " + MODEL_ALONE_TOPOLOGY + " tan_link_mount_height") !== -1 && leadersC > 0);
+
+    // Escape: nothing armed lets go of the selection...
+    await selectOneFeature();
+    await page.locator("#flyout-title").focus().catch(() => {});
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(1500);
+    const pageD = await pageHolds();
+    push("[real] Escape with nothing armed in the pane lets go of the selection, pressed " +
+      "controls and all", pageD.rows === 0 && pageD.dots === 0);
+    // ...and with a pick armed (the end's own pick action, the last row of
+    // its list) cancels the pick only.
+    await selectOneFeature();
+    await page.locator('#navtree .navtree__featurebody [data-kind="action"]').last()
+      .click({ timeout: 5000 }).catch(() => {});
+    const armedD = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.__sweep && w.__sweep.armed;
+    }, null, 20000);
+    await page.waitForTimeout(800);
+    await page.locator("#flyout-title").focus().catch(() => {});
+    await page.keyboard.press("Escape");
+    await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.__sweep && !w.__sweep.armed;
+    }, null, 10000);
+    await page.waitForTimeout(1500);
+    const pageE = await pageHolds();
+    const heldE = await paneHolds();
+    console.log(`      [${label}] Esc while armed (armed: ${armedD}): the page holds ` +
+      `${JSON.stringify(pageE)}; the pane holds ${JSON.stringify(heldE)}`);
+    push("[real] Escape with a pick armed cancels the pick and keeps the selection",
+      armedD && !heldE.armed && pageE.dots === 1 && /^feature /.test(heldE.inspect || ""));
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {

@@ -321,7 +321,7 @@
       // posted describes a box that is no longer there.
       sceneModelPosted = null;
       sceneSelectPosted = null;
-      sceneInspect = { posted: null, held: null };
+      sceneInspectHeld = null;
       forgetSeamAnchors(false);
       // The page is back to the width the band was centred for.
       if (state.landed) {
@@ -2035,7 +2035,7 @@
         paneFollowed = paramsKey(currentAnnotateParams());
         paneHighlightPosted = null;
         // ...and the scene reloaded: its rail holds nothing the page told it.
-        sceneInspect = { posted: null, held: null };
+        sceneInspectHeld = null;
       }
       setPaneTitle(msg.title || null);
       // What the scene shows changed: its anchors are asked for afresh, and
@@ -2175,36 +2175,19 @@
     nav.scrollTop += r.top - n.top - 8;
   }
 
-  // The pane's own selection follows the page's, and the page's follows the
-  // pane's -- one selection, either side may set it or let it go
-  // (VA.sceneInspectStep has the rule). With the pane closed no tree
-  // arrives, and none of this runs.
-  var sceneInspect = { posted: null, held: null };
-
-  // The first edge end at a node as the pane names an end, a gap edge's (a
-  // joint end, which the sweep rail lists) before any other.
-  function jointEndAtNode(nodeId) {
-    var index = VA.topologyIndex(currentTopology());
-    var ids = Object.keys(index.edges || {}).sort();
-    var pick = null;
-    ids.forEach(function (id) {
-      var edge = index.edges[id];
-      var end = edge.from === nodeId ? VA.EDGE_ENDS.from : edge.to === nodeId ? VA.EDGE_ENDS.to : null;
-      if (!end) return;
-      if (!pick || (edge.kind === "gap" && pick.kind !== "gap")) pick = { edgeId: id, direction: end, kind: edge.kind };
-    });
-    return pick;
-  }
+  // One selection across the seam. The page tells the pane what it has
+  // selected with one verb, `model select node <id>` (syncSceneModel), which
+  // in sweep mode is the rail's end row for that node; the pane's trees say
+  // back whether it holds that row or has let go of it (VA.sceneInspectStep),
+  // and a pane that let go is the reader letting go here too (unfreeze, the
+  // one way to). With the pane closed no tree arrives, and none of this runs.
+  var sceneInspectHeld = null;
 
   function syncSceneInspect() {
     if (!sceneTree || !flyoutLoaded) return;
-    var model = currentModel();
-    var fid = selectedFeatureId();
-    var feature = model && fid ? model.feature(fid) : null;
-    var step = VA.sceneInspectStep(sceneTree, feature ? feature.node : null, sceneInspect,
-      { sweep: !!paneRun, endAtNode: jointEndAtNode });
-    if (step.command && !postToPane(step.command)) return;
-    sceneInspect = { posted: step.posted, held: step.held };
+    var sel = state.selection;
+    var step = VA.sceneInspectStep(sceneTree, sel && sel.kind === "node" ? sel.id : null, sceneInspectHeld);
+    sceneInspectHeld = step.held;
     if (step.letGo) unfreeze();
   }
 
@@ -2597,6 +2580,11 @@
     if (String(found || "").indexOf(VA.SCENE_ELEMENT_ROOT) === 0) return;
     var target = VA.sceneRowElement(found, currentTopology(), pageLitSet());
     if (!target) return;
+    // The end row of the node already selected here is the pane answering
+    // this page's own `model select node` -- an interface stays the
+    // interface, not the first feature of its node.
+    if (target.kind === "node" && state.selection && state.selection.kind === "node" &&
+        state.selection.id === target.id) return;
     // A joint end the pane selected is that node's FEATURE here (the row its
     // body is drawn under, featureEntityOfNode); a contributor or a bind-mode
     // element is its edge. The same entity already selected is nothing new.

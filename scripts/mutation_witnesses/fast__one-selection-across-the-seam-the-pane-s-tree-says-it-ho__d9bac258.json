@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "one selection across the seam: the pane's tree says it holds the node's end row, a tree that has not caught up says nothing, and a pane that let go lets the page go",
+  "mutations": [
+    {
+      "contract": "A pane that let go of the row it held lets go of the page's selection, rather than being re-asserted.",
+      "issue": "docs/issues/ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). Without the let-go branch the pane's deselect is swallowed.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (endRows.length && held === nodeId) return { letGo: true, held: null };",
+      "replace": "    if (endRows.length && held === nodeId) return { letGo: false, held: null };"
+    },
+    {
+      "contract": "Only a pane SEEN holding the row can let go of it: a tree that has not caught up is not a deselect.",
+      "issue": "docs/issues/ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md",
+      "note": "Without the held test the first tree after the page's post -- which shows nothing selected yet -- lets go of the selection the reader just made.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (endRows.length && held === nodeId) return { letGo: true, held: null };",
+      "replace": "    if (endRows.length) return { letGo: true, held: null };"
+    }
+  ]
+}

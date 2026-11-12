@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] a feature row selected, the pointer swept over a dozen DAG marks: the page tells the pane once, with one verb, and the pane's rail holds the feature's end",
+  "mutations": [
+    {
+      "contract": "The page's selection is posted once per change, not on every paint.",
+      "issue": "docs/issues/ISSUE_20261112_the_page_re_asserts_its_end_row_into_the_pane_so_a_pane_side_deselect_is_swallowed.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). Without the posted-key dedupe the pointer's repaints post the select again and again -- the measured double post.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (selKey !== sceneSelectPosted && postToPane(sel)) sceneSelectPosted = selKey;",
+      "replace": "    if (postToPane(sel)) sceneSelectPosted = selKey;"
+    },
+    {
+      "contract": "In sweep mode a node selected is the rail's end row for it: one pane-side selection.",
+      "issue": "docs/issues/ISSUE_20261111_the_pane_keeps_two_selections_of_its_own_beside_the_pages_one.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). Without the routing the model layer keeps its own dot and the rail holds nothing -- the two selections this handoff made one.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (state.sweep) selectInSweep(plan.select);",
+      "replace": "  if (false) selectInSweep(plan.select);"
+    }
+  ]
+}

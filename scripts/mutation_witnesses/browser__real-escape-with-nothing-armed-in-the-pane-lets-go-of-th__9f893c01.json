@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] Escape with nothing armed in the pane lets go of the selection, pressed controls and all",
+  "mutations": [
+    {
+      "contract": "Escape yields to an armed pick only, never to a pressed control.",
+      "issue": "docs/issues/ISSUE_20261112_escape_does_not_let_go_of_the_selection_while_any_mirrored_control_reads_pressed.md",
+      "note": "Declared with the guard by handoff the_pane_follows_the_one_selection_both_ways (2026-11-12). Yielding to any tree is the shape of the old defect: a sweep that isolates parts swallowed every Escape.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        if (modalOpen() || VA.scenePickArmed(sceneTree)) return;",
+      "replace": "        if (modalOpen() || sceneTree) return;"
+    }
+  ]
+}
