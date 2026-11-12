@@ -402,14 +402,16 @@ row is the disclosure. No marks legend repeats under a row, and opening a row
 never scrolls the column; only a selection the *scene* made brings its row into
 view. With the scene closed the row is a leaf — there is no body to open, and
 a control with nothing behind it is shown as nothing. In bind mode the body is
-the pane's element rows for the edges at the feature's node, cut from the pane's
-whole list by the page (`VA.sceneRowsForFeature`), each with its own disclosure
-and its two ends' candidate lists.
+the pane's element rows for the edges at the feature's node -- the pane is
+scoped to the selected node (`filter-element`) and the page cuts the rows by
+the node's edges (`VA.sceneRowsForFeature`) -- each with its own disclosure and
+its two ends' candidate lists; a second feature row opened in bind mode without
+being selected has no rows to show.
 
 Gone since 2026-11-10: the Models list, the component chip, the whole-rail
 mirror ("All N interfaces", "In this model" / "Other parts"), the Stacks
-section on a model those stacks are not part of, the all/unbound/bound filter,
-and the pane's `filter-element` scope (the page cuts the rows it needs).
+section on a model those stacks are not part of, and the all/unbound/bound
+filter.
 
 A topology is extra authoring for a mechanism-shaped question, not a free side
 effect of having a stack, so some stacks have one and some do not — and what

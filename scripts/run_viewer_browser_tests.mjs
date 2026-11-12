@@ -8304,9 +8304,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Binding — " + chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
-    // In bind mode a selected feature nests the pane's rows for it: the
-    // element rows of the edges at its node, cut from the pane's whole list
-    // by the page (since 2026-11-10; the pane is no longer scoped to it).
+    // In bind mode a selected feature nests the pane's rows for it: the pane
+    // scopes its own element list to the node (`filter-element`), and the
+    // page cuts the rows by the node's edges (since 2026-11-10).
     const CHAIN_NODE = "pitch_link_lower_sphere_centre";
     const chainFeature = `#navtree [data-nav-kind="feature"][data-nav-id="pitch_link@${CHAIN_NODE}"]`;
     await page.locator(`#navtree [data-nav-twisty="p:pitch_link"]`).first().click({ timeout: 5000 }).catch(() => {});
@@ -8331,7 +8331,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     console.log(`    bind mode: ${elementRows} element rows under the feature, ${touching} edges at its node, ` +
       `${railElements} element rows in the pane's whole list`);
     push("[real] selecting a feature with the pane in bind mode nests the pane's element rows for " +
-      "its node under it -- one per edge on the node, cut from the pane's whole list",
+      "its node under it -- one per edge on the node, cut from the pane's scoped list",
       elementRows > 0 && elementRows === touching && railElements >= elementRows);
     await page.locator(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"]`).first()
       .click({ timeout: 5000 }).catch(() => {});

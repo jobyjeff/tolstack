@@ -2026,6 +2026,7 @@
       sceneModelPosted = null;
       sceneSelectPosted = null;
       sceneVisibilityPosted = null;
+      sceneFilterPosted = null;
       syncSceneModel();
     });
   }
@@ -2442,10 +2443,21 @@
       ? ["model", "select", "node", state.selection.id] : ["model", "select", "clear"];
     var selKey = sel.join(" ");
     if (selKey !== sceneSelectPosted && postToPane(sel)) sceneSelectPosted = selKey;
-    // (Until 2026-11-10 the pane was also told to scope its own rail to the
-    // selected node, `filter-element`; a feature's body is now cut from the
-    // whole rail here, by the edges at its node -- VA.sceneRowsForFeature --
-    // so any open feature row has its rows, not only the selected one.)
+    // The pane scopes its own element list to the selected node
+    // (`filter-element`): in bind mode its list is otherwise the open
+    // study's elements, which need not touch the node at all (measured
+    // 2026-11-11: the pitch link's lower centre under the pitch-link joint
+    // study -- none of its seven elements). The page then cuts a feature's
+    // rows out of that list by the edges at its node (VA.sceneRowsForFeature),
+    // so the selected feature's body is exactly its node's elements; a second
+    // feature row opened in bind mode without being selected has none to
+    // show, and the lesson says so. No node selected lifts the scope.
+    var scopeTo = state.selection && state.selection.kind === "node"
+      ? ["filter-element", state.selection.id] : ["filter-element"];
+    var scopeToKey = scopeTo.join(" ");
+    if (state.mode !== "stack" && scopeToKey !== sceneFilterPosted && postToPane(scopeTo)) {
+      sceneFilterPosted = scopeToKey;
+    }
     syncSceneVisibility();
   }
 
@@ -2454,6 +2466,7 @@
   // `isolate parts` does). Posted again from nothing whenever the scene
   // reloads (sceneVisibilityPosted is cleared with the other posted keys).
   var sceneVisibilityPosted = null;
+  var sceneFilterPosted = null;
   function syncSceneVisibility() {
     if (!nodes.flyout || !nodes.flyout.open || !flyoutLoaded) return;
     var model = currentModel();

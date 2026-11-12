@@ -135,10 +135,16 @@ switch), then its list. The pane's head row for the feature is not drawn, no
 legend is drawn, and opening a row scrolls nothing (`revealNavRow` runs only
 for a selection the scene made: `revealPending`). With the scene closed the
 row is a leaf: there is no body to open. In bind mode the body is the
-element rows of the edges at the node, cut by the page
-(`VA.sceneRowsForFeature(tree, node, edgeIds)`); the pane's
-`filter-element` scope is no longer posted, and element rows carry
-`data-edge` so the mirror's key names the edge.
+element rows of the edges at the node: the pane is still scoped to the
+selected node (`filter-element` -- the first cut tried dropping it and
+cutting the pane's whole list by the node's edges on the page, and the probe
+`tests/debug_bind_rows_20261111.mjs` showed the whole list is the open
+study's seven elements, none of which touch the pitch link's lower centre),
+and the page cuts the rows by the node's edges too
+(`VA.sceneRowsForFeature(tree, node, edgeIds)`); element rows carry
+`data-edge` so the mirror's key names the edge. A second feature row opened
+in bind mode without being selected therefore has no rows to show; sweep
+mode's rows are the whole rail's and every open row has its end.
 
 ## Witness specs
 
