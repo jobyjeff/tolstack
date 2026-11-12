@@ -895,6 +895,12 @@ check("http: every read a folder grant makes is answered from the served origin"
   assertEqual(new Uint8Array(await adapter.readMeshBuffer("aa", "positions.f32"))[3], 4);
   // drawing-checker serves no feature-identity projection: absent, not an error.
   assertEqual(await adapter.readFeatureIdentityProjection(), null);
+  // ...but it serves the log's copy, read with no grant through THIS app's
+  // config (the viewer's VA.CONFIG is not loaded on this page).
+  assertEqual(await adapter.readFeatureIdentityLog(), null, "no log served: absent");
+  const withLog = await servedAdapter(servedFiles({
+    [SERVED + "feature-identity/log.json"]: { events: [{ event_id: "e" }], installed_meshes: ["aa"] } }));
+  assertEqual((await withLog.adapter.readFeatureIdentityLog()).installed_meshes, ["aa"]);
   // A catch-all's HTML is never read as a mesh's bytes.
   assertEqual(await adapter.readMeshBuffer("aa", "html.u32"), null);
   // Every served path is derived from the config, under the served data dir:

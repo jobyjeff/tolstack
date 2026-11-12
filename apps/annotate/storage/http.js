@@ -152,7 +152,9 @@
   // copy), else the served copy -- which no grant is needed to read.
   HttpAdapter.prototype.readFeatureIdentityLog = function () {
     if (this.writeGranted()) return this._writer.readFeatureIdentityLog();
-    return this._va.readIdentityLog();
+    // Through the served data dir, by this app's own config: the viewer's
+    // VA.CONFIG is not loaded on this page.
+    return this._va.readDataJson(servedRelative(AA.CONFIG.servedIdentityLog));
   };
   HttpAdapter.prototype.writeServedIdentityLog = function (doc) {
     if (!this.writeGranted()) throw new Error(AA.READ_ONLY_WRITE);
