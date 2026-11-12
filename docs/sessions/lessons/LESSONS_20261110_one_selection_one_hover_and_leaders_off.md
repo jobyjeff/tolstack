@@ -153,13 +153,13 @@ mode's rows are the whole rail's and every open row has its end.
   pane's pointer telling the page) and six browser guards (leaders off by
   default; the seam row with no leader; turned on; off keeps the zone; the
   real graph's off stop; the feature row is the one title).
-- **Renamed with their guard (17):** the rail suggestion suite's seven, the
+- **Renamed with their guard (16):** the rail suggestion suite's seven, the
   rail-holds-still suite's six, the sweep rail's hub end, the armed pick's
-  pressed row and its row template, the 3D pane's bind-mode check -- each spec moved to its
+  pressed row and its row template -- each spec moved to its
   derived name with `expect_red` rewritten; where the mutation's anchor was
   the code that left (the twisty, the Pick button, `filter-element`, the
   legend's glyph), the mutation was re-pointed at the code that replaced it.
-- **Re-anchored (17 mutations in 15 specs):** every spec whose `find` sat on
+- **Re-anchored (17 mutations in 15 specs, 12 of them browser):** every spec whose `find` sat on
   `state.selection =`, `selectedFeature`, `setPreviewHot`, `paneHot`,
   `followFeatureOfNode`, `schedulePaneCommand` or the DAG's `setHot` body.
 - **Retired (1):** `[real] the legend draws every mark once, as the annotator
@@ -269,7 +269,9 @@ C:/workspace/tolstack/data`, in `rebuild_projections.ps1`'s order, after the
 first commit `af383764`; the merge of `integration` that followed touched no
 builder input, so the stamps still agree). Every run below was made from this
 worktree; the browser and witness runs read the main checkout's data through
-`--repo` and the `node_modules` junction (removed before sign-off).
+`--repo` and the `node_modules` junction (removed before sign-off, from
+PowerShell with `cmd /c rmdir`; the main checkout's `playwright-core` is
+intact).
 
 | tier | command (from the worktree) | result | wall |
 | --- | --- | --- | ---: |
@@ -278,7 +280,7 @@ worktree; the browser and witness runs read the main checkout's data through
 | annotate fast | `node apps/annotate/run_tests.cjs` | 307/307 | ~20 s |
 | browser, `--only` per suite this handoff changed (13 suites, final pass) | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "<suite>"` | suite http 544/544 · topology file:// 214/214 · topology http 214/214 · the DAG zoom, Fit and the grid header 48/48 · topology file:// respine 44/44 · 3D pane follows the selection 32/32 · annotate sweep rail 24/24 (`--write-bind-rail-snapshot`, the element rows' new `data-edge`) · annotate armed pick 17/17 · annotate rail suggestion 19/19 · annotate rail holds still 42/42 · the Preview from the scene 11/11 · leaders across the seam 26/26 · the model drawn alone and led 6/6 | 10 + 305 + 213 + 176 + 93 + 97 + 50 + 11 + 60 + 72 + 13 + 98 + 45 s across five passes (each red read and fixed between passes, above) |
 | mutation witnesses, fast (`--only` per spec: 6 new, 3 re-anchored) | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack --only "<guard>"` | 15/15 mutations WITNESSED | ~8 min |
-| mutation witnesses, browser (`--only` per spec: 6 new, 17 renamed, 11 re-anchored) | same | WITNESS_BROWSER_RESULT | WITNESS_BROWSER_WALL |
+| mutation witnesses, browser (`--only` per spec: 6 new, 16 renamed, 12 re-anchored = 34) | same | **28 specs WITNESSED (32 mutations), 6 not run** -- every spec whose suite is the annotate rail, the 3D pane, the Preview or the seam leaders, plus two of the topology page's (`leaders are off by default`, the seam row with no leader). Two clean runs came up red on a first attempt and were WITNESSED on a retry: the 3D pane suite's known flake under this runner (`ISSUE_20261105_3d_pane_follows_selection_suite_flakes_under_the_witness_runner.md`, the contributor-row spec, 19 min) and one topology run (the seam-row spec, 10 min). Not run, left to the review's `--changed-since` gate: the six whose suite is the five-minute topology page -- `turned on, they draw in the first drawn style`, `one more click: leaders off…`, `[real] the next click is off…`, `hovering a grid row previews its record…`, `[real] switching topology keeps the density…`, `[real] switching topology keeps the leader STYLE too` -- at ten minutes each under the slot, which the budget rule puts on the gate rather than on a branch | 11 min (one spec) + 67 min (26 specs) + 30 min (the two retries), under the browser slot, over about three hours of wall clock with the suites and the shots interleaved |
 
 Not run: the whole browser tier and the witness `--changed-since` gate --
 the review's, after the merge (CLAUDE.md's table). The suite-time ledger row
