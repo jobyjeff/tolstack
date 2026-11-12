@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
-  "expect_red": "a gap contributor's badge opens a popup naming the gap and Pick, and a banded one has no badge",
+  "expect_red": "a gap contributor's badge opens a popup naming the gap, and a banded one has no badge",
   "mutations": [
     {
       "contract": "The contributor row hands its badge the {state, text} alerts.",
       "issue": "docs/sessions/lessons/LESSONS_20261026_the_rail_and_the_scene_point_at_each_other.md",
-      "note": "The pre-handoff bare string: a popup with nothing in it.",
+      "note": "The pre-handoff bare string: a popup with nothing in it. Renamed with its guard 2026-11-12 (the popup no longer names a Pick: the contributor row's Pick is retired).",
       "file": "apps/annotate/app.js",
       "find": "    const alerts = AA.contributorAlerts(row, topology);\n    if (alerts.length) li.appendChild(alertBadge(alerts));",
       "replace": "    const alerts = AA.contributorAlerts(row, topology);\n    if (alerts.length) li.appendChild(alertBadge([row.gap]));"

@@ -10015,8 +10015,10 @@ async function testAnnotateSweepRail(browser, label, topologies) {
     const demoBanded = await mock.evaluate(() =>
       !!document.querySelector('#sweep-tree .tree-row[data-edge="demo_edge_traced"]') &&
       !document.querySelector('#sweep-tree .tree-row[data-edge="demo_edge_traced"] .alertbadge'));
-    push("a gap contributor's badge opens a popup naming the gap and Pick, and a banded one has no badge",
-      demoPop.indexOf("No band is cited") !== -1 && demoPop.indexOf("Pick") !== -1 && demoBanded);
+    // (Until 2026-11-12 the popup also said what the row's Pick did; the
+    // contributor row's Pick is retired.)
+    push("a gap contributor's badge opens a popup naming the gap, and a banded one has no badge",
+      demoPop.indexOf("No band is cited") !== -1 && demoBanded);
     push("a gap contributor's badge popup names the drawing of its edge's part",
       demoPop.indexOf("DEMO-001") !== -1);
     await mock.evaluate(() => window.AnnotateApp.exec(["sweep", "off"]));

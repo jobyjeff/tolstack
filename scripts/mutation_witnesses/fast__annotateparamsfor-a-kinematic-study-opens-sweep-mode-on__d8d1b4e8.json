@@ -14,10 +14,10 @@
     {
       "contract": "An edge selection carries its edge into the goto, so the pane lands on that element.",
       "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
-      "note": "Dropping the edge still produces a valid goto on the study -- the pane would open somewhere sensible and wrong.",
+      "note": "Dropping the edge still produces a valid goto on the study -- the pane would open somewhere sensible and wrong. Re-anchored 2026-11-12 (the_pane_follows_the_one_selection_both_ways): the edge is now carried only when it is not a highlight (VA.annotateEdgeIsHighlight), so the mutation drops it at the one assignment.",
       "file": "apps/viewer/viewer.js",
-      "find": "    if (view.selection && view.selection.kind === \"edge\") params.edgeId = view.selection.id;",
-      "replace": "    if (view.selection && view.selection.kind === \"node\") params.edgeId = view.selection.id;"
+      "find": "      params.edgeId = view.selection.id;\n    }\n    return params;",
+      "replace": "      params.edgeId = null;\n    }\n    return params;"
     }
   ]
 }

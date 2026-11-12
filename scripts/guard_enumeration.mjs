@@ -306,10 +306,10 @@ export const DECLARED_GUARDS = {
   // the leader-default guard renamed. Every new name carries a spec.
   // 2026-11-12 (the_pane_follows_the_one_selection_both_ways): +2 net -- the
   // pressed-row Esc test out with VA.sceneRowsPressed, three in (the pane's
-  // own armed word; one selection across the seam; an edge a highlight while
-  // a run is loaded). Every new name carries a spec; the retired one's is
-  // deleted.
-  fast: { declared: 683, enrollable: 683, names: "372abe095bc0" },
+  // own armed word; one selection across the seam, read back from the pane;
+  // an edge a highlight while a run is loaded). Every new name carries a
+  // spec; the retired one's is deleted.
+  fast: { declared: 683, enrollable: 683, names: "2f679097d2f0" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -380,10 +380,11 @@ export const DECLARED_GUARDS = {
   // 2026-11-09 (the_demo_path_reads_cleanly_on_a_projector): +1, the pane's
   // status shown only once a write begins. It carries a spec.
   // Review merge of the two (2026-11-09): counts summed against the merge base, names digest re-measured.
-  // 2026-11-12 (the_pane_follows_the_one_selection_both_ways): 0 net -- the
+  // 2026-11-12 (the_pane_follows_the_one_selection_both_ways): +1 -- the
+  // pane's one selection (a node is its joint row's end and back); the
   // contributor alert's guard renamed (it no longer says what a retired Pick
-  // does); its spec renamed with it.
-  annotate: { declared: 307, enrollable: 307, names: "437fdb835dbc" },
+  // does). Both carry a spec.
+  annotate: { declared: 308, enrollable: 308, names: "39f13a625784" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -579,7 +580,14 @@ export const DECLARED_GUARDS = {
   // the zone, the real graph's off stop), the feature row as the one title;
   // the legend check retired; sixteen of the nit's checks renamed with their
   // specs. Every new name carries a spec.
-  browser: { declared: 873, enrollable: 840, names: "cf918921ed2c" },
+  // 2026-11-12 (the_pane_follows_the_one_selection_both_ways): +4 net -- five
+  // in on the end-stop model with the run loaded (the selection told once with
+  // one verb; the pane's let-go lets the page go; a grid row a highlight, no
+  // goto; Escape with nothing armed; Escape with a pick armed), one out (every
+  // contributor row carries Pick -- the Pick is retired); three renamed (the
+  // goto that replaced re-pick, the return control after it, the gap popup
+  // without Pick). Every new name carries a spec.
+  browser: { declared: 877, enrollable: 844, names: "2527e93233cd" },
 };
 
 
