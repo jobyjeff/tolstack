@@ -111,8 +111,10 @@ const pane = (page) => frameOf(page) ? frameOf(page).evaluate(() => ({
   selectedRows: Array.from(document.querySelectorAll("#sweep-tree li.tree-row.selected")).map((n) => n.dataset.feature + "/" + n.dataset.direction),
 })) : null;
 
+// The pane and the page share one renderer: while the pane loads a scene (a
+// goto reloads every part, CPU-capped) a screenshot waits on it.
 async function shot(page, name, extra) {
-  await page.screenshot({ path: join(SHOTS, `${name}.png`) });
+  await page.screenshot({ path: join(SHOTS, `${name}.png`), timeout: 180000 });
   const state = { ...(extra || {}), lit: await lit(page), pane: await pane(page), errors: page.__errors.splice(0) };
   log(name, state);
 }
@@ -206,6 +208,12 @@ async function focus(width) {
     const cell = document.querySelector('tr.tvrow[data-id="tan_link_mount_height"] td.tvcell--name');
     if (cell) { cell.scrollIntoView({ block: "center" }); cell.click(); }
   });
+  // The pane reloads into bind mode under the click: wait for its scene to
+  // be loaded and idle before reading anything (the renderer is shared).
+  await page.waitForFunction(() => {
+    const f = Array.from(document.querySelectorAll("iframe")).map((x) => x.contentWindow).find((w) => w && w.AnnotateApp);
+    return f && f.__scene && f.__scene.listOpenParts().length > 0 && f.__scene._loading && f.__scene._loading.size === 0;
+  }, null, { timeout: 240000 }).catch(() => log("pane after goto", "not idle after 240s"));
   await settle(page, 3000);
   await shot(page, tag("f3_grid_row_selected"));
   await repaint(page, width, H);
