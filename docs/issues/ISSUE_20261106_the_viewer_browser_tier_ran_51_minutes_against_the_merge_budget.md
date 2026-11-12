@@ -155,3 +155,20 @@ annotate flyout 59.3 s, annotate rail suggestion 50.6 s, annotate sweep rail
 50.5 s, annotate rail and scene 45.7 s, the scene pane over HTTP 44.5 s, the
 model drawn alone 30.1 s. The two slow outliers the 2026-11-06 measurement
 named are not in this run's top six.
+
+## Measurement 2026-11-11, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261111_triage_sweep.md)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs`, main checkout |
+| Tree | master `6a165ddc` (fast-forwarded from `ccfd1783`) plus a docs-only issue commit, right after a fresh `scripts/rebuild_projections.ps1` |
+| Result | **44/44** (1176 checks), exit 0 |
+| Wall time | **1874 s** (31m14s), against the 30-minute merge budget: `suite-time record` printed **OVER BUDGET by 1m14s** |
+| Slot | nothing else held it; the default tier had finished on the candidate before it started, and the witness gate ran after it |
+
+Sixth uncontended run over the budget (1822, 1830, 1873, 1985, 1937, 1874 s).
+The runner's own per-suite table (top 8 of 44): topology file:// 209.2 s,
+topology http 200.2 s, the DAG zoom/Fit/grid header 168.7 s, 3D pane follows
+the selection 101.1 s, no nav click wedges the page 99.2 s, topology file://
+respine 93.8 s, leaders across the seam 91.9 s, kinematic study page 79.9 s.
+The two topology suites alone are 409 s, 22% of the tier.
