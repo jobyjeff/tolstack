@@ -9773,15 +9773,18 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     // row is the disclosure): the row carries no twisty, and its rows are the
     // list's -- each face with its reason and its Take, and the one pick
     // action last.
-    // Bind mode's element row (the row found first) names the end above its faces.
+    // The sweep end's list has no head; bind mode's element row (if that is
+    // the row found) names the end above its faces.
     const heads = ((row && row.rows) || []).filter((r) => typeof r.head === "string");
     const kids = ((row && row.rows) || []).filter((r) => typeof r.head !== "string");
-    push("...with its candidate list in the same tree, no disclosure of its own: the proposal's " +
-      "reason, its Take, and the one pick action last, wrapping",
-      row && typeof row.twisty !== "string" && kids.length === 2 && heads.length === 1 &&
-      kids[0].sub === "agent suggested · high" && kids[0].wrap === true &&
+    const last = kids[kids.length - 1];
+    const mirrorOk = row && typeof row.twisty !== "string" && kids.length >= 2 && heads.length <= 1 &&
+      kids[0].sub === "agent suggested \u00b7 high" && kids[0].wrap === true &&
       JSON.stringify((kids[0].buttons || []).map((b) => b.text)) === JSON.stringify(["Take"]) &&
-      kids[1].text === "Pick a face\u2026" && kids[1].activate === true && kids[1].kind === "action");
+      last.text === "Pick a face\u2026" && last.activate === true && last.kind === "action";
+    if (!mirrorOk) console.log("    DIAG mirrored end row: " + JSON.stringify(row).slice(0, 900));
+    push("...with its candidate list in the same tree, no disclosure of its own: the proposal's " +
+      "reason, its Take, and the one pick action last, wrapping", mirrorOk);
   } catch (err) {
     await page.close();
     server.close();
