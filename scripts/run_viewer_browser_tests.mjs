@@ -15049,13 +15049,18 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const dotCount = Math.min(12, await dots.count());
     for (let i = 0; i < dotCount; i++) await dots.nth(i).hover({ force: true, timeout: 2000 }).catch(() => {});
     await page.mouse.move(4, 4);
+    // ...and two full repaints (the window narrower, then back): a paint is
+    // what re-runs the page's posts, so a post that is not deduped shows here.
+    await page.setViewportSize({ width: 1500, height: 1500 });
+    await page.waitForTimeout(800);
+    await page.setViewportSize({ width: 1700, height: 1500 });
     await page.waitForTimeout(1500);
     const toldA = (await heard()).filter((c) => /^model select node |^inspect feature |^rail activate$/.test(c));
     const heldA = await paneHolds();
     console.log(`      [${label}] a feature selected, ${dotCount} DAG marks swept: told the pane ` +
       `${JSON.stringify(toldA)}; the pane holds ${JSON.stringify(heldA)}`);
-    push("[real] a feature row selected, the pointer swept over a dozen DAG marks: the page tells " +
-      "the pane once, with one verb, and the pane's rail holds the feature's end",
+    push("[real] a feature row selected, the pointer swept over a dozen DAG marks and the page " +
+      "repainted: the page tells the pane once, with one verb, and the pane's rail holds the feature's end",
       dotCount >= 6 && toldA.length === 1 && /^model select node /.test(toldA[0]) &&
       /^feature /.test(heldA.inspect || "") && heldA.dot === null);
 

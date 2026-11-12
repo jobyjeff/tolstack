@@ -587,7 +587,7 @@ export const DECLARED_GUARDS = {
   // contributor row carries Pick -- the Pick is retired); three renamed (the
   // goto that replaced re-pick, the return control after it, the gap popup
   // without Pick). Every new name carries a spec.
-  browser: { declared: 877, enrollable: 844, names: "2527e93233cd" },
+  browser: { declared: 877, enrollable: 844, names: "4bff3823881c" },
 };
 
 
