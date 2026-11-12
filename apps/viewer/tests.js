@@ -374,8 +374,9 @@
               kind: "action", activate: true, wrap: true },
           ] };
         VA.renderFeatureBody(slot, [end], { send: send });
+        // A real NodeList (the browser) has no filter; the shim's array does.
         var endRows = function (box) {
-          return box.querySelectorAll("div.navtree__scenerow").filter(function (r) {
+          return Array.prototype.filter.call(box.querySelectorAll("div.navtree__scenerow"), function (r) {
             return r.getAttribute("data-kind") === "end";
           });
         };
