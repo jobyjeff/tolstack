@@ -24,6 +24,12 @@
     // the model object folds into one status per feature (model.js). The
     // http adapter has its own per-mount answer (storage/http.js, CANDIDATES).
     identityProjection: ["data", "projections", "feature-identity", "bindings.json"],
+    // The served copy of the feature-identity LOG, under projectionDir
+    // (tolerance_stack/feature_identity.py's SERVED_LOG_SUBDIR): every event
+    // and the installed meshes, which the pages fold themselves
+    // (identity_fold.js). Under projectionDir for the reason the kinematic
+    // projection is: that is the one directory drawing-checker serves.
+    identityLog: ["feature-identity", "log.json"],
     stacksDir: ["docs", "tolerance_stacks"],
 
     // drawing-checker's local web UI. A crop resolved through a run links to

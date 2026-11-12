@@ -49,6 +49,13 @@
 //          answer), the fold apps/viewer/model.js reads one status per
 //          feature from. null if absent, which is the ordinary "nothing
 //          bound" reading and never an error. Added 2026-11-10.
+//   readIdentityLog(): Promise<object|null>
+//        -- parsed data/projections/viewer/feature-identity/log.json
+//          (VA.CONFIG.identityLog): every feature-identity event and the
+//          installed meshes, written by the rebuild and rewritten by the
+//          annotator after each event it writes. The page folds it
+//          (identity_fold.js, VA.identityFromSources) and reads the projection
+//          above only where no log is reached. null if absent. Added 2026-11-12.
 //   readCropImage(relPath): Promise<{ url, name }|null>
 //        — an object URL for data/projections/viewer/<relPath> (a crops/*.png).
 //          null when the file is gone, e.g. a stale crops.json.

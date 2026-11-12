@@ -5163,6 +5163,11 @@
   // previews the first and freezes on the second (topology_app.js).
   VA.SCENE_HOVER_MESSAGE = "annotate:hover";
   VA.SCENE_PICK_MESSAGE = "annotate:pick";
+  // ...and the one it posts after every event it writes, and once it has read
+  // the log (apps/annotate's AA.IDENTITY_MESSAGE): {projection,
+  // installedMeshes}, its merged feature-identity record. The page replaces
+  // its own with it and repaints the tree (topology_app.js's onPaneIdentity).
+  VA.SCENE_IDENTITY_MESSAGE = "annotate:identity";
 
   // How long the Preview waits, once the pointer has left every mark, before
   // it goes back to the frozen element: long enough that crossing the gap

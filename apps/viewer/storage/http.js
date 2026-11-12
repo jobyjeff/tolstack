@@ -232,6 +232,10 @@
   //                           draw garbage rather than nothing.
   //   readIdentityProjection() -- the feature-identity projection where this
   //                           candidate serves one, else null.
+  //   readIdentityLog()    -- the served log (VA.CONFIG.identityLog) under the
+  //                           data dir, which BOTH candidates serve -- the
+  //                           one way a page with no folder grant reads the
+  //                           bindings on drawing-checker's mount -- or null.
   HttpAdapter.prototype.readDataJson = function (rel) {
     return this._readProjection(String(rel));
   };
@@ -256,6 +260,10 @@
       && res.headers.get("content-type")) || "";
     if (ct.toLowerCase().indexOf("html") !== -1) return null;
     return res.arrayBuffer();
+  };
+
+  HttpAdapter.prototype.readIdentityLog = function () {
+    return this.readDataJson(VA.CONFIG.identityLog.join("/"));
   };
 
   HttpAdapter.prototype.readIdentityProjection = async function () {

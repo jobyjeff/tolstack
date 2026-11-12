@@ -50,25 +50,54 @@
     return null;
   }
 
-  // The status of one feature: the fold over every edge end that meets its
-  // node, bound winning over suggested over none. A binding or a proposal is
-  // at THIS end when its `direction` names the end the node is on
-  // (AA.sweepFeatureState applies the same end rule in the pane).
-  function featureStatus(feature, edgesByNode, identity, identityIds) {
+  // The edge ends a feature IS, as [{edgeId, end}] in edge-id order: the
+  // edges at its node whose part THERE is the feature's part -- a dimension
+  // edge's own `part`, a gap edge's end part, which is the node's first part
+  // (tolerance_stack/model_view.py's _end_part). A node two parts share is two
+  // features, and each reads only its own part's ends (handoff a_binding_
+  // shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown: event 0076
+  // bound the hub's side of the tangential link mount base face, and until
+  // then the mount's feature read it as its own). The first end is where a
+  // feature with nothing bound is keyed when it is picked.
+  // `gapPart` is the node's first part: the model lists a node's features in
+  // the order of its parts (model_view.py), so it is the part of the node's
+  // first feature.
+  function featureEnds(feature, edgesByNode, gapPart) {
+    var out = [];
+    (edgesByNode[feature.node] || []).forEach(function (edge) {
+      // A dimension is EDGE_KINDS[0] ("structural", topology.py's own word).
+      var part = edge.kind === VA.EDGE_KINDS[0] ? edge.part : gapPart;
+      if (part !== feature.part) return;
+      if (edge.from === feature.node) out.push({ edgeId: edge.id, end: VA.EDGE_ENDS.from });
+      if (edge.to === feature.node) out.push({ edgeId: edge.id, end: VA.EDGE_ENDS.to });
+    });
+    return out.sort(function (a, b) {
+      return a.edgeId < b.edgeId ? -1 : (a.edgeId > b.edgeId ? 1 : (a.end < b.end ? -1 : 1));
+    });
+  }
+
+  // The standing bindings and the open proposals at a feature's own ends,
+  // each as {edgeId, end, event}.
+  function featureEvents(ends, identity, identityIds, list) {
+    var out = [];
+    ends.forEach(function (e) {
+      var record = bindingRecord(identity, identityIds, e.edgeId);
+      ((record && record[list]) || []).forEach(function (ev) {
+        if (ev && ev.direction === e.end) out.push({ edgeId: e.edgeId, end: e.end, event: ev });
+      });
+    });
+    return out;
+  }
+
+  // The status of one feature: bound winning over suggested over none, over
+  // its OWN ends only. A binding or a proposal is at an end when its
+  // `direction` names it (AA.sweepFeatureState applies the same end rule in
+  // the pane).
+  function featureStatus(ends, identity, identityIds) {
     var S = VA.FEATURE_STATUSES;
-    var status = S.none;
-    var edges = edgesByNode[feature.node] || [];
-    for (var i = 0; i < edges.length; i++) {
-      var edge = edges[i];
-      var end = edge.from === feature.node ? VA.EDGE_ENDS.from : VA.EDGE_ENDS.to;
-      var record = bindingRecord(identity, identityIds, edge.id);
-      if (!record) continue;
-      var bound = (record.bindings || []).some(function (b) { return b && b.direction === end; });
-      if (bound) return S.bound;
-      var proposed = (record.proposals || []).some(function (p) { return p && p.direction === end; });
-      if (proposed) status = S.suggested;
-    }
-    return status;
+    if (featureEvents(ends, identity, identityIds, "bindings").length) return S.bound;
+    if (featureEvents(ends, identity, identityIds, "proposals").length) return S.suggested;
+    return S.none;
   }
 
   // `topoProj` is one topology of the projection (its `model` block is what
@@ -98,10 +127,15 @@
     });
     var identityIds = view.identity_ids || [view.id];
     var status = {};
+    var ends = {};
     var featuresByNode = {};
     (view.features || []).forEach(function (feature) {
-      status[feature.id] = featureStatus(feature, edgesByNode, identity, identityIds);
       (featuresByNode[feature.node] = featuresByNode[feature.node] || []).push(feature.id);
+    });
+    (view.features || []).forEach(function (feature) {
+      var first = features[featuresByNode[feature.node][0]];
+      ends[feature.id] = featureEnds(feature, edgesByNode, first ? first.part : null);
+      status[feature.id] = featureStatus(ends[feature.id], identity, identityIds);
     });
 
     // A body's tint index, the DAG's rule (VA.bodyTint): its position in the
@@ -165,6 +199,20 @@
       },
       // One status word per feature (VA.FEATURE_STATUSES).
       status: function (featureId) { return status[featureId] || VA.FEATURE_STATUSES.none; },
+      // The edge ends a feature is ([{edgeId, end}], featureEnds), and the
+      // standing bindings / open proposals at them ([{edgeId, end, event}]).
+      endsOf: function (featureId) { return ends[featureId] || []; },
+      bindingsOf: function (featureId) {
+        return featureEvents(ends[featureId] || [], identity, identityIds, "bindings");
+      },
+      // The standing bindings at one edge end, under the model's identity ids.
+      bindingsAt: function (edgeId, end) {
+        var record = bindingRecord(identity, identityIds, edgeId);
+        return ((record && record.bindings) || []).filter(function (b) { return b && b.direction === end; });
+      },
+      proposalsOf: function (featureId) {
+        return featureEvents(ends[featureId] || [], identity, identityIds, "proposals");
+      },
       // Does the part have an installed mesh the scene could draw?
       hasMesh: function (partId) {
         var p = parts[partId];
@@ -332,6 +380,44 @@
     } else if (entity.kind === F.part || entity.kind === F.body || entity.kind === F.joint) {
       add(entity.kind, entity.id);
     }
+    return out;
+  };
+
+  // --- a binding that names something gone (deliverable 6) -------------------
+  //
+  // Every standing topology-edge binding whose edge no loaded model has --
+  // under any of a model's identity ids -- or whose mesh is not among the
+  // installed meshes the log listed (`installed` null: nothing said, so no
+  // mesh is judged). Each as {event, reason, edgeId}, `reason` one of
+  // VA.ORPHAN_REASONS. It refuses nothing: the tree counts them in one line.
+  // The two outcomes it answers: an interface left v2 on 2026-11-10 with no
+  // reader noticing whether a binding sat on it, and the 2026-10-01 mesh
+  // re-key orphaned bindings by a directory rename.
+  VA.ORPHAN_REASONS = Object.freeze({ edge: "edge", mesh: "mesh" });
+
+  VA.orphanBindings = function (identity, topologies, installed) {
+    var edges = {};
+    ((topologies && topologies.topologies) || []).forEach(function (t) {
+      var ids = (t.model && t.model.identity_ids) || [t.id];
+      ids.forEach(function (id) {
+        (t.edges || []).forEach(function (e) { edges[id + "\u0000" + e.id] = true; });
+      });
+    });
+    var meshes = installed ? {} : null;
+    (installed || []).forEach(function (sha) { meshes[sha] = true; });
+    var out = [];
+    ((identity && identity.stack_keys) || []).forEach(function (row) {
+      var key = row && row.stack_key;
+      if (!key || key.kind !== "topology_edge") return;
+      (row.bindings || []).forEach(function (b) {
+        var sha = b.geometry_key && b.geometry_key.source_step_sha256;
+        if (!edges[key.topology_id + "\u0000" + key.edge_id]) {
+          out.push({ event: b, reason: VA.ORPHAN_REASONS.edge, edgeId: key.edge_id });
+        } else if (meshes && sha && !meshes[sha]) {
+          out.push({ event: b, reason: VA.ORPHAN_REASONS.mesh, edgeId: key.edge_id });
+        }
+      });
+    });
     return out;
   };
 

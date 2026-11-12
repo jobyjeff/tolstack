@@ -12084,14 +12084,27 @@
         eq(model.hasMesh("p1"), true);
         eq(model.hasMesh("p2"), false);
         eq(model.unbodiedParts, []);
-        // Status: d1's `to` end is n2, bound -- on BOTH features of the shared
-        // node, since the binding is the node's end; g1's `from` end is n3,
-        // proposed only -- but n3 is also d2's `to` end, bound under the
-        // reused model's id, so bound wins; n5 is g2's `to` end, bound under
-        // a topology id the model does not read: none.
+        // Status: d1's `to` end is n2, bound -- and d1 is p1's dimension, so
+        // only p1's feature of the shared node is bound; p2's side is d2's
+        // `from` end, with nothing at it (handoff a_binding_shows_the_moment_
+        // it_is_made_and_is_corrected_where_it_is_shown: a feature belongs to
+        // one part). g1's `from` end is n3, proposed only -- but n3 is also
+        // d2's `to` end, bound under the reused model's id, so bound wins; n5
+        // is g2's `to` end, bound under a topology id the model does not
+        // read: none.
         var S = VA.FEATURE_STATUSES;
         eq(model.status("p1@n2"), S.bound);
-        eq(model.status("p2@n2"), S.bound);
+        eq(model.status("p2@n2"), S.none, "the other part's side of a shared node is its own feature");
+        eq(model.endsOf("p1@n2"), [{ edgeId: "d1", end: "to" }], "p1's side is p1's dimension's end only");
+        eq(model.endsOf("p2@n2"), [{ edgeId: "d2", end: "from" }]);
+        eq(model.endsOf("p2@n3"), [{ edgeId: "d2", end: "to" }, { edgeId: "g1", end: "from" }],
+           "a gap edge's end is the node's first part's");
+        eq(model.endsOf("p3@n4"), [{ edgeId: "g1", end: "to" }], "the gap edge's other end, on n4's one part");
+        eq(model.bindingsOf("p1@n2").map(function (b) { return [b.edgeId, b.end, b.event.event_id]; }),
+           [["d1", "to", "e1"]]);
+        eq(model.bindingsOf("p2@n2"), []);
+        eq(model.bindingsAt("d1", "to").map(function (b) { return b.event_id; }), ["e1"]);
+        eq(model.bindingsAt("d1", "from"), []);
         eq(model.status("p2@n3"), S.bound);
         eq(model.status("p2@n5"), S.none);
         eq(model.status("p1@n1"), S.none, "d1's `from` end and g2's: nothing at them");
@@ -12251,7 +12264,7 @@
            ["p1@n1", "p1@n2", "p2@n2", "p2@n3", "p2@n5"]);
         var S = VA.FEATURE_STATUSES;
         eq(features.map(function (f) { return f.querySelector(".navtree__mark").getAttribute("data-status"); }),
-           [S.none, S.bound, S.bound, S.bound, S.none]);
+           [S.none, S.bound, S.none, S.bound, S.none], "a shared node's two features: only the part bound is");
         ok(hasClass(features[1], "navtree__row--on"), "the selected feature is marked");
         ok(hasClass(features[2], "navtree__row--on"), "...and the other row of its node");
         ok(!hasClass(features[0], "navtree__row--on"));

@@ -53,6 +53,13 @@
       join(VA.CONFIG.projectionDir.concat(VA.CONFIG.kinematicProjection)))));
   };
 
+  // The served feature-identity log, or null where no rebuild wrote one.
+  NodeFsAdapter.prototype.readIdentityLog = function () {
+    var full = join(VA.CONFIG.projectionDir.concat(VA.CONFIG.identityLog));
+    if (!this._io.exists(full)) return Promise.resolve(null);
+    return Promise.resolve(VA.parseJson(this._io.readText(full)));
+  };
+
   // The feature-identity projection, or null where none is built -- the
   // ordinary "nothing bound" reading, never a throw (model.js folds it).
   NodeFsAdapter.prototype.readIdentityProjection = function () {

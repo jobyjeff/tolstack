@@ -90,6 +90,11 @@
     return this._readJson(VA.CONFIG.projectionDir.concat(VA.CONFIG.kinematicProjection));
   };
 
+  // The served feature-identity log under the granted folder, or null.
+  FsaAdapter.prototype.readIdentityLog = function () {
+    return this._readJson(VA.CONFIG.projectionDir.concat(VA.CONFIG.identityLog));
+  };
+
   // The feature-identity projection under the granted folder, or null.
   FsaAdapter.prototype.readIdentityProjection = function () {
     return this._readJson(VA.CONFIG.identityProjection);

@@ -89,6 +89,9 @@
     // tolerance_stack/stack.py: VERDICT_SCOPES
     VERDICT_SCOPES: ["joint", "budget"],
 
+    // tolerance_stack/feature_identity.py: PROPOSAL_CONFIDENCES
+    PROPOSAL_CONFIDENCES: ["high", "medium", "low"],
+
     // tolerance_stack/stack.py: EXPORT_STATUSES
     EXPORT_STATUSES: ["established", "unestablished"],
 

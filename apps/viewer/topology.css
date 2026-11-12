@@ -318,6 +318,19 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
   white-space: nowrap; }
 .navtree__featurestate[data-suggestion="true"] .navtree__featurewords { color: var(--mark-proposed); }
 .navtree__featureacts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; padding: 2px 6px; }
+/* A bound line lights its face in the scene while the pointer rests on it
+   (VA.featureBodyPlan), so it wears the same wash a resting row does. */
+.navtree__featurestate[data-face]:hover { background: #20242c; }
+/* The tree's foot: bindings that name something gone (VA.orphanBindings).
+   One muted line with the shared warning mark, opening to the list. */
+.navtree__orphans { margin: 12px 0 4px; color: var(--muted); font-size: var(--t-micro); }
+.navtree__orphansummary { display: flex; align-items: center; gap: 6px; padding: 2px 6px; cursor: pointer;
+  list-style: none; }
+.navtree__orphansummary::-webkit-details-marker { display: none; }
+.navtree__orphanmark { flex: none; width: 12px; height: 12px; color: var(--inferred); }
+.navtree__orphanwords { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navtree__orphanlist { margin: 2px 0 0; padding: 0 6px 0 24px; list-style: none; }
+.navtree__orphan { padding: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navtree__scene .navtree__scenerow--act[aria-pressed="true"] .navtree__scenename { color: var(--accent); }
 
 /* --- the scene's tree, under the row it is showing (the_shell_seats_the_

@@ -24,10 +24,15 @@
     // is not built -- the ordinary state, in which its nav section is absent
     // and nothing else on the page changes.
     kinematic: null,
-    // The feature-identity projection (bindings.json), or null -- the
-    // ordinary "nothing bound" reading. Folded into one status per feature by
-    // the model object (model.js); this page reads no binding fact itself.
+    // The feature-identity record -- the served log folded (identity_fold.js),
+    // or bindings.json where no log is reached -- or null, the ordinary
+    // "nothing bound" reading. Folded into one status per feature by the
+    // model object (model.js). Replaced whole whenever the embedded pane
+    // posts its merged record after a write ({type: "annotate:identity"}).
     identity: null,
+    // The installed meshes' sha256 the log listed, or null where nothing
+    // said: what a binding's face is checked against (VA.orphanBindings).
+    installedMeshes: null,
     // The ONE model object per topology (VA.buildModels), built once per
     // loaded projection and never per paint. The left column is its first
     // reader (views/nav.js); the DAG's own derivations are a later handoff's
@@ -583,12 +588,20 @@
       typeof adapter.readIdentityProjection === "function"
         ? adapter.readIdentityProjection().catch(function () { return null; })
         : Promise.resolve(null),
+      // ...and the LOG, which wins wherever it is reached: the projection is
+      // the last rebuild's snapshot, the log is every event written since
+      // (identity_fold.js folds it here, the page's own copy of the fold).
+      typeof adapter.readIdentityLog === "function"
+        ? adapter.readIdentityLog().catch(function () { return null; })
+        : Promise.resolve(null),
     ]).then(function (all) {
       state.topologies = all[0];
       state.crops = all[1];
       state.stacksResults = all[2];
       state.kinematic = all[3] || null;
-      state.identity = all[4] || null;
+      var identity = VA.identityFromSources(all[5], all[4], null);
+      state.identity = identity.projection;
+      state.installedMeshes = identity.installedMeshes;
       // One model object per topology, built here and only here.
       state.models = VA.buildModels(state.topologies, state.identity);
 
@@ -2018,6 +2031,13 @@
         setPaneStatus(msg);
         return;
       }
+      // The pane wrote (or read) the log: its merged record replaces the
+      // page's, the models are rebuilt from it, and the tree repaints -- the
+      // status marks and the bodies change at once, with no reload.
+      if (msg && msg.type === VA.SCENE_IDENTITY_MESSAGE) {
+        onPaneIdentity(msg);
+        return;
+      }
       // The pane's transport moved the pose (onPanePose).
       if (msg && msg.type === "annotate:pose") {
         onPanePose(msg);
@@ -2119,14 +2139,13 @@
       part: active.getAttribute("data-scene-part") || "" } : null;
   }
 
-  // The edges at a node, for the bind-mode rows of a feature (an element row
-  // is an edge, and the feature's are the edges that meet its node).
-  function edgeIdsAtNode(nodeId) {
-    var index = VA.topologyIndex(currentTopology());
-    return Object.keys(index.edges || {}).filter(function (id) {
-      var edge = index.edges[id];
-      return edge && (edge.from === nodeId || edge.to === nodeId);
-    });
+  // The edges a feature is an end of, for its bind-mode rows (an element row
+  // is an edge): its OWN part's edges at its node (model.endsOf), never the
+  // other part's on a node two parts share.
+  function featureEdgeIds(model, fid) {
+    var seen = {};
+    return model.endsOf(fid).map(function (e) { return e.edgeId; })
+      .filter(function (id) { return seen[id] ? false : (seen[id] = true); });
   }
 
   // A feature's body: the pane's rows for its node (VA.sceneRowsForFeature),
@@ -2144,8 +2163,13 @@
       var fid = slots[i].getAttribute("data-scene-feature");
       var feature = model && fid ? model.feature(fid) : null;
       var rows = feature && sceneTree
-        ? VA.sceneRowsForFeature(sceneTree, feature.node, edgeIdsAtNode(feature.node)) : [];
-      VA.renderFeatureBody(slots[i], rows, { send: sceneRail });
+        ? VA.sceneRowsForFeature(sceneTree, feature.node, featureEdgeIds(model, fid)) : [];
+      // The body from the model's own status (VA.featureBodyPlan): a bound
+      // face with its Correct and Unbind, or Pick a face; the pane's rows
+      // only for a suggestion they list.
+      var plan = feature ? VA.featureBodyPlan(model, fid, state.topologyId, rows, sceneTree) : null;
+      VA.renderFeatureBody(slots[i], rows, { send: sceneRail, plan: plan, command: bodyCommand,
+        hoverFace: bodyHoverFace });
     }
     if (!focus) return;
     var rows = nodes.navtree.querySelectorAll(".navtree__scene [data-scene-key]");
@@ -2156,6 +2180,33 @@
       if (target && target.focus) target.focus();
       break;
     }
+  }
+
+  // A body action, posted to the pane (VA.FEATURE_BODY_VERBS). Nothing here
+  // writes: the pane writes the event and posts its record back.
+  function bodyCommand(cmd) {
+    postToPane(cmd);
+  }
+
+  // A bound line hovered lights its face in the scene (`hover face`, which
+  // works in either pane mode); leaving it lets go, and the page's own hover
+  // is posted again from the state.
+  function bodyHoverFace(face) {
+    if (face) {
+      if (postToPane(["hover", "face", face.sha256, String(face.faceId)])) paneHoverPosted = null;
+      return;
+    }
+    postToPane(HOVER_CLEAR);
+    paneHoverPosted = HOVER_CLEAR.join(" ");
+    syncPaneHover();
+  }
+
+  function onPaneIdentity(msg) {
+    if (!msg.projection || typeof msg.projection !== "object") return;
+    state.identity = msg.projection;
+    if (Array.isArray(msg.installedMeshes)) state.installedMeshes = msg.installedMeshes;
+    state.models = VA.buildModels(state.topologies, state.identity);
+    renderNav();
   }
 
   // A row selected FROM THE SCENE and scrolled away from is brought up into
@@ -2222,6 +2273,16 @@
       : VA.annotateHighlightCommand();
   }
 
+  // The end a FEATURE is hovered at: its bound end where it has one, else
+  // its own first end -- never the other part's edge on a shared node, so a
+  // feature with nothing bound lights nothing (handoff a_binding_shows_the_
+  // moment_it_is_made_and_is_corrected_where_it_is_shown, deliverable 2).
+  function endOfFeature(model, fid) {
+    var bound = model.bindingsOf(fid)[0];
+    var e = bound || model.endsOf(fid)[0];
+    return e ? { edgeId: e.edgeId, direction: e.end } : null;
+  }
+
   // The first edge end at a node, as the pane names an end.
   function endAtNode(nodeId) {
     var index = VA.topologyIndex(currentTopology());
@@ -2242,7 +2303,7 @@
     if (h.kind === VA.FOCUS_KINDS.body) return sceneSubjects()[h.id] ? ["hover", "body", h.id] : HOVER_CLEAR;
     var el = VA.focusElementOf(model, h);
     if (el && el.kind === "node") {
-      var end = endAtNode(el.id);
+      var end = h.kind === VA.FOCUS_KINDS.feature ? endOfFeature(model, h.id) : endAtNode(el.id);
       if (end) return ["hover", "feature", end.edgeId, end.direction];
     }
     return HOVER_CLEAR;
@@ -3898,6 +3959,9 @@
       // The open scene's own tree goes under the row it is showing
       // (renderSceneSlot, below); a closed scene has no slot at all.
       sceneSlot: !!(nodes.flyout && nodes.flyout.open),
+      // Standing bindings that name an edge no model has, or a mesh not
+      // installed: one line at the foot of the tree (VA.orphanBindings).
+      orphans: VA.orphanBindings(state.identity, state.topologies, state.installedMeshes),
     });
     renderSceneSlot();
     revealNavRow();

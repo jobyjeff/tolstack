@@ -495,6 +495,11 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("viewer", "VERDICT_SCOPES",
                "tolerance_stack/stack.py: VERDICT_SCOPES",
                _const(_stack_module, "VERDICT_SCOPES")),
+    # The tree's feature body says the surest open proposal's confidence
+    # (apps/viewer/views/nav.js, VA.featureBodyPlan), in this order.
+    Vocabulary("viewer", "PROPOSAL_CONFIDENCES",
+               "tolerance_stack/feature_identity.py: PROPOSAL_CONFIDENCES",
+               _const(_feature_identity_module, "PROPOSAL_CONFIDENCES")),
     Vocabulary("viewer", "EXPORT_STATUSES",
                "tolerance_stack/stack.py: EXPORT_STATUSES",
                _const(_stack_module, "EXPORT_STATUSES")),

@@ -75,6 +75,12 @@
     visibility: "show or hide in 3D",
     model: "model",
     empty: "No topologies or stacks in the projection.",
+    // The tree's foot (VA.orphanBindings): a standing binding naming an
+    // interface no model has, or a part whose 3D model was replaced.
+    orphanOne: "1 binding names something that no longer exists",
+    orphanMany: "{n} bindings name something that no longer exists",
+    orphanEdge: "{edge} · face {face} · {date} · that interface is gone",
+    orphanMesh: "{edge} · face {face} · {date} · that part's 3D model was replaced",
   });
 
   function tooltip(description, hint) {
@@ -484,8 +490,36 @@
       modelSections(root, model, open, state, handlers);
     }
     if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
+    if (handlers.orphans && handlers.orphans.length) root.appendChild(orphanFoot(handlers.orphans));
     return root;
   };
+
+  // One line at the foot of the tree, opening to the list: a warning, said
+  // once, that refuses nothing (handoff a_binding_shows_the_moment_it_is_made_
+  // and_is_corrected_where_it_is_shown, deliverable 6).
+  function orphanFoot(orphans) {
+    var W = VA.NAV_WORDS;
+    var box = VA.el("details", "navtree__orphans");
+    var summary = VA.el("summary", "navtree__orphansummary");
+    summary.appendChild(VA.warningIcon("navtree__orphanmark"));
+    var head = orphans.length === 1 ? W.orphanOne : W.orphanMany.replace("{n}", String(orphans.length));
+    summary.appendChild(VA.el("span", "navtree__orphanwords", head));
+    box.appendChild(summary);
+    var list = VA.el("ul", "navtree__orphanlist");
+    orphans.forEach(function (o) {
+      var key = o.event.geometry_key || {};
+      var text = (o.reason === VA.ORPHAN_REASONS.edge ? W.orphanEdge : W.orphanMesh)
+        .replace("{edge}", String(o.edgeId).replace(/_/g, " "))
+        .replace("{face}", String(key.face_id))
+        .replace("{date}", String(o.event.created_at || "").slice(0, 10));
+      var li = VA.el("li", "navtree__orphan", text);
+      li.setAttribute("title", text);
+      li.setAttribute("data-orphan-reason", o.reason);
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+    return box;
+  }
 
   // The model picker: every model, then every analysis in neither (a stack
   // no topology re-expresses). The chosen one is what the page shows.
@@ -735,6 +769,7 @@
   // words say what its mark means, on hover.
   VA.renderFeatureBody = function (slot, rows, opts) {
     VA.clear(slot);
+    if (opts && opts.plan) return renderBodyPlan(slot, opts.plan, opts);
     if (!rows || !rows.length) return slot;
     var send = (opts && opts.send) || function () {};
     var row = rows[0];
@@ -781,6 +816,162 @@
     slot.appendChild(body);
     return slot;
   };
+
+  // --- a feature's body from the model's own status (handoff a_binding_shows_
+  // the_moment_it_is_made_and_is_corrected_where_it_is_shown, deliverable 3)
+  //
+  // A feature's body always says something. Until 2026-11-12 it was only the
+  // pane's rows for the feature's node, and a feature the loaded sweep run
+  // does not carry, or one whose proposal had just been accepted, had none:
+  // a twisty that opened to nothing, and a bound face nobody could correct.
+  // Now the body is planned here from the model (its status, its bindings,
+  // its own ends) and the pane's rows are drawn only for a suggestion:
+  //
+  //   bound      one line per standing binding -- "bound · face 12 of
+  //              214373-002" -- hovering it lights the face; Correct (arm the
+  //              pick on the feature's part; the new face supersedes), Unbind
+  //              (a retraction), and Flip where the binding sits on a
+  //              dimension whose other end is free
+  //   suggested  the pane's candidate rows, as before; with none (the run does
+  //              not carry the feature) the suggestion's line and Pick a face
+  //   neither    "not bound" and Pick a face, which arms the same pick
+  //   armed      the pane's own armed line and Cancel, while a pick is armed
+  //              at one of the feature's ends
+  //
+  // Every action is a pane verb (VA.FEATURE_BODY_VERBS), posted by the page;
+  // the words are this table's.
+  VA.FEATURE_BODY_WORDS = Object.freeze({
+    bound: "bound · face {face} of {part}",
+    none: "not bound",
+    noMesh: "not bound · no 3D model of this part",
+    suggested: "suggested · {confidence}",
+    pick: "Pick a face",
+    pickTitle: "pick this feature's face on its own part",
+    correct: "Correct",
+    correctTitle: "pick the right face on this part; it replaces this one",
+    unbind: "Unbind",
+    unbindTitle: "take this binding back; the record keeps it",
+    flip: "Flip",
+    flipTitle: "this face is the dimension's other end",
+    cancel: "Cancel",
+    cancelTitle: "stop picking (Esc)",
+  });
+
+  // The pane verbs a body's actions post, each `<verb> <edge> <end>
+  // <topology>` except `arm off` (apps/annotate/app.js registers them).
+  VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip" });
+
+  // The kinds of body VA.featureBodyPlan returns (null: draw the pane's rows).
+  VA.FEATURE_BODY_KINDS = Object.freeze({ bound: "bound", none: "none", armed: "armed" });
+
+  function fill(template, values) {
+    return String(template).replace(/\{(\w+)\}/g, function (_, k) {
+      return values[k] === undefined || values[k] === null ? "" : String(values[k]);
+    });
+  }
+
+  // `model` the one model; `fid` the feature; `topologyId` what its verbs
+  // name; `rows` the pane's rows for it (VA.sceneRowsForFeature); `tree` the
+  // pane's newest tree message (its `armedEnd` and `armedLine`), or null.
+  // Returns {kind, lines: [{text, face?}], actions: [{text, title, command}]}
+  // or null for "draw the pane's rows".
+  VA.featureBodyPlan = function (model, fid, topologyId, rows, tree) {
+    var feature = model && model.feature(fid);
+    if (!feature) return null;
+    var W = VA.FEATURE_BODY_WORDS, V = VA.FEATURE_BODY_VERBS, K = VA.FEATURE_BODY_KINDS;
+    var ends = model.endsOf(fid);
+    var armed = tree && tree.armedEnd;
+    if (armed && ends.some(function (e) { return e.edgeId === armed.edgeId && e.end === armed.direction; })) {
+      return { kind: K.armed, lines: [{ text: String(tree.armedLine || "") }],
+        actions: [{ text: W.cancel, title: W.cancelTitle, command: [V.arm, "off"] }] };
+    }
+    var status = model.status(fid);
+    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length) return null;
+    var part = model.part(feature.part);
+    var partWords = (part && (part.number || part.label)) || feature.part;
+    var verb = function (name, e) { return [name, e.edgeId, e.end, topologyId]; };
+    if (status === VA.FEATURE_STATUSES.bound) {
+      var plan = { kind: K.bound, lines: [], actions: [] };
+      model.bindingsOf(fid).forEach(function (b) {
+        var key = b.event.geometry_key || {};
+        var actions = [
+          { text: W.correct, title: W.correctTitle, command: verb(V.arm, b) },
+          { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, b) },
+        ];
+        // Flip where a direction applies: the binding is on a dimension (both
+        // its ends are this part's) and nothing stands at the other end.
+        var other = b.end === VA.EDGE_ENDS.from ? VA.EDGE_ENDS.to : VA.EDGE_ENDS.from;
+        if (model.dimension(b.edgeId) && !model.bindingsAt(b.edgeId, other).length) {
+          actions.push({ text: W.flip, title: W.flipTitle, command: verb(V.flip, b) });
+        }
+        plan.lines.push({ text: fill(W.bound, { face: key.face_id, part: partWords }),
+          face: { sha256: key.source_step_sha256, faceId: key.face_id }, actions: actions });
+      });
+      return plan;
+    }
+    if (!ends.length) return { kind: K.none, lines: [{ text: W.none }], actions: [] };
+    if (!model.hasMesh(feature.part)) return { kind: K.none, lines: [{ text: W.noMesh }], actions: [] };
+    var proposals = model.proposalsOf(fid);
+    var text = W.none;
+    if (proposals.length) {
+      var best = proposals.map(function (p) { return p.event.confidence; })
+        .sort(function (a, b) { return confidenceRank(a) - confidenceRank(b); })[0];
+      text = fill(W.suggested, { confidence: best });
+    }
+    // Picked at the end a proposal sits at, else the feature's first own end.
+    var at = proposals.length ? proposals[0] : ends[0];
+    return { kind: K.none, lines: [{ text: text }],
+      actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, at) }] };
+  };
+
+  // Surest first, the proposal vocabulary's own order (generated).
+  function confidenceRank(c) {
+    var order = window.TolstackVocab.viewer.list("PROPOSAL_CONFIDENCES");
+    var i = order.indexOf(c);
+    return i === -1 ? order.length : i;
+  }
+
+  // Draw a plan: each line (hovering a bound one lights its face through
+  // opts.hoverFace), its own actions under it, then the plan's.
+  function renderBodyPlan(slot, plan, opts) {
+    var command = (opts && opts.command) || function () {};
+    var hoverFace = (opts && opts.hoverFace) || function () {};
+    var body = VA.el("div", "navtree__featurebody");
+    body.setAttribute("data-body-kind", plan.kind);
+    var actsOf = function (list) {
+      var acts = VA.el("div", "navtree__featureacts");
+      list.forEach(function (a) {
+        var button = VA.el("button", "navtree__scenebtn", a.text);
+        if (a.title) button.setAttribute("title", a.title);
+        button.setAttribute("data-body-act", a.command[0] + (a.command[1] === "off" ? "-off" : ""));
+        button.onclick = function (event) {
+          if (event) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopPropagation) event.stopPropagation();
+          }
+          command(a.command);
+        };
+        acts.appendChild(button);
+      });
+      return acts;
+    };
+    plan.lines.forEach(function (line) {
+      var row = VA.el("div", "navtree__featurestate");
+      var words = VA.el("span", "navtree__featurewords", line.text);
+      words.setAttribute("title", line.text);
+      row.appendChild(words);
+      if (line.face) {
+        row.setAttribute("data-face", line.face.faceId);
+        row.onmouseenter = function () { hoverFace(line.face); };
+        row.onmouseleave = function () { hoverFace(null); };
+      }
+      body.appendChild(row);
+      if (line.actions && line.actions.length) body.appendChild(actsOf(line.actions));
+    });
+    if (plan.actions.length) body.appendChild(actsOf(plan.actions));
+    slot.appendChild(body);
+    return slot;
+  }
 
   // The six gestures a mirrored row can hand back, named once on this side;
   // the annotator's receiver (AA.RAIL_ACTS, apps/annotate/commands.js) names
