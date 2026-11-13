@@ -5841,6 +5841,33 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       any many-to-one selection mapping: *if the finer side already holds one
       of the representatives, does a re-post keep it?* Then measure whether a
       gesture can reach a non-first end.
+- [ ] **A viewer-side reader used from the annotator reads `VA.CONFIG`, which
+      the annotate page never loads.** New 2026-11-12
+      (`a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown`,
+      caught by the author's own probe, not by a tier): `apps/annotate/` loads
+      the viewer's `storage/http.js` but not its `config.js`, so a viewer
+      adapter method that builds its path from `VA.CONFIG` works in the viewer
+      and throws in the pane. When a diff adds a viewer adapter method and the
+      pane calls it, check the pane passes a path (`readDataJson(
+      servedRelative(AA.CONFIG.…))`) rather than calling the config-reading one.
+- [ ] **A page fold of an append-only log is only as true as its pairing to
+      Python's.** Since 2026-11-12 both pages fold the feature-identity log in
+      the browser (`apps/viewer/identity_fold.js`), leniently, while
+      `build_projection` refuses a bad log. A new verdict or pointer field
+      changes both folds; check `tests/test_identity_fold_is_paired.py` plants
+      a case for it, and that a served copy (`projections/viewer/feature-identity/log.json`)
+      is rewritten by every writer of the inbox (`propose_bindings.py` is not
+      yet: `ISSUE_20261112_propose_bindings_does_not_refresh_the_served_log.md`).
+- [ ] **A handoff that swaps the guards pinning a surface ran only the suites
+      it edited.** New 2026-11-12 (`a_binding_shows_…_where_it_is_shown`, two
+      blockers): the author swapped four browser guards that pinned the old
+      feature body. Two more suites read the same DOM ("annotate rail holds
+      still", "the model drawn alone and led", via `data-kind="action"`), and
+      they were never run, so they went red only in the review's whole tier.
+      When a diff changes what a surface draws, grep the harness for its class
+      names and attributes, and run `--only` on every suite that hits. Baseline a
+      red one against `git archive integration` on the same scratch data
+      before you call it the merge's.
 
 ## Architectural errors to check
 

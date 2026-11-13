@@ -44,3 +44,13 @@ re-witness the check's spec, if it has one.
 > rather than the drawing's own box, so it turns red again whenever the
 > drawing's top moves past its aim. The fix shape stands; the priority
 > could drop.
+
+## Addendum 2026-11-12 (review of a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown)
+
+Red again, and on `integration`'s own tree (`0f723b10`, extracted with
+`git archive`) as well as the merged review tree, against the same scratch
+projections: `first row at scroll 0: fit 0.42 24.1px, max 0.42 24.1px, pinned
+bars end at 139, drawing starts at 269`. The wheel did not zoom at all (fit and
+max both 0.42), which is the fixed-aim shape this issue describes: the aim
+`y = max(139 + 60, 200) = 200` is above a drawing that starts at 269. It is
+not caused by that handoff.
