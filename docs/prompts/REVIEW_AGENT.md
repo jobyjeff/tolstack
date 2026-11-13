@@ -5898,6 +5898,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (or any pointer-capturing gesture's) start set in the same diff, and
       record the down and the up target (a capture-phase listener) for every
       new click target on the DAG. Only the real pointer is what Jeff has.
+- [ ] **A handoff's site list names a surface the page does not have.** New
+      2026-11-13 (`a_part_links_to_its_drawing_before_it_has_a_tolerance`):
+      "the preview of a part … from the tree" — but a part or body selected in
+      the tree previews nothing (`VA.focusElementOf` → null). Do not read the
+      substitute site as a miss, or as done. Check that the author measured the
+      absence on the real page and filed the missing surface `audience:
+      strategy`, rather than inventing a record for it. Also check that the
+      feature reaches every surface that does exist (tree feature rows, the DAG,
+      the grid) and that the lesson's table names the parts no surface reaches.
 
 ## Architectural errors to check
 
