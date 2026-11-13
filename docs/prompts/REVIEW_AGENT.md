@@ -5888,11 +5888,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the rect and `rect.dispatchEvent(click)` selects the body, but a real
       `mouse.down()`/`mouse.up()` on the border lands the up on `.tv__scroll`
       (measured at five points, pane open and closed, no re-render in between)
-      and no click fires. The small part field beside it works. The likely
-      cause is the focus a mousedown gives a tall focusable element scrolling
-      its container; whatever the cause, the two measurements disagree, and
-      only the real pointer is what Jeff has. Record the down and the up
-      target (a capture-phase listener) for every new click target on the DAG.
+      and no click fires. The small part field beside it works. **The cause,
+      measured in round 2: the DAG's drag-to-pan counted a body field as
+      empty space and took `setPointerCapture` on `pointerdown`, so the
+      compatibility `mouseup` and `click` were retargeted to the capturing
+      pane and the field's handler never ran.** `elementFromPoint` and a
+      dispatched click bypass capture, which is why both said the wiring was
+      right. So when a diff makes a new element a control, read the pan's
+      (or any pointer-capturing gesture's) start set in the same diff, and
+      record the down and the up target (a capture-phase listener) for every
+      new click target on the DAG. Only the real pointer is what Jeff has.
 
 ## Architectural errors to check
 

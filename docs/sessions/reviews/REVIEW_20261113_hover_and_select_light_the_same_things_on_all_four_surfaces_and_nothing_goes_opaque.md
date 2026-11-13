@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md
 reviewer: agent
 date: 2026-11-13
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque
@@ -308,3 +308,107 @@ or a dispatched click.
   present weight, touching at half), the selection stays in the accent, and
   the `--holds` dot on a closed fold is a 6 px mark, muted for touching.
 - Operator-facing refusal / agent's mess to Jeff: none added. ✓
+
+## Re-run 2026-11-13 (round 2)
+
+Round 1 was REQUEST CHANGES, 2 blockers; both are closed below. The rework is
+two commits on the handoff branch (`898e98d5` the fix, `3565f05e` the lesson's
+round-2 record), merged into this branch as `3b5e9268` (a true merge: round 1's
+report commits sit beside them). Nothing else moved on `integration`
+(`7fcb0538`) in between.
+
+### The blockers, closed
+
+**B1 — Escape now reads the one focus state.** The handler gates on
+`state.focus.selected`, which `setSelected` writes for every kind, so a body,
+a part or a joint is released the way an element is. Re-probed on the merged
+tree with a real keyboard, pane closed and open: after selecting a body (31
+tree rows, 6 containers, 12 grid rows lit), a part (9 rows, the hub's two
+containers), an interface's joint-sized set (16 rows), a feature (2 rows) and a
+grid row (4 rows), one Escape takes every count to zero — tree, containers,
+grid, dots — with no page error. The old element-form Escape still works (the
+feature and grid-row cases are that path). The new browser check `[real]
+Escape lets go of a body selected from the tree` measured the same (tree 0,
+containers none, the pane's light gone, the scene at rest), and its spec
+`__1670fbae`, whose mutation puts the old gate back, is WITNESSED.
+
+**B2 — the body field is no longer pan space.** The cause was not the
+focus-scroll round 1 guessed: the DAG's drag-to-pan counted `.tv__bodyfield`
+as the drawing's empty space and took `setPointerCapture` on `pointerdown`,
+so the compatibility `mouseup` and `click` were retargeted to the pane and
+the field's handler never ran — exactly the up-on-`.tv__scroll` round 1
+measured, and exactly what `elementFromPoint` and a dispatched click cannot
+see. The pan's start set is now the SVG and a study's field. Re-probed with a
+real pointer at the base field's top and left borders, pane closed and open:
+mousedown, mouseup and click all on `rect.tv__bodyfield#base`, 37 tree rows
+on, the body's six containers in the accent, and Escape clears it. The hub
+part field's top border and the hub's name still select (down, up, click on
+the rect and the text respectively). A drag on the SVG's empty space still
+arms the grab class and releases on mouseup (the DAG fits the pane here, so
+there was nothing to scroll). The new browser check records the three event
+targets in the capture phase, as the overlay asked; its spec `__12ec5cd0`,
+whose mutation makes the field pan space again, is WITNESSED. The older
+Escape spec `__2d586b66` was re-anchored to the new gate and is WITNESSED.
+
+Round 1's overlay entry on this bug named the guessed cause; it now names the
+measured one (pointer capture by the pan) and tells the next reviewer to read
+a pointer-capturing gesture's start set whenever a diff makes a new element a
+control. The edit is on this branch.
+
+### The should-fixes and nits
+
+Checked in the diff: `VA.focusKeyEntity` is defined once; `LIGHT_LOOKS.select`
+reads `MARK_COLORS.picked`; the dead `unboundLit` hover in the pane suite is
+gone; eleven `bind_<nn>_<what>_bind_5120.png` shots exist beside the 3840 set
+(read `bind_03_body_selected_bind_5120.png` and
+`bind_08_part_container_hovered_on_dag_bind_5120.png`: the body and the hub
+lit on tree, DAG, grid and scene at once, the scene translucent throughout).
+The CSS comment that called a body's name "the one control" and the viewer
+README's pan sentence now say which space is empty.
+
+**One thing documented rather than fixed, and that is the right call for this
+handoff:** where a part field's border runs under a rail's hit path (the hub
+field's left edge, the tan_link field's top edge on the end-stop model) the
+rail takes the click; the README names the part's NAME as the dependable
+control there. A re-layering of rail hit paths against container borders is a
+handoff of its own, not a rework item.
+
+The lesson's round-2 section is complete (no placeholder tokens), its witness
+table states its own double-count, and its "25 new spec files against
+`integration`" squares with git within rename detection: `git diff
+--name-status integration HEAD -- scripts/mutation_witnesses/` shows 26
+added, 12 deleted, 9 modified, 3 renamed — one rewritten pane spec that the
+lesson counts as renamed git sees as a delete plus an add.
+
+### Tests, round 2 (the merged tree `3b5e9268`; browser and witness runs against the round-1 scratch root, its `docs/` re-mirrored from this tree, projections built from `f966a6b7` — this round changed no projection input, and the fast tier's freshness check agrees)
+
+| tier | command | result |
+|---|---|---|
+| viewer fast, armed | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/review_light_20261113` | **688/688**, `[real] the projection this tier reads was built from this tree` PASS |
+| annotate fast | `node apps/annotate/run_tests.cjs` | **314/314** |
+| the round-2 anchor test | `…pytest -q tests/test_mutation_witnesses.py` | **44 passed**, 92 s (every spec's `find` matches once on the merged tree) |
+| default, full | `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider` | **1 failed, 1938 passed, 1 skipped, 2 deselected in 460 s** — the deliberate worktree red (`test_viewer_js_suite_is_green`), covered by the armed 688/688; recorded in the ledger, inside budget |
+| docs guards after the overlay edit | `…pytest -q tests/test_title_style.py tests/test_claims_registry.py` | 74 passed |
+| browser `--only` | `the model drawn alone and led` | **23/23** (21 + the two new checks), 75 s |
+| browser `--only` | `the DAG zoom` (the pan's start set changed) | **48/48**, 177 s |
+| browser `--only` | `3D pane follows the selection` (the dead hover removed) | **31/31**, 98 s |
+| witness `--only` | `__1670fbae` Escape lets go of a body | **WITNESSED**, 2m39s |
+| witness `--only` | `__12ec5cd0` a real pointer on a body's field | **WITNESSED**, 2m32s |
+| witness `--only` | `__2d586b66` the re-anchored Escape spec | **WITNESSED**, 8m46s |
+
+The whole browser tier and the `--changed-since` witness gate ran once, after
+round 1's merge (above, "Merge-only tiers"); round 2 touched three suites and
+three specs, all re-run here, and the review table's rule is once per review.
+The `--only` runs write no ledger row; the default tier's row is recorded by
+hand with `--role review`. The tactical's own round-2 default run (668 s, OVER
+BUDGET by 1m08s, per the lesson and the ledger) was the box, not the diff:
+the same tree ran in 460 s here with nothing else of this session's beside it.
+
+### Landing
+
+`integration` fast-forwarded to this branch's head (`git fetch .
+review/<slug>:integration`), which contains both handoff commits and this
+report. Not merged into trunk. The review scratch root
+`data/scratch/review_light_20261113` and the worktree's `node_modules`
+junction were removed at the end of this round; the worktrees and branches
+stay for the operator's batch merge.
