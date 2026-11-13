@@ -5868,6 +5868,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       names and attributes, and run `--only` on every suite that hits. Baseline a
       red one against `git archive integration` on the same scratch data
       before you call it the merge's.
+- [ ] **A new kind of selectable, and the one let-go gesture still keys on the
+      old selection's form.** New 2026-11-13
+      (`hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque`,
+      blocker). Rule 3 made body, part and joint rows select, but the page's
+      Escape handler reads `if (state.selection) unfreeze()` -- the ELEMENT
+      form, which a body, a part or a joint has none of -- so a body selected
+      cannot be released, only replaced; a second click on its row re-selects.
+      The browser tier never saw it: every check that lets go presses Escape
+      after a FEATURE selection. For every new selectable a diff adds, ask how
+      it is released, and press that gesture on it in the real page. Third
+      Escape finding in three days (`REVIEW_20261112_one_selection_one_hover_
+      and_leaders_off` 7, and its pane-side twin); the class is "one state,
+      two forms, and the gesture reads the narrower one".
+- [ ] **A focusable SVG container as a click target -- prove it with a real
+      mouse-down and mouse-up, not with `elementFromPoint` or a dispatched
+      click.** Same review. `wireContainer` gives a body's field `tabindex=0`
+      and `pointer-events: stroke`; `elementFromPoint` at its border returns
+      the rect and `rect.dispatchEvent(click)` selects the body, but a real
+      `mouse.down()`/`mouse.up()` on the border lands the up on `.tv__scroll`
+      (measured at five points, pane open and closed, no re-render in between)
+      and no click fires. The small part field beside it works. The likely
+      cause is the focus a mousedown gives a tall focusable element scrolling
+      its container; whatever the cause, the two measurements disagree, and
+      only the real pointer is what Jeff has. Record the down and the up
+      target (a capture-phase listener) for every new click target on the DAG.
 
 ## Architectural errors to check
 
