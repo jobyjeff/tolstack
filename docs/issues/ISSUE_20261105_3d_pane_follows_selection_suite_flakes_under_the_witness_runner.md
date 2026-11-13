@@ -66,3 +66,15 @@ it when the record folds the same events as its own, which is the case at
 pane load. The suite then passed in each of its last three runs. Measured
 against the scratch projections at
 `data/scratch/realtier_20261112` (built from that tree).
+
+## Addendum 2026-11-12, review round 2 of a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown
+
+The same check is red on the **integration tree** as well as on that merge.
+Measured with the browser runner run from a `git archive integration`
+extraction against scratch projections built from the merged tree
+(`data/scratch/review_binding_r2`). It failed 31/32 there with the DIAG line
+`pane says {"hover":null,...}`. On the merged tree it was red in the full tier
+and red once more run alone. That second run's DIAG had the pane holding the
+hover (`{"kind":"body","name":"base"}`), and the scene still did not light.
+So the pane-clears-hover reading above is one of two ways it fails, not the
+only one. The same check was green in round 1's full tier on the same merge.

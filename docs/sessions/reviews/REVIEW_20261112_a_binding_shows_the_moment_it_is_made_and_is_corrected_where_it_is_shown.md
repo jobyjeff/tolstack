@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md
 reviewer: agent
 date: 2026-11-12
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE
+blockers: 0
 ---
 
 # Review — a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown
@@ -202,3 +202,58 @@ Three entries added to the "Recurring bugs" list in `docs/prompts/REVIEW_AGENT.m
   served copy must be rewritten by every inbox writer;
 - a handoff that swaps the guards pinning a surface must run every suite that
   reads that surface, not only the suites it edited (the shape of B1 and B2).
+
+## Round 2 (2026-11-12) — APPROVE
+
+Re-reviewed `d7e9c208` (the handoff's round-1 fix), merged onto this branch
+as `05ea5a49`. It is test-only: the browser harness, one witness spec
+swapped, the browser name-set pin, the fast-tier comment (nit 2) and a lesson
+section. No product code moved, so the round-1 reading of the six
+deliverables stands.
+
+**Read against the tree:**
+- `installRealAnnotatorReads` now routes the served `log.json` and drops the
+  events that ratify the proposals the suite serves unaccepted. That gives the
+  page's fold and the pane's memory adapter the same pre-accept log. This
+  fixes the harness, not the product: in use, both read the one served log.
+- The Escape check's selector `[data-body-act="arm"]` matches what
+  `featureBodyPlan` emits (`VA.FEATURE_BODY_VERBS.arm === "arm"`; `arm-off`
+  is Cancel, which doesn't match).
+- The new taken-end guard reads `.navtree__featurebody[data-body-kind="bound"]`
+  and `.navtree__featurewords`, both emitted by `nav.js`. Its spec's anchor,
+  `if (!VA.paneIdentityWins(state.identity, msg)) return;`, resolves once
+  in `topology_app.js`.
+- Attention ink now reads a candidate row's `.navtree__scenename`. That word
+  span has no colour of its own for a candidate row, so the spec's
+  `.navtree__scenerow[data-attention]` recolour reaches it. The old read could
+  not be reached by it, and the lesson says so.
+- The glyph floor is 6px, against the 7px candidate and 8px feature marks
+  in `topology.css`.
+
+**Tests on the merged tree** (scratch root `data/scratch/review_binding_r2`,
+built from this tree as in round 1, real log untouched at 78 events):
+
+| Tier | Result |
+|---|---|
+| viewer fast with `[real]` | 687/687 |
+| annotate fast | 313/313 |
+| pytest (`test_viewer_js_suite.py` deselected; run as the tiers above) | 1938 passed, 1 skipped |
+| whole browser tier | 42/44 — B1 "rail holds still" 17/17, B2 "model drawn alone and led" 11/11 |
+| witness `--changed-since integration` | 39/39 witnessed, 39 of 94 reached in 27m30s, 55 left to the sweep (budget) — a pass |
+
+**The two browser reds are both pre-existing, measured on integration's own
+tree** (`git archive integration`) against the same scratch data:
+- DAG zoom first-row: as in round 1, filed in
+  `ISSUE_20261104_the_first_row_zoom_check_wheels_above_the_drawing.md`.
+- "3D pane follows the selection", 31/32, on "[real] resting on a body row in
+  the nav lights that body in the scene". It was red in the full tier, red
+  once more run alone on the merged tree, and red alone on the integration tree.
+  It is filed in
+  `ISSUE_20261105_3d_pane_follows_selection_suite_flakes_under_the_witness_runner.md`.
+  It was green in round 1's full tier, so it is intermittent on both trees, not
+  a regression. I added a dated addendum there.
+
+**Not blockers, for the batch merge:** after this lands, port 8000 needs
+`scripts/rebuild_projections.ps1` in the main checkout, which writes
+`projections/viewer/feature-identity/log.json`. Until then the shell's log read
+404s there.
