@@ -149,13 +149,61 @@ not:
 | pre-merge subset | annotate fast | `node apps/annotate/run_tests.cjs` | **314/314**, 0 SKIP lines (`[real]` ran against the main checkout's projection by its fallback) |
 | pre-merge subset | annotate scene wiring (mock + real pass) | `node apps/annotate/run_browser_check.mjs` | 94/99 — **the same five reds on a `git archive integration` export** (so not this merge's): two mock anchor checks (`ISSUE_20261028_annotate_browser_check_mock_anchor_checks_are_red_on_integration`), two `[real]` v1-default checks (`ISSUE_20261108_the_annotate_real_browser_check_still_expects_v1_as_the_default_model`), and the Display-panel list — unfiled until now, see "Filed" |
 | post-merge (merged tree, review worktree) | default pytest, full | `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider` | **1 failed, 1938 passed, 1 skipped, 2 deselected in 458 s** — the one failure is the deliberate worktree red above, covered by the armed 688/688. This conftest prints no contention header lines. Recorded in dispatch's ledger: inside budget. The shared `data/` was read, not written (scratch excluded). |
-| post-merge | whole browser tier | `node scripts/run_viewer_browser_tests.mjs --repo <scratch>` | see "Merge-only tiers" below |
-| post-merge | witness gate | `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration` | see "Merge-only tiers" below |
+| post-merge | whole browser tier | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/review_light_20261113` | **44/44 suites, 1139 checks, 0 FAIL, no SKIPPED block**; 1820 s running, 1821 s on the ledger — **OVER BUDGET by 21 s** (self-recorded). Detail under "Merge-only tiers" |
+| post-merge | witness gate | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack/data/scratch/review_light_20261113 --changed-since integration` | **38/38 WITNESSED, 0 NOT WITNESSED**, 38 of 129 reached in 27m49s, 91 left to the sweep by the 30-minute cap; exit 0; 1714 s wall recorded by hand, inside budget. Detail under "Merge-only tiers" |
 
 Benefit of the doubt given to the tactical record: it names the command, the
 checkout and the counts, is consistent with the diff (the `--only` list covers
 every suite the diff edits), and its fast tiers were armed through a scratch
 root, not skipped.
+
+## Merge-only tiers
+
+Both run serially after the fast-forward merge, from the review worktree,
+against the scratch data root whose seven projections were built from the
+merged tree (`f966a6b7`), so the `[real]` checks read this tree's data. One
+script, one browser slot each (slot wait 0 s), 02:55–03:55 local.
+
+**Whole browser tier — PASS, 44/44 suites, 1139 checks, no red, no SKIPPED
+block.** Chrome 157 via channel `chrome`. `suite file://` and `suite http`
+550/550 each; `topology http` 212/212, `topology file://` 166/166, `the model
+drawn alone and led` 21/21, `3D pane follows the selection` 31/31, `leaders
+across the seam` 26/26 — every suite the diff edits is among the 44, so the
+tactical's seventeen `--only` runs are now covered by one whole run. Running
+time 1820.3 s; the runner's own ledger row says 1821 s against the 1800 s
+merge budget: **over by 21 s**. The ledger's last eight full browser runs are
+all a minute or two over, so this is the tier's weight, not this merge's —
+the slowest three suites (`topology http` 204 s, `the DAG zoom, Fit and the
+grid header` 176 s, `topology file://` 146 s) are the ones this handoff's
+checks were added to, and the tactical's own full run the same morning
+(05:17 Z, 1785 s, 1134 checks) was 36 s quicker with five fewer checks. Not
+charged to the handoff; noted so the trend stays visible.
+
+**Witness gate — PASS, 38/38 WITNESSED, exit 0.** `129 of 943 entries can be
+reached by this diff against integration`; the runner's notes leave a further
+360 entries that anchor more than 30 lines from every hunk to the scheduled
+sweep (the biggest: 107 in `apps/annotate/app.js`, 77 in
+`apps/viewer/views/topology.js`, 63 in `apps/viewer/topology_app.js`). Of the
+129 selected, 38 were reached inside the 30-minute cap — all six `annotate`
+entries, every `fast` entry, and the first browser entries — and all 38 are
+WITNESSED, none NOT WITNESSED, none naming a guard the tree lacks. The other
+**91 are `left to the sweep (budget)`**: browser entries in `kinematic study
+page`, `leaders across the seam`, `parts as blocks`, `the DAG zoom`, `the
+model drawn alone and led`, `the Preview from the scene` and `topology
+file://`. Per the overlay a capped run whose reached entries are all
+witnessed is a pass, and the reviewer neither re-runs nor waits for the rest.
+The tactical's `--only` runs witnessed 44 mutations across its 33 touched
+specs, which covers the specs this handoff added or re-anchored; the 91 the
+cap left are older entries the hunks merely came near. Two entries took
+4m38s each (`a body's checkbox in the nav hides that body` and `a body's
+twisty folds it`) — both in the `3D pane follows the selection` suite, whose
+whole-suite re-run per mutation is the cost; a later housekeeping handoff
+could narrow their `--only`. Wall 28m34s (1714 s), recorded by hand as a
+merge-tier row with `--role review`; inside budget.
+
+Neither tier changes the verdict: the two blockers (B1, B2) are pointer and
+keyboard behaviours no sub-check asserts, which is why the rework round adds
+the checks named under "Blockers".
 
 ## Findings
 
