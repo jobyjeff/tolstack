@@ -98,4 +98,68 @@ Still to migrate:
 
 ## The DoD run
 
-(filled in below from the probe's output)
+**8000 was not serving** during this session (`curl` to
+`/tolstack/viewer/topology.html` answered nothing), and 8843 serves `apps/`
+alone, with no data, so it cannot show bindings. I ran instead on
+`tests/debug_binding_corrected_where_shown_20261112.mjs`, which reproduces
+drawing-checker's mounts (`webui/analyses.py`'s `tolstack_mounts`) on a
+private port. It serves this tree's apps and the main checkout's meshes.
+`/tolstack/data/` is a **scratch copy** of the viewer projections and of the
+log (`data/scratch/binding_demo_20261112/`, deleted after the run). The
+pane's folder grant went through its real `storage/fsa.js` path, handed a
+directory handle that the probe's server backs with the scratch folder.
+**Not demonstrated:** the real drawing-checker process on 8000, and a real
+File System Access grant to the real folder. Nothing was written to
+`data/inbox/feature-identity/`.
+
+Read-only, on the scratch copy before any write (shots `01`-`03`):
+- The hub shows `tangential link mount base face` **bound** ("bound · face
+  526 of 214373-002", with Correct, Unbind, Flip). The mount's own feature on
+  the same node is **not bound**. It reads `suggested · high`, because an open
+  proposal sits on its side, and its body is the pane's candidate rows.
+- **Twisty walk over v2:** 34 features, 34 with a twisty, **0** opening to
+  nothing.
+- The pane's bound marks came from the record: 11 faces green on load.
+- **Orphan line:** absent. No standing binding in the real log names a gone
+  edge or an uninstalled mesh. So none sits on an edge that left with
+  `gas_spring_mount_hub_face` on 2026-11-10; the line would have named it.
+
+Scratch flow on `hub@tan_link_mount_fastener_clocking`, which had nothing
+bound and nothing suggested (shots `04`-`10`):
+- Pick a face armed the pick on the hub (shot 04: the body reads "picking on
+  214373-002 propeller hub" with Cancel; the hub solid, the rest faint). A
+  click on face 1029 bound it: body "bound · face 1029 of 214373-002",
+  scratch inbox 78 to 79 events, served log 79, green marks 11 to 12.
+- **Reload, pane closed:** the tree marks it bound. That read has no grant,
+  so the served log carried it. Hovering the bound line washed face 1029 in
+  the scene.
+- **Correct:** a click on the same face was refused ("already bound to face
+  1029"). A click on face 1054 superseded it (80 events). Still 1054 after a
+  reload.
+- **Unbind:** body "not bound" with Pick a face (81 events, one
+  `retracted`), green marks 12 to 11, still unbound after a reload.
+- **Time per write** (`window.__lastServedLogMs`, re-reading the inbox and
+  rewriting the served log): **8.1 to 8.8 s through the probe's HTTP-backed
+  handle**, which makes about 160 sequential fetches for 80 events. Click to
+  body was about 22 s on the first write of a page, which also asks for the
+  folder and lists the inbox for the next seq. A real File System Access
+  handle on local disk does the same reads without a round trip each; I could
+  not measure that here. If it is slow on Jeff's machine, the narrow refold
+  route (filed issue) or an incremental rewrite (append the one event to the
+  served copy) are the two cheap fixes.
+
+## Found along the way
+
+- **The page must never take a poorer record from the pane.** In the browser
+  tier the pane can run on fixture data. Its first identity post replaced the
+  page's real record, and every bound feature read "not bound". The page now
+  takes the pane's record only when the record folds every event the page's
+  own does (`VA.paneIdentityWins`), and repaints only when it adds one.
+- **Four 11-10 browser guards pinned the old body.** Under a bound feature
+  they asserted the pane's rows, an element row click and the bind bar. I
+  swapped them for four guards on the new contract, deleted the old specs and
+  wrote new ones, and re-pinned the name set.
+- "resting on a body row in the nav lights that body in the scene" failed in
+  2 of 4 runs of its suite on this branch. Its own comment documents a rebuild
+  race. After the no-repaint-on-same-record change it passed (see the
+  completion report for the final runs).

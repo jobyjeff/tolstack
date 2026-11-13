@@ -54,3 +54,15 @@ after a run loads. The red run polled for 20 s and never saw the light on, so th
 not always inside 20 s. The fix is the pane's: stop clearing the hover on a rebuild (or re-post
 the held hover after one), not a longer poll.
 (found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md)
+
+## Addendum 2026-11-12 (handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown)
+
+Still flaking: "[real] resting on a body row in the nav lights that body in the
+scene" was red in 2 of 5 `--only "3D pane follows the selection"` runs on that
+branch, and once more as the baseline of a witness run ("the tier was red before
+the mutation"). The other 31 checks were green each time. That branch added one
+nav repaint when the pane posts its feature-identity record. The page now skips
+it when the record folds the same events as its own, which is the case at
+pane load. The suite then passed in each of its last three runs. Measured
+against the scratch projections at
+`data/scratch/realtier_20261112` (built from that tree).
