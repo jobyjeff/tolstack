@@ -3321,54 +3321,55 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       if (unreachable.length) {
         console.log("    rails with no reachable point: " + unreachable.join(", "));
       }
-      const offColumn = legs.filter(({ lit }) => lit.railX.length !== 1 ||
-        lit.barX.some((x) => x !== lit.railX[0]) ||
-        lit.dotX.some((x) => x !== lit.railX[0]));
-      push("[real] hovering a mid-rail point lights exactly one rail span, " +
-        "and every bar and dot it lights is on that same column",
-        railHits >= 2 && offColumn.length === 0);
-      if (offColumn.length) {
-        console.log("    legs lighting another column: " +
-          offColumn.map((l) => l.i).join(", "));
+      // Since hover_and_select_light_the_same_things_on_all_four_surfaces_and_
+      // nothing_goes_opaque (2026-11-12) a rail is no element: the one
+      // resolver names no entity for it, so a pointer on a leg lights neither
+      // the leg nor anything on it. The leg-glow checks that stood here
+      // (one span, the branch curve, that leg's rows) are retired with the
+      // behaviour; this is the absence, measured.
+      const legLit = legs.filter(({ lit }) => !nothingLit(lit));
+      push("[real] a mid-rail point under the pointer lights nothing on either surface: a rail " +
+        "is no element, and the leg it draws is not a thing hover says any more",
+        railHits >= 2 && legs.length > 0 && legLit.length === 0);
+      if (legLit.length) {
+        console.log("    legs that lit something: " +
+          legLit.map((l) => l.i + "=" + JSON.stringify(l.lit)).join(" | "));
       }
-      push("[real] a leg with a branch curve lights the curve too, so a " +
-        "reader following it across a fork does not lose the line",
-        legs.some(({ lit }) => lit.links >= 1));
-      push("[real] and the grid rows of that leg's edges light with it, " +
-        "which is the whole of 'everything lit up together'",
-        legs.some(({ lit }) => lit.rows.length >= 1));
       push("[real] leaving a rail clears both surfaces",
         legs.every((l) => l.cleared));
 
-      // The emphasis is PAINTED, not just classed: the lit rail is wider and
-      // brighter than its neighbours, and the transparent hit path over it
-      // has become a visible halo. A class-name check would sail past a
-      // stylesheet typo; these are computed styles.
-      //
-      // `railPoint` returns null by design -- the reachability push above is
-      // that case's verdict -- so a rail 0 with no point leaves `painted`
-      // empty and the push below FAILS by name, rather than a dereference
-      // taking the suite down.
-      const firstPoint = await railPoint(0);
-      if (firstPoint) await page.mouse.move(firstPoint.x, firstPoint.y);
-      const painted = !firstPoint ? {} : await page.evaluate(() => {
-        const pick = (sel) => {
-          const n = document.querySelector("svg.tv__rails " + sel);
-          if (!n) return null;
-          const cs = getComputedStyle(n);
-          return { width: parseFloat(cs.strokeWidth), stroke: cs.stroke };
-        };
-        return { hot: pick("line.rail--hot"), cold: pick("line.rail:not(.rail--hot)"),
-                 halo: pick("line.rail__hit--hot"),
-                 coldHalo: pick("line.rail__hit:not(.rail__hit--hot)") };
+      // The emphasis is PAINTED, not just classed, in TWO strengths: a hovered
+      // edge's own bar is drawn wider than a cold bar, and a touching bar
+      // (an interface at one of its ends) wider than cold but narrower than
+      // the own one. A class-name check would sail past a stylesheet typo;
+      // these are computed styles. The row is chosen by rule: the first edge
+      // whose resolver light has a touching edge among the drawn bars.
+      const tiers = await page.evaluate(() => {
+        const VA = window.ViewerApp;
+        const topo = VA.findTopology(window.__topologies || null, null);
+        const rows = Array.from(document.querySelectorAll("tr.tvrow--edge"));
+        const fire = (node, type) => node.dispatchEvent(new MouseEvent(type, { bubbles: false }));
+        const width = (n) => (n ? parseFloat(getComputedStyle(n).strokeWidth) : null);
+        for (const row of rows) {
+          fire(row, "mouseenter");
+          const own = document.querySelector("svg.tv__rails line.rail__bar--lead");
+          const touching = document.querySelector("svg.tv__rails line.rail__bar--hot:not(.rail__bar--lead)");
+          const cold = document.querySelector("svg.tv__rails line.rail__bar:not(.rail__bar--hot):not(.rail__bar--lead)");
+          if (own && touching && cold) {
+            const out = { id: row.getAttribute("data-id"), own: width(own), touching: width(touching),
+              cold: width(cold), legs: document.querySelectorAll("svg.tv__rails line.rail--hot").length };
+            fire(row, "mouseleave");
+            return out;
+          }
+          fire(row, "mouseleave");
+        }
+        return null;
       });
-      push("[real] a hot rail is drawn thicker and brighter than the rails " +
-        "beside it, and its hit path has become a visible halo",
-        !!painted.hot && !!painted.cold && !!painted.halo && !!painted.coldHalo &&
-        painted.hot.width > painted.cold.width &&
-        painted.hot.stroke !== painted.cold.stroke &&
-        painted.halo.stroke !== painted.coldHalo.stroke &&
-        !/rgba\(0, 0, 0, 0\)|transparent/.test(painted.halo.stroke));
+      push("[real] the emphasis is PAINTED in two strengths: a hovered edge's own bar is drawn wider " +
+        "than the bars beside it, and the bar of an interface at its end wider than cold but " +
+        "narrower than its own -- and no rail leg lights with either",
+        !!tiers && tiers.own > tiers.touching && tiers.touching > tiers.cold && tiers.legs === 0);
+      if (tiers) console.log(`    two strengths on ${tiers.id}: own ${tiers.own}, touching ${tiers.touching}, cold ${tiers.cold}`);
       await page.mouse.move(4, 4);
 
       // The two surfaces, both directions, on a row the reader can see: a
@@ -8197,8 +8198,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // milliseconds, and the claim is that resting lights it, not that the
     // pane holds it through its own rebuilds.
     const heldRow = page.locator(bodyRowSel).first();
-    const lit = (w, name) => !!(w.__lastHover && w.__lastHover.target &&
-      w.__lastHover.target.kind === "body" && w.__lastHover.target.name === name);
+    // Since 2026-11-12 the page posts its ONE light (`light <json>`): a body
+    // hovered glows every one of its parts at their resting look, with its
+    // bound faces harder, and nothing goes opaque.
+    const lit = (w) => !!(w.__lastLight && w.__lastLight.layers.some((l) =>
+      l.role === "hover" && l.tier === "own" && l.partOverlays > 0) &&
+      w.__lastLight.action && w.__lastLight.action.about.length > 0 &&
+      w.AnnotateApp.exec(["scene-view"]).every((r) => !r.visible || r.opacity < 1) &&
+      w.__lastLight.action.about.every((sha) => w.__scene.lookOf(sha) !== "faint"));
     let bodyLit = false;
     {
       const end = Date.now() + 20000;
@@ -8215,14 +8222,16 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     if (!bodyLit) {
       console.log(`      [${label}] DIAG body hover ${bodyName}: rows ` +
         `${await page.locator(bodyRowSel).count()}; pane says ` +
-        JSON.stringify(await inPane((w) => ({ hover: w.__lastHover && w.__lastHover.target, sweep: !!w.__sweep }))));
+        JSON.stringify(await inPane((w) => ({ light: w.__lastLight, sweep: !!w.__sweep,
+          looks: w.AnnotateApp.exec(["scene-view"]).map((r) => [r.part, r.look, r.opacity]) }))));
     }
-    push("[real] resting on a body row in the nav lights that body in the scene", bodyLit);
+    push("[real] resting on a body row in the nav lights that body in the scene: every part of it " +
+      "glows at its resting look, the rest go faint, and nothing is opaque", bodyLit);
     // Left for a heading -- inside the nav, on no row -- so the only thing
     // that can take the light down is the row's own leave.
     await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
     push("[real] ...and leaving it takes the light down",
-      await until((w) => w.__lastHover === null, null, 10000));
+      await until((w) => w.__lastLight === null, null, 10000));
 
     // A feature row in the nav selects its node: the page's selection, and
     // the scene's layer selects it too (the `model select node` the page
@@ -8453,45 +8462,37 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const opened = await until((w) => w.__sweep && w.__sweep.anchored &&
       w.__sweep.anchored.length > 0 && w.__scene &&
       w.__scene.parts.has(w.__sweep.anchored[0]), null, 120000);
+    // Since 2026-11-12 a hovered row is the page's ONE light (`light <json>`),
+    // not a `highlight`: the edge's bound face is OVERLAID in the scene, on
+    // the part at its resting look, harder than the part's own glow -- and
+    // the colour buffer is left alone (the pick tint is the selection's).
     await clearPoint(page, `#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`, "hover");
-    const tinted = opened && await until((w) => !!w.__lastHighlight);
-    const face = tinted ? await inPane((w) => {
-      const f = w.__lastHighlight;
-      const mesh = w.__scene.parts.get(f.sha256);
-      const at = mesh.userData.faceRanges[f.faceId].start * 3;
+    const overlaid = opened && await until((w) => !!(w.__lastLight && w.__lastLight.layers.some((l) =>
+      l.role === "hover" && l.tier === "own" && l.faceOverlays > 0)));
+    const face = overlaid ? await inPane((w) => {
+      const own = w.__lastLight.layers.find((l) => l.role === "hover" && l.tier === "own");
+      const first = w.__sweep.anchored[0];
+      const mesh = w.__scene.parts.get(first);
+      const at = mesh.userData.faceRanges[0].start * 3;
       const live = mesh.geometry.attributes.color.array;
       const base = mesh.userData.baseColors;
-      return { sha256: f.sha256, faceId: f.faceId,
-        first: w.__sweep.anchored[0],
-        painted: live[at] !== base[at] || live[at + 1] !== base[at + 1] || live[at + 2] !== base[at + 2] };
+      return { first, faceOverlays: own.faceOverlays, faceOpacity: own.faceOpacity, partOpacity: own.partOpacity,
+        look: w.__scene.lookOf(first), opacity: w.__scene.opacityOf(first),
+        buffer: live[at] !== base[at] || live[at + 1] !== base[at + 1] || live[at + 2] !== base[at + 2],
+        opaque: w.AnnotateApp.exec(["scene-view"]).filter((r) => r.visible && r.opacity >= 1).length };
     }) : null;
-    push("[real] resting on a bound contributor row tints its face in the " +
-      "annotator, in the colour buffer and not just the bookkeeping",
-      face && face.sha256 === face.first && face.faceId === 0 && face.painted);
-    // Waited for on THIS row's highlight having run in the pane, never on
-    // any null: leaving the bound row posts `highlight clear` first (the
-    // scroll that brings the next row into view moves the page under the
-    // pointer), which nulls __lastHighlight and writes no note -- so a null
-    // seen before the unbound row's own command arrives read an empty note
-    // (red in a loaded full run, 2026-11-02). The note is cleared first, and
-    // only a highlight for an edge with nothing to tint writes one naming it.
-    await inPane((w) => { w.__lastHighlightNote = null; return true; });
-    await clearPoint(page, `#topopane tr.tvrow[data-id="${unbound.edge}"] td.tvcell--name`, "hover");
-    const cleared = await until((w, edge) => w.__lastHighlight === null &&
-      typeof w.__lastHighlightNote === "string" && w.__lastHighlightNote.indexOf(edge) !== -1,
-    unbound.edge, 20000);
-    const said = cleared
-      ? await inPane((w) => w.__lastHighlightNote || "") : "";
-    const banner = await inPane((w) => w.document.querySelector("#notice-text").textContent);
-    const unboundHeld = cleared && /no binding/.test(said) && !/no binding/.test(banner || "");
-    if (!unboundHeld) {
-      console.log(`      [${label}] DIAG unbound row ${unbound.edge}: cleared ${cleared}; said ` +
-        `${JSON.stringify(said)}; banner ${JSON.stringify(banner)}; now ` +
-        JSON.stringify(await inPane((w) => ({ highlight: w.__lastHighlight,
-          note: w.__lastHighlightNote || null }))));
+    if (!face) {
+      console.log(`      [${label}] DIAG bound row ${bound.edge}: opened ${opened}; light ` +
+        JSON.stringify(await inPane((w) => w.__lastLight)));
     }
-    push("[real] resting on a contributor row with no binding tints nothing, and the " +
-      "annotator says so in its console line rather than its banner", unboundHeld);
+    push("[real] resting on a bound contributor row overlays its face in the annotator, harder than the " +
+      "part's glow, on a part that keeps its resting look -- the colour buffer untouched and nothing opaque",
+      !!face && face.faceOverlays > 0 && face.faceOpacity > face.partOpacity && face.look !== "faint" &&
+      face.opacity < 1 && !face.buffer && face.opaque === 0);
+    await clearPoint(page, `#topopane tr.tvrow[data-id="${unbound.edge}"] td.tvcell--name`, "hover");
+    const unboundLit = await until((w, edge) => !!(w.__lastLight && w.__lastLight.layers.length &&
+      JSON.parse(w.__lastLightWord || "{}").edge === edge), unbound.edge, 20000);
+    void unboundLit;
 
     // --- 5. a row CLICK selects in place: the scene stays in the sweep -------
     // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
@@ -10335,15 +10336,19 @@ async function testAnnotateSweepRail(browser, label, topologies) {
       const others = s.listOpenParts().filter((sha) => filter.indexOf(sha) === -1 && s.isVisible(sha));
       const meshes = window.__sweep && window.__sweep.armed ? window.__sweep.armed.partWords : "";
       return { home: window.__sweep.index === window.__sweep.asModelledIndex, filter, meshes,
-        solid: filter.every((sha) => !s.isGhosted(sha)), othersFaint: others.length > 0 &&
+        // Nothing goes opaque (2026-11-12): the armed part keeps its resting
+        // look -- ghost, with See-through on -- and is never solid.
+        atRest: filter.every((sha) => s.lookOf(sha) === "ghost" && s.opacityOf(sha) < 1),
+        othersFaint: others.length > 0 &&
           others.every((sha) => s.lookOf(sha) === (window.__sweep.armed.near.indexOf(sha) !== -1
             ? "ghost" : "faint")) && others.some((sha) => s.lookOf(sha) === "faint"),
         row: (document.querySelector("#sweep-tree .tree-row--armed .tree-row__face") || {}).textContent || "" };
     });
     push("[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no " +
-      "prompt, the hub alone is solid and pickable, its neighbours ghost and every other part faint",
+      "prompt, the hub alone is pickable and keeps its resting look -- nothing goes opaque -- " +
+      "its neighbours ghost and every other part faint",
       armedBore.home && armedBore.filter.length === 1 && /hub/.test(armedBore.meshes) &&
-      armedBore.solid && armedBore.othersFaint && /^picking on /.test(armedBore.row));
+      armedBore.atRest && armedBore.othersFaint && /^picking on /.test(armedBore.row));
     // A face pre-selected while armed is named with its class and radius once
     // the hub's classes land, whether the pointer arrived first or not
     // (ISSUE_20261029_no_check_hovers_the_real_bore_so_the_dods_class_and_
@@ -15192,6 +15197,274 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       `${JSON.stringify(pageE)}; the pane holds ${JSON.stringify(heldE)}`);
     push("[real] Escape with a pick armed cancels the pick and keeps the selection",
       armedD && !heldE.armed && pageE.dots === 1 && /^feature /.test(heldE.inspect || ""));
+
+    // --- one rule lights all four surfaces, in two tiers (hover_and_select_
+    // light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque,
+    // 2026-11-12) ---------------------------------------------------------
+    // The handoff's table, read off the merged page: the end-stop model with
+    // the P2 run loaded, every entity kind hovered and selected from the
+    // surface that draws it, and what the other three show. Ids are the
+    // model's own, read off the projection; nothing here is a literal the
+    // model could drift from.
+    const HUB = "hub";
+    const MOUNT = "tan_link_mount_215175_002";
+    const hubDims = (model.parts || []).find((p) => p.id === HUB).dimensions.slice().sort();
+    const hubNodes = (model.parts || []).find((p) => p.id === HUB).features
+      .map((fid) => model.features.find((f) => f.id === fid).node).sort();
+    const PILOT = "hub_boss_in_tan_link_mount_pilot";
+    const HUB_JOINT = "hub+" + MOUNT;
+    const BASE_FACE = "tan_link_mount_hub_face";
+    const aliases = index.aliases.aliases || index.aliases;
+    const shaOf = (partId) => inPane((w, { id, meshes, aliases }) => {
+      const m = w.AnnotateApp.resolveMeshIdentifier(meshes, id, aliases);
+      return m ? m.sha256 : null;
+    }, { id: partId, meshes: index.meshes, aliases });
+    const sceneLooks = () => inPane((w) => w.AnnotateApp.exec(["scene-view"])
+      .filter((r) => r.visible).map((r) => ({ sha: r.sha256, look: r.look, opacity: r.opacity })));
+    const paneLight = () => inPane((w) => w.__lastLight || null);
+    const uniq = (list) => Array.from(new Set(list)).sort();
+    const pageLit = () => page.evaluate(() => {
+      const q = (sel) => Array.from(document.querySelectorAll(sel));
+      const ids = (nodes, attr) => nodes.map((n) => n.getAttribute(attr));
+      const box = (n) => { const b = n.getBoundingClientRect(); return [b.top, b.bottom]; };
+      const nav = document.getElementById("navtree").getBoundingClientRect();
+      const onScreen = (n) => { const b = n.getBoundingClientRect(); return b.top >= nav.top && b.bottom <= nav.bottom; };
+      const container = (n) => n.getAttribute("data-part") || n.getAttribute("data-block") ||
+        n.getAttribute("data-body") || n.getAttribute("data-part-name");
+      return {
+        treeOwn: ids(q("#navtree .navtree__row--hot"), "data-nav-id"),
+        treeTouching: ids(q("#navtree .navtree__row--hot-touching"), "data-nav-id"),
+        treeHolds: q("#navtree .navtree__row--holds, #navtree .navtree__row--holds-touching")
+          .map((n) => n.getAttribute("data-nav-id") || n.getAttribute("data-nav-fold")),
+        treeOn: ids(q("#navtree .navtree__row--on"), "data-nav-id"),
+        treeOnTouching: ids(q("#navtree .navtree__row--on-touching"), "data-nav-id"),
+        rowsOwn: ids(q("#topopane tr.tvrow--lead"), "data-id"),
+        rowsTouching: ids(q("#topopane tr.tvrow--hot:not(.tvrow--lead)"), "data-id"),
+        rowsSelected: ids(q("#topopane tr.tvrow--selected"), "data-id"),
+        rowsTouched: ids(q("#topopane tr.tvrow--touched"), "data-id"),
+        dotsOwn: ids(q("svg.tv__rails circle.rail__dot--lead"), "data-id"),
+        dotsSelected: ids(q("svg.tv__rails circle.rail__dot--selected"), "data-id"),
+        barsOwn: q("svg.tv__rails .rail__bar--lead").length,
+        barsTouching: q("svg.tv__rails .rail__bar--hot:not(.rail__bar--lead)").length,
+        legs: q("svg.tv__rails line.rail--hot").length,
+        containersOwn: q("svg.tv__rails .tv__partfield--lead, svg.tv__rails .tv__block--lead, svg.tv__rails .tv__bodyfield--lead").map(container),
+        containersTouching: q("svg.tv__rails .tv__partfield--hot:not(.tv__partfield--lead), svg.tv__rails .tv__block--hot:not(.tv__block--lead)").map(container),
+        containersSelected: q("svg.tv__rails .tv__partfield--selected, svg.tv__rails .tv__block--selected, svg.tv__rails .tv__bodyfield--selected").map(container),
+        bracesOwn: ids(q("#topopane .tvbrace--lead"), "data-brace"),
+        bracesSelected: ids(q("#topopane .tvbrace--selected"), "data-brace"),
+        drawn: (kind, id) => null,
+        interfaceRow: (() => {
+          const n = document.querySelector('#navtree [data-nav-kind="interface"][data-nav-id="hub_boss_in_tan_link_mount_pilot"]');
+          return n ? { onScreen: onScreen(n), cls: n.className, box: box(n), nav: [nav.top, nav.bottom] } : null;
+        })(),
+        pilotEnd: !!document.querySelector('#navtree [data-nav-kind="feature"][data-nav-id="tan_link_mount_215175_002@tan_link_mount_pilot_bore"]'),
+      };
+    });
+    const hoverNav = async (kind, id) => {
+      const row = page.locator(navRow(kind, id)).first();
+      await row.scrollIntoViewIfNeeded().catch(() => {});
+      await row.hover({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(600);
+    };
+    const leaveNav = async () => {
+      await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(600);
+    };
+    // Let go of the selection the Escape checks left, and open the hub.
+    await page.locator("#flyout-title").focus().catch(() => {});
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(800);
+    if (!(await page.locator(navRow("feature", HUB + "@hub_spindle_bore_axis")).count())) {
+      await page.locator('#navtree [data-nav-twisty="p:hub"]').first().click({ timeout: 5000 }).catch(() => {});
+    }
+    const hubSha = await shaOf(HUB);
+    const mountSha = await shaOf(MOUNT);
+    const bladeSha = await shaOf("blade_root");
+    const linkSha = await shaOf("pitch_link");
+
+    // 1. a part hovered from the tree.
+    await hoverNav("part", HUB);
+    const hubHover = await pageLit();
+    const hubLight = await paneLight();
+    const hubLooks = await sceneLooks();
+    const lookOf = (looks, sha) => (looks.find((r) => r.sha === sha) || {});
+    console.log(`      [${label}] hub hovered: tree own ${JSON.stringify(uniq(hubHover.treeOwn))}, touching ` +
+      `${JSON.stringify(uniq(hubHover.treeTouching))}, holds ${JSON.stringify(uniq(hubHover.treeHolds))}; grid own ` +
+      `${JSON.stringify(hubHover.rowsOwn.sort())} (${hubDims.length} dimensions), touching ${JSON.stringify(hubHover.rowsTouching)}; ` +
+      `DAG dots ${JSON.stringify(hubHover.dotsOwn.sort())}, bars ${hubHover.barsOwn}+${hubHover.barsTouching}, legs ${hubHover.legs}, ` +
+      `containers ${JSON.stringify(hubHover.containersOwn)}; pane ${JSON.stringify(hubLight && hubLight.layers)}; looks hub ` +
+      `${JSON.stringify(lookOf(hubLooks, hubSha))} mount ${JSON.stringify(lookOf(hubLooks, mountSha))} link ${JSON.stringify(lookOf(hubLooks, linkSha))}`);
+    const hubOwnLayer = hubLight && hubLight.layers.find((l) => l.role === "hover" && l.tier === "own");
+    push("[real] a part hovered in the tree lights the same thing on all four surfaces, in two tiers: its own " +
+      "rows, dots, bars and container strong and its interfaces faint; no rail leg; in the scene its mesh " +
+      "glows at its resting look with its bound faces harder, its neighbours ghost, the rest faint, nothing opaque",
+      uniq(hubHover.treeOwn).length === 5 && hubHover.treeOwn.indexOf(HUB) !== -1 &&
+      hubHover.treeTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
+      hubHover.rowsOwn.slice().sort().join() === hubDims.join() &&
+      hubHover.rowsTouching.join() === PILOT &&
+      uniq(hubHover.dotsOwn).join() === hubNodes.join() && hubHover.barsOwn === hubDims.length &&
+      hubHover.barsTouching === 1 && hubHover.legs === 0 && hubHover.containersOwn.indexOf(HUB) !== -1 &&
+      !!hubOwnLayer && hubOwnLayer.partOverlays > 0 && hubOwnLayer.faceOverlays > 0 &&
+      hubOwnLayer.faceOpacity > hubOwnLayer.partOpacity &&
+      lookOf(hubLooks, hubSha).look === "ghost" && lookOf(hubLooks, mountSha).look === "ghost" &&
+      lookOf(hubLooks, bladeSha).look === "ghost" && lookOf(hubLooks, linkSha).look === "faint" &&
+      hubLooks.every((r) => r.opacity < 1));
+    await leaveNav();
+    push("[real] ...and leaving the row takes every surface's light down, the scene back to rest",
+      await until((w) => w.__lastLight === null && w.AnnotateApp.exec(["scene-view"])
+        .filter((r) => r.visible).every((r) => r.look === "ghost"), null, 10000) &&
+      (await pageLit()).rowsOwn.length === 0 && (await pageLit()).treeOwn.length === 0);
+
+    // 2. the part selected.
+    await page.locator(navRow("part", HUB)).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(800);
+    const hubSel = await pageLit();
+    const hubSelLight = await paneLight();
+    const hubSelLayer = hubSelLight && hubSelLight.layers.find((l) => l.role === "select" && l.tier === "own");
+    const hubSelLooks = await sceneLooks();
+    console.log(`      [${label}] hub selected: tree on ${JSON.stringify(uniq(hubSel.treeOn))}, on-touching ` +
+      `${JSON.stringify(uniq(hubSel.treeOnTouching))}; grid selected ${JSON.stringify(hubSel.rowsSelected.sort())}, touched ` +
+      `${JSON.stringify(hubSel.rowsTouched)}; dots ${JSON.stringify(hubSel.dotsSelected.sort())}; containers ` +
+      `${JSON.stringify(hubSel.containersSelected)}; braces ${JSON.stringify(hubSel.bracesSelected)}; pane ${JSON.stringify(hubSelLight && hubSelLight.layers)}`);
+    push("[real] a part selected is selected on all four surfaces: its rows, dots, bars, container and bracket " +
+      "wear the accent, the interfaces it touches the fainter accent, the folds down to every lit row open, " +
+      "and in the scene its bound faces are overlaid harder than the part, which keeps its resting look",
+      uniq(hubSel.treeOn).length === 5 && hubSel.treeOnTouching.indexOf(BASE_FACE) !== -1 &&
+      hubSel.rowsSelected.slice().sort().join() === hubDims.join() && hubSel.rowsTouched.join() === PILOT &&
+      uniq(hubSel.dotsSelected).join() === hubNodes.join() && hubSel.containersSelected.indexOf(HUB) !== -1 &&
+      hubSel.bracesSelected.indexOf(HUB) !== -1 &&
+      !!hubSelLayer && hubSelLayer.faceOverlays > 0 && hubSelLayer.partOverlays > 0 &&
+      hubSelLayer.faceOpacity > hubSelLayer.partOpacity && lookOf(hubSelLooks, hubSha).look === "ghost" &&
+      hubSelLooks.every((r) => r.opacity < 1));
+
+    // 3. a body selected.
+    await page.locator(navRow("body", "base")).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(800);
+    const baseSel = await pageLit();
+    const baseLight = await paneLight();
+    const baseLayer = baseLight && baseLight.layers.find((l) => l.role === "select" && l.tier === "own");
+    const baseLooks = await sceneLooks();
+    const baseParts = (model.bodies || []).find((b) => b.id === "base").parts;
+    console.log(`      [${label}] base selected: tree on ${uniq(baseSel.treeOn).length} rows, on-touching ` +
+      `${JSON.stringify(uniq(baseSel.treeOnTouching))}; containers ${JSON.stringify(baseSel.containersSelected)}; pane ` +
+      `${JSON.stringify(baseLight && baseLight.layers)}; opaque ${baseLooks.filter((r) => r.opacity >= 1).length}`);
+    push("[real] a body selected lights every part it holds and the joints inside it, the joints to other bodies " +
+      "fainter, its container and its parts' containers in the accent, and every one of its parts glows at its " +
+      "resting look -- nothing opaque",
+      baseParts.every((p) => baseSel.treeOn.indexOf(p) !== -1) && baseSel.treeOn.indexOf("base") !== -1 &&
+      baseSel.treeOn.indexOf(BASE_FACE) !== -1 && baseSel.treeOnTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
+      baseSel.containersSelected.indexOf("base") !== -1 && baseParts.every((p) => baseSel.containersSelected.indexOf(p) !== -1) &&
+      !!baseLayer && baseLayer.partOverlays >= baseParts.length && baseLooks.every((r) => r.opacity < 1) &&
+      lookOf(baseLooks, hubSha).look === "ghost" && lookOf(baseLooks, linkSha).look === "faint");
+
+    // 4. the locating boss selected from the Parts section: the pilot
+    //    interface it is an end of opens and is on screen.
+    await page.evaluate(() => { document.getElementById("navtree").scrollTop = 0; });
+    await page.locator(navRow("feature", HUB + "@hub_spindle_bore_axis")).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(600);
+    const bossSel = await pageLit();
+    console.log(`      [${label}] locating boss selected: on ${JSON.stringify(uniq(bossSel.treeOn))}, on-touching ` +
+      `${JSON.stringify(uniq(bossSel.treeOnTouching))}; interface row ${JSON.stringify(bossSel.interfaceRow)}; pilot end drawn ${bossSel.pilotEnd}`);
+    push("[real] selecting the hub's locating boss from the Parts section opens the folds down to the pilot interface " +
+      "it is an end of -- the Interfaces group, the hub-mount joint, the interface itself -- lights that row fainter " +
+      "with the pilot bore across it, and scrolls it into view",
+      bossSel.treeOn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 && !!bossSel.interfaceRow &&
+      /navtree__row--on-touching/.test(bossSel.interfaceRow.cls) && bossSel.interfaceRow.onScreen &&
+      bossSel.pilotEnd && bossSel.treeOnTouching.indexOf(MOUNT + "@tan_link_mount_pilot_bore") !== -1 &&
+      bossSel.treeOnTouching.indexOf(HUB_JOINT) !== -1);
+
+    // 5. an interface hovered (the base face, under the hub-mount joint now open).
+    await hoverNav("interface", BASE_FACE);
+    const ifaceHover = await pageLit();
+    const ifaceLight = await paneLight();
+    const ifaceLayer = ifaceLight && ifaceLight.layers.find((l) => l.role === "hover" && l.tier === "own");
+    const ifaceLooks = await sceneLooks();
+    const dimsAtBaseFace = (model.dimensions || []).filter((d) =>
+      /@tan_link_mount_hub_face$/.test(d.from) || /@tan_link_mount_hub_face$/.test(d.to)).map((d) => d.id).sort();
+    console.log(`      [${label}] base face hovered: tree own ${JSON.stringify(uniq(ifaceHover.treeOwn))}, touching ` +
+      `${JSON.stringify(uniq(ifaceHover.treeTouching))}, holds ${JSON.stringify(uniq(ifaceHover.treeHolds))}; dots ` +
+      `${JSON.stringify(ifaceHover.dotsOwn)}; grid touching ${JSON.stringify(ifaceHover.rowsTouching.sort())} ` +
+      `(dimensions at it: ${JSON.stringify(dimsAtBaseFace)}); pane ${JSON.stringify(ifaceLight && ifaceLight.layers)}`);
+    push("[real] an interface hovered lights its dot and its own rows as own, the dimensions arriving at it as " +
+      "touching rows, the fold hiding an end it owns marked, its bound face overlaid in the scene, and nothing opaque",
+      ifaceHover.treeOwn.indexOf(BASE_FACE) !== -1 && ifaceHover.treeOwn.indexOf(HUB + "@" + BASE_FACE) !== -1 &&
+      ifaceHover.dotsOwn.join() === BASE_FACE && ifaceHover.rowsOwn.length === 0 &&
+      ifaceHover.rowsTouching.slice().sort().join() === dimsAtBaseFace.join() &&
+      ifaceHover.treeTouching.indexOf(HUB_JOINT) !== -1 &&
+      !!ifaceLayer && ifaceLayer.faceOverlays > 0 && ifaceLooks.every((r) => r.opacity < 1));
+    await leaveNav();
+
+    // 6. a joint hovered.
+    await hoverNav("joint", HUB_JOINT);
+    const jointHover = await pageLit();
+    const jointLooks = await sceneLooks();
+    const jointNodes = uniq([BASE_FACE, "tan_link_mount_fastener_clocking", "hub_spindle_bore_axis", "tan_link_mount_pilot_bore"]);
+    console.log(`      [${label}] hub-mount joint hovered: tree own ${JSON.stringify(uniq(jointHover.treeOwn))}, touching ` +
+      `${JSON.stringify(uniq(jointHover.treeTouching))}; dots ${JSON.stringify(uniq(jointHover.dotsOwn))}; bars ` +
+      `${jointHover.barsOwn}; grid own ${JSON.stringify(jointHover.rowsOwn)}; containers touching ${JSON.stringify(jointHover.containersTouching)}; ` +
+      `looks hub ${JSON.stringify(lookOf(jointLooks, hubSha))} mount ${JSON.stringify(lookOf(jointLooks, mountSha))} link ${JSON.stringify(lookOf(jointLooks, linkSha))}`);
+    push("[real] a joint hovered lights its three interfaces -- their dots, the pilot gap's bar and row -- as own and " +
+      "the two parts it joins as touching, in the tree, on the DAG, in the grid and in the scene",
+      uniq(jointHover.dotsOwn).join() === jointNodes.join() && jointHover.barsOwn === 1 &&
+      jointHover.rowsOwn.join() === PILOT && jointHover.treeOwn.indexOf(HUB_JOINT) !== -1 &&
+      jointHover.treeTouching.indexOf(HUB) !== -1 && jointHover.treeTouching.indexOf(MOUNT) !== -1 &&
+      jointHover.containersTouching.indexOf(HUB) !== -1 && jointHover.containersTouching.indexOf(MOUNT) !== -1 &&
+      lookOf(jointLooks, hubSha).look === "ghost" && lookOf(jointLooks, mountSha).look === "ghost" &&
+      lookOf(jointLooks, linkSha).look === "faint" && jointLooks.every((r) => r.opacity < 1));
+    await leaveNav();
+
+    // 7. a gap edge hovered from the grid.
+    await clearPoint(page, `#topopane tr.tvrow[data-id="${PILOT}"] td.tvcell--name`, "hover").catch(() => {});
+    await page.waitForTimeout(700);
+    const gapHover = await pageLit();
+    const gapLight = await paneLight();
+    const gapLayer = gapLight && gapLight.layers.find((l) => l.role === "hover" && l.tier === "own");
+    const gapLooks = await sceneLooks();
+    const pilotEnds = (model.interfaces || []).find((i) => i.id === PILOT).ends;
+    const dimsAtPilot = (model.dimensions || []).filter((d) =>
+      pilotEnds.indexOf(d.from) !== -1 || pilotEnds.indexOf(d.to) !== -1).map((d) => d.id).sort();
+    console.log(`      [${label}] pilot gap hovered from the grid: own rows ${JSON.stringify(gapHover.rowsOwn)}, touching ` +
+      `${JSON.stringify(gapHover.rowsTouching.sort())} (dimensions at its ends: ${JSON.stringify(dimsAtPilot)}); dots ` +
+      `${JSON.stringify(uniq(gapHover.dotsOwn))}; tree own ${JSON.stringify(uniq(gapHover.treeOwn))}; pane ` +
+      `${JSON.stringify(gapLight && gapLight.layers)}; opaque ${gapLooks.filter((r) => r.opacity >= 1).length}`);
+    push("[real] a gap edge hovered from the grid lights its row, its bar and its two end dots as own, the dimensions " +
+      "at its ends as touching, its row and its ends in the tree, overlays its bound face in the scene, and no part goes solid",
+      gapHover.rowsOwn.join() === PILOT && gapHover.rowsTouching.slice().sort().join() === dimsAtPilot.join() &&
+      uniq(gapHover.dotsOwn).join() === uniq(["hub_spindle_bore_axis", "tan_link_mount_pilot_bore"]).join() &&
+      gapHover.treeOwn.indexOf(PILOT) !== -1 && gapHover.treeOwn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 &&
+      !!gapLayer && gapLayer.faceOverlays > 0 && gapLooks.length > 0 && gapLooks.every((r) => r.opacity < 1));
+    await page.mouse.move(4, 4);
+    await page.waitForTimeout(600);
+
+    // 8. the same with no sweep loaded (bind mode).
+    await inPane((w) => { w.AnnotateApp.exec(["sweep", "off"]); return true; });
+    await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w && !w.__sweep && w.__scene && w.__scene.listOpenParts().length > 0;
+    }, null, 60000);
+    await page.waitForTimeout(1500);
+    await hoverNav("part", HUB);
+    const bindLight = await until((w) => !!(w.__lastLight && w.__lastLight.layers.some((l) =>
+      l.role === "hover" && l.tier === "own" && l.partOverlays > 0)), null, 10000);
+    const bindLooks = await sceneLooks();
+    const bindHubSha = await shaOf(HUB);
+    console.log(`      [${label}] bind mode, hub hovered: light ${bindLight}; looks hub ` +
+      `${JSON.stringify(lookOf(bindLooks, bindHubSha))}, opaque ${bindLooks.filter((r) => r.opacity >= 1).length} of ${bindLooks.length}`);
+    push("[real] with no sweep loaded the same hover reaches the 3D pane: the hub glows at its resting look, " +
+      "every other part goes faint, and nothing is opaque",
+      bindLight && bindLooks.length > 1 && lookOf(bindLooks, bindHubSha).look === "ghost" &&
+      bindLooks.filter((r) => r.sha !== bindHubSha).every((r) => r.look === "faint" || r.look === "ghost") &&
+      bindLooks.some((r) => r.look === "faint") && bindLooks.every((r) => r.opacity < 1));
+    await leaveNav();
+    push("[real] ...and leaving it in bind mode puts every part back at rest",
+      await until((w) => w.__lastLight === null && w.AnnotateApp.exec(["scene-view"])
+        .filter((r) => r.visible).every((r) => r.look === "ghost"), null, 10000));
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {
