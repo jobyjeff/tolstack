@@ -3323,7 +3323,7 @@
     // A body's or a part's bracket is that entity's container in the grid:
     // lit with it, hovered and selected like its field on the DAG
     // (wireContainer). A study's bracket is none of these.
-    var container = function (node, kind, braceId, cls) {
+    var container = function (node, kind, braceId, cls, inert) {
       if (kind !== "body" && kind !== "part") return node;
       // A part's brace id is `part:<part>` (VA.gridBraces); a body's is the
       // body's own id. The entity is the part or the body.
@@ -3331,6 +3331,13 @@
       node.className += tierClasses(ctx, cls, kind, id);
       node.setAttribute("data-brace-kind", kind);
       node.setAttribute("data-brace-entity", id);
+      // A label lies over the PART cell, the row's own click target: it is
+      // lit with its bracket and takes no pointer of its own.
+      if (inert) {
+        hotRegister(hot, { el: node, base: node.getAttribute("class"),
+          self: [hotKey(kind, id)], hot: cls + "--hot", lead: cls + "--lead" });
+        return node;
+      }
       return wireContainer(node, ctx, hot, kind, id, null, cls);
     };
     var place = function (node, box) {
@@ -3354,7 +3361,7 @@
       var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
         " tv__fill--t" + label.tint, label.text);
       node.setAttribute("data-brace-label", label.id);
-      container(node, label.kind, label.id, "tvbrace__label");
+      container(node, label.kind, label.id, "tvbrace__label", true);
       node.setAttribute("title", label.text);
       if (label.lines > 1) node.style.webkitLineClamp = String(label.lines);
       node.style.lineHeight = (label.lines > 1 ? VA.GRID_BRACE.line : label.line) + "px";

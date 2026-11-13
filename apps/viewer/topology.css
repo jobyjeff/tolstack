@@ -1207,7 +1207,9 @@ body { display: flex; flex-direction: column; }
 .tvbrace--lead.tvbrace--bottom { border-bottom-width: 3px; }
 .tvbrace--selected { color: var(--accent); }
 .tvbrace--touched { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
-.tvbrace__label[data-brace-kind] { pointer-events: auto; cursor: pointer; }
+/* The label stays inert: it lies over the PART cell, which is the row's own
+   click target (a click there selects the row's edge, as before). It is lit
+   with its bracket; the bracket's caps are the part's control. */
 .tvbrace__label--hot { filter: brightness(1.25); }
 .tvbrace__label--lead { color: var(--ink); }
 .tvbrace__label--selected { color: var(--accent); }
