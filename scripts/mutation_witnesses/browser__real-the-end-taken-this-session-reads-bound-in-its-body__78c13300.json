@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail holds still (bodies under Bodies, joint words, framing, the second face)",
+  "expect_red": "[real] the end taken this session reads bound in its body, naming the face just taken, and the feature row's one mark reads bound, filled in the bound colour",
+  "mutations": [
+    {
+      "contract": "A face taken in the pane is bound in the shell's tree at once: the page adopts the pane's record when it knows every event the page's does.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md",
+      "note": "Declared by the review round of a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12), replacing the 2026-11-06 guard that read the picked-now mark on the pane's row under the taken end; a bound feature's body is now the one bound line. Refuses every record the pane posts, so the taken end stays as the page loaded it.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (!VA.paneIdentityWins(state.identity, msg)) return;",
+      "replace": "    return;"
+    }
+  ]
+}

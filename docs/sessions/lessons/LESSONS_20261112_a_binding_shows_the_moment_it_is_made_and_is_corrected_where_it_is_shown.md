@@ -192,3 +192,85 @@ bound and nothing suggested (shots `04`-`10`):
   `projections/viewer/feature-identity/log.json`. Without it the
   repo-root/sibling-mount checks read no log, and on the sibling mount no
   bindings at all.
+
+## Review round 1 (REQUEST CHANGES: two browser suites regressed)
+
+I ran `--only` only on the suites I had edited. Two other suites read the
+same surface, and the review's full tier found them red. The lesson is the
+one the review put in its overlay: when you swap the guards that pin a
+surface, grep the browser runner for every reader of that surface
+(`navtree__featurebody`, `navtree__featurestate`, `data-kind="action"`,
+`navtree__scene`) and run each of those suites.
+
+- **"annotate rail holds still", 10/17. Two different causes.**
+  - **The harness served two different logs.** The suite serves Jeff's
+    accepts unanswered (`acceptedOnlyProposals` → `unaccept`), so a Take has
+    an open end to work on. It did that only through the pane's memory
+    adapter, which rewrites `bindings.json`. The shell now folds the served
+    log itself, so its tree read those ends bound while the pane read them
+    open. The page then refused the pane's records, because the page held
+    events the pane didn't. That one cause broke the Take's two behavioural
+    checks: the partner end is selected, it is on screen with its candidates,
+    and it is still suggested. Those checks are kept unchanged.
+    **Fix:** `installRealAnnotatorReads` applies `unaccept` to the log too. It
+    routes `projections/viewer/feature-identity/log.json` and drops the
+    binding events that ratify those proposals, which is the log as it stood
+    before the accept. Both checks are green with no product change.
+  - **The look checks read the retired body.** The kinds, marks, indent,
+    glyphs and attention-ink checks read the pane's rows under the taken end,
+    which is now bound, so its body is the one bound line.
+    **Fix:**
+    - Four of the checks now read the partner end, which is still suggested
+      and still lists its candidate rows. The behaviour they check (the rows
+      say what they are, step in, carry glyphs, keep their words in ink) is
+      unchanged.
+    - The fifth asserted the picked-now mark on the taken end's row. That mark
+      left with the row, so the check now asserts that the taken end's body is
+      `bound · face <the face just written> of <part>` and that the feature
+      row's mark is bound and filled. The old spec is deleted; the new one
+      refuses the pane's record in `onPaneIdentity`, and the name-set pin is
+      re-measured.
+- **"the model drawn alone and led", 10/11, the Escape check.** It armed
+  the pick through the old pane-row action (`[data-kind="action"]`). A bound
+  feature's body now carries `data-body-act` buttons, so the click found
+  nothing. **Fix:** it arms through `[data-body-act="arm"]` (Correct or Pick a
+  face), or a suggested end's action row. The assertion is unchanged, and it
+  holds: armed, Esc cancels the pick, and the selection stays (`dots 1`,
+  `inspect feature hub_boss_in_tan_link_mount_pilot`). The sweep-mode Esc
+  branch handles it, so there was no product change.
+- **Nit:** `guard_enumeration.mjs`'s "+4" comment named five things. The
+  fifth (an unbind folded) is a case of the log-read check, and the comment
+  now says so.
+
+**Round-1 tests**, against `data/scratch/round2_20261112`. That root was built
+from this tree like the review's: inbox and meshes junctioned read-only;
+topology, viewer, crops, kinematic and feature-identity built with
+`--data-root`; this tree's `docs/` linked in. Removed afterwards.
+
+- Viewer fast with `[real]`: 687/687. Annotate fast: 313/313.
+- Browser `--only` on every suite that reads the tree body or the identity
+  record:
+  - rail holds still 17/17
+  - model drawn alone 11/11
+  - 3D pane follows 32/32
+  - annotate flyout 41/41
+  - sweep rail 24/24
+  - armed pick 17/17
+  - rail suggestion 19/19
+- Witness `--only` on every guard in the moved suite. All are WITNESSED:
+  - the new taken-end guard;
+  - the Take's two;
+  - rows say what they are, indent, glyphs (both mutations), attention ink;
+  - Escape with a pick armed.
+- **Two witnesses needed their checks tightened to see their mutations
+  again:**
+  - **Glyphs.** The feature row read now is a suggested one, whose mark is a
+    1.5px ring. Collapsing the mark to no width still leaves a 3px speck, so
+    `width > 0` passed. The check now wants a whole glyph (at least 6px; both
+    are drawn at 7-8px).
+  - **Attention ink.** This one was already blind before this branch. Since
+    11-10 the check flagged the end's state line but read the feature row's
+    label. The declared mutation recolours `.navtree__scenerow` words, and no
+    row rule reaches that label. It now flags a candidate face row and reads
+    that row's own words. The end's state line is excluded because it is drawn
+    in its state's colour by design.
