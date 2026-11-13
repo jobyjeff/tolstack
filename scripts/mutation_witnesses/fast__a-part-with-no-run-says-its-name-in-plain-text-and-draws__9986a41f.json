@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part with no run says its name in plain text and draws nothing else about a drawing",
+  "mutations": [
+    {
+      "contract": "A part with no run draws nothing about a drawing beside its name.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_links_to_its_drawing_before_it_has_a_tolerance.md",
+      "note": "Declared by handoff a_part_links_to_its_drawing_before_it_has_a_tolerance (2026-11-12). Says a mark beside a part that has no run.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      box.textContent = part.label;\n      return box;",
+      "replace": "      box.textContent = part.label + \" \" + VA.DIFFERENT_DASH_TEXT;\n      return box;"
+    }
+  ]
+}

@@ -75,7 +75,7 @@ scripts/
                                stack_gaps derivation -- a topology also carries
                                a `gaps` list now). The layout lives here, not
                                in JS, so pytest can pin it. Since 2026-11-12
-                               each part also carries its drawing-checker runs
+                               a part also carries its drawing-checker runs
                                (`drawing_runs`, else `other_dash_runs`), read
                                off drawing-checker's runs dir with
                                build_viewer_crops' listing and

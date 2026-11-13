@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part whose only runs are another dash number's keeps its own number plain and offers that run, marked as not its own",
+  "mutations": [
+    {
+      "contract": "Another dash number's run is never linked under the part's own number.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_links_to_its_drawing_before_it_has_a_tolerance.md",
+      "note": "Declared by handoff a_part_links_to_its_drawing_before_it_has_a_tolerance (2026-11-12). Links the part's own number to the other dash number's run.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      box.appendChild(runLink(runs.newest, hit.url, runs.newest.drawing));",
+      "replace": "      box.appendChild(runLink(runs.newest, hit.url, runs.number));"
+    }
+  ]
+}

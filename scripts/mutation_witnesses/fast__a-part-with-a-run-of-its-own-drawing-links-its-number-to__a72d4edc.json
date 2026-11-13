@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part with a run of its own drawing links its number to the newest run, in a new tab, with that run's revision beside it",
+  "mutations": [
+    {
+      "contract": "The part number links to the NEWEST run of its own drawing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_links_to_its_drawing_before_it_has_a_tolerance.md",
+      "note": "Declared by handoff a_part_links_to_its_drawing_before_it_has_a_tolerance (2026-11-12). Links the oldest run instead.",
+      "file": "apps/viewer/element_record.js",
+      "find": "      newest: runs.length ? runs[0] : null,",
+      "replace": "      newest: runs.length ? runs[runs.length - 1] : null,"
+    },
+    {
+      "contract": "The link opens in a new tab.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_links_to_its_drawing_before_it_has_a_tolerance.md",
+      "note": "Declared by handoff a_part_links_to_its_drawing_before_it_has_a_tolerance (2026-11-12). Drops the new-tab target.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    link.setAttribute(\"target\", \"_blank\");\n    link.setAttribute(\"rel\", \"noopener\");\n    link.setAttribute(\"title\", \"drawing \"",
+      "replace": "    link.setAttribute(\"rel\", \"noopener\");\n    link.setAttribute(\"title\", \"drawing \""
+    }
+  ]
+}

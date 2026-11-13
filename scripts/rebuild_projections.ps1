@@ -150,7 +150,8 @@ Invoke-Step -Name "js vocabulary" -Exe $TolstackPython -Arguments @(
 )
 
 Invoke-Step -Name "topology projection" -Exe $TolstackPython -Arguments @(
-    (Join-Path $ScriptsDir "build_topology_projection.py")
+    (Join-Path $ScriptsDir "build_topology_projection.py"),
+    "--drawing-checker-root", $DrawingCheckerRoot
 )
 
 Invoke-Step -Name "viewer results projection" -Exe $TolstackPython -Arguments @(

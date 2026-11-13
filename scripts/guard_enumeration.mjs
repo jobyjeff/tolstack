@@ -318,7 +318,7 @@ export const DECLARED_GUARDS = {
   // by id; seven hover guards, the resolver guard and the tree guard renamed
   // with the two-tier rule (each spec renamed and re-anchored). Every name
   // carries a spec.
-  fast: { declared: 688, enrollable: 688, names: "f47e48008340" },
+  fast: { declared: 691, enrollable: 691, names: "666c806e67a2" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
