@@ -709,7 +709,7 @@
     // opens, and after the paint the first lit row not on screen is scrolled
     // into view (revealLitRows). Hover opens nothing.
     if (entity && model) {
-      var paths = VA.navRevealPaths(model, VA.focusLightOf(model, entity));
+      var paths = VA.navRevealPaths(model, VA.focusLightOf(model, entity), entity);
       Object.keys(paths).forEach(function (row) {
         paths[row].forEach(function (key) { state.navOpen[key] = true; });
       });

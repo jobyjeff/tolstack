@@ -6991,64 +6991,56 @@
       });
     }
 
-    await test("hovering any part of a rail lights that whole connected " +
-      "line -- its span, the curve that opened it, the curve that leaves it " +
-      "and every mark on it -- and nothing on another column", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+    // Since hover_and_select_light_the_same_things_on_all_four_surfaces_and_
+    // nothing_goes_opaque (2026-11-12) the pane lights nothing of its own:
+    // its pointer tells the page a key (onHot), the page's ONE resolver
+    // (VA.focusLightOf) says what that entity lights, in two tiers, and
+    // VA.lightTopoKeys lights exactly those marks and rows -- `--lead` for
+    // own, `--hot` for touching -- on the entries that ARE them. The rail
+    // leg, the rows of every edge at a node, the pane's pointer winning over
+    // the page: all gone, and these pin their absence as much as what lights.
+    // The demo model is the case: its parts have no bodies, so a part is a
+    // fold of its own; its shared nodes are interfaces, its one gap edge
+    // (tip_to_strut_end) joins the arm and the strut.
+    var demoModel = VA.buildModel(TOPO, null);
+    function keysFor(kind, id) {
+      return VA.focusElementKeysOf(demoModel, VA.focusEntityOf(demoModel, kind, id));
+    }
+    function hotRows(root) {
+      return all(root, "tr.tvrow--hot").map(function (n) { return n.getAttribute("data-id"); });
+    }
+
+    await test("a rail is no element: hovering any part of one tells the page its key and " +
+      "lights nothing -- no leg, no curve, no mark on it", function () {
+        var told = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
+        });
         ok(nothingLit(root), "nothing is lit before a pointer arrives");
         var hits = all(root, "line.rail__hit");
         eq(hits.length, 2, "one hit path per rail, so a 2px line is pointable");
-
-        // The BRANCH leg: one edge, no interface, and BOTH curves -- the
-        // branch that fans into it and the loop that closes out of it. This
-        // is the whole of item 2's claim in one hover.
         hits[1].onmouseenter({});
-        var leg = litState(root);
-        eq(leg.rails, 1, "one rail span, not two");
-        eq(leg.halos, 1, "and its halo under it -- the glow IS the hit path");
-        eq(leg.links, 2, "the branch curve in and the close curve out");
-        eq(leg.bars, 1);
-        eq(leg.dots, 0, "the branch leg carries no interface of its own");
-        eq(leg.rows, 1, "the grid row of the one edge on it");
-        eq(leg.leadBars, [], "a rail hover leads nothing: no element is under " +
-           "the pointer, only the line");
-        eq(leg.leadLeaders, 0);
-        eq(leg.leadRows, []);
-
-        // The MAINLINE, and the two sets are disjoint: five edges, six
-        // interfaces, no curve of its own.
+        eq(told, ["rail|1"], "the pointer on a rail is told as the rail's key");
+        ok(nothingLit(root), "...and the leg it draws is not a thing hover says any more");
+        eq(VA.lightTopoKeys(VA.focusElementKeysOf(demoModel, VA.focusKeyEntity(demoModel, "rail|1"))), 0,
+           "the page resolves a rail's key to no entity, and lights nothing for it");
         hits[1].onmouseleave({});
-        ok(nothingLit(root), "leaving clears it");
+        eq(told, ["rail|1", null]);
         hits[0].onmouseenter({});
-        var main = litState(root);
-        eq(main.rails, 1);
-        eq(main.bars, 5);
-        eq(main.dots, 6);
-        eq(main.links, 0, "neither curve belongs to the line it forks off");
-        eq(main.rows, 5);
-        // ...and every lit mark really is on the one column: the rail's own x
-        // and every bar's x are one number. A membership computed off a
-        // column INDEX would survive this; one computed off the layout's own
-        // rail spans is what makes it true.
-        var x = main.railX[0];
-        ok(x, "the lit rail has an x");
-        all(root, "line.rail__bar--hot").forEach(function (bar) {
-          eq(bar.getAttribute("x1"), x, "a lit bar on another column");
-        });
-        all(root, "circle.rail__dot--hot").forEach(function (dot) {
-          eq(dot.getAttribute("cx"), x, "a lit dot on another column");
-        });
+        ok(nothingLit(root), "the mainline too");
         hits[0].onmouseleave({});
-        ok(nothingLit(root));
       });
 
-    await test("the DAG and the grid share ONE hover state: a grid row " +
-      "lights its bar, its dots and its leader, and a bar lights its row",
+    await test("the DAG and the grid share ONE hover state through the page's resolver: a " +
+      "dimension lights its bar, its row and its two end dots as own, the interfaces at its " +
+      "ends as touching, and no rail leg; the bar's hit path and the row tell the same key",
       function () {
         var picked = [];
+        var told = [];
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({
             onSelect: function (kind, id) { picked.push([kind, id]); },
+            onHot: function (key) { told.push(key); },
           }));
         });
         var row = all(root, "tr.tvrow")[1];
@@ -7059,34 +7051,46 @@
         })[0];
         ok(barHit, "the bar's hit path is addressed by the same edge id");
 
-        // Grid -> DAG.
+        // Grid -> page -> both surfaces.
         row.onmouseenter({});
+        eq(told, ["edge|" + edgeId], "the row tells the page its edge");
+        ok(nothingLit(root), "...and lights nothing on its own");
+        var keys = keysFor("edge", edgeId);
+        eq(keys.own.slice().sort(), ["edge|" + edgeId].concat(
+          [TOPO.edges.filter(function (e) { return e.id === edgeId; })[0]].map(function (e) {
+            return ["node|" + e.from, "node|" + e.to];
+          })[0]).sort(), "a dimension's own tier: its edge and its two ends");
+        ok(VA.lightTopoKeys(keys) >= 3, "the page lights the keys");
         var fromGrid = litState(root);
         eq(fromGrid.leadBars, [markAt(barHit)],
            "its bar, and only its bar -- the one drawn over that hit path");
-        eq(fromGrid.leadDots.length, 2, "its two interfaces");
-        eq(fromGrid.leadRows, [edgeId]);
-        ok(fromGrid.rails >= 1, "the leg it sits on glows around it");
-        ok(fromGrid.rows > 1, "and the other edges on that leg are tinted too");
-
-        // DAG -> grid, off the bar's own hit path, which is what a pointer
-        // over the drawing actually lands on.
+        eq(fromGrid.leadDots.length, 2, "its two ends' dots");
+        eq(fromGrid.leadRows, [edgeId], "its own row leads, no other");
+        eq(fromGrid.rails, 0, "no leg glows: a leg is not a thing hover says");
+        eq(fromGrid.links, 0);
+        // The touching tier: the interfaces at its ends that are edges (a
+        // gap) are rows and bars lit `--hot` only.
+        var touchingRows = keys.touching.filter(function (k) { return k.indexOf("edge|") === 0; })
+          .map(function (k) { return k.slice(5); });
+        eq(hotRows(root).sort(), [edgeId].concat(touchingRows).sort(),
+           "the rows lit are its own and its touching interfaces', nothing else");
+        // DAG -> page, off the bar's own hit path.
         row.onmouseleave({});
+        VA.lightTopoKeys(null);
+        ok(nothingLit(root));
         barHit.onmouseenter({});
-        eq(litState(root), fromGrid,
-           "the same state, whichever surface the pointer arrived on");
-
-        // Hover is tint and nothing else: it selects nothing. (The cards keep
-        // their own triggers -- this ctx has no card handler at all, and the
-        // bar still lit.)
+        eq(told.slice(-1), ["edge|" + edgeId], "the bar tells the same key");
+        VA.lightTopoKeys(keysFor("edge", edgeId));
+        eq(litState(root), fromGrid, "the same state, whichever surface the pointer arrived on");
         eq(picked, [], "hovering must not select");
         barHit.onmouseleave({});
-        ok(nothingLit(root), "leaving the drawing clears both surfaces");
+        VA.lightTopoKeys(null);
+        ok(nothingLit(root), "the page's clear takes both surfaces down");
       });
 
     await test("a hovered grid row lights its two ends' leaders and no other, " +
       "whichever leaders' seams it starts at", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ onHot: function () {} })); });
         var index = VA.topologyIndex(TOPO);
         var hits = all(root, "path.rail__leaderhit");
         var drawn = {};
@@ -7097,7 +7101,7 @@
         all(root, "tr.tvrow--edge").forEach(function (row) {
           var id = row.getAttribute("data-id");
           var ends = VA.selectedLeaderNodes({ kind: "edge", id: id }, index);
-          row.onmouseenter({});
+          VA.lightTopoKeys(keysFor("edge", id));
           var lit = all(root, "path.rail__leaderhit--hot").map(function (h) {
             return h.getAttribute("data-leader-id");
           }).sort();
@@ -7107,37 +7111,42 @@
             if (h.getAttribute("class").indexOf("--hot") !== -1 &&
                 h.getAttribute("data-boundary-edge") !== id) farEnd++;
           });
-          row.onmouseleave({});
+          VA.lightTopoKeys(null);
         });
         ok(farEnd > 0, "some row lights a leader that lands at another row's seam");
       });
 
-    await test("an interface has no grid row of its own, so hovering its dot " +
-      "lights the rows of the edges that meet there", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        // An interior interface: two edges meet at it, so two rows light.
+    await test("an interface has no grid row of its own: its dot is the own tier, and the " +
+      "dimensions that meet it light only as touching -- their rows and bars fainter, never " +
+      "as the thing pointed at", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ onHot: function () {} })); });
         var dots = all(root, "circle.rail__dot").filter(function (dot) {
           return !hasClass(dot, "rail__dot--branch");
         });
         var dot = dots[1];
         var nodeId = dot.getAttribute("data-id");
         ok(nodeId, "a dot IS wired by (kind, id) -- it has no hit path over it");
-        dot.onmouseenter({});
+        var keys = keysFor("node", nodeId);
+        eq(keys.own, ["node|" + nodeId], "a node's own tier is itself");
+        VA.lightTopoKeys(keys);
         var lit = litState(root);
         eq(lit.leadDots, [markAt(dot)]);
+        eq(lit.leadRows, [], "no row leads: the node has none");
         var meeting = VA.spineRight(TOPO.layout).rows.filter(function (r) {
-          return r.kind === "edge" &&
-            (r.entered_at === nodeId || r.left_at === nodeId);
+          return r.kind === "edge" && (r.entered_at === nodeId || r.left_at === nodeId);
         }).map(function (r) { return r.id; });
         eq(meeting.length, 2, "an interior interface meets two edges");
-        eq(lit.leadRows.slice().sort(), meeting.slice().sort());
-        dot.onmouseleave({});
+        eq(hotRows(root).sort(), meeting.slice().sort(),
+           "the dimensions that meet it are lit, as touching");
+        eq(lit.bars, 2, "...their bars too, at the fainter weight");
+        eq(lit.leadBars, [], "and none of them leads");
+        VA.lightTopoKeys(null);
         ok(nothingLit(root));
       });
 
-    await test("the pane's pointer tells the page its key and its leave; a pane repainted under the " +
-      "pointer is lit again from the page's one hover, and the leave after it still reaches the page",
-      function () {
+    await test("the pane's pointer tells the page its key and its leave and lights nothing of " +
+      "its own; a pane repainted under the pointer is lit again from the page's one hover, " +
+      "and the leave after it still reaches the page", function () {
         var told = [];
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
@@ -7146,9 +7155,12 @@
         var key = "edge|" + bar.getAttribute("data-id");
         bar.onmouseenter({});
         eq(told, [key], "the pointer on a bar is told as its key");
-        ok(litState(root).leadRows.length > 0, "...and the pane lights it itself");
+        ok(nothingLit(root), "...and the pane lights nothing itself: the page's resolver does");
+        eq(VA.lightTopoKeys({ own: [key], touching: [] }), 1, "the page lights it");
+        ok(litState(root).leadRows.length > 0);
         bar.onmouseleave({});
         eq(told, [key, null], "the pointer leaving is told");
+        VA.lightTopoKeys(null);
         ok(nothingLit(root));
         // A repaint under the resting pointer: the new state holds nothing,
         // the page re-lights what it knows is hovered, and the pointer's
@@ -7157,43 +7169,49 @@
         root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
         });
-        eq(VA.lightTopoKeys([key]), 1, "the page's hover lights the repainted pane");
+        eq(VA.lightTopoKeys({ own: [key], touching: [] }), 1, "the page's hover lights the repainted pane");
         ok(litState(root).leadRows.length > 0);
         bar = all(root, "line.rail__barhit")[0];
         bar.onmouseleave({});
         eq(told, [null], "a leave with nothing held still tells the page");
         VA.lightTopoKeys(null);
         ok(nothingLit(root), "...and the page's clear takes the light down");
+        // A pane with no page at all (a bare render) lights a hovered mark as
+        // its own tier, so the drawing still answers the pointer.
+        var alone = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        all(alone, "line.rail__barhit")[0].onmouseenter({});
+        eq(litState(alone).leadRows.length, 1);
+        all(alone, "line.rail__barhit")[0].onmouseleave({});
+        ok(nothingLit(alone));
       });
 
-    await test("the scene's pointer on a joint lights every node it stands for here " +
-      "-- their dots and their rows -- and the pane's own pointer wins", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+    await test("the page's light always applies -- the pane's own pointer no longer wins: the " +
+      "scene's pointer on a joint lights every node it stands for as own, and the rows meeting " +
+      "them only as touching", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ onHot: function () {} })); });
         var dots = all(root, "circle.rail__dot").filter(function (dot) {
           return !hasClass(dot, "rail__dot--branch");
         });
         var a = dots[1], b = dots[2];
         var ids = [a.getAttribute("data-id"), b.getAttribute("data-id")];
-        // Each dot hovered alone, for what the two together must light.
-        var alone = ids.map(function (id, i) {
-          (i ? b : a).onmouseenter({});
-          var lit = litState(root);
-          (i ? b : a).onmouseleave({});
-          return lit;
-        });
-        eq(VA.lightTopoKeys(ids.map(function (id) { return "node|" + id; })), 2);
+        var meeting = VA.spineRight(TOPO.layout).rows.filter(function (r) {
+          return r.kind === "edge" && (ids.indexOf(r.entered_at) !== -1 || ids.indexOf(r.left_at) !== -1);
+        }).map(function (r) { return "edge|" + r.id; });
+        eq(VA.lightTopoKeys({ own: ids.map(function (id) { return "node|" + id; }), touching: meeting }),
+           2 + meeting.length);
         var both = litState(root);
-        eq(both.leadDots.slice().sort(), alone[0].leadDots.concat(alone[1].leadDots).sort(),
-          "both members' dots lead");
-        var rows = {};
-        alone[0].leadRows.concat(alone[1].leadRows).forEach(function (id) { rows[id] = true; });
-        eq(both.leadRows.slice().sort(), Object.keys(rows).sort(), "and every row meeting either");
-        // The pane's pointer arrives: it owns the state, and the scene's word waits.
+        eq(both.leadDots.slice().sort(), [markAt(a), markAt(b)].sort(), "both members' dots lead");
+        eq(both.leadRows, [], "no row is the thing pointed at");
+        eq(hotRows(root).sort(), meeting.map(function (k) { return k.slice(5); }).sort(),
+           "every row meeting either, as touching");
+        // The pane's pointer arrives on a dot: it tells the page, and the
+        // page's next light replaces this one -- nothing here refuses it.
         a.onmouseenter({});
-        eq(VA.lightTopoKeys(["node|" + ids[1]]), 0, "the pane's own hover is not overridden");
+        eq(VA.lightTopoKeys({ own: ["node|" + ids[1]], touching: [] }), 1, "the page's light is never refused");
+        eq(litState(root).leadDots, [markAt(b)]);
         a.onmouseleave({});
         VA.lightTopoKeys(null);
-        ok(nothingLit(root), "the scene's pointer leaving clears it");
+        ok(nothingLit(root), "the page's clear takes it down");
       });
 
     await test("hover emphasis is keyed by element, so it survives the " +
@@ -7221,7 +7239,8 @@
           var root = render(function (r) {
             VA.renderTopoPane(r, topoCtx({ topoProj: proj }));
           });
-          all(root, "line.rail__barhit")[0].onmouseenter({});
+          var hit = all(root, "line.rail__barhit")[0];
+          VA.lightTopoKeys(keysFor("edge", hit.getAttribute("data-id")));
           var state = litState(root);
           // Every x on the page is SUPPOSED to move -- that is what a
           // renumbering does. What must not move is which elements are lit,
@@ -7235,8 +7254,9 @@
         };
         var plain = lit(TOPO);
         eq(lit(mirrored), plain);
-        ok(plain.bars > 1 && plain.leadRows.length === 1,
-           "anti-vacuity: the hover really lit a leg with marks on it");
+        ok(plain.leadBars === 1 && plain.leadDots === 2 && plain.leadRows.length === 1,
+           "anti-vacuity: the hover really lit an edge with its ends");
+        VA.lightTopoKeys(null);
       });
 
     await test("the element cell prints the authored name whole, and its hover " +
@@ -12131,19 +12151,26 @@
 
     // --- the one selection and the one hover (one_selection_one_hover_and_
     // leaders_off, 2026-11-10) ----------------------------------------------
-    await test("the model names what an element is and what an entity lights: a shared node is " +
-      "its interface, a node on one part that part's feature, a gap edge its interface, a " +
-      "dimension its edge; a part, a body and a joint light everything they hold; and without " +
-      "a model an element stands for itself", function () {
+    await test("the model names what an element is and what an entity lights, in two tiers: a " +
+      "shared node is its interface, a node on one part that part's feature, a gap edge its " +
+      "interface, a dimension its edge; own is the entity and what it contains, touching what " +
+      "meets it; and without a model an element stands for itself", function () {
         var model = VA.buildModel(bodiedProj(), bodiedIdentity());
         var F = VA.FOCUS_KINDS;
         eq(VA.focusEntityOf(model, "node", "n2"), { kind: F.interface, id: "n2" });
         eq(VA.focusEntityOf(model, "node", "n1"), { kind: F.feature, id: "p1@n1" });
         eq(VA.focusEntityOf(model, "edge", "g1"), { kind: F.interface, id: "g1" });
         eq(VA.focusEntityOf(model, "edge", "d1"), { kind: F.dimension, id: "d1" });
+        eq(VA.focusEntityOf(model, "part", "p1"), { kind: F.part, id: "p1" }, "a part's container is the part");
+        eq(VA.focusEntityOf(model, "body", "b2"), { kind: F.body, id: "b2" });
         eq(VA.focusEntityOf(model, "node", "nope"), null);
         eq(VA.focusEntityOf(model, "edge", "nope"), null);
+        eq(VA.focusEntityOf(model, "part", "nope"), null);
         eq(VA.focusEntityOf(model, null, "n1"), null);
+        eq(VA.focusKeyEntity(model, "part|p1"), { kind: F.part, id: "p1" }, "a lit key names its entity");
+        eq(VA.focusKeyEntity(model, "edge|g1"), { kind: F.interface, id: "g1" });
+        eq(VA.focusKeyEntity(model, "rail|0"), null, "a rail's key is no entity");
+        eq(VA.focusKeyEntity(model, "study|s"), null);
         // ...and back: the element an entity is shown as.
         eq(VA.focusElementOf(model, { kind: F.feature, id: "p2@n3" }), { kind: "node", id: "n3" });
         eq(VA.focusElementOf(model, { kind: F.interface, id: "n2" }), { kind: "node", id: "n2" });
@@ -12153,45 +12180,126 @@
         eq(VA.focusElementOf(model, { kind: F.body, id: "b1" }), null);
         eq(VA.focusElementOf(model, { kind: F.joint, id: "p1+p2" }), null);
         eq(VA.focusElementOf(model, null), null);
-        // What lights on the DAG and in the grid.
-        eq(VA.focusElementKeysOf(model, { kind: F.feature, id: "p1@n2" }), ["node|n2"]);
-        eq(VA.focusElementKeysOf(model, { kind: F.dimension, id: "d1" }), ["edge|d1"]);
-        eq(VA.focusElementKeysOf(model, { kind: F.part, id: "p1" }).sort(), ["edge|d1", "node|n1", "node|n2"],
-           "a part: its features' nodes and its dimensions' edges");
-        eq(VA.focusElementKeysOf(model, { kind: F.interface, id: "g2" }).sort(), ["edge|g2", "node|n1", "node|n5"],
-           "a gap interface: its edge and its two ends' nodes");
-        eq(VA.focusElementKeysOf(model, { kind: F.interface, id: "n2" }), ["node|n2"]);
-        eq(VA.focusElementKeysOf(model, { kind: F.joint, id: "p1+p2" }).sort(), ["edge|g2", "node|n1", "node|n2", "node|n5"],
-           "a joint: its constraints, a gap's ends included");
-        var body = VA.focusElementKeysOf(model, { kind: F.body, id: "b1" });
-        ok(body.indexOf("node|n1") !== -1 && body.indexOf("edge|g2") !== -1 && body.indexOf("node|n3") !== -1,
-           "a body: every part's elements and the joints inside it");
-        eq(VA.focusElementKeysOf(model, null), []);
-        // Which tree rows.
-        eq(VA.focusNavRowsOf(model, { kind: F.feature, id: "p1@n2" }).sort(),
-           ["feature:p1@n2", "feature:p2@n2", "interface:n2"],
-           "a feature: its row, the other row of its node, and the interface the node is");
-        eq(VA.focusNavRowsOf(model, { kind: F.feature, id: "p1@n1" }), ["feature:p1@n1"]);
-        eq(VA.focusNavRowsOf(model, { kind: F.interface, id: "g1" }).sort(),
-           ["feature:p2@n3", "feature:p3@n4", "interface:g1"], "a gap: its row and its two ends");
-        eq(VA.focusNavRowsOf(model, { kind: F.dimension, id: "d1" }).sort(), ["feature:p1@n1", "feature:p1@n2"]);
-        eq(VA.focusNavRowsOf(model, { kind: F.part, id: "p2" }), ["part:p2"]);
-        eq(VA.focusNavRowsOf(model, { kind: F.body, id: "b2" }), ["body:b2"]);
-        eq(VA.focusNavRowsOf(model, { kind: F.joint, id: "p2+p3" }), ["joint:p2+p3"]);
-        eq(VA.focusNavRowsOf(model, null), []);
+
+        // THE ONE RESOLVER (VA.focusLightOf): own and touching, by entity.
+        var light = function (kind, id) {
+          var l = VA.focusLightOf(model, { kind: kind, id: id });
+          var words = function (e) { return e.kind + ":" + e.id; };
+          return { own: l.own.map(words), touching: l.touching.map(words) };
+        };
+        eq(light(F.part, "p1"), {
+          own: ["part:p1", "feature:p1@n1", "feature:p1@n2", "dimension:d1"],
+          touching: ["interface:n2", "joint:p1+p2", "feature:p2@n2", "interface:g2", "feature:p2@n5"],
+        }, "a part: itself, its features and dimensions; the interfaces to its neighbours, " +
+           "their joint and the feature across each");
+        eq(light(F.body, "b1").own.slice(0, 5),
+           ["body:b1", "part:p1", "feature:p1@n1", "feature:p1@n2", "dimension:d1"],
+           "a body: itself, then each part with what it holds...");
+        ok(light(F.body, "b1").own.indexOf("joint:p1+p2") !== -1 &&
+           light(F.body, "b1").own.indexOf("interface:g2") !== -1,
+           "...and the joints inside it with their interfaces");
+        eq(light(F.body, "b1").touching, ["interface:g1", "joint:p2+p3", "feature:p3@n4"],
+           "a body touches the joints to other bodies, their interfaces and far features");
+        eq(light(F.feature, "p1@n2"), {
+          own: ["feature:p1@n2"],
+          touching: ["interface:n2", "joint:p1+p2", "feature:p2@n2", "dimension:d1"],
+        }, "a shared node's feature: itself; the interface it is, its joint, the feature across, " +
+           "and the dimension that ends at it");
+        eq(light(F.feature, "p3@n4"), { own: ["feature:p3@n4"], touching: ["interface:g1", "joint:p2+p3", "feature:p2@n3"] });
+        eq(light(F.interface, "g1"), {
+          own: ["interface:g1", "feature:p2@n3", "feature:p3@n4"],
+          touching: ["joint:p2+p3", "dimension:d2"],
+        }, "a gap interface: itself and its two ends; its joint and the dimensions ending at them");
+        eq(light(F.interface, "n2"), {
+          own: ["interface:n2", "feature:p1@n2", "feature:p2@n2"],
+          touching: ["joint:p1+p2", "dimension:d1", "dimension:d2"],
+        });
+        eq(light(F.joint, "p1+p2"), {
+          own: ["joint:p1+p2", "interface:n2", "feature:p1@n2", "feature:p2@n2", "interface:g2",
+                "feature:p1@n1", "feature:p2@n5"],
+          touching: ["part:p1", "part:p2"],
+        }, "a joint: itself, its interfaces and their ends; the two parts it joins");
+        eq(light(F.dimension, "d1"), {
+          own: ["dimension:d1", "feature:p1@n1", "feature:p1@n2"],
+          touching: ["interface:g2", "interface:n2"],
+        }, "a dimension: itself and its two ends; the interfaces at them");
+        eq(light(F.part, "nope"), { own: [], touching: [] });
+        eq(VA.focusLightOf(model, null), { own: [], touching: [] });
+        // Touching never repeats own.
+        ok(light(F.body, "b1").touching.every(function (k) { return light(F.body, "b1").own.indexOf(k) === -1; }));
+
+        // The bound faces of a light's features, per tier.
+        var bound = VA.buildModel(bodiedProj(), { stack_keys: [
+          { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "d1" },
+            bindings: [{ event_id: "e1", direction: "to", geometry_key: { source_step_sha256: "aa", face_id: 12 } }],
+            proposals: [] },
+          { stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "d2" },
+            bindings: [{ event_id: "e2", direction: "from", geometry_key: { source_step_sha256: "bb", face_id: 3 } }],
+            proposals: [] }] });
+        var faces = VA.focusFacesOf(bound, VA.focusLightOf(bound, { kind: F.part, id: "p1" }));
+        eq(faces.own, [{ sha256: "aa", faceId: 12, feature: "p1@n2" }], "the part's own bound face");
+        eq(faces.touching, [{ sha256: "bb", faceId: 3, feature: "p2@n2" }], "the face across the interface");
+
+        // What lights on the DAG and in the grid: element keys per tier, a
+        // part's or a body's container included, a joint none of its own.
+        var keys = function (kind, id) { return VA.focusElementKeysOf(model, { kind: kind, id: id }); };
+        eq(keys(F.feature, "p1@n2"), { own: ["node|n2"], touching: ["edge|d1"] });
+        eq(keys(F.dimension, "d1"), { own: ["edge|d1", "node|n1", "node|n2"], touching: ["edge|g2"] });
+        eq(keys(F.part, "p1"), { own: ["part|p1", "node|n1", "node|n2", "edge|d1"], touching: ["edge|g2", "node|n5"] },
+           "a part: its container, its features' nodes and its dimensions' edges; its neighbours' " +
+           "interfaces and the nodes across -- never a shared node twice");
+        eq(keys(F.interface, "g2"), { own: ["edge|g2", "node|n1", "node|n5"], touching: ["edge|d1"] });
+        eq(keys(F.interface, "n2"), { own: ["node|n2"], touching: ["edge|d1", "edge|d2"] });
+        eq(keys(F.joint, "p1+p2"), { own: ["node|n2", "edge|g2", "node|n1", "node|n5"], touching: ["part|p1", "part|p2"] });
+        ok(keys(F.body, "b1").own.indexOf("body|b1") === 0 && keys(F.body, "b1").own.indexOf("part|p2") !== -1,
+           "a body: its own container, its parts' containers and everything in them");
+        eq(VA.focusElementKeysOf(model, null), { own: [], touching: [] });
+        // Which tree rows: every entity has a row, so the light itself.
+        eq(VA.focusNavRowsOf(model, { kind: F.feature, id: "p1@n2" }), {
+          own: ["feature:p1@n2"], touching: ["interface:n2", "joint:p1+p2", "feature:p2@n2", "dimension:d1"] });
+        eq(VA.focusNavRowsOf(model, { kind: F.body, id: "b2" }).own, ["body:b2", "part:p3", "feature:p3@n4"]);
+        eq(VA.focusNavRowsOf(model, null), { own: [], touching: [] });
+        // Where a row is revealed: the folds on its path, outermost first.
+        eq(VA.navRowPath(model, F.feature, "p1@n2"), ["b:b1", "bp:b1", "p:p1"], "a feature under its part");
+        eq(VA.navRowPath(model, F.feature, "p2@n2", "n2"), ["b:b1", "bi:b1", "j:p1+p2", "i:n2"],
+           "...or under the interface it is an end of");
+        eq(VA.navRowPath(model, F.feature, "p3@n4", "g1"), ["i:g1"],
+           "under a single-constraint joint between bodies, the interface row is the joint's");
+        eq(VA.navRowPath(model, F.interface, "g2"), ["b:b1", "bi:b1", "j:p1+p2"]);
+        eq(VA.navRowPath(model, F.joint, "p2+p3"), []);
+        eq(VA.navRowPath(model, F.part, "p3"), ["b:b2", "bp:b2"]);
+        eq(VA.navRowPath(model, F.body, "b1"), []);
+        var reveal = VA.navRevealPaths(model, VA.focusLightOf(model, { kind: F.part, id: "p1" }), { kind: F.part, id: "p1" });
+        eq(reveal["feature:p1@n1"], ["b:b1", "bp:b1", "p:p1"], "a part's own feature is revealed under the part");
+        eq(reveal["feature:p2@n2"], ["b:b1", "bi:b1", "j:p1+p2", "i:n2"],
+           "the feature across its interface under that interface, not by opening the neighbour part");
+        eq(reveal["dimension:d1"], undefined, "a dimension has no row");
+        var ifaceReveal = VA.navRevealPaths(model, VA.focusLightOf(model, { kind: F.interface, id: "n2" }), { kind: F.interface, id: "n2" });
+        eq(ifaceReveal["feature:p1@n2"], ["b:b1", "bi:b1", "j:p1+p2", "i:n2"],
+           "an interface's own ends are revealed under it, where the reader is looking");
+        // The scene's reading: parts with a mesh, faces, and the elements.
+        var scene = VA.sceneLightOf(bound, { kind: F.part, id: "p1" });
+        eq(scene.own, { parts: ["p1"], nodes: ["n1", "n2"], edges: ["d1"], faces: [{ sha256: "aa", faceId: 12 }] });
+        eq(scene.touching, { parts: [], nodes: ["n5"], edges: ["g2"], faces: [{ sha256: "bb", faceId: 3 }] },
+           "p2 has no mesh, so it is not among the parts to glow");
+        eq(VA.sceneLightOf(model, null), null);
+        eq(VA.sceneLightCommand(null, null), [VA.SCENE_LIGHT_VERB, "clear"]);
+        eq(JSON.parse(VA.sceneLightCommand(scene, null)[1]).hover.own.parts, ["p1"]);
         // No model (a projection built before the block): the element itself.
         eq(VA.focusEntityOf(null, "node", "x"), { kind: "node", id: "x" });
         eq(VA.focusElementOf(null, { kind: "edge", id: "e" }), { kind: "edge", id: "e" });
-        eq(VA.focusElementKeysOf(null, { kind: "node", id: "x" }), ["node|x"]);
-        eq(VA.focusNavRowsOf(null, { kind: "node", id: "x" }), []);
+        eq(VA.focusElementKeysOf(null, { kind: "node", id: "x" }), { own: ["node|x"], touching: [] });
+        eq(VA.focusNavRowsOf(null, { kind: "node", id: "x" }), { own: [], touching: [] });
+        eq(VA.focusLightOf(null, { kind: "node", id: "x" }), { own: [{ kind: "node", id: "x" }], touching: [] });
         ok(VA.sameFocus({ kind: "a", id: "1" }, { kind: "a", id: "1" }));
         ok(!VA.sameFocus({ kind: "a", id: "1" }, { kind: "a", id: "2" }));
         ok(!VA.sameFocus(null, { kind: "a", id: "1" }));
       });
 
-    await test("the tree lights from the one hover in place: VA.lightNavTree marks the hovered " +
-      "entity's rows --hot and no other, a feature lights the other row of its node, and " +
-      "a render draws the hovered rows lit too", function () {
+    await test("the tree lights from the one hover in place, in two tiers: VA.lightNavTree marks " +
+      "the hovered entity's own rows --hot and its touching rows --hot-touching, no other; a " +
+      "lit row behind a closed fold marks the fold that hides it; and a render draws the " +
+      "hovered and the selected rows lit the same way", function () {
         var proj = bodiedProj();
         var model = VA.buildModel(proj, null);
         var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
@@ -12200,33 +12308,51 @@
                       navOpen: { "p:p1": true, "p:p2": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true },
                       focus: { selected: null, hovered: { kind: "part", id: "p2" } }, selection: null };
         var root = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
-        var hot = function () {
-          return all(root, "div.navtree__row").filter(function (r) { return hasClass(r, "navtree__row--hot"); })
+        var rowsWith = function (cls) {
+          return all(root, "div.navtree__row").filter(function (r) { return hasClass(r, cls); })
             .map(function (r) { return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id"); });
         };
-        eq(hot(), ["part:p2"], "a render draws the hovered part lit");
-        // Five rows carry the three keys: n2's two features under their
-        // parts, the interface row, and the two end rows under it (open).
-        eq(VA.lightNavTree(root, model, { kind: "feature", id: "p1@n2" }), 5);
         var unique = function (list) {
           return list.filter(function (k, i) { return list.indexOf(k) === i; }).sort();
         };
-        eq(unique(hot()), ["feature:p1@n2", "feature:p2@n2", "interface:n2"].sort());
-        eq(VA.lightNavTree(root, model, { kind: "body", id: "b1" }), 1);
-        eq(hot(), ["body:b1"]);
+        eq(unique(rowsWith("navtree__row--hot")),
+           ["feature:p2@n2", "feature:p2@n3", "feature:p2@n5", "part:p2"],
+           "a render draws the hovered part and its features lit as own");
+        eq(unique(rowsWith("navtree__row--hot-touching")),
+           ["feature:p1@n1", "feature:p1@n2", "interface:g1", "interface:g2", "interface:n2", "joint:p1+p2"],
+           "...and the interfaces to its neighbours, their joint and the features across as touching");
+        // The far feature behind a closed fold: p3@n4 is an end of g1, which
+        // is closed and whose part p3 is closed too, so the g1 row wears the
+        // mark of a lit row it hides. p1@n1 is across g2, also closed -- but
+        // its row under p1 is on screen, so nothing marks g2.
+        eq(unique(rowsWith("navtree__row--holds-touching")), ["interface:g1"]);
+        eq(rowsWith("navtree__row--holds"), []);
+        // Re-lit in place: a feature of the shared node.
+        eq(VA.lightNavTree(root, model, { kind: "feature", id: "p1@n2" }), 6,
+           "p1@n2 twice (under p1 and under n2), the interface row, the joint row, p2@n2 twice");
+        eq(unique(rowsWith("navtree__row--hot")), ["feature:p1@n2"]);
+        eq(unique(rowsWith("navtree__row--hot-touching")), ["feature:p2@n2", "interface:n2", "joint:p1+p2"]);
+        eq(rowsWith("navtree__row--holds-touching"), [], "nothing lit is hidden");
+        // A body: its parts and features own; the joint between bodies and
+        // the far feature touching -- the far feature under the closed g1.
+        eq(VA.lightNavTree(root, model, { kind: "body", id: "b1" }) > 8, true);
+        ok(rowsWith("navtree__row--hot").indexOf("body:b1") !== -1);
+        eq(unique(rowsWith("navtree__row--holds-touching")), ["interface:g1"]);
         eq(VA.lightNavTree(root, model, null), 0);
-        eq(hot(), [], "nothing hovered, nothing lit");
+        eq(rowsWith("navtree__row--hot").concat(rowsWith("navtree__row--hot-touching"),
+          rowsWith("navtree__row--holds"), rowsWith("navtree__row--holds-touching")), [],
+          "nothing hovered, nothing lit, no mark");
         eq(VA.lightNavTree(null, model, { kind: "body", id: "b1" }), 0, "no tree, nothing to light");
-        // The selected rows are untouched by the hover.
+        // The selected rows are drawn in the same two tiers, and a hover
+        // touches neither.
         state.focus = { selected: { kind: "interface", id: "g1" }, hovered: null };
         root = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
-        var on = all(root, "div.navtree__row").filter(function (r) { return hasClass(r, "navtree__row--on"); })
-          .map(function (r) { return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id"); });
-        eq(on.sort(), ["feature:p2@n3", "feature:p3@n4", "interface:g1"],
-           "the gap's row and its two ends -- the selection opens the parts that hold them");
+        eq(unique(rowsWith("navtree__row--on")), ["feature:p2@n3", "feature:p3@n4", "interface:g1"],
+           "the gap's row and its two ends -- p3 opens by the nav's own default since it holds an own row");
+        eq(unique(rowsWith("navtree__row--on-touching")), [],
+           "its joint has no row of its own (one constraint) and d2 is no row");
         VA.lightNavTree(root, model, { kind: "feature", id: "p1@n1" });
-        eq(all(root, "div.navtree__row").filter(function (r) { return hasClass(r, "navtree__row--on"); }).length, 3,
-           "a hover lights nothing --on and takes nothing --on down");
+        eq(rowsWith("navtree__row--on").length, 3, "a hover lights nothing --on and takes nothing --on down");
       });
 
     await test("the left column is the model's tree: bodies open to parts and interfaces, " +
@@ -12237,7 +12363,7 @@
                      looseStacks: [], kinematic: [] };
         var state = { mode: "topology", topologyId: "mini",
                       models: { mini: VA.buildModel(proj, bodiedIdentity()) },
-                      navOpen: { "p:p1": true, "bi:b1": true, "j:p1+p2": true },
+                      navOpen: { "p:p1": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true },
                       focus: { selected: { kind: "feature", id: "p1@n2" }, hovered: null },
                       selection: { kind: "node", id: "n2" } };
         var root = render(function (r) {
@@ -12256,28 +12382,30 @@
         eq(parts.map(function (p) { return p.querySelector(".navtree__label").textContent; }),
            ["100-001 hub", "100-002 mount", "arm"]);
         var features = all(root, "div.navtree__row--feature");
-        // p1 was opened by the reader; p2 opens because it holds a feature of
-        // the selected node (a selection is never marked on a row the reader
-        // cannot see); p3 stays closed. The open interface group's joint opens
-        // to its two constraints, each closed (no end rows yet).
+        // p1 was opened by the reader; p2 stays closed -- the other feature of
+        // the selected node is TOUCHING, revealed under the interface n2 (open
+        // here, as the page's reveal would open it), not by opening p2; p3
+        // stays closed. The open interface group's joint opens to its two
+        // constraints: n2 to its two end rows, g2 closed.
         eq(features.map(function (f) { return f.getAttribute("data-nav-id"); }),
-           ["p1@n1", "p1@n2", "p2@n2", "p2@n3", "p2@n5"]);
+           ["p1@n1", "p1@n2", "p1@n2", "p2@n2"]);
         var S = VA.FEATURE_STATUSES;
         eq(features.map(function (f) { return f.querySelector(".navtree__mark").getAttribute("data-status"); }),
-           [S.none, S.bound, S.none, S.bound, S.none], "a shared node's two features: only the part bound is");
+           [S.none, S.bound, S.bound, S.none], "a shared node's two features: only the part bound is");
         ok(hasClass(features[1], "navtree__row--on"), "the selected feature is marked");
-        ok(hasClass(features[2], "navtree__row--on"), "...and the other row of its node");
+        ok(hasClass(features[2], "navtree__row--on"), "...its end row under the interface too");
+        ok(hasClass(features[3], "navtree__row--on-touching"), "...and the feature across the interface, fainter");
         ok(!hasClass(features[0], "navtree__row--on"));
         // The selected feature's row is open -- its own twisty says so -- and
         // its body's slot sits under it and nowhere else; the other rows are
         // closed, each with a twisty of its own (the scene is open).
-        eq(all(root, "div.navtree__scene").length, 1);
+        eq(all(root, "div.navtree__scene").length, 2, "one slot per drawn row of the selected feature");
         ok(insideOf(features[1].parentNode, all(root, "div.navtree__scene")[0]));
         eq(all(root, "div.navtree__scene")[0].getAttribute("data-scene-feature"), "p1@n2");
         eq(features.map(function (f) {
           var tw = f.querySelector("button.navtree__twisty");
           return tw ? tw.getAttribute("aria-expanded") : "leaf";
-        }), ["false", "true", "false", "false", "false"]);
+        }), ["false", "true", "true", "false"]);
         eq(features[1].querySelector("button.navtree__twisty").getAttribute("data-nav-twisty"), "f:p1@n2");
         // Show/hide: a part with a mesh has the box, one without has none; a
         // body with any meshed part has one.
@@ -12291,7 +12419,12 @@
         var interfaces = all(root, "div.navtree__row--interface");
         eq(interfaces.map(function (i) { return i.getAttribute("data-nav-id"); }), ["n2", "g2", "g1"]);
         eq(interfaces.map(function (i) { return i.getAttribute("data-interface-kind"); }), ["node", "edge", "edge"]);
-        ok(hasClass(interfaces[0], "navtree__row--on"), "the shared node is the selection");
+        ok(hasClass(interfaces[0], "navtree__row--on-touching"),
+           "the shared node's interface touches the selected feature");
+        ok(hasClass(joint, "navtree__row--on-touching"), "...and so does its joint");
+        eq(joint.getAttribute("data-nav-fold"), "j:p1+p2", "a fold row carries its fold key");
+        eq(bodies[0].getAttribute("data-nav-fold"), "b:b1");
+        eq(all(root, "div.navtree__row--group")[0].getAttribute("data-nav-fold"), "bp:b1");
         // The one joint between bodies, listed once, under its own heading.
         ok(insideOf(all(root, "div.navtree__section--joints")[0], interfaces[2]));
         // No filter, no component chip, no mirrored rail.
@@ -12449,6 +12582,7 @@
         var handlers = {
           onFeature: function (fid) { seen.push(["feature", fid]); },
           onInterface: function (kind, id) { seen.push(["interface", kind, id]); },
+          onEntity: function (kind, id) { seen.push(["entity", kind, id]); },
           onToggle: function (key, open) { seen.push(["toggle", key, open]); },
           onVisibility: function (kind, id, shown) { seen.push(["vis", kind, id, shown]); },
           onHover: function (t) { seen.push(["hover", t ? t.kind + ":" + t.id : null]); },
@@ -12468,6 +12602,13 @@
         var g1 = all(root, "div.navtree__row--interface").filter(function (r) {
           return r.getAttribute("data-nav-id") === "g1"; })[0];
         g1.click();
+        g1.onmouseenter();
+        g1.onmouseleave();
+        // A joint row and a part row select their entity; the body row too.
+        var jointRow = all(root, "div.navtree__row--joint")[0];
+        jointRow.click();
+        jointRow.onmouseenter();
+        jointRow.onmouseleave();
         // n2 is open: its two ends are rows naming part and feature.
         var ends = all(root, "div.navtree__row--feature").filter(function (r) {
           return r.getAttribute("data-node-id") === "n2" && r.textContent.indexOf("\u00b7") !== -1; });
@@ -12480,10 +12621,16 @@
         box.checked = false;
         box.onclick({ stopPropagation: function () {} });
         var part = all(root, "div.navtree__row--part")[0];
+        part.click();
+        part.querySelector("button.navtree__twisty").onclick({ stopPropagation: function () {} });
         part.querySelector("input.navtree__vis").onclick({ stopPropagation: function () {} });
         eq(seen, [["feature", "p2@n2"], ["feature", "p2@n2"], ["hover", "feature:p2@n2"], ["hover", null],
-          ["interface", "edge", "g1"], ["toggle", "b:b1", true], ["toggle", "b:b1", true],
-          ["vis", "body", "b1", false], ["vis", "part", "p1", true]]);
+          ["interface", "edge", "g1"], ["hover", "interface:g1"], ["hover", null],
+          ["entity", "joint", "p1+p2"], ["hover", "joint:p1+p2"], ["hover", null],
+          ["entity", "body", "b1"], ["toggle", "b:b1", true],
+          ["vis", "body", "b1", false],
+          ["entity", "part", "p1"], ["toggle", "p:p1", false], ["vis", "part", "p1", true]],
+          "a body's, a part's and a joint's row SELECT (2026-11-12); only the twisty folds");
         // Without the scene, no box at all: nothing about a feature that is not there.
         var bare = render(function (r) { VA.renderNavTree(r, { topologies: [
           { id: "mini", title: "Mini", studies: [] }], looseStacks: [] }, state, {}); });
@@ -17606,6 +17753,83 @@
         // 2026-09-09 and nothing read it, so these are value-level: they pin the
         // rendered STRINGS against the live projection's own numbers, not the
         // presence of an element.
+
+        // The one resolver on the end-stop model, pinned by id (hover_and_
+        // select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_
+        // opaque, 2026-11-12): one body, one part, one shared-node feature,
+        // one gap interface, one joint. Value-level, off the live projection.
+        await test("[real] on the end-stop model the resolver's own and touching sets are these ids: " +
+          "the hub's four features and three dimensions own, its four interfaces to the blade root " +
+          "and the mount touching; the base body touches five joints to other bodies; a shared-node " +
+          "feature touches its interface, its joint, its twin and its dimension; the pilot gap owns " +
+          "its two ends; the hub-mount joint owns three interfaces and touches two parts", function () {
+            var v2 = VA.findTopology(realTopologies, "vpa_end_stop_v2");
+            ok(v2 && v2.model, "the end-stop model is in the projection with its model block");
+            var model = VA.buildModel(v2, null);
+            var F = VA.FOCUS_KINDS;
+            var words = function (e) { return e.kind + ":" + e.id; };
+            var light = function (kind, id) {
+              var l = VA.focusLightOf(model, { kind: kind, id: id });
+              return { own: l.own.map(words), touching: l.touching.map(words) };
+            };
+            var MOUNT = "tan_link_mount_215175_002";
+            eq(light(F.part, "hub"), {
+              own: ["part:hub", "feature:hub@hub_spindle_bore_axis", "feature:hub@hub_blade1_root_bearing_bore",
+                    "feature:hub@tan_link_mount_hub_face", "feature:hub@tan_link_mount_fastener_clocking",
+                    "dimension:hub_spindle_to_tan_link_mount_face", "dimension:hub_boss_to_tan_link_mount_fasteners",
+                    "dimension:hub_blade_axis_offset"],
+              touching: ["interface:hub_blade1_root_bearing_bore", "joint:blade_root+hub",
+                         "feature:blade_root@hub_blade1_root_bearing_bore",
+                         "interface:tan_link_mount_hub_face", "joint:hub+" + MOUNT,
+                         "feature:" + MOUNT + "@tan_link_mount_hub_face",
+                         "interface:tan_link_mount_fastener_clocking",
+                         "feature:" + MOUNT + "@tan_link_mount_fastener_clocking",
+                         "interface:hub_boss_in_tan_link_mount_pilot",
+                         "feature:" + MOUNT + "@tan_link_mount_pilot_bore"],
+            });
+            // The grid rows a hub hover lights: its three dimensions as own,
+            // and the one gap interface that is a row as touching -- four,
+            // against `model.dimensionsOf("hub")`'s three.
+            var hubKeys = VA.focusElementKeysOf(model, { kind: F.part, id: "hub" });
+            eq(hubKeys.own.filter(function (k) { return k.indexOf("edge|") === 0; }).length,
+               model.dimensionsOf("hub").length);
+            eq(hubKeys.touching, ["edge|hub_boss_in_tan_link_mount_pilot", "node|tan_link_mount_pilot_bore"]);
+            var base = light(F.body, "base");
+            eq(base.own.slice(0, 2), ["body:base", "part:hub"]);
+            eq(base.own.filter(function (k) { return k.indexOf("part:") === 0; }),
+               ["part:hub", "part:" + MOUNT, "part:gas_spring_mount_213668_002", "part:piston_cover_214958_002"]);
+            eq(base.own.filter(function (k) { return k.indexOf("joint:") === 0; }),
+               ["joint:hub+" + MOUNT, "joint:gas_spring_mount_213668_002+" + MOUNT,
+                "joint:gas_spring_mount_213668_002+piston_cover_214958_002"], "the joints inside the base");
+            eq(base.touching.filter(function (k) { return k.indexOf("joint:") === 0; }),
+               ["joint:blade_root+hub", "joint:gas_spring_mount_213668_002+piston_head_lower_214699_002",
+                "joint:tan_link_212956_005+" + MOUNT, "joint:gas_spring_mount_213668_002+gas_spring_piston_214700_002",
+                "joint:piston_cover_214958_002+piston_head_upper_214698_002"], "the five joints to other bodies");
+            eq(light(F.feature, "hub@tan_link_mount_hub_face"), {
+              own: ["feature:hub@tan_link_mount_hub_face"],
+              touching: ["interface:tan_link_mount_hub_face", "joint:hub+" + MOUNT,
+                         "feature:" + MOUNT + "@tan_link_mount_hub_face", "dimension:hub_spindle_to_tan_link_mount_face"],
+            });
+            eq(light(F.interface, "hub_boss_in_tan_link_mount_pilot"), {
+              own: ["interface:hub_boss_in_tan_link_mount_pilot", "feature:hub@hub_spindle_bore_axis",
+                    "feature:" + MOUNT + "@tan_link_mount_pilot_bore"],
+              touching: ["joint:hub+" + MOUNT, "dimension:hub_spindle_to_tan_link_mount_face",
+                         "dimension:hub_boss_to_tan_link_mount_fasteners", "dimension:hub_blade_axis_offset",
+                         "dimension:tan_link_mount_pilot_to_bore"],
+            });
+            var joint = light(F.joint, "hub+" + MOUNT);
+            eq(joint.own.filter(function (k) { return k.indexOf("interface:") === 0; }),
+               ["interface:tan_link_mount_hub_face", "interface:tan_link_mount_fastener_clocking",
+                "interface:hub_boss_in_tan_link_mount_pilot"]);
+            eq(joint.touching, ["part:hub", "part:" + MOUNT]);
+            // Where the pilot gap's ends are revealed when it is selected:
+            // under itself, inside the hub-mount joint's fold.
+            var reveal = VA.navRevealPaths(model,
+              VA.focusLightOf(model, { kind: F.interface, id: "hub_boss_in_tan_link_mount_pilot" }),
+              { kind: F.interface, id: "hub_boss_in_tan_link_mount_pilot" });
+            eq(reveal["feature:" + MOUNT + "@tan_link_mount_pilot_bore"],
+               ["b:base", "bi:base", "j:hub+" + MOUNT, "i:hub_boss_in_tan_link_mount_pilot"]);
+          });
 
         await test("[real] the pitch-link studies render their verdicts and " +
           "their margins, including the study that has no criterion at all",

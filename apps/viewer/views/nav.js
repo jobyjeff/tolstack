@@ -249,8 +249,10 @@
       if (!row.classList) continue;
       var fold = row.getAttribute("data-nav-fold");
       if (fold) folds[fold] = row;
-      row.classList.remove(LIT_CLASS.hot, LIT_CLASS.hot + "-touching",
-        HOLDS_CLASS.hot, HOLDS_CLASS.hot + "-touching");
+      // One class per call: the fast tier's DOM shim takes one, and so did
+      // the browsers this started on.
+      [LIT_CLASS.hot, LIT_CLASS.hot + "-touching", HOLDS_CLASS.hot, HOLDS_CLASS.hot + "-touching"]
+        .forEach(function (cls) { row.classList.remove(cls); });
       var kind = row.getAttribute("data-nav-kind");
       var id = row.getAttribute("data-nav-id");
       if (!kind || !id) continue;
@@ -261,7 +263,7 @@
       row.classList.add(cls);
     }
     // The hidden rows: the deepest drawn fold on each one's path wears the mark.
-    var paths = model ? VA.navRevealPaths(model, VA.focusLightOf(model, hovered)) : {};
+    var paths = model ? VA.navRevealPaths(model, VA.focusLightOf(model, hovered), hovered) : {};
     Object.keys(hot).forEach(function (key) {
       if (drawn[key]) return;
       var path = paths[key] || [];
@@ -546,6 +548,9 @@
       var focus = state.focus || {};
       lit = { on: litRows(model, focus.selected), hot: litRows(model, focus.hovered) };
       modelSections(root, model, open, state, handlers);
+      // The marks on closed folds that hide a hovered row are the lighter's
+      // (VA.lightNavTree), so a fresh paint wears them too.
+      if (model && focus.hovered) VA.lightNavTree(root, model, focus.hovered);
     }
     if (kinematic.length) root.appendChild(kinematicSection(kinematic, state, handlers));
     if (handlers.orphans && handlers.orphans.length) root.appendChild(orphanFoot(handlers.orphans));

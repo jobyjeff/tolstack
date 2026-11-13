@@ -581,28 +581,36 @@
   };
 
   // Where each lit row is revealed, as {`<kind>:<id>`: [fold keys]} over both
-  // tiers: a feature lit through an interface in the light (the far feature
-  // of a part's neighbour, an interface's own ends) is revealed under that
-  // interface, not by opening the part across the joint; any other feature
-  // under its part. A dimension has no row. The page opens every key on
-  // select (hover opens nothing: a closed fold that holds a lit row wears a
-  // mark instead, VA.lightNavTree).
-  VA.navRevealPaths = function (model, light) {
+  // tiers. A TOUCHING feature (the far feature of a part's neighbour) is
+  // revealed under the lit interface it is an end of, not by opening the
+  // part across the joint; an OWN feature under its part -- unless the lit
+  // entity is itself an interface or a joint, whose own ends are revealed
+  // under that interface, where the reader is looking. A dimension has no
+  // row. The page opens every key on select (hover opens nothing: a closed
+  // fold that holds a lit row wears a mark instead, VA.lightNavTree).
+  VA.navRevealPaths = function (model, light, entity) {
     var out = {};
     if (!model || !light) return out;
     var F = VA.FOCUS_KINDS;
-    var all = (light.own || []).concat(light.touching || []);
-    var litInterfaces = all.filter(function (e) { return e.kind === F.interface; })
-      .map(function (e) { return model.interface(e.id); }).filter(Boolean);
-    all.forEach(function (e) {
+    var own = light.own || [];
+    var touching = light.touching || [];
+    var interfacesIn = function (list) {
+      return list.filter(function (e) { return e.kind === F.interface; })
+        .map(function (e) { return model.interface(e.id); }).filter(Boolean);
+    };
+    var hostAmong = function (ifaces, fid) {
+      var host = ifaces.filter(function (i) { return (i.ends || []).indexOf(fid) !== -1; })[0];
+      return host ? host.id : null;
+    };
+    var ownHosts = entity && (entity.kind === F.interface || entity.kind === F.joint) ? interfacesIn(own) : [];
+    var allHosts = interfacesIn(own.concat(touching));
+    var place = function (e, hosts) {
       if (e.kind === F.dimension) return;
-      var under = null;
-      if (e.kind === F.feature) {
-        var host = litInterfaces.filter(function (i) { return (i.ends || []).indexOf(e.id) !== -1; })[0];
-        if (host) under = host.id;
-      }
+      var under = e.kind === F.feature ? hostAmong(hosts, e.id) : null;
       out[e.kind + ":" + e.id] = VA.navRowPath(model, e.kind, e.id, under);
-    });
+    };
+    own.forEach(function (e) { place(e, ownHosts); });
+    touching.forEach(function (e) { place(e, allHosts); });
     return out;
   };
 
@@ -634,10 +642,15 @@
     var strip = function (list) {
       return list.map(function (f) { return { sha256: f.sha256, faceId: f.faceId }; });
     };
+    var not = function (list, mine) {
+      return list.filter(function (id) { return mine.indexOf(id) === -1; });
+    };
     return {
       own: { parts: own.parts, nodes: own.nodes, edges: own.edges, faces: strip(faces.own) },
-      touching: { parts: touching.parts.filter(function (p) { return own.parts.indexOf(p) === -1; }),
-        nodes: touching.nodes, edges: touching.edges, faces: strip(faces.touching) },
+      // A shared node is one node however many features are on it: a
+      // touching feature of an own node is not a second, fainter node.
+      touching: { parts: not(touching.parts, own.parts), nodes: not(touching.nodes, own.nodes),
+        edges: not(touching.edges, own.edges), faces: strip(faces.touching) },
     };
   };
 
