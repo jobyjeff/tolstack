@@ -7440,6 +7440,21 @@ async function installRealAnnotatorReads(page, seed) {
     const timer = setInterval(() => { if (install()) clearInterval(timer); }, 1);
     document.addEventListener("DOMContentLoaded", () => { install(); clearInterval(timer); });
   }, seed);
+  // The shell reads the served LOG and folds it itself (since 2026-11-12,
+  // a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown),
+  // so `unaccept` is applied there too: the log as it stood before the accept,
+  // i.e. without the binding events that ratify those proposals. Otherwise the
+  // shell's tree reads those ends bound while the pane reads them open.
+  const unaccepted = new Set(Object.values(seed.unaccept || {}).flat().map((p) => p.event_id));
+  if (seed.binding === "real" && unaccepted.size) {
+    await page.route("**/data/projections/viewer/feature-identity/log.json", async (route) => {
+      const response = await route.fetch();
+      const doc = response.ok() ? await response.json() : null;
+      if (!doc || !Array.isArray(doc.events)) return route.fulfill({ response });
+      doc.events = doc.events.filter((e) => !(e && e.ratifies && unaccepted.has(e.ratifies)));
+      return route.fulfill({ response, json: doc });
+    });
+  }
 }
 
 // The model drawn in the scene (handoff the_model_is_drawn_in_the_scene), on
@@ -9457,11 +9472,13 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     // legend names the states, the levels step in, and no state recolours a
     // row's words. Read off the shell's tree, from the annotator's words, on
     // the live study -- not from rows a test built by hand.
-    // The look is read on the TAKEN end: its feature re-selected (the layer
-    // followed the partner), its candidate list opened under it.
-    if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
+    // The look is read on the PARTNER end, where the layer followed: it is
+    // still suggested, so its body is the pane's rows, its candidate list
+    // under it. (Until 2026-11-12 it was read on the taken end; a bound
+    // feature's body is now the one bound line -- a_binding_shows_the_moment_
+    // it_is_made_and_is_corrected_where_it_is_shown -- read after this.)
     at = await nav();
-    await listed(UPPER);
+    await listed(LOWER);
     await page.waitForTimeout(500);
     // The layer is read under whichever feature holds it now; none at all is
     // a diagnosis, not an abort.
@@ -9512,12 +9529,17 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
         n.getBoundingClientRect().height > 0);
       // A state the annotator calls attention, on a row on screen: its words
       // stay ink (the old rule painted them --inferred; Jeff's "turned orange").
+      // Read on the flagged row's OWN words -- a candidate face row; the end's
+      // state line is drawn in its state's colour by design -- so a rule that
+      // recolours a flagged row is seen (until 2026-11-12 it flagged the end
+      // and read the feature row's label, which no row rule reaches, and its
+      // witness could not see the difference).
       let attentionInk = null;
-      const inkRow = low || up;
-      if (inkRow && featureRow) {
-        inkRow.setAttribute("data-attention", "true");
-        attentionInk = getComputedStyle(featureRow.querySelector(".navtree__label")).color;
-        inkRow.removeAttribute("data-attention");
+      if (candidate) {
+        const words = candidate.querySelector(".navtree__scenename") || candidate;
+        candidate.setAttribute("data-attention", "true");
+        attentionInk = getComputedStyle(words).color;
+        candidate.removeAttribute("data-attention");
       }
       const marks = Object.keys(w.AnnotateApp.RAIL_MARKS);
       return {
@@ -9553,9 +9575,39 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       ["end", "candidate"].every((k) => look.kinds.indexOf(k) !== -1) &&
       look.unkinded.length === 0 && look.endMarks.length >= 1 &&
       look.endMarks.every((m) => look.marks.indexOf(m) !== -1));
-    push("[real] the end taken this session wears the picked-now mark on its state line, and the feature " +
-      "row's one mark reads bound, filled in the bound colour",
-      look.upperMark === "picked" && look.featureStatus === "bound" && look.featureFill === look.bound);
+    // The TAKEN end, re-selected: its body is the bound line naming the face
+    // just taken (the picked-now mark on the pane's row retired with that
+    // row, 2026-11-12), and the feature row's one mark reads bound, filled in
+    // the bound colour.
+    const takenFace = await inPane((w) => {
+      const last = (w.__mockWrites || []).slice(-1)[0];
+      return last && last.event && last.event.geometry_key ? last.event.geometry_key.face_id : null;
+    });
+    if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
+    await until((sel) => {
+      const row = document.querySelector(sel);
+      return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
+    }, takeFeatureSel, 15000);
+    const taken = await page.evaluate((sel) => {
+      const row = document.querySelector(sel);
+      const body = row && row.parentNode.querySelector(".navtree__featurebody");
+      const mark = row && row.querySelector(".navtree__mark");
+      const probe = document.createElement("span");
+      probe.style.color = "var(--mark-bound)";
+      document.body.appendChild(probe);
+      const bound = getComputedStyle(probe).color;
+      probe.remove();
+      return { kind: body && body.getAttribute("data-body-kind"),
+        line: body ? (body.querySelector(".navtree__featurewords") || {}).textContent || "" : "",
+        status: mark && mark.getAttribute("data-status"),
+        fill: mark && getComputedStyle(mark).backgroundColor, bound };
+    }, takeFeatureSel);
+    console.log(`    taken end: face ${takenFace}; ${JSON.stringify(taken)}`);
+    push("[real] the end taken this session reads bound in its body, naming the face just taken, and the " +
+      "feature row's one mark reads bound, filled in the bound colour",
+      takenFace !== null && taken.kind === "bound" &&
+      new RegExp("^bound \\u00b7 face " + takenFace + " of ").test(taken.line) &&
+      taken.status === "bound" && taken.fill === taken.bound);
     // The feature row is the one title: the body under it repeats neither the
     // feature's name nor the marks legend (Jeff, 2026-11-10).
     push("[real] the feature row is the one title: its body repeats neither its name nor a marks legend",
@@ -9566,8 +9618,12 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     const RAIL_MIN_STEP = 18;
     push("[real] a candidate face steps in from its feature row by a full indent",
       look.step.every((d) => d !== null && d >= RAIL_MIN_STEP));
+    // A whole glyph, not a speck: the feature row read here is a suggested
+    // one, whose mark is a ring, and a ring collapsed to no width still
+    // draws its two borders (3px). Both glyphs are drawn at 7-8px.
+    const RAIL_MIN_GLYPH = 6;
     push("[real] the feature row and a candidate face each draw a glyph",
-      look.glyphs.every((g) => g && g.content !== "none" && g.width > 0));
+      look.glyphs.every((g) => g && g.content !== "none" && g.width >= RAIL_MIN_GLYPH));
     push("[real] a row the annotator marks for attention keeps its words in ink, not the provenance amber",
       look.attentionInk === look.ink && look.ink !== look.inferred);
 
@@ -15110,10 +15166,13 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const pageD = await pageHolds();
     push("[real] Escape with nothing armed in the pane lets go of the selection, pressed " +
       "controls and all", pageD.rows === 0 && pageD.dots === 0);
-    // ...and with a pick armed (the end's own pick action, the last row of
-    // its list) cancels the pick only.
+    // ...and with a pick armed cancels the pick only. The body's own pick
+    // action arms it: Correct or Pick a face on the model's line (a bound or
+    // unbound feature, since 2026-11-12), or the last row of a suggested
+    // end's list.
     await selectOneFeature();
-    await page.locator('#navtree .navtree__featurebody [data-kind="action"]').last()
+    await page.locator('#navtree .navtree__featurebody [data-body-act="arm"], ' +
+      '#navtree .navtree__featurebody [data-kind="action"]').last()
       .click({ timeout: 5000 }).catch(() => {});
     const armedD = await until(() => {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;

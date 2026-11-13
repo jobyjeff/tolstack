@@ -311,8 +311,8 @@ export const DECLARED_GUARDS = {
   // spec; the retired one's is deleted.
   // 2026-11-12 (a_binding_shows_the_moment_it_is_made_and_is_corrected_where_
   // it_is_shown): +4 -- a feature's body from the model, its render, the
-  // orphan bindings line, the log read and an unbind folded. Every new name
-  // carries a spec.
+  // orphan bindings line, and the log read (an unbind folded among its
+  // cases). Every new name carries a spec.
   fast: { declared: 687, enrollable: 687, names: "260c7a70e426" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
@@ -598,8 +598,10 @@ export const DECLARED_GUARDS = {
   // it_is_shown): four swapped -- the pane's rows under a bound feature (sweep
   // and bind mode), the element row click and the bind bar give way to the
   // bound line in both modes, Correct arming the pick in bind mode, and Cancel.
-  // Every new name carries a spec; the retired four's are deleted.
-  browser: { declared: 877, enrollable: 844, names: "5f8500bacda6" },
+  // Every new name carries a spec; the retired four's are deleted. Its review
+  // round renamed one more: the taken end's picked-now mark on the pane's row
+  // gives way to the taken end's bound line naming the face (rail holds still).
+  browser: { declared: 877, enrollable: 844, names: "08b3866242b4" },
 };
 
 
