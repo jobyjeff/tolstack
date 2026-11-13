@@ -46,6 +46,14 @@
 // Same licence the fixture already takes with its `unestablished` export: a
 // shape and a set of states, not a hand-edited number.
 //
+// Each part's `drawing_runs` and `other_dash_runs` are the sixth (handoff
+// a_part_links_to_its_drawing_before_it_has_a_tolerance, 2026-11-12): the
+// builder reads them off drawing-checker's runs directory, which this demo
+// mechanism has no drawings in, so `base` states two runs of its own drawing
+// (the link and one older run) and the others none. The run directories are
+// invented, like every name here; a near miss (another dash number) is stated
+// in tests.js, on a copy.
+//
 // Each study's `checks: []` is the third thing patched in by hand
 // (viewer_error_surface_and_layout, 2026-09-09): `topology_projection_emits_
 // study_checks` (391dc7c) added the field to project_study() after this
@@ -379,7 +387,14 @@
               "any hardware.",
             "occurrence": null,
             "mesh": { "installed": true, "part_id": "base" },
-            "label": "215197 base plate"
+            "label": "215197 base plate",
+            "drawing_runs": [
+              { "run_dir": "20261101_090000_215197_B.1_BASE_PLATE", "drawing": "215197",
+                "revision": "B", "date": "2026-11-01" },
+              { "run_dir": "20260409_170546_215197_A.1", "drawing": "215197",
+                "revision": "A", "date": "2026-04-09" }
+            ],
+            "other_dash_runs": []
           },
           {
             "id": "post",
@@ -391,7 +406,9 @@
             "note": null,
             "occurrence": null,
             "mesh": { "installed": false, "part_id": null },
-            "label": "post"
+            "label": "post",
+            "drawing_runs": [],
+            "other_dash_runs": []
           },
           {
             "id": "arm",
@@ -401,7 +418,9 @@
             "note": null,
             "occurrence": null,
             "mesh": { "installed": true, "part_id": "demo_arm_machined" },
-            "label": "arm"
+            "label": "arm",
+            "drawing_runs": [],
+            "other_dash_runs": []
           },
           {
             "id": "strut",
@@ -411,7 +430,9 @@
             "note": "identity not established",
             "occurrence": null,
             "mesh": { "installed": false, "part_id": null },
-            "label": "parallel strut"
+            "label": "parallel strut",
+            "drawing_runs": [],
+            "other_dash_runs": []
           }
         ],
         "nodes": [

@@ -1997,6 +1997,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   gap: 10px; margin: 10px 0;
 }
 .detail__partsource { color: var(--muted); font-size: var(--t-meta); margin: 2px 0 4px; }
+/* A part's number as a link to its drawing in drawing-checker
+   (VA.renderPartName): the run's revision beside it and the other-dash mark
+   are secondary, so muted; the older runs fold away (VA.renderOlderRuns). */
+.detail__runrev, .detail__runmark { color: var(--muted); }
+.detail__runlist { margin: 2px 0 4px; padding-left: 16px; font-size: var(--t-meta); }
 
 /* The one thing a hover draws on the DAG: its mark's name, one line, beside
    it (VA.hoverLabelPlacement). A halo of the page's own background keeps it

@@ -62,6 +62,7 @@ import argparse
 import dataclasses
 import heapq
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -94,6 +95,12 @@ from build_viewer_projection import worksheet_for as _stack_worksheet_for  # noq
 # does not pull in PyMuPDF: `fitz` is imported lazily, only inside
 # `build_viewer_crops._crop_from_citation`/`render`/`main`.
 from build_viewer_crops import croppable as _croppable  # noqa: E402
+# A part's drawing-checker runs (`drawing_checker_runs`): the runs directory is
+# listed the way the crop builder lists it, and a run's drawing number is read
+# the way the part-names projection reads it -- one reading of each, no second
+# parser of either.
+from build_viewer_crops import DEFAULT_DC_ROOT, run_dirs  # noqa: E402
+from build_part_names_projection import drawing_number  # noqa: E402
 from tolerance_stack.stack import SCHEMA_HARDWARE  # noqa: E402
 from tolerance_stack.model_view import model_view, part_label  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
@@ -249,6 +256,20 @@ UNVERIFIED_CONFIDENCES = ("untraced", "no_source_ref")
 #: ``apps/viewer/topology.js``'s ``VA.MESH_FACT_FIELDS`` is this tuple's
 #: hand-copy, paired word for word by ``tests/test_topology_projection.py``.
 MESH_FACT_FIELDS = ("installed", "part_id")
+
+#: What one of a part's drawing-checker runs says, and the whole of it
+#: (``parts[].drawing_runs`` / ``parts[].other_dash_runs``, handoff
+#: ``a_part_links_to_its_drawing_before_it_has_a_tolerance``): the run's
+#: directory, which is what drawing-checker addresses a run page by
+#: (``VA.runUrl``); the drawing number its page 1 states; that page's
+#: revision (``None`` when the title block gave none); and the date its
+#: directory name opens with.
+DRAWING_RUN_FIELDS = ("run_dir", "drawing", "revision", "date")
+
+#: A drawing-checker run directory opens with the run's timestamp
+#: (``20261112_104250_214373-003_A.1_...``). A directory without one is not a
+#: drawing run (an eval, a smoke test) and is never offered.
+_RUN_STAMP = re.compile(r"^(\d{4})(\d{2})(\d{2})_\d{6}_")
 
 #: Where the installed meshes live under a data root, and what one's sidecar is
 #: called (``data/meshes/README.md``).
@@ -1284,6 +1305,76 @@ def mesh_fact(part_id: str, meshes: Sequence[Dict[str, str]],
             "part_id": mesh["part_id"] if mesh else None}
 
 
+def _read_page(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def drawing_checker_runs(dc_root: Optional[Path]) -> List[Dict[str, Any]]:
+    """Every drawing-checker run whose page 1 states a drawing number, newest
+    first -- the ``DRAWING_RUN_FIELDS`` row for each.
+
+    The drawing number is the one the part-names projection reads off the same
+    file (``build_part_names_projection.drawing_number``: the title block's,
+    else the number the PDF's own name opens with), so a run is filed under one
+    number everywhere in this repo. A run that extracted no page 1 -- a run that
+    stopped early, an eval -- has no number to be filed under and is left out.
+    ``None`` (a test that does not care, a machine with no drawing-checker) is
+    no runs.
+    """
+    if dc_root is None:
+        return []
+    runs: List[Dict[str, Any]] = []
+    for run in run_dirs(dc_root):
+        stamp = _RUN_STAMP.match(run.name)
+        if not stamp:
+            continue
+        doc: Optional[Dict[str, Any]] = None
+        number: Optional[str] = None
+        for page in sorted(run.glob("*_p01.json")):
+            doc = _read_page(page)
+            number = drawing_number(doc) if doc is not None else None
+            if number:
+                break
+        if not number or doc is None:
+            continue
+        revision = (doc.get("title_block") or {}).get("revision") or doc.get("revision")
+        runs.append({
+            "run_dir": run.name,
+            "drawing": number,
+            "revision": (revision.strip() if isinstance(revision, str) and revision.strip()
+                         else None),
+            "date": "-".join(stamp.groups()),
+        })
+    runs.sort(key=lambda r: r["run_dir"], reverse=True)
+    return runs
+
+
+def part_drawing_runs(number: Optional[str], runs: Sequence[Dict[str, Any]]
+                      ) -> Dict[str, List[Dict[str, Any]]]:
+    """A part's two run lists, newest first, out of :func:`drawing_checker_runs`.
+
+    ``drawing_runs`` are the runs whose drawing number **is** the part's -- base
+    and dash, exactly: the end-stop model's hub is 214373-002, and the newest hub
+    run is the 214373-003 assembly, which is not its drawing. ``other_dash_runs``
+    are offered only when there is no such run: the runs of another dash number
+    of the same base (a bare base included), for the page to show *marked* as
+    not the part's own. A display choice, never a citation. A part with no
+    drawing number has neither.
+    """
+    if not number:
+        return {"drawing_runs": [], "other_dash_runs": []}
+    own = [dict(r) for r in runs if r["drawing"] == number]
+    if own:
+        return {"drawing_runs": own, "other_dash_runs": []}
+    base = number.split("-")[0]
+    other = [dict(r) for r in runs if r["drawing"].split("-")[0] == base]
+    return {"drawing_runs": [], "other_dash_runs": other}
+
+
 def project_node(topology: Topology, node: Node, branch_nodes: Sequence[str]
                  ) -> Dict[str, Any]:
     return {
@@ -1530,10 +1621,15 @@ def study_stack(topology: Topology, raw: Dict[str, Any],
 
 
 def project_part(part: Any, meshes: Sequence[Dict[str, str]],
-                 aliases: Sequence[Dict[str, str]]) -> Dict[str, Any]:
-    """The authored part, plus the one derived fact the viewer cannot compute."""
+                 aliases: Sequence[Dict[str, str]],
+                 runs: Sequence[Dict[str, Any]] = ()) -> Dict[str, Any]:
+    """The authored part, plus the derived facts the viewer cannot compute."""
     row = dataclasses.asdict(part)
     row["mesh"] = mesh_fact(part.id, meshes, aliases)
+    # The drawing-checker runs of the part's own drawing, and failing those
+    # another dash number's (`part_drawing_runs`): read at build time, because
+    # the page cannot list drawing-checker's runs directory.
+    row.update(part_drawing_runs(part.drawing, runs))
     # The one way the part is named on a surface (tolerance_stack.model_view.
     # part_label, 2026-11-10): written here so no surface composes it again.
     row["label"] = part_label(part)
@@ -1656,6 +1752,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
                      meshes: Sequence[Dict[str, str]] = (),
                      aliases: Sequence[Dict[str, str]] = (),
                      hardware: Optional[Dict[str, Any]] = None,
+                     runs: Sequence[Dict[str, Any]] = (),
                      ) -> Dict[str, Any]:
     branch_nodes = topology.branch_nodes()
     counts: Dict[str, int] = {}
@@ -1692,7 +1789,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # `declared` (provenance.worksheet) or `by_name`, the same pairing
         # `results.json` carries for a stack.
         "worksheet_source": worksheet_source,
-        "parts": [project_part(p, meshes, aliases) for p in topology.parts],
+        "parts": [project_part(p, meshes, aliases, runs) for p in topology.parts],
         "nodes": [project_node(topology, n, branch_nodes) for n in topology.nodes],
         "edges": [project_edge(topology, e) for e in topology.edges],
         "transforms": [dataclasses.asdict(topology.transform(t.id))
@@ -1732,8 +1829,14 @@ BUILT_BY = "scripts/build_topology_projection.py"
 def build(topologies_dir: Path,
           provenance: Optional[Dict[str, Any]] = None,
           meshes_dir: Optional[Path] = None,
-          hardware_path: Optional[Path] = None) -> Dict[str, Any]:
+          hardware_path: Optional[Path] = None,
+          drawing_checker_root: Optional[Path] = None) -> Dict[str, Any]:
     """The whole projection. ``meshes_dir`` is the data root's ``meshes/``.
+
+    ``drawing_checker_root`` is the drawing-checker checkout whose
+    ``data/runs/`` a part's ``drawing_runs`` are read from
+    (:func:`drawing_checker_runs`); ``None`` means no runs, and every part
+    carries two empty lists.
 
     ``None`` (the default, and what a test that does not care passes) means **no
     mesh is installed**, and every part says so -- never "unknown". The CLI hands
@@ -1771,6 +1874,7 @@ def build(topologies_dir: Path,
 
     meshes = installed_meshes(meshes_dir)
     aliases = load_mesh_aliases(topologies_dir)
+    runs = drawing_checker_runs(drawing_checker_root)
     hardware = load_hardware(
         hardware_path if hardware_path is not None
         else topologies_dir.parent / STACKS_DIR.name / HARDWARE_NAME)
@@ -1790,7 +1894,7 @@ def build(topologies_dir: Path,
         "variant_axis": VARIANT_AXIS,
         "topologies": [
             project_topology(path, raw, topology, studies.get(topology.id, []),
-                             meshes, aliases, hardware)
+                             meshes, aliases, hardware, runs)
             for path, raw, topology in in_model_order(topologies)
         ],
         "orphan_studies": orphans,
@@ -1814,6 +1918,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help="overwrite a projection built from a tree this one does not contain "
         "(the gate refuses by default -- see scripts/projection_provenance.py)",
+    )
+    ap.add_argument(
+        "--drawing-checker-root",
+        default=str(DEFAULT_DC_ROOT),
+        help="the drawing-checker checkout whose data/runs/ a part's drawing "
+        "runs are read from",
     )
     args = ap.parse_args(argv)
 
@@ -1857,7 +1967,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"note: no meshes dir at {meshes_dir} -- every part projects "
               f"mesh.installed=false", file=sys.stderr)
 
-    projection = build(topologies_dir, provenance, meshes_dir)
+    dc_root = Path(args.drawing_checker_root)
+    if not (dc_root / "data" / "runs").is_dir():
+        # Said out loud for the meshes note's reason: an absent runs dir would
+        # otherwise read as "no part has a drawing run".
+        print(f"note: no drawing-checker runs at {dc_root / 'data' / 'runs'} -- "
+              f"every part projects no drawing runs", file=sys.stderr)
+
+    projection = build(topologies_dir, provenance, meshes_dir,
+                       drawing_checker_root=dc_root)
 
     # Wipe-and-rebuild, but only this script's own file.
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1876,7 +1994,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"{len(topology['edges']):2d} edges, "
             f"{len(topology['branch_nodes'])} branch point(s), "
             f"{len(layout['rows'])} rows over {layout['columns']} rail(s), "
-            f"{len(meshed)}/{len(topology['parts'])} parts with an installed mesh"
+            f"{len(meshed)}/{len(topology['parts'])} parts with an installed mesh, "
+            f"{sum(1 for p in topology['parts'] if p['drawing_runs'])} with a "
+            f"drawing run"
         )
         for part in meshed:
             via = "" if part["mesh"]["part_id"] == part["id"] else \

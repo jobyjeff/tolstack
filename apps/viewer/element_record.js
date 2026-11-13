@@ -98,6 +98,28 @@
       // none of whose rows cropped has none: absent is absent.
       thumb: thumb,
       meshed: VA.partHasMesh(topoProj, part.id),
+      runs: drawingRuns(part),
+    };
+  }
+
+  // The part's drawing in drawing-checker (handoff a_part_links_to_its_
+  // drawing_before_it_has_a_tolerance): the projection's runs of the part's
+  // own number (`drawing_runs`), else of another dash number of it
+  // (`other_dash_runs`, which the projection fills only when the first is
+  // empty), newest first. The newest is the link, the rest are the older
+  // ones. null when there is neither -- absent is absent. `number` is the
+  // part's own number as its label opens with it (VA.partColumns), so the
+  // renderer links that text and no other.
+  function drawingRuns(part) {
+    var own = part.drawing_runs || [];
+    var runs = own.length ? own : (part.other_dash_runs || []);
+    var columns = VA.partColumns(part);
+    return {
+      number: part.drawing ? columns.number : null,
+      name: columns.description,
+      own: own.length > 0,
+      newest: runs.length ? runs[0] : null,
+      older: runs.slice(1),
     };
   }
 
@@ -222,7 +244,7 @@
         if (partId === null) {
           return { id: null, label: VA.CLEARANCE_SIDE_LABEL, drawing: null,
                    references: [], standardPart: false, note: null, thumb: null,
-                   meshed: false };
+                   meshed: false, runs: null };
         }
         return partBlock(topoProj, partId, opts.crops);
       }),

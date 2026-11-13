@@ -4348,7 +4348,10 @@
       var box = VA.el("div", "detail__sides");
       parts.forEach(function (side) {
         var figure = VA.el("div", "detail__side");
-        figure.appendChild(VA.el("div", "detail__sublabel", side.label));
+        var config = ctx.config || VA.CONFIG;
+        figure.appendChild(VA.renderPartName(side, config, "div", "detail__sublabel"));
+        var older = VA.renderOlderRuns(side, config);
+        if (older) figure.appendChild(older);
         var source = VA.renderPartSource(side);
         if (source) figure.appendChild(source);
         if (side.thumb) {
@@ -4385,6 +4388,77 @@
     return line;
   };
 
+  // A part's name with its drawing behind it (the record's `runs`, handoff
+  // a_part_links_to_its_drawing_before_it_has_a_tolerance). Jeff, 2026-11-12:
+  // the shortcut to a part's drawing should be there before any tolerance is
+  // assigned, "since you already know the part number". So the part number
+  // links to the newest drawing-checker run of the part's own drawing, in a
+  // new tab, with that run's revision beside it. With no run of its own and a
+  // run of another dash number of it, the part's name stays plain and that
+  // run is offered after it, marked as not the part's own -- a display
+  // choice, never a citation. With neither, the name is plain text and
+  // nothing else is drawn.
+  VA.DIFFERENT_DASH_TEXT = "(different dash number)";
+
+  function runLink(run, url, text) {
+    var link = VA.el("a", "detail__runlink", text);
+    link.setAttribute("href", url);
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener");
+    link.setAttribute("title", "drawing " + run.drawing +
+      (run.revision ? " " + VA.revisionText(run.revision) : "") +
+      ", checked " + run.date + " — opens in drawing-checker");
+    return link;
+  }
+
+  function partRuns(part, config) {
+    var runs = part && part.runs;
+    var url = runs && runs.newest ? VA.runUrl(config, runs.newest) : null;
+    return url ? { runs: runs, url: url } : null;
+  }
+
+  VA.renderPartName = function (part, config, tag, cls) {
+    var box = VA.el(tag, cls);
+    var hit = partRuns(part, config);
+    if (!hit) {
+      box.textContent = part.label;
+      return box;
+    }
+    var runs = hit.runs;
+    if (runs.own) {
+      box.appendChild(runLink(runs.newest, hit.url, runs.number));
+      if (runs.name) box.appendChild(VA.el("span", null, " " + runs.name));
+    } else {
+      box.appendChild(VA.el("span", null, part.label + "  ·  "));
+      box.appendChild(runLink(runs.newest, hit.url, runs.newest.drawing));
+      box.appendChild(VA.el("span", "detail__runmark", " " + VA.DIFFERENT_DASH_TEXT));
+    }
+    if (runs.newest.revision) {
+      box.appendChild(VA.el("span", "detail__runrev",
+        " " + VA.revisionText(runs.newest.revision)));
+    }
+    return box;
+  };
+
+  // The part's older runs, behind one fold that says how many: each a link,
+  // with its revision and date (and its number, where that is another dash
+  // number's). null when the newest is the only one.
+  VA.renderOlderRuns = function (part, config) {
+    var hit = partRuns(part, config);
+    if (!hit || !hit.runs.older.length) return null;
+    var fold = VA.disclosure(hit.runs.older.length + " older", "runsfold");
+    var list = VA.el("ul", "detail__runlist");
+    hit.runs.older.forEach(function (run) {
+      var text = (hit.runs.own ? "" : run.drawing + " ") +
+        (run.revision ? VA.revisionText(run.revision) + " · " : "") + run.date;
+      var item = VA.el("li");
+      item.appendChild(runLink(run, VA.runUrl(config, run), text));
+      list.appendChild(item);
+    });
+    fold.body.appendChild(list);
+    return fold.box;
+  };
+
   function renderEdgeDetail(root, record, ctx) {
     root.appendChild(paneHead(record.title, record.id));
 
@@ -4405,9 +4479,19 @@
 
     // The part and the two interfaces, in their own names.
     var partLabel = record.part ? record.part.label : null;
-    root.appendChild(VA.el("div", "detail__where",
-      (partLabel ? "a dimension of " + partLabel : "across a clearance") +
+    var config = ctx.config || VA.CONFIG;
+    var where = VA.el("div", "detail__where");
+    if (record.part) {
+      where.appendChild(VA.el("span", null, "a dimension of "));
+      where.appendChild(VA.renderPartName(record.part, config, "span", "detail__partname"));
+    } else {
+      where.appendChild(VA.el("span", null, "across a clearance"));
+    }
+    where.appendChild(VA.el("span", null,
       "  ·  " + record.from.label + " → " + record.to.label));
+    root.appendChild(where);
+    var older = record.part ? VA.renderOlderRuns(record.part, config) : null;
+    if (older) root.appendChild(older);
 
     // On a kinematic page, a contributor whose band is another edge's
     // (VA.kinematicBandEdges): that edge, one click away, since this one may

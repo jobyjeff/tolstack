@@ -5296,6 +5296,91 @@
         eq(VA.renderPartSource(neither), null);
       });
 
+    // A part links to its drawing before it has a tolerance (handoff
+    // a_part_links_to_its_drawing_before_it_has_a_tolerance, 2026-11-12). The
+    // three states, read off the Preview itself: the part's own run, another
+    // dash number's run marked as not its own, and no run.
+    var runHref = function (runDir) {
+      return "http://127.0.0.1:8000/run/" + encodeURIComponent(runDir);
+    };
+
+    await test("a part with a run of its own drawing links its number to the " +
+      "newest run, in a new tab, with that run's revision beside it", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ config: { drawingCheckerWebui: "http://127.0.0.1:8000" },
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        var where = all(root, "div.detail__where")[0];
+        eq(where.textContent, "a dimension of 215197 base plate rev B" +
+          "  ·  base datum face → base / post seat");
+        var links = all(where, "a.detail__runlink");
+        eq(links.length, 1);
+        eq(links[0].textContent, "215197");
+        eq(links[0].getAttribute("href"), runHref("20261101_090000_215197_B.1_BASE_PLATE"));
+        eq(links[0].getAttribute("target"), "_blank");
+        eq(links[0].getAttribute("rel"), "noopener");
+        // The older run, behind one fold that counts it.
+        var fold = all(root, "details.runsfold");
+        eq(fold.length, 1);
+        eq(all(fold[0], "summary")[0].textContent, "1 older");
+        var older = all(fold[0], "a.detail__runlink");
+        eq(older.map(function (a) { return a.textContent; }), ["rev A · 2026-04-09"]);
+        eq(older[0].getAttribute("href"), runHref("20260409_170546_215197_A.1"));
+        // The node's side says the same: one record, one rendering.
+        var seat = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ selection: { kind: "node", id: "base_post_seat" } }));
+        });
+        var side = all(seat, "div.detail__side")[0];
+        eq(all(all(side, "div.detail__sublabel")[0], "a.detail__runlink")
+          .map(function (a) { return a.textContent; }), ["215197"]);
+      });
+
+    await test("a part whose only runs are another dash number's keeps its own " +
+      "number plain and offers that run, marked as not its own", function () {
+        var topo = JSON.parse(JSON.stringify(TOPO));
+        var base = topo.parts.filter(function (p) { return p.id === "base"; })[0];
+        base.other_dash_runs = [
+          { run_dir: "20261112_104250_215197-003_A.1_BASE", drawing: "215197-003",
+            revision: "A", date: "2026-11-12" }];
+        base.drawing_runs = [];
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ topoProj: topo,
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        var where = all(root, "div.detail__where")[0];
+        has(where.textContent, "a dimension of 215197 base plate  ·  215197-003 " +
+          VA.DIFFERENT_DASH_TEXT + " rev A");
+        var links = all(where, "a.detail__runlink");
+        eq(links.map(function (a) { return a.textContent; }), ["215197-003"]);
+        eq(links[0].getAttribute("href"), runHref("20261112_104250_215197-003_A.1_BASE"));
+        // One run: nothing older to fold.
+        eq(all(root, "ul.detail__runlist").length, 0);
+      });
+
+    await test("a part with no run says its name in plain text and draws " +
+      "nothing else about a drawing", function () {
+        var topo = JSON.parse(JSON.stringify(TOPO));
+        topo.parts.forEach(function (p) { p.drawing_runs = []; p.other_dash_runs = []; });
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ topoProj: topo,
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        var where = all(root, "div.detail__where")[0];
+        eq(where.textContent, "a dimension of 215197 base plate" +
+          "  ·  base datum face → base / post seat");
+        eq(all(root, "a.detail__runlink").length, 0);
+        eq(all(root, "ul.detail__runlist").length, 0);
+        ok(root.textContent.indexOf(VA.DIFFERENT_DASH_TEXT) === -1);
+        // ...and a projection built before the fields existed reads the same.
+        var old = JSON.parse(JSON.stringify(TOPO));
+        old.parts.forEach(function (p) { delete p.drawing_runs; delete p.other_dash_runs; });
+        var bare = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ topoProj: old,
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        eq(all(bare, "a.detail__runlink").length, 0);
+      });
+
     // ITEM 4, the measured half. The link did nothing when clicked, and the
     // reason is the ORIGIN: Chrome refuses every navigation from an http(s)
     // page to a file: URL. Measured 2026-09-15 with this repo's own browser

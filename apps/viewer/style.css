@@ -731,14 +731,18 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    ONE rule for every surface that folds something away, which today is the
    crop's matching provenance on all four of them. Deliberately quiet: a
    disclosure that draws the eye defeats the point of folding, and what is
-   inside it is a fact a reader checks rather than reads. */
-.provfold { margin: 4px 0; }
-.provfold__summary {
+   inside it is a fact a reader checks rather than reads. A part's older
+   drawing runs (VA.renderOlderRuns) fold the same way under their own name,
+   `runsfold`, because they are not provenance: a pane has one of those. */
+.provfold, .runsfold { margin: 4px 0; }
+.provfold__summary, .runsfold__summary {
   cursor: pointer; color: var(--muted); font-size: var(--t-meta); list-style: none;
 }
-.provfold__summary::-webkit-details-marker { display: none; }
-.provfold__summary::before { content: "▸  "; }
-.provfold[open] .provfold__summary::before { content: "▾  "; }
+.provfold__summary::-webkit-details-marker,
+.runsfold__summary::-webkit-details-marker { display: none; }
+.provfold__summary::before, .runsfold__summary::before { content: "▸  "; }
+.provfold[open] .provfold__summary::before,
+.runsfold[open] .runsfold__summary::before { content: "▾  "; }
 .provfold__body {
   color: var(--muted); font-size: var(--t-meta); margin: 3px 0 0 12px;
   overflow-wrap: anywhere;
