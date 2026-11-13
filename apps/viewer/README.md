@@ -374,12 +374,18 @@ Studies                         the model's chain studies, its kinematic
 ```
 
 Every row is what its model entity is. **One selection and one hover** light
-it (`state.focus`, "One selection, one hover, four surfaces" below): the
-selected feature's row is `--on` and so is the other row of its node (a node
-two parts share is one thing, two rows); a hovered row, or the row of whatever
-is hovered on the DAG, in the grid or in the 3D scene, is `--hot`. A selection
-made anywhere opens the part that holds it, so the tree never marks a row the
-reader cannot see; the reader's own fold of that part still wins.
+it (`state.focus`, "One selection, one hover, four surfaces" below), **in two
+tiers** since 2026-11-12: what the one resolver (`VA.focusLightOf`) says the
+entity *owns* is `--on` (selected) or `--hot` (hovered) -- a part's row and its
+features', a body's and everything in it -- and what it *touches* is the
+fainter `--on-touching` / `--hot-touching`: the interfaces to a part's
+neighbours, their joint, the feature across each. **Every row selects** -- a
+body's, a part's, a joint's, an interface's, a feature's -- and only the
+twisty folds. A selection opens every fold on the path to every lit row
+(interfaces, joints and groups, not only parts: `VA.navRevealPaths`) and
+scrolls the first lit row not on screen into view; a hover opens nothing,
+and a closed fold that hides a lit row wears a small mark instead
+(`--holds`, `--holds-touching`). The reader's later fold still wins.
 
 **A feature row is its own disclosure** (2026-11-10, Jeff: *"The features
 inside of a part aren't shown as collapsible elements, and then when you click
@@ -1476,68 +1482,98 @@ Since 2026-11-10 what is selected and what is hovered are **one state object**,
 (`VA.FOCUS_KINDS`, `model.js`) — or null, written by exactly one setter each
 (`setSelected`, `setHovered`). The tree, the DAG, the grid, the Preview and the
 3D scene each light from it (`applyFocus`, run on every change and after every
-paint, so a repaint loses nothing) and each can set it: a tree row, a DAG mark
-or a grid row, a scene anchor, the pane's own rail. The DAG and the grid draw
-*elements* (a node, an edge), so `model.js` carries the only translation —
-which entity an element is (`VA.focusEntityOf`: a shared node is the interface
-it is, a node on one part that part's feature of it; a gap edge the interface,
-any other edge the dimension), which element an entity is shown as
-(`VA.focusElementOf`), which element keys it lights (`VA.focusElementKeysOf`: a
-part's or a body's are everything they hold) and which tree rows
-(`VA.focusNavRowsOf`). `state.selection`, the element form every view keys by,
-is derived in the setter and written nowhere else. The pane is told by message
-(`model select node`, `highlight`, `hover part|body|feature`, a rail
-`activate` on the selected feature's end row) and answers by message (its
-anchors' hover and pick, its tree's selected row); what it keeps of its own —
-the sweep rail's `inspect`, the model layer's `selected` — is the session
-lesson's inventory. Lighting only: no DAG node moves and no grid row is added.
+paint, so a repaint loses nothing) and each can set it: a tree row, a DAG mark,
+a grid row, a part's or a body's container (its field or block on the DAG, its
+bracket in the grid, since 2026-11-12), a scene anchor, the pane's own rail.
+`state.selection`, the element form every view keys by, is derived in the
+setter and written nowhere else; a body, a part or a joint selected has none.
 
-Within the DAG and the grid the mechanism is the older one, below — Jeff,
+**One resolver, two tiers** (`hover_and_select_light_the_same_things_on_all_
+four_surfaces_and_nothing_goes_opaque`, 2026-11-12 — Jeff: *"all four display
+regions … have elements that correspond to each other, and … all of them light
+up simultaneously when you hover or select any of them, and … hierarchical"*).
+`model.js` carries the only translation: which entity an element is
+(`VA.focusEntityOf`: a shared node is the interface it is, a node on one part
+that part's feature of it; a gap edge the interface, any other edge the
+dimension; a container its part or body), which element an entity is shown as
+(`VA.focusElementOf`), and — the one rule — what an entity **lights**
+(`VA.focusLightOf`):
+
+* **own** — the entity and everything it *contains*. A body its parts and the
+  joints inside it; a part its features and dimensions; a dimension and an
+  interface their two end features; a joint its interfaces; a feature its
+  bound faces (`VA.focusFacesOf`).
+* **touching** — what *meets* it without belonging to it. A part: the
+  interfaces to its neighbours, their joint, the feature across each. A body:
+  the joints to other bodies, their interfaces and far features. A feature:
+  the interfaces it is an end of, the feature across each, the dimensions that
+  end at it. A dimension: the interfaces at its ends. An interface: its joint
+  and the dimensions ending at its features. A joint: the two parts it joins.
+
+Hover and select both go through it, and every surface draws both tiers and
+nothing else: own in the present highlight, touching visibly fainter (Jeff: *"a
+less pronounced color for interfaces"*). The four derivations are
+`VA.focusElementKeysOf` (`{own, touching}` element and container keys for the
+DAG and the grid), `VA.focusNavRowsOf` (row keys for the tree),
+`VA.navRevealPaths` (the folds a lit row is behind, outermost first — what a
+selection opens) and `VA.sceneLightOf` (ids for the pane). Until 2026-11-12 a
+part hover lit every edge of every part that touched any of its nodes, plus
+whole rail legs — Jeff's "random rows" — because a node key led every row at
+that node and every key lit its leg.
+
+The pane is told by message: `model select node|clear` for the selection it
+holds in its own rail, `highlight` for a selected edge while a run is loaded,
+and one `light <json>` (`VA.sceneLightCommand`) carrying the hover's and the
+selection's tiers — parts, bound faces, nodes and edges — which the pane
+draws without deciding anything (`apps/annotate/app.js`'s `cmdLight`): an own
+part glows at its **resting look** and its bound faces are overlaid harder than
+it, a touching part ghosts, every other part goes faint; and nothing goes
+opaque — a solid part is reachable only through the pane's own See-through
+control (`AA.planActionLooks`). It works in both of the pane's modes. The pane
+answers by message (its anchors' hover and pick, its tree's selected row); what
+it keeps of its own — the sweep rail's `inspect`, the model layer's `selected`
+— is the 2026-11-11 lesson's inventory. Lighting only: no DAG node moves and
+no grid row is added.
+
+Within the DAG and the grid hover is **state**, not a `:hover` rule — Jeff,
 2026-09-30, tracing a leg through a crossing: *"add an emphasis (bold/glow etc)
-to the edges when you hover over them, again makes it easier to trace them"* —
-and, minutes later, *"it would be awesome if the DAG and the table/grid shared
-their highlighted state, so everything lit up together."*
+to the edges when you hover over them"*, and *"it would be awesome if the DAG
+and the table/grid shared their highlighted state, so everything lit up
+together."* One lighter (`lightKeys`, `views/topology.js`) with one door: the
+page's `VA.lightTopoKeys`, handed the resolver's two key lists. The pane's own
+pointer (`setHot`) draws the one-line label and *tells* the page (`onChange`),
+and the page lights every surface from it, this pane included — since
+2026-11-12 the pane's pointer no longer lights anything of its own or wins over
+the page's hover, which was the split brain Jeff named. A rail is no element
+and lights nothing. Two levels, now the two tiers:
 
-So hover there is **state**, not a `:hover` rule: one key — an edge, an
-interface or a rail — and one lighter (`lightKeys`, `views/topology.js`) with
-two doors into it: the pane's own pointer (`setHot`, which also tells the page)
-and the page's one hover (`VA.lightTopoKeys`, from the tree, the scene or a
-repaint; the pane's own pointer wins while it holds a key, since what it lit
-*is* the page's hover). A stylesheet cannot light a bar from a grid row, and
-two stylesheets each lighting their own half is the pair that drifts;
-`.tvrow:hover` was exactly that half and is gone. Two levels:
+* **`--lead`** — the own tier: the hovered edge's bar, its row and its two end
+  dots; a hovered part's dots, bars and container; a node's dot and leader.
+* **`--hot`** — the touching tier, at the lighter weight and tint: the
+  interfaces at a dimension's ends, the dimensions arriving at a node, a
+  part's neighbours' interfaces.
 
-* **`--lead`** — what the pointer is on, and its counterpart on the other
-  surface. An edge's bar, its two dots, its leader and its grid row; an
-  interface's dot, its leader and the rows of the edges that meet there (an
-  interface has no row of its own).
-* **`--hot`** — the whole **connected line** that element sits on: the rail
-  span, the branch curve that opened it, every bar and dot on it, the close
-  curves leaving it, and those edges' grid rows at a lighter tint.
-
-Nothing is dimmed — a reader is tracing *one* line through the others, not
-hiding them — and nothing here touches selection. **Hover spends brightness and
-width only**: the accent means *selected*, so a pointer may not paint anything
-with it, and a bar keeps its provenance hue — thickened, and lightened by the
-same neutral halo as the rest of its line, never recoloured. Hovering
-opens no card either; the bars', dots' and leaders' own cards keep their
-existing triggers.
+The selection wears the same two tiers in the accent (`--selected`, and the
+fainter `--touched`, on dots, bars, rows, containers and brackets). Nothing is
+dimmed — a reader is tracing *one* line through the others, not hiding them.
+**Hover spends brightness and width only**: the accent means *selected*, so a
+pointer may not paint anything with it, and a bar keeps its provenance hue —
+thickened, never recoloured. Hovering opens no card either.
 
 Two implementation facts worth knowing before editing either file:
 
-* **The glow is the hit path, lit.** Rails and links got the same wide
-  transparent twin the bars already had (so a 2px line is pointable at all),
-  and when the line is hot that twin is stroked at a low alpha — a halo for one
-  colour change and no extra element. A CSS `drop-shadow` was the alternative
-  and was dropped because these are *vertical lines*: a zero-width object
-  bounding box is where a filter region is least dependable. The browser tier
-  reaches them exactly the way it reaches a bar (the `locator.hover()` note in
-  "Whole-edge hover" above applies verbatim — see `railPoint`).
-* **Membership is keyed by rail *position in `layout.rails`*, never by a column
-  index.** `VA.spineRight` mirrors every column at render time and the
-  projection is free to renumber, so a column number is a drawing decision. A
-  fast guard plants the mirror and requires the same edge to light the same
-  set.
+* **The glow is the hit path, lit.** Bars carry a wide transparent twin (so a
+  2px line is pointable at all), and when the bar is lit that twin is stroked
+  at a low alpha — a halo for one colour change and no extra element. A CSS
+  `drop-shadow` was the alternative and was dropped because these are
+  *vertical lines*: a zero-width object bounding box is where a filter region
+  is least dependable. The browser tier reaches them exactly the way it
+  reaches a bar (the `locator.hover()` note in "Whole-edge hover" above
+  applies verbatim — see `railPoint`).
+* **Lighting is keyed by element**, never by a column index: `VA.spineRight`
+  mirrors every column at render time and the projection is free to renumber,
+  so a column number is a drawing decision. A fast guard plants the mirror
+  and requires the same edge to light the same set.
 
 ### Edge-length scaling: four modes, one keyed position store
 

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] selecting the hub's locating boss from the Parts section opens the folds down to the pilot interface it is an end of -- the Interfaces group, the hub-mount joint, the interface itself -- lights that row fainter with the pilot bore across it, and scrolls it into view",
+  "mutations": [
+    {
+      "contract": "Select reveals: every fold on the path to every lit row opens.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque (rule 4). No fold opens on select.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        paths[row].forEach(function (key) { state.navOpen[key] = true; });",
+      "replace": "        void paths[row];"
+    }
+  ]
+}

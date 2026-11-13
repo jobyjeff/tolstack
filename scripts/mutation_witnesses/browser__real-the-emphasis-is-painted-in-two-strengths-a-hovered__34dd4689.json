@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "[real] the emphasis is PAINTED in two strengths: a hovered edge's own bar is drawn wider than the bars beside it, and the bar of an interface at its end wider than cold but narrower than its own -- and no rail leg lights with either",
+  "mutations": [
+    {
+      "contract": "The two tiers are two weights: own wider than touching.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque, replacing the leg-halo guard this rule retired. Only the browser tier sees a stylesheet: the own weight dropped to the touching one.",
+      "file": "apps/viewer/topology.css",
+      "find": ".rail__bar--lead { stroke-width: 8; }",
+      "replace": ".rail__bar--lead { stroke-width: 6; }"
+    }
+  ]
+}

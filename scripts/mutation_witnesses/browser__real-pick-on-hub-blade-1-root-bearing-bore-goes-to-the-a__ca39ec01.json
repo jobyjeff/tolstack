@@ -1,0 +1,31 @@
+{
+  "tier": "browser",
+  "suite": "annotate sweep rail (the mechanism, contributors, re-pick, bind snapshot)",
+  "expect_red": "[real] Pick on hub blade-1 root bearing bore goes to the as-modelled frame with no prompt, the hub alone is pickable and keeps its resting look -- nothing goes opaque -- its neighbours ghost and every other part faint",
+  "mutations": [
+    {
+      "contract": "The hub's bore is picked on the hub.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Jeff's reproduction: the edge it is bound through is the blade root's.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return own.length ? own : edgeParts;",
+      "replace": "    return edgeParts.length ? edgeParts : own;"
+    },
+    {
+      "contract": "An armed pick's neighbours stay ghost; the rest go faint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque onto the merged action (actionInView). The blade root, the end's other part, goes as faint as the rest.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (armed) return { about: armed.shas, near: armed.near };",
+      "replace": "  if (armed) return { about: armed.shas, near: [] };"
+    },
+    {
+      "contract": "Nothing goes opaque: a part an action is about keeps its resting look (Jeff, 2026-11-12: \"we always want to have some opacity\").",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The about tier solid again, as it was until 2026-11-12.",
+      "file": "apps/annotate/commands.js",
+      "find": "        out[sha] = look === AA.PART_LOOKS[2] ? AA.PART_LOOKS[1] : look;",
+      "replace": "        out[sha] = AA.PART_LOOKS[0];"
+    }
+  ]
+}

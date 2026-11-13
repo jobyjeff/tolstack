@@ -6,9 +6,9 @@
     {
       "contract": "The pane's hover reaches the overlay.",
       "issue": null,
-      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Drops the hook. Re-pointed 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark): onHot also feeds the Preview now, and the mutation drops only the leaders' half of it. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
+      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Drops the hook. Re-pointed 2026-10-30 (a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark): onHot also feeds the Preview now, and the mutation drops only the leaders' half of it. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state. Re-anchored 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the key is read as an entity by VA.focusKeyEntity, containers included.",
       "file": "apps/viewer/topology_app.js",
-      "find": "          var el = VA.parseElementKey(key);\n          setHovered(el ? VA.focusEntityOf(currentModel(), el.kind, el.id) : null, \"dag\");",
+      "find": "          setHovered(VA.focusKeyEntity(currentModel(), key), \"dag\");",
       "replace": "          void key;"
     }
   ]

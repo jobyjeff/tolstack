@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the page's light: its grammar takes {hover, select} tiers of ids and refuses the rest; its looks make both roles' own parts about and their touching parts near; its layers draw own parts and every face; its emphasis is the own edges and nodes",
+  "mutations": [
+    {
+      "contract": "A malformed light word is refused by name.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. A JSON array passes as the word.",
+      "file": "apps/annotate/commands.js",
+      "find": "    if (!raw || typeof raw !== \"object\" || Array.isArray(raw)) throw new Error(\"light: the word must be an object\");",
+      "replace": "    if (!raw || typeof raw !== \"object\") throw new Error(\"light: the word must be an object\");"
+    }
+  ]
+}

@@ -3323,10 +3323,14 @@
     // A body's or a part's bracket is that entity's container in the grid:
     // lit with it, hovered and selected like its field on the DAG
     // (wireContainer). A study's bracket is none of these.
-    var container = function (node, kind, id, cls) {
+    var container = function (node, kind, braceId, cls) {
       if (kind !== "body" && kind !== "part") return node;
+      // A part's brace id is `part:<part>` (VA.gridBraces); a body's is the
+      // body's own id. The entity is the part or the body.
+      var id = kind === "part" ? String(braceId).replace(/^part:/, "") : String(braceId);
       node.className += tierClasses(ctx, cls, kind, id);
       node.setAttribute("data-brace-kind", kind);
+      node.setAttribute("data-brace-entity", id);
       return wireContainer(node, ctx, hot, kind, id, null, cls);
     };
     var place = function (node, box) {

@@ -6,10 +6,10 @@
     {
       "contract": "A pick in the scene is the page's selection, so the node's feature rows light in the tree.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
-      "note": "Drops the selection a scene pick makes; the pick message arrives and nothing on the page moves. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state.",
+      "note": "Drops the selection a scene pick makes; the pick message arrives and nothing on the page moves. Re-anchored 2026-11-10 (one_selection_one_hover_and_leaders_off): the site moved into the one focus state. Re-anchored 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the reveal is every selection's now (setSelected), so the scene's pick has nothing of its own to set; the mutation drops the selection it makes.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    revealPending = entity && entity.kind === VA.FOCUS_KINDS.feature ? entity.id : null;\n    selectEntity(entity);",
-      "replace": "    revealPending = null;"
+      "find": "  function selectFromScene(entity) {\n    selectEntity(entity);\n  }",
+      "replace": "  function selectFromScene(entity) {\n    void entity;\n  }"
     }
   ]
 }

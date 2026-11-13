@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the model names what an element is and what an entity lights, in two tiers: a shared node is its interface, a node on one part that part's feature, a gap edge its interface, a dimension its edge; own is the entity and what it contains, touching what meets it; and without a model an element stands for itself",
+  "mutations": [
+    {
+      "contract": "A node two parts share is the interface it is, never one part's feature.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Reads every node as its first feature.",
+      "file": "apps/viewer/model.js",
+      "find": "      if (iface && iface.source === \"node\") return { kind: F.interface, id: id };\n      var features = model.featuresOfNode(id);",
+      "replace": "      var features = model.featuresOfNode(id);"
+    },
+    {
+      "contract": "A part's own tier holds its dimensions as well as its features.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque onto the one resolver. A part owns its features only.",
+      "file": "apps/viewer/model.js",
+      "find": "      part.dimensions.forEach(function (did) { own.add(F.dimension, did); });",
+      "replace": "      void part.dimensions;"
+    },
+    {
+      "contract": "A touching feature is revealed under the interface it is an end of, not by opening the part across the joint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. Every feature revealed under its part.",
+      "file": "apps/viewer/model.js",
+      "find": "      var under = e.kind === F.feature ? hostAmong(hosts, e.id) : null;",
+      "replace": "      var under = null;"
+    }
+  ]
+}

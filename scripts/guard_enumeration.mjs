@@ -313,7 +313,12 @@ export const DECLARED_GUARDS = {
   // it_is_shown): +4 -- a feature's body from the model, its render, the
   // orphan bindings line, and the log read (an unbind folded among its
   // cases). Every new name carries a spec.
-  fast: { declared: 687, enrollable: 687, names: "260c7a70e426" },
+  // 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_
+  // and_nothing_goes_opaque): +1 -- the resolver pinned on the end-stop model
+  // by id; seven hover guards, the resolver guard and the tree guard renamed
+  // with the two-tier rule (each spec renamed and re-anchored). Every name
+  // carries a spec.
+  fast: { declared: 688, enrollable: 688, names: "f47e48008340" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -391,7 +396,11 @@ export const DECLARED_GUARDS = {
   // 2026-11-12 (a_binding_shows_the_moment_it_is_made_and_is_corrected_where_
   // it_is_shown): +5 -- an unbind event, the bound marks, the served log's
   // shape, the Bound faces setting, the identity message. Each carries a spec.
-  annotate: { declared: 313, enrollable: 313, names: "b931b7a24039" },
+  // 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_
+  // and_nothing_goes_opaque): +1, the page's light (its grammar, looks,
+  // layers and emphasis); the action-looks guard renamed with the rule
+  // (about keeps its resting look). Both carry a spec.
+  annotate: { declared: 314, enrollable: 314, names: "32a5225206c8" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -601,7 +610,19 @@ export const DECLARED_GUARDS = {
   // Every new name carries a spec; the retired four's are deleted. Its review
   // round renamed one more: the taken end's picked-now mark on the pane's row
   // gives way to the taken end's bound line naming the face (rail holds still).
-  browser: { declared: 877, enrollable: 844, names: "08b3866242b4" },
+  // 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_
+  // and_nothing_goes_opaque): +7 net -- the handoff's table on the end-stop
+  // model (ten in: a part hovered and left, a part selected, a body selected,
+  // the locating boss revealed, an interface hovered, a joint hovered, a gap
+  // hovered from the grid, bind mode and its leave), the painted check in two
+  // strengths in; the leg-glow checks (one span, the branch curve, that leg's
+  // rows, the hot rail's halo) and the unbound-row note out; the body-row,
+  // bound-row and armed-pick guards renamed with the rule. Every new name
+  // carries a spec except one: `[real] a mid-rail point under the pointer
+  // lights nothing on either surface` pins an absence no single edit can
+  // reintroduce (a rail has no entry in the lighter's registry), so it is
+  // declared without one -- said here, in the diff.
+  browser: { declared: 884, enrollable: 851, names: "709f2f2dd098" },
 };
 
 

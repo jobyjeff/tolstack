@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] resting on a bound contributor row overlays its face in the annotator, harder than the part's glow, on a part that keeps its resting look -- the colour buffer untouched and nothing opaque",
+  "mutations": [
+    {
+      "contract": "The light's faces are overlaid in the scene.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque: the hovered edge's bound face is an overlay of the page's light, not a `highlight` into the colour buffer. The pane draws no layer.",
+      "file": "apps/annotate/app.js",
+      "find": "  const layers = AA.planLightLayers(state.light, resolve);",
+      "replace": "  const layers = [];"
+    },
+    {
+      "contract": "Nothing goes opaque: a part an action is about keeps its resting look (Jeff, 2026-11-12: \"we always want to have some opacity\").",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The about tier solid again, as it was until 2026-11-12.",
+      "file": "apps/annotate/commands.js",
+      "find": "        out[sha] = look === AA.PART_LOOKS[2] ? AA.PART_LOOKS[1] : look;",
+      "replace": "        out[sha] = AA.PART_LOOKS[0];"
+    }
+  ]
+}

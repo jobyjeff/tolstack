@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the DAG and the grid share ONE hover state through the page's resolver: a dimension lights its bar, its row and its two end dots as own, the interfaces at its ends as touching, and no rail leg; the bar's hit path and the row tell the same key",
+  "mutations": [
+    {
+      "contract": "The hover state is shared BOTH ways: the grid tells the page as well as reading its light.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Carried by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque from the one-tier guard. Dropping the row's own hover wiring leaves the DAG-to-grid direction working, which is the half-built state a class-name check would pass.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    hotHover(hot, el, hotKey(\"edge\", planRow.id));\n    return nameRow(el, ctx, \"edge\", planRow.id, fullName);",
+      "replace": "    return nameRow(el, ctx, \"edge\", planRow.id, fullName);"
+    },
+    {
+      "contract": "A leg is not a thing hover says: an own key lights the entries that are it, never the rail span it sits on.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The rail-leg glow back, as it was until 2026-11-12: Jeff's \"random rows\".",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      (hot.self[key] || []).forEach(function (entry) {\n        light(entry, [entry.hot, entry.lead].filter(Boolean).join(\" \"));\n        lit[key] = true;\n      });",
+      "replace": "      (hot.self[key] || []).forEach(function (entry) {\n        light(entry, [entry.hot, entry.lead].filter(Boolean).join(\" \"));\n        lit[key] = true;\n      });\n      var railId = hot.railOf[key];\n      (railId ? hot.rail[railId] || [] : []).forEach(function (entry) { light(entry, entry.hot); });"
+    }
+  ]
+}

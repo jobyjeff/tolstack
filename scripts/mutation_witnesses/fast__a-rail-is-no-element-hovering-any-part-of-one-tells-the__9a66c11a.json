@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a rail is no element: hovering any part of one tells the page its key and lights nothing -- no leg, no curve, no mark on it",
+  "mutations": [
+    {
+      "contract": "A rail under the pointer tells the page its own key.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque, replacing the leg-glow guard this rule retired. The rail's hit path telling the page nothing (a null key) is a leave, not a hover.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        el: VA.svg(\"line\", \"rail__hit\", ends), base: \"rail__hit\",\n        rail: railId, hot: \"rail__hit--hot\",\n      }), railId));",
+      "replace": "        el: VA.svg(\"line\", \"rail__hit\", ends), base: \"rail__hit\",\n        rail: railId, hot: \"rail__hit--hot\",\n      }), null));"
+    }
+  ]
+}

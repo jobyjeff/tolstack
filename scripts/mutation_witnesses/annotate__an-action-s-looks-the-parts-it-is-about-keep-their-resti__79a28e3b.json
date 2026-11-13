@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an action's looks: the parts it is about keep their resting look and never go opaque on their own, their neighbours ghost, the rest faint",
+  "mutations": [
+    {
+      "contract": "An action's neighbours are ghost, the rest faint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque (the guard was renamed with the rule: about keeps its resting look). Every part not about goes faint.",
+      "file": "apps/annotate/commands.js",
+      "find": "        out[sha] = (near || []).indexOf(sha) !== -1 ? AA.PART_LOOKS[1] : AA.PART_LOOKS[2];",
+      "replace": "        out[sha] = AA.PART_LOOKS[2];"
+    },
+    {
+      "contract": "Nothing goes opaque: a part an action is about keeps its resting look (Jeff, 2026-11-12: \"we always want to have some opacity\").",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The about tier solid again, as it was until 2026-11-12.",
+      "file": "apps/annotate/commands.js",
+      "find": "        out[sha] = look === AA.PART_LOOKS[2] ? AA.PART_LOOKS[1] : look;",
+      "replace": "        out[sha] = AA.PART_LOOKS[0];"
+    }
+  ]
+}

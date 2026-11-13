@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the pane's pointer tells the page its key and its leave and lights nothing of its own; a pane repainted under the pointer is lit again from the page's one hover, and the leave after it still reaches the page",
+  "mutations": [
+    {
+      "contract": "A leave with nothing held still tells the page.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Swallows the leave when the pane holds nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (hot.on === key) {\n      if (key === null && hot.onChange) hot.onChange(null);\n      return;\n    }",
+      "replace": "    if (hot.on === key) return;"
+    },
+    {
+      "contract": "The pane's pointer tells the page, and the page lights.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque: the pane lights nothing of its own now. Lights locally and tells the page nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (hot.onChange) hot.onChange(key);\n    else lightKeys(hot, key ? [key] : []);",
+      "replace": "    lightKeys(hot, key ? [key] : []);"
+    }
+  ]
+}

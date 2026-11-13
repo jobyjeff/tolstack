@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] an interface hovered lights its dot and its own rows as own, the dimensions arriving at it as touching rows, the fold hiding an end it owns marked, its bound face overlaid in the scene, and nothing opaque",
+  "mutations": [
+    {
+      "contract": "An interface's touching tier holds the dimensions ending at its two features.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. An interface touches its joint alone.",
+      "file": "apps/viewer/model.js",
+      "find": "      (i.ends || []).forEach(function (fid) {\n        dimensionsAt(fid).forEach(function (dim) { touching.add(F.dimension, dim.id); });\n      });",
+      "replace": "      void i.ends;"
+    }
+  ]
+}

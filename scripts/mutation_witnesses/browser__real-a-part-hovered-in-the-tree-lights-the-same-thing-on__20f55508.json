@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] a part hovered in the tree lights the same thing on all four surfaces, in two tiers: its own rows, dots, bars and container strong and its interfaces faint; no rail leg; in the scene its mesh glows at its resting look with its bound faces harder, every other part faint, nothing opaque",
+  "mutations": [
+    {
+      "contract": "A part's bound faces are overlaid harder than the part (Jeff: \"even more prominently than the entire part\").",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The face drawn no harder than the part.",
+      "file": "apps/annotate/scene.js",
+      "find": "  hover: { color: HOVER_COLOR, own: { part: 0.22, face: 0.6 }, touching: { part: 0.08, face: 0.25 } },",
+      "replace": "  hover: { color: HOVER_COLOR, own: { part: 0.6, face: 0.6 }, touching: { part: 0.08, face: 0.25 } },"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] a gap edge hovered from the grid lights its row, its bar and its two end dots as own, the dimensions at its ends as touching, its row and its ends in the tree, overlays its bound face in the scene, and no part goes solid",
+  "mutations": [
+    {
+      "contract": "Nothing goes opaque: a part an action is about keeps its resting look (Jeff, 2026-11-12: \"we always want to have some opacity\").",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The about tier solid again, as it was until 2026-11-12.",
+      "file": "apps/annotate/commands.js",
+      "find": "        out[sha] = look === AA.PART_LOOKS[2] ? AA.PART_LOOKS[1] : look;",
+      "replace": "        out[sha] = AA.PART_LOOKS[0];"
+    }
+  ]
+}

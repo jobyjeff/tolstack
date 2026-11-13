@@ -804,7 +804,7 @@
     var brace = node.closest("[data-brace-kind]");
     if (brace) {
       return VA.focusEntityOf(currentModel(), brace.getAttribute("data-brace-kind"),
-        brace.getAttribute("data-brace") || brace.getAttribute("data-brace-label"));
+        brace.getAttribute("data-brace-entity"));
     }
     var mark = node.closest("[data-row-kind][data-id]");
     if (!mark) return null;

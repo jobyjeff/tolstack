@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] with no sweep loaded the same hover reaches the 3D pane: the hub glows at its resting look, every other part goes faint, and nothing is opaque",
+  "mutations": [
+    {
+      "contract": "The light owns the looks in bind mode too (rule 7: the same with no sweep loaded).",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. An action in a scene nothing owns at rest changes no look.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (action) {\n      if (!state.lookRestore) {",
+      "replace": "    if (false) {\n      if (!state.lookRestore) {"
+    }
+  ]
+}

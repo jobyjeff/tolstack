@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the tree lights from the one hover in place, in two tiers: VA.lightNavTree marks the hovered entity's own rows --hot and its touching rows --hot-touching, no other; a lit row behind a closed fold marks the fold that hides it; and a render draws the hovered and the selected rows lit the same way",
+  "mutations": [
+    {
+      "contract": "The hovered rows are lit in place.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque onto the tiered lighter. Lights nothing in place.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      count++;\n      row.classList.add(cls);",
+      "replace": "      count++;"
+    },
+    {
+      "contract": "A closed fold that holds a lit row wears the mark.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque (rule 4: hover opens nothing, so the counterpart's place is marked). No fold is marked.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        if (!holder.classList.contains(HOLDS_CLASS.hot)) holder.classList.add(mark);",
+      "replace": "        void mark;"
+    }
+  ]
+}

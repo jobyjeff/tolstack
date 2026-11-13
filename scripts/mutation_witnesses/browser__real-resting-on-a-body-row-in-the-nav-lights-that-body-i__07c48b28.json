@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] resting on a body row in the nav lights that body in the scene: every part of it glows at its resting look, the rest go faint, and nothing is opaque",
+  "mutations": [
+    {
+      "contract": "The page's hover reaches the scene as its light.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque: the page posts one `light` verb for its hover and its selection; the pane's `hover body` is not on this path any more. The hover half never posted.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    return VA.sceneLightCommand(VA.sceneLightOf(model, state.focus.hovered),\n      VA.sceneLightOf(model, state.focus.selected));",
+      "replace": "    return VA.sceneLightCommand(null,\n      VA.sceneLightOf(model, state.focus.selected));"
+    }
+  ]
+}

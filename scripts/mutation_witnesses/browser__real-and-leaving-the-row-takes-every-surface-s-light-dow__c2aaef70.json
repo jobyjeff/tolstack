@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] ...and leaving the row takes every surface's light down, the scene back to rest",
+  "mutations": [
+    {
+      "contract": "`light clear` takes the page's light down in the scene.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. A clear the pane ignores leaves the last light standing.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.light = AA.parseLight(text);",
+      "replace": "  state.light = AA.parseLight(text) || state.light;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] a body selected lights every part it holds and the joints inside it, the joints to other bodies fainter, its container and its parts' containers in the accent, and every one of its parts glows at its resting look -- nothing opaque",
+  "mutations": [
+    {
+      "contract": "A body contains its parts.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. A body owns itself and its joints, not its parts.",
+      "file": "apps/viewer/model.js",
+      "find": "      body.parts.forEach(ownPart);",
+      "replace": "      void ownPart;"
+    }
+  ]
+}

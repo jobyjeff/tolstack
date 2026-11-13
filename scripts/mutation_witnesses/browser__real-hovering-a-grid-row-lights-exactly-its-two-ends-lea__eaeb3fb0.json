@@ -4,12 +4,12 @@
   "expect_red": "[real] hovering a grid row lights exactly its two ends' leaders -- every one of them that has a leader, and no leader of a node it does not name",
   "mutations": [
     {
-      "contract": "A hovered row lights its two ends' DAG<->grid leaders and no other.",
-      "issue": null,
-      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The seam rule back.",
+      "contract": "A DAG<->grid leader is its node's: it lights when the node is in the light's own tier.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-anchored by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque: the lighter lights the entries that ARE a key (the self registry), so the old anchor on the leads list no longer reaches the drawing. The leader's hit path registered under no key never lights.",
       "file": "apps/viewer/views/topology.js",
-      "find": "        (leaderEdges[leader.id] || []).map(function (id) { return hotKey(\"edge\", id); }));",
-      "replace": "        leader.beforeEdge ? [hotKey(\"edge\", leader.beforeEdge)] : []);"
+      "find": "        leads: leaderLeads, self: [hotKey(\"node\", leader.id)],\n        lead: \"rail__leaderhit--hot\",",
+      "replace": "        leads: leaderLeads, self: [],\n        lead: \"rail__leaderhit--hot\","
     }
   ]
 }

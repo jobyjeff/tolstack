@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] on the end-stop model the resolver's own and touching sets are these ids: the hub's four features and three dimensions own, its four interfaces to the blade root and the mount touching; the base body touches five joints to other bodies; a shared-node feature touches its interface, its joint, its twin and its dimension; the pilot gap owns its two ends; the hub-mount joint owns three interfaces and touches two parts",
+  "mutations": [
+    {
+      "contract": "What meets a part includes the joint its interfaces belong to.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The joint left out of the touching tier.",
+      "file": "apps/viewer/model.js",
+      "find": "      if (iface.joint && model.joint(iface.joint)) tier.add(F.joint, iface.joint);",
+      "replace": "      void tier;"
+    }
+  ]
+}

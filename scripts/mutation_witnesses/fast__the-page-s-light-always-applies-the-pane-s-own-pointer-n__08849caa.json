@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the page's light always applies -- the pane's own pointer no longer wins: the scene's pointer on a joint lights every node it stands for as own, and the rows meeting them only as touching",
+  "mutations": [
+    {
+      "contract": "The page's light is never refused by the pane's own pointer.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The pointer wins again, as it did until 2026-11-12 -- the split brain Jeff named.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (!hot) return 0;\n    return lightKeys(hot, keys);",
+      "replace": "    if (!hot || hot.on) return 0;\n    return lightKeys(hot, keys);"
+    }
+  ]
+}

@@ -15253,8 +15253,8 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
         containersOwn: q("svg.tv__rails .tv__partfield--lead, svg.tv__rails .tv__block--lead, svg.tv__rails .tv__bodyfield--lead").map(container),
         containersTouching: q("svg.tv__rails .tv__partfield--hot:not(.tv__partfield--lead), svg.tv__rails .tv__block--hot:not(.tv__block--lead)").map(container),
         containersSelected: q("svg.tv__rails .tv__partfield--selected, svg.tv__rails .tv__block--selected, svg.tv__rails .tv__bodyfield--selected").map(container),
-        bracesOwn: ids(q("#topopane .tvbrace--lead"), "data-brace"),
-        bracesSelected: ids(q("#topopane .tvbrace--selected"), "data-brace"),
+        bracesOwn: ids(q("#topopane .tvbrace--lead"), "data-brace-entity"),
+        bracesSelected: ids(q("#topopane .tvbrace--selected"), "data-brace-entity"),
         drawn: (kind, id) => null,
         interfaceRow: (() => {
           const n = document.querySelector('#navtree [data-nav-kind="interface"][data-nav-id="hub_boss_in_tan_link_mount_pilot"]');
@@ -15300,7 +15300,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const hubOwnLayer = hubLight && hubLight.layers.find((l) => l.role === "hover" && l.tier === "own");
     push("[real] a part hovered in the tree lights the same thing on all four surfaces, in two tiers: its own " +
       "rows, dots, bars and container strong and its interfaces faint; no rail leg; in the scene its mesh " +
-      "glows at its resting look with its bound faces harder, its neighbours ghost, the rest faint, nothing opaque",
+      "glows at its resting look with its bound faces harder, every other part faint, nothing opaque",
       uniq(hubHover.treeOwn).length === 5 && hubHover.treeOwn.indexOf(HUB) !== -1 &&
       hubHover.treeTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
       hubHover.rowsOwn.slice().sort().join() === hubDims.join() &&
@@ -15309,13 +15309,19 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       hubHover.barsTouching === 1 && hubHover.legs === 0 && hubHover.containersOwn.indexOf(HUB) !== -1 &&
       !!hubOwnLayer && hubOwnLayer.partOverlays > 0 && hubOwnLayer.faceOverlays > 0 &&
       hubOwnLayer.faceOpacity > hubOwnLayer.partOpacity &&
-      lookOf(hubLooks, hubSha).look === "ghost" && lookOf(hubLooks, mountSha).look === "ghost" &&
-      lookOf(hubLooks, bladeSha).look === "ghost" && lookOf(hubLooks, linkSha).look === "faint" &&
+      lookOf(hubLooks, hubSha).look === "ghost" && lookOf(hubLooks, mountSha).look === "faint" &&
+      lookOf(hubLooks, bladeSha).look === "faint" && lookOf(hubLooks, linkSha).look === "faint" &&
       hubLooks.every((r) => r.opacity < 1));
     await leaveNav();
+    // `until` here runs in the page's own frame (the suite's helper above), so
+    // the pane is reached through its iframe.
+    const paneAtRest = () => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.__lastLight === null && w.AnnotateApp.exec(["scene-view"])
+        .filter((r) => r.visible).every((r) => r.look === "ghost");
+    };
     push("[real] ...and leaving the row takes every surface's light down, the scene back to rest",
-      await until((w) => w.__lastLight === null && w.AnnotateApp.exec(["scene-view"])
-        .filter((r) => r.visible).every((r) => r.look === "ghost"), null, 10000) &&
+      await until(paneAtRest, null, 10000) &&
       (await pageLit()).rowsOwn.length === 0 && (await pageLit()).treeOwn.length === 0);
 
     // 2. the part selected.
@@ -15453,8 +15459,11 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     }, null, 60000);
     await page.waitForTimeout(1500);
     await hoverNav("part", HUB);
-    const bindLight = await until((w) => !!(w.__lastLight && w.__lastLight.layers.some((l) =>
-      l.role === "hover" && l.tier === "own" && l.partOverlays > 0)), null, 10000);
+    const bindLight = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return !!(w.__lastLight && w.__lastLight.layers.some((l) =>
+        l.role === "hover" && l.tier === "own" && l.partOverlays > 0));
+    }, null, 10000);
     const bindLooks = await sceneLooks();
     const bindHubSha = await shaOf(HUB);
     console.log(`      [${label}] bind mode, hub hovered: light ${bindLight}; looks hub ` +
@@ -15466,8 +15475,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       bindLooks.some((r) => r.look === "faint") && bindLooks.every((r) => r.opacity < 1));
     await leaveNav();
     push("[real] ...and leaving it in bind mode puts every part back at rest",
-      await until((w) => w.__lastLight === null && w.AnnotateApp.exec(["scene-view"])
-        .filter((r) => r.visible).every((r) => r.look === "ghost"), null, 10000));
+      await until(paneAtRest, null, 10000));
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {
