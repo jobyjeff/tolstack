@@ -180,4 +180,62 @@ the looks are read off the scene, not the pixels. `hover_to_select_filmstrip.png
 is the hub hovered in the tree then clicked, eight frames 150 ms of page
 time apart, with its probe JSON beside it.
 
-(Witness counts and the suite record follow as the session closes.)
+A body-hover check in the 3D pane suite ("[real] resting on a body row …")
+timed out twice in the harness and passed on the next run with no product
+change: the hover lands while the tree re-renders (the sweep's state posts
+re-render the nav), and the check's `hover` races the row it targets. It
+keeps its diagnostics (`__heardLight`, `__lightSamples`, a replay) so a
+reviewer who sees it red once can tell a race from a wrong light. Worth a
+`waitForFunction` on the row's own identity before the hover if it recurs.
+
+## Witness specs: what moved (`git diff --name-status integration HEAD -- scripts/mutation_witnesses`)
+
+| | count | what |
+|---|---|---|
+| retired | 11 | the one-tier guards whose rule is gone: the rail-leg glow (fast `hovering-any-part-of-a-rail…`, browser `a-hot-rail-is-drawn-thicker…`), the one-tier resolver and tree lighter (`the-model-names-what…`, `the-tree-lights-from-the-one-hover…`), the DAG/grid one-hover pair, the scene pointer lighting nodes, the three pane tints (`resting-on-a-body-row…`, `…bound-contributor-row…`, `…no-binding…`), the pick-goes-to-annotator shortcut, and `an-action-s-looks-the-parts-it-is-about-solid…` (the about tier is no longer solid) |
+| added | 25 | one per new guard: the two-tier resolver (fast), the DAG lighter's `hot.self` and two tiers, the tree's holds marks and entity rows, the pane's `light` grammar and planners (annotate), the painted two-strengths check, the model-drawn-alone table checks, the pane suite's `__lastLight` reads, and the two renamed-and-rewritten pane checks (armed pick, proposal select) |
+| re-anchored | 8 | the mutation's `find` moved with the code: leaders register `self`, `braceLayer(braceGeo, ctx, hot)`, `emphasisNodes … .concat(light.nodes)`, `selectFromScene`, the aria-label fold, the grid-row-ends guards (fast and browser) |
+| renamed | 4 | the guard's words changed, the mutation did not: the body fold (by its twisty, not its row), the pane's pointer tells-the-page guard, and the two pane checks above |
+
+The browser census declares one guard it cannot witness (`DECLARED_GUARDS`'s
+comment names it): "[real] a mid-rail point under the pointer lights nothing"
+asserts an absence, and no single-line mutation of the viewer makes a rail
+light without also breaking a neighbouring witnessed guard.
+
+## The suite record (every run against the scratch root `C:/workspace/tolstack/data/scratch/light_20261112`, this tree's projections, main checkout's `node_modules` by junction)
+
+Fast tiers, in this worktree:
+
+| command | result |
+|---|---|
+| `node apps/viewer/run_tests.cjs` | 565/565 |
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/light_20261112` | 688/688 (`[real]` armed) |
+| `node apps/annotate/run_tests.cjs` | 314/314 |
+| `…python.exe -X utf8 -m pytest -q tests/test_mutation_witnesses.py` | 44 passed |
+
+Browser runner, `--only` per suite this handoff changed (`node scripts/run_viewer_browser_tests.mjs --repo <scratch root> --only "<suite>"`):
+
+| suite | result |
+|---|---|
+| topology http | 212/212 |
+| topology file:// | 166/166 (+ respine 44/44) |
+| the model drawn alone and led | 21/21 |
+| the 3D pane follows the selection | 31/31 (body-hover flake above: red on runs 6 and 7, green on 8) |
+| leaders across the seam | 26/26 |
+| annotate sweep rail | 24/24 |
+| every study opens in 3D | 11/11 |
+| annotate flyout | 41/41 |
+| annotate rail holds still | 17/17 |
+| the Preview from the scene | 8/8 |
+| the DAG zoom | 48/48 |
+| parts as blocks | 8/8 |
+| annotate model in the scene | 22/22 |
+| kinematic study page | 27/27 |
+| annotate rail and scene | 19/19 |
+| annotate rail suggestion | 18/19 then rewritten (the proposal's part solid → resting look): RERUN_SUGGESTION |
+| annotate armed pick | 16/17 then rewritten (the armed part solid → resting look): RERUN_ARMED |
+
+Witness runner, `--only "__<digest>"` for each spec added or changed (`node scripts/run_mutation_witness_tests.mjs --repo <scratch root> --only …`):
+WITNESS_RESULTS
+
+Default tier, once, in this worktree: DEFAULT_TIER

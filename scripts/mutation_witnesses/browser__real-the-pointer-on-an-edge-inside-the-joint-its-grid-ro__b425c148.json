@@ -12,12 +12,12 @@
       "replace": ""
     },
     {
-      "contract": "The page passes the emphasised edge's ends to the scene.",
+      "contract": "The page's light carries the hovered edge's ends to the scene as its nodes.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_coaxial_ends_share_one_3d_node.md",
-      "note": "Without them the scene has only the edge id, and an edge inside a joint has no line to read it off. Re-anchored 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the page's light adds its own nodes beside the highlight's; the mutation drops the highlight's.",
+      "note": "Without them the scene has only the edge id, and an edge inside a joint has no line to read it off. Re-pointed 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): a hover no longer posts a highlight, so the highlight's emphasis nodes are empty under the pointer and dropping them changed nothing the check could see (NOT WITNESSED on the branch); the light's nodes are what the pointer lights now, so the mutation drops those.",
       "file": "apps/annotate/app.js",
       "find": "    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis).concat(light.nodes) });",
-      "replace": "    emphasisNodes: light.nodes });"
+      "replace": "    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis) });"
     }
   ]
 }

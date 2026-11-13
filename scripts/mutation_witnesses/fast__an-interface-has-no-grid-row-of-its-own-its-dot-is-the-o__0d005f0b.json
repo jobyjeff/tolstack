@@ -4,12 +4,12 @@
   "expect_red": "an interface has no grid row of its own: its dot is the own tier, and the dimensions that meet it light only as touching -- their rows and bars fainter, never as the thing pointed at",
   "mutations": [
     {
-      "contract": "A feature's touching tier holds the dimensions that end at it.",
+      "contract": "An interface's touching tier holds the dimensions that end at either of its ends.",
       "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
-      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. Without them a hovered node lights its dot and nothing in the grid.",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. Without them a hovered interface lights its dot and nothing in the grid. Re-pointed 2026-11-12: the first cut anchored on the FEATURE branch's dimensions, which this check (a shared node, resolved as an interface) never reads -- the mutation reddened the resolver's own tests and left this guard green.",
       "file": "apps/viewer/model.js",
-      "find": "      dimensionsAt(f.id).forEach(function (d) { touching.add(F.dimension, d.id); });",
-      "replace": "      void dimensionsAt;"
+      "find": "        dimensionsAt(fid).forEach(function (dim) { touching.add(F.dimension, dim.id); });",
+      "replace": "        void dimensionsAt;"
     }
   ]
 }
