@@ -137,8 +137,12 @@ answer is not obvious from the fill rule alone:
   saying "selected". So the topology page's hover emphasis is width and
   brightness only — a neutral one step up from the rails, a low-alpha halo,
   a low-alpha tint on a grid row — and a bar under the pointer keeps its
-  provenance **hue**, lightened by the same neutral halo as everything else on
-  its line rather than recoloured. The declarations and the argument are in
+  provenance **hue**, lightened by a neutral halo rather than recoloured.
+  Since 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_
+  surfaces_and_nothing_goes_opaque) the emphasis comes in **two strengths**
+  from one resolver: what the hovered thing *owns* at the present weight, what
+  it *touches* visibly fainter — the same two tiers the selection wears in the
+  accent and its half-strength. The declarations and the argument are in
   `apps/viewer/topology.css`'s "one hover state, two surfaces".
 
 **One colour per body, in the DAG and the grid alike** (2026-11-08,
