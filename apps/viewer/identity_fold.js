@@ -150,6 +150,18 @@
     };
   };
 
+  // Does the pane's posted record ({projection, eventIds}) replace the
+  // page's? Only when it folds every event the page's record does: the pane
+  // writes, so it is the fresher of the two -- but a pane reading other data
+  // (a demo, an origin that publishes nothing) must never take the page's
+  // bindings away. A page with no record takes any.
+  VA.paneIdentityWins = function (current, msg) {
+    if (!msg || !msg.projection || typeof msg.projection !== "object" || !Array.isArray(msg.eventIds)) return false;
+    var known = {};
+    msg.eventIds.forEach(function (id) { known[id] = true; });
+    return ((current && current.built_from_events) || []).every(function (id) { return known[id]; });
+  };
+
   // What a reader of the bindings gets from whatever its transport reached:
   // the served log ({events, installed_meshes}) folded here, or -- where no
   // log is reached -- the built projection as it is. `installedMeshes` is the

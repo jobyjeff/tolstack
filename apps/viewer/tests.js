@@ -12430,6 +12430,13 @@
         var projection = { stack_keys: [{ stack_key: bind.stack_key, bindings: [bind] }] };
         eq(VA.identityFromSources(null, projection, null), { projection: projection, installedMeshes: null });
         eq(VA.identityFromSources(null, null, null), { projection: null, installedMeshes: null });
+        // The pane's posted record replaces the page's only when it knows every
+        // event the page's record folds -- a pane on other data never wins.
+        var mine = { built_from_events: ["a", "b"] };
+        eq(VA.paneIdentityWins(mine, { projection: {}, eventIds: ["a", "b", "c"] }), true);
+        eq(VA.paneIdentityWins(mine, { projection: {}, eventIds: ["c"] }), false, "a demo pane's record");
+        eq(VA.paneIdentityWins(null, { projection: {}, eventIds: [] }), true, "a page with no record takes any");
+        eq(VA.paneIdentityWins(mine, { projection: {} }), false, "no event list: not trusted");
       });
 
     await test("a feature row selects its node, an interface row its element, a fold is " +

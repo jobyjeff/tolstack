@@ -2202,7 +2202,13 @@
   }
 
   function onPaneIdentity(msg) {
-    if (!msg.projection || typeof msg.projection !== "object") return;
+    if (!VA.paneIdentityWins(state.identity, msg)) return;
+    // The pane read what this page read (its first post, usually): the same
+    // events fold to the same record, so nothing is rebuilt under the pointer.
+    var mine = (state.identity && state.identity.built_from_events) || [];
+    var meshesSame = !Array.isArray(msg.installedMeshes) ||
+      JSON.stringify(msg.installedMeshes) === JSON.stringify(state.installedMeshes);
+    if (state.identity && msg.eventIds.length === mine.length && meshesSame) return;
     state.identity = msg.projection;
     if (Array.isArray(msg.installedMeshes)) state.installedMeshes = msg.installedMeshes;
     state.models = VA.buildModels(state.topologies, state.identity);

@@ -594,7 +594,12 @@ export const DECLARED_GUARDS = {
   // contributor row carries Pick -- the Pick is retired); three renamed (the
   // goto that replaced re-pick, the return control after it, the gap popup
   // without Pick). Every new name carries a spec.
-  browser: { declared: 877, enrollable: 844, names: "4bff3823881c" },
+  // 2026-11-12 (a_binding_shows_the_moment_it_is_made_and_is_corrected_where_
+  // it_is_shown): four swapped -- the pane's rows under a bound feature (sweep
+  // and bind mode), the element row click and the bind bar give way to the
+  // bound line in both modes, Correct arming the pick in bind mode, and Cancel.
+  // Every new name carries a spec; the retired four's are deleted.
+  browser: { declared: 877, enrollable: 844, names: "5f8500bacda6" },
 };
 
 

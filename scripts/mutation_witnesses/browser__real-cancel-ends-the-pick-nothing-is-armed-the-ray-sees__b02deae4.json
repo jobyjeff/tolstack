@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] Cancel ends the pick: nothing is armed, the ray sees every part, and the body is the bound line again",
+  "mutations": [
+    {
+      "contract": "`arm off` ends an armed pick, in either mode.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12), which replaced the 11-10 guards that pinned the pane's rows under a bound feature. Cancel does nothing: the pick stays armed and the ray stays narrowed to one part.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (what === \"off\") return disarmPick(\"cancel\");",
+      "replace": "  if (what === \"off\") return { armed: true };"
+    }
+  ]
+}

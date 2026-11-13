@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] in bind mode a bound feature's body is the same line and the same actions",
+  "mutations": [
+    {
+      "contract": "The page draws a feature's body from the model's plan, in either pane mode.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12), which replaced the 11-10 guards that pinned the pane's rows under a bound feature. Drops the plan, so the body falls back to whatever rows the pane lists.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      var plan = feature ? VA.featureBodyPlan(model, fid, state.topologyId, rows, sceneTree) : null;",
+      "replace": "      var plan = null;"
+    }
+  ]
+}

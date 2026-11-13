@@ -8225,25 +8225,27 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       nodeSelected && await page.locator(featureSel + ".navtree__row--on").count() === 1 &&
       await page.locator(`#topopane .rail__dot--selected, #topopane [data-row-kind="node"].is-selected`).count() >= 0);
 
-    // ...and the faces layer: in sweep mode the pane's rows for that node --
-    // its joint end, with its mark and its Pick -- sit under the feature row.
-    await page.waitForSelector(`${featureSel} ~ .navtree__scene [data-scene-key*="feature=${FEATURE_NODE}"]`,
-      { timeout: 15000 }).catch(() => {});
-    const layer = await page.evaluate((args) => {
-      const row = document.querySelector(args.sel);
+    // ...and its body: the pitch link's lower bearing centre is bound in the
+    // real log, so since 2026-11-12 (a_binding_shows_the_moment_it_is_made_
+    // and_is_corrected_where_it_is_shown) the body is the model's own line --
+    // the face and the part -- with Correct and Unbind, not the pane's rows.
+    const featureBody = (sel) => page.evaluate((s) => {
+      const row = document.querySelector(s);
       const slot = row && row.parentNode.querySelector(".navtree__scene");
-      if (!slot) return null;
-      const rows = Array.from(slot.querySelectorAll("[data-scene-key]"));
-      return { rows: rows.length,
-        named: rows.filter((n) => n.getAttribute("data-scene-key").indexOf("feature=" + args.node) !== -1).length,
-        kinds: Array.from(new Set(rows.map((n) => n.getAttribute("data-kind")))),
-        other: rows.filter((n) => /feature=/.test(n.getAttribute("data-scene-key")) &&
-          n.getAttribute("data-scene-key").indexOf("feature=" + args.node) === -1).length };
-    }, { sel: featureSel, node: FEATURE_NODE });
-    push("[real] the faces layer under the selected feature is the pane's rows for its node " +
-      "alone: its joint end, marked, and no other node's",
-      layer && layer.rows >= 1 && layer.named === layer.rows && layer.other === 0 &&
-      layer.kinds.indexOf("end") !== -1);
+      const body = slot && slot.querySelector(".navtree__featurebody");
+      return body ? { kind: body.getAttribute("data-body-kind"),
+        line: (body.querySelector(".navtree__featurewords") || {}).textContent || "",
+        acts: Array.from(body.querySelectorAll("button")).map((b) => b.textContent) } : null;
+    }, sel);
+    await page.waitForFunction((sel) => {
+      const row = document.querySelector(sel);
+      return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
+    }, featureSel, { timeout: 15000 }).catch(() => {});
+    const sweepBody = await featureBody(featureSel);
+    console.log(`    the bound feature's body in sweep mode: ${JSON.stringify(sweepBody)}`);
+    push("[real] a bound feature's body is one line naming its face and its part, with Correct and Unbind",
+      !!sweepBody && sweepBody.kind === "bound" && /^bound \u00b7 face \d+ of 213862-002$/.test(sweepBody.line) &&
+      sweepBody.acts.indexOf("Correct") !== -1 && sweepBody.acts.indexOf("Unbind") !== -1);
 
     // The keyboard reaches the same rows: focus a feature row, Enter selects it.
     const OTHER_NODE = "pitch_link_upper_sphere_centre";
@@ -8371,51 +8373,50 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       (await headLine()) === "Binding — " + chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
-    // In bind mode a selected feature nests the pane's rows for it: the pane
-    // scopes its own element list to the node (`filter-element`), and the
-    // page cuts the rows by the node's edges (since 2026-11-10).
+    // In bind mode the same bound feature's body is the same line: it is the
+    // model's, whatever the pane lists. Its Correct arms the pick on the
+    // feature's own part in bind mode too, and Cancel ends it.
     const CHAIN_NODE = "pitch_link_lower_sphere_centre";
     const chainFeature = `#navtree [data-nav-kind="feature"][data-nav-id="pitch_link@${CHAIN_NODE}"]`;
-    await page.locator(`#navtree [data-nav-twisty="p:pitch_link"]`).first().click({ timeout: 5000 }).catch(() => {});
+    if (!(await page.locator(chainFeature).count())) {
+      await page.locator(`#navtree [data-nav-twisty="p:pitch_link"]`).first().click({ timeout: 5000 }).catch(() => {});
+    }
     await page.locator(chainFeature).first().click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction((sel) => {
       const row = document.querySelector(sel);
-      const slot = row && row.parentNode.querySelector(".navtree__scene");
-      return !!slot && slot.querySelectorAll('[data-scene-key^="#element-list/"]').length > 0;
+      return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
     }, chainFeature, { timeout: 15000 }).catch(() => {});
-    // The element rows themselves: a candidate row under one is keyed
-    // `#element-list/<edge>/...` and is not counted.
-    const elementRows = await page.evaluate((sel) => {
-      const row = document.querySelector(sel);
-      const slot = row && row.parentNode.querySelector(".navtree__scene");
-      return slot ? Array.from(slot.querySelectorAll('[data-scene-key^="#element-list/"]'))
-        .filter((n) => n.getAttribute("data-scene-key").slice("#element-list/".length).indexOf("/") === -1).length : 0;
-    }, chainFeature);
-    const railElements = bindMode ? await inPane((w, node) =>
-      Array.from(w.document.querySelectorAll(".an__rail .el-row")).filter((n) => n.getClientRects().length &&
-        (n.dataset.edge === undefined || true)).length, CHAIN_NODE) : -1;
-    const touching = (topology.edges || []).filter((e) => e.from === CHAIN_NODE || e.to === CHAIN_NODE).length;
-    console.log(`    bind mode: ${elementRows} element rows under the feature, ${touching} edges at its node, ` +
-      `${railElements} element rows in the pane's whole list`);
-    push("[real] selecting a feature with the pane in bind mode nests the pane's element rows for " +
-      "its node under it -- one per edge on the node, cut from the pane's scoped list",
-      elementRows > 0 && elementRows === touching && railElements >= elementRows);
-    await page.locator(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"]`).first()
+    const bindBody = await featureBody(chainFeature);
+    console.log(`    ...in bind mode: ${JSON.stringify(bindBody)}`);
+    push("[real] in bind mode a bound feature's body is the same line and the same actions",
+      !!bindBody && !!sweepBody && bindBody.kind === "bound" && bindBody.line === sweepBody.line &&
+      bindBody.acts.join() === sweepBody.acts.join());
+    const chainEnds = (topology.edges || []).filter((e) => e.part === "pitch_link" &&
+      (e.from === CHAIN_NODE || e.to === CHAIN_NODE)).map((e) => e.id)
+      .concat((topology.edges || []).filter((e) => e.kind !== "structural" &&
+        (e.from === CHAIN_NODE || e.to === CHAIN_NODE)).map((e) => e.id));
+    await page.locator(`${chainFeature} ~ .navtree__scene button[data-body-act="arm"]`).first()
       .click({ timeout: 5000 }).catch(() => {});
-    await page.waitForSelector(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`,
-      { timeout: 5000 }).catch(() => {});
-    push("[real] ...and clicking one selects it for binding in the scene",
-      await page.locator(`${chainFeature} ~ .navtree__scene [data-scene-key^="#element-list/"].navtree__scenerow--on`).count() === 1 &&
-      await inPane((w) => w.document.querySelectorAll(".an__rail .el-row.selected").length) === 1);
-    // The bar names the element being bound and carries the way out.
-    const strip = await inPane((w) => {
-      const name = w.document.querySelector(".an__bindstrip-name");
-      return { name: name ? name.textContent : null, exit: !!w.document.querySelector("[data-bind-exit]"),
-        sweepLine: !!w.document.querySelector(".an__bindsweep") };
-    });
-    push("[real] while an element is being bound the pane's bar names it and offers an exit, " +
-      "and the sweep control is still on the bar",
-      strip && !!strip.name && strip.exit && strip.sweepLine);
+    const armedAt = await until((w) => w.__embedTree && w.__embedTree.armed && w.__embedTree.armedEnd
+      ? w.__embedTree.armedEnd.edgeId : false, null, 30000) ? await inPane((w) => w.__embedTree.armedEnd.edgeId) : null;
+    await page.waitForFunction((sel) => {
+      const row = document.querySelector(sel);
+      return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="armed"]'));
+    }, chainFeature, { timeout: 10000 }).catch(() => {});
+    const armedBody = await featureBody(chainFeature);
+    push("[real] ...and its Correct arms the pick in bind mode, at one of the feature's own ends, " +
+      "and the body says so with a Cancel",
+      !!armedAt && chainEnds.indexOf(armedAt) !== -1 && !!armedBody && armedBody.kind === "armed" &&
+      armedBody.acts.join() === "Cancel" && await inPane((w) => !w.__sweep && !!w.__scene.pickFilter()));
+    await page.locator(`${chainFeature} ~ .navtree__scene button[data-body-act="arm-off"]`).first()
+      .click({ timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((sel) => {
+      const row = document.querySelector(sel);
+      return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
+    }, chainFeature, { timeout: 10000 }).catch(() => {});
+    push("[real] Cancel ends the pick: nothing is armed, the ray sees every part, and the body is the bound line again",
+      await inPane((w) => !w.__embedTree.armed && !w.__scene.pickFilter()) &&
+      ((await featureBody(chainFeature)) || {}).kind === "bound");
     if (SHELL_SCENE_SHOTS) {
       await page.screenshot({ path: join(SHELL_SCENE_SHOTS, "1600_chain.png") });
     }

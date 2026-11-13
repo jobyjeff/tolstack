@@ -5827,8 +5827,12 @@ async function publishIdentity(rewrite) {
     window.__lastServedLogMs = performance.now() - started;
   }
   paintBoundMarks();
+  // `eventIds`: every event the record folds, so the shell can refuse a
+  // record that knows less than its own (a pane on other data never wins).
+  const base = (state.identityProjection && state.identityProjection.built_from_events) || [];
   postToShell({ type: AA.IDENTITY_MESSAGE, projection: sessionIdentityProjection(),
-    installedMeshes: state.installedMeshes });
+    installedMeshes: state.installedMeshes,
+    eventIds: base.concat(state.sessionEvents.map((e) => e.event_id)) });
 }
 
 // --- bound faces, from the record (deliverable 5) ---------------------------

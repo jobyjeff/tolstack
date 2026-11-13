@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a bound feature's body is one line naming its face and its part, with Correct and Unbind",
+  "mutations": [
+    {
+      "contract": "A bound feature's body is the model's bound line, with its actions.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md",
+      "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12), which replaced the 11-10 guards that pinned the pane's rows under a bound feature. Treats every feature as unbound, so a bound face shows Pick a face and cannot be corrected.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (status === VA.FEATURE_STATUSES.bound) {\n      var plan = { kind: K.bound, lines: [], actions: [] };",
+      "replace": "    if (false) {\n      var plan = { kind: K.bound, lines: [], actions: [] };"
+    }
+  ]
+}
