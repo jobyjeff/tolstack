@@ -3321,9 +3321,14 @@
   function braceLayer(geo, ctx, hot) {
     var layer = VA.el("div", "tvbraces");
     // A body's or a part's bracket is that entity's container in the grid:
-    // lit with it, hovered and selected like its field on the DAG
-    // (wireContainer). A study's bracket is none of these.
-    var container = function (node, kind, braceId, cls, inert) {
+    // LIT with it (hover and selection, both tiers), but never a control. Its
+    // caps lie across the rows' edges and its label over the first row's
+    // PART cell, which are the rows' own hover and click targets -- a cap
+    // that took the pointer made a row unhoverable at its centre (the
+    // kinematic suite, 2026-11-12). The DAG's container and name are the
+    // part's controls; the grid's rows are the rows'. A study's bracket is
+    // neither lit nor a control.
+    var container = function (node, kind, braceId, cls) {
       if (kind !== "body" && kind !== "part") return node;
       // A part's brace id is `part:<part>` (VA.gridBraces); a body's is the
       // body's own id. The entity is the part or the body.
@@ -3331,14 +3336,9 @@
       node.className += tierClasses(ctx, cls, kind, id);
       node.setAttribute("data-brace-kind", kind);
       node.setAttribute("data-brace-entity", id);
-      // A label lies over the PART cell, the row's own click target: it is
-      // lit with its bracket and takes no pointer of its own.
-      if (inert) {
-        hotRegister(hot, { el: node, base: node.getAttribute("class"),
-          self: [hotKey(kind, id)], hot: cls + "--hot", lead: cls + "--lead" });
-        return node;
-      }
-      return wireContainer(node, ctx, hot, kind, id, null, cls);
+      hotRegister(hot, { el: node, base: node.getAttribute("class"),
+        self: [hotKey(kind, id)], hot: cls + "--hot", lead: cls + "--lead" });
+      return node;
     };
     var place = function (node, box) {
       node.style.left = box.left + "px";
@@ -3361,7 +3361,7 @@
       var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
         " tv__fill--t" + label.tint, label.text);
       node.setAttribute("data-brace-label", label.id);
-      container(node, label.kind, label.id, "tvbrace__label", true);
+      container(node, label.kind, label.id, "tvbrace__label");
       node.setAttribute("title", label.text);
       if (label.lines > 1) node.style.webkitLineClamp = String(label.lines);
       node.style.lineHeight = (label.lines > 1 ? VA.GRID_BRACE.line : label.line) + "px";

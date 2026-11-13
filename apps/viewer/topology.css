@@ -1197,10 +1197,9 @@ body { display: flex; flex-direction: column; }
   pointer-events: none;
 }
 /* A body's or a part's bracket is that entity's container in the grid
-   (views/topology.js's braceLayer): hoverable and selectable on its line,
-   lit in the two tiers like its field on the DAG. A study's bracket stays
-   inert. */
-.tvbrace[data-brace-kind] { pointer-events: auto; cursor: pointer; }
+   (views/topology.js's braceLayer): lit in the two tiers like its field on
+   the DAG, and inert like every bracket -- its caps lie across the rows,
+   which are the pointer's targets there. */
 .tvbrace--hot { filter: brightness(1.25); }
 .tvbrace--lead { filter: brightness(1.6); }
 .tvbrace--lead.tvbrace--top { border-top-width: 3px; }

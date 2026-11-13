@@ -77,11 +77,14 @@ Written as the work landed; the table, the shots and the suite record are last.
   `light select`. Kept so the kinematic page's selected-edge behaviour and
   the pane's own rail tint are unchanged; filed as a duplication,
   `ISSUE_20261112_a_selected_edge_reaches_the_pane_twice_as_highlight_and_as_light.md`.
-- **A grid bracket's caps are the control; its label is lit but inert.** The
-  label lies over the first row's PART cell, which is that row's click: with
-  the label clickable, a row click selected the part (the seam suite's
-  row-click check found it). The DAG's part NAME is a control, since it sits
-  in the container's own margin.
+- **A grid bracket is lit, never a control.** The handoff named "its bracket
+  in the grid" as a selector. With the label clickable, a row click on its
+  PART cell selected the part (the seam suite's row-click check found it);
+  with the caps clickable, a cap lying across a row's bottom edge took the
+  pointer from the row's cell (the kinematic suite's sensitivity hover found
+  it). So a bracket wears the two tiers and nothing else; on the DAG the
+  container border and the part's NAME are the part's controls, in the
+  container's own margin where no mark sits.
 - **A part that arrives takes its look at once** (`onPartLoaded` runs
   `applyLooks`). A mesh joined the scene solid and stayed so until the next
   sweep frame; in a paused sweep that was for as long as the pause, and the
@@ -162,7 +165,7 @@ the grid (it lights its feature there); a joint has no mark of its own on the
 DAG and no row in the grid (its interfaces are its marks and rows); a node
 interface has no grid row (the dimensions arriving at it are its rows, as
 touching). The DAG's part NAME and a part's or body's container border are the
-controls on that surface; a grid bracket's caps are, its label is lit only.
+controls on that surface; a grid bracket is lit only (see Decisions).
 
 Bind mode (`--bind`): every row of the table reads the same -- the light's
 layers, the looks and the lit rows are identical with no sweep loaded.

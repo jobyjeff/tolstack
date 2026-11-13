@@ -1483,8 +1483,10 @@ Since 2026-11-10 what is selected and what is hovered are **one state object**,
 (`setSelected`, `setHovered`). The tree, the DAG, the grid, the Preview and the
 3D scene each light from it (`applyFocus`, run on every change and after every
 paint, so a repaint loses nothing) and each can set it: a tree row, a DAG mark,
-a grid row, a part's or a body's container (its field or block on the DAG, its
-bracket in the grid, since 2026-11-12), a scene anchor, the pane's own rail.
+a grid row, a part's or a body's container on the DAG (its field or block, and
+a part's name, since 2026-11-12), a scene anchor, the pane's own rail. A grid
+bracket is lit with its part or body but is no control: its caps lie across
+the rows, which are the pointer's targets there.
 `state.selection`, the element form every view keys by, is derived in the
 setter and written nowhere else; a body, a part or a joint selected has none.
 

@@ -257,13 +257,6 @@ if (hubBox) {
   await shot(page, `${mode}_09_part_selected_from_dag`, "the hub selected by its container on the DAG");
   await letGo(page);
 }
-const brace = await page.locator('#topopane .tvbrace[data-brace-entity="hub"]').first().boundingBox().catch(() => null);
-if (brace) {
-  await page.mouse.move(brace.x + brace.width / 2, brace.y + 1);
-  await page.waitForTimeout(900);
-  await shot(page, `${mode}_10_part_bracket_hovered_in_grid`, "the hub's bracket under the pointer in the grid");
-  await page.mouse.move(4, 4);
-}
 await page.close();
 await browser.close();
 server.close();
