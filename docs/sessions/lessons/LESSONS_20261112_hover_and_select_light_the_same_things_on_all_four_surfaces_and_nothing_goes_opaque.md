@@ -232,10 +232,39 @@ Browser runner, `--only` per suite this handoff changed (`node scripts/run_viewe
 | annotate model in the scene | 22/22 |
 | kinematic study page | 27/27 |
 | annotate rail and scene | 19/19 |
-| annotate rail suggestion | 18/19 then rewritten (the proposal's part solid → resting look): RERUN_SUGGESTION |
-| annotate armed pick | 16/17 then rewritten (the armed part solid → resting look): RERUN_ARMED |
+| annotate rail suggestion | 18/19, then the check rewritten (the proposal's part was asserted solid; now its resting look, the others `faint` by `lookOf`): 19/19, twice |
+| annotate armed pick | 16/17, then the check rewritten (the armed part was asserted solid; now its resting look, opacity < 1): 17/17 |
 
 Witness runner, `--only "__<digest>"` for each spec added or changed (`node scripts/run_mutation_witness_tests.mjs --repo <scratch root> --only …`):
-WITNESS_RESULTS
 
-Default tier, once, in this worktree: DEFAULT_TIER
+| run | specs | mutations | verdict |
+|---|---|---|---|
+| the chain, one `--only "__<digest>"` per added or changed spec, serially (the runner refuses two at once) | 33 | 44 | 41 WITNESSED; 3 NOT WITNESSED, each repaired below and re-run WITNESSED |
+| `fast__an-interface-has-no-grid-row-of-its-own…__0d005f0b` | | | first cut mutated the FEATURE branch's touching dimensions; the check resolves a shared node as an interface and never read them (the resolver's own tests reddened, the declared guard stayed green). Re-pointed at the interface branch: WITNESSED |
+| `browser__real-the-pointer-on-an-edge-inside-the-joint…__b425c148` #2 | | | dropped the highlight's emphasis nodes, which a hover no longer posts (empty under the pointer, so the tier stayed green). Re-pointed at the light's nodes: WITNESSED |
+| `browser__real-the-emphasis-is-painted-in-two-strengths…__34dd4689` | | | the CLEAN run of `topology file://` was red on "a reload gets the remembered pane width back" / "…nav width back" (164/166), so nothing was proved; the same run green an hour later (166/166) and the spec WITNESSED. Not a light defect: a one-off of the file:// localStorage round trip, seen once in four runs of that suite this session |
+| the two renamed pane specs | 2 | 3 | `…arming-keeps-the-end-s-part-at-its-resting-look…__2210e980` 2/2 WITNESSED; `…frames-the-camera-on-it-keeps-its-part-at-its-resting-lo…__c965fa44` NOT WITNESSED first (`isGhosted` is true for ghost and faint alike, so "dims every other part" could not see `focusDim` go), the check now reads `lookOf` (`faint` / `ghost`): WITNESSED |
+
+One chain block (`__8478297f`) exited 1 while WITNESSED: the browser census
+pin was mid-edit (a guard renamed, the pin written a minute later), and the
+runner's enrollment report says so. Nothing to repair.
+
+Default tier, once, in this worktree, after every browser run above (so the
+browser-slot test queued behind nothing):
+
+```
+C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q
+1 failed, 1938 passed, 1 skipped, 2 deselected in 510.00s (0:08:30)
+```
+
+The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+the deliberate worktree red (no `data/projections/` here, so the node-fs tier
+is SKIPPED and the test refuses to call a skipped tier green); the same tier
+ran 688/688 against the scratch root above. Recorded in dispatch's suite-time
+ledger (`suite-time record tolstack --tier default --seconds 511`).
+
+Scratch left behind: none. The scratch data root
+(`C:/workspace/tolstack/data/scratch/light_20261112`, junctions to the main
+checkout's `data/inbox` and `data/meshes`, this tree's `docs` and `apps`, and
+projections built from this tree) and the worktree's `node_modules` junction
+were removed at the end of the session.

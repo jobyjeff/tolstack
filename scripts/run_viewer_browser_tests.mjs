@@ -9753,6 +9753,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       focus: s.suggestionFocus(),
       drawn: mesh ? s.drawnPlacements(sha).length : 0,
       bracketGhost: s.isGhosted(bracket), triangleGhost: s.isGhosted(sha), bracketLook: s.lookOf(bracket),
+      triangleLook: s.lookOf(sha),
       targetToPart: centre ? centre.distanceTo(s.controls.target) : null,
       armed: !!(window.__sweep && window.__sweep.armed),
       writes: (window.__mockWrites || []).map((w) => ({ filename: w.filename, event: w.event })),
@@ -9783,7 +9784,8 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     // Nothing goes opaque (2026-11-12): the part keeps its resting look -- the
     // face is the solid thing -- and every other part goes faint.
     push("...frames the camera on it, keeps its part at its resting look (never opaque), dims every other part, and emphasises the node's hollow marker",
-      lit.targetToPart !== null && lit.targetToPart < 0.5 && lit.bracketGhost && lit.triangleGhost &&
+      lit.targetToPart !== null && lit.targetToPart < 0.5 &&
+      lit.bracketLook === "faint" && lit.triangleLook === "ghost" && lit.triangleGhost &&
       lit.focus.node === "a" && lit.focus.markerEmphasised);
     push("the selected row offers Accept and nothing else; the pick action stays where it was, under the list",
       JSON.stringify(lit.buttons) === JSON.stringify(["Accept"]) &&
