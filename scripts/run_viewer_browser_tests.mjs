@@ -8216,23 +8216,73 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       w.AnnotateApp.exec(["scene-view"]).every((r) => !r.visible || r.opacity < 1) &&
       w.__lastLight.action.about.every((sha) => w.__scene.lookOf(sha) !== "faint"));
     let bodyLit = false;
+    let lastSeen = null;
+    // Every `light` the page posts into the pane, for the diagnosis below.
+    await inPane((w) => {
+      w.__heardLight = [];
+      w.addEventListener("message", (e) => {
+        const m = e.data;
+        if (m && m.type === "annotate:exec" && m.command && m.command[0] === "light") {
+          w.__heardLight.push(String(m.command[1]).slice(0, 200));
+          if (m.command[1] !== "clear") w.__lastLightWord = m.command[1];
+        }
+      });
+      // The predicate's clauses, sampled whenever a light is standing.
+      w.__lightSamples = [];
+      w.setInterval(() => {
+        const L = w.__lastLight;
+        if (!L) return;
+        const view = w.AnnotateApp.exec(["scene-view"]);
+        w.__lightSamples.push({
+          own: L.layers.filter((l) => l.role === "hover" && l.tier === "own").map((l) => l.partOverlays),
+          about: L.action ? L.action.about.length : null,
+          opaque: view.filter((r) => r.visible && !(r.opacity < 1)).map((r) => [r.part, r.look, r.opacity]).slice(0, 4),
+          aboutFaint: L.action ? L.action.about.filter((sha) => w.__scene.lookOf(sha) === "faint").length : null,
+        });
+        if (w.__lightSamples.length > 6) w.__lightSamples.shift();
+      }, 50);
+      return true;
+    });
     {
       const end = Date.now() + 20000;
-      await heldRow.hover({ timeout: 5000 }).catch(() => {});
+      const hoverErrors = [];
+      await heldRow.hover({ timeout: 5000 }).catch((e) => hoverErrors.push(String(e.message).slice(0, 120)));
       while (Date.now() < end) {
         // Polled, not sampled: between two of the pane's rebuilds the light is
         // on for a moment, and a read 300ms later missed it every time.
         if (await until(lit, bodyName, 1500)) { bodyLit = true; break; }
+        const pageSide = await page.evaluate((sel) => {
+          const row = document.querySelector(sel);
+          const b = row && row.getBoundingClientRect();
+          const under = b ? document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2) : null;
+          return { hot: Array.from(document.querySelectorAll("#navtree .navtree__row--hot")).map((n) => n.getAttribute("data-nav-id")),
+            under: under ? under.tagName + "." + (under.className || "").toString().slice(0, 60) : null,
+            box: b ? [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)] : null };
+        }, bodyRowSel);
+        lastSeen = Object.assign({ pageSide, hoverErrors }, await inPane((w) => {
+          const L = w.__lastLight;
+          const view = w.AnnotateApp.exec(["scene-view"]);
+          return { light: L ? L.layers : null, about: L && L.action ? L.action.about.length : null,
+            aboutFaint: L && L.action ? L.action.about.filter((sha) => w.__scene.lookOf(sha) === "faint").length : null,
+            opaque: view.filter((r) => r.visible && !(r.opacity < 1)).map((r) => [r.part, r.look, r.opacity]).slice(0, 6),
+            banner: (w.document.querySelector("#notice-text") || {}).textContent || "",
+            heard: (w.__heardLight || []).map((c) => c.slice(0, 40)),
+            samples: w.__lightSamples || [],
+            replay: (() => {
+              if (!w.__lastLightWord) return null;
+              try { const r = w.AnnotateApp.exec(["light", w.__lastLightWord]); return { ok: true, light: !!w.__lastLight, r: r ? Object.keys(r) : null }; }
+              catch (e) { return { ok: false, error: String(e && e.stack || e).slice(0, 600) }; }
+            })(),
+            lastResult: (w.__shellMessages || {})["annotate:result"] || null };
+        }));
         await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 2000 }).catch(() => {});
         await page.waitForTimeout(100);
-        await heldRow.hover({ timeout: 2000 }).catch(() => {});
+        await heldRow.hover({ timeout: 2000 }).catch((e) => hoverErrors.push(String(e.message).slice(0, 120)));
       }
     }
     if (!bodyLit) {
       console.log(`      [${label}] DIAG body hover ${bodyName}: rows ` +
-        `${await page.locator(bodyRowSel).count()}; pane says ` +
-        JSON.stringify(await inPane((w) => ({ light: w.__lastLight, sweep: !!w.__sweep,
-          looks: w.AnnotateApp.exec(["scene-view"]).map((r) => [r.part, r.look, r.opacity]) }))));
+        `${await page.locator(bodyRowSel).count()}; last seen under the pointer ${JSON.stringify(lastSeen)}`);
     }
     push("[real] resting on a body row in the nav lights that body in the scene: every part of it " +
       "glows at its resting look, the rest go faint, and nothing is opaque", bodyLit);
@@ -8488,19 +8538,25 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       const at = mesh.userData.faceRanges[0].start * 3;
       const live = mesh.geometry.attributes.color.array;
       const base = mesh.userData.baseColors;
+      // The parts the light is about (the hovered edge's bound faces' parts):
+      // each at its resting look, never faint, never solid.
+      const about = (w.__lastLight.action && w.__lastLight.action.about) || [];
       return { first, faceOverlays: own.faceOverlays, faceOpacity: own.faceOpacity, partOpacity: own.partOpacity,
-        look: w.__scene.lookOf(first), opacity: w.__scene.opacityOf(first),
+        aboutLooks: about.map((sha) => w.__scene.lookOf(sha)),
+        aboutOpacities: about.map((sha) => w.__scene.opacityOf(sha)),
         buffer: live[at] !== base[at] || live[at + 1] !== base[at + 1] || live[at + 2] !== base[at + 2],
         opaque: w.AnnotateApp.exec(["scene-view"]).filter((r) => r.visible && r.opacity >= 1).length };
     }) : null;
+    if (face) console.log(`      [${label}] bound row ${boundRow.edge} hovered: ${JSON.stringify(face)}`);
     if (!face) {
       console.log(`      [${label}] DIAG bound row ${boundRow.edge} (bound in the served log: ${boundInLog(boundRow.edge)}): ` +
         `opened ${opened}; light ${JSON.stringify(await inPane((w) => w.__lastLight))}`);
     }
     push("[real] resting on a bound contributor row overlays its face in the annotator, harder than the " +
       "part's glow, on a part that keeps its resting look -- the colour buffer untouched and nothing opaque",
-      !!face && face.faceOverlays > 0 && face.faceOpacity > face.partOpacity && face.look !== "faint" &&
-      face.opacity < 1 && !face.buffer && face.opaque === 0);
+      !!face && face.faceOverlays > 0 && face.faceOpacity > face.partOpacity && face.aboutLooks.length > 0 &&
+      face.aboutLooks.every((l) => l === "ghost" || l === "solid") && face.aboutOpacities.every((o) => o < 1) &&
+      !face.buffer && face.opaque === 0);
     await clearPoint(page, `#topopane tr.tvrow[data-id="${unbound.edge}"] td.tvcell--name`, "hover");
     const unboundLit = await until((w, edge) => !!(w.__lastLight && w.__lastLight.layers.length &&
       JSON.parse(w.__lastLightWord || "{}").edge === edge), unbound.edge, 20000);

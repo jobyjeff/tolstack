@@ -193,6 +193,8 @@ if (!(await page.locator(navRow("feature", HUB + "@hub_spindle_bore_axis")).coun
   await page.locator('#navtree [data-nav-twisty="p:hub"]').first().click({ timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(500);
 }
+await page.mouse.move(4, 4);
+await page.waitForTimeout(900);
 await shot(page, `${mode}_00_at_rest`, "nothing hovered or selected");
 
 // A part hovered from the tree: own rows strong, interface rows faint, and
@@ -241,13 +243,14 @@ await shot(page, `${mode}_07_gap_hovered_from_grid`, "the pilot gap row hovered 
 await page.mouse.move(4, 4);
 await page.waitForTimeout(600);
 
-// A part container hovered and selected on the DAG, and a bracket in the grid.
-const hubBox = await page.locator('svg.tv__rails [data-block="hub"], svg.tv__rails [data-part="hub"]').first().boundingBox().catch(() => null);
+// A part container hovered and selected on the DAG (its name is the part's
+// control, in the container's own margin), and a bracket in the grid.
+const hubBox = await page.locator('svg.tv__rails text[data-part-name="hub"]').first().boundingBox().catch(() => null);
 if (hubBox) {
-  await page.mouse.move(hubBox.x + 1, hubBox.y + hubBox.height / 2);
+  await page.mouse.move(hubBox.x + hubBox.width / 2, hubBox.y + hubBox.height / 2);
   await page.waitForTimeout(900);
-  await shot(page, `${mode}_08_part_container_hovered_on_dag`, "the hub's container border under the pointer on the DAG");
-  await page.mouse.click(hubBox.x + 1, hubBox.y + hubBox.height / 2);
+  await shot(page, `${mode}_08_part_container_hovered_on_dag`, "the hub's name on its DAG container under the pointer");
+  await page.mouse.click(hubBox.x + hubBox.width / 2, hubBox.y + hubBox.height / 2);
   await settle(page, 1200);
   await page.mouse.move(4, 4);
   await page.waitForTimeout(900);
