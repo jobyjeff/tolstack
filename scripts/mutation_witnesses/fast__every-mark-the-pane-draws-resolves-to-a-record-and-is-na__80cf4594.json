@@ -6,10 +6,10 @@
     {
       "contract": "A DAG mark's accessible name is its record's title.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Names every mark by its id instead.",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Names every mark by its id instead. Re-anchored 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): a container's control carries the same line, so the anchor takes the mark's `bare` branch with it.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    node.setAttribute(\"aria-label\", name || String(id));",
-      "replace": "    node.setAttribute(\"aria-label\", String(id));"
+      "find": "    node.setAttribute(\"aria-label\", name || String(id));\n    if (!bare) {",
+      "replace": "    node.setAttribute(\"aria-label\", String(id));\n    if (!bare) {"
     }
   ]
 }

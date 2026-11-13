@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
-  "expect_red": "[real] a click on a body's row in the nav folds it: its twisty reads closed and its parts leave the column",
+  "expect_red": "[real] a body's twisty in the nav folds it: it reads closed and the body's parts leave the column",
   "mutations": [
     {
       "contract": "A fold flips the row's open state: the reader's choice is the opposite of what the row showed.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
-      "note": "Writes the row's current state back, so a click folds nothing.",
+      "note": "Writes the row's current state back, so a click folds nothing. Renamed 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the row selects the body now; the twisty folds.",
       "file": "apps/viewer/topology_app.js",
       "find": "    state.navOpen[key] = !open;\n",
       "replace": "    state.navOpen[key] = open;\n"

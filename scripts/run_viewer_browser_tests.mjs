@@ -8244,9 +8244,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     const nodeSelected = await until((w, id) => w.__lastModelSelection &&
       w.__lastModelSelection.kind === "node" && w.__lastModelSelection.id === id, FEATURE_NODE, 10000);
     await page.waitForSelector(featureSel + ".navtree__row--on", { timeout: 5000 }).catch(() => {});
+    // The feature's row under its part is `--on`; since 2026-11-12 the same
+    // feature's end row under the interface it is on is revealed and lit too.
     push("[real] clicking a feature row in the nav selects its node in the scene, and the row " +
       "shows it selected",
-      nodeSelected && await page.locator(featureSel + ".navtree__row--on").count() === 1 &&
+      nodeSelected && await page.locator(featureSel + ".navtree__row--on").count() >= 1 &&
       await page.locator(`#topopane .rail__dot--selected, #topopane [data-row-kind="node"].is-selected`).count() >= 0);
 
     // ...and its body: the pitch link's lower bearing centre is bound in the
@@ -8291,13 +8293,14 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     }
     await page.waitForSelector(featureSel + ".navtree__row--on", { timeout: 5000 }).catch(() => {});
     push("[real] a node picked in the scene is selected in the nav",
-      await page.locator(featureSel + ".navtree__row--on").count() === 1);
+      await page.locator(featureSel + ".navtree__row--on").count() >= 1);
 
-    // A body's fold is the nav's own: a click on its row closes it, its
-    // twisty says so, and its parts leave the column.
+    // A body's fold is the nav's own: since 2026-11-12 the row SELECTS the
+    // body and its twisty alone folds it; the twisty says so, and its parts
+    // leave the column.
     const foldBody = bodyRowSel;
     const partsBefore = await page.locator(`#navtree [data-nav-kind="part"]`).count();
-    await page.locator(foldBody).first().click({ timeout: 5000 }).catch(() => {});
+    await page.locator(foldBody + " button.navtree__twisty").first().click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction((n) => document.querySelectorAll('#navtree [data-nav-kind="part"]').length < n,
       partsBefore, { timeout: 5000 }).catch(() => {});
     const folded = await page.evaluate((sel) => {
@@ -8305,9 +8308,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       return { expanded: row && row.querySelector(".navtree__twisty").getAttribute("aria-expanded"),
         parts: document.querySelectorAll('#navtree [data-nav-kind="part"]').length };
     }, foldBody);
-    push("[real] a click on a body's row in the nav folds it: its twisty reads closed and its parts leave the column",
+    push("[real] a body's twisty in the nav folds it: it reads closed and the body's parts leave the column",
       folded.expanded === "false" && folded.parts < partsBefore);
-    await page.locator(foldBody).first().click({ timeout: 5000 }).catch(() => {});
+    await page.locator(foldBody + " button.navtree__twisty").first().click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction((n) => document.querySelectorAll('#navtree [data-nav-kind="part"]').length === n,
       partsBefore, { timeout: 5000 }).catch(() => {});
 
@@ -15284,6 +15287,9 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const mountSha = await shaOf(MOUNT);
     const bladeSha = await shaOf("blade_root");
     const linkSha = await shaOf("pitch_link");
+    // The scene at rest, before anything is lit: what every leave puts back.
+    const restLooks = JSON.stringify(await sceneLooks());
+    const sameAsRest = async () => JSON.stringify(await sceneLooks()) === restLooks;
 
     // 1. a part hovered from the tree.
     await hoverNav("part", HUB);
@@ -15315,14 +15321,20 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     await leaveNav();
     // `until` here runs in the page's own frame (the suite's helper above), so
     // the pane is reached through its iframe.
-    const paneAtRest = () => {
+    const lightDown = () => {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
-      return w.__lastLight === null && w.AnnotateApp.exec(["scene-view"])
-        .filter((r) => r.visible).every((r) => r.look === "ghost");
+      return w.__lastLight === null;
     };
+    const leftDown = await until(lightDown, null, 10000);
+    await page.waitForTimeout(500);
+    const leftRest = await sameAsRest();
+    const leftPage = await pageLit();
+    if (!(leftDown && leftRest)) {
+      console.log(`      [${label}] DIAG after leaving the hub row: light down ${leftDown}, looks ` +
+        `${JSON.stringify(await sceneLooks())} vs rest ${restLooks}`);
+    }
     push("[real] ...and leaving the row takes every surface's light down, the scene back to rest",
-      await until(paneAtRest, null, 10000) &&
-      (await pageLit()).rowsOwn.length === 0 && (await pageLit()).treeOwn.length === 0);
+      leftDown && leftRest && leftPage.rowsOwn.length === 0 && leftPage.treeOwn.length === 0);
 
     // 2. the part selected.
     await page.locator(navRow("part", HUB)).first().click({ timeout: 5000 }).catch(() => {});
@@ -15458,6 +15470,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       return w && !w.__sweep && w.__scene && w.__scene.listOpenParts().length > 0;
     }, null, 60000);
     await page.waitForTimeout(1500);
+    const bindRest = JSON.stringify(await sceneLooks());
     await hoverNav("part", HUB);
     const bindLight = await until(() => {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
@@ -15473,9 +15486,15 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       bindLight && bindLooks.length > 1 && lookOf(bindLooks, bindHubSha).look === "ghost" &&
       bindLooks.filter((r) => r.sha !== bindHubSha).every((r) => r.look === "faint" || r.look === "ghost") &&
       bindLooks.some((r) => r.look === "faint") && bindLooks.every((r) => r.opacity < 1));
+    // Bind mode's rest is its own (the sweep's scope is gone): read before
+    // the hover, compared after the leave.
     await leaveNav();
+    const bindDown = await until(lightDown, null, 10000);
+    await page.waitForTimeout(500);
+    const bindAfter = await sceneLooks();
+    if (!bindDown) console.log(`      [${label}] DIAG bind-mode leave: light down ${bindDown}; looks ${JSON.stringify(bindAfter)}`);
     push("[real] ...and leaving it in bind mode puts every part back at rest",
-      await until(paneAtRest, null, 10000));
+      bindDown && JSON.stringify(bindAfter) === bindRest);
   } catch (err) {
     errors.push(String(err && err.stack || err));
   } finally {
@@ -16012,7 +16031,11 @@ async function testSeamLeaders(browser, label, topologies) {
         const lead = members.filter((id) =>
           rails.querySelector(`circle.rail__dot--lead[data-id="${CSS.escape(id)}"]`));
         const drawn = members.filter((id) => rails.querySelector(`circle[data-id="${CSS.escape(id)}"]`));
-        const rows = [...document.querySelectorAll("#topopane tr.tvrow--lead")].map((r) => r.getAttribute("data-id"));
+        // The rows that light: the joint's own gap row, where the grid has
+        // one, and -- as the touching tier -- the rows of the dimensions
+        // arriving at its members (2026-11-12).
+        const rows = [...document.querySelectorAll("#topopane tr.tvrow--lead, #topopane tr.tvrow--hot")]
+          .map((r) => r.getAttribute("data-id"));
         return { message: m, lead, drawn, rows };
       }, joint.members);
     }

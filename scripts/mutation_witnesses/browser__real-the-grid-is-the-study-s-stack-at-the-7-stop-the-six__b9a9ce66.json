@@ -14,9 +14,9 @@
     {
       "contract": "Every sub-stack of the live stack is drawn as a bracket.",
       "issue": null,
-      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). The grid stops drawing its bracket layer. Re-anchored 2026-11-08 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows): the layer takes the geometry now.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). The grid stops drawing its bracket layer. Re-anchored 2026-11-08 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows): the layer takes the geometry now. Re-anchored 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the brace layer takes the ctx and the lighter's registry now, so a bracket can be lit and selected.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    box.appendChild(braceLayer(braceGeo));",
+      "find": "    box.appendChild(braceLayer(braceGeo, ctx, hot));",
       "replace": ""
     }
   ]

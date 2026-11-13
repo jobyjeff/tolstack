@@ -6941,7 +6941,11 @@ async function main() {
   // mode only; the scene asks nothing outside it).
   state.scene.onPartHover = sceneHoverPart;
   // A part that opens shows its bound faces (paintBoundMarks), whoever opened it.
-  state.scene.onPartLoaded = scheduleBoundMarks;
+  // A part that arrives takes its look at once (nothing goes opaque,
+  // 2026-11-12): until then a mesh joined the scene solid and stayed so until
+  // the next sweep frame or action re-ran the looks -- in a paused sweep, for
+  // as long as the pause.
+  state.scene.onPartLoaded = (sha256) => { scheduleBoundMarks(sha256); applyLooks(); };
   state.scene.onPreselect = onPreselect;
   // ...and in bind mode, the proposal under a resting pointer: who proposed
   // it, how sure, and why, in the one tooltip node the joint hover uses.

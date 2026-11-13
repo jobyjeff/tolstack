@@ -2512,9 +2512,13 @@
                     bottom: Math.min(f.bottom, bottom) },
     });
     // The one hover's elements give the lighter emphasis (applyFocus).
+    // A leader across the seam is a node's: it lights for the hover's OWN
+    // tier (the hovered edge's two ends, a hovered node), never the touching
+    // one -- a touching gap's far end would fan leaders out from nodes the
+    // hovered thing does not name.
     var hovered = VA.focusElementKeysOf(currentModel(), state.focus.hovered);
     var states = VA.seamLeaderStates(geo.leaders.map(function (l) { return l.id; }),
-      state.selection, hovered.own.concat(hovered.touching), VA.topologyIndex(topoProj));
+      state.selection, hovered.own, VA.topologyIndex(topoProj));
     VA.renderSeamLeaders(svg, geo, states);
     seamDraws++;
     // For a harness: what was drawn, and what it cost.
