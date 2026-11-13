@@ -6,9 +6,9 @@
     {
       "contract": "Escape with no popover open unfreezes the Preview.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Escape no longer unfreezes.",
+      "note": "Declared with the guard by handoff a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark (2026-10-30). Escape no longer unfreezes. Re-anchored 2026-11-13 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque, round 2): the gate reads the one focus state now, not the element form.",
       "file": "apps/viewer/topology_app.js",
-      "find": "        if (state.selection) unfreeze();\n      });",
+      "find": "        if (state.focus.selected) unfreeze();\n      });",
       "replace": "        if (false) unfreeze();\n      });"
     }
   ]

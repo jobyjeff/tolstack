@@ -288,21 +288,6 @@
     return null;
   };
 
-  // The entity a lit key names (`node|<id>`, `edge|<id>`, `part|<id>`,
-  // `body|<id>`): what the DAG's pointer tells the page. Null for a key that
-  // is none of these (a rail's, a study group's).
-  VA.focusKeyEntity = function (model, key) {
-    if (typeof key !== "string") return null;
-    var bar = key.indexOf("|");
-    if (bar === -1) return null;
-    var kind = key.slice(0, bar);
-    var id = key.slice(bar + 1);
-    if (VA.parseElementKey(key) || (VA.FOCUS_CONTAINER_KINDS && VA.FOCUS_CONTAINER_KINDS[kind])) {
-      return VA.focusEntityOf(model, kind, id);
-    }
-    return null;
-  };
-
   // The element an entity is shown as (the Preview's record, the scene's
   // `model select node`, the deep link): a feature its node, an interface
   // its node or edge, a dimension its edge; a body, a part or a joint is no

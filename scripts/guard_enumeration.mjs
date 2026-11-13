@@ -622,7 +622,10 @@ export const DECLARED_GUARDS = {
   // lights nothing on either surface` pins an absence no single edit can
   // reintroduce (a rail has no entry in the lighter's registry), so it is
   // declared without one -- said here, in the diff.
-  browser: { declared: 884, enrollable: 851, names: "1315015684a4" },
+  // 2026-11-13 (the same handoff, round 2 after review): +2, Escape letting
+  // go of a body selection and a real pointer on a body's field selecting
+  // it -- the review's two blockers, each with a spec.
+  browser: { declared: 886, enrollable: 853, names: "b17ec25ae425" },
 };
 
 

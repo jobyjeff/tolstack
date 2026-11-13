@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] a real mouse down and up on a body's field border on the DAG selects the body -- the up and the click land on the field, not on the pane the pan captures for -- and it lights as the tree's row click did",
+  "mutations": [
+    {
+      "contract": "A body's field is a control, not pan space: the DAG's drag-to-pan never starts on it, so no pointer capture retargets its click.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Review of 2026-11-13, blocker B2: the pan counted a body field as empty space and took pointer capture on pointerdown, so the mouseup and the click landed on the scroll section and the field's onclick never ran. Measured with a real pointer; a dispatched click could not see it. The mutation makes the field pan space again.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        t.classList.contains(\"tv__studyfield\"));",
+      "replace": "        (t.classList.contains(\"tv__studyfield\") || t.classList.contains(\"tv__bodyfield\")));"
+    }
+  ]
+}

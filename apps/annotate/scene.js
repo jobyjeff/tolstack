@@ -89,7 +89,7 @@ const PART_LOOK_OPACITY = { solid: 1, ghost: GHOST_OPACITY, faint: ARMED_GHOST_O
 // opacity.
 const LIGHT_LOOKS = {
   hover: { color: HOVER_COLOR, own: { part: 0.22, face: 0.6 }, touching: { part: 0.08, face: 0.25 } },
-  select: { color: 0xff8c1a, own: { part: 0.18, face: 0.55 }, touching: { part: 0.06, face: 0.22 } },
+  select: { color: MARK_COLORS.picked, own: { part: 0.18, face: 0.55 }, touching: { part: 0.06, face: 0.22 } },
 };
 const HOVER_RENDER_ORDER = 5;
 // How much larger a hovered joint's bead is drawn: less than the selected

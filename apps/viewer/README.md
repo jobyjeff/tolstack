@@ -1648,7 +1648,13 @@ minimum is chosen so the whole walk, in its tallest mode, shows in a 900px pane
 * **Wheel** over the drawing zooms about the pointer; Ctrl/Cmd+wheel (and a
   trackpad pinch) zooms from anywhere over the pane. A plain wheel over the
   grid still scrolls the page — the document is the scroller. A drag on the
-  drawing's empty space pans.
+  drawing's empty space pans: the SVG itself and a study's field, never a
+  control — and since 2026-11-13 a body's field border is a control (it
+  selects the body), so a drag cannot start on it; its interior, drawn with
+  `pointer-events: stroke`, was always the SVG's. Where a part's field border
+  runs under a rail's hit path (the hub field's left edge, the tan_link
+  field's top edge on the end-stop model) the rail takes the click; the
+  part's NAME is the dependable control there.
 * **Fit** (toolbar, key `0`) zooms the DAG to its lit part — a study's chain,
   a kinematic study's — or the whole walk where nothing is lit, never past a
   scale of 1, and scrolls it to the top of what is visible, in one step. The

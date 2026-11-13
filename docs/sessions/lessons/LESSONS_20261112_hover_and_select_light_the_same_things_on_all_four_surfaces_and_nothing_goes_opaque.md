@@ -268,3 +268,74 @@ Scratch left behind: none. The scratch data root
 checkout's `data/inbox` and `data/meshes`, this tree's `docs` and `apps`, and
 projections built from this tree) and the worktree's `node_modules` junction
 were removed at the end of the session.
+
+## Round 2 (2026-11-13), after the review's REQUEST CHANGES
+
+Two blockers, both found by the reviewer using the page, neither seen by a
+tier; two should-fixes; three nits. All addressed on the handoff branch.
+
+**B1 -- Escape could not let go of a body, part or joint.** The page's
+Escape handler gated on `state.selection`, the ELEMENT form of the selection,
+and `VA.focusElementOf` returns null for the three kinds this handoff made
+selectable -- so they could be replaced but never released. The handler now
+reads `state.focus.selected`, the one focus state (`unfreeze` already did).
+One browser check added to `the model drawn alone and led`: Escape after the
+body row click, every surface back to rest, the pane's light gone, the scene
+at its resting looks. One spec, whose mutation puts the old gate back.
+
+**B2 -- a body's DAG field did not select under a real pointer.** Not the
+focus-scroll the review guessed (the probe recorded `scrollTop` 0 across the
+press): the DAG's drag-to-pan (`wireZoom`, `apps/viewer/topology_app.js`)
+counted a body field as the drawing's empty space and took **pointer
+capture** on `pointerdown`, so the `mouseup` and the `click` were retargeted
+to the scroll section and the field's `onclick` never ran. `elementFromPoint`
+and a dispatched click bypass capture, which is why both said the wiring was
+right. The pan no longer starts on a body field (the field is drawn with
+`pointer-events: stroke`, so its interior was always the SVG's, and the pan
+lost only the 2 px border). Re-probed with a real pointer at the top and left
+borders of `base`: down, up and click all on the rect, 31 tree rows own, the
+field in the accent. One browser check added, pressing the field's top border
+with `page.mouse` and recording the down/up/click targets in the capture
+phase (the review's overlay asks exactly this); one spec, whose mutation makes
+the field pan space again. The CSS comment that called a body's name "the one
+control" and the viewer README's "a drag on the drawing's empty space pans"
+now say which space is empty, and where a rail's hit path takes a part
+field's click (the hub's left edge, the tan_link's top edge -- the part's NAME
+is the control there).
+
+**Should-fixes.** The duplicated `VA.focusKeyEntity` block in `model.js` is
+one block. `LIGHT_LOOKS.select.color` reads `MARK_COLORS.picked` instead of a
+second `0xff8c1a`.
+
+**Nits.** The bind-mode shots now exist at 5120 too
+(`bind_<nn>_<what>_bind_5120.png`). The pane suite's hover of the unbound row
+with its unread result is gone. The witness table above counts the two
+renamed-and-rewritten pane specs under both "added" and "renamed" (it says
+so): 23 spec files were new in round 1, and round 2 adds 2 more, so 25 new
+files in all against `integration`.
+
+**Round-2 record** (every browser and witness run against a fresh scratch
+root, `C:/workspace/tolstack/data/scratch/light2_20261113`: `apps` and `docs`
+junctioned to this worktree, `data/inbox` and `data/meshes` to the main
+checkout, the projections copied from the reviewer's root -- built from
+`f966a6b7`, and this round changed no projection input, which the fast
+tier's freshness check confirmed).
+
+| command | result |
+|---|---|
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | 688/688 |
+| `node apps/annotate/run_tests.cjs` | 314/314 |
+| `…pytest -q tests/test_mutation_witnesses.py` | 44 passed (after the older Escape spec `…escape-lets-go-nothing-frozen…__2d586b66` was re-anchored to the new gate) |
+| browser `--only "the model drawn alone and led"` | 23/23 (21 + the two new checks) |
+| browser `--only "the DAG zoom"` | 48/48 (the pan's start set changed) |
+| browser `--only "3D pane follows the selection"` | 31/31 (the dead hover removed) |
+| witness `--only "__1670fbae"` (Escape lets go of a body) | WITNESSED |
+| witness `--only "__12ec5cd0"` (a real pointer on a body's field) | WITNESSED |
+| witness `--only "__2d586b66"` (re-anchored) | WITNESSED |
+| default tier, once, in this worktree, after the browser runs | `1 failed, 1938 passed, 1 skipped, 2 deselected in 667.22s` -- the same deliberate worktree red; recorded in the ledger at 668 s, which the ledger calls OVER BUDGET by 1m08s against the default tier's 600 s -- round 1's run of the same tree-shape was 511 s and inside; nothing of this session's ran beside it, so the difference is the box, not the diff |
+
+Census after round 2: browser 886 declared / 853 enrollable, names
+re-pinned; the one unwitnessable guard is still the mid-rail absence.
+The scratch root and the worktree's `node_modules` junction were removed
+again at the end of the round. The reviewer's own scratch root
+(`review_light_20261113`) was left as found.
