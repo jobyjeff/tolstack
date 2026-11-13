@@ -15208,9 +15208,12 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     // model could drift from.
     const HUB = "hub";
     const MOUNT = "tan_link_mount_215175_002";
-    const hubDims = (model.parts || []).find((p) => p.id === HUB).dimensions.slice().sort();
-    const hubNodes = (model.parts || []).find((p) => p.id === HUB).features
-      .map((fid) => model.features.find((f) => f.id === fid).node).sort();
+    // `model` above is the topology projection; its `model` block is the
+    // derived view the page's resolver reads (tolerance_stack/model_view.py).
+    const view = model.model;
+    const hubDims = (view.parts || []).find((p) => p.id === HUB).dimensions.slice().sort();
+    const hubNodes = (view.parts || []).find((p) => p.id === HUB).features
+      .map((fid) => view.features.find((f) => f.id === fid).node).sort();
     const PILOT = "hub_boss_in_tan_link_mount_pilot";
     const HUB_JOINT = "hub+" + MOUNT;
     const BASE_FACE = "tan_link_mount_hub_face";
@@ -15348,7 +15351,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const baseLight = await paneLight();
     const baseLayer = baseLight && baseLight.layers.find((l) => l.role === "select" && l.tier === "own");
     const baseLooks = await sceneLooks();
-    const baseParts = (model.bodies || []).find((b) => b.id === "base").parts;
+    const baseParts = (view.bodies || []).find((b) => b.id === "base").parts;
     console.log(`      [${label}] base selected: tree on ${uniq(baseSel.treeOn).length} rows, on-touching ` +
       `${JSON.stringify(uniq(baseSel.treeOnTouching))}; containers ${JSON.stringify(baseSel.containersSelected)}; pane ` +
       `${JSON.stringify(baseLight && baseLight.layers)}; opaque ${baseLooks.filter((r) => r.opacity >= 1).length}`);
@@ -15385,7 +15388,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const ifaceLight = await paneLight();
     const ifaceLayer = ifaceLight && ifaceLight.layers.find((l) => l.role === "hover" && l.tier === "own");
     const ifaceLooks = await sceneLooks();
-    const dimsAtBaseFace = (model.dimensions || []).filter((d) =>
+    const dimsAtBaseFace = (view.dimensions || []).filter((d) =>
       /@tan_link_mount_hub_face$/.test(d.from) || /@tan_link_mount_hub_face$/.test(d.to)).map((d) => d.id).sort();
     console.log(`      [${label}] base face hovered: tree own ${JSON.stringify(uniq(ifaceHover.treeOwn))}, touching ` +
       `${JSON.stringify(uniq(ifaceHover.treeTouching))}, holds ${JSON.stringify(uniq(ifaceHover.treeHolds))}; dots ` +
@@ -15426,8 +15429,8 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const gapLight = await paneLight();
     const gapLayer = gapLight && gapLight.layers.find((l) => l.role === "hover" && l.tier === "own");
     const gapLooks = await sceneLooks();
-    const pilotEnds = (model.interfaces || []).find((i) => i.id === PILOT).ends;
-    const dimsAtPilot = (model.dimensions || []).filter((d) =>
+    const pilotEnds = (view.interfaces || []).find((i) => i.id === PILOT).ends;
+    const dimsAtPilot = (view.dimensions || []).filter((d) =>
       pilotEnds.indexOf(d.from) !== -1 || pilotEnds.indexOf(d.to) !== -1).map((d) => d.id).sort();
     console.log(`      [${label}] pilot gap hovered from the grid: own rows ${JSON.stringify(gapHover.rowsOwn)}, touching ` +
       `${JSON.stringify(gapHover.rowsTouching.sort())} (dimensions at its ends: ${JSON.stringify(dimsAtPilot)}); dots ` +
