@@ -79,6 +79,18 @@ const ARMED_GHOST_OPACITY = 0.07;
 // means, app.js's lookOf which one a part has): the one table a part's
 // translucency is read from.
 const PART_LOOK_OPACITY = { solid: 1, ghost: GHOST_OPACITY, faint: ARMED_GHOST_OPACITY };
+// THE PAGE'S LIGHT (hover_and_select_light_the_same_things_on_all_four_
+// surfaces_and_nothing_goes_opaque, 2026-11-12): overlays per (role, tier),
+// one colour family per role -- the hover's is the neutral hover wash, the
+// selection's the pick orange (the accent a selected face already wears in
+// the colour buffer) -- and two strengths, own over touching. A face is
+// drawn harder than the part it is on (Jeff: a part's bound faces "even more
+// prominently than the entire part"), so each entry has a part and a face
+// opacity.
+const LIGHT_LOOKS = {
+  hover: { color: HOVER_COLOR, own: { part: 0.22, face: 0.6 }, touching: { part: 0.08, face: 0.25 } },
+  select: { color: 0xff8c1a, own: { part: 0.18, face: 0.55 }, touching: { part: 0.06, face: 0.22 } },
+};
 const HOVER_RENDER_ORDER = 5;
 // How much larger a hovered joint's bead is drawn: less than the selected
 // joint's SWEEP_EMPHASIS_SCALE, for the same reason the tint is pale.
@@ -792,6 +804,13 @@ export class AnnotateScene {
   lookOf(sha256) {
     const mesh = this.parts.get(sha256);
     return mesh ? mesh.userData.look : null;
+  }
+
+  // The opacity a part is drawn at, read off its material: what a shot's
+  // caption names, and what the tier reads to say nothing is 1 under a light.
+  opacityOf(sha256) {
+    const mesh = this.parts.get(sha256);
+    return mesh ? (mesh.material.transparent ? mesh.material.opacity : 1) : null;
   }
 
   // setLook in two flags: translucent or not, and `faint` for the fainter of
@@ -1575,14 +1594,9 @@ export class AnnotateScene {
       joint: s.joint || null,
       meshes: [],
       geometries: [],
+      material: this._overlayMaterial(HOVER_COLOR, HOVER_OPACITY),
+      faceMaterial: this._overlayMaterial(HOVER_COLOR, HOVER_OPACITY),
     };
-    if (!this._hoverMaterial) {
-      this._hoverMaterial = new THREE.MeshBasicMaterial({
-        color: HOVER_COLOR, transparent: true, opacity: HOVER_OPACITY,
-        depthWrite: false, side: THREE.DoubleSide,
-        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-      });
-    }
     for (const sha of new Set(this._hover.occurrences.map((o) => o.sha256)
       .concat(this._hover.faces.map((f) => f.sha256)))) this._syncHover(sha);
     if (this._sweep) {
@@ -1591,6 +1605,74 @@ export class AnnotateScene {
     }
     this.requestRender();
     return this.hoverState();
+  }
+
+  // One overlay material per (colour, opacity), shared by every overlay that
+  // wears it; never disposed, there are a handful.
+  _overlayMaterial(color, opacity) {
+    this._overlayMaterials = this._overlayMaterials || new Map();
+    const key = color + "@" + opacity;
+    let m = this._overlayMaterials.get(key);
+    if (!m) {
+      m = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity,
+        depthWrite: false, side: THREE.DoubleSide,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
+      this._overlayMaterials.set(key, m);
+    }
+    return m;
+  }
+
+  // THE PAGE'S LIGHT, drawn (LIGHT_LOOKS; the plan is AA.planLightLayers):
+  // `layers` is [{role, tier, occurrences: [{sha256, key}], faces: [{sha256,
+  // faceId}]}]. Each layer is an overlay set like the rail's hover -- a whole
+  // part at the occurrences named, a face on every occurrence of its part --
+  // in its role's colour at its tier's two opacities, the face's above the
+  // part's. Replaces the layers drawn before; an empty list takes them all
+  // down. Never touches the colour buffer or a part's own look (applyLooks
+  // owns that), so it composes with the pick tint and with the rail's hover.
+  // Returns what was drawn, counted, for a harness.
+  setLightLayers(layers) {
+    for (const light of this._lights || []) this._disposeLight(light);
+    this._lights = [];
+    for (const spec of layers || []) {
+      const looks = LIGHT_LOOKS[spec.role];
+      const tier = looks && looks[spec.tier];
+      if (!tier) throw new Error("unknown light layer " + spec.role + "/" + spec.tier);
+      const light = {
+        role: spec.role, tier: spec.tier,
+        occurrences: (spec.occurrences || []).slice(),
+        faces: (spec.faces || []).slice(),
+        joint: null, meshes: [], geometries: [],
+        material: this._overlayMaterial(looks.color, tier.part),
+        faceMaterial: this._overlayMaterial(looks.color, tier.face),
+      };
+      this._lights.push(light);
+      for (const sha of new Set(light.occurrences.map((o) => o.sha256)
+        .concat(light.faces.map((f) => f.sha256)))) this._syncLight(light, sha);
+    }
+    this.requestRender();
+    return this.lightState();
+  }
+
+  // What the light draws right now, per layer: counts of what is DRAWN.
+  lightState() {
+    return (this._lights || []).map((l) => ({
+      role: l.role, tier: l.tier,
+      occurrences: l.occurrences.length, faces: l.faces.length,
+      overlays: l.meshes.filter((m) => m.parent).length,
+      partOverlays: l.meshes.filter((m) => m.parent && m.userData.hoverKind === "part").length,
+      faceOverlays: l.meshes.filter((m) => m.parent && m.userData.hoverKind === "face").length,
+      partOpacity: l.material.opacity, faceOpacity: l.faceMaterial.opacity,
+    }));
+  }
+
+  _disposeLight(light) {
+    for (const m of light.meshes) if (m.parent) m.parent.remove(m);
+    for (const g of light.geometries) g.dispose();
+    light.meshes = [];
+    light.geometries = [];
   }
 
   clearHover() { return this.setHover(null); }
@@ -1614,8 +1696,15 @@ export class AnnotateScene {
   // part's occurrence COUNT changes (_setRepeats), never per frame -- an
   // overlay is a child of its occurrence and moves with it.
   _syncHover(sha256) {
-    const h = this._hover;
-    if (!h) return;
+    if (this._hover) this._syncLight(this._hover, sha256);
+    for (const light of this._lights || []) this._syncLight(light, sha256);
+  }
+
+  // One part's overlays for ONE light (the rail's hover, or a layer of the
+  // page's light), rebuilt: on a set and whenever the part's occurrence COUNT
+  // changes (_setRepeats), never per frame -- an overlay is a child of its
+  // occurrence and moves with it.
+  _syncLight(h, sha256) {
     const mesh = this.parts.get(sha256);
     for (const old of h.meshes.filter((m) => m.userData.sha256 === sha256)) {
       if (old.parent) old.parent.remove(old);
@@ -1627,7 +1716,7 @@ export class AnnotateScene {
     for (const node of nodes) {
       const lit = wanted.some((o) => o.key == null || o.key === node.userData.key);
       if (!lit) continue;
-      const overlay = new THREE.Mesh(mesh.geometry, this._hoverMaterial);
+      const overlay = new THREE.Mesh(mesh.geometry, h.material);
       overlay.renderOrder = HOVER_RENDER_ORDER;
       overlay.userData = { sha256, hoverKind: "part" };
       node.add(overlay);
@@ -1645,7 +1734,7 @@ export class AnnotateScene {
       geometry.setIndex(sub.indices);
       h.geometries.push(geometry);
       for (const node of nodes) {
-        const overlay = new THREE.Mesh(geometry, this._hoverMaterial);
+        const overlay = new THREE.Mesh(geometry, h.faceMaterial);
         overlay.renderOrder = HOVER_RENDER_ORDER + 1;
         overlay.userData = { sha256, hoverKind: "face" };
         node.add(overlay);
@@ -1666,16 +1755,18 @@ export class AnnotateScene {
     }
   }
 
-  // A part leaving the scene takes its share of the hover with it.
+  // A part leaving the scene takes its share of the hover, and of every
+  // light layer, with it.
   _disposeHoverOf(sha256) {
-    const h = this._hover;
-    if (!h) return;
-    h.occurrences = h.occurrences.filter((o) => o.sha256 !== sha256);
-    h.faces = h.faces.filter((f) => f.sha256 !== sha256);
-    for (const m of h.meshes.filter((x) => x.userData.sha256 === sha256)) {
-      if (m.parent) m.parent.remove(m);
+    for (const h of [this._hover].concat(this._lights || [])) {
+      if (!h) continue;
+      h.occurrences = h.occurrences.filter((o) => o.sha256 !== sha256);
+      h.faces = h.faces.filter((f) => f.sha256 !== sha256);
+      for (const m of h.meshes.filter((x) => x.userData.sha256 === sha256)) {
+        if (m.parent) m.parent.remove(m);
+      }
+      h.meshes = h.meshes.filter((x) => x.userData.sha256 !== sha256);
     }
-    h.meshes = h.meshes.filter((x) => x.userData.sha256 !== sha256);
   }
 
   // --- the bind leader -------------------------------------------------------
@@ -1963,6 +2054,7 @@ export class AnnotateScene {
     model.strengths = style.strengths || {};
     model.litNodes = style.nodes || null;
     model.emphasis = style.emphasis || null;
+    model.emphasisEdges = new Set(style.emphasisEdges || []);
     model.emphasisNodes = style.emphasisNodes || [];
     model.hideUnlit = !!style.hideUnlit;
     this._applyModelStyle();
@@ -1978,7 +2070,7 @@ export class AnnotateScene {
       const strength = model.strengths[id] || "full";
       const live = line.userData.inBody || line.userData.live;
       line.visible = !!live && strength !== "hidden";
-      const on = id === model.emphasis;
+      const on = id === model.emphasis || (model.emphasisEdges && model.emphasisEdges.has(id));
       if (on) { emphasisNodes.add(line.userData.from); emphasisNodes.add(line.userData.to); }
       if (on) line.material.color.setRGB(HIGHLIGHT[0], HIGHLIGHT[1], HIGHLIGHT[2]);
       else line.material.color.setHex(MODEL_COLORS.line);

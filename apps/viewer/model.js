@@ -256,6 +256,10 @@
     if (!kind || !id) return null;
     if (!model) return { kind: kind, id: id };
     var F = VA.FOCUS_KINDS;
+    // A part's or a body's container (its field or block on the DAG, its
+    // bracket in the grid) is that part or body (2026-11-12).
+    if (kind === F.part) return model.part(id) ? { kind: F.part, id: id } : null;
+    if (kind === F.body) return model.body(id) ? { kind: F.body, id: id } : null;
     var iface = model.interface(id);
     if (kind === "node") {
       if (iface && iface.source === "node") return { kind: F.interface, id: id };
@@ -265,6 +269,36 @@
     if (kind === "edge") {
       if (iface && iface.source === "edge") return { kind: F.interface, id: id };
       return model.dimension(id) ? { kind: F.dimension, id: id } : null;
+    }
+    return null;
+  };
+
+  // The entity a lit key names (`node|<id>`, `edge|<id>`, `part|<id>`,
+  // `body|<id>`): what the DAG's pointer tells the page. Null for a key that
+  // is none of these (a rail's, a study group's).
+  VA.focusKeyEntity = function (model, key) {
+    if (typeof key !== "string") return null;
+    var bar = key.indexOf("|");
+    if (bar === -1) return null;
+    var kind = key.slice(0, bar);
+    var id = key.slice(bar + 1);
+    if (VA.parseElementKey(key) || (VA.FOCUS_CONTAINER_KINDS && VA.FOCUS_CONTAINER_KINDS[kind])) {
+      return VA.focusEntityOf(model, kind, id);
+    }
+    return null;
+  };
+
+  // The entity a lit key names (`node|<id>`, `edge|<id>`, `part|<id>`,
+  // `body|<id>`): what the DAG's pointer tells the page. Null for a key that
+  // is none of these (a rail's, a study group's).
+  VA.focusKeyEntity = function (model, key) {
+    if (typeof key !== "string") return null;
+    var bar = key.indexOf("|");
+    if (bar === -1) return null;
+    var kind = key.slice(0, bar);
+    var id = key.slice(bar + 1);
+    if (VA.parseElementKey(key) || (VA.FOCUS_CONTAINER_KINDS && VA.FOCUS_CONTAINER_KINDS[kind])) {
+      return VA.focusEntityOf(model, kind, id);
     }
     return null;
   };
@@ -289,98 +323,333 @@
     return null;
   };
 
-  // Every element key (`node|<id>`, `edge|<id>`) an entity lights on the DAG
-  // and in the grid: its own element -- a gap interface's its edge AND its
-  // two ends' nodes, since the gap and the two features it stands between
-  // are one interface (a joint's one 3D dot is those two nodes) -- or, for
-  // a part, a body or a joint, the elements of everything it holds.
-  VA.focusElementKeysOf = function (model, entity) {
-    if (!entity) return [];
+  // --- what an entity LIGHTS, in two tiers (hover_and_select_light_the_same_
+  // things_on_all_four_surfaces_and_nothing_goes_opaque, 2026-11-12) ---------
+  //
+  // ONE resolver. For any entity -- body, part, feature, dimension,
+  // interface, joint -- the set it lights, as two tiers of entities:
+  //
+  //   own       the entity and everything it CONTAINS. A body contains its
+  //             parts and the joints inside it; a part its features and
+  //             dimensions; a dimension and an interface their two end
+  //             features; a joint its interfaces; a feature its bound faces
+  //             (VA.focusFacesOf reads those off the same tiers).
+  //   touching  what MEETS it without belonging to it. A part: the
+  //             interfaces to its neighbours, their joint, and the feature on
+  //             the far side of each. A body: the joints to other bodies,
+  //             their interfaces and far features. A feature: the interfaces
+  //             it is an end of, the feature across each, and the dimensions
+  //             that end at it. A dimension: the interfaces at its two ends.
+  //             An interface: its joint, and the dimensions ending at its two
+  //             features. A joint: the two parts it joins.
+  //
+  // Hover and select both come here, and every surface -- the tree, the DAG,
+  // the grid, the 3D pane -- draws the two tiers and nothing else: own in the
+  // present highlight, touching visibly fainter (Jeff, 2026-11-12: "a less
+  // pronounced color for interfaces"). The four functions after it are the
+  // only translations of the tiers into a surface's terms: element keys for
+  // the DAG and the grid (VA.focusElementKeysOf), row keys for the tree
+  // (VA.focusNavRowsOf), the folds a row is behind (VA.navRevealPaths), and
+  // the scene's payload (VA.sceneLightOf). Nothing else decides what lights.
+  // A projection built before the model block (model null) has no entities;
+  // there an element stands for itself alone.
+  VA.FOCUS_TIERS = Object.freeze({ own: "own", touching: "touching" });
+
+  function tierSet() {
+    var out = { list: [], seen: {} };
+    out.add = function (kind, id) {
+      if (!kind || !id) return;
+      var key = kind + ":" + id;
+      if (out.seen[key]) return;
+      out.seen[key] = true;
+      out.list.push({ kind: kind, id: id });
+    };
+    out.has = function (kind, id) { return !!out.seen[kind + ":" + id]; };
+    return out;
+  }
+
+  VA.focusLightOf = function (model, entity) {
+    var own = tierSet();
+    var touching = tierSet();
+    if (!entity) return { own: [], touching: [] };
+    if (!model) return { own: [entity], touching: [] };
     var F = VA.FOCUS_KINDS;
+    var interfacesAt = function (fid) {
+      return model.interfaces.filter(function (i) { return (i.ends || []).indexOf(fid) !== -1; });
+    };
+    var dimensionsAt = function (fid) {
+      return model.dimensions.filter(function (d) { return d.from === fid || d.to === fid; });
+    };
+    // An interface, the joint it belongs to, and its far ends (every end not
+    // among `mine`), into `tier`.
+    var meet = function (tier, iface, mine) {
+      tier.add(F.interface, iface.id);
+      if (iface.joint && model.joint(iface.joint)) tier.add(F.joint, iface.joint);
+      (iface.ends || []).forEach(function (fid) {
+        if (mine.indexOf(fid) === -1) tier.add(F.feature, fid);
+      });
+    };
+    var ownPart = function (partId) {
+      var part = model.part(partId);
+      if (!part) return;
+      own.add(F.part, partId);
+      part.features.forEach(function (fid) { own.add(F.feature, fid); });
+      part.dimensions.forEach(function (did) { own.add(F.dimension, did); });
+    };
+    var ownInterface = function (iface) {
+      own.add(F.interface, iface.id);
+      (iface.ends || []).forEach(function (fid) { own.add(F.feature, fid); });
+    };
+    var ownJoint = function (joint) {
+      own.add(F.joint, joint.id);
+      model.constraintsOf(joint.id).forEach(function (c) { if (c) ownInterface(c); });
+    };
+    // The interfaces to a set of parts' neighbours: every interface with an
+    // end on one of the parts and an end off them.
+    var touchParts = function (partIds) {
+      var mine = [];
+      partIds.forEach(function (pid) {
+        var p = model.part(pid);
+        if (p) mine = mine.concat(p.features);
+      });
+      model.interfaces.forEach(function (iface) {
+        var ends = iface.ends || [];
+        var inside = ends.filter(function (fid) { return mine.indexOf(fid) !== -1; });
+        if (inside.length && inside.length < ends.length) meet(touching, iface, mine);
+      });
+    };
+
+    if (entity.kind === F.body) {
+      var body = model.body(entity.id);
+      if (!body) return { own: [], touching: [] };
+      own.add(F.body, body.id);
+      body.parts.forEach(ownPart);
+      model.jointsWithin(body.id).forEach(ownJoint);
+      touchParts(body.parts);
+    } else if (entity.kind === F.part) {
+      if (!model.part(entity.id)) return { own: [], touching: [] };
+      ownPart(entity.id);
+      touchParts([entity.id]);
+    } else if (entity.kind === F.feature) {
+      var f = model.feature(entity.id);
+      if (!f) return { own: [], touching: [] };
+      own.add(F.feature, f.id);
+      interfacesAt(f.id).forEach(function (iface) { meet(touching, iface, [f.id]); });
+      dimensionsAt(f.id).forEach(function (d) { touching.add(F.dimension, d.id); });
+    } else if (entity.kind === F.dimension) {
+      var d = model.dimension(entity.id);
+      if (!d) return { own: [], touching: [] };
+      own.add(F.dimension, d.id);
+      own.add(F.feature, d.from);
+      own.add(F.feature, d.to);
+      [d.from, d.to].forEach(function (fid) {
+        interfacesAt(fid).forEach(function (iface) { touching.add(F.interface, iface.id); });
+      });
+    } else if (entity.kind === F.interface) {
+      var i = model.interface(entity.id);
+      if (!i) return { own: [], touching: [] };
+      ownInterface(i);
+      if (i.joint && model.joint(i.joint)) touching.add(F.joint, i.joint);
+      (i.ends || []).forEach(function (fid) {
+        dimensionsAt(fid).forEach(function (dim) { touching.add(F.dimension, dim.id); });
+      });
+    } else if (entity.kind === F.joint) {
+      var j = model.joint(entity.id);
+      if (!j) return { own: [], touching: [] };
+      ownJoint(j);
+      j.parts.forEach(function (pid) { if (model.part(pid)) touching.add(F.part, pid); });
+    } else {
+      return { own: [], touching: [] };
+    }
+    return {
+      own: own.list,
+      touching: touching.list.filter(function (e) { return !own.has(e.kind, e.id); }),
+    };
+  };
+
+  // The bound faces of a light's features, per tier, each {sha256, faceId,
+  // feature}: what the 3D pane overlays. A face is identity, not a value
+  // (docs/ANNOTATION_SURFACE.md), and here it is only where to draw.
+  VA.focusFacesOf = function (model, light) {
+    var out = { own: [], touching: [] };
+    if (!model || !light) return out;
+    Object.keys(out).forEach(function (tier) {
+      var seen = {};
+      (light[tier] || []).forEach(function (e) {
+        if (e.kind !== VA.FOCUS_KINDS.feature) return;
+        model.bindingsOf(e.id).forEach(function (b) {
+          var key = (b.event && b.event.geometry_key) || {};
+          if (!key.source_step_sha256 || key.face_id === undefined || key.face_id === null) return;
+          var k = key.source_step_sha256 + "#" + key.face_id;
+          if (seen[k]) return;
+          seen[k] = true;
+          out[tier].push({ sha256: key.source_step_sha256, faceId: key.face_id, feature: e.id });
+        });
+      });
+    });
+    return out;
+  };
+
+  // The keys the DAG and the grid light, per tier: an element's own
+  // (`node|<id>`, `edge|<id>`) and a part's or a body's container
+  // (`part|<id>`, `body|<id>` -- its field or block on the DAG, its bracket
+  // in the grid). A joint has no mark of its own. A node two parts share is
+  // one key however many features are on it. Without a model an element
+  // stands for itself.
+  VA.FOCUS_CONTAINER_KINDS = Object.freeze({ part: "part", body: "body" });
+
+  function elementKeysOfTier(model, list) {
     var out = [];
     var seen = {};
     var add = function (kind, id) {
-      if (!id) return;
       var key = VA.elementKey(kind, id);
       if (seen[key]) return;
       seen[key] = true;
       out.push(key);
     };
-    var addEntity = function (e) {
+    (list || []).forEach(function (e) {
+      if (e.kind === VA.FOCUS_KINDS.part || e.kind === VA.FOCUS_KINDS.body) {
+        add(e.kind, e.id);
+        return;
+      }
       var el = VA.focusElementOf(model, e);
       if (el) add(el.kind, el.id);
-      if (model && e.kind === F.interface) {
-        var iface = model.interface(e.id);
-        if (iface && iface.source === "edge") {
-          (iface.ends || []).forEach(function (fid) {
-            var f = model.feature(fid);
-            if (f) add("node", f.node);
-          });
-        }
-      }
+    });
+    return out;
+  }
+
+  VA.focusElementKeysOf = function (model, entity) {
+    if (!entity) return { own: [], touching: [] };
+    if (!model) return { own: [VA.elementKey(entity.kind, entity.id)], touching: [] };
+    var light = VA.focusLightOf(model, entity);
+    var own = elementKeysOfTier(model, light.own);
+    return {
+      own: own,
+      touching: elementKeysOfTier(model, light.touching).filter(function (k) { return own.indexOf(k) === -1; }),
     };
-    var addPart = function (partId) {
-      model.featuresOf(partId).forEach(function (f) { if (f) add("node", f.node); });
-      model.dimensionsOf(partId).forEach(function (d) { if (d) add("edge", d.id); });
+  };
+
+  // The tree rows an entity lights, per tier, as `<kind>:<id>` (a row's
+  // data-nav-kind and data-nav-id). Every entity has a row, so this is the
+  // light itself in the tree's spelling.
+  VA.focusNavRowsOf = function (model, entity) {
+    if (!model || !entity) return { own: [], touching: [] };
+    var light = VA.focusLightOf(model, entity);
+    var key = function (e) { return e.kind + ":" + e.id; };
+    return { own: light.own.map(key), touching: light.touching.map(key) };
+  };
+
+  // The folds a tree row sits behind, outermost first, as the nav's own fold
+  // keys (views/nav.js: `b:<body>`, `bp:<body>`, `bi:<body>`, `p:<part>`,
+  // `j:<joint>`, `i:<interface>`). A feature is listed twice in the tree --
+  // under its part, and as an end under each interface it is on -- so
+  // `under` says which: an interface id puts it under that interface's fold,
+  // else it is under its part. A joint with one constraint has no row of its
+  // own (the interface's row stands where it would be), so no `j:` key.
+  VA.navRowPath = function (model, kind, id, under) {
+    if (!model) return [];
+    var F = VA.FOCUS_KINDS;
+    var bodyPath = function (bodyId, group) {
+      return bodyId && model.body(bodyId) ? ["b:" + bodyId, group + ":" + bodyId] : [];
     };
-    var addJoint = function (jointId) {
-      model.constraintsOf(jointId).forEach(function (c) {
-        if (c) addEntity({ kind: F.interface, id: c.id });
-      });
+    var jointPath = function (joint) {
+      if (!joint) return [];
+      var path = bodyPath(joint.within, "bi");
+      if (model.constraintsOf(joint.id).length > 1) path.push("j:" + joint.id);
+      return path;
     };
-    if (!model || entity.kind === F.feature || entity.kind === F.interface || entity.kind === F.dimension) {
-      addEntity(entity);
-    } else if (entity.kind === F.part) {
-      addPart(entity.id);
-    } else if (entity.kind === F.body) {
-      var body = model.body(entity.id);
-      (body ? body.parts : []).forEach(addPart);
-      model.jointsWithin(entity.id).forEach(function (j) { addJoint(j.id); });
-    } else if (entity.kind === F.joint) {
-      addJoint(entity.id);
+    if (kind === F.body) return [];
+    if (kind === F.part) {
+      var part = model.part(id);
+      return part ? bodyPath(part.body, "bp") : [];
     }
+    if (kind === F.joint) return jointPath(model.joint(id));
+    if (kind === F.interface) {
+      var iface = model.interface(id);
+      return iface ? jointPath(model.joint(iface.joint)) : [];
+    }
+    if (kind === F.feature) {
+      var f = model.feature(id);
+      if (!f) return [];
+      var host = under ? model.interface(under) : null;
+      if (host && (host.ends || []).indexOf(f.id) !== -1) {
+        return VA.navRowPath(model, F.interface, host.id).concat(["i:" + host.id]);
+      }
+      return VA.navRowPath(model, F.part, f.part).concat(["p:" + f.part]);
+    }
+    return [];
+  };
+
+  // Where each lit row is revealed, as {`<kind>:<id>`: [fold keys]} over both
+  // tiers: a feature lit through an interface in the light (the far feature
+  // of a part's neighbour, an interface's own ends) is revealed under that
+  // interface, not by opening the part across the joint; any other feature
+  // under its part. A dimension has no row. The page opens every key on
+  // select (hover opens nothing: a closed fold that holds a lit row wears a
+  // mark instead, VA.lightNavTree).
+  VA.navRevealPaths = function (model, light) {
+    var out = {};
+    if (!model || !light) return out;
+    var F = VA.FOCUS_KINDS;
+    var all = (light.own || []).concat(light.touching || []);
+    var litInterfaces = all.filter(function (e) { return e.kind === F.interface; })
+      .map(function (e) { return model.interface(e.id); }).filter(Boolean);
+    all.forEach(function (e) {
+      if (e.kind === F.dimension) return;
+      var under = null;
+      if (e.kind === F.feature) {
+        var host = litInterfaces.filter(function (i) { return (i.ends || []).indexOf(e.id) !== -1; })[0];
+        if (host) under = host.id;
+      }
+      out[e.kind + ":" + e.id] = VA.navRowPath(model, e.kind, e.id, under);
+    });
     return out;
   };
 
-  // The tree rows an entity lights, as `<kind>:<id>` (the row's data-nav-kind
-  // and data-nav-id): a feature's own row and the other rows of its node (a
-  // node two parts share is one thing, two rows) and the interface row that
-  // node is; an interface's row and its ends' feature rows; a dimension's two
-  // end features; a part's, a body's or a joint's own row.
-  VA.focusNavRowsOf = function (model, entity) {
-    if (!model || !entity) return [];
+  // The 3D pane's reading of a light: the parts with a mesh to glow, the
+  // bound faces to overlay, and the elements the model layer emphasises, per
+  // tier. Ids, never geometry -- the pane resolves a part to its mesh as it
+  // does for every other verb. Null for no light.
+  VA.sceneLightOf = function (model, entity) {
+    if (!model || !entity) return null;
     var F = VA.FOCUS_KINDS;
-    var out = [];
-    var seen = {};
-    var add = function (kind, id) {
-      if (!id) return;
-      var key = kind + ":" + id;
-      if (seen[key]) return;
-      seen[key] = true;
-      out.push(key);
+    var light = VA.focusLightOf(model, entity);
+    if (!light.own.length) return null;
+    var faces = VA.focusFacesOf(model, light);
+    var tier = function (list) {
+      var parts = [];
+      var nodes = [];
+      var edges = [];
+      list.forEach(function (e) {
+        if (e.kind === F.part && model.hasMesh(e.id) && parts.indexOf(e.id) === -1) parts.push(e.id);
+        var el = VA.focusElementOf(model, e);
+        if (!el) return;
+        var into = el.kind === "node" ? nodes : edges;
+        if (into.indexOf(el.id) === -1) into.push(el.id);
+      });
+      return { parts: parts, nodes: nodes, edges: edges };
     };
-    var addNode = function (nodeId) {
-      model.featuresOfNode(nodeId).forEach(function (fid) { add(F.feature, fid); });
-      var iface = model.interface(nodeId);
-      if (iface && iface.source === "node") add(F.interface, nodeId);
+    var own = tier(light.own);
+    var touching = tier(light.touching);
+    var strip = function (list) {
+      return list.map(function (f) { return { sha256: f.sha256, faceId: f.faceId }; });
     };
-    if (entity.kind === F.feature) {
-      var f = model.feature(entity.id);
-      if (f) { add(F.feature, f.id); addNode(f.node); }
-    } else if (entity.kind === F.interface) {
-      var i = model.interface(entity.id);
-      if (i) {
-        add(F.interface, i.id);
-        if (i.source === "node") addNode(i.id);
-        else (i.ends || []).forEach(function (fid) { add(F.feature, fid); });
-      }
-    } else if (entity.kind === F.dimension) {
-      var d = model.dimension(entity.id);
-      if (d) { add(F.feature, d.from); add(F.feature, d.to); }
-    } else if (entity.kind === F.part || entity.kind === F.body || entity.kind === F.joint) {
-      add(entity.kind, entity.id);
-    }
-    return out;
+    return {
+      own: { parts: own.parts, nodes: own.nodes, edges: own.edges, faces: strip(faces.own) },
+      touching: { parts: touching.parts.filter(function (p) { return own.parts.indexOf(p) === -1; }),
+        nodes: touching.nodes, edges: touching.edges, faces: strip(faces.touching) },
+    };
+  };
+
+  // The one verb the page posts for both: `light <json>`, the hover's and
+  // the selection's readings together, or `light clear`. One word of JSON
+  // rather than a grammar of ids: the payload is a tree of lists, and the
+  // pane parses it with AA.parseLight (apps/annotate/commands.js).
+  VA.SCENE_LIGHT_VERB = "light";
+
+  VA.sceneLightCommand = function (hover, select) {
+    if (!hover && !select) return [VA.SCENE_LIGHT_VERB, "clear"];
+    return [VA.SCENE_LIGHT_VERB, JSON.stringify({ hover: hover || null, select: select || null })];
   };
 
   // --- a binding that names something gone (deliverable 6) -------------------

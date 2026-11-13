@@ -1842,11 +1842,55 @@ check("isolate parts: the named parts are ghost and every other installed part f
     "Binding — Linkage — no 3D model for these parts yet");
   assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
 });
-check("an action's looks: the parts it is about solid, their neighbours ghost, the rest faint", () => {
+check("an action's looks: the parts it is about keep their resting look and never go opaque on their " +
+  "own, their neighbours ghost, the rest faint", () => {
   assertEqual(AA.PART_LOOKS, ["solid", "ghost", "faint"]);
+  // Resting ghost (See-through on): about stays ghost.
   assertEqual(AA.planActionLooks(["a", "b", "c", "d"], ["b"], ["c", "b"]),
-    { a: "faint", b: "solid", c: "ghost", d: "faint" });
+    { a: "faint", b: "ghost", c: "ghost", d: "faint" });
+  // Resting solid is the reader's own See-through control, the one way to a
+  // solid part: about keeps it; nothing else is solid.
+  assertEqual(AA.planActionLooks(["a", "b"], ["b"], [], () => "solid"), { a: "faint", b: "solid" });
+  // A part resting faint (outside the scope) comes up to ghost when pointed at.
+  assertEqual(AA.planActionLooks(["a", "b"], ["b"], [], (sha) => (sha === "b" ? "faint" : "ghost")),
+    { a: "faint", b: "ghost" });
   assertEqual(AA.planActionLooks(["a"], [], []), { a: "faint" });
+});
+
+check("the page's light: its grammar takes {hover, select} tiers of ids and refuses the rest; its looks " +
+  "make both roles' own parts about and their touching parts near; its layers draw own parts and every " +
+  "face; its emphasis is the own edges and nodes", () => {
+  assertEqual(AA.LIGHT_ROLES, ["hover", "select"]);
+  assertEqual(AA.LIGHT_TIERS, ["own", "touching"]);
+  assertEqual(AA.parseLight("clear"), null, "clear is no light");
+  const empty = { parts: [], nodes: [], edges: [], faces: [] };
+  const light = AA.parseLight(JSON.stringify({
+    hover: { own: { parts: ["hub"], nodes: ["n1"], faces: [{ sha256: "H", faceId: 3 }] },
+      touching: { parts: ["mount"], edges: ["g1"], faces: [{ sha256: "M", faceId: 9 }] } },
+    select: { own: { parts: ["arm"], edges: ["d1"] } },
+  }));
+  assertEqual(light.hover.own, { parts: ["hub"], nodes: ["n1"], edges: [], faces: [{ sha256: "H", faceId: 3 }] });
+  assertEqual(light.hover.touching, { parts: ["mount"], nodes: [], edges: ["g1"], faces: [{ sha256: "M", faceId: 9 }] });
+  assertEqual(light.select.touching, empty, "a tier left out is empty");
+  assertEqual(AA.parseLight(JSON.stringify({ hover: null, select: null })), null, "two nulls are no light");
+  let threw = 0;
+  for (const bad of ["not json", JSON.stringify([1]), JSON.stringify({ hover: 3 }),
+    JSON.stringify({ hover: { own: { parts: "hub" } } }),
+    JSON.stringify({ hover: { own: { faces: [{ sha256: "H" }] } } })]) {
+    try { AA.parseLight(bad); } catch (_) { threw++; }
+  }
+  assertEqual(threw, 5, "every malformed word is refused by name");
+  const resolve = (id) => ({ hub: "H", mount: "M", arm: "A" })[id] || null;
+  assertEqual(AA.planLightLooks(light, resolve), { about: ["H", "A"], near: ["M"] },
+    "own parts of both roles about, touching near, a face's part about");
+  assertEqual(AA.planLightLooks(null, resolve), null);
+  const layers = AA.planLightLayers(light, resolve);
+  assertEqual(layers.map((l) => [l.role, l.tier, l.occurrences.length, l.faces.length]),
+    [["hover", "own", 1, 1], ["hover", "touching", 0, 1], ["select", "own", 1, 0]],
+    "a layer per role and tier with anything in it; a touching part draws no glow");
+  assertEqual(layers[0].occurrences, [{ sha256: "H", key: null }], "every occurrence of an own part");
+  assertEqual(AA.planLightEmphasis(light), { edges: ["d1"], nodes: ["n1"] }, "the selection's first");
+  assertEqual(AA.planLightEmphasis(null), { edges: [], nodes: [] });
 });
 check("two occurrence keys overlap when one is installed inside the other, never as siblings", () => {
   const mount = "217755-001/prd-e-03300520.1/215175-001.1";

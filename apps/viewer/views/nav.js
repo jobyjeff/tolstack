@@ -120,11 +120,40 @@
   }
 
   // A row that toggles its own disclosure on click (the twisty does the same
-  // on its own, so the keyboard reaches it).
+  // on its own, so the keyboard reaches it). Every fold row carries its fold
+  // key (`data-nav-fold`), which is how a lit row behind it is marked on it
+  // (VA.lightNavTree) and how a selection opens it (VA.navRevealPaths).
   function foldRow(className, key, open, handlers) {
     var row = VA.el("div", "navtree__row " + className);
+    row.setAttribute("data-nav-fold", key);
     row.appendChild(twisty(key, open, handlers));
     row.onclick = function () { if (handlers && handlers.onToggle) handlers.onToggle(key, open); };
+    return row;
+  }
+
+  // A body's, a part's or a joint's row: a click SELECTS the entity (rule 3
+  // of hover_and_select_light_the_same_things_on_all_four_surfaces_and_
+  // nothing_goes_opaque, 2026-11-12 -- everything can be selected), the
+  // twisty alone folds it, and resting on it is the one hover. Until
+  // 2026-11-12 the whole row was the fold.
+  function entityRow(className, kind, id, key, open, handlers) {
+    var row = VA.el("div", "navtree__row " + className + rowClasses(kind, id));
+    row.setAttribute("data-nav-kind", kind);
+    row.setAttribute("data-nav-id", id);
+    row.setAttribute("data-nav-fold", key);
+    row.appendChild(twisty(key, open, handlers));
+    activatable(row, function () { if (handlers.onEntity) handlers.onEntity(kind, id); });
+    hoverable(row, kind, id, handlers);
+    return row;
+  }
+
+  // Resting on a row is the one hover (handlers.onHover carries the entity).
+  function hoverable(row, kind, id, handlers) {
+    var hover = function (on) {
+      if (handlers.onHover) handlers.onHover(on ? { kind: kind, id: id } : null);
+    };
+    row.onmouseenter = function () { hover(true); };
+    row.onmouseleave = function () { hover(false); };
     return row;
   }
 
@@ -168,39 +197,84 @@
   }
 
   // The rows the page's ONE selection and ONE hover light (one_selection_one_
-  // hover_and_leaders_off): `state.focus` is {selected, hovered}, each a model
-  // entity or null, and VA.focusNavRowsOf says which `<kind>:<id>` rows each
-  // reaches. Computed once per render; a row asks by its own kind and id.
+  // hover_and_leaders_off; two tiers since hover_and_select_light_the_same_
+  // things_on_all_four_surfaces_and_nothing_goes_opaque, 2026-11-12):
+  // `state.focus` is {selected, hovered}, each a model entity or null, and
+  // VA.focusNavRowsOf says which `<kind>:<id>` rows each reaches, as {own,
+  // touching}. Computed once per render; a row asks by its own kind and id
+  // and is drawn `--on` / `--on-touching` for the selection, `--hot` /
+  // `--hot-touching` for the hover.
   var lit = { on: {}, hot: {} };
 
+  // {`<kind>:<id>`: tier} for an entity's rows.
   function litRows(model, entity) {
     var out = {};
-    VA.focusNavRowsOf(model, entity).forEach(function (key) { out[key] = true; });
+    var rows = VA.focusNavRowsOf(model, entity);
+    (rows.touching || []).forEach(function (key) { out[key] = VA.FOCUS_TIERS.touching; });
+    (rows.own || []).forEach(function (key) { out[key] = VA.FOCUS_TIERS.own; });
     return out;
+  }
+
+  var LIT_CLASS = { on: "navtree__row--on", hot: "navtree__row--hot" };
+  var HOLDS_CLASS = { on: "navtree__row--holds", hot: "navtree__row--holds" };
+
+  function tierClass(base, tier) {
+    return tier === VA.FOCUS_TIERS.own ? base : tier === VA.FOCUS_TIERS.touching ? base + "-touching" : null;
   }
 
   function rowClasses(kind, id) {
     var key = kind + ":" + id;
-    return (lit.on[key] ? " navtree__row--on" : "") + (lit.hot[key] ? " navtree__row--hot" : "");
+    var on = tierClass(LIT_CLASS.on, lit.on[key]);
+    var hot = tierClass(LIT_CLASS.hot, lit.hot[key]);
+    return (on ? " " + on : "") + (hot ? " " + hot : "");
   }
 
   // The hovered rows, re-lit in place on a tree already drawn: the one hover
   // moves many times between two paints, and only the class moves with it.
+  // A lit row behind a closed fold marks the deepest DRAWN fold on its path
+  // (VA.navRevealPaths) with `--holds` / `--holds-touching`: hover opens
+  // nothing, so the counterpart's place is shown on the fold that hides it.
+  // Returns how many drawn rows lit.
   VA.lightNavTree = function (root, model, hovered) {
     if (!root || !root.querySelectorAll) return 0;
     var hot = litRows(model, hovered);
     lit.hot = hot;
     var count = 0;
     var rows = root.querySelectorAll("div.navtree__row");
-    for (var i = 0; i < rows.length; i++) {
-      var kind = rows[i].getAttribute("data-nav-kind");
-      var id = rows[i].getAttribute("data-nav-id");
-      if (!kind || !id || !rows[i].classList) continue;
-      var on = !!hot[kind + ":" + id];
-      if (on) count++;
-      if (on) rows[i].classList.add("navtree__row--hot");
-      else rows[i].classList.remove("navtree__row--hot");
+    var drawn = {};
+    var folds = {};
+    var i;
+    for (i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row.classList) continue;
+      var fold = row.getAttribute("data-nav-fold");
+      if (fold) folds[fold] = row;
+      row.classList.remove(LIT_CLASS.hot, LIT_CLASS.hot + "-touching",
+        HOLDS_CLASS.hot, HOLDS_CLASS.hot + "-touching");
+      var kind = row.getAttribute("data-nav-kind");
+      var id = row.getAttribute("data-nav-id");
+      if (!kind || !id) continue;
+      drawn[kind + ":" + id] = true;
+      var cls = tierClass(LIT_CLASS.hot, hot[kind + ":" + id]);
+      if (!cls) continue;
+      count++;
+      row.classList.add(cls);
     }
+    // The hidden rows: the deepest drawn fold on each one's path wears the mark.
+    var paths = model ? VA.navRevealPaths(model, VA.focusLightOf(model, hovered)) : {};
+    Object.keys(hot).forEach(function (key) {
+      if (drawn[key]) return;
+      var path = paths[key] || [];
+      for (var j = path.length - 1; j >= 0; j--) {
+        var holder = folds[path[j]];
+        if (!holder) continue;
+        var mark = tierClass(HOLDS_CLASS.hot, hot[key]);
+        // An own mark outranks a touching one on the same fold.
+        if (hot[key] === VA.FOCUS_TIERS.own) holder.classList.remove(HOLDS_CLASS.hot + "-touching");
+        if (!holder.classList.contains(HOLDS_CLASS.hot)) holder.classList.add(mark);
+        break;
+      }
+    });
     return count;
   };
 
@@ -252,11 +326,7 @@
     name.setAttribute("title", text);
     row.appendChild(name);
     activatable(row, function () { if (handlers.onFeature) handlers.onFeature(fid); });
-    var hover = function (on) {
-      if (handlers.onHover) handlers.onHover(on ? { kind: "feature", id: fid } : null);
-    };
-    row.onmouseenter = function () { hover(true); };
-    row.onmouseleave = function () { hover(false); };
+    hoverable(row, "feature", fid, handlers);
     return row;
   }
 
@@ -286,7 +356,9 @@
     row.setAttribute("data-nav-kind", "interface");
     row.setAttribute("data-nav-id", interfaceRow.id);
     row.setAttribute("data-interface-kind", kind);
+    row.setAttribute("data-nav-fold", key);
     row.appendChild(twisty(key, open, handlers));
+    hoverable(row, "interface", interfaceRow.id, handlers);
     var name = label(interfaceRow.name, null, null);
     name.setAttribute("title", interfaceRow.name);
     row.appendChild(name);
@@ -313,9 +385,7 @@
     var key = "j:" + joint.id;
     var open = isOpen(state, key, false);
     var li = VA.el("li", "navtree__item");
-    var row = foldRow("navtree__row--joint" + rowClasses("joint", joint.id), key, open, handlers);
-    row.setAttribute("data-nav-kind", "joint");
-    row.setAttribute("data-nav-id", joint.id);
+    var row = entityRow("navtree__row--joint", "joint", joint.id, key, open, handlers);
     var names = joint.parts.map(function (pid) {
       var part = model.part(pid);
       return part ? part.name : pid;
@@ -340,7 +410,7 @@
   // fold of that part still wins.
   function holdsSelection(model, partId) {
     return (model.part(partId) || { features: [] }).features.some(function (fid) {
-      return !!lit.on["feature:" + fid];
+      return lit.on["feature:" + fid] === VA.FOCUS_TIERS.own;
     });
   }
 
@@ -349,9 +419,7 @@
     var key = "p:" + partId;
     var open = isOpen(state, key, holdsSelection(model, partId));
     var li = VA.el("li", "navtree__item");
-    var row = foldRow("navtree__row--part" + rowClasses("part", partId), key, open, handlers);
-    row.setAttribute("data-nav-kind", "part");
-    row.setAttribute("data-nav-id", partId);
+    var row = entityRow("navtree__row--part", "part", partId, key, open, handlers);
     var name = label(part.label, null, null);
     name.setAttribute("title", part.label);
     row.appendChild(name);
@@ -361,11 +429,6 @@
       var box = visibility("part", partId, !hidden, false, handlers);
       if (box) row.appendChild(box);
     }
-    var hover = function (on) {
-      if (handlers.onHover) handlers.onHover(on ? { kind: "part", id: partId } : null);
-    };
-    row.onmouseenter = function () { hover(true); };
-    row.onmouseleave = function () { hover(false); };
     li.appendChild(row);
     if (open) {
       var list = VA.el("ul", "navtree__children");
@@ -383,6 +446,8 @@
     var li = VA.el("li", "navtree__item");
     var row = foldRow("navtree__row--group", key, open, handlers);
     row.setAttribute("data-nav-group", key);
+    row.setAttribute("data-nav-kind", "group");
+    row.setAttribute("data-nav-id", key);
     row.appendChild(VA.el("span", "navtree__grouplabel", heading));
     li.appendChild(row);
     if (open) {
@@ -397,9 +462,7 @@
     var key = "b:" + body.id;
     var open = isOpen(state, key, true);
     var li = VA.el("li", "navtree__item");
-    var row = foldRow("navtree__row--body" + rowClasses("body", body.id), key, open, handlers);
-    row.setAttribute("data-nav-kind", "body");
-    row.setAttribute("data-nav-id", body.id);
+    var row = entityRow("navtree__row--body", "body", body.id, key, open, handlers);
     var swatch = VA.el("span", "navtree__swatch");
     swatch.setAttribute("aria-hidden", "true");
     swatch.style.setProperty("--swatch", "var(--tv-body-ink-" + model.tint(body.id) + ")");
@@ -417,11 +480,6 @@
         hiddenCount > 0 && hiddenCount < meshed.length, handlers);
       if (box) row.appendChild(box);
     }
-    var hover = function (on) {
-      if (handlers.onHover) handlers.onHover(on ? { kind: "body", id: body.id } : null);
-    };
-    row.onmouseenter = function () { hover(true); };
-    row.onmouseleave = function () { hover(false); };
     li.appendChild(row);
     if (open) {
       var list = VA.el("ul", "navtree__children");

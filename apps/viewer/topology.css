@@ -216,6 +216,20 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 }
 .navtree__row:hover, .navtree__row--hot { background: #20242c; }
 .navtree__row--on { background: #202634; outline: 1px solid var(--accent); }
+/* The two tiers (hover_and_select_light_the_same_things_on_all_four_surfaces_
+   and_nothing_goes_opaque, 2026-11-12): `--hot` / `--on` are the OWN tier of
+   the one hover and the one selection; `--hot-touching` / `--on-touching`
+   their touching tier, visibly fainter -- the same wash at half strength, the
+   accent at half strength. A closed fold that holds a lit row wears a small
+   mark at its right (`--holds`, `--holds-touching`) so the counterpart's place
+   is seen without drilling down; a selection opens the fold instead. */
+.navtree__row--hot-touching { background: color-mix(in srgb, #20242c 55%, transparent); }
+.navtree__row--on-touching { background: color-mix(in srgb, #202634 60%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); }
+.navtree__row--holds::after, .navtree__row--holds-touching::after {
+  content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; margin-left: 4px;
+  background: var(--rail-hot); order: 99; }
+.navtree__row--holds-touching::after { background: color-mix(in srgb, var(--rail-hot) 45%, transparent); }
 .navtree__row--topology { font-weight: 600; }
 /* A study's and a stack's own name is the STRUCTURE of this menu, so it reads
    at the dense data size rather than a step below it (design_pass_typography,
@@ -824,16 +838,38 @@ body { display: flex; flex-direction: column; }
    off: a field is wayfinding; a body's NAME is the one control (it folds
    the body). The weights are modest -- Jeff ranked contrast above weight. */
 .tv__bodyfield { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 2;
-  pointer-events: none; }
+  pointer-events: stroke; cursor: pointer; }
 .tv__bodyfield--flat { stroke-opacity: .35; }
-.tv__partfield, .tv__block { fill: none; stroke-width: 1.5; pointer-events: none;
+.tv__partfield, .tv__block { fill: none; stroke-width: 1.5; pointer-events: stroke; cursor: pointer;
   stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
 .tv__partfield--flat, .tv__block--flat { stroke-opacity: .35; }
-/* A part's name: its drawing number (or display name), top-left inside it. */
-.tv__partname { font-size: var(--t-micro); pointer-events: none;
+/* A part's name: its drawing number (or display name), top-left inside it.
+   Since 2026-11-12 it is the part's control too -- the pointer on it hovers
+   the part, a click selects it -- like the border it sits in. */
+.tv__partname { font-size: var(--t-micro); cursor: pointer;
   fill: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
   paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tv__partname--flat { opacity: .45; }
+/* --- a container lit, in two tiers (hover_and_select_light_the_same_things_
+   on_all_four_surfaces_and_nothing_goes_opaque, 2026-11-12) -------------------
+   A body's or a part's field, block or bracket is a drawn thing the one
+   resolver can light: `--lead` is the own tier (the thing hovered, and what
+   it contains), `--hot` the touching tier -- weight and brightness, like
+   every other hovered mark, never a hue. `--selected` is the own tier of the
+   SELECTION, in the accent; `--touched` its touching tier, the accent at
+   half strength. */
+.tv__bodyfield--hot { stroke-width: 3; stroke-opacity: .8; }
+.tv__bodyfield--lead { stroke-width: 4; stroke-opacity: 1; }
+.tv__partfield--hot, .tv__block--hot { stroke-width: 2.5; stroke: var(--fill-ink, var(--group-part)); }
+.tv__partfield--lead, .tv__block--lead { stroke-width: 3.5; stroke: var(--fill-ink, var(--group-part)); }
+.tv__partname--hot { fill: var(--fill-ink, var(--group-part)); }
+.tv__partname--lead { fill: var(--ink); }
+.tv__bodyfield--selected, .tv__partfield--selected, .tv__block--selected {
+  stroke: var(--accent); stroke-width: 3; stroke-opacity: 1; }
+.tv__bodyfield--touched, .tv__partfield--touched, .tv__block--touched {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 2.5; stroke-opacity: 1; }
+.tv__partname--selected { fill: var(--accent); }
+.tv__partname--touched { fill: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
 /* A part with many interfaces is a component (VA.blockLayout): its chords are
    bars drawn as curves, and a stub is its pin's piece of rail. */
 .rail__bar--chord, .rail__barhit--chord { fill: none; }
@@ -919,6 +955,13 @@ body { display: flex; flex-direction: column; }
 /* The grid has no node rows to wear a selection outline (viewer_leader_line_
    grid), so a selected interface is marked on its dot and its leader. */
 .rail__dot--selected { stroke: var(--accent); stroke-width: 3; }
+/* The selection's TOUCHING tier (the one resolver's second tier): the accent
+   at half strength on a dot, a glyph, a bar or a row, so what meets the
+   selected thing is marked without being mistaken for it. */
+.rail__dot--touched { stroke: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 2.5; }
+.rail__node--touched { color: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 2.5; }
+.rail__bar--selected { stroke-width: 7; }
+.rail__bar--touched { stroke-width: 5; }
 
 /* --- the leaders (viewer_leader_line_grid, 2026-09-10) --------------------
    One jogged, GD&T-ordinate-style line per NON-internal node: dot -> jog zone
@@ -1153,6 +1196,22 @@ body { display: flex; flex-direction: column; }
   position: absolute; box-sizing: border-box; border: 0 solid currentColor;
   pointer-events: none;
 }
+/* A body's or a part's bracket is that entity's container in the grid
+   (views/topology.js's braceLayer): hoverable and selectable on its line,
+   lit in the two tiers like its field on the DAG. A study's bracket stays
+   inert. */
+.tvbrace[data-brace-kind] { pointer-events: auto; cursor: pointer; }
+.tvbrace--hot { filter: brightness(1.25); }
+.tvbrace--lead { filter: brightness(1.6); }
+.tvbrace--lead.tvbrace--top { border-top-width: 3px; }
+.tvbrace--lead.tvbrace--bottom { border-bottom-width: 3px; }
+.tvbrace--selected { color: var(--accent); }
+.tvbrace--touched { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
+.tvbrace__label[data-brace-kind] { pointer-events: auto; cursor: pointer; }
+.tvbrace__label--hot { filter: brightness(1.25); }
+.tvbrace__label--lead { color: var(--ink); }
+.tvbrace__label--selected { color: var(--accent); }
+.tvbrace__label--touched { color: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
 .tvbrace--top { border-width: 1.5px 1.5px 0 1.5px; border-radius: 6px 6px 0 0; }
 .tvbrace--bottom { border-width: 0 1.5px 1.5px 1.5px; border-radius: 0 0 6px 6px; }
 .tvbrace--gap { border-style: dashed; }
@@ -1211,6 +1270,7 @@ body { display: flex; flex-direction: column; }
    the DAG. See "one hover state, two surfaces" at the bottom of this file. */
 .tvrow--edge { font-size: var(--t-dense); }
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
+.tvrow--touched { outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: -1px; }
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
   content: " ↰ closes back to an interface above";

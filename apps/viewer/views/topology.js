@@ -2080,8 +2080,11 @@
     var rows = (layout && layout.rows) || [];
     var links = (layout && layout.links) || [];
     var hot = {
-      // railId -> entries lit `--hot`; key -> entries lit `--lead`.
-      rail: {}, lead: {},
+      // railId -> the entries on that leg; key -> entries that lead for it
+      // (both kept for the layout's own bookkeeping -- the rail a row sits
+      // on, the edges at a node); key -> the entries that ARE that element,
+      // which is what lights (lightKeys).
+      rail: {}, lead: {}, self: {},
       // key (and railId) -> the railId it lights.
       railOf: {},
       // Parallel to layout.rails / layout.links, which VA.railGeometry walks
@@ -2159,41 +2162,48 @@
     (spec.leads || []).forEach(function (key) {
       (hot.lead[key] || (hot.lead[key] = [])).push(entry);
     });
+    (spec.self || []).forEach(function (key) {
+      (hot.self[key] || (hot.self[key] = [])).push(entry);
+    });
     return spec.el;
   }
 
-  // ONE lighter (one_selection_one_hover_and_leaders_off, 2026-11-10): every
-  // key's line and lead marks at once, or none. setHot (the pane's own
-  // pointer) and VA.lightTopoKeys (the page's one hover, from the tree, the
-  // scene or a repaint) both arrive here, so there is one place a class is
-  // written. A `--lead` carries `--hot` with it where it has one, which is
-  // what lets the browser tier ask the handoff's question ("hovering the bar
-  // marks the row `--hot`") of either level; the line is lit first so an
-  // element that is both keeps the stronger of the two. A registered node
-  // may carry only one of the two (a hit path has a halo and no lead state
-  // of its own; a leader has a lead state and no place in the leg's glow),
-  // so the pair is joined rather than branched on -- a missing half used to
-  // arrive in the class string as the word "null".
+  // ONE lighter (one_selection_one_hover_and_leaders_off, 2026-11-10; two
+  // tiers since hover_and_select_light_the_same_things_on_all_four_surfaces_
+  // and_nothing_goes_opaque, 2026-11-12): what the page's resolver says an
+  // entity lights (VA.focusElementKeysOf), as {own, touching} key lists, lit
+  // on the entries that ARE those keys and on nothing else. `own` wears the
+  // entry's `lead` class (the stronger weight), `touching` its `hot` class
+  // (the fainter); an entry in both keeps the stronger. Until 2026-11-12 a
+  // key also lit the whole rail leg it sat on and every row at a node, so a
+  // part hovered in the tree lit every edge of every part that touched it
+  // plus whole legs -- Jeff's "random rows". A leg is no longer a thing
+  // hover says; the resolver is. The pane's own pointer arrives here too,
+  // through the page (setHot tells it, applyFocus lights), so there is one
+  // place a class is written. A `keys` of null, or an array (the old one-tier
+  // call), is read as own.
   function lightKeys(hot, keys) {
     while (hot.marked.length) {
       var was = hot.marked.pop();
       was.el.setAttribute("class", was.base);
     }
-    var list = keys || [];
+    var tiers = Array.isArray(keys) ? { own: keys, touching: [] } : (keys || { own: [], touching: [] });
+    var lit = {};
     var light = function (entry, extra) {
+      if (!extra) return;
       entry.el.setAttribute("class", entry.base + " " + extra);
       hot.marked.push(entry);
     };
-    list.forEach(function (key) {
-      var railId = hot.railOf[key];
-      (railId ? hot.rail[railId] || [] : []).forEach(function (entry) { light(entry, entry.hot); });
+    (tiers.touching || []).forEach(function (key) {
+      (hot.self[key] || []).forEach(function (entry) { light(entry, entry.hot); lit[key] = true; });
     });
-    list.forEach(function (key) {
-      (hot.lead[key] || []).forEach(function (entry) {
+    (tiers.own || []).forEach(function (key) {
+      (hot.self[key] || []).forEach(function (entry) {
         light(entry, [entry.hot, entry.lead].filter(Boolean).join(" "));
+        lit[key] = true;
       });
     });
-    return list.length;
+    return Object.keys(lit).length;
   }
 
   // The pane's own pointer (or keyboard focus) on a mark, a row, a rail: lit
@@ -2210,19 +2220,22 @@
     }
     hot.on = key;
     drawHoverLabel(hot, key);
-    lightKeys(hot, key ? [key] : []);
+    // Since 2026-11-12 the pane lights nothing of its own here: the page
+    // holds the one hover and lights every surface from the one resolver
+    // (VA.lightTopoKeys), this pane included. A pane with no page (a test's
+    // bare render) lights the key itself, as own, so the mark still answers.
     if (hot.onChange) hot.onChange(key);
+    else lightKeys(hot, key ? [key] : []);
   }
 
   // The page's one hover, lighting this pane (coaxial_ends_share_one_3d_node
-  // first; every surface since 2026-11-10): the keys of what is hovered in
-  // the tree, in the scene, or still hovered across a repaint -- a joint's
-  // one 3D dot stands for several nodes -- or none. The pane's own pointer
-  // wins: while it holds the state (`on`) this does nothing, since what it
-  // lit is what the page's hover IS. Returns how many keys it lit.
+  // first; every surface since 2026-11-10; two tiers since 2026-11-12): the
+  // {own, touching} keys of what is hovered anywhere -- the tree, the scene,
+  // this pane's own marks, or still hovered across a repaint -- or null for
+  // nothing. Returns how many keys lit something.
   VA.lightTopoKeys = function (keys) {
     var hot = VA.lastTopoHot;
-    if (!hot || hot.on) return 0;
+    if (!hot) return 0;
     return lightKeys(hot, keys);
   };
 
@@ -2399,13 +2412,13 @@
       var flat = marking && !VA.bodyIsLit(layout && layout.rows, field.body, lit);
       var tint = VA.bodyTint(ctx.topoProj, field.body);
       var cls = "tv__bodyfield tv__bodyfield--t" + tint + " tv__fill--t" + tint +
-        (flat ? " tv__bodyfield--flat" : "");
+        (flat ? " tv__bodyfield--flat" : "") + tierClasses(ctx, "tv__bodyfield", "body", field.body);
       var rect = VA.svg("rect", cls, {
         x: field.x1, y: field.y1, width: Math.max(0, field.x2 - field.x1),
         height: Math.max(0, field.y2 - field.y1), rx: 6, ry: 6,
       });
       rect.setAttribute("data-body", field.body);
-      under.appendChild(rect);
+      under.appendChild(wireContainer(rect, ctx, hot, "body", field.body, body.name, "tv__bodyfield"));
       if (fillMode === "all") {
         fillRect(field, "tv__groupfill--body tv__fill--t" + VA.bodyTint(ctx.topoProj, field.body) +
           (flat ? " tv__groupfill--flat" : ""), 6);
@@ -2445,17 +2458,19 @@
       label.appendChild(svgTitle(VA.componentLabel(part) +
         (part.drawing ? " · drawing " + part.drawing : "")));
       label.setAttribute("data-part-name", partId);
-      bodyNames.push(label);
+      bodyNames.push(wireContainer(label, ctx, hot, "part", partId, VA.componentLabel(part), "tv__partname"));
     };
     var partBox = function (box, cls, attr, partId, bodyId, r) {
       var flat = marking && !VA.bodyIsLit(layout && layout.rows, bodyId, lit);
       var tint = VA.bodyTint(ctx.topoProj, bodyId);
-      var rect = VA.svg("rect", cls + " tv__fill--t" + tint + (flat ? " " + cls + "--flat" : ""), {
+      var rect = VA.svg("rect", cls + " tv__fill--t" + tint + (flat ? " " + cls + "--flat" : "") +
+        tierClasses(ctx, cls, "part", partId), {
         x: box.x1, y: box.y1, width: Math.max(0, box.x2 - box.x1),
         height: Math.max(0, box.y2 - box.y1), rx: r, ry: r,
       });
       rect.setAttribute(attr, partId);
-      under.appendChild(rect);
+      var partRecord = index.parts[partId] || { id: partId };
+      under.appendChild(wireContainer(rect, ctx, hot, "part", partId, VA.componentLabel(partRecord), cls));
       if (fillMode !== "off") {
         fillRect(box, "tv__groupfill--part tv__fill--t" + tint +
           (flat ? " tv__groupfill--flat" : ""), r);
@@ -2679,14 +2694,14 @@
       svg.appendChild(hotRegister(hot, {
         el: fade(VA.svg("path", leaderBase, { d: leader.d }), "node", leader.id),
         base: leaderBase,
-        leads: leaderLeads,
+        leads: leaderLeads, self: [hotKey("node", leader.id)],
         hot: "rail__leader--hot", lead: "rail__leader--lead",
       }));
       var hit = hotRegister(hot, {
         el: fade(VA.svg("path", "rail__leaderhit", { d: leader.d }),
           "node", leader.id),
         base: "rail__leaderhit",
-        leads: leaderLeads,
+        leads: leaderLeads, self: [hotKey("node", leader.id)],
         lead: "rail__leaderhit--hot",
       });
       hotHover(hot, hit, hotKey("node", leader.id));
@@ -2732,6 +2747,9 @@
         var otherVariant = !!(edge && edge.part && ctx.otherVariantParts &&
           ctx.otherVariantParts[edge.part]);
         if (otherVariant) classes.push("rail__bar--other-variant");
+        // The page's selection, in its two tiers (selectedTier).
+        if (isSelected(ctx, "edge", mark.id)) classes.push("rail__bar--selected");
+        else if (isTouched(ctx, "edge", mark.id)) classes.push("rail__bar--touched");
         // The bar's extent comes off the keyed position store (via
         // railGeometry's mark), not re-derived from rowHeight here — under a
         // scaled length mode a bar's slot is its own height.
@@ -2749,6 +2767,7 @@
           el: fade(barShape(barBase, "rail__bar--chord"), "edge", mark.id),
           base: barBase, rail: hot.railOf[hotKey("edge", mark.id)],
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
+          self: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__bar--hot", lead: "rail__bar--lead",
         });
         (mark.chord ? chords : over).appendChild(bar);
@@ -2784,6 +2803,7 @@
           el: fade(barShape("rail__barhit", "rail__barhit--chord"), "edge", mark.id),
           base: "rail__barhit", rail: hot.railOf[hotKey("edge", mark.id)],
           leads: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
+          self: [hotKey("edge", mark.id)].concat(hot.studyOfEdge[mark.id] || []),
           hot: "rail__barhit--hot",
         });
         // No card and no native title (a_preview_pane_replaces_the_hover_
@@ -2849,6 +2869,7 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
+      else if (isTouched(ctx, "node", mark.id)) dotClasses.push("rail__dot--touched");
       if (overlay.nodes[mark.id]) dotClasses.push(overlay.nodes[mark.id]);
       // An end of a joint is that joint's glyph. The dot is still drawn under
       // it, unpainted, as the node's target and its address (data-id): the
@@ -2872,7 +2893,7 @@
           cx: mark.x, cy: mark.y, r: dotR,
         }), "node", mark.id),
         base: dotBase, rail: hot.railOf[hotKey("node", mark.id)],
-        leads: dotLeads,
+        leads: dotLeads, self: [hotKey("node", mark.id)],
         hot: "rail__dot--hot", lead: "rail__dot--lead",
       });
       // The dot previews its record on hover, like every mark, and wears the
@@ -2895,7 +2916,7 @@
         over.appendChild(hotRegister(hot, {
           el: fade(glyph, "node", mark.id),
           base: glyphBase, rail: hot.railOf[hotKey("node", mark.id)],
-          leads: dotLeads,
+          leads: dotLeads, self: [hotKey("node", mark.id)],
           hot: "rail__node--hot", lead: "rail__node--lead",
         }));
       }
@@ -3222,7 +3243,7 @@
     table.appendChild(tbody);
     if (foot) table.appendChild(foot);
     box.appendChild(table);
-    box.appendChild(braceLayer(braceGeo));
+    box.appendChild(braceLayer(braceGeo, ctx, hot));
     // What the sourcing marks say, under the rows they mark: below the last
     // row, so no leader's seam moves.
     if (plan.rows.length && marking) box.appendChild(sourcingLegend());
@@ -3297,8 +3318,17 @@
     return VA.GRID_BRACE.body;
   };
 
-  function braceLayer(geo) {
+  function braceLayer(geo, ctx, hot) {
     var layer = VA.el("div", "tvbraces");
+    // A body's or a part's bracket is that entity's container in the grid:
+    // lit with it, hovered and selected like its field on the DAG
+    // (wireContainer). A study's bracket is none of these.
+    var container = function (node, kind, id, cls) {
+      if (kind !== "body" && kind !== "part") return node;
+      node.className += tierClasses(ctx, cls, kind, id);
+      node.setAttribute("data-brace-kind", kind);
+      return wireContainer(node, ctx, hot, kind, id, null, cls);
+    };
     var place = function (node, box) {
       node.style.left = box.left + "px";
       node.style.top = box.top + "px";
@@ -3311,8 +3341,8 @@
         (cap.tint !== undefined ? " tv__fill--t" + cap.tint : "") +
         (cap.gap ? " tvbrace--gap" : ""));
       node.setAttribute("data-brace", cap.id);
-      node.setAttribute("aria-hidden", "true");
-      place(node, cap);
+      if (cap.kind !== "body" && cap.kind !== "part") node.setAttribute("aria-hidden", "true");
+      place(container(node, cap.kind, cap.id, "tvbrace"), cap);
     });
     // A label the strip clips keeps its whole text as a title for tools; a
     // reader's hover reaches the PART cell under it, whose title names the part.
@@ -3320,6 +3350,7 @@
       var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
         " tv__fill--t" + label.tint, label.text);
       node.setAttribute("data-brace-label", label.id);
+      container(node, label.kind, label.id, "tvbrace__label");
       node.setAttribute("title", label.text);
       if (label.lines > 1) node.style.webkitLineClamp = String(label.lines);
       node.style.lineHeight = (label.lines > 1 ? VA.GRID_BRACE.line : label.line) + "px";
@@ -3696,6 +3727,7 @@
     // The dimming moved to where the non-members still are — the rails.
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
+    else if (isTouched(ctx, "edge", planRow.id)) el.className += " tvrow--touched";
 
     partCells(el, group, first, indent, index, bracketed);
 
@@ -3839,14 +3871,69 @@
         (hot.nodesOfEdge[planRow.id] || []).map(function (nodeId) {
           return hotKey("node", nodeId);
         }), hot.studyOfEdge[planRow.id] || []),
+      self: [hotKey("edge", planRow.id)].concat(hot.studyOfEdge[planRow.id] || []),
       hot: "tvrow--hot", lead: "tvrow--lead",
     });
     hotHover(hot, el, hotKey("edge", planRow.id));
     return nameRow(el, ctx, "edge", planRow.id, fullName);
   }
 
+  // Which tier of the page's selection a drawn thing is in (hover_and_select_
+  // light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque):
+  // `ctx.selectedKeys` is the resolver's {own, touching} key lists for the
+  // selected entity (VA.focusElementKeysOf), so a selected part marks its
+  // container, its dots and its bars `--selected` and its neighbours'
+  // interfaces `--touched`. A ctx with no key lists (a bare render) reads the
+  // one selected element as the own tier, as before.
+  function selectedTier(ctx, kind, id) {
+    var key = hotKey(kind, id);
+    var keys = ctx.selectedKeys;
+    if (keys) {
+      if ((keys.own || []).indexOf(key) !== -1) return VA.FOCUS_TIERS.own;
+      if ((keys.touching || []).indexOf(key) !== -1) return VA.FOCUS_TIERS.touching;
+      return null;
+    }
+    return ctx.selection && ctx.selection.kind === kind && ctx.selection.id === id
+      ? VA.FOCUS_TIERS.own : null;
+  }
+
   function isSelected(ctx, kind, id) {
-    return !!(ctx.selection && ctx.selection.kind === kind && ctx.selection.id === id);
+    return selectedTier(ctx, kind, id) === VA.FOCUS_TIERS.own;
+  }
+
+  function isTouched(ctx, kind, id) {
+    return selectedTier(ctx, kind, id) === VA.FOCUS_TIERS.touching;
+  }
+
+  // A container's or a bracket's state classes, from its base class name.
+  function tierClasses(ctx, cls, kind, id) {
+    var tier = selectedTier(ctx, kind, id);
+    return tier === VA.FOCUS_TIERS.own ? " " + cls + "--selected"
+      : tier === VA.FOCUS_TIERS.touching ? " " + cls + "--touched" : "";
+  }
+
+  // A part's field or block and a body's field are selectable and hoverable
+  // containers (rule 3 of the 2026-11-12 handoff): the pointer on the border
+  // hovers the part or the body (the page's one hover, through onHot), a
+  // click selects it. Hover and selection light them through the same
+  // registry as every mark (`part|<id>`, `body|<id>`).
+  function wireContainer(node, ctx, hot, kind, id, name, cls) {
+    hotRegister(hot, { el: node, base: node.getAttribute("class"),
+      self: [hotKey(kind, id)], hot: cls + "--hot", lead: cls + "--lead" });
+    hotHover(hot, node, hotKey(kind, id));
+    node.setAttribute("tabindex", "0");
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", name || String(id));
+    node.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      if (ctx.onSelect) ctx.onSelect(kind, id);
+    };
+    node.onkeydown = function (event) {
+      if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+      if (event.preventDefault) event.preventDefault();
+      if (ctx.onSelect) ctx.onSelect(kind, id);
+    };
+    return node;
   }
 
   function missing(id) {

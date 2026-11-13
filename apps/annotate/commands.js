@@ -528,16 +528,161 @@
     };
   };
 
-  // Pure: every open part's look while an action is in view -- `about` (the
-  // parts it names) solid, `near` (their neighbours) ghost, the rest faint.
-  // A part in both lists is about. { sha256: look }.
-  AA.planActionLooks = function (open, about, near) {
+  // Pure: every open part's look while an action is in view. NOTHING GOES
+  // OPAQUE (hover_and_select_light_the_same_things_on_all_four_surfaces_and_
+  // nothing_goes_opaque, 2026-11-12; Jeff: "we always want to have some
+  // opacity", "leave the opacity of the focused part the same, and make all
+  // the other parts less opaque"): `about` (the parts the action names) keep
+  // their RESTING look -- `restOf(sha)`, which is the reader's own See-through
+  // setting, the one way to a solid part -- except that a part resting faint
+  // (outside the study's scope) comes up to ghost, so a thing pointed at is
+  // never the faintest thing on screen; `near` (their neighbours) ghost; the
+  // rest faint. A part in both lists is about. Until 2026-11-12 `about` was
+  // solid, which made every hover and selection opaque. { sha256: look }.
+  // `restOf` absent reads as ghost at rest.
+  AA.planActionLooks = function (open, about, near, restOf) {
     var out = {};
+    var rest = typeof restOf === "function" ? restOf : function () { return AA.PART_LOOKS[1]; };
     (open || []).forEach(function (sha) {
-      out[sha] = (about || []).indexOf(sha) !== -1 ? AA.PART_LOOKS[0]
-        : (near || []).indexOf(sha) !== -1 ? AA.PART_LOOKS[1] : AA.PART_LOOKS[2];
+      if ((about || []).indexOf(sha) !== -1) {
+        var look = rest(sha);
+        out[sha] = look === AA.PART_LOOKS[2] ? AA.PART_LOOKS[1] : look;
+      } else {
+        out[sha] = (near || []).indexOf(sha) !== -1 ? AA.PART_LOOKS[1] : AA.PART_LOOKS[2];
+      }
     });
     return out;
+  };
+
+  // --- the page's light (hover_and_select_light_the_same_things_on_all_four_
+  // surfaces_and_nothing_goes_opaque, 2026-11-12) --------------------------
+  //
+  // `light <json>` | `light clear` -- what the page's ONE resolver
+  // (apps/viewer/model.js, VA.sceneLightOf) says its hover and its selection
+  // light, handed over as ids: {hover, select}, each null or {own, touching},
+  // each tier {parts: [part ids], nodes: [node ids], edges: [edge ids],
+  // faces: [{sha256, faceId}]}. The pane decides nothing about WHAT lights
+  // -- it draws the two tiers: an own part glows and keeps its resting look,
+  // a touching part ghosts, every other part goes faint; an own face is
+  // overlaid harder than its part, a touching face fainter; own nodes and
+  // edges are the model layer's emphasis. Works in both modes, since nothing
+  // in it needs a run. Replaces the page's `hover part|body|feature` and the
+  // hover half of its `highlight` posts.
+  AA.LIGHT_ROLES = Object.freeze(["hover", "select"]);
+  AA.LIGHT_TIERS = Object.freeze(["own", "touching"]);
+  AA.LIGHT_LISTS = Object.freeze(["parts", "nodes", "edges", "faces"]);
+
+  function lightTier(raw, where) {
+    if (raw === null || raw === undefined) return { parts: [], nodes: [], edges: [], faces: [] };
+    if (typeof raw !== "object") throw new Error("light: " + where + " must be an object");
+    var out = {};
+    AA.LIGHT_LISTS.forEach(function (name) {
+      var list = raw[name] === undefined || raw[name] === null ? [] : raw[name];
+      if (!Array.isArray(list)) throw new Error("light: " + where + "." + name + " must be a list");
+      out[name] = list.slice();
+    });
+    out.faces.forEach(function (f, i) {
+      if (!f || typeof f.sha256 !== "string" || typeof f.faceId !== "number") {
+        throw new Error("light: " + where + ".faces[" + i + "] needs {sha256, faceId}");
+      }
+    });
+    out.parts.concat(out.nodes, out.edges).forEach(function (id) {
+      if (typeof id !== "string") throw new Error("light: " + where + " ids are strings");
+    });
+    return out;
+  }
+
+  // The parsed light, or null for `clear`. Throws on a malformed word.
+  AA.parseLight = function (text) {
+    if (text === undefined) throw new Error("light needs <json> or clear");
+    if (text === "clear") return null;
+    var raw;
+    try {
+      raw = typeof text === "string" ? JSON.parse(text) : text;
+    } catch (err) {
+      throw new Error("light: not JSON (" + err.message + ")");
+    }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("light: the word must be an object");
+    var out = {};
+    var any = false;
+    AA.LIGHT_ROLES.forEach(function (role) {
+      var r = raw[role];
+      if (r === null || r === undefined) { out[role] = null; return; }
+      if (typeof r !== "object") throw new Error("light: " + role + " must be an object or null");
+      out[role] = { own: lightTier(r.own, role + ".own"), touching: lightTier(r.touching, role + ".touching") };
+      any = true;
+    });
+    return any ? out : null;
+  };
+
+  // Pure: the parts a light makes the scene about and near, as shas through
+  // `resolve(partId)` (a mesh sha, or null for a part with none): both roles'
+  // own parts about, both roles' touching parts near, minus about. A part a
+  // face is on is about too -- the face is what the reader is looking at.
+  AA.planLightLooks = function (light, resolve) {
+    var about = [];
+    var near = [];
+    var add = function (into, sha) { if (sha && into.indexOf(sha) === -1) into.push(sha); };
+    if (!light) return null;
+    AA.LIGHT_ROLES.forEach(function (role) {
+      var r = light[role];
+      if (!r) return;
+      r.own.parts.forEach(function (id) { add(about, resolve(id)); });
+      r.own.faces.forEach(function (f) { add(about, f.sha256); });
+      r.touching.parts.forEach(function (id) { add(near, resolve(id)); });
+      r.touching.faces.forEach(function (f) { add(near, f.sha256); });
+    });
+    if (!about.length && !near.length) return null;
+    return { about: about, near: near.filter(function (sha) { return about.indexOf(sha) === -1; }) };
+  };
+
+  // Pure: the overlay layers a light draws, one per (role, tier) that has
+  // anything in it: {role, tier, occurrences: [{sha256, key: null}] -- every
+  // occurrence of each own part, faces: [{sha256, faceId}]}. A touching part
+  // draws no glow of its own (its ghost look is its light); a touching face
+  // does, fainter. The colours and opacities are the scene's
+  // (scene.js's LIGHT_LOOKS), not this plan's.
+  AA.planLightLayers = function (light, resolve) {
+    var out = [];
+    if (!light) return out;
+    AA.LIGHT_ROLES.forEach(function (role) {
+      var r = light[role];
+      if (!r) return;
+      AA.LIGHT_TIERS.forEach(function (tier) {
+        var t = r[tier];
+        var occurrences = [];
+        if (tier === AA.LIGHT_TIERS[0]) {
+          t.parts.forEach(function (id) {
+            var sha = resolve(id);
+            if (sha && !occurrences.some(function (o) { return o.sha256 === sha; })) {
+              occurrences.push({ sha256: sha, key: null });
+            }
+          });
+        }
+        var faces = [];
+        t.faces.forEach(function (f) {
+          if (!faces.some(function (x) { return x.sha256 === f.sha256 && x.faceId === f.faceId; })) faces.push(f);
+        });
+        if (occurrences.length || faces.length) out.push({ role: role, tier: tier, occurrences: occurrences, faces: faces });
+      });
+    });
+    return out;
+  };
+
+  // Pure: the model layer's emphasis from a light -- the own edges and the
+  // own nodes of both roles (the selection's first, so a hover over something
+  // else never takes the selected edge's emphasis away).
+  AA.planLightEmphasis = function (light) {
+    var edges = [];
+    var nodes = [];
+    if (!light) return { edges: edges, nodes: nodes };
+    AA.LIGHT_ROLES.slice().reverse().forEach(function (role) {
+      var r = light[role];
+      if (!r) return;
+      r.own.edges.forEach(function (id) { if (edges.indexOf(id) === -1) edges.push(id); });
+      r.own.nodes.forEach(function (id) { if (nodes.indexOf(id) === -1) nodes.push(id); });
+    });
+    return { edges: edges, nodes: nodes };
   };
 
   // Pure: do two recorded occurrence keys lie on one assembly path -- the same

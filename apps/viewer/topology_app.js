@@ -703,6 +703,18 @@
     // A feature selected is open: its row's own default applies again (the
     // reader's later fold of it still wins, views/nav.js's isOpen).
     if (entity && entity.kind === VA.FOCUS_KINDS.feature) delete state.navOpen[VA.navFeatureKey(entity.id)];
+    // Select REVEALS (rule 4 of hover_and_select_light_the_same_things_on_
+    // all_four_surfaces_and_nothing_goes_opaque): every fold on the path to
+    // every lit row -- interfaces, joints and groups, not only parts --
+    // opens, and after the paint the first lit row not on screen is scrolled
+    // into view (revealLitRows). Hover opens nothing.
+    if (entity && model) {
+      var paths = VA.navRevealPaths(model, VA.focusLightOf(model, entity));
+      Object.keys(paths).forEach(function (row) {
+        paths[row].forEach(function (key) { state.navOpen[key] = true; });
+      });
+      revealPending = true;
+    }
   }
 
   // Select, fetch the element's image, paint.
@@ -711,8 +723,8 @@
     loadDetailImage().then(render);
   }
 
-  // A DAG mark, a grid row, a scene anchor: an element, selected as the
-  // entity it is.
+  // A DAG mark, a grid row, a scene anchor, a part's or a body's container:
+  // an element, selected as the entity it is.
   function selectElement(kind, id) {
     selectEntity(VA.focusEntityOf(currentModel(), kind, id));
   }
@@ -780,6 +792,20 @@
     // A leader's hit path is wired bare (no row kind): it is its node's.
     var leader = node.closest("[data-leader-id]");
     if (leader) return VA.focusEntityOf(currentModel(), "node", leader.getAttribute("data-leader-id"));
+    // A part's or a body's container: its field, block or name on the DAG,
+    // its bracket in the grid.
+    var part = node.closest("[data-part], [data-block], [data-part-name]");
+    if (part) {
+      return VA.focusEntityOf(currentModel(), VA.FOCUS_KINDS.part, part.getAttribute("data-part") ||
+        part.getAttribute("data-block") || part.getAttribute("data-part-name"));
+    }
+    var body = node.closest("[data-body]");
+    if (body) return VA.focusEntityOf(currentModel(), VA.FOCUS_KINDS.body, body.getAttribute("data-body"));
+    var brace = node.closest("[data-brace-kind]");
+    if (brace) {
+      return VA.focusEntityOf(currentModel(), brace.getAttribute("data-brace-kind"),
+        brace.getAttribute("data-brace") || brace.getAttribute("data-brace-label"));
+    }
     var mark = node.closest("[data-row-kind][data-id]");
     if (!mark) return null;
     var el = VA.parseElementKey(VA.elementKey(mark.getAttribute("data-row-kind"), mark.getAttribute("data-id")));
@@ -788,8 +814,10 @@
 
   function applyFocus() {
     var model = currentModel();
-    var keys = VA.focusElementKeysOf(model, state.focus.hovered);
-    if (VA.lightTopoKeys) VA.lightTopoKeys(keys.length ? keys : null);
+    // The one resolver's two tiers (VA.focusLightOf), in each surface's
+    // terms: element and container keys for the DAG and the grid, row keys
+    // for the tree, ids for the scene (syncPaneHover's `light`).
+    if (VA.lightTopoKeys) VA.lightTopoKeys(VA.focusElementKeysOf(model, state.focus.hovered));
     if (VA.lightNavTree && nodes.navtree) VA.lightNavTree(nodes.navtree, model, state.focus.hovered);
     followHoverInPreview();
     syncPaneHover();
@@ -1027,6 +1055,13 @@
     selectEntity({ kind: VA.FOCUS_KINDS.interface, id: id });
   }
 
+  // A body's, a part's or a joint's row selects that entity (everything can
+  // be selected, 2026-11-12); the twisty alone folds it.
+  function onNavEntity(kind, id) {
+    if (!VA.FOCUS_KINDS[kind]) return;
+    selectEntity({ kind: kind, id: id });
+  }
+
   // Show or hide a part, or every part of a body, in the 3D scene -- the
   // verbs the sweep rail's checkboxes used (`show` / `hide` by part). Only a
   // part with an installed mesh is ever named; the tree offers the box only
@@ -1045,27 +1080,11 @@
     syncSceneVisibility();
   }
 
-  // Resting on a tree row is the one hover: a feature, a part or a body
-  // (views/nav.js hands the entity), lit everywhere by applyFocus -- the
-  // scene's part is syncPaneHover's.
+  // Resting on a tree row is the one hover: a feature, a part, a body, an
+  // interface or a joint (views/nav.js hands the entity), lit everywhere by
+  // applyFocus -- the scene's part is syncPaneHover's.
   function onNavHover(target) {
     setHovered(target ? { kind: target.kind, id: target.id } : null, "tree");
-  }
-
-  // The run's subjects, as the scene's own tree names them (`body=<name>` in
-  // a row's key): what a `hover body` may name.
-  var SCENE_SUBJECT_KEY = /(?:^|\/)body=([^,\/]+)/;
-  function sceneSubjects() {
-    var out = {};
-    var walk = function (rows) {
-      (rows || []).forEach(function (row) {
-        var m = SCENE_SUBJECT_KEY.exec(String(row.key || ""));
-        if (m) out[m[1]] = true;
-        walk(row.rows);
-      });
-    };
-    if (sceneTree) walk(sceneTree.rows);
-    return out;
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -1581,10 +1600,9 @@
   // brings its tree row into view (revealPending): the reader's hand was on
   // the scene, not on the column. A click in the column itself never scrolls
   // it (Jeff, 2026-11-10: "the whole menu jumps").
-  var revealPending = null;
+  var revealPending = false;
 
   function selectFromScene(entity) {
-    revealPending = entity && entity.kind === VA.FOCUS_KINDS.feature ? entity.id : null;
     selectEntity(entity);
   }
 
@@ -2004,10 +2022,11 @@
         // The pane's rows are what the page's selection is drawn as there:
         // a fresh tree is asked to agree with it.
         syncSceneInspect();
-        // A rebuilt rail took the pane's hover down with it (its bodies keep
-        // anchoring for seconds after a run loads, F1a's lesson), so what the
-        // page remembers as posted is stale: the one hover is posted again.
-        paneHoverPosted = HOVER_CLEAR.join(" ");
+        // A rebuilt rail may have taken the pane's light down with it (its
+        // bodies keep anchoring for seconds after a run loads, F1a's lesson),
+        // so what the page remembers as posted is stale: the light is posted
+        // again.
+        paneLightPosted = null;
         syncPaneHover();
         return;
       }
@@ -2075,6 +2094,9 @@
       sceneVisibilityPosted = null;
       sceneFilterPosted = null;
       syncSceneModel();
+      // ...and the light it was showing, onto what it shows now.
+      paneLightPosted = null;
+      syncPaneHover();
     });
   }
 
@@ -2169,7 +2191,7 @@
       // only for a suggestion they list.
       var plan = feature ? VA.featureBodyPlan(model, fid, state.topologyId, rows, sceneTree) : null;
       VA.renderFeatureBody(slots[i], rows, { send: sceneRail, plan: plan, command: bodyCommand,
-        hoverFace: bodyHoverFace });
+        hoverFace: faceHoverFor(fid) });
     }
     if (!focus) return;
     var rows = nodes.navtree.querySelectorAll(".navtree__scene [data-scene-key]");
@@ -2188,17 +2210,21 @@
     postToPane(cmd);
   }
 
-  // A bound line hovered lights its face in the scene (`hover face`, which
-  // works in either pane mode); leaving it lets go, and the page's own hover
-  // is posted again from the state.
-  function bodyHoverFace(face) {
+  function faceHoverFor(fid) {
+    return function (face) { bodyHoverFace(face, fid); };
+  }
+
+  // A bound line hovered is its feature hovered (the one hover, so the
+  // feature lights on every surface) with its face washed in the scene
+  // (`hover face`, which works in either pane mode); leaving it lets both go.
+  function bodyHoverFace(face, fid) {
     if (face) {
-      if (postToPane(["hover", "face", face.sha256, String(face.faceId)])) paneHoverPosted = null;
+      setHovered({ kind: VA.FOCUS_KINDS.feature, id: fid }, "tree");
+      postToPane(["hover", "face", face.sha256, String(face.faceId)]);
       return;
     }
     postToPane(HOVER_CLEAR);
-    paneHoverPosted = HOVER_CLEAR.join(" ");
-    syncPaneHover();
+    setHovered(null, "tree");
   }
 
   function onPaneIdentity(msg) {
@@ -2215,21 +2241,41 @@
     renderNav();
   }
 
-  // A row selected FROM THE SCENE and scrolled away from is brought up into
-  // the column, once per such selection (revealPending) -- never on a
-  // refresh, a nav rebuild or a click in the column itself, which would yank
-  // the reader's own scrolling back (Jeff, 2026-11-05 and 2026-11-10).
-  function revealNavRow() {
-    var fid = revealPending;
-    revealPending = null;
+  // Select reveals (rule 4, 2026-11-12): once per selection change
+  // (revealPending, set by setSelected), after the paint that opened the
+  // folds, the first lit row not on screen is brought into the column with
+  // the smallest scroll that shows it -- the selected entity's own row first,
+  // then the other lit rows in column order -- and never at the cost of the
+  // own row leaving the screen. Never on a refresh or a nav rebuild, which
+  // would yank the reader's own scrolling back (Jeff, 2026-11-05 and
+  // 2026-11-10); and a click on a row already on screen moves nothing
+  // unless a row it lit is off screen.
+  function revealLitRows() {
+    if (!revealPending) return;
+    revealPending = false;
     var nav = nodes.navtree;
-    if (!fid || !nav || !nav.querySelector) return;
-    var row = nav.querySelector('[data-nav-kind="feature"][data-nav-id="' + fid + '"]');
-    if (!row || !row.getBoundingClientRect || !nav.getBoundingClientRect) return;
+    var model = currentModel();
+    var sel = state.focus.selected;
+    if (!sel || !model || !nav || !nav.querySelectorAll || !nav.getBoundingClientRect) return;
+    var rows = VA.focusNavRowsOf(model, sel);
+    var lit = {};
+    rows.own.concat(rows.touching).forEach(function (k) { lit[k] = true; });
+    var own = nav.querySelector('[data-nav-kind="' + sel.kind + '"][data-nav-id="' + sel.id + '"]');
+    var drawn = Array.prototype.slice.call(nav.querySelectorAll("div.navtree__row[data-nav-kind][data-nav-id]"))
+      .filter(function (row) {
+        return lit[row.getAttribute("data-nav-kind") + ":" + row.getAttribute("data-nav-id")];
+      });
+    if (own) drawn = [own].concat(drawn.filter(function (r) { return r !== own; }));
     var n = nav.getBoundingClientRect();
-    var r = row.getBoundingClientRect();
-    if (r.top >= n.top && r.bottom <= n.bottom) return;
-    nav.scrollTop += r.top - n.top - 8;
+    var offScreen = function (r) {
+      var b = r.getBoundingClientRect();
+      return b.top < n.top ? b.top - n.top - 8 : b.bottom > n.bottom ? b.bottom - n.bottom + 8 : 0;
+    };
+    var first = drawn.filter(function (r) { return offScreen(r) !== 0; })[0];
+    if (!first) return;
+    var was = nav.scrollTop;
+    nav.scrollTop += offScreen(first);
+    if (own && first !== own && offScreen(own) !== 0) nav.scrollTop = was;
   }
 
   // One selection across the seam. The page tells the pane what it has
@@ -2248,17 +2294,21 @@
     if (step.letGo) unfreeze();
   }
 
-  // --- hover crosses the seam (deliverable 3; the one hover since 2026-11-10)
+  // --- the light crosses the seam (deliverable 3; the one hover since
+  // 2026-11-10; the one resolver since 2026-11-12) ---------------------------
   //
-  // The scene is told the page's ONE hover from the state, never from the
-  // pointer (applyFocus -> syncPaneHover): an edge hovered anywhere -- its
-  // grid row, its bar -- posts `highlight <topology> <edge>` and the
-  // annotator tints that edge's bound face; a part or a body hovered in the
-  // tree posts `hover part|body` while a sweep is loaded (the one mode the
-  // scene answers them in); a feature's node posts `hover feature <edge>
-  // <end>` there, the end's bound face. Nothing hovered posts the clears --
-  // the highlight falls back to the page's selected edge on a kinematic
-  // page, where it has one, rather than clearing the scene under it.
+  // The scene is told the page's ONE hover and ONE selection from the state,
+  // never from the pointer (applyFocus -> syncPaneHover), as ONE verb:
+  // `light <json>` (VA.sceneLightCommand) carries what the resolver says each
+  // lights, in its two tiers -- the parts to glow at their resting look, the
+  // bound faces to overlay, the elements to emphasise -- and the pane draws
+  // exactly that, in either mode (apps/annotate/app.js's cmdLight). Until
+  // 2026-11-12 the page posted `hover part|body|feature` for a tree row and
+  // `highlight` for a hovered edge, sweep mode only, and the pane decided
+  // what each lit and made its parts solid. The selected EDGE on a kinematic
+  // page (or with a run loaded on this topology) still posts `highlight`: the
+  // pick tint in the colour buffer that the rail's own selection wears
+  // (selectedPaneTarget); nothing else does.
   //
   // Debounced (VA.PANE_HOVER_DEBOUNCE_MS, trailing) and computed from the
   // state when the timer fires: a pointer sweeping down a table posts
@@ -2269,50 +2319,18 @@
   var HOVER_CLEAR = ["hover", "clear"];
   var paneHoverTimer = null;
   var paneHighlightPosted = CLEAR_KEY;
-  var paneHoverPosted = HOVER_CLEAR.join(" ");
+  var paneLightPosted = null;
 
   function paneHighlightCommand() {
-    var el = VA.focusElementOf(currentModel(), state.focus.hovered);
-    var target = el && el.kind === "edge"
-      ? { topologyId: state.topologyId, edgeId: el.id } : selectedPaneTarget();
+    var target = selectedPaneTarget();
     return target ? VA.annotateHighlightCommand(target.topologyId, target.edgeId)
       : VA.annotateHighlightCommand();
   }
 
-  // The end a FEATURE is hovered at: its bound end where it has one, else
-  // its own first end -- never the other part's edge on a shared node, so a
-  // feature with nothing bound lights nothing (handoff a_binding_shows_the_
-  // moment_it_is_made_and_is_corrected_where_it_is_shown, deliverable 2).
-  function endOfFeature(model, fid) {
-    var bound = model.bindingsOf(fid)[0];
-    var e = bound || model.endsOf(fid)[0];
-    return e ? { edgeId: e.edgeId, direction: e.end } : null;
-  }
-
-  // The first edge end at a node, as the pane names an end.
-  function endAtNode(nodeId) {
-    var index = VA.topologyIndex(currentTopology());
-    var ids = Object.keys(index.edges || {}).sort();
-    for (var i = 0; i < ids.length; i++) {
-      var edge = index.edges[ids[i]];
-      if (edge.from === nodeId) return { edgeId: edge.id, direction: VA.EDGE_ENDS.from };
-      if (edge.to === nodeId) return { edgeId: edge.id, direction: VA.EDGE_ENDS.to };
-    }
-    return null;
-  }
-
-  function paneHoverCommand() {
-    var h = state.focus.hovered;
+  function paneLightCommand() {
     var model = currentModel();
-    if (!paneRun || !h || !model) return HOVER_CLEAR;
-    if (h.kind === VA.FOCUS_KINDS.part) return model.hasMesh(h.id) ? ["hover", "part", h.id] : HOVER_CLEAR;
-    if (h.kind === VA.FOCUS_KINDS.body) return sceneSubjects()[h.id] ? ["hover", "body", h.id] : HOVER_CLEAR;
-    var el = VA.focusElementOf(model, h);
-    if (el && el.kind === "node") {
-      var end = h.kind === VA.FOCUS_KINDS.feature ? endOfFeature(model, h.id) : endAtNode(el.id);
-      if (end) return ["hover", "feature", end.edgeId, end.direction];
-    }
-    return HOVER_CLEAR;
+    return VA.sceneLightCommand(VA.sceneLightOf(model, state.focus.hovered),
+      VA.sceneLightOf(model, state.focus.selected));
   }
 
   function syncPaneHover() {
@@ -2321,9 +2339,9 @@
       var highlight = paneHighlightCommand();
       var key = highlight.join(" ");
       if (key !== paneHighlightPosted && postToPane(highlight)) paneHighlightPosted = key;
-      var hover = paneHoverCommand();
-      var hoverKey = hover.join(" ");
-      if (hoverKey !== paneHoverPosted && postToPane(hover)) paneHoverPosted = hoverKey;
+      var light = paneLightCommand();
+      var lightKey = light.join(" ");
+      if (lightKey !== paneLightPosted && postToPane(light)) paneLightPosted = lightKey;
     };
     // Nothing hovered posts its clears at once -- a pointer leaving a row
     // and arriving on the next within the debounce would otherwise coalesce
@@ -2337,7 +2355,7 @@
     if (paneHoverTimer !== null) clearTimeout(paneHoverTimer);
     paneHoverTimer = null;
     paneHighlightPosted = CLEAR_KEY;
-    paneHoverPosted = HOVER_CLEAR.join(" ");
+    paneLightPosted = null;
   }
 
   // A row anywhere else on the page that names an element hovers through one
@@ -2494,9 +2512,9 @@
                     bottom: Math.min(f.bottom, bottom) },
     });
     // The one hover's elements give the lighter emphasis (applyFocus).
+    var hovered = VA.focusElementKeysOf(currentModel(), state.focus.hovered);
     var states = VA.seamLeaderStates(geo.leaders.map(function (l) { return l.id; }),
-      state.selection, VA.focusElementKeysOf(currentModel(), state.focus.hovered),
-      VA.topologyIndex(topoProj));
+      state.selection, hovered.own.concat(hovered.touching), VA.topologyIndex(topoProj));
     VA.renderSeamLeaders(svg, geo, states);
     seamDraws++;
     // For a harness: what was drawn, and what it cost.
@@ -3647,6 +3665,9 @@
         // needs the drawing-checker base URL like every other crop surface.
         config: VA.CONFIG,
         selection: state.selection,
+        // The selection's two tiers, for the DAG's and the grid's marks and
+        // containers (views/topology.js's selectedTier).
+        selectedKeys: VA.focusElementKeysOf(currentModel(), state.focus.selected),
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: lengthMode,
         lengths: poseLengths,
@@ -3672,10 +3693,10 @@
         // ...and the Preview, which shows whatever is hovered or focused on
         // any tier and returns to the frozen element when nothing is.
         onHot: function (key) {
-          // A mark's or a row's element, as the entity it is; a rail's key
-          // (`rail|<i>`) is no element and reads as the pointer on nothing.
-          var el = VA.parseElementKey(key);
-          setHovered(el ? VA.focusEntityOf(currentModel(), el.kind, el.id) : null, "dag");
+          // A mark's or a row's element, or a part's or a body's container,
+          // as the entity it is (VA.focusKeyEntity); a rail's or a study
+          // group's key is no entity and reads as the pointer on nothing.
+          setHovered(VA.focusKeyEntity(currentModel(), key), "dag");
         },
         // A paint (a transition's frames included) rebuilt the marks: lit
         // again from the one state, and the leaders re-drawn.
@@ -3833,6 +3854,7 @@
           study: kinematicStudy,
           topologies: state.topologies,
           selection: state.selection,
+          selectedKeys: VA.focusElementKeysOf(currentModel(), state.focus.selected),
           // Which stop the grid's stack is shown at, and the control that
           // picks it -- which puts the pose on that stop.
           stackStop: kinematicStack ? kinematicStack.stop.id : null,
@@ -3950,6 +3972,7 @@
       onToggle: onNavToggle,
       onFeature: onNavFeature,
       onInterface: onNavInterface,
+      onEntity: onNavEntity,
       onHover: onNavHover,
       // Show/hide in 3D: only while the scene is open, where it means something.
       onVisibility: nodes.flyout && nodes.flyout.open ? onNavVisibility : null,
@@ -3970,7 +3993,7 @@
       orphans: VA.orphanBindings(state.identity, state.topologies, state.installedMeshes),
     });
     renderSceneSlot();
-    revealNavRow();
+    revealLitRows();
   }
 
   // Re-render with the rows/rows-equivalent scrolled back to the top. Only the

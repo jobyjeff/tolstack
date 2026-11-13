@@ -144,6 +144,16 @@ const state = {
   // The latest `hover face`/`hover clear`, so a part load in flight cannot
   // wash a face the pointer has already left.
   washToken: 0,
+  // The washed face's part, as the scene's action (hoverFace), in either
+  // mode; null when nothing is washed.
+  washAction: null,
+  // The page's light (cmdLight, AA.parseLight): what its hover and its
+  // selection light here, or null. In either mode.
+  light: null,
+  // Each open part's look before the first action took the looks over in a
+  // scene nothing else owns (bind mode, no scope): put back when the last
+  // action ends (applyLooks).
+  lookRestore: null,
   // The model layer (buildModel): whether bind mode draws it, the shell's lit
   // set (undefined until one is posted; null is "nothing emphasised"), what
   // the unlit rest does, the edge `highlight` lit, what `model select` chose,
@@ -297,9 +307,10 @@ async function cmdOpenPart(identifier) {
   const mesh = resolveMeshOrThrow(identifier);
   await state.scene.loadPart(mesh.sha256);
   state.scene.setVisible(mesh.sha256, true);
-  // Opening/showing a part means "the solid part": a leftover ghost state
-  // from an earlier `trace`/`ghost` would silently render it translucent.
-  state.scene.setGhost(mesh.sha256, false);
+  // Opening/showing a part means the part at REST: see-through unless the
+  // reader's own See-through control is off (the one way to a solid part,
+  // 2026-11-12). A leftover look from an earlier `trace`/`ghost` is replaced.
+  state.scene.setGhost(mesh.sha256, state.transparentParts);
   // ...unless a sweep or a study owns the looks: then it arrives at rest's.
   applyLooks();
   renderPartsPanel();
@@ -387,7 +398,7 @@ function cmdSceneView() {
     const mesh = state.meshList.find((m) => m.sha256 === sha);
     return { part: (mesh && mesh.part_id) || null, sha256: sha,
       visible: state.scene.isVisible(sha), ghost: state.scene.isGhosted(sha),
-      look: state.scene.lookOf(sha) };
+      look: state.scene.lookOf(sha), opacity: state.scene.opacityOf(sha) };
   });
 }
 
@@ -452,20 +463,41 @@ function scopeHides(sha) {
 // unticked is the reader asking for solid parts at rest, and gets them.
 // Cheap to re-run: setLook touches a material only when its look changes.
 function applyLooks() {
-  if (!state.scene || !looksOwned()) return;
+  if (!state.scene) return;
   const open = state.scene.listOpenParts();
   const action = actionInView();
-  const looks = action ? AA.planActionLooks(open, action.about, action.near) : null;
+  if (!looksOwnedAtRest()) {
+    // Nothing owns the looks at rest (bind mode, no scope): an action takes
+    // them over for as long as it is in view and puts back what it found --
+    // the page's light and a washed face reach bind mode too (2026-11-12).
+    if (action) {
+      if (!state.lookRestore) {
+        state.lookRestore = {};
+        for (const sha of open) state.lookRestore[sha] = state.scene.lookOf(sha);
+      }
+    } else {
+      const restore = state.lookRestore;
+      state.lookRestore = null;
+      if (restore) for (const sha of Object.keys(restore)) if (restore[sha]) state.scene.setLook(sha, restore[sha]);
+      return;
+    }
+  } else {
+    state.lookRestore = null;
+  }
+  const looks = action ? AA.planActionLooks(open, action.about, action.near, restLook) : null;
   for (const sha of open) state.scene.setLook(sha, looks ? looks[sha] : restLook(sha));
 }
 
 // A study scope or a sweep owns the looks -- at rest, unless the reader's own
 // isolate or ghost verb (the parts panel's Isolate) has set them.
-function looksOwned() {
+function looksOwnedAtRest() {
   const scoped = !!(state.partScope && state.partScope.targets.length);
-  if (actionInView()) return true;
   if (state.isolation && !scoped) return false;
   return !!state.sweep || scoped;
+}
+
+function looksOwned() {
+  return !!actionInView() || looksOwnedAtRest();
 }
 
 function restLook(sha) {
@@ -475,16 +507,35 @@ function restLook(sha) {
 }
 
 // The action the scene is showing, as {about, near} lists of sha256 -- or
-// null at rest. One at a time, the most immediate first: an armed pick; the
-// pointer on a candidate row; a rail row selected; the edge the page has
-// highlighted (a grid row hovered or selected).
+// null at rest. An armed pick owns the scene alone while it stands; every
+// other action in view is merged -- the pointer on a candidate row (the
+// wash), the page's light (its hover and its selection), a rail row selected
+// (the suggestion focus), the edge the page has highlighted -- so a hovered
+// part and the selected feature's part are both about at once.
 function actionInView() {
-  // An armed pick outside sweep mode is the scene's action too.
-  if (!state.sweep && state.armed) return { about: state.armed.shas, near: state.armed.near };
+  const armed = state.sweep ? state.sweep.armed : state.armed;
+  if (armed) return { about: armed.shas, near: armed.near };
+  const actions = [state.washAction, lightAction()];
   const sweep = state.sweep;
-  if (!sweep) return null;
-  if (sweep.armed) return { about: sweep.armed.shas, near: sweep.armed.near };
-  return sweep.washAction || sweep.focus || sweep.highlightAction || null;
+  if (sweep) actions.push(sweep.focus, sweep.highlightAction);
+  const about = [];
+  const near = [];
+  for (const a of actions) {
+    if (!a) continue;
+    for (const sha of a.about || []) if (about.indexOf(sha) === -1) about.push(sha);
+    for (const sha of a.near || []) if (near.indexOf(sha) === -1) near.push(sha);
+  }
+  if (!about.length && !near.length) return null;
+  return { about, near: near.filter((sha) => about.indexOf(sha) === -1) };
+}
+
+// The page's light as the scene's action (AA.planLightLooks), or null.
+function lightAction() {
+  if (!state.light) return null;
+  return AA.planLightLooks(state.light, (id) => {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    return mesh ? mesh.sha256 : null;
+  });
 }
 
 // The installed meshes of some topology part ids, deduplicated.
@@ -3318,6 +3369,31 @@ function cmdHover(what, name, extra) {
   return window.__lastHover;
 }
 
+// light <json> | light clear -- the page's one resolver, drawn here
+// (AA.parseLight has the shape; hover_and_select_light_the_same_things_on_
+// all_four_surfaces_and_nothing_goes_opaque, 2026-11-12). The parts it
+// names keep their resting look and glow, their neighbours ghost, the rest
+// go faint (applyLooks); the faces it names are overlaid, own harder than
+// touching (scene.setLightLayers); its own edges and nodes are the model
+// layer's emphasis. Both modes. Writes nothing.
+function cmdLight(text) {
+  state.light = AA.parseLight(text);
+  applyLight();
+  return window.__lastLight;
+}
+
+function applyLight() {
+  const resolve = (id) => {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases);
+    return mesh ? mesh.sha256 : null;
+  };
+  const layers = AA.planLightLayers(state.light, resolve);
+  const drawn = state.scene ? state.scene.setLightLayers(layers) : [];
+  applyLooks();
+  applyModelStyle();
+  window.__lastLight = state.light ? { layers: drawn, action: lightAction() } : null;
+}
+
 // hover face <mesh> <face> -- a candidate row's pointer (handoff a_joint_end_
 // lists_its_candidate_faces_and_says_why_each_is_there): the pre-selection's
 // wash on that face, on every drawn occurrence of its part, and the camera
@@ -3336,12 +3412,11 @@ async function hoverFace(target) {
     if (token !== state.washToken) return null;
   }
   window.__lastWash = state.scene.washFace({ sha256: mesh.sha256, faceId: target.faceId });
-  // ...and in sweep mode the face's part is what the scene is about while
-  // the pointer rests there: solid, the rest dimmed. The camera stays.
-  if (state.sweep) {
-    state.sweep.washAction = { about: [mesh.sha256], near: [] };
-    applyLooks();
-  }
+  // ...and the face's part is what the scene is about while the pointer
+  // rests there, in either mode: at its resting look, the rest faint
+  // (applyLooks). The camera stays.
+  state.washAction = { about: [mesh.sha256], near: [] };
+  applyLooks();
   return window.__lastWash;
 }
 
@@ -3804,8 +3879,8 @@ function clearCandidateWash() {
 
 // The washed face's part stops being the scene's action with its wash.
 function dropWashAction() {
-  if (!state.sweep || !state.sweep.washAction) return;
-  state.sweep.washAction = null;
+  if (!state.washAction) return;
+  state.washAction = null;
   applyLooks();
 }
 
@@ -4645,9 +4720,13 @@ function applyModelStyle() {
     strengths[id] = AA.modelLineStrength(id, lit, model.unlit);
   }
   model.strengths = strengths;
+  // The page's light emphasises its own edges and nodes beside the one
+  // `highlight` edge (AA.planLightEmphasis).
+  const light = AA.planLightEmphasis(state.light);
   state.scene.setModelStyle({ strengths, nodes: AA.modelLitNodes(topology, lit),
     hideUnlit: model.unlit === AA.MODEL_UNLIT_STYLES[1], emphasis: model.emphasis,
-    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis) });
+    emphasisEdges: light.edges,
+    emphasisNodes: AA.modelEmphasisNodes(topology, model.emphasis).concat(light.nodes) });
   return strengths;
 }
 
@@ -4885,6 +4964,7 @@ commands.register("layer", cmdLayer);
 commands.register("inspect", cmdInspect);
 commands.register("model", cmdModel);
 commands.register("hover", cmdHover);
+commands.register("light", cmdLight);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
