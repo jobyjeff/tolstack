@@ -84,3 +84,37 @@ Shots (3840×2160, looked at): `shots/a_part_links_to_its_drawing_before_it_has_
   built before a `feature_identity.py` change on integration. Contact
   suggestions took 7.5 min.
 - This venv has no pytest-xdist; `-n 16 --dist loadfile` errors out.
+
+## v1
+
+The same probe with `--v1`: every v1 part with a drawing reads as on v2 (same
+seven own runs, same four other-dash offers); its other parts carry no
+drawing-checker run (standard parts, the VPA 208510-007, the bushings
+214820-002 / 214943-002) and say their names plainly. Tree, DAG and grid agree.
+
+## The suite record
+
+Scratch root `C:/workspace/tolstack/data/scratch/partlinks_20261113`: copies of
+the main checkout's `data/inbox`, `data/meshes` and `data/projections`, every
+viewer projection then rebuilt from this tree, `docs`/`apps` junctioned to this
+worktree; main checkout's `node_modules` junctioned in. Both removed at the end.
+
+| command | where | result |
+|---|---|---|
+| `node apps/viewer/run_tests.cjs` | worktree | 568/568, node-fs tier skipped (no projection here) |
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | worktree | 691/691 (`[real]` armed, fixture shapes paired) |
+| `node apps/annotate/run_tests.cjs` | worktree | 314/314 |
+| witness `--only "__a72d4edc"`, `"__eb2a9384"`, `"__9986a41f"` (`--repo <scratch root>`) | worktree | all three WITNESSED |
+| `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q` | worktree | **1 failed, 1944 passed, 1 skipped, 2 deselected in 501s** |
+
+The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+the deliberate worktree red (no `data/projections/` in a worktree); the same tier
+ran 691/691 against the scratch root. Recorded in the suite-time ledger: inside
+budget. An earlier full run (5 failed) caught three things fixed here: an
+unpinned "each" in the ARCHITECTURE inventory row, the three new guards
+unenrolled, and a stale `tmp/mutation-witness-*` shadow (EPERM) left by my own
+`--unenrolled` runs, which broke two shadow-concurrency tests — `rm -rf` it
+before the full run.
+
+No browser suite was added or changed, so no `--only` browser run; the whole
+browser tier and the witness `--changed-since` gate are the review's.
