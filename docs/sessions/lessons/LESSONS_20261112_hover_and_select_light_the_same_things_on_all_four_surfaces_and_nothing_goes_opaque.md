@@ -314,4 +314,28 @@ renamed-and-rewritten pane specs under both "added" and "renamed" (it says
 so): 23 spec files were new in round 1, and round 2 adds 2 more, so 25 new
 files in all against `integration`.
 
-ROUND2_RECORD
+**Round-2 record** (every browser and witness run against a fresh scratch
+root, `C:/workspace/tolstack/data/scratch/light2_20261113`: `apps` and `docs`
+junctioned to this worktree, `data/inbox` and `data/meshes` to the main
+checkout, the projections copied from the reviewer's root -- built from
+`f966a6b7`, and this round changed no projection input, which the fast
+tier's freshness check confirmed).
+
+| command | result |
+|---|---|
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | 688/688 |
+| `node apps/annotate/run_tests.cjs` | 314/314 |
+| `…pytest -q tests/test_mutation_witnesses.py` | 44 passed (after the older Escape spec `…escape-lets-go-nothing-frozen…__2d586b66` was re-anchored to the new gate) |
+| browser `--only "the model drawn alone and led"` | 23/23 (21 + the two new checks) |
+| browser `--only "the DAG zoom"` | 48/48 (the pan's start set changed) |
+| browser `--only "3D pane follows the selection"` | 31/31 (the dead hover removed) |
+| witness `--only "__1670fbae"` (Escape lets go of a body) | WITNESSED |
+| witness `--only "__12ec5cd0"` (a real pointer on a body's field) | WITNESSED |
+| witness `--only "__2d586b66"` (re-anchored) | WITNESSED |
+| default tier, once, in this worktree, after the browser runs | `1 failed, 1938 passed, 1 skipped, 2 deselected in 667.22s` -- the same deliberate worktree red; recorded in the ledger at 668 s, which the ledger calls OVER BUDGET by 1m08s against the default tier's 600 s -- round 1's run of the same tree-shape was 511 s and inside; nothing of this session's ran beside it, so the difference is the box, not the diff |
+
+Census after round 2: browser 886 declared / 853 enrollable, names
+re-pinned; the one unwitnessable guard is still the mid-rail absence.
+The scratch root and the worktree's `node_modules` junction were removed
+again at the end of the round. The reviewer's own scratch root
+(`review_light_20261113`) was left as found.
