@@ -1,0 +1,221 @@
+[
+ {
+  "t": 0,
+  "treeHot": 5,
+  "treeOn": 0,
+  "treeOnTouching": 0,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [],
+  "dotsLead": 4,
+  "dotsSelected": 0,
+  "containerSelected": 0,
+  "light": [
+   "hover/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 150,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 300,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 450,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 600,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 750,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 900,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ },
+ {
+  "t": 1050,
+  "treeHot": 5,
+  "treeOn": 5,
+  "treeOnTouching": 9,
+  "gridLead": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "gridSelected": [
+   "hub_blade_axis_offset",
+   "hub_boss_to_tan_link_mount_fasteners",
+   "hub_spindle_to_tan_link_mount_face"
+  ],
+  "dotsLead": 4,
+  "dotsSelected": 4,
+  "containerSelected": 2,
+  "light": [
+   "hover/own:1+3",
+   "select/own:1+3"
+  ],
+  "opaque": 0,
+  "looks": {
+   "ghost": 1,
+   "faint": 14
+  }
+ }
+]

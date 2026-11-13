@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "...frames the camera on it, keeps its part at its resting look (never opaque), dims every other part, and emphasises the node's hollow marker",
+  "mutations": [
+    {
+      "contract": "Selecting a suggestion dims every other part so the lit face reads.",
+      "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Jeff's ask: the rest of the scene dims. Re-pointed 2026-11-05 (everything_in_3d_is_transparent_until_an_action_needs_a_face): the dimming is the scene's action now (sweep.focus), not a snapshot. Renamed 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the part keeps its resting look now; the mutation (no dimming) still reddens the guard.",
+      "file": "apps/annotate/app.js",
+      "find": "    focusDim(lit.map((f) => f.sha256), edgeAction(topology, edge, null).about);",
+      "replace": "    void lit;"
+    }
+  ]
+}

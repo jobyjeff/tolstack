@@ -8939,6 +8939,7 @@ async function testAnnotateArmedPick(browser, label) {
       triangleGhost: s.isGhosted(sha), triangleShown: s.isVisible(sha),
       bracketGhost: s.isGhosted(bracket), bracketShown: s.isVisible(bracket),
       bracketOpacity: s.parts.get(bracket) ? s.parts.get(bracket).material.opacity : null,
+      triangleOpacity: s.opacityOf(sha),
       camera: s.cameraState(),
       // How far the orbit target is from the armed part's drawn box centre.
       targetToPart: (() => {
@@ -8994,8 +8995,10 @@ async function testAnnotateArmedPick(browser, label) {
     push("Pick on a joint end moves the sweep to the as-modelled pose itself, with no prompt",
       before.index !== before.home && armed.index === armed.home &&
       !(await page.locator(".an__sweep-gate").isVisible()));
-    push("arming draws the end's part opaque and every other part ghosted faint",
-      armed.triangleShown && !armed.triangleGhost && armed.bracketGhost &&
+    // Nothing goes opaque (2026-11-12): the armed part keeps its resting
+    // look -- see-through -- and every other part goes faint.
+    push("arming keeps the end's part at its resting look, never opaque, and ghosts every other part faint",
+      armed.triangleShown && armed.triangleGhost && armed.triangleOpacity < 1 && armed.bracketGhost &&
       armed.bracketOpacity > 0 && armed.bracketOpacity < 0.15);
     push("arming filters the pick to the end's part and moves the camera onto it",
       JSON.stringify(armed.filter) === JSON.stringify([await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha)]) &&
@@ -9777,8 +9780,10 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     push("selecting the row draws the proposed face SOLID on every occurrence of its part",
       lit.selected && lit.focus.solid && lit.focus.faces.length === 1 &&
       lit.focus.faces[0].faceId === 0 && lit.focus.faces[0].drawn === lit.drawn && lit.drawn > 0);
-    push("...frames the camera on it, dims every other part, and emphasises the node's hollow marker",
-      lit.targetToPart !== null && lit.targetToPart < 0.5 && lit.bracketGhost && !lit.triangleGhost &&
+    // Nothing goes opaque (2026-11-12): the part keeps its resting look -- the
+    // face is the solid thing -- and every other part goes faint.
+    push("...frames the camera on it, keeps its part at its resting look (never opaque), dims every other part, and emphasises the node's hollow marker",
+      lit.targetToPart !== null && lit.targetToPart < 0.5 && lit.bracketGhost && lit.triangleGhost &&
       lit.focus.node === "a" && lit.focus.markerEmphasised);
     push("the selected row offers Accept and nothing else; the pick action stays where it was, under the list",
       JSON.stringify(lit.buttons) === JSON.stringify(["Accept"]) &&

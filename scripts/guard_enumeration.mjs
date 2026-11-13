@@ -622,7 +622,7 @@ export const DECLARED_GUARDS = {
   // lights nothing on either surface` pins an absence no single edit can
   // reintroduce (a rail has no entry in the lighter's registry), so it is
   // declared without one -- said here, in the diff.
-  browser: { declared: 884, enrollable: 851, names: "4df1336fab1e" },
+  browser: { declared: 884, enrollable: 851, names: "1315015684a4" },
 };
 
 
