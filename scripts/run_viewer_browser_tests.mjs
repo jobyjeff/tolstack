@@ -8009,7 +8009,16 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
   const topology = topologies && (topologies.topologies || [])
     .find((t) => study && t.id === study.topology);
   const rows = study ? study.stops[0].rows : [];
+  // The page reads the served feature-identity LOG (since 2026-11-12), so the
+  // row whose hover must overlay a face is one bound THERE -- not the pane's
+  // synthetic binding below, which the page never sees. The first study row
+  // with a standing binding under the study's topology, else the first
+  // non-gap row (the synthetic binding's own, for the checks that read the pane).
+  const servedLog = await readProjection("feature-identity/log.json");
+  const boundInLog = (edge) => !!(servedLog && (servedLog.events || []).some((e) => e && e.verdict === "bound" &&
+    e.stack_key && e.stack_key.edge_id === edge && e.stack_key.topology_id === (study && study.topology)));
   const bound = rows.find((r) => r.kind !== "gap");
+  const boundRow = rows.find((r) => r.kind !== "gap" && boundInLog(r.edge)) || bound;
   // A row with no binding: any contributor but the bound one (the seeded
   // binding is the only one). It was "a gap row" until the live study's last
   // gap was banded (the_tangential_link_cites_its_drawing), after which this
@@ -8469,7 +8478,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // not a `highlight`: the edge's bound face is OVERLAID in the scene, on
     // the part at its resting look, harder than the part's own glow -- and
     // the colour buffer is left alone (the pick tint is the selection's).
-    await clearPoint(page, `#topopane tr.tvrow[data-id="${bound.edge}"] td.tvcell--name`, "hover");
+    await clearPoint(page, `#topopane tr.tvrow[data-id="${boundRow.edge}"] td.tvcell--name`, "hover");
     const overlaid = opened && await until((w) => !!(w.__lastLight && w.__lastLight.layers.some((l) =>
       l.role === "hover" && l.tier === "own" && l.faceOverlays > 0)));
     const face = overlaid ? await inPane((w) => {
@@ -8485,8 +8494,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
         opaque: w.AnnotateApp.exec(["scene-view"]).filter((r) => r.visible && r.opacity >= 1).length };
     }) : null;
     if (!face) {
-      console.log(`      [${label}] DIAG bound row ${bound.edge}: opened ${opened}; light ` +
-        JSON.stringify(await inPane((w) => w.__lastLight)));
+      console.log(`      [${label}] DIAG bound row ${boundRow.edge} (bound in the served log: ${boundInLog(boundRow.edge)}): ` +
+        `opened ${opened}; light ${JSON.stringify(await inPane((w) => w.__lastLight))}`);
     }
     push("[real] resting on a bound contributor row overlays its face in the annotator, harder than the " +
       "part's glow, on a part that keeps its resting look -- the colour buffer untouched and nothing opaque",
@@ -15463,7 +15472,11 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     await page.mouse.move(4, 4);
     await page.waitForTimeout(600);
 
-    // 8. the same with no sweep loaded (bind mode).
+    // 8. the same with no sweep loaded (bind mode). The selection step 4
+    //    left is let go first: a light with a selection in it is not nothing.
+    await page.locator("#flyout-title").focus().catch(() => {});
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(800);
     await inPane((w) => { w.AnnotateApp.exec(["sweep", "off"]); return true; });
     await until(() => {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;

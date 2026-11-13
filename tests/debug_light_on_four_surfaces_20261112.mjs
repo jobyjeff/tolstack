@@ -143,8 +143,6 @@ const surfaces = (page) => page.evaluate(() => {
 // The pane: its light's layers, and every drawn part's look and opacity.
 const scene = (page) => frameOf(page).evaluate(() => {
   const AA = window.AnnotateApp;
-  const names = {};
-  for (const m of (window.__meshListForProbe || [])) names[m.sha256] = m.part_id;
   const view = AA.exec(["scene-view"]).filter((r) => r.visible).map((r) => ({
     part: r.part, look: r.look, opacity: r.opacity }));
   return { light: window.__lastLight ? window.__lastLight.layers : null, sweep: !!window.__sweep,

@@ -1114,7 +1114,7 @@ layer's own selection there.
 
 | direction | message | sent when |
 |---|---|---|
-| shell → scene | `{type: "annotate:exec", command}` | the selection follows, a row's 3D control, the model row; `highlight` on a settled pointer |
+| shell → scene | `{type: "annotate:exec", command}` | the selection follows, a row's 3D control, the model row; `light <json>` with what the page's one resolver says its hover and its selection light (since 2026-11-12, `hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque`: the pane draws the two tiers and decides nothing), `highlight` for a selected edge while a run is loaded |
 | shell → scene | `{type: "annotate:rail", key, act, index?}` | a gesture on a row of the nav's scene tree |
 | scene → shell | `{type: "annotate:result", id, ok, result\|error}` | every exec; ignored by the shell |
 | scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb |
