@@ -835,8 +835,9 @@ body { display: flex; flex-direction: column; }
    group fill (VA.GROUP_FILLS): the fills are separate rects in one layer
    under every border (.tv__groupfill), so a border always draws on top. A
    body the current study does not reach is a dim border. pointer-events
-   off: a field is wayfinding; a body's NAME is the one control (it folds
-   the body). The weights are modest -- Jeff ranked contrast above weight. */
+   off: a field is wayfinding, and since 2026-11-12 its border is a control
+   too (it selects the body, like a part's field; the body's NAME folds it).
+   The weights are modest -- Jeff ranked contrast above weight. */
 .tv__bodyfield { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 2;
   pointer-events: stroke; cursor: pointer; }
 .tv__bodyfield--flat { stroke-opacity: .35; }

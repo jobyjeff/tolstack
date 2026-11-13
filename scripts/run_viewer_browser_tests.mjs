@@ -8557,10 +8557,6 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       !!face && face.faceOverlays > 0 && face.faceOpacity > face.partOpacity && face.aboutLooks.length > 0 &&
       face.aboutLooks.every((l) => l === "ghost" || l === "solid") && face.aboutOpacities.every((o) => o < 1) &&
       !face.buffer && face.opaque === 0);
-    await clearPoint(page, `#topopane tr.tvrow[data-id="${unbound.edge}"] td.tvcell--name`, "hover");
-    const unboundLit = await until((w, edge) => !!(w.__lastLight && w.__lastLight.layers.length &&
-      JSON.parse(w.__lastLightWord || "{}").edge === edge), unbound.edge, 20000);
-    void unboundLit;
 
     // --- 5. a row CLICK selects in place: the scene stays in the sweep -------
     // (2026-10-26.) The page keeps the study, the pane is not sent a goto,
@@ -15453,6 +15449,70 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       baseSel.containersSelected.indexOf("base") !== -1 && baseParts.every((p) => baseSel.containersSelected.indexOf(p) !== -1) &&
       !!baseLayer && baseLayer.partOverlays >= baseParts.length && baseLooks.every((r) => r.opacity < 1) &&
       lookOf(baseLooks, hubSha).look === "ghost" && lookOf(baseLooks, linkSha).look === "faint");
+
+    // 3b. Escape lets the body go (review of 2026-11-13, B1: the handler
+    //     gated on the ELEMENT form of the selection, which a body, a part
+    //     or a joint has none of, so the three new selectables could only be
+    //     replaced, never released).
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(600);
+    const lightGone = await until(() => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      return w.__lastLight === null;
+    }, null, 10000);
+    await page.waitForTimeout(400);
+    const released = await pageLit();
+    const releasedRest = await sameAsRest();
+    console.log(`      [${label}] Escape after the body selection: tree on ${uniq(released.treeOn).length}, containers ` +
+      `${JSON.stringify(released.containersSelected)}, grid selected ${JSON.stringify(released.rowsSelected)}, pane light gone ${lightGone}, scene at rest ${releasedRest}`);
+    push("[real] Escape lets go of a body selected from the tree: every surface back to rest -- no row, container, " +
+      "bracket or dot in the accent, the pane's select layer gone, the scene at its resting looks",
+      released.treeOn.length === 0 && released.treeOnTouching.length === 0 && released.containersSelected.length === 0 &&
+      released.rowsSelected.length === 0 && released.dotsSelected.length === 0 && released.bracesSelected.length === 0 &&
+      lightGone && releasedRest);
+
+    // 3c. the body's field on the DAG selects it under a REAL pointer (review
+    //     of 2026-11-13, B2: the pan took pointer capture on a body field, so
+    //     the mouseup and the click landed on the scroll section; a dispatched
+    //     click or elementFromPoint could not see it). The press is on the
+    //     field's top border -- the rect is `pointer-events: stroke`, so a
+    //     locator click at its centre would miss on purpose.
+    const fieldPoint = await page.evaluate(() => {
+      const r = document.querySelector('rect.tv__bodyfield[data-body="base"]');
+      if (!r) return null;
+      r.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const b = r.getBoundingClientRect();
+      return { x: b.x + b.width / 2, y: b.y + 1, onScreen: b.y >= 0 && b.y + 2 <= innerHeight && b.x >= 0 && b.x + b.width <= innerWidth };
+    });
+    let fieldTargets = null;
+    if (fieldPoint && fieldPoint.onScreen) {
+      await page.evaluate(() => {
+        window.__fieldEv = [];
+        const rec = (e) => window.__fieldEv.push(e.type + ":" + (e.target.tagName || "") + "." + (e.target.getAttribute ? (e.target.getAttribute("class") || "").split(" ")[0] : ""));
+        for (const t of ["mousedown", "mouseup", "click"]) document.addEventListener(t, rec, { capture: true, once: true });
+      });
+      await page.mouse.move(fieldPoint.x - 3, fieldPoint.y);
+      await page.mouse.move(fieldPoint.x, fieldPoint.y);
+      await page.waitForTimeout(150);
+      await page.mouse.down();
+      await page.waitForTimeout(80);
+      await page.mouse.up();
+      await page.waitForTimeout(900);
+      fieldTargets = await page.evaluate(() => window.__fieldEv);
+    }
+    const fieldSel = await pageLit();
+    const fieldLight = await paneLight();
+    const fieldLayer = fieldLight && fieldLight.layers.find((l) => l.role === "select" && l.tier === "own");
+    console.log(`      [${label}] real pointer on the base body's field (${fieldPoint ? JSON.stringify(fieldPoint) : "no rect"}): ` +
+      `down/up/click targets ${JSON.stringify(fieldTargets)}; tree on ${uniq(fieldSel.treeOn).length}, containers ${JSON.stringify(fieldSel.containersSelected)}`);
+    push("[real] a real mouse down and up on a body's field border on the DAG selects the body -- the up and the click " +
+      "land on the field, not on the pane the pan captures for -- and it lights as the tree's row click did",
+      !!fieldPoint && fieldPoint.onScreen && Array.isArray(fieldTargets) &&
+      fieldTargets.some((e) => /^mouseup:rect\.tv__bodyfield/.test(e)) && fieldTargets.some((e) => /^click:rect\.tv__bodyfield/.test(e)) &&
+      baseParts.every((p) => fieldSel.treeOn.indexOf(p) !== -1) && fieldSel.treeOn.indexOf("base") !== -1 &&
+      fieldSel.containersSelected.indexOf("base") !== -1 && !!fieldLayer && fieldLayer.partOverlays >= baseParts.length);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(600);
 
     // 4. the locating boss selected from the Parts section: the pilot
     //    interface it is an end of opens and is on screen.

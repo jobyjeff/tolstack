@@ -268,3 +268,50 @@ Scratch left behind: none. The scratch data root
 checkout's `data/inbox` and `data/meshes`, this tree's `docs` and `apps`, and
 projections built from this tree) and the worktree's `node_modules` junction
 were removed at the end of the session.
+
+## Round 2 (2026-11-13), after the review's REQUEST CHANGES
+
+Two blockers, both found by the reviewer using the page, neither seen by a
+tier; two should-fixes; three nits. All addressed on the handoff branch.
+
+**B1 -- Escape could not let go of a body, part or joint.** The page's
+Escape handler gated on `state.selection`, the ELEMENT form of the selection,
+and `VA.focusElementOf` returns null for the three kinds this handoff made
+selectable -- so they could be replaced but never released. The handler now
+reads `state.focus.selected`, the one focus state (`unfreeze` already did).
+One browser check added to `the model drawn alone and led`: Escape after the
+body row click, every surface back to rest, the pane's light gone, the scene
+at its resting looks. One spec, whose mutation puts the old gate back.
+
+**B2 -- a body's DAG field did not select under a real pointer.** Not the
+focus-scroll the review guessed (the probe recorded `scrollTop` 0 across the
+press): the DAG's drag-to-pan (`wireZoom`, `apps/viewer/topology_app.js`)
+counted a body field as the drawing's empty space and took **pointer
+capture** on `pointerdown`, so the `mouseup` and the `click` were retargeted
+to the scroll section and the field's `onclick` never ran. `elementFromPoint`
+and a dispatched click bypass capture, which is why both said the wiring was
+right. The pan no longer starts on a body field (the field is drawn with
+`pointer-events: stroke`, so its interior was always the SVG's, and the pan
+lost only the 2 px border). Re-probed with a real pointer at the top and left
+borders of `base`: down, up and click all on the rect, 31 tree rows own, the
+field in the accent. One browser check added, pressing the field's top border
+with `page.mouse` and recording the down/up/click targets in the capture
+phase (the review's overlay asks exactly this); one spec, whose mutation makes
+the field pan space again. The CSS comment that called a body's name "the one
+control" and the viewer README's "a drag on the drawing's empty space pans"
+now say which space is empty, and where a rail's hit path takes a part
+field's click (the hub's left edge, the tan_link's top edge -- the part's NAME
+is the control there).
+
+**Should-fixes.** The duplicated `VA.focusKeyEntity` block in `model.js` is
+one block. `LIGHT_LOOKS.select.color` reads `MARK_COLORS.picked` instead of a
+second `0xff8c1a`.
+
+**Nits.** The bind-mode shots now exist at 5120 too
+(`bind_<nn>_<what>_bind_5120.png`). The pane suite's hover of the unbound row
+with its unread result is gone. The witness table above counts the two
+renamed-and-rewritten pane specs under both "added" and "renamed" (it says
+so): 23 spec files were new in round 1, and round 2 adds 2 more, so 25 new
+files in all against `integration`.
+
+ROUND2_RECORD

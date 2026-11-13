@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "expect_red": "[real] Escape lets go of a body selected from the tree: every surface back to rest -- no row, container, bracket or dot in the accent, the pane's select layer gone, the scene at its resting looks",
+  "mutations": [
+    {
+      "contract": "Escape releases whatever is selected, read from the one focus state (not the element form, which a body, a part or a joint has none of).",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Review of 2026-11-13, blocker B1: the handler gated on `state.selection` (the element form) and the three new selectables could only be replaced, never released. The mutation puts the old gate back.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        if (state.focus.selected) unfreeze();",
+      "replace": "        if (state.selection) unfreeze();"
+    }
+  ]
+}

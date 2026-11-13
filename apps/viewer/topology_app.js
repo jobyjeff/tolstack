@@ -453,14 +453,18 @@
         hideCrop();
       });
       // Escape closes an open popover; with none open it lets go of the
-      // frozen Preview (unfreeze), unless something else on the page owns
-      // the key right now -- a modal dialog, or an armed pick in the scene.
+      // selection (unfreeze), unless something else on the page owns the
+      // key right now -- a modal dialog, or an armed pick in the scene. It
+      // reads the ONE focus state, not the element form: a body, a part or
+      // a joint is selected with no element of its own (VA.focusElementOf),
+      // and gating on `state.selection` left exactly those three un-releasable
+      // (review of 2026-11-13, B1).
       document.addEventListener("keydown", function (event) {
         if (!event || event.key !== "Escape") return;
         if (nodes.crop && nodes.crop.style.display === "block") { hideCrop(); return; }
         hideCrop();
         if (modalOpen() || VA.scenePickArmed(sceneTree)) return;
-        if (state.selection) unfreeze();
+        if (state.focus.selected) unfreeze();
       });
       // The pointer's own track, for the hover-intent corridor below. Cheap on
       // purpose: two numbers per move, and the only work beyond that happens
@@ -3101,14 +3105,20 @@
         event.clientX, event.clientY);
     }, { passive: false });
     // Pan: a drag that starts on the drawing's own empty space -- the SVG and
-    // its body fields, never a bar, dot or leader, which are the controls.
+    // its study fields, never a bar, dot, leader or container, which are the
+    // controls. A body's field was pan space until 2026-11-13: since the
+    // two-tier light made it SELECT the body (wireContainer), a pointerdown
+    // on its border must reach its click, and the pointer capture the pan
+    // takes here was retargeting the mouseup and the click to this section
+    // (review of 2026-11-13, B2 -- measured with a real pointer). Its
+    // interior was never pan space of its own: the field is drawn with
+    // `pointer-events: stroke`, so a drag inside it starts on the SVG.
     var drag = null;
     nodes.pane.addEventListener("pointerdown", function (event) {
       if (event.button !== 0 || !event.target || !event.target.closest) return;
       var t = event.target;
-      var empty = t.tagName === "svg" || (t.classList && (
-        t.classList.contains("tv__bodyfield") ||
-        t.classList.contains("tv__studyfield")));
+      var empty = t.tagName === "svg" || (t.classList &&
+        t.classList.contains("tv__studyfield"));
       if (!empty || !t.closest("svg.tv__rails")) return;
       drag = { x: event.clientX, y: event.clientY };
       nodes.pane.classList.add("tv__scroll--zoomgrab");
