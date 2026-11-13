@@ -163,3 +163,32 @@ bound and nothing suggested (shots `04`-`10`):
   2 of 4 runs of its suite on this branch. Its own comment documents a rebuild
   race. After the no-repaint-on-same-record change it passed (see the
   completion report for the final runs).
+
+## Tests run (final tree)
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, in the
+  worktree, single-process (venv-win has no pytest-xdist): **1938 passed, 1
+  skipped, 1 failed** in 462 s. The failure is
+  `tests/test_viewer_js_suite.py`, the documented worktree red: no projection
+  in the worktree's `data/`. The skip is
+  `test_fit_bound_features.py:424`, for a mesh re-extraction that is not
+  installed. Recorded in the suite-time ledger, inside budget.
+- `node apps/viewer/run_tests.cjs --repo <scratch root>`: **687/687**,
+  `[real]` tier included. The main checkout's projections were refused (built
+  from a tree without this branch's `feature_identity.py`), so I built
+  topologies, results, crops (drawing-checker's venv) and kinematic from this
+  tree into `data/scratch/realtier_20261112`, with this tree's `docs/` linked
+  in. Removed afterwards.
+- `node apps/annotate/run_tests.cjs`: **313/313**.
+- Browser, `--only`, against the same scratch root: "annotate armed pick"
+  17/17, "annotate rail suggestion" 19/19, "the scene pane reads over HTTP"
+  10/10, "annotate sweep rail" 24/24, and "3D pane follows the selection"
+  32/32 (its last three runs; the body-row flake is above).
+- Witness `--only`: all 9 new fast/annotate specs, the 4 moved fast/annotate
+  anchors, the 4 new browser specs and the moved pose anchor: **WITNESSED**.
+- **Not run (the review's):** the whole browser tier, and the witness
+  `--changed-since` gate. **Rebuild the projections first**
+  (`scripts/rebuild_projections.ps1`). That rebuild also writes
+  `projections/viewer/feature-identity/log.json`. Without it the
+  repo-root/sibling-mount checks read no log, and on the sibling mount no
+  bindings at all.
