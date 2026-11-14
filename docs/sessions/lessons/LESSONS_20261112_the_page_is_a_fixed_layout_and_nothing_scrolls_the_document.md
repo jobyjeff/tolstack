@@ -185,6 +185,23 @@ region (under its header) and the mark into view in the DAG's, each by its own
 scroller and by the least it takes (`bringIntoView`). The filmstrip is
 `shots/.../tree_selection.png`, from
 `tests/debug_filmstrip_tree_selection_scrolls_regions_20261114.mjs`.
+On v1 (`tree_selection_v1.png`, the model whose DAG and grid both outgrow
+their regions at 3840 × 2160) the click on the tree's last interface took the
+DAG's scroller from 0 to 225 px and the grid's from 0 to 415 px, the
+document's scroll stayed 0, and the selected row ended inside the grid's
+region to within 0.44 px. v2 fits whole at that size, so its strip
+(`tree_selection.png`) shows nothing moving, which is right.
+
+## The click-around
+
+`tests/debug_click_around_fixed_layout_20261114.mjs`, shots in
+`shots/.../click_around/` (14 steps, a measurement line each): every seam
+dragged with the 3D pane open, a grid column widened, the three views cycled,
+the model switched, a kinematic and a chain study opened, a wheel over the
+page. The document's overflow was 0 / 0 at every step. The one thing it found
+that no suite asked about: the tree's divider sat under the 3D pane's dialog
+while the pane was open, so the tree could not be resized then (fixed, the
+z-index bullet above).
 
 ## Defects the browser tier found in my own change
 
@@ -194,6 +211,47 @@ scroller and by the least it takes (`bringIntoView`). The filmstrip is
   `nodes.topogrid`. Grep for any `nodes.pane` lookup of a row before
   splitting anything like this again.
 - The pinned-grip stack above, and the 98 px DAG at 1600.
+- **The Preview's drag wrote down a height the page could not draw.** Its cap
+  was the whole column less 120 px, but the column also holds the banner, the
+  settings bar, the totals and the grid's 160 px floor: on the suite's 1000 px
+  window a drag asked for 520, the grid hit its floor, and the Preview drew
+  474 — and 520 was stored, so a reload "got back" a height it never had.
+  The drag's room is now what the Preview and the grid share
+  (`previewRoom()`: the column less every other child), and
+  `VA.PREVIEW_HEIGHT.keep` is the grid's floor, 160 — the same number as
+  `.tv__gridregion`'s `min-height`. The browser check said `+80 from a 120
+  drag`, which on that window only a grid with spare height could give; it now
+  asks for what the grid gave, the grid at its floor or above, and the stored
+  height equal to the drawn one. This was one of the two reds that made four
+  browser witnesses read **red before the mutation** in the batch (the reload,
+  the two dividers, the Preview under the grid — all on `topology http`); the
+  fifth, the nav beside the pane, is on `3D pane follows the selection` and
+  witnessed on a rerun.
+
+## Witnesses that proved nothing, and why
+
+- `browser__real-zoomed-a-sideways-scroll-of-the-dag-moves-the-drawi__0ba20902`
+  **stayed green**: it put back `position: sticky; left: 0` on the rails, and
+  the rails now sit in a `max-content` box with no slack, so a sticky there
+  moves nothing. Re-pointed to pin the drawing's scroller at its left edge (the
+  defect the old sticky caused: a DAG that cannot be panned).
+- `browser__clicking-a-grid-row-lights-its-ends-leaders-across-the-s__6ee49ce0`
+  stayed green on its old anchor and was re-pointed to the seam overlay's
+  dimming (`8623cf39`).
+- The pitch_system rail-reach check (`[real] every rail on pitch_system has a
+  mid-rail point a real pointer can reach`) was the other red on `topology
+  http`, and it was intermittent: it missed rails 59–117 in most runs and
+  none in some. A logged miss named the cause — rail 59 did not exist. The
+  check counted the rails right after switching to v1, while the switch's
+  outgoing frame (`.tv__ghost`) was still fading out with its own copy of the
+  rails, so the count was 118 for a drawing of 59. Whether the fade had ended
+  by the count decided the run. The check now waits for the ghost to go before
+  counting. It also scans across the 14 px stroke, not only down its centre: in
+  one run a bar's wide hit twin covered rail 0's centre for its whole 52 px.
+  It logs what is at the point for the first miss, so the next miss names its
+  cause.
+  So the four `topology http` specs that stayed red before the mutation after
+  the Preview fix were red on this check alone.
 
 ## Tests
 

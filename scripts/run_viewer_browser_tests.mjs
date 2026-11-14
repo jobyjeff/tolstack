@@ -3183,7 +3183,13 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const railPoint = (i) => page.evaluate((i) => {
         const node = document.querySelectorAll(
           "svg.tv__rails line.rail__hit")[i];
-        if (!node) return null;
+        if (!node) {
+          if (!window.__railMiss) window.__railMiss = { i, gone: true,
+            now: document.querySelectorAll("svg.tv__rails line.rail__hit").length,
+            topology: (window.ViewerApp.lastTopoRender || {}).topologyId || null,
+            search: location.search, hash: location.hash };
+          return null;
+        }
         // The rails scroll with the grid: a check above that reached a grid
         // column left the strip scrolled, so start from its left edge.
         const strip = document.querySelector("#topopane .tv__hscroll");
@@ -3205,16 +3211,32 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         const box = node.getBoundingClientRect();
         const lo = Math.max(box.top + 8, 70);
         const hi = Math.min(box.bottom - 8, window.innerHeight - 12);
-        for (let y = lo; y <= hi; y += 4) {
-          if (document.elementFromPoint(box.left, y) === node) {
-            return { x: box.left, y };
+        // Across the 14px stroke too, not only down its centre: a bar's own
+        // wide hit twin can cover the centre of a short rail end to end
+        // while the stroke beside it is still the rail's.
+        for (const dx of [0, -4, 4, -6, 6]) {
+          for (let y = lo; y <= hi; y += 4) {
+            if (document.elementFromPoint(box.left + dx, y) === node) {
+              return { x: box.left + dx, y };
+            }
           }
         }
+        // What is there instead, for the log: a miss names its cover.
+        const at = document.elementFromPoint(box.left, (lo + hi) / 2);
+        if (!window.__railMiss) window.__railMiss = { i, lo, hi, left: box.left,
+          scrollTop: strip.scrollTop, room: strip.scrollHeight - strip.clientHeight,
+          at: at ? at.tagName + " " + String(at.getAttribute("class") || "") + " #" + at.id : null };
         return null;
       }, i);
 
       // Hovering a rail: every rail in turn, so the claim is about the
       // mechanism and not about one lucky leg.
+      // Counted once the model switch's outgoing frame has gone: while it
+      // fades (`.tv__ghost`) its copy of the rails is in the document too,
+      // the count is doubled, and every index past the live set names a rail
+      // that is about to not exist -- the 59-of-118 misses of 2026-11-14.
+      await page.waitForFunction(() => !document.querySelector(".tv__ghost"),
+        null, { timeout: 10000 });
       const railHits = await page.locator("svg.tv__rails line.rail__hit").count();
       const legs = [];
       const unreachable = [];
@@ -3255,6 +3277,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         railHits >= 2 && unreachable.length === 0);
       if (unreachable.length) {
         console.log("    rails with no reachable point: " + unreachable.join(", "));
+        console.log("    the first miss: " + JSON.stringify(await page.evaluate(() => window.__railMiss)));
       }
       // Since hover_and_select_light_the_same_things_on_all_four_surfaces_and_
       // nothing_goes_opaque (2026-11-12) a rail is no element: the one
