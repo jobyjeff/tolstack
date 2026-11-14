@@ -4,12 +4,12 @@
   "expect_red": "[real] zoomed, a sideways scroll of the DAG moves the drawing alone, and no column of the grid",
   "mutations": [
     {
-      "contract": "A sideways drag on a zoomed DAG moves the drawing, not only the grid under it.",
+      "contract": "A sideways scroll of a zoomed DAG pans the drawing in its own region.",
       "issue": null,
-      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Puts back `position: sticky; left: 0` on the rails.",
-      "file": "apps/viewer/topology.css",
-      "find": "  flex: none; display: block; position: relative; z-index: 1;",
-      "replace": "  flex: none; display: block; position: sticky; left: 0; z-index: 1;"
+      "note": "Re-pointed twice by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14): the rails sit in a max-content box with no slack, so putting back `position: sticky; left: 0` on them is a no-op now (the mutation stayed green). Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Pins the drawing's scroller to its left edge, so it cannot be panned sideways.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (carried.left) hscroll.scrollLeft = carried.left;",
+      "replace": "    hscroll.onscroll = function () { if (hscroll.scrollLeft) hscroll.scrollLeft = 0; };\n    if (carried.left) hscroll.scrollLeft = carried.left;"
     }
   ]
 }

@@ -1590,9 +1590,13 @@
   // The Preview sits under the grid, and the divider between them sets how
   // tall it is. It is BELOW its divider, so dragging up (negative dy) makes it
   // taller -- the sign is here, where a test can check it without a pointer.
-  // `room` is the column's height; 0 or absent is "no layout to go on" and
-  // leaves only the floor and the cap.
-  VA.PREVIEW_HEIGHT = { min: 120, max: 2400, keep: 120 };
+  // `room` is the height the Preview and the grid share -- the column less
+  // the banner, the settings bar, the divider and anything else that does not
+  // give way -- and `keep` is the grid's floor within it (topology.css's
+  // `.tv__gridregion` min-height), so a dragged height is one the page can
+  // draw and what is written down is what is shown. 0 or absent is "no
+  // layout to go on" and leaves only the floor and the cap.
+  VA.PREVIEW_HEIGHT = { min: 120, max: 2400, keep: 160 };
 
   VA.clampPreviewHeight = function (px, room) {
     var n = Math.round(Number(px));

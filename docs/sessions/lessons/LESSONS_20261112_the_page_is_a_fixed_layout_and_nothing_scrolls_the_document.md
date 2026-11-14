@@ -29,10 +29,14 @@ nothing scrolls the document").
   and the Preview's height (`#detail-divider`, now a row divider, kind
   `preview`, `tolstack.viewer.previewHeight`, up/down arrows).
 - With no width dragged, the right-hand column is the grid's own width
-  (1146 px at default columns), less on a narrower window: it always leaves the
-  tree and the middle 1060 px (`MIDDLE_KEEPS`, `applyPaneWidth`, re-applied on
-  resize). Without that, 1600 wide left the DAG 98 px beside the 3D pane at
-  its floor — the seam suite measured it and failed 20 checks.
+  (1148 px at default columns), less on a narrower window: it leaves the tree
+  and the middle 1260 px, and never goes under 560 px (`MIDDLE_KEEPS`,
+  `PANE_DEFAULT_MIN`, `applyPaneWidth`, re-applied on resize). Each number was
+  found by a suite: the grid's whole width at 1600 left the DAG 98 px beside
+  the 3D pane at its floor (the seam suite failed 20 checks); 1060 left the
+  pane pinned at its floor with no room to resize at 1920 (the flyout suite);
+  under 560 the kinematic results' chart no longer fits (the kinematic
+  suite). At 3840 and 5120 none of it binds.
 - The 3D pane opens at half of the middle when no width was dragged
   (`flyoutDefaultWidth`); `VA.FLYOUT_WIDTH.max` went 1200 → 2400 so that half
   is reachable at 5120.
@@ -42,10 +46,16 @@ nothing scrolls the document").
   right edge used to all pin to the same pixel — fine with one resizable
   column, a stolen drag with ten (SOURCING took ELEMENT's). Only the first of
   them is pinned now; the rest are not drawn.
-- The Preview keeps its 40 % of the column whatever the grid's length (it was
-  flex-shrinking to 490 px beside v1's long grid), and never takes the grid's
-  last 160 px on a short window. A Preview crop stays at 520 px, the width it
-  had inside the old 560 px pane, so the lightbox is still the big view.
+- The Preview keeps its 40 % of the column whatever the grid's length: the
+  grid's region carries a shrink weight of 1000 to the Preview's 1, so a long
+  grid gives way (and scrolls) first — beside v1's grid the Preview had shrunk
+  to 490 px. Only on a window too short for both does the Preview shrink too,
+  never under 120 px nor into the grid's last 160. A Preview crop stays at
+  520 px, the width it had inside the old 560 px pane, so the lightbox is
+  still the big view.
+- Every divider sits above the 3D pane's dialog (z-index 4 over 3): the
+  click-around found the tree's divider under the dialog's box with the pane
+  open, so the tree could not be resized then.
 
 ## Side by side · 3D · DAG
 
@@ -86,7 +96,11 @@ the right-hand column at its default, both models:
 |---|---|---|---|
 | 3840×2160 | 1201 × 2160 | — (hidden) | 2390 × 2160 |
 | 5120×2160 | 1841 × 2160 | — (hidden) | 3670 × 2160 |
-| 1920×1080 | see the 1920 section | — | see the 1920 section |
+| 1920×1080 | 485 × 1080 (v2), 558 × 1080 (v1) | — (hidden) | 958 × 1080 |
+
+At 1920 the document does not overflow either, in all six cases (both models,
+three views); the grid's column is 660 px there and the grid scrolls sideways
+under its rows (1132 px of table), which is the laptop compromise Jeff named.
 
 The region starts at the window's top-left of the middle (x = 1490 / 2130 side
 by side, 301 in "DAG") and runs to its foot. The map's aspect is the open

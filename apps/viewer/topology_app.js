@@ -3292,9 +3292,19 @@
     return VA.PREVIEW_HEIGHT.min;
   }
 
-  function columnHeight() {
+  // The height the Preview and the grid share: the column less every child
+  // that does not give way to them. The study's summary scrolls itself and
+  // gives way to nothing here, so it counts as what it takes now.
+  function previewRoom() {
     var h = nodes.main && nodes.main.clientHeight;
-    return typeof h === "number" && h > 0 ? h : 0;
+    if (!(typeof h === "number" && h > 0)) return 0;
+    var kids = nodes.main.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i] === nodes.detail || kids[i] === nodes.topogrid) continue;
+      var k = kids[i].offsetHeight;
+      if (typeof k === "number" && k > 0) h -= k;
+    }
+    return Math.max(0, h);
   }
 
   // The remembered nav width onto the nav, fitted to the window it is shown
@@ -3421,7 +3431,7 @@
       return { kind: "pane", width: paneWidthNow() };
     }
     if (spec && spec.kind === "preview") {
-      return { kind: "preview", height: previewHeightNow(), room: columnHeight() };
+      return { kind: "preview", height: previewHeightNow(), room: previewRoom() };
     }
     if (spec && spec.kind === "flyout") {
       return { kind: "flyout", width: flyoutWidthNow() };

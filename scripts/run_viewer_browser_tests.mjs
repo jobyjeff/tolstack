@@ -3616,9 +3616,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const taller = await sizes();
     push("dragging the row divider UP makes the Preview taller, the grid gives up the " +
       "height, nothing overflows, and the height is written down",
-      // The grid gives up what it has spare first: a grid shorter than its
-      // room keeps its height, and only never runs under the Preview.
-      taller.preview > wider.preview + 80 && taller.grid <= wider.grid + 0.5 &&
+      // The grid gives up what it has above its floor (160 px), and no more:
+      // on this short window that is less than the drag asked for, and the
+      // height written down is the one drawn, not the one asked for.
+      taller.preview > wider.preview + 40 && taller.grid <= wider.grid + 0.5 &&
+      taller.grid >= 159 &&
       taller.gridBottom <= taller.previewTop + 1 &&
       taller.overflow <= 0 && Number(taller.storedPreview) === Math.round(taller.preview));
     push("every row keeps its bar beside the moved seams",

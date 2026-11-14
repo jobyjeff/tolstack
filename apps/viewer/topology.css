@@ -668,11 +668,11 @@ body { display: flex; flex-direction: column; }
   background: var(--panel); border-bottom: 1px solid var(--line);
   pointer-events: auto;
 }
-/* The box holding the head, the rails and the grid (views/topology.js). It is
-   never scaled: the DAG's zoom is drawn inside the rails SVG, and the grid and
-   its header stay at the page's own pixels (2026-10-29), so the rails and the
-   jog grip stay plain `position: sticky` at every zoom. The sizer keeps the
-   space a study arrival puts before the drawing. */
+/* The box holding the drawing, inside the DAG's own scroller
+   (views/topology.js). It is never scaled: the DAG's zoom is drawn inside the
+   rails SVG (2026-10-29), and since the fixed shell (2026-11-14) the grid and
+   its header are in a region of their own, at the page's own pixels. The
+   sizer keeps the space a study arrival puts before the drawing. */
 .tv__zoomsizer { position: relative; }
 .tv__zoom { position: relative; width: max-content; }
 .tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
@@ -683,21 +683,16 @@ body { display: flex; flex-direction: column; }
    Jeff's 2026-11-05 note, "Clicking and dragging the dag horizontally causes
    the grid view to move horizontally, it can even move behind the dag
    canvas". A sticky box cannot be panned, so a sideways drag on the DAG moved
-   only the grid, under it. Now the drawing, its leaders and the grid are one
-   strip with one horizontal scroll: a drag on the DAG moves all three, a
-   leader never loses its row, and nothing sits behind anything. The grid
-   fits beside the DAG at the widths it is read at, so there is usually
-   nothing to scroll. */
+   only the grid, under it. Since the fixed shell (2026-11-14) the grid is not
+   in this scroller at all: the drawing pans sideways in the DAG's region and
+   the grid in its own, so neither can sit behind the other. */
 .tv__rails {
   flex: none; display: block; position: relative; z-index: 1;
   background: var(--bg);
 }
-/* Sized to the table it holds, not to the flex line: under `.tv__body`'s
-   `max-content` there is no free space to grow into when the grid is wider
-   than the pane, so the table stops overflowing THIS box and widens the
-   sticky's containing block instead. `flex: 1 1 auto` still fills the line on
-   a topology narrower than the pane, which is what `min-width: 100%` above
-   leaves over. */
+/* The grid's rows, under the header in the grid's own scroller (the fixed
+   shell, 2026-11-14); `max-content` above sizes it to the table it holds, so
+   a grid wider than its region scrolls sideways rather than clipping. */
 .tv__rows { flex: 1 1 auto; min-width: 0; }
 
 /* The respine's outgoing frame (viewer_study_respine_animation): the previous
