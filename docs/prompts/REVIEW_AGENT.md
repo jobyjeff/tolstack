@@ -5687,6 +5687,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       unfoldable. For any alias, read-through or re-keying of feature-identity
       records, walk **every** answer path (accept, reject, take, armed click)
       and fold its JS-built events through the Python loader.
+      **Second sighting, 2026-11-13** (`a_feature_is_bound_once_to_a_set_of_faces`):
+      a key-SHAPE migration (v0 edge end → v1 feature) converted the sweep's
+      writers and left bind mode's two behind — `buildBindForm` still writes
+      v0 with `supersedes` naming a feature-keyed binding (Python refuses the
+      log), and the bind bar's Flip writes a same-feature no-op. For a shape
+      migration, list **every** call site of `buildBoundEvent` /
+      `buildCorrectionEvent` / `buildAcceptEvent` / `buildRetractEvent` in
+      `app.js`, bind mode included, and fold each one's event after a v1
+      binding exists on that feature. The JS fold never refuses, so the page
+      looks fine while the rebuild fails.
 - [ ] **A writer numbering a new event off a snapshot, not off the log.**
       (2026-11-08, `the_bindings_projection_folds_the_events_jeff_accepted`.)
       `AA.nextEventSeq` read only the loaded projection plus the session, so

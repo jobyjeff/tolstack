@@ -1,0 +1,152 @@
+---
+type: review
+handoff: docs/sessions/active/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
+reviewer: agent
+date: 2026-11-13
+verdict: REQUEST CHANGES
+blockers: 1
+---
+
+# Review — a_feature_is_bound_once_to_a_set_of_faces (round 1)
+
+Branch reviewed: `handoff/a_feature_is_bound_once_to_a_set_of_faces` at
+`57bc82a8` (8 commits over `integration` `46415114`). Integration had not
+moved since the branch was cut, so the merge into `review/…` was clean. It
+was **not** landed. After the subset I reset the review branch to
+`integration`, so this branch carries only this report, one issue and the
+overlay entry.
+
+## Blocker
+
+**B1. Bind mode still writes edge-end (v0) events, and one correction there
+makes the log unfoldable.** Location: `apps/annotate/app.js`,
+`buildBindForm` (the `btn.onclick` that calls `AA.buildBoundEvent` with
+`stackKey`/`direction`/`supersedes: bind.target.event_id`) and
+`buildBindingsBlock`'s **Flip direction** button (the `flip.onclick` that
+calls `AA.buildCorrectionEvent(row.event, { direction: other })`).
+
+Bind mode is live: a goto out of sweep lands there (`leaveSweepForBind`).
+Its `bind.record` comes through `mergedIdentityProjection` → `VA.endView`,
+and `atEnd` stamps `feature_key` on every binding it hands out. Three
+consequences:
+
+1. **Replace the binding.** The form writes a **v0** `bound` whose
+   `supersedes` names the target. The target is a v1 binding, or a v0 one on
+   another edge read through to the same feature. Either way
+   `feature_identity._same_thing` refuses it. Measured with a two-event log
+   (v1 bound on `pitch_link@pitch_link_upper_sphere_centre`, then a v0
+   correction of `pitch_link_length` `to` superseding it):
+   `build_projection` raises `event 'n2' supersedes 'n1', which is on a
+   different stack key`. `VA.foldIdentityEvents` never refuses, so the page
+   carries on. Meanwhile `build_feature_identity_projection.py` (step 5 of
+   `rebuild_projections.ps1`), `fit_bound_features.py` and
+   `propose_bindings.py` all stop on the real log. This is the 2026-11-08
+   class in the overlay ("A record read under one stack key and answered
+   under another"), and it is the same shape: one click, append-only log.
+2. **Flip direction** is now always a no-op. With a feature-keyed `earlier`,
+   `buildCorrectionEvent` takes its v1 branch. It keeps
+   `earlier.feature_key` and drops `direction`, so it writes a `bound` on the
+   **same** feature with the same faces, superseding itself. The toast
+   still says "Moved the face to …". Probed in node through
+   `binding_state.js`: the result is `{feature_key: <same>, geometry_keys:
+   [face 140], supersedes: "n1"}`, with no direction and no other feature. `cmdFlip` was
+   converted to two events (bind there, retract here); this second flip site
+   was not ("a fix applied at one of N sites").
+3. **A plain bind-mode bind** on a feature that already has a v1 binding
+   writes a v0 event. The fold puts it straight into `replaced`, so the
+   click silently does nothing. That matters immediately: the first thing
+   Jeff is asked to do is press **Keep** on the hub boss, which writes v1.
+
+The handoff's deliverable 1 says every reader asks for a feature's binding.
+The lesson says "Keep, Correct and Remove all write v1", and
+`binding_state.js`'s own comment says v0 is written "for an
+owner_not_in_set finding alone". Bind mode contradicts all three.
+
+**Fix (author's):** make bind mode's form and Flip write feature-keyed events,
+the way `cmdFlip` / `bindArmedFaces` do (or retire those controls). Add a
+test that builds each bind-mode event against a record carrying a v1 binding
+and folds it through the Python loader. `tests/test_identity_fold_is_paired.py`
+is the natural home, and a witness belongs with it.
+
+## Should-fix (for the rework, all in scope)
+
+- **S1. Lesson: "it is the rebuild rail's job after the merge" (fits.json).**
+  `scripts/rebuild_projections.ps1` does not run `fit_bound_features.py`; no
+  rail rebuilds `fits.json`. Say who runs the fit after the batch merge, or
+  correct the sentence.
+- **S2. The lesson's "Exploratory click-around: partial"** did not reach bind
+  mode. B1 is exactly what a click there would have shown. The round-2
+  click-around should include a goto out of sweep, a bind, a replace and a
+  Flip on a feature with a v1 binding.
+
+## Filed (non-blocking)
+
+- `docs/issues/ISSUE_20261113_design_a_disagreements_keep_rows_name_each_face_by_its_number_alone.md`
+  (`priority: med`, `area: design`). The Keep rows say `face 3460` /
+  `face 144` with no shape or size, and that is the choice Jeff is asked to
+  make.
+- Not filed yet, for round 2: an issue with `needs: jeff` asking him to press
+  Keep on the hub boss. It only becomes actionable once this lands, and the
+  Keep path should be re-checked after the B1 rework first.
+
+## What I verified
+
+- **The fold, on the real log, from the merged tree** (scratch data root
+  `data/scratch/rv_fbo`, the real inbox copied, nothing written to it). The
+  builder printed `9 feature(s) bound, 0 holding a set, 1 disagreement(s),
+  0 orphan(s); 78 old event(s) read through`, the lesson's line exactly. The
+  15-binding table is consistent with it: 4 repeats, 11 distinct bindings
+  over 10 features, one of them the hub boss disagreement.
+- **The disagreement is real.** 3460 is r 47.5 and 144 is r 107.95; the radius
+  rule refuses at a 5e-5 fraction. Naming it for Jeff rather than choosing
+  is what the handoff asked for.
+- **The shared-surface thresholds** (`SAME_SURFACE_TOLERANCES`) each carry a
+  measured basis. They are tested at 0.9×/1.1× of each limit and against the
+  named real near-misses (111.997/112.013, the 5.5 bolt circle). They are
+  paired to `AA.SAME_SURFACE` by value. `face_geometry.js`'s `sameSurface`
+  matches Python statement for statement. The one divergence is a
+  `radius > 0` guard Python lacks, which is harmless.
+- **The three collision outcomes, Keep, unbind, remove-a-face, the cross-shape
+  accept and the "accept must bind the proposed face" refusal** are pinned in
+  `tests/test_feature_bound_once.py`. Both fit-through-a-set fixtures (two
+  coaxial 120° seats; three coplanar feet) are built by hand.
+- **The proposer and the fitter key on features.** `fits.json` stays `/v0`,
+  and every field linkage reads keeps its place.
+- **Schema window:** none of the tactical's v1 writes went to the real inbox,
+  and every v1 writer is in this diff. Trunk's fold would refuse v1, but
+  nothing on trunk writes it, so there is no window to file.
+- **New vocabularies** (`FEATURE_OUTCOMES`, `FEATURE_STATES`, `ORPHAN_REASONS`)
+  have registry rows and are in `vocab.gen.js`.
+- **The tactical full-suite record** is present: worktree, single-process,
+  4 failed / 1973 passed / 1 skipped, two of the failures since fixed and two
+  explained. The benefit of the doubt holds.
+- The tolerance-stack mandatory checks (1–7) **do not apply**: no stack
+  element, band or `source_ref` changed.
+
+### Pre-merge risky subset (named)
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+over `test_feature_bound_once`, `test_identity_fold_is_paired`,
+`test_fit_bound_features`, `test_propose_bindings`, `test_model_view`,
+`test_feature_identity`, `test_feature_geometry`, `test_topology`,
+`test_topology_projection`, `test_contact_suggestions`,
+`test_architecture_inventory`, `test_js_vocabulary_is_generated`,
+`test_js_python_vocabulary`, `test_mutation_witnesses`,
+`test_part_mesh_aliases`, `test_annotate_js_suite` and `test_claims_registry`,
+run on the merged review tree. Result: **593 passed, 1 skipped** in 299 s.
+The skip is `test_fit_bound_features.py`'s uninstalled re-extraction. Green
+is the point: no tier sees B1.
+
+### Not run (REQUEST CHANGES, so no merge)
+
+The post-merge full suite, the whole browser tier and the witness
+`--changed-since` gate are owed by the round that lands this.
+
+## For the round-2 reviewer
+
+- The scratch root recipe worked: copy inbox, meshes and the non-viewer
+  projections, copy `docs/`, junction `venv-win` and `node_modules`, then run
+  the builders from the review worktree with `--data-root`. The feature
+  identity step prints the summary line.
+- Re-run the B1 probe: fold a v1 binding plus each bind-mode event through
+  the Python `build_projection`.
