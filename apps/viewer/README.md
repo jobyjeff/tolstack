@@ -1377,9 +1377,9 @@ three are on screen.
 
 **No leader runs to the grid any more**: it is in its own region, so a leader
 ending at the drawing's right edge would point at a row that is somewhere
-else. The Leaders control governs the leaders across the seam to the 3D scene,
-and is disabled, saying why on hover (`VA.LEADERS_UNAVAILABLE`), whenever the
-pane is closed or not side by side. A selection anywhere scrolls its grid row
+else. The Leaders control governs the leaders across the seam to the 3D scene
+(off or on); it can be set at any time, and whenever the pane is closed or not
+side by side its hover says it draws only then (`VA.LEADERS_UNAVAILABLE`). A selection anywhere scrolls its grid row
 into view in the grid's region and its mark into view in the DAG's, each by its
 own scroller (`scrollSelectionIntoView`).
 

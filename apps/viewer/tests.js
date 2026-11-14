@@ -6088,11 +6088,12 @@
           })[0];
         };
         var leaders = leaderOf(open);
-        ok(leaders.disabled, "nothing to draw, nothing to click");
-        eq(leaders.getAttribute("title"), VA.LEADERS_UNAVAILABLE);
+        eq(leaders.getAttribute("title"), VA.LEADERS_UNAVAILABLE,
+          "nothing to draw: the hover says when it draws");
         var drawable = leaderOf(bar({ paneOpen: true, onPaneView: function () {},
           leadersDrawable: true, onLeaderStyle: function () {} }));
-        ok(!drawable.disabled, "side by side, the leaders cycle");
+        eq(drawable.getAttribute("title"), VA.LEADER_STYLES.angled.title,
+          "side by side, the hover says what the style draws");
       });
 
     // --- the nav's width (a_face_is_picked_the_way_cad_picks_it) ------------
@@ -11705,10 +11706,11 @@
         })[0];
         ok(toggle, "expected #leader-style-toggle on the toolbar");
         has(toggle.textContent, "Leaders: " + VA.LEADER_STYLES.off.label);
-        // All three are reachable from any one, in one cycle.
+        // Off and on (the fixed shell, 2026-11-14: a leader runs to the 3D
+        // scene only, and that overlay has one look).
+        eq(Object.keys(VA.LEADER_STYLES).sort(), ["angled", "off"]);
         eq(VA.LEADER_STYLES.off.next, "angled");
-        eq(VA.LEADER_STYLES.angled.next, "jogged");
-        eq(VA.LEADER_STYLES.jogged.next, "off");
+        eq(VA.LEADER_STYLES.angled.next, "off");
       });
 
     await test("leaders off: the geometry builds no leader and moves nothing else -- the " +

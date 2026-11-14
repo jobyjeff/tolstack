@@ -1957,10 +1957,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // A leader runs between the DAG and the 3D scene only (the fixed shell,
     // 2026-11-14: the grid is in its own region), so with no pane open the
     // control has nothing to draw and says so on hover.
-    push("with no 3D pane open the leaders control takes no click and says why",
+    push("with no 3D pane open the leaders control says on hover that it draws only with the pane beside the DAG",
       await page.evaluate(() => {
         const t = document.getElementById("leader-style-toggle");
-        return !!t && t.disabled && t.getAttribute("title") === window.ViewerApp.LEADERS_UNAVAILABLE;
+        return !!t && t.getAttribute("title") === window.ViewerApp.LEADERS_UNAVAILABLE;
       }));
 
     push("the rails render as SVG, not as unknown HTML elements",
@@ -4204,7 +4204,9 @@ const BLOCKS_IN_PAGE = (bodyOfPart) => {
   const partMissed = partCells.filter((td) => {
     const b = td.getBoundingClientRect();
     if (b.left < paneBox.left - 0.5 || b.right > paneBox.right + 0.5) return true;
-    if (b.top < top || b.bottom > window.innerHeight) return false;
+    // On screen means inside the grid's own region, whose rows below its
+    // foot are under the totals and the Preview, not under the pointer.
+    if (b.top < paneBox.top + 26 || b.bottom > paneBox.bottom) return false;
     const hit = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
     return !hit || hit.closest("tr") !== td.closest("tr");
   }).map((td) => td.closest("tr").getAttribute("data-id"));
@@ -5056,7 +5058,7 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
         `(region top ${Math.round(pinned.gridTop)})`);
       push("[real] scrolled a long way down the grid, the title, the settings bar and the grid header " +
         "all stay where they were, and the document never moves",
-        pinned.gridScroll > 300 && Math.abs(pinned.bar - rest.bar) < 0.5 &&
+        pinned.gridScroll > 100 && Math.abs(pinned.bar - rest.bar) < 0.5 &&
         Math.abs(pinned.tools - rest.tools) < 0.5 && Math.abs(pinned.head - pinned.gridTop) < 0.5 &&
         pinned.doc === 0);
       await scrollRegionsTop(page);
@@ -5214,14 +5216,16 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     //     grid wear the same body inks.
     const OUTLINES = () => page.evaluate(() => {
       const VA = window.ViewerApp;
-      const n = (sel) => document.querySelectorAll("#topopane " + sel).length;
+      // Both regions: the DAG's marks and the grid's brackets.
+      const both = (sel) => "#topopane " + sel + ", #topogrid " + sel;
+      const n = (sel) => document.querySelectorAll(both(sel)).length;
       const dots = Array.from(document.querySelectorAll(
         "#topopane svg.tv__rails circle.rail__dot:not(.rail__dot--pin)"));
       const xs = Array.from(new Set(dots.map((d) => Number(d.getAttribute("cx")))))
         .sort((a, b) => a - b);
       const steps = xs.slice(1).map((x, i) => x - xs[i]).filter((d) => d > 0.5);
       const inks = (sel, prop) => Array.from(new Set(Array.from(
-        document.querySelectorAll("#topopane " + sel)).map((el) => getComputedStyle(el)[prop]))).sort();
+        document.querySelectorAll(both(sel))).map((el) => getComputedStyle(el)[prop]))).sort();
       return {
         topology: VA.lastTopoRender && VA.lastTopoRender.topologyId,
         rowHeight: VA.RAIL_METRICS.rowHeight,

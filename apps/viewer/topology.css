@@ -1463,10 +1463,11 @@ body.tv-resizing-row { cursor: row-resize; }
   position: static; max-height: none; overflow-y: auto;
 }
 /* A crop in the Preview stays at the width the pane had beside the grid
-   (560px), where it was judged legible: under the grid the pane is the whole
+   (560px, the image 520px inside its padding), where it was judged legible:
+   under the grid the pane is the whole
    column, and a crop that wide is taller than the Preview -- the lightbox is
    where a crop goes full size. */
-.tv .detail .cropfig { max-width: 560px; }
+.tv .detail .cropfig { max-width: 520px; }
 /* A chip longer than the pane wraps inside its pill rather than clipping: the
    pane is narrow beside an open scene (body.flyout-open, below), and
    "DERIVED — the quantity a study computes" outran it. */

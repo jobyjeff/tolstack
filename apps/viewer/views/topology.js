@@ -113,18 +113,15 @@
     var leaderPreset = VA.LEADER_STYLES[state.leaderStyle] ||
       VA.LEADER_STYLES[VA.DEFAULT_LEADER_STYLE];
     // Since 2026-11-14 a leader runs between the DAG and the 3D scene only
-    // (the grid is in a region of its own), so the control can draw nothing
-    // unless both are on screen: it says so on hover and takes no click.
+    // (the grid is in a region of its own), so the control draws nothing
+    // unless both are on screen. It stays a preference a reader can set
+    // before opening the pane, and its hover says when it draws.
     var leaderStyle = VA.el("button", "ghost tvpick__mode",
       "Leaders: " + leaderPreset.label);
     leaderStyle.setAttribute("id", "leader-style-toggle");
-    if (handlers.leadersDrawable === false) {
-      leaderStyle.disabled = true;
-      leaderStyle.setAttribute("title", VA.LEADERS_UNAVAILABLE);
-    } else {
-      leaderStyle.setAttribute("title", leaderPreset.title);
-      leaderStyle.onclick = handlers.onLeaderStyle;
-    }
+    leaderStyle.setAttribute("title", handlers.leadersDrawable === false
+      ? VA.LEADERS_UNAVAILABLE : leaderPreset.title);
+    leaderStyle.onclick = handlers.onLeaderStyle;
     root.appendChild(leaderStyle);
 
     // Which of the 3D pane and the DAG the middle shows (VA.PANE_VIEWS), only
@@ -1482,10 +1479,11 @@
     // A chain row prints its weight and its signed band, and a stack's total
     // its fold and its RSS (`±2.355 deg · RSS ±1.034`). The longest is a
     // kinematic term's `+ 1.953125 × -0.029297 … 0.029297 deg`, 264px -- so
-    // the column starts narrow (Jeff, 2026-11-09: "The Contribution column is
-    // still way too wide") and a reader who wants the whole string drags it
-    // wider; a clipped cell keeps its words on hover where it has a title.
-    { cls: "contribution", label: "contribution", width: 150, resizable: true },
+    // the column starts at the widest TOTAL (`±2.355 deg · RSS ±1.034`,
+    // 168px, measured 2026-11-14) rather than the widest term (Jeff,
+    // 2026-11-09: "The Contribution column is still way too wide"), and a
+    // reader who wants a long term whole drags it wider.
+    { cls: "contribution", label: "contribution", width: 172, resizable: true },
     // One mark, no words (VA.rowSourcingMark); its header is the mark too.
     { cls: "sourcing", label: "", title: "sourcing", width: 30, resizable: true },
   ];

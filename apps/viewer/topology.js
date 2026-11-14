@@ -1401,17 +1401,16 @@
       title: "No leader lines. What is selected or hovered lights on every " +
         "surface instead: the tree, the diagram, the grid and the 3D scene.",
     },
-    jogged: {
-      label: "jogged",
-      next: "off",
-      title: "Leader lines run in right angles (GD&T ordinate style): out " +
-        "from the interface, down a lane of their own, then into the grid.",
-    },
+    // ON, since the fixed shell (2026-11-14): a leader runs from the DAG to
+    // the 3D scene only -- the grid has its own region -- and that overlay has
+    // one look, so the two drawn styles of the DAG-to-grid leaders ("angled",
+    // "jogged") became one state of the control. The key stays "angled", the
+    // style the geometry draws.
     angled: {
-      label: "angled",
-      next: "jogged",
-      title: "Leader lines run out of the diagram, then straight to their " +
-        "seam in the grid. Same two ends, fewer corners to lose.",
+      label: "on",
+      next: "off",
+      title: "Leader lines run from each lit interface in the diagram to its " +
+        "point in the 3D scene beside it.",
     },
   };
 
