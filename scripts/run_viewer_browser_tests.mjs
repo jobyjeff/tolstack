@@ -8503,6 +8503,10 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
     const btn = row.locator("[data-nav-3d]");
     if (await btn.count() !== 1) return false;
     await btn.click();
+    // Off the tree: a part row that slides under a resting pointer is a hover,
+    // and the scene ghosts a hovered part (the tree re-lays when the pane
+    // opens, so which row that is depends on the shell).
+    await page.mouse.move(5, 5);
     return true;
   };
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
