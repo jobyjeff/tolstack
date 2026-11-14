@@ -87,6 +87,8 @@ on the page, and never written as a citation.
 | post-merge | `node apps/viewer/run_tests.cjs` / `node apps/annotate/run_tests.cjs` | review worktree | 568/568 (node-fs tier skipped, no projection) / 314/314 |
 | post-merge | `node apps/viewer/run_tests.cjs --repo <scratch root>` | review worktree | **691/691**, `[real]` armed |
 | post-merge full | `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q` | review worktree | 1 failed, 1944 passed, 1 skipped, 2 deselected, 461 s. Recorded in the ledger, inside budget |
+| merge tier | `node scripts/run_viewer_browser_tests.mjs --repo <scratch root>` (whole tier) | review worktree | **44/44 suites, 1141 checks**, 1795 s. Self-recorded, inside the 1800 s budget by 5 s: the next suite added will likely tip it |
+| merge tier | `node scripts/run_mutation_witness_tests.mjs --repo <scratch root> --changed-since integration` | review worktree | **13/13 witnessed**, 13/13 reached, 0 left to the sweep, 848 s. Ledger: inside budget |
 
 The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
 the documented worktree red (no `data/projections/` in a worktree). The same tier
