@@ -885,7 +885,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent],
         target = seen_ids.get(event.supersedes)
         if target is None:
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not in the log")
-        if target.subject != event.subject:
+        if not _same_thing(event, target, projection.read_through):
             raise ValueError(
                 f"event {event.event_id!r} supersedes {event.supersedes!r}, which is on a different stack key"
             )
@@ -894,7 +894,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent],
         if position[target.event_id] >= position[event.event_id]:
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not earlier")
         hidden[restated.get(target.event_id, target.event_id)] = event.event_id
-    retracted = _retracted_bindings(events, seen_ids, position, restated, hidden)
+    retracted = _retracted_bindings(events, seen_ids, position, restated, hidden, projection.read_through)
     for event in events:
         key = event.subject
         records = projection.by_feature_subject if event.feature_key is not None else projection.by_stack_key
@@ -1114,11 +1114,23 @@ def _fold_features(projection: FeatureIdentityProjection,
     projection.same_surface = sorted(shared)
 
 
+def _same_thing(event: FeatureIdentityEvent, target: FeatureIdentityEvent,
+                read: Dict[str, Optional[FeatureKey]]) -> bool:
+    """Is ``target`` about what ``event`` is about? The same subject; or --
+    a feature's correction or unbind of an old edge-end binding, the one
+    cross-shape pointer -- the feature that binding reads through to."""
+    if target.subject == event.subject:
+        return True
+    return (event.feature_key is not None and target.feature_key is None
+            and read.get(target.event_id) == event.feature_key)
+
+
 def _retracted_bindings(events: List[FeatureIdentityEvent],
                         seen_ids: Dict[str, FeatureIdentityEvent],
                         position: Dict[str, int],
                         restated: Dict[str, str],
-                        hidden: Dict[str, str]) -> Dict[str, str]:
+                        hidden: Dict[str, str],
+                        read: Optional[Dict[str, Optional[FeatureKey]]] = None) -> Dict[str, str]:
     """``{binding id: the retracted event that took it back}``.
 
     Only a standing binding can be taken back: a ``retracts`` naming an id
@@ -1129,6 +1141,7 @@ def _retracted_bindings(events: List[FeatureIdentityEvent],
     afterwards either: a later pick binds afresh, so a ``supersedes`` naming a
     retracted binding is refused the same way.
     """
+    read = read or {}
     out: Dict[str, str] = {}
     for event in events:
         if event.verdict != "retracted":
@@ -1137,7 +1150,7 @@ def _retracted_bindings(events: List[FeatureIdentityEvent],
         what = f"event {event.event_id!r} retracts {event.retracts!r}"
         if target is None:
             raise ValueError(f"{what}, which is not in the log")
-        if target.subject != event.subject:
+        if not _same_thing(event, target, read):
             raise ValueError(f"{what}, which is on a different stack key")
         if target.verdict != "bound":
             raise ValueError(f"{what}, which is not a bound event")

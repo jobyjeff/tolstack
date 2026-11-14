@@ -66,6 +66,7 @@ import fit_bound_features as fbf  # noqa: E402
 import projection_provenance as prov  # noqa: E402
 
 from tolerance_stack import feature_geometry as fg  # noqa: E402
+from tolerance_stack import feature_identity as fi  # noqa: E402
 from tolerance_stack import interface_contact as ic  # noqa: E402
 from tolerance_stack.topology import load_topology  # noqa: E402
 
@@ -160,16 +161,26 @@ class Store:
         return candidate_occurrences(sha, self.own, self.every, product)
 
 
-def _end(topology, edge, node_id: str, store: Store) -> Dict[str, Any]:
+def _end(topology, edge, node_id: str, store: Store,
+         models: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One end: its node, part and mesh, and the surface class it asks for --
     ``feature_geometry.end_surface_class`` called exactly as
     ``scripts/propose_bindings.py`` calls it, so a candidate's face on this end
-    is never one that script would refuse for its shape."""
+    is never one that script would refuse for its shape.
+
+    ``feature`` is the feature the end IS, keyed as a binding is
+    (``feature_identity.edge_end_feature``, handoff a_feature_is_bound_once_
+    to_a_set_of_faces): a reader asks a feature's suggestions by it."""
     node = next(n for n in topology.nodes if n.id == node_id)
     part = node.face_part if node.parts else None
     mesh = store.resolve(part)
     rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface)
+    direction = "from" if node_id == edge.from_node else "to"
+    feature, _reason = fi.edge_end_feature(models or {topology.id: topology},
+                                           fi.StackKey(kind="topology_edge", topology_id=topology.id,
+                                                       edge_id=edge.id), direction)
     row: Dict[str, Any] = {"node": node_id, "part": part, "mesh": None,
+                           "feature": feature.as_dict() if feature else None,
                            "asks": rule["surface"] if rule else None}
     if mesh:
         provenance = store.provenance.get(mesh["sha256"], {})
@@ -209,9 +220,10 @@ def _candidate_row(candidate: Dict[str, Any], sha_from: str, sha_to: str,
     }
 
 
-def edge_row(topology, edge, store: Store) -> Dict[str, Any]:
+def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One gap edge's row: its two ends, and its candidates or its reason."""
-    ends = [_end(topology, edge, edge.from_node, store), _end(topology, edge, edge.to_node, store)]
+    ends = [_end(topology, edge, edge.from_node, store, models),
+            _end(topology, edge, edge.to_node, store, models)]
     pairing, accepts, basis = ic.end_pairing(ends[0]["asks"], ends[1]["asks"], edge.interface)
     axes = edge.interface in ic.AXIS_INTERFACES and pairing == "cylinder_in_cylinder"
     row: Dict[str, Any] = {
@@ -284,13 +296,16 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
         print(line, file=sys.stderr)
 
     store = Store(meshes_dir, topologies_dir)
-    topologies = []
+    models = {}
     for path in sorted(Path(topologies_dir).glob("topology_*.json")):
         topology = load_topology(path, repo_root=REPO_ROOT)
+        models[topology.id] = topology
+    topologies = []
+    for topology in models.values():
         topologies.append({
             "id": topology.id,
             "title": topology.title,
-            "edges": [edge_row(topology, edge, store) for edge in gap_edges(topology)],
+            "edges": [edge_row(topology, edge, store, models) for edge in gap_edges(topology)],
         })
 
     rows = [e for t in topologies for e in t["edges"]]

@@ -500,6 +500,18 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("viewer", "PROPOSAL_CONFIDENCES",
                "tolerance_stack/feature_identity.py: PROPOSAL_CONFIDENCES",
                _const(_feature_identity_module, "PROPOSAL_CONFIDENCES")),
+    # The feature fold (apps/viewer/identity_fold.js mirrors build_projection's
+    # feature records): what several faces on one feature come to, and the
+    # state a feature record carries -- "disagreement" reads as a suggestion.
+    Vocabulary("viewer", "FEATURE_OUTCOMES",
+               "tolerance_stack/feature_identity.py: FEATURE_OUTCOMES",
+               _const(_feature_identity_module, "FEATURE_OUTCOMES")),
+    Vocabulary("viewer", "FEATURE_STATES",
+               "tolerance_stack/feature_identity.py: FEATURE_STATES",
+               _const(_feature_identity_module, "FEATURE_STATES")),
+    Vocabulary("viewer", "ORPHAN_REASONS",
+               "tolerance_stack/feature_identity.py: ORPHAN_REASONS",
+               _const(_feature_identity_module, "ORPHAN_REASONS")),
     Vocabulary("viewer", "EXPORT_STATUSES",
                "tolerance_stack/stack.py: EXPORT_STATUSES",
                _const(_stack_module, "EXPORT_STATUSES")),

@@ -165,6 +165,14 @@ const state = {
   // for the narrowing can live on a part that is not open in the 3D view at
   // all, and reading a mesh's buffers does not require rendering it.
   faceClasses: {},
+  // Per mesh, the buffers a face's siblings are found with (AA.facesTouch):
+  // {positions, ranges}, kept beside the classes they were classified from.
+  faceBuffers: {},
+  // The log's own events, as last read (the served copy or the inbox), and
+  // the served log's `same_surface` -- what the feature fold is folded from
+  // (handoff a_feature_is_bound_once_to_a_set_of_faces).
+  identityEvents: null,
+  sameSurface: [],
   // The last plan AA.planFaceSuggestions returned, so the top bar can say what
   // it narrowed and how far without re-running it.
   suggestionPlan: null,
@@ -1176,10 +1184,37 @@ async function ensureFaceClasses(sha256) {
     state.storage.readMeshBuffer(sha256, manifest.face_ids_file),
   ]);
   if (!posBuf || !idxBuf || !fidBuf) return null;
+  const positions = new Float32Array(posBuf);
   state.faceClasses[sha256] = AA.classifyPartFaces(
-    manifest.faces, new Float32Array(posBuf), new Uint32Array(idxBuf),
+    manifest.faces, positions, new Uint32Array(idxBuf),
     new Uint32Array(fidBuf));
+  state.faceBuffers[sha256] = { positions, ranges: AA.faceVertexRanges(manifest.faces) };
   return state.faceClasses[sha256];
+}
+
+// The faces that go with a picked one (AA.surfaceSiblings, handoff a_feature_
+// is_bound_once_to_a_set_of_faces): `swept` -- the same surface, joined to it
+// (a cylinder the STEP split), always taken; `offered` -- the same surface,
+// not joined (two seats of one bore, coplanar feet), taken on the human's
+// word. Ids only; nothing when the part's classes cannot be read.
+async function surfaceSiblingsOf(sha256, faceId) {
+  const classes = await ensureFaceClasses(sha256).catch(() => null);
+  const buffers = state.faceBuffers[sha256];
+  if (!classes || !buffers) return { swept: [], offered: [] };
+  return AA.surfaceSiblings(classes, faceId,
+    (a, b) => AA.facesTouch(buffers.positions, buffers.ranges, a, b));
+}
+
+// One face of an open part, as an event's geometry key.
+function faceGeometryKey(sha256, faceId) {
+  const record = state.scene.faceRecord(sha256, faceId);
+  if (!record) throw new Error("face " + faceId + " is not on an open part");
+  return AA.geometryKeyOfPick({ sha256, faceId, record });
+}
+
+// The feature an end of `edgeId` IS, on `topology` (VA.endFeatureKey).
+function endFeature(topology, edgeId, direction) {
+  return window.ViewerApp.endFeatureKey(topology, edgeId, direction);
 }
 
 // Every mesh a suggestion for `edge` could need read: the element's own part,
@@ -3064,7 +3099,10 @@ async function cmdUnbind(edgeId, direction, topologyId) {
   if (state.armed) disarmPick("cancel");
   const seq = await nextEventSeq();
   const base = "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-unbind";
-  const events = t.standing.map((b, i) => AA.buildRetractEvent(b, { eventId: base + (i ? "-" + i : ""),
+  // An end reads its feature's binding once per face it holds: one
+  // retraction per standing EVENT.
+  const standing = t.standing.filter((b, i, all) => all.findIndex((x) => x.event_id === b.event_id) === i);
+  const events = standing.map((b, i) => AA.buildRetractEvent(b, { eventId: base + (i ? "-" + i : ""),
     seq: seq + i, createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) }));
   const toast = AA.BODY_VERB_WORDS.unbound.replace("{end}", t.names[direction] || direction);
   for (const event of events) {
@@ -3072,7 +3110,67 @@ async function cmdUnbind(edgeId, direction, topologyId) {
   }
   showToast(toast);
   renderSweepRail();
-  return { retracted: t.standing.map((b) => b.event_id), events: events.map((e) => e.event_id) };
+  return { retracted: standing.map((b) => b.event_id), events: events.map((e) => e.event_id) };
+}
+
+// The feature an end names, its record, and the face a body verb names on it.
+function featureTarget(verb, edgeId, direction, topologyId, sha256, faceText) {
+  const t = bodyTarget(verb, edgeId, direction, topologyId);
+  const key = endFeature(t.topology, t.edge.id, direction);
+  const record = key ? window.ViewerApp.featureRecordOf(sessionIdentityProjection(), key) : null;
+  if (!record) throw new Error("nothing is recorded for the feature at " + (t.names[direction] || direction));
+  const faceId = parseInt(faceText, 10);
+  if (!sha256 || !isFinite(faceId)) throw new Error(verb + " needs <edge> <end> <topology> <mesh> <face id>");
+  return Object.assign(t, { key, record, sha256, faceId });
+}
+
+// keep <edge> <from|to> <topology> <sha256> <face> -- settle a feature whose
+// faces disagree: the disagreement group holding that face is the feature's
+// binding, written as one feature-keyed event; every face read through to it
+// before stays in history, replaced.
+async function cmdKeep(edgeId, direction, topologyId, sha256, faceText) {
+  const t = featureTarget("keep", edgeId, direction, topologyId, sha256, faceText);
+  const group = (t.record.disagreement || []).find((g) => g.faces.some(
+    (f) => f.source_step_sha256 === t.sha256 && f.face_id === t.faceId));
+  if (!group) throw new Error("face " + t.faceId + " is not one of the faces that disagree here");
+  if (state.armed) disarmPick("cancel");
+  const seq = await nextEventSeq();
+  const event = AA.buildBoundEvent({
+    eventId: "annotate-" + Date.now() + "-" + slugify(t.key.node) + "-keep", seq, createdAt: nowIso(),
+    recordedBy: AA.humanActor(AA.CONFIG.reviewer), featureKey: t.key,
+    geometryKeys: group.faces.map((f) => ({ sourceStepSha256: f.source_step_sha256, faceId: f.face_id,
+      areaNative2: f.area_native2, centroidNative: f.centroid_native })),
+  });
+  const toast = AA.BODY_VERB_WORDS.kept.replace("{face}", String(t.faceId));
+  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.key.node) + "_kept"), event, toast);
+  showToast(toast);
+  renderSweepRail();
+  return { kept: group.faces.map((f) => f.face_id), event: event.event_id };
+}
+
+// drop-face <edge> <from|to> <topology> <sha256> <face> -- take one face out
+// of the set a feature holds: the binding again, without it (a correction of
+// the feature's one feature-keyed binding, or a fresh one over faces read
+// through). The last face is an Unbind, not this.
+async function cmdDropFace(edgeId, direction, topologyId, sha256, faceText) {
+  const t = featureTarget("drop-face", edgeId, direction, topologyId, sha256, faceText);
+  const held = t.record.faces || [];
+  const rest = held.filter((f) => !(f.source_step_sha256 === t.sha256 && f.face_id === t.faceId));
+  if (rest.length === held.length) throw new Error("face " + t.faceId + " is not in this feature's set");
+  if (!rest.length) throw new Error("that is the feature's only face -- unbind it instead");
+  if (state.armed) disarmPick("cancel");
+  const seq = await nextEventSeq();
+  const faces = rest.map((f) => ({ sourceStepSha256: f.source_step_sha256, faceId: f.face_id,
+    areaNative2: f.area_native2, centroidNative: f.centroid_native }));
+  const fields = { eventId: "annotate-" + Date.now() + "-" + slugify(t.key.node) + "-drop", seq,
+    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer), featureKey: t.key, geometryKeys: faces };
+  const own = (t.record.bindings || []).filter((b) => b.feature_key);
+  const event = own.length === 1 ? AA.buildCorrectionEvent(own[0], fields) : AA.buildBoundEvent(fields);
+  const toast = AA.BODY_VERB_WORDS.dropped.replace("{face}", String(t.faceId));
+  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.key.node) + "_face_removed"), event, toast);
+  showToast(toast);
+  renderSweepRail();
+  return { faces: rest.map((f) => f.face_id), event: event.event_id };
 }
 
 // flip <edge> <from|to> [<topology>] -- the end's one standing binding is the
@@ -3090,15 +3188,31 @@ async function cmdFlip(edgeId, direction, topologyId) {
     throw new Error((t.names[other] || other) + " already has a face, so this one cannot move there");
   }
   const seq = await nextEventSeq();
-  const event = AA.buildCorrectionEvent(t.standing[0], {
-    eventId: "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-flip", seq,
-    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer), direction: other,
-  });
+  const fields = { eventId: "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-flip", seq,
+    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) };
   const toast = AA.BODY_VERB_WORDS.flipped.replace("{end}", t.names[other] || other);
-  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.edge.id) + "_flipped"), event, toast);
+  const binding = t.standing[0];
+  if (!binding.feature_key) {
+    const event = AA.buildCorrectionEvent(binding, Object.assign(fields, { direction: other }));
+    await writeIdentityEvent(AA.eventFilename(seq, slugify(t.edge.id) + "_flipped"), event, toast);
+    showToast(toast);
+    renderSweepRail();
+    return { supersedes: binding.event_id, direction: other, event: event.event_id };
+  }
+  // A feature's binding moves to the other end's feature: bound there with
+  // the same faces, then taken back here -- two events, one gesture.
+  const there = AA.buildBoundEvent(Object.assign({}, fields, {
+    featureKey: endFeature(t.topology, t.edge.id, other),
+    geometryKeys: AA.eventFaceDicts(binding).map((f) => ({ sourceStepSha256: f.source_step_sha256,
+      faceId: f.face_id, areaNative2: f.area_native2, centroidNative: f.centroid_native })),
+  }));
+  const back = AA.buildRetractEvent(binding, { eventId: fields.eventId + "-here", seq: seq + 1,
+    createdAt: fields.createdAt, recordedBy: fields.recordedBy });
+  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.edge.id) + "_flipped"), there, toast);
+  await writeIdentityEvent(AA.eventFilename(seq + 1, slugify(t.edge.id) + "_unbound"), back, toast);
   showToast(toast);
   renderSweepRail();
-  return { supersedes: t.standing[0].event_id, direction: other, event: event.event_id };
+  return { supersedes: binding.event_id, direction: other, event: there.event_id };
 }
 
 // What the armed row says at rest: the generic line, or -- when the end has
@@ -3166,6 +3280,7 @@ function disarmPick(reason) {
   const sweep = state.sweep;
   const a = state.armed;
   if (!a) return { armed: false, reason: "not armed" };
+  hideGroupOffer();
   state.armed = null;
   state.scene.setPickFilter(null);
   for (const entry of a.restore.parts) state.scene.setVisible(entry.sha, entry.visible);
@@ -3247,14 +3362,39 @@ async function armedClick(pick, other) {
   }
   const full = plan.pick.record ? plan.pick
     : Object.assign({}, plan.pick, { record: state.scene.faceRecord(plan.pick.sha256, plan.pick.faceId) });
+  // Jeff's three cases (the handoff's table): a surface the STEP split is
+  // swept in with the pick, never a question; like faces on the same surface
+  // that do not touch it are offered as a group, and the bind waits for his
+  // word (`group all` / `group one`).
+  const siblings = await surfaceSiblingsOf(full.sha256, full.faceId);
+  if (siblings.offered.length) {
+    a.offer = { full, swept: siblings.swept, offered: siblings.offered, plan };
+    state.scene.highlightFaces([full.faceId].concat(siblings.swept, siblings.offered)
+      .map((faceId) => ({ sha256: full.sha256, faceId })));
+    showGroupOffer(a.offer);
+    return { action: "offered", faceId: full.faceId, swept: siblings.swept, offered: siblings.offered };
+  }
+  return bindArmedFaces(full, siblings.swept, plan);
+}
+
+// The armed pick's bind, once its faces are settled: `full` the picked face,
+// `more` the other faces of its set (swept, or a group taken).
+async function bindArmedFaces(full, more, plan) {
+  const a = state.armed;
+  hideGroupOffer();
+  const record = AA.findBindingRecord(identityFor(a.topology),
+    AA.topologyEdgeKey(a.topologyId, a.edgeId));
   try {
     // An end with an agent's open proposal: the face the human clicks is the
     // answer to it (handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_
     // in_place) -- the proposed face itself is an Accept; any other face turns
     // the proposal down and binds this one, in that order, in this one click.
+    const geometryKey = AA.geometryKeyOfPick(full);
     const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
-      pick: { geometryKey: AA.geometryKeyOfPick(full), direction: a.direction,
-        stackKey: identityWriteKey(a.topologyId, a.edgeId) },
+      pick: { geometryKey, direction: a.direction,
+        stackKey: identityWriteKey(a.topologyId, a.edgeId),
+        featureKey: endFeature(a.topology, a.edgeId, a.direction),
+        geometryKeys: [geometryKey].concat(more.map((f) => faceGeometryKey(full.sha256, f))) },
       open: AA.endProposals(record, a.direction),
       standing: AA.endBindings(record, a.direction),
     });
@@ -3268,7 +3408,8 @@ async function armedClick(pick, other) {
     const topology = a.topology;
     await answeredAtEnd(topology, topology.edges.find((e) => e.id === a.edgeId), a.direction,
       { sha256: full.sha256, faceId: full.faceId }, events, toast);
-    return { action: plan.action, faceId: full.faceId, supersedes: answer.supersedes,
+    return { action: plan.action, faceId: full.faceId, faces: [full.faceId].concat(more),
+      supersedes: answer.supersedes,
       ratifies: answer.accept ? answer.accept.event_id : null,
       rejects: answer.reject.map((p) => p.event_id) };
   } catch (err) {
@@ -3279,6 +3420,63 @@ async function armedClick(pick, other) {
     setArmedHover(err.message);
     return { action: "failed", error: err.message, failure: AA.classifyBindFailure(err) };
   }
+}
+
+// The group offer (the handoff's second case): one line and two buttons over
+// the scene while the like faces are lit -- take them all, or just the one
+// clicked. Esc, or arming anything else, drops it.
+AA.GROUP_OFFER_WORDS = Object.freeze({
+  line: "{n} like faces on this surface",
+  all: "Take all {total}",
+  allTitle: "bind every lit face as this one feature",
+  one: "Just this one",
+  oneTitle: "bind only the face you clicked",
+});
+
+function showGroupOffer(offer) {
+  let node = document.getElementById("an-offer");
+  if (!node) {
+    node = document.createElement("div");
+    node.id = "an-offer";
+    node.className = "an__offer";
+    node.setAttribute("role", "dialog");
+    document.body.appendChild(node);
+  }
+  node.textContent = "";
+  const W = AA.GROUP_OFFER_WORDS;
+  const total = 1 + offer.swept.length + offer.offered.length;
+  const line = document.createElement("span");
+  line.className = "an__offer-line";
+  line.textContent = W.line.replace("{n}", String(total));
+  node.appendChild(line);
+  [["all", W.all.replace("{total}", String(total)), W.allTitle],
+    ["one", W.one, W.oneTitle]].forEach(([which, text, title]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "an__offer-btn";
+    button.setAttribute("data-offer", which);
+    button.textContent = text;
+    button.title = title;
+    button.onclick = () => { cmdGroup(which).catch((err) => console.error(err)); };
+    node.appendChild(button);
+  });
+  node.classList.add("an__offer--on");
+}
+
+function hideGroupOffer() {
+  const node = document.getElementById("an-offer");
+  if (node) node.classList.remove("an__offer--on");
+  if (state.armed) state.armed.offer = null;
+}
+
+// group <all|one> -- answer the group offer an armed click made: bind the
+// clicked face with its swept siblings and, for `all`, every offered one.
+async function cmdGroup(which) {
+  const offer = state.armed && state.armed.offer;
+  if (!offer) throw new Error("no group is on offer -- click a face while a pick is armed");
+  if (which !== "all" && which !== "one") throw new Error("group takes all or one, got " + JSON.stringify(which));
+  const more = offer.swept.concat(which === "all" ? offer.offered : []);
+  return bindArmedFaces(offer.full, more, offer.plan);
 }
 
 // A brief line over the scene naming what was just written.
@@ -4374,8 +4572,12 @@ async function cmdTake(edgeId, direction, meshId, faceText) {
   const plan = AA.planArmedClick(pick, null, standing);
   if (plan.action === AA.ARMED_CLICK_ACTIONS[2]) return { action: plan.action, faceId };
   if (state.armed) disarmPick("taken");
+  // A named face takes the faces its surface was split into with it.
+  const swept = (await surfaceSiblingsOf(mesh.sha256, faceId)).swept;
+  const geometryKey = AA.geometryKeyOfPick(pick);
   const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
-    pick: { geometryKey: AA.geometryKeyOfPick(pick), direction, stackKey },
+    pick: { geometryKey, direction, stackKey, featureKey: endFeature(topology, edge.id, direction),
+      geometryKeys: [geometryKey].concat(swept.map((f) => faceGeometryKey(mesh.sha256, f))) },
     open: AA.endProposals(record, direction),
     standing,
   });
@@ -4971,6 +5173,9 @@ commands.register("arm", cmdArm);
 commands.register("accept", cmdAccept);
 commands.register("take", cmdTake);
 commands.register("unbind", cmdUnbind);
+commands.register("keep", cmdKeep);
+commands.register("drop-face", cmdDropFace);
+commands.register("group", cmdGroup);
 commands.register("flip", cmdFlip);
 commands.register("bound-faces", cmdBoundFaces);
 AA.exec = (input) => commands.exec(input);
@@ -5021,7 +5226,28 @@ function identityWriteKey(topology, edgeId) {
   return AA.identityKey(t, edgeId, topologies);
 }
 
+// What the feature fold needs beside the events: every topology (an old
+// edge-end event is read through by its model) and the served log's
+// same-surface pairs.
+function foldOpts() {
+  const topologies = state.topologyProjection && state.topologyProjection.topologies;
+  return topologies ? { topologies, sameSurface: state.sameSurface } : null;
+}
+
+let foldMemo = { key: null, value: null };
 function sessionIdentityProjection() {
+  // The log as read, with this session's events -- refolded whole, so a
+  // feature's answer to an edge end's proposal, or its correction of an edge
+  // end's binding, lands where the fold puts it (VA.addIdentityEvent's
+  // `rowOf`). Memoised on what it is folded from.
+  if (state.identityEvents && foldOpts()) {
+    const key = [state.identityEvents, state.sessionEvents.length, state.sameSurface, state.topologyProjection];
+    if (foldMemo.key && foldMemo.key.every((k, i) => k === key[i])) return foldMemo.value;
+    const known = new Set(state.identityEvents.map((e) => e.event_id));
+    const events = state.identityEvents.concat(state.sessionEvents.filter((e) => !known.has(e.event_id)));
+    foldMemo = { key, value: AA.foldEvents(events, foldOpts()) };
+    return foldMemo.value;
+  }
   if (state.sessionEvents.length === 0) return state.identityProjection;
   const base = state.identityProjection ? JSON.parse(JSON.stringify(state.identityProjection)) : { stack_keys: [] };
   for (const event of state.sessionEvents) {
@@ -5871,8 +6097,13 @@ async function readIdentity() {
     ? await state.storage.readFeatureIdentityLog().catch(() => null) : null;
   if (log && Array.isArray(log.events)) {
     state.installedMeshes = Array.isArray(log.installed_meshes) ? log.installed_meshes : null;
-    return AA.foldEvents(log.events);
+    // The inbox read through a grant carries no `same_surface`; the served
+    // copy read before it did, and the pairs are about old events only.
+    if (Array.isArray(log.same_surface)) state.sameSurface = log.same_surface;
+    state.identityEvents = log.events;
+    return AA.foldEvents(log.events, foldOpts());
   }
+  state.identityEvents = null;
   return state.storage.readFeatureIdentityProjection();
 }
 
@@ -5897,7 +6128,8 @@ async function publishIdentity(rewrite) {
     try {
       const log = await state.storage.readFeatureIdentityLog();
       if (log && Array.isArray(log.events)) {
-        await state.storage.writeServedIdentityLog(AA.servedLogDoc(log.events, log.installed_meshes));
+        await state.storage.writeServedIdentityLog(AA.servedLogDoc(log.events, log.installed_meshes,
+          Array.isArray(log.same_surface) ? log.same_surface : state.sameSurface));
         state.installedMeshes = Array.isArray(log.installed_meshes) ? log.installed_meshes : state.installedMeshes;
         adoptIdentity(AA.foldEvents(log.events));
       }

@@ -165,7 +165,15 @@
   // the source model's key (AA.identityKey), so the copy is the one record
   // there is: this session's events fold into it, and it carries both ends.
   // A topology with no `ids_from` gets the projection back untouched.
+  //
+  // Since 2026-11-12 (handoff a_feature_is_bound_once_to_a_set_of_faces) a
+  // fold with `features` answers every end with the binding of the feature
+  // that end IS (VA.endView) -- that is the read-through now, and the rows
+  // below are only for a projection built before features existed.
   AA.identityReadThrough = function (identityProjection, topology) {
+    if (identityProjection && identityProjection.features && topology) {
+      return viewerFold().endView(identityProjection, topology);
+    }
     var from = AA.topologyIdsFrom(topology);
     if (!identityProjection || !from) return identityProjection;
     var rows = identityProjection.stack_keys || [];
@@ -248,6 +256,34 @@
   // bound on the tangential link's third occurrence is the same binding a
   // pick on its first would have written, and the same one written before
   // parts were placed at all. `feature-identity/v0` is unchanged.
+  // The two event shapes this app writes (feature_identity.SCHEMA_EVENT and
+  // SCHEMA_EVENT_V1). Every binding, answer, correction and unbind is a
+  // FEATURE's since 2026-11-12: {feature_key, geometry_keys}. The edge-end
+  // shape is written for an owner_not_in_set finding alone, which names a
+  // dimension and no end.
+  AA.EVENT_SCHEMA_V0 = "joby.tolerance_stack/feature-identity/v0";
+  AA.EVENT_SCHEMA_V1 = "joby.tolerance_stack/feature-identity/v1";
+
+  function geometryDict(g) {
+    return { source_step_sha256: g.sourceStepSha256, face_id: g.faceId,
+      area_native2: g.areaNative2, centroid_native: g.centroidNative };
+  }
+  function geometryFields(d) {
+    return { sourceStepSha256: d.source_step_sha256, faceId: d.face_id,
+      areaNative2: d.area_native2, centroidNative: d.centroid_native };
+  }
+  // The faces an event or a pseudo event at an end names, as event dicts:
+  // the whole set (`geometry_keys`) where it has one.
+  function eventFaceDicts(e) {
+    if (!e) return [];
+    if (Array.isArray(e.geometry_keys)) return e.geometry_keys;
+    return e.geometry_key ? [e.geometry_key] : [];
+  }
+  AA.eventFaceDicts = eventFaceDicts;
+
+  // A feature's subject on an event: {topology_id, part, node}.
+  function featureKeyDict(k) { return { topology_id: k.topology_id, part: k.part, node: k.node }; }
+
   AA.geometryKeyOfPick = function (pick) {
     return {
       sourceStepSha256: pick.sha256,
@@ -257,28 +293,48 @@
     };
   };
 
+  // `fields.featureKey` writes the v1 shape: the feature, and its faces
+  // (`geometryKeys`, or the one `geometryKey`) -- one mesh, each face once.
+  // Without it, the v0 edge-end shape (`stackKey`, `direction`, one face).
   AA.buildBoundEvent = function (fields) {
-    requireOneOf("direction", fields.direction, AA.DIRECTIONS);
-    if (!fields.geometryKey) throw new Error("a bound event requires a geometryKey");
     if (fields.gdtModifier != null) requireOneOf("gdt_modifier", fields.gdtModifier, AA.GDT_MODIFIERS);
     if (fields.ownerPath) requireOneOf("owner_path.kind", fields.ownerPath.kind, AA.PATH_KINDS);
-
-    var event = {
-      schema: "joby.tolerance_stack/feature-identity/v0",
-      event_id: fields.eventId,
-      seq: fields.seq,
-      created_at: fields.createdAt,
-      recorded_by: fields.recordedBy,
-      stack_key: fields.stackKey,
-      verdict: "bound",
-      geometry_key: {
-        source_step_sha256: fields.geometryKey.sourceStepSha256,
-        face_id: fields.geometryKey.faceId,
-        area_native2: fields.geometryKey.areaNative2,
-        centroid_native: fields.geometryKey.centroidNative,
-      },
-      direction: fields.direction,
-    };
+    var event;
+    if (fields.featureKey) {
+      var faces = fields.geometryKeys || (fields.geometryKey ? [fields.geometryKey] : []);
+      if (!faces.length) throw new Error("a bound event requires at least one face");
+      var seen = {};
+      faces.forEach(function (g) {
+        var id = g.sourceStepSha256 + "#" + g.faceId;
+        if (seen[id]) throw new Error("a bound event names face " + g.faceId + " twice");
+        seen[id] = true;
+        if (g.sourceStepSha256 !== faces[0].sourceStepSha256) throw new Error("a feature's faces are on one part");
+      });
+      event = {
+        schema: AA.EVENT_SCHEMA_V1,
+        event_id: fields.eventId,
+        seq: fields.seq,
+        created_at: fields.createdAt,
+        recorded_by: fields.recordedBy,
+        feature_key: featureKeyDict(fields.featureKey),
+        verdict: "bound",
+        geometry_keys: faces.map(geometryDict),
+      };
+    } else {
+      requireOneOf("direction", fields.direction, AA.DIRECTIONS);
+      if (!fields.geometryKey) throw new Error("a bound event requires a geometryKey");
+      event = {
+        schema: AA.EVENT_SCHEMA_V0,
+        event_id: fields.eventId,
+        seq: fields.seq,
+        created_at: fields.createdAt,
+        recorded_by: fields.recordedBy,
+        stack_key: fields.stackKey,
+        verdict: "bound",
+        geometry_key: geometryDict(fields.geometryKey),
+        direction: fields.direction,
+      };
+    }
     if (fields.compositionNote) event.composition_note = fields.compositionNote;
     if (fields.ownerPart) event.owner_part = fields.ownerPart;
     if (fields.ownerPath) {
@@ -332,11 +388,25 @@
       throw new Error("an agent only proposes -- a human accepts");
     }
     var key = proposal.geometry_key;
+    if (proposal.feature_key) {
+      // The feature's accept: the proposed faces and any the pick swept or
+      // the human took with them (`fields.geometryKeys`), the proposed first.
+      var faces = eventFaceDicts(proposal).map(geometryFields);
+      (fields.geometryKeys || []).forEach(function (g) {
+        if (!faces.some(function (f) { return f.sourceStepSha256 === g.sourceStepSha256 && f.faceId === g.faceId; })) {
+          faces.push(g);
+        }
+      });
+      return AA.buildBoundEvent({
+        eventId: fields.eventId, seq: fields.seq, createdAt: fields.createdAt,
+        recordedBy: fields.recordedBy, featureKey: proposal.feature_key, geometryKeys: faces,
+        supersedes: fields.supersedes || null, ratifies: proposal.event_id,
+      });
+    }
     return AA.buildBoundEvent({
       eventId: fields.eventId, seq: fields.seq, createdAt: fields.createdAt,
       recordedBy: fields.recordedBy, stackKey: proposal.stack_key,
-      geometryKey: { sourceStepSha256: key.source_step_sha256, faceId: key.face_id,
-        areaNative2: key.area_native2, centroidNative: key.centroid_native },
+      geometryKey: geometryFields(key),
       direction: proposal.direction,
       supersedes: fields.supersedes || null,
       ratifies: proposal.event_id,
@@ -350,15 +420,16 @@
       throw new Error("an agent only proposes -- a human rejects");
     }
     var event = {
-      schema: "joby.tolerance_stack/feature-identity/v0",
+      schema: proposal.feature_key ? AA.EVENT_SCHEMA_V1 : AA.EVENT_SCHEMA_V0,
       event_id: fields.eventId,
       seq: fields.seq,
       created_at: fields.createdAt,
       recorded_by: fields.recordedBy,
-      stack_key: proposal.stack_key,
-      verdict: "rejected",
-      rejects: proposal.event_id,
     };
+    if (proposal.feature_key) event.feature_key = featureKeyDict(proposal.feature_key);
+    else event.stack_key = proposal.stack_key;
+    event.verdict = "rejected";
+    event.rejects = proposal.event_id;
     if (fields.note) event.note = fields.note;
     return event;
   };
@@ -450,8 +521,12 @@
   // The binding an answer at this end replaces: the end's one standing
   // binding, and nothing when it has none or several (a re-pick replaces;
   // two faces at one end are not guessed between -- AA.planArmedClick's rule).
+  // An end reads its feature's binding once per face the feature holds, so
+  // the count is of distinct EVENTS: a three-face set is one binding.
   AA.answerSupersedes = function (standing) {
-    return (standing || []).length === 1 ? standing[0].event_id : null;
+    var ids = [];
+    (standing || []).forEach(function (b) { if (ids.indexOf(b.event_id) === -1) ids.push(b.event_id); });
+    return ids.length === 1 ? ids[0] : null;
   };
 
   // `verb` accept: `proposal` accepted. reject: `proposal` turned down.
@@ -482,9 +557,18 @@
     })[0] || null;
     return {
       accept: same,
-      reject: (a.open || []).filter(function (p) { return p !== same; }),
+      reject: (a.open || []).filter(function (p) {
+        // One proposal reaches an end once per face it names: it is the
+        // same proposal, answered once.
+        return p !== same && !(same && p.event_id === same.event_id);
+      }).filter(function (p, i, all) {
+        return all.findIndex(function (q) { return q.event_id === p.event_id; }) === i;
+      }),
       pick: same ? null : pick,
       supersedes: supersedes,
+      // The faces that go with the pick (a split surface's siblings, a group
+      // the human took), written beside it on the feature.
+      faces: pick.geometryKeys || null,
     };
   };
 
@@ -502,7 +586,8 @@
     });
     if (plan.accept) {
       out.push(AA.buildAcceptEvent(plan.accept, { eventId: fields.eventId, seq: seq++,
-        createdAt: fields.createdAt, recordedBy: fields.recordedBy, supersedes: plan.supersedes }));
+        createdAt: fields.createdAt, recordedBy: fields.recordedBy, supersedes: plan.supersedes,
+        geometryKeys: plan.faces || null }));
     } else if (plan.pick) {
       if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {
         throw new Error("an agent only proposes -- a human binds");
@@ -510,7 +595,9 @@
       out.push(AA.buildBoundEvent({
         eventId: fields.eventId, seq: seq++, createdAt: fields.createdAt,
         recordedBy: fields.recordedBy, stackKey: plan.pick.stackKey,
-        geometryKey: plan.pick.geometryKey, direction: plan.pick.direction,
+        featureKey: plan.pick.featureKey || null,
+        geometryKey: plan.pick.geometryKey, geometryKeys: plan.pick.geometryKeys || null,
+        direction: plan.pick.direction,
         supersedes: plan.supersedes,
       }));
     }
@@ -540,20 +627,31 @@
 
   // The served log's document, as tolerance_stack/feature_identity.py's
   // served_log writes it: the events in log order, and the meshes, sorted.
-  AA.servedLogDoc = function (events, installedMeshes) {
-    return {
+  // `sameSurface` is the served log's `same_surface` (face pairs read through
+  // to one feature that are one surface): a fact about old events, computed
+  // where the meshes are, and carried over unchanged by every rewrite.
+  AA.servedLogDoc = function (events, installedMeshes, sameSurface) {
+    var doc = {
       schema: AA.SERVED_LOG_SCHEMA,
       events: (events || []).slice().sort(viewerFold().identityLogOrder),
       installed_meshes: (installedMeshes || []).slice().sort(),
     };
+    if (sameSurface) doc.same_surface = sameSurface;
+    return doc;
   };
 
   // The faces to mark bound: every standing binding in the record whose part
   // `isOpen(sha256)` -- each face once, [{sha256, faceId}].
+  // A fold with features marks every face a bound feature holds (a set's
+  // every face); one without, every standing binding's face.
   AA.planBoundMarks = function (identity, isOpen) {
     var seen = {};
     var out = [];
-    ((identity && identity.stack_keys) || []).forEach(function (row) {
+    var rows = (identity && identity.features)
+      ? identity.features.filter(function (r) { return r.state === "bound"; })
+        .map(function (r) { return { bindings: r.faces.map(function (f) { return { geometry_key: f }; }) }; })
+      : ((identity && identity.stack_keys) || []);
+    rows.forEach(function (row) {
       (row.bindings || []).forEach(function (b) {
         var key = b && b.geometry_key;
         if (!key || !isOpen(key.source_step_sha256)) return;
@@ -567,8 +665,9 @@
   };
 
   // The whole log folded, in the projection's shape (VA.foldIdentityEvents).
-  AA.foldEvents = function (events) {
-    return viewerFold().foldIdentityEvents(events, AA.VERDICTS);
+  // `opts` ({topologies, sameSurface}) adds the feature fold.
+  AA.foldEvents = function (events, opts) {
+    return viewerFold().foldIdentityEvents(events, AA.VERDICTS, opts || null);
   };
 
   // Add one session event to a projection row, as build_projection would.
@@ -584,15 +683,16 @@
       throw new Error("an agent only proposes -- a human unbinds");
     }
     var event = {
-      schema: "joby.tolerance_stack/feature-identity/v0",
+      schema: binding.feature_key ? AA.EVENT_SCHEMA_V1 : AA.EVENT_SCHEMA_V0,
       event_id: fields.eventId,
       seq: fields.seq,
       created_at: fields.createdAt,
       recorded_by: fields.recordedBy,
-      stack_key: binding.stack_key,
-      verdict: "retracted",
-      retracts: binding.event_id,
     };
+    if (binding.feature_key) event.feature_key = featureKeyDict(binding.feature_key);
+    else event.stack_key = binding.stack_key;
+    event.verdict = "retracted";
+    event.retracts = binding.event_id;
     if (fields.note) event.note = fields.note;
     return event;
   };
@@ -601,13 +701,30 @@
   // and/or the end changed. Everything else the earlier event said about the
   // feature (owner, modifier, regime, note) carries over -- a correction of
   // WHICH face must not silently drop what was recorded about it.
+  //
+  // A binding that is a feature's (`feature_key`, which every binding the end
+  // view hands out carries) is corrected on its feature: the whole set is
+  // re-picked (`fields.geometryKeys`, or the one `geometryKey`), or kept
+  // (neither given), and `fields.featureKey` moves it to another feature (a
+  // flip).
   AA.buildCorrectionEvent = function (earlier, fields) {
-    var geometryKey = fields.geometryKey || {
-      sourceStepSha256: earlier.geometry_key.source_step_sha256,
-      faceId: earlier.geometry_key.face_id,
-      areaNative2: earlier.geometry_key.area_native2,
-      centroidNative: earlier.geometry_key.centroid_native,
-    };
+    if (earlier.feature_key || fields.featureKey) {
+      var keep = {
+        compositionNote: earlier.composition_note, ownerPart: earlier.owner_part,
+        ownerPath: earlier.owner_path, gdtModifier: earlier.gdt_modifier,
+        generalTolRegime: earlier.general_tol_regime, note: earlier.note,
+      };
+      var v1 = {};
+      Object.keys(keep).forEach(function (k) { v1[k] = keep[k]; });
+      Object.keys(fields).forEach(function (k) { if (fields[k] != null) v1[k] = fields[k]; });
+      v1.geometryKeys = fields.geometryKeys || (fields.geometryKey ? [fields.geometryKey]
+        : eventFaceDicts(earlier).map(geometryFields));
+      v1.geometryKey = null;
+      v1.featureKey = fields.featureKey || earlier.feature_key;
+      v1.supersedes = earlier.event_id;
+      return AA.buildBoundEvent(v1);
+    }
+    var geometryKey = fields.geometryKey || geometryFields(earlier.geometry_key);
     var carried = {
       compositionNote: earlier.composition_note,
       ownerPart: earlier.owner_part,
