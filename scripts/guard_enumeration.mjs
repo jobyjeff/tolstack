@@ -326,9 +326,10 @@ export const DECLARED_GUARDS = {
   // the jog grip's inset, a grid row lighting DAG-to-grid leaders), three in
   // (the Preview's height, the view in the URL, the settings bar's view
   // control); nine renamed with the region model (DAG-to-grid leaders are no
-  // longer built). Every new and renamed name carries a spec; the retired
+  // longer built), and the live-model render check reads seam rows. Every
+  // new and renamed name carries a spec; the retired
   // three's are deleted.
-  fast: { declared: 692, enrollable: 692, names: "be388f351390" },
+  fast: { declared: 692, enrollable: 692, names: "88e235704292" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
