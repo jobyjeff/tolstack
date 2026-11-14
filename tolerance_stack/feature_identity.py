@@ -90,12 +90,41 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-from tolerance_stack.feature_geometry import SURFACE_CLASSES
+from tolerance_stack.feature_geometry import SURFACE_CLASSES, same_surface
 
 SCHEMA_EVENT = "joby.tolerance_stack/feature-identity/v0"
 SCHEMA_PROJECTION = "joby.tolerance_stack/feature-identity-projection/v0"
+
+# A binding is about a FEATURE, and a feature may be several faces (handoff
+# a_feature_is_bound_once_to_a_set_of_faces, 2026-11-12; Jeff, 2026-11-10:
+# "agreed, once per feature"). A v1 event's subject is a `feature_key` --
+# {topology_id, part, node}, the model's own feature (tolerance_stack.
+# model_view) -- and its face side is `geometry_keys`, a list of the v0
+# `geometry_key` shape. No `direction`: a feature is not an end of anything.
+# Every v0 event still loads and is never rewritten; the fold reads it
+# through to its feature (`read_through`). New events are written as v1.
+SCHEMA_EVENT_V1 = "joby.tolerance_stack/feature-identity/v1"
+EVENT_SCHEMAS = (SCHEMA_EVENT, SCHEMA_EVENT_V1)
+
+# What the fold says about a feature's standing faces when more than one event
+# stands on it. `one`: one face. `set`: several faces of one feature -- a v1
+# event that names them, or old edge-end events whose faces share a surface
+# (feature_geometry.same_surface). `disagreement`: faces that are not one
+# surface, or two v1 events naming different sets; nothing is chosen until a
+# human keeps one (a v1 `bound` event on the feature), and until then the
+# feature is not bound.
+FEATURE_OUTCOMES = ("one", "set", "disagreement")
+
+# A feature record's coarse state, in order of precedence. `disagreement`
+# stands where `bound` would, and a surface shows it as a suggestion.
+FEATURE_STATES = ("bound", "disagreement", "owner_not_in_set", "proposed", "unbound")
+
+# Why an old edge-end event reads through to no feature: its model is not
+# loaded, its edge is gone, or it names no end (an `owner_not_in_set` names a
+# key, not an end; a `stack_element` key is no model's).
+ORPHAN_REASONS = ("no_model", "no_edge", "no_end")
 
 # What kind of thing a stack-side key names. **This tuple is the definition.**
 # `topology_edge` reuses `tolerance_stack.topology.Topology`/`Edge` ids;
@@ -225,6 +254,36 @@ class StackKey:
 
 
 @dataclass(frozen=True)
+class FeatureKey:
+    """Which feature a v1 event names: node ``node`` as seen on part ``part``,
+    in model ``topology_id`` -- the model view's ``<part>@<node>``, under the
+    model whose ids it is keyed by (:func:`tolerance_stack.topology.
+    feature_identity_topology_id`)."""
+
+    topology_id: str
+    part: str
+    node: str
+
+    def __post_init__(self) -> None:
+        if not (self.topology_id and self.part and self.node):
+            raise ValueError("feature_key requires topology_id, part and node")
+
+    def as_key(self) -> Tuple[str, str, str, str]:
+        return ("feature", self.topology_id, self.part, self.node)
+
+    def token(self) -> str:
+        """One string per feature, for a JSON object key: ``<topology>:<part>@<node>``."""
+        return f"{self.topology_id}:{self.part}@{self.node}"
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "FeatureKey":
+        return cls(topology_id=d["topology_id"], part=d["part"], node=d["node"])
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {"topology_id": self.topology_id, "part": self.part, "node": self.node}
+
+
+@dataclass(frozen=True)
 class GeometryKey:
     """A mesh face, plus the fingerprint that lets a consumer detect drift.
 
@@ -248,6 +307,10 @@ class GeometryKey:
 
     def as_key(self) -> Tuple[str, int]:
         return (self.source_step_sha256, self.face_id)
+
+    def token(self) -> str:
+        """``<sha256>:<face id>``, for a JSON object key."""
+        return f"{self.source_step_sha256}:{self.face_id}"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "GeometryKey":
@@ -297,13 +360,19 @@ class OwnerPath:
 @dataclass
 class FeatureIdentityEvent:
     """One immutable binding (or owner-not-in-set finding), as written by
-    ``apps/annotate/``."""
+    ``apps/annotate/``.
+
+    Two shapes (:data:`EVENT_SCHEMAS`). v0 names an edge end: ``stack_key`` +
+    ``direction``, one ``geometry_key``. v1 names a feature: ``feature_key``,
+    and a face verdict's ``geometry_keys`` (one or more faces of one mesh). An
+    event carries exactly one subject, and :attr:`schema` follows from which.
+    """
 
     event_id: str
     seq: int
     created_at: str
     recorded_by: str
-    stack_key: StackKey
+    stack_key: Optional[StackKey]
     verdict: str
     geometry_key: Optional[GeometryKey] = None
     direction: Optional[str] = None
@@ -328,11 +397,37 @@ class FeatureIdentityEvent:
     rejects: Optional[str] = None
     # The standing `bound` event a `retracted` event takes back (an unbind).
     retracts: Optional[str] = None
+    # v1 only: the feature, and the faces a face verdict names.
+    feature_key: Optional[FeatureKey] = None
+    geometry_keys: Optional[Tuple[GeometryKey, ...]] = None
+
+    @property
+    def schema(self) -> str:
+        return SCHEMA_EVENT_V1 if self.feature_key is not None else SCHEMA_EVENT
+
+    @property
+    def subject(self) -> Tuple[str, ...]:
+        """The key the per-subject fold groups on: an edge's (v0) or a
+        feature's (v1). A correction, an unbind and an answer stay on one."""
+        return self.feature_key.as_key() if self.feature_key is not None else self.stack_key.as_key()
+
+    @property
+    def faces(self) -> Tuple[GeometryKey, ...]:
+        """Every face the event names, whichever shape: ``()`` for none."""
+        if self.geometry_keys is not None:
+            return tuple(self.geometry_keys)
+        return (self.geometry_key,) if self.geometry_key is not None else ()
 
     def __post_init__(self) -> None:
         if self.verdict not in VERDICTS:
             raise ValueError(f"event {self.event_id!r}: verdict must be one of {VERDICTS}, got {self.verdict!r}")
-        if self.verdict in FACE_VERDICTS:
+        if (self.stack_key is None) == (self.feature_key is None):
+            raise ValueError(f"event {self.event_id!r}: carries exactly one of stack_key (v0) and feature_key (v1)")
+        if self.feature_key is not None:
+            self._check_v1_faces()
+        elif self.geometry_keys is not None:
+            raise ValueError(f"event {self.event_id!r}: geometry_keys is a v1 field; a v0 event names one geometry_key")
+        elif self.verdict in FACE_VERDICTS:
             if self.geometry_key is None:
                 raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} requires a geometry_key")
             if self.direction not in DIRECTIONS:
@@ -340,7 +435,7 @@ class FeatureIdentityEvent:
                     f"event {self.event_id!r}: verdict={self.verdict} requires direction in {DIRECTIONS}, "
                     f"got {self.direction!r}"
                 )
-        else:  # owner_not_in_set, rejected, retracted
+        else:  # a v0 owner_not_in_set, rejected, retracted
             if self.geometry_key is not None:
                 raise ValueError(f"event {self.event_id!r}: verdict={self.verdict} must carry no geometry_key")
             if self.direction is not None:
@@ -356,6 +451,26 @@ class FeatureIdentityEvent:
                 f"event {self.event_id!r}: gdt_modifier must be one of {GDT_MODIFIERS} or absent, "
                 f"got {self.gdt_modifier!r}"
             )
+
+    def _check_v1_faces(self) -> None:
+        """A v1 face verdict names one or more distinct faces of ONE mesh (a
+        feature is on one part), and no edge-end field; any other v1 verdict
+        names no face."""
+        name = f"event {self.event_id!r}"
+        if self.geometry_key is not None or self.direction is not None:
+            raise ValueError(f"{name}: a v1 event names faces in geometry_keys and no direction")
+        faces = tuple(self.geometry_keys or ())
+        if self.verdict not in FACE_VERDICTS:
+            if faces:
+                raise ValueError(f"{name}: verdict={self.verdict} must carry no geometry_keys")
+            return
+        if not faces:
+            raise ValueError(f"{name}: verdict={self.verdict} requires at least one face in geometry_keys")
+        if len({f.as_key() for f in faces}) != len(faces):
+            raise ValueError(f"{name}: geometry_keys names a face twice")
+        if len({f.source_step_sha256 for f in faces}) != 1:
+            raise ValueError(f"{name}: geometry_keys spans more than one mesh; a feature is on one part")
+        object.__setattr__(self, "geometry_keys", faces)
 
     def _check_proposal_fields(self) -> None:
         """The proposal lane's invariants: an agent proposes, a human answers."""
@@ -400,16 +515,23 @@ class FeatureIdentityEvent:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "FeatureIdentityEvent":
-        if d.get("schema") != SCHEMA_EVENT:
-            raise ValueError(f"expected schema {SCHEMA_EVENT!r}, got {d.get('schema')!r}")
+        if d.get("schema") not in EVENT_SCHEMAS:
+            raise ValueError(f"expected schema in {EVENT_SCHEMAS!r}, got {d.get('schema')!r}")
+        v1 = d["schema"] == SCHEMA_EVENT_V1
+        if v1 and "stack_key" in d:
+            raise ValueError(f"event {d.get('event_id')!r}: a v1 event names a feature_key, not a stack_key")
         geometry_key = d.get("geometry_key")
         owner_path = d.get("owner_path")
+        geometry_keys = d.get("geometry_keys")
         return cls(
             event_id=d["event_id"],
             seq=int(d["seq"]),
             created_at=d["created_at"],
             recorded_by=d["recorded_by"],
-            stack_key=StackKey.from_dict(d["stack_key"]),
+            stack_key=None if v1 else StackKey.from_dict(d["stack_key"]),
+            feature_key=FeatureKey.from_dict(d["feature_key"]) if v1 else None,
+            geometry_keys=(tuple(GeometryKey.from_dict(g) for g in geometry_keys)
+                           if geometry_keys is not None else None),
             verdict=d["verdict"],
             geometry_key=GeometryKey.from_dict(geometry_key) if geometry_key else None,
             direction=d.get("direction"),
@@ -431,16 +553,21 @@ class FeatureIdentityEvent:
 
     def as_dict(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {
-            "schema": SCHEMA_EVENT,
+            "schema": self.schema,
             "event_id": self.event_id,
             "seq": self.seq,
             "created_at": self.created_at,
             "recorded_by": self.recorded_by,
-            "stack_key": self.stack_key.as_dict(),
-            "verdict": self.verdict,
         }
+        if self.feature_key is not None:
+            out["feature_key"] = self.feature_key.as_dict()
+        else:
+            out["stack_key"] = self.stack_key.as_dict()
+        out["verdict"] = self.verdict
         if self.geometry_key is not None:
             out["geometry_key"] = self.geometry_key.as_dict()
+        if self.geometry_keys is not None:
+            out["geometry_keys"] = [g.as_dict() for g in self.geometry_keys]
         if self.direction is not None:
             out["direction"] = self.direction
         for key in ("composition_note", "owner_part", "gdt_modifier", "general_tol_regime", "note", "supersedes",
@@ -504,7 +631,8 @@ def load_events(directory: str | Path) -> List[FeatureIdentityEvent]:
 
 @dataclass
 class StackKeyBindings:
-    """Everything the event log says about one stack-side key.
+    """Everything the event log says about one subject: an edge's stack-side
+    key (a v0 event's) or a feature (a v1 event's, :attr:`feature_key` set).
 
     ``bindings`` is every ``bound`` event naming this key -- many-to-many by
     design (decision 4), so this is a list, not a single winner.
@@ -513,7 +641,7 @@ class StackKeyBindings:
     nothing here is ever dropped or overwritten, only added to.
     """
 
-    stack_key: StackKey
+    stack_key: Optional[StackKey]
     bindings: List[FeatureIdentityEvent] = field(default_factory=list)
     owner_not_in_set: List[FeatureIdentityEvent] = field(default_factory=list)
     history: List[FeatureIdentityEvent] = field(default_factory=list)
@@ -531,6 +659,8 @@ class StackKeyBindings:
     # `bound` events a `retracted` event took back (an unbind): hidden from
     # `bindings`, kept here, as `superseded` keeps a corrected one.
     retracted: List[FeatureIdentityEvent] = field(default_factory=list)
+    # The feature, for a v1 subject; None for an edge's.
+    feature_key: Optional[FeatureKey] = None
 
     @property
     def state(self) -> str:
@@ -555,7 +685,7 @@ class StackKeyBindings:
 
     def rejected_faces(self) -> set:
         """``(sha256, face_id)`` of every face a human rejected for this key."""
-        return {e.geometry_key.as_key() for e in self.rejected_proposals}
+        return {f.as_key() for e in self.rejected_proposals for f in e.faces}
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -573,6 +703,74 @@ class StackKeyBindings:
 
 
 @dataclass
+class FeatureBindings:
+    """Everything the log says about one FEATURE, old events read through.
+
+    The fold's answer to "is this feature bound, and to which faces". Two
+    sources land here: v1 events naming the feature, and v0 edge-end events
+    whose end IS this feature (:func:`read_through`). Which of them stands:
+
+    * once any v1 ``bound`` or ``retracted`` event names the feature, the v1
+      events alone decide it, and every v0 binding read through to it is in
+      ``replaced`` (a new-shape event is written by someone who saw the old
+      ones through the fold -- a Keep, a Correct, an Unbind);
+    * otherwise the v0 bindings read through stand, and their faces collide
+      by rule (:func:`_outcome`): one face, one set on one surface, or a
+      disagreement nothing settles but a human.
+
+    ``faces`` is the set the feature holds (every standing face, in log
+    order, once each); ``disagreement`` is one group per distinct face (v0)
+    or per distinct face set (v1) when the outcome is ``disagreement``.
+    """
+
+    feature_key: FeatureKey
+    bindings: List[FeatureIdentityEvent] = field(default_factory=list)
+    outcome: Optional[str] = None
+    faces: List[GeometryKey] = field(default_factory=list)
+    disagreement: List[Dict[str, Any]] = field(default_factory=list)
+    proposals: List[FeatureIdentityEvent] = field(default_factory=list)
+    rejected_proposals: List[FeatureIdentityEvent] = field(default_factory=list)
+    accepted_proposals: List[str] = field(default_factory=list)
+    superseded: List[FeatureIdentityEvent] = field(default_factory=list)
+    retracted: List[FeatureIdentityEvent] = field(default_factory=list)
+    replaced: List[FeatureIdentityEvent] = field(default_factory=list)
+    owner_not_in_set: List[FeatureIdentityEvent] = field(default_factory=list)
+    read_through: List[str] = field(default_factory=list)
+    history: List[str] = field(default_factory=list)
+
+    @property
+    def state(self) -> str:
+        """One of :data:`FEATURE_STATES`, in that order of precedence."""
+        if self.bindings:
+            return "disagreement" if self.outcome == "disagreement" else "bound"
+        if self.owner_not_in_set:
+            return "owner_not_in_set"
+        if self.proposals:
+            return "proposed"
+        return "unbound"
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "feature_key": self.feature_key.as_dict(),
+            "state": self.state,
+            "outcome": self.outcome,
+            "faces": [f.as_dict() for f in self.faces],
+            "bindings": [e.as_dict() for e in self.bindings],
+            "disagreement": [{"faces": [f.as_dict() for f in g["faces"]], "events": list(g["events"])}
+                             for g in self.disagreement],
+            "proposals": [e.as_dict() for e in self.proposals],
+            "rejected_proposals": [e.as_dict() for e in self.rejected_proposals],
+            "accepted_proposals": list(self.accepted_proposals),
+            "superseded": [e.as_dict() for e in self.superseded],
+            "retracted": [e.as_dict() for e in self.retracted],
+            "replaced": [e.as_dict() for e in self.replaced],
+            "owner_not_in_set": [e.as_dict() for e in self.owner_not_in_set],
+            "read_through": list(self.read_through),
+            "history": list(self.history),
+        }
+
+
+@dataclass
 class FeatureIdentityProjection:
     by_stack_key: Dict[Tuple[str, str, str], StackKeyBindings] = field(default_factory=dict)
     events: List[str] = field(default_factory=list)
@@ -580,19 +778,52 @@ class FeatureIdentityProjection:
     # twice the same way (_answered_proposals). The repeat is in its record's
     # history and nowhere else; rebuild() prints each pair.
     restated: Dict[str, str] = field(default_factory=dict)
+    # Per-subject records of v1 events, keyed by FeatureKey.as_key().
+    by_feature_subject: Dict[Tuple[str, str, str, str], StackKeyBindings] = field(default_factory=dict)
+    # The feature fold: one record per feature any event names or reads
+    # through to. Empty when the fold was given no models.
+    by_feature: Dict[Tuple[str, str, str, str], FeatureBindings] = field(default_factory=dict)
+    # {v0 event id: its feature, or None} and {v0 event id: why it has none}.
+    read_through: Dict[str, Optional[FeatureKey]] = field(default_factory=dict)
+    orphans: Dict[str, str] = field(default_factory=dict)
+    # Face pairs read through to one feature that share a surface, as sorted
+    # (token, token) -- what the browser's fold reads instead of a mesh.
+    same_surface: List[Tuple[str, str]] = field(default_factory=list)
 
     def for_stack_key(self, key: StackKey) -> Optional[StackKeyBindings]:
         return self.by_stack_key.get(key.as_key())
+
+    def for_feature(self, key: FeatureKey) -> Optional[FeatureBindings]:
+        return self.by_feature.get(key.as_key())
 
     def counts(self) -> Dict[str, int]:
         """Events by verdict, plus the proposals still open -- a proposal is
         counted apart from a binding wherever the log is summarised."""
         out = {verdict: 0 for verdict in VERDICTS}
-        for record in self.by_stack_key.values():
+        records = list(self.by_stack_key.values()) + list(self.by_feature_subject.values())
+        for record in records:
             for event in record.history:
                 out[event.verdict] += 1
-        out["open_proposals"] = sum(len(r.proposals) for r in self.by_stack_key.values())
+        out["open_proposals"] = sum(len(r.proposals) for r in records)
         return out
+
+    def summary(self) -> Dict[str, int]:
+        """The feature fold in four numbers (and the old events it read
+        through): what the summary line says, from these and nothing else."""
+        records = list(self.by_feature.values())
+        return {
+            "features_bound": sum(1 for r in records if r.state == "bound"),
+            "features_holding_a_set": sum(1 for r in records if r.state == "bound" and r.outcome == "set"),
+            "disagreements": sum(1 for r in records if r.state == "disagreement"),
+            "orphans": len(self.orphans),
+            "read_through": sum(1 for f in self.read_through.values() if f is not None),
+        }
+
+    def summary_line(self) -> str:
+        s = self.summary()
+        return (f"{s['features_bound']} feature(s) bound, {s['features_holding_a_set']} holding a set, "
+                f"{s['disagreements']} disagreement(s), {s['orphans']} orphan(s); "
+                f"{s['read_through']} old event(s) read through")
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -600,17 +831,25 @@ class FeatureIdentityProjection:
             "built_from_events": self.events,
             "counts": self.counts(),
             "stack_keys": [v.as_dict() for _, v in sorted(self.by_stack_key.items())],
+            "features": [v.as_dict() for _, v in sorted(self.by_feature.items())],
+            "orphans": [{"event_id": k, "reason": v} for k, v in sorted(self.orphans.items())],
+            "summary": self.summary(),
         }
 
 
-def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityProjection:
-    """Fold the event log: per stack-side key, current bindings + full history.
+def build_projection(events: Iterable[FeatureIdentityEvent],
+                     topologies: Optional[Dict[str, Any]] = None,
+                     surface_of: Optional[Callable[[GeometryKey], Optional[Dict[str, Any]]]] = None,
+                     ) -> FeatureIdentityProjection:
+    """Fold the event log: per subject, current bindings + full history; and,
+    given the models, per feature (:class:`FeatureBindings`).
 
-    A group-by on ``stack_key.as_key()`` in :func:`log_order`. An event another
-    event names in ``supersedes`` leaves ``bindings`` and goes to ``superseded``
-    (still in ``history``): folds hide, history keeps. A ``supersedes`` naming
-    an id that does not exist, or one on a different key, is a load error
-    naming both ids. "Earlier" everywhere below means earlier in that order.
+    A group-by on :attr:`FeatureIdentityEvent.subject` in :func:`log_order`.
+    An event another event names in ``supersedes`` leaves ``bindings`` and goes
+    to ``superseded`` (still in ``history``): folds hide, history keeps. A
+    ``supersedes`` naming an id that does not exist, or one on a different
+    subject, is a load error naming both ids. "Earlier" everywhere below means
+    earlier in that order.
 
     A proposal answered twice with the same answer stands once: the repeat is
     in ``history`` and nowhere else, and superseding either supersedes the
@@ -619,6 +858,12 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
     A ``retracted`` event (an unbind) takes back the binding it names in
     ``retracts``: that binding leaves ``bindings`` for ``retracted`` and stays
     in ``history`` (:func:`_retracted_bindings` says what it may name).
+
+    ``topologies`` (``{id: Topology}``, every model the log may name) turns
+    on the feature fold: each v0 event is read through to the feature its end
+    is (:func:`read_through`), and a v1 answer may then name a v0 proposal of
+    the same feature. ``surface_of`` fits a face for the shared-surface rule;
+    without it, different faces read through to one feature disagree.
     """
     events = sorted(events, key=log_order)
     seen_ids: Dict[str, FeatureIdentityEvent] = {}
@@ -629,7 +874,9 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
             raise ValueError(f"duplicate event_id {event.event_id!r}")
         seen_ids[event.event_id] = event
         position[event.event_id] = index
-    answered, restated = _answered_proposals(events, seen_ids, position)
+    if topologies is not None:
+        projection.read_through, projection.orphans = read_through(events, topologies)
+    answered, restated = _answered_proposals(events, seen_ids, position, projection.read_through)
     projection.restated = restated
     hidden: Dict[str, str] = {}
     for event in events:
@@ -638,7 +885,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
         target = seen_ids.get(event.supersedes)
         if target is None:
             raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not in the log")
-        if target.stack_key.as_key() != event.stack_key.as_key():
+        if target.subject != event.subject:
             raise ValueError(
                 f"event {event.event_id!r} supersedes {event.supersedes!r}, which is on a different stack key"
             )
@@ -649,11 +896,12 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
         hidden[restated.get(target.event_id, target.event_id)] = event.event_id
     retracted = _retracted_bindings(events, seen_ids, position, restated, hidden)
     for event in events:
-        key = event.stack_key.as_key()
-        record = projection.by_stack_key.get(key)
+        key = event.subject
+        records = projection.by_feature_subject if event.feature_key is not None else projection.by_stack_key
+        record = records.get(key)
         if record is None:
-            record = StackKeyBindings(stack_key=event.stack_key)
-            projection.by_stack_key[key] = record
+            record = StackKeyBindings(stack_key=event.stack_key, feature_key=event.feature_key)
+            records[key] = record
         record.history.append(event)
         if event.event_id in restated:
             continue  # the answer it repeats is already folded, once
@@ -676,7 +924,194 @@ def build_projection(events: Iterable[FeatureIdentityEvent]) -> FeatureIdentityP
             record.owner_not_in_set.append(event)
         # a `rejected` or `retracted` event lives in history; what it does is
         # to the event it names
+    if topologies is not None:
+        _fold_features(projection, surface_of)
     return projection
+
+
+# ---------------------------------------------------------------------------
+# Reading old events through to their feature
+# ---------------------------------------------------------------------------
+
+
+def edge_end_feature(topologies: Dict[str, Any], stack_key: StackKey,
+                     direction: Optional[str]) -> Tuple[Optional[FeatureKey], Optional[str]]:
+    """``(feature, None)`` for the feature an edge end IS, or ``(None, reason)``.
+
+    The rule is the model view's (:func:`tolerance_stack.model_view.
+    end_feature`): the end's node, on the edge's part -- a dimension's own
+    part, a gap edge's end node's first part -- keyed under the model whose
+    ids it is (:func:`tolerance_stack.topology.feature_identity_topology_id`).
+    """
+    from tolerance_stack.model_view import end_feature  # noqa: PLC0415 -- model_view imports nothing of ours
+    from tolerance_stack.topology import feature_identity_topology_id  # noqa: PLC0415
+
+    if stack_key.kind != "topology_edge" or direction not in DIRECTIONS:
+        return None, ORPHAN_REASONS[2]
+    topology = topologies.get(stack_key.topology_id)
+    if topology is None:
+        return None, ORPHAN_REASONS[0]
+    try:
+        edge = topology.edge(stack_key.edge_id)
+    except Exception:  # noqa: BLE001 -- topology raises its own error for a missing id
+        return None, ORPHAN_REASONS[1]
+    part, node = end_feature(topology, edge, direction)
+    return FeatureKey(feature_identity_topology_id(topology, part, node, topologies), part, node), None
+
+
+def read_through(events: Iterable[FeatureIdentityEvent], topologies: Dict[str, Any]
+                 ) -> Tuple[Dict[str, Optional[FeatureKey]], Dict[str, str]]:
+    """``({v0 event id: its feature or None}, {v0 event id: orphan reason})``.
+
+    A face verdict reads through by its end (:func:`edge_end_feature`); a
+    ``rejected`` or ``retracted`` event goes where the event it names went.
+    An ``owner_not_in_set`` names a key, not an end, so it reads through to
+    nothing. Nothing here edits an event: this is the mapping the fold
+    reads old events through, and new events are written as v1.
+    """
+    by_id = {e.event_id: e for e in events}
+    out: Dict[str, Optional[FeatureKey]] = {}
+    orphans: Dict[str, str] = {}
+    for event in sorted(events, key=log_order):
+        if event.feature_key is not None:
+            continue
+        if event.verdict in FACE_VERDICTS:
+            feature, reason = edge_end_feature(topologies, event.stack_key, event.direction)
+        else:
+            named = by_id.get(event.rejects or event.retracts or "")
+            if named is not None and named.feature_key is None and named.event_id in out:
+                feature = out[named.event_id]
+                reason = orphans.get(named.event_id)
+            else:
+                feature, reason = None, ORPHAN_REASONS[2]
+        out[event.event_id] = feature
+        if feature is None:
+            orphans[event.event_id] = reason or ORPHAN_REASONS[2]
+    return out, orphans
+
+
+def _faces_share_a_surface(a: GeometryKey, b: GeometryKey,
+                           surface_of: Optional[Callable[[GeometryKey], Optional[Dict[str, Any]]]]) -> bool:
+    """Two different faces of one mesh that :func:`feature_geometry.same_surface`
+    calls one surface. A face that cannot be fitted shares nothing."""
+    if surface_of is None or a.source_step_sha256 != b.source_step_sha256:
+        return False
+    fa, fb = surface_of(a), surface_of(b)
+    return fa is not None and fb is not None and same_surface(fa, fb)
+
+
+def _outcome(standing: List[FeatureIdentityEvent], new_shape: bool,
+             share: Callable[[GeometryKey, GeometryKey], bool]
+             ) -> Tuple[Optional[str], List[GeometryKey], List[Dict[str, Any]]]:
+    """``(outcome, faces held, disagreement groups)`` for a feature's
+    standing bindings -- the three collision outcomes.
+
+    Old (v0) bindings, one face each: the same face stands once (``one``);
+    different faces that pairwise ``share`` a surface stand together as one
+    set (``set``); anything else is a ``disagreement``, one group per face.
+    New (v1) bindings each name a whole set, so they are compared as sets:
+    one distinct set stands (``one`` or ``set`` by its size); two differ.
+    """
+    if not standing:
+        return None, [], []
+    groups: List[Dict[str, Any]] = []
+    for event in standing:
+        faces = list(event.faces)
+        unit = [faces] if new_shape else [[f] for f in faces]
+        for group_faces in unit:
+            names = sorted(f.as_key() for f in group_faces)
+            for group in groups:
+                if sorted(f.as_key() for f in group["faces"]) == names:
+                    group["events"].append(event.event_id)
+                    break
+            else:
+                groups.append({"faces": group_faces, "events": [event.event_id]})
+    held: List[GeometryKey] = []
+    for group in groups:
+        for face in group["faces"]:
+            if face.as_key() not in {h.as_key() for h in held}:
+                held.append(face)
+    if len(groups) == 1:
+        return ("set" if len(held) > 1 else "one"), held, []
+    if not new_shape and all(share(a, b) for i, a in enumerate(held) for b in held[i + 1:]):
+        return "set", held, []
+    return "disagreement", held, groups
+
+
+def _fold_features(projection: FeatureIdentityProjection,
+                   surface_of: Optional[Callable[[GeometryKey], Optional[Dict[str, Any]]]]) -> None:
+    """Fill ``projection.by_feature`` from the per-subject records (the
+    read-through for v0, as they are for v1) -- :class:`FeatureBindings`."""
+    cache: Dict[Tuple[str, int], Optional[Dict[str, Any]]] = {}
+
+    def fitted(key: GeometryKey) -> Optional[Dict[str, Any]]:
+        if key.as_key() not in cache:
+            cache[key.as_key()] = surface_of(key) if surface_of else None
+        return cache[key.as_key()]
+
+    shared: set = set()
+
+    def share(a: GeometryKey, b: GeometryKey) -> bool:
+        if not _faces_share_a_surface(a, b, fitted if surface_of else None):
+            return False
+        shared.add(tuple(sorted((a.token(), b.token()))))
+        return True
+
+    out: Dict[Tuple[str, str, str, str], FeatureBindings] = {}
+    inherited: Dict[Tuple[str, str, str, str], List[FeatureIdentityEvent]] = {}
+    written: Dict[Tuple[str, str, str, str], bool] = {}
+    order: Dict[str, int] = {eid: i for i, eid in enumerate(projection.events)}
+
+    def record_for(key: FeatureKey) -> FeatureBindings:
+        if key.as_key() not in out:
+            out[key.as_key()] = FeatureBindings(feature_key=key)
+        return out[key.as_key()]
+
+    for record in projection.by_stack_key.values():
+        for event in record.history:
+            feature = projection.read_through.get(event.event_id)
+            if feature is None:
+                continue
+            target = record_for(feature)
+            target.read_through.append(event.event_id)
+            target.history.append(event.event_id)
+        for event in record.bindings:
+            feature = projection.read_through.get(event.event_id)
+            if feature is not None:
+                inherited.setdefault(feature.as_key(), []).append(event)
+        for name, into in (("proposals", "proposals"), ("rejected_proposals", "rejected_proposals")):
+            for event in getattr(record, name):
+                feature = projection.read_through.get(event.event_id)
+                if feature is not None:
+                    getattr(record_for(feature), into).append(event)
+        for event in record.accepted_proposals:
+            feature = projection.read_through.get(event.event_id)
+            if feature is not None:
+                record_for(feature).accepted_proposals.append(event.event_id)
+    for record in projection.by_feature_subject.values():
+        target = record_for(record.feature_key)
+        target.history.extend(e.event_id for e in record.history)
+        target.proposals.extend(record.proposals)
+        target.rejected_proposals.extend(record.rejected_proposals)
+        target.accepted_proposals.extend(e.event_id for e in record.accepted_proposals)
+        target.superseded.extend(record.superseded)
+        target.retracted.extend(record.retracted)
+        target.owner_not_in_set.extend(record.owner_not_in_set)
+        target.bindings.extend(record.bindings)
+        written[record.feature_key.as_key()] = any(e.verdict in ("bound", "retracted") for e in record.history)
+    for key, target in out.items():
+        old = sorted(inherited.get(key, []), key=lambda e: order[e.event_id])
+        if written.get(key):
+            target.replaced = old
+            new_shape = True
+        else:
+            target.bindings = old
+            new_shape = False
+        target.history.sort(key=lambda eid: order[eid])
+        target.proposals.sort(key=lambda e: order[e.event_id])
+        target.outcome, target.faces, target.disagreement = _outcome(target.bindings, new_shape, share)
+    projection.by_feature = out
+    projection.same_surface = sorted(shared)
 
 
 def _retracted_bindings(events: List[FeatureIdentityEvent],
@@ -702,7 +1137,7 @@ def _retracted_bindings(events: List[FeatureIdentityEvent],
         what = f"event {event.event_id!r} retracts {event.retracts!r}"
         if target is None:
             raise ValueError(f"{what}, which is not in the log")
-        if target.stack_key.as_key() != event.stack_key.as_key():
+        if target.subject != event.subject:
             raise ValueError(f"{what}, which is on a different stack key")
         if target.verdict != "bound":
             raise ValueError(f"{what}, which is not a bound event")
@@ -729,16 +1164,36 @@ def _same_answer(a: FeatureIdentityEvent, b: FeatureIdentityEvent) -> bool:
     return body(a) == body(b)
 
 
+def _answer_names_its_proposal(event: FeatureIdentityEvent, target: FeatureIdentityEvent,
+                               verb: str, read: Dict[str, Optional[FeatureKey]]) -> None:
+    """An answer and its proposal are about one thing: the same subject, or --
+    a v1 answer to a v0 proposal -- the feature that proposal reads through
+    to. Refuses naming both ids otherwise."""
+    if target.subject == event.subject:
+        return
+    if event.feature_key is not None and target.feature_key is None:
+        if read.get(target.event_id) == event.feature_key:
+            return
+        if target.event_id not in read:
+            raise ValueError(
+                f"event {event.event_id!r} {verb} {target.event_id!r}, an edge-end proposal; folding a "
+                f"feature's answer to it needs the models (build_projection's topologies)")
+    raise ValueError(f"event {event.event_id!r} {verb} {target.event_id!r}, which is on a different stack key")
+
+
 def _answered_proposals(events: List[FeatureIdentityEvent],
                         seen_ids: Dict[str, FeatureIdentityEvent],
                         position: Dict[str, int],
+                        read: Optional[Dict[str, Optional[FeatureKey]]] = None,
                         ) -> Tuple[Dict[str, FeatureIdentityEvent], Dict[str, str]]:
     """``({proposal id: the event that answered it}, {repeat id: first answer id})``.
 
     An answer is a ``ratifies`` or a ``rejects``. It must name an earlier
-    ``proposed`` event on the same key, and a ratification must bind exactly
-    the proposed face at the proposed end: an accept that names a proposal and
-    binds something else would record a human agreeing to a face nobody
+    ``proposed`` event on the same key (or, a v1 answer, a v0 proposal read
+    through to its feature), and a ratification must bind the proposed face:
+    at the proposed end (v0), or among the faces it binds (v1 -- an accept
+    may take the face's siblings with it). An accept that names a proposal
+    and binds something else would record a human agreeing to a face nobody
     proposed.
 
     A proposal answered twice with the **same** answer (:func:`_same_answer`)
@@ -750,6 +1205,7 @@ def _answered_proposals(events: List[FeatureIdentityEvent],
     load error naming both: which answer stands is the reviewer's call, never
     the fold's.
     """
+    read = read or {}
     answered: Dict[str, FeatureIdentityEvent] = {}
     restated: Dict[str, str] = {}
     for event in events:
@@ -760,17 +1216,20 @@ def _answered_proposals(events: List[FeatureIdentityEvent],
         target = seen_ids.get(target_id)
         if target is None:
             raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not in the log")
-        if target.stack_key.as_key() != event.stack_key.as_key():
-            raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is on a different stack key")
+        _answer_names_its_proposal(event, target, verb, read)
         if target.verdict != "proposed":
             raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not a proposal")
         if position[target_id] >= position[event.event_id]:
             raise ValueError(f"event {event.event_id!r} {verb} {target_id!r}, which is not earlier")
-        if event.ratifies and (event.geometry_key.as_key() != target.geometry_key.as_key()
-                               or event.direction != target.direction):
-            raise ValueError(
-                f"event {event.event_id!r} ratifies {target_id!r} but binds a different face or end "
-                f"than the one proposed")
+        if event.ratifies:
+            bound = {f.as_key() for f in event.faces}
+            proposed = {f.as_key() for f in target.faces}
+            same_end = event.feature_key is not None or event.direction == target.direction
+            exact = event.feature_key is not None or bound == proposed
+            if not (proposed <= bound and same_end and exact):
+                raise ValueError(
+                    f"event {event.event_id!r} ratifies {target_id!r} but binds a different face or end "
+                    f"than the one proposed")
         if target_id in answered:
             first = answered[target_id]
             if _same_answer(first, event):
@@ -829,12 +1288,13 @@ def revalidate(event: FeatureIdentityEvent, new_manifest: Dict[str, Any]) -> str
     function takes plain dicts (no OCP, no filesystem) so it is exercisable
     against a synthetic fixture manifest with no rotorkit dependency.
     """
-    if event.verdict != "bound" or event.geometry_key is None:
+    if event.verdict != "bound" or not event.faces:
         raise ValueError(f"event {event.event_id!r} has no geometry_key to revalidate")
     faces_by_id = {int(f["face_id"]): f for f in new_manifest.get("faces", [])}
-    new_face = faces_by_id.get(event.geometry_key.face_id)
-    if new_face is None or not face_matches(event.geometry_key, new_face):
-        return "needs_re_confirmation"
+    for key in event.faces:  # a v1 set is confirmed only when every face is
+        new_face = faces_by_id.get(key.face_id)
+        if new_face is None or not face_matches(key, new_face):
+            return "needs_re_confirmation"
     return "confirmed"
 
 
@@ -850,9 +1310,9 @@ def revalidate_projection(
     than defaulted either way.
     """
     results: Dict[str, str] = {}
-    for record in projection.by_stack_key.values():
+    for record in list(projection.by_stack_key.values()) + list(projection.by_feature_subject.values()):
         for event in record.bindings:
-            new_manifest = replacements.get(event.geometry_key.source_step_sha256)
+            new_manifest = replacements.get(event.faces[0].source_step_sha256)
             if new_manifest is not None:
                 results[event.event_id] = revalidate(event, new_manifest)
     return results
@@ -897,22 +1357,87 @@ def installed_mesh_shas(data_root: Path) -> List[str]:
     return sorted(d.name for d in meshes.iterdir() if (d / MESH_PROVENANCE_NAME).is_file())
 
 
-def served_log(events: Iterable[FeatureIdentityEvent], installed: List[str]) -> Dict[str, Any]:
-    """The served log's document: the events in log order, and the meshes."""
-    return {
+def served_log(events: Iterable[FeatureIdentityEvent], installed: List[str],
+               projection: Optional[FeatureIdentityProjection] = None) -> Dict[str, Any]:
+    """The served log's document: the events in log order, and the meshes.
+
+    With the folded ``projection`` (built with the models) it also carries
+    what the browser cannot work out alone, because it has neither the other
+    models nor the meshes' fits (handoff a_feature_is_bound_once_to_a_set_of_
+    faces): ``read_through`` -- every old event's feature, or null -- and
+    ``same_surface``, the face pairs read through to one feature that are one
+    surface. Both are facts about old events, which are never written again,
+    so a page that rewrites the log carries them over unchanged.
+    """
+    doc: Dict[str, Any] = {
         "schema": SCHEMA_SERVED_LOG,
         "events": [e.as_dict() for e in sorted(events, key=log_order)],
         "installed_meshes": list(installed),
     }
+    if projection is not None:
+        doc["read_through"] = {eid: (f.as_dict() if f is not None else None)
+                               for eid, f in sorted(projection.read_through.items())}
+        doc["same_surface"] = [list(pair) for pair in projection.same_surface]
+    return doc
 
 
-def write_served_log(events_dir: Path, data_root: Path) -> Path:
+def write_served_log(events_dir: Path, data_root: Path,
+                     projection: Optional[FeatureIdentityProjection] = None) -> Path:
     """Write ``<data-root>/projections/viewer/feature-identity/log.json``."""
     out = Path(data_root) / SERVED_LOG_SUBDIR / SERVED_LOG_NAME
     out.parent.mkdir(parents=True, exist_ok=True)
-    doc = served_log(load_events(events_dir), installed_mesh_shas(data_root))
+    doc = served_log(load_events(events_dir), installed_mesh_shas(data_root), projection)
     out.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return out
+
+
+TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
+
+
+def load_models(topologies_dir: Path = TOPOLOGIES_DIR) -> Dict[str, Any]:
+    """Every committed model by id -- what an old event is read through by."""
+    from tolerance_stack.topology import load_topology  # noqa: PLC0415 -- the fold itself needs no topology
+
+    out: Dict[str, Any] = {}
+    for path in sorted(Path(topologies_dir).glob("topology_*.json")):
+        topology = load_topology(path)
+        out[topology.id] = topology
+    return out
+
+
+def mesh_surface_of(meshes_dir: Path) -> Callable[[GeometryKey], Optional[Dict[str, Any]]]:
+    """A face's fitted surface (:func:`feature_geometry.surface_record`), read
+    from ``<meshes_dir>/<sha>/`` -- or ``None`` where the mesh or the face is
+    not there, which the shared-surface rule reads as "not one surface"."""
+    from tolerance_stack import feature_geometry as fg  # noqa: PLC0415
+
+    meshes: Dict[str, Any] = {}
+
+    def surface_of(key: GeometryKey) -> Optional[Dict[str, Any]]:
+        sha = key.source_step_sha256
+        if sha not in meshes:
+            directory = Path(meshes_dir) / sha
+            meshes[sha] = fg.read_mesh(directory) if (directory / "manifest.json").is_file() else None
+        mesh = meshes[sha]
+        if mesh is None:
+            return None
+        try:
+            return fg.surface_record(fg.fit_face(mesh, key.face_id))
+        except fg.MeshError:
+            return None
+
+    return surface_of
+
+
+def fold_with_models(events_dir: Path, data_root: Path,
+                     topologies_dir: Path = TOPOLOGIES_DIR,
+                     ) -> Tuple[List[FeatureIdentityEvent], FeatureIdentityProjection]:
+    """The log at ``events_dir``, folded with every model and the meshes under
+    ``data_root`` -- the feature fold every builder and reader runs."""
+    events = load_events(events_dir)
+    projection = build_projection(events, load_models(topologies_dir),
+                                  mesh_surface_of(Path(data_root) / MESHES_SUBDIR))
+    return events, projection
 
 
 def _provenance():
@@ -932,6 +1457,7 @@ def rebuild(
     *,
     replacements: Optional[Dict[str, Dict[str, Any]]] = None,
     allow_older: bool = False,
+    topologies_dir: Path = TOPOLOGIES_DIR,
 ) -> Path:
     """Wipe and rebuild ``<data-root>/projections/feature-identity/bindings.json``.
 
@@ -951,8 +1477,7 @@ def rebuild(
     for line in prov.note_lines(provenance):
         print(line, file=sys.stderr)
 
-    events = load_events(events_dir)
-    projection = build_projection(events)
+    events, projection = fold_with_models(events_dir, out_dir.parents[1], topologies_dir)
     for line in resolution_notes(events, projection):
         print(f"note: {line}", file=sys.stderr)
     data = projection.as_dict()
@@ -1021,14 +1546,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(str(refusal), file=sys.stderr)
         return 3
 
-    events = load_events(events_dir)
-    projection = build_projection(events)
+    events, projection = fold_with_models(events_dir, data_root)
     print(f"wrote {out}")
-    print(f"wrote {write_served_log(events_dir, data_root)}")
+    print(f"wrote {write_served_log(events_dir, data_root, projection)}")
     counts = projection.counts()
-    print(f"  {len(projection.by_stack_key)} stack key(s) from {len(projection.events)} event(s): "
+    print(f"  {len(projection.by_stack_key) + len(projection.by_feature_subject)} key(s) from "
+          f"{len(projection.events)} event(s): "
           + ", ".join(f"{counts[v]} {v}" for v in VERDICTS)
           + f"; {counts['open_proposals']} proposal(s) still open")
+    print(f"  features: {projection.summary_line()}")
     return 0
 
 

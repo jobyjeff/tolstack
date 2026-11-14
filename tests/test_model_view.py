@@ -253,11 +253,12 @@ def test_the_projection_carries_the_view_and_the_label_on_every_part():
         "schema": "joby.tolerance_stack/projection_provenance/v0",
         "built_at": "2026-11-10T00:00:00+00:00", "built_by": B.BUILT_BY,
         "branch": "test", "head_sha": "0" * 40, "dirty": False})
+    models = {t.id: t for t in (load_topology(p) for p in sorted(TOPOLOGIES_DIR.glob("topology_*.json")))}
     for row in projection["topologies"]:
         assert "model" in row, row["id"]
-        topology = load_topology(TOPOLOGIES_DIR / f"topology_{row['id']}.json")
+        topology = models[row["id"]]
         mesh = {p["id"]: p["mesh"] for p in row["parts"]}
-        assert row["model"] == model_view(topology, lambda pid: mesh[pid]), row["id"]
+        assert row["model"] == model_view(topology, lambda pid: mesh[pid], models), row["id"]
         for part in row["parts"]:
             assert part["label"] == part_label(Part.from_dict(
                 {k: v for k, v in part.items() if k not in ("mesh", "label")})), part["id"]

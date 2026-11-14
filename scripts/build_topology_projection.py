@@ -1753,6 +1753,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
                      aliases: Sequence[Dict[str, str]] = (),
                      hardware: Optional[Dict[str, Any]] = None,
                      runs: Sequence[Dict[str, Any]] = (),
+                     models: Optional[Dict[str, Topology]] = None,
                      ) -> Dict[str, Any]:
     branch_nodes = topology.branch_nodes()
     counts: Dict[str, int] = {}
@@ -1802,7 +1803,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # bodies > parts > features, dimensions, interfaces and joints, with
         # membership read off `Topology` and nowhere else. Every surface that
         # asks which part is in which body reads this block.
-        "model": model_view(topology, lambda part_id: mesh_fact(part_id, meshes, aliases)),
+        # `models` (every topology by id) keys a feature this model shares
+        # with the one it reuses ids from under that one (`identity`).
+        "model": model_view(topology, lambda part_id: mesh_fact(part_id, meshes, aliases), models),
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,
@@ -1872,6 +1875,7 @@ def build(topologies_dir: Path,
     if provenance is None:
         provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY)
 
+    models = {t.id: t for _, _, t in topologies}
     meshes = installed_meshes(meshes_dir)
     aliases = load_mesh_aliases(topologies_dir)
     runs = drawing_checker_runs(drawing_checker_root)
@@ -1894,7 +1898,7 @@ def build(topologies_dir: Path,
         "variant_axis": VARIANT_AXIS,
         "topologies": [
             project_topology(path, raw, topology, studies.get(topology.id, []),
-                             meshes, aliases, hardware, runs)
+                             meshes, aliases, hardware, runs, models)
             for path, raw, topology in in_model_order(topologies)
         ],
         "orphan_studies": orphans,
