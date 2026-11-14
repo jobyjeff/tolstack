@@ -161,7 +161,9 @@ function bandProbe() {
     marginLeft: sizer ? parseFloat(sizer.style.marginLeft) || 0 : null,
     marginTop: sizer ? parseFloat(sizer.style.marginTop) || 0 : null,
     scrollLeft: hs ? hs.scrollLeft : null,
-    scrollY: window.scrollY,
+    // The drawing's own vertical scroll: the document never scrolls (the
+    // fixed shell, 2026-11-14).
+    scrollY: hs ? hs.scrollTop : null,
     tweening: !!(window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.tweening),
   };
 }
@@ -199,7 +201,7 @@ const BUILTINS = {
   // A click on a grid row: selection changes, the drawing must hold still.
   "row-click": {
     async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },
-    async trigger(page, h) { await h.click(page, "#topopane tr.tvrow--edge"); },
+    async trigger(page, h) { await h.click(page, "#topogrid tr.tvrow--edge"); },
     probe: (page) => page.evaluate(bandProbe),
   },
   // A click on a node of the kinematic page: the drawing must not move.

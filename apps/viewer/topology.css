@@ -1397,11 +1397,6 @@ body { display: flex; flex-direction: column; }
    viewer_nav_wedge_and_classic_retirement): from a reader's seat there is one
    viewer, and some entries simply have no DAG. */
 
-/* A flex ITEM of `.tv__main`'s column, not `.center`'s — same shape
-   `.tv__scroll` above now is (full-page-scroll, viewer_error_surface_and_
-   layout, 2026-09-09): grow to fill, and let the DOCUMENT scroll rather than
-   clipping to an inner scrollport of its own. */
-.tv__main > .stackview { flex: 1 1 auto; min-height: 0; }
 
 /* --- the preview pane --------------------------------------------------- */
 

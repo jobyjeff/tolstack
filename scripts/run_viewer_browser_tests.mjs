@@ -2779,16 +2779,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
               }
             }
           });
-          if (leaders.length !== plan.leaders.length) {
-            bad.push(`leaders: ${leaders.length} drawn vs ${plan.leaders.length} planned`);
-          }
+          // The plan still names its seams, but no leader runs across to the
+          // grid: it has its own region (the fixed shell, 2026-11-14).
+          if (leaders.length !== 0) bad.push(`leaders: ${leaders.length} drawn across to the grid`);
           return bad;
         }, topology.id);
-        push(`[real] ${topology.id}'s groups and leaders match its plan`,
+        push(`[real] ${topology.id}'s groups match its plan, and no leader is drawn across to the grid`,
           planMatch.length === 0);
         if (planMatch.length) console.log("    plan: " + planMatch.slice(0, 5).join(" | "));
         const drift = await correspondence();
-        push(`[real] ${topology.id} corresponds leader for leader`, drift.drift.length === 0);
+        push(`[real] ${topology.id} keeps every row on its bar`, drift.drift.length === 0);
         if (drift.drift.length) console.log("    drift: " + drift.drift.slice(0, 5).join(" | "));
 
         // Deliverable 4 (viewer_v2_single_nav): the topology's own joint
@@ -3195,6 +3195,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         if (span.bottom < 80 || span.top > window.innerHeight - 80) {
           strip.scrollTop += (span.top + span.bottom) / 2 - window.innerHeight / 2;
         }
+        // ...and sideways: the DAG's region is narrower than the product
+        // graph's rails since the grid moved to its own column (2026-11-14).
+        const region = strip.getBoundingClientRect();
+        if (span.left < region.left + 8 || span.right > region.right - 8) {
+          strip.scrollLeft += span.left - (region.left + 40);
+        }
         const box = node.getBoundingClientRect();
         const lo = Math.max(box.top + 8, 70);
         const hi = Math.min(box.bottom - 8, window.innerHeight - 12);
@@ -3378,21 +3384,6 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         console.log("    surfaces disagreed on: " +
           disagreed.map((r) => r.id).join(", "));
       }
-      // Since 2026-10-29 (a_leader_starts_at_the_mark_it_names_on_every_tier)
-      // a row lights its two ENDS' leaders, the ones the 3D overlay lights --
-      // not the leaders whose seam it starts at, which lit up to three
-      // leaders from nodes the edge does not name.
-      const strayLeaders = rowsLit.filter((r) =>
-        r.fromRow.leaderIds.join() !== r.fromRow.endsWithLeader.join());
-      push("[real] hovering a grid row lights exactly its two ends' leaders -- every one of " +
-        "them that has a leader, and no leader of a node it does not name",
-        rowsLit.filter((r) => r.fromRow.leadLeaders >= 1).length >= 1 &&
-        strayLeaders.length === 0);
-      if (strayLeaders.length) {
-        console.log("    rows lighting other nodes' leaders: " + strayLeaders.map((r) =>
-          r.id + " lit " + r.fromRow.leaderIds.join("+") + " ends " +
-          r.fromRow.endsWithLeader.join("+")).join(" | "));
-      }
       push("[real] leaving clears both surfaces, every time: nothing is left " +
         "lit behind the pointer",
         rowsLit.every((r) => r.cleared.leadRows.length === 0 &&
@@ -3421,7 +3412,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         realTol.bad.length === 0 && realTol.lengths.length >= 3 &&
         realTol.floored < realTol.edges && realTol.dagHeight > realTol.floorMin);
       if (realTol.bad.length) console.log("    bars: " + realTol.bad.slice(0, 5).join(" | "));
-      push("[real] tolerance-width leaders still correspond",
+      push("[real] tolerance width keeps every row on its bar",
         (await correspondence()).drift.length === 0);
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
@@ -3431,140 +3422,24 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         realAbs.bad.length === 0 && realAbs.lengths.length >= 3 &&
         realAbs.floored < realAbs.edges);
       if (realAbs.bad.length) console.log("    bars: " + realAbs.bad.slice(0, 5).join(" | "));
-      push("[real] feature-size leaders still correspond",
+      push("[real] feature-size keeps every row on its bar",
         (await correspondence()).drift.length === 0);
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
 
-      // Both leader styles on the REAL pitch_system -- the document Jeff was
-      // reading when he said the leaders were near impossible to follow, and
-      // the one where the leaders genuinely cross each other until
-      // descending_leaders_take_a_path_that_cannot_cross (2026-10-30:
-      // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md).
+      // The product model's grid: no band, no tint, its untraced rows saying
+      // so on their mark. (Its leader-style matrix and the jog zone's drag
+      // retired with the DAG-to-grid leaders, 2026-11-14: the grid has its own
+      // region, so no leader runs across to it.)
       const realBands = await page.evaluate(GRID_IN_PAGE);
       push("[real] pitch_system draws no band, its rows wear no tint, " +
         "and its untraced rows say so on their mark",
-        realBands.bad.length === 0 && realBands.leaders > 0 &&
-        realBands.drawn === 0 &&
+        realBands.bad.length === 0 && realBands.drawn === 0 &&
         realBands.tinted === realBands.rowHeights.length &&
         // A floor, not a share: 21 of the product graph's 59 rows are
         // untraced since the 2026-10-26 fold (20 of pitch_system's 24 were).
         realBands.provenanceLayers >= 20);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
-      // Both drawn styles against the real mechanism. The page is in ANGLED
-      // here (turned on above; off is the default since 2026-11-10), so one
-      // click reaches jogged, the next is off, and the one after comes home.
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      const realJogged = await page.evaluate(GRID_IN_PAGE);
-      push("[real] pitch_system's jogged leaders still land on every dot and seam",
-        (await correspondence()).drift.length === 0 &&
-        realJogged.bad.length === 0 &&
-        realJogged.leaderPaths.length === realJogged.leaders &&
-        realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
-      if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      push("[real] the next click is off: no leader on the product graph either, its rows unchanged",
-        /Leaders: off/.test(await page.locator("#leader-style-toggle").textContent()) &&
-        (await page.evaluate(GRID_IN_PAGE)).leaderPaths.length === 0 &&
-        await page.locator("tr.tvrow").count() === realJogged.rowHeights.length);
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      const realAngled = await page.evaluate(GRID_IN_PAGE);
-      push("[real] and back in angled style, flat out of the rails then straight",
-        (await correspondence()).drift.length === 0 &&
-        /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
-        realAngled.leaderPaths.length === realAngled.leaders &&
-        realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
-
-      // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
-      // reset them -- the rule density and the length modes already follow.
-      const zone = () => page.evaluate(ZONE_IN_PAGE);
-      // The clamp's own ceiling, read from the app rather than written here:
-      // a zone already AT it cannot widen, and a drag that cannot widen is
-      // not a broken drag (VA.JOG_ZONE_SCALE, topology.js).
-      const VA_JOG_MAX = await page.evaluate(() => window.ViewerApp.JOG_ZONE_SCALE.max);
-      const before = await zone();
-      // Not asserted to be 1: the mock block above dragged it, and the app's
-      // state module survives the fixture swap and re-boot this tier does --
-      // which is itself the preference behaving. What is asserted is that the
-      // scale is re-derived against THIS topology's own leaders.
-      push("[real] the jog zone is measured against the product graph's own leaders",
-        before.topologyId === "vpa_pitch_linkage" &&
-        before.leaders === realAngled.leaders && before.scale >= 1);
-      // The grips ride the grid's header, which sits above the first grid row
-      // now and not at the top of the pane: bring it on screen first.
-      await page.locator(".tvgrip--jog").evaluate((n) => n.scrollIntoView({ block: "center" }));
-      const realGrip = await page.locator(".tvgrip--jog").boundingBox();
-      await page.mouse.move(realGrip.x + realGrip.width / 2,
-                            realGrip.y + realGrip.height / 2);
-      await page.mouse.down();
-      await page.mouse.move(realGrip.x + realGrip.width / 2 + 200,
-                            realGrip.y + realGrip.height / 2, { steps: 8 });
-      await page.mouse.up();
-      await page.waitForTimeout(80);
-      const dragged = await zone();
-      // Three claims, three named checks (split 2026-09-15): as one `&&` this
-      // reported a bare FAIL and gave no way to tell a drag that did not take
-      // from a correspondence that broke -- which cost a session an hour of
-      // probe scripts. The numbers are in each name.
-      push(`[real] pitch_system's jog zone drags open (scale ${before.scale.toFixed(2)} ` +
-        `-> ${dragged.scale.toFixed(2)}, ceiling ${VA_JOG_MAX})`,
-        dragged.scale > 1.5 && dragged.scale > before.scale);
-      push(`[real] and the SVG really widened with it (${before.svg} -> ${dragged.svg}px)`,
-        dragged.svg > before.svg + 100);
-      push("[real] leaders still land on their dots and seams in the widened zone",
-        (await correspondence()).drift.length === 0);
-
-      // The leader STYLE is the third preference in that rule, and it is the
-      // one nothing observed until 2026-09-15 (ISSUE_20260915_leader_style_
-      // persistence_across_topology_switch_is_unpinned): topology_app.js and
-      // apps/viewer/README.md both say it survives a topology switch "like
-      // density does", and adding a `state.leaderStyle = <default>;` line to
-      // selectTopology() shipped green in every tier. The reason is placement,
-      // not coverage: the block above toggles off the default, measures, and
-      // toggles BACK before the only topology switch in the suite, and at the
-      // default a reset and a non-reset are the same state. So switch topology
-      // while the style is OFF its default, and read the toggle back
-      // afterwards. Off the default is JOGGED since 2026-09-21, which is the
-      // whole reason this anchor is written against the toggle's TEXT rather
-      // than against a style name: flipping the default moves which side of
-      // the toggle is the anchor, and a hard-coded "angled" here would have
-      // quietly gone back to measuring nothing.
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      push("[real] the anchor: the leader style really is off its default " +
-        "before the switch",
-        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
-
-      // A switch needs a second real topology to switch to, and the product
-      // model is the only one since 2026-10-27 (the four fastener stacks were
-      // the others): the fixture-side switch checks are what cover it now.
-      const otherReal = realProjection.topologies.find((t) => t.id !== "vpa_pitch_linkage");
-      if (otherReal) {
-      await pickModel(page, otherReal.id);
-      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const switched = await zone();
-      push("[real] switching topology keeps the SCALE, not the pixel width",
-        switched.topologyId === otherReal.id &&
-        switched.natural !== dragged.natural &&
-        Math.abs(switched.scale - dragged.scale) < 0.01 &&
-        (await correspondence()).drift.length === 0);
-      push("[real] switching topology keeps the leader STYLE too",
-        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
-      } else {
-        push("[real] SKIPPED -- the live projection has one topology, so there is " +
-          "nothing to switch to (ISSUE_20261027_no_real_topology_switch_since_the_fold.md)", true);
-      }
-      // Back to angled (through off), so everything below this sees the
-      // leaders it reads.
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      await pickModel(page, "vpa_pitch_linkage");
-      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // ...and the three OLDER display preferences, whose precedent both docs
       // invoke when they say the leader style survives a switch "like density
@@ -3620,27 +3495,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
 
-      // --- the grips under a widened preview pane ------------------------
+      // --- the grips under a narrowed grid column ------------------------
       //
-      // The reader can drag the preview pane over the grid's own controls
-      // (ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_
-      // grips): the grid has no horizontal scrollport of its own -- full-page
-      // scroll, viewer_error_surface_and_layout 2026-09-09 -- so a grip parked
-      // at a content coordinate simply left the pane's visible window, where
-      // `.tv__hscroll`'s overflow-x clips it and a pointer reaches the preview
-      // pane instead. Measured on this projection at 1600x1000 before
-      // topology_grid_scroll_and_grips: at the shipped 430px pane the jog grip
-      // answered and at 560px it did not, and with the ELEMENT column dragged
-      // +220 the ELEMENT grip answered at neither.
-      //
-      // A pointer-down is the whole claim, so this drags each grip for real
-      // and reads the preference back -- a `boundingBox()` would report a
-      // clipped grip's box just as happily as a visible one's, which is
-      // exactly how this went unnoticed.
-      const PANE_MAX = await page.evaluate(() => window.ViewerApp.TOPO_PANE_WIDTH.max);
+      // The reader can drag the column of settings, grid and Preview narrower
+      // than the grid (the side divider, the fixed shell 2026-11-14), and a
+      // grip parked at a content coordinate past the column's visible right
+      // edge would be a control with no way in (ISSUE_20260915_a_wide_preview_
+      // pane_can_cover_the_grids_own_drag_grips). A pointer-down is the whole
+      // claim, so this drags the grip for real and reads the width back -- a
+      // `boundingBox()` would report a clipped grip's box just as happily.
       const dragBy = async (selector, dx) => {
-        await page.locator(selector).evaluate((n) => n.scrollIntoView({ block: "center" }))
-          .catch(() => {});
         const box = await page.locator(selector).boundingBox();
         if (!box) return false;
         const y = box.y + box.height / 2;
@@ -3651,139 +3515,138 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         await page.waitForTimeout(90);
         return true;
       };
-      const gripState = () => page.evaluate(() => ({
-        svg: Number(document.querySelector("svg.tv__rails").getAttribute("width")),
-        name: window.ViewerApp.topoColumn("name").width,
-      }));
-      // Each grip dragged out and straight back, so the check leaves the page
-      // on the state it found.
-      const gripsAnswer = async () => {
-        const before = await gripState();
-        await dragBy(".tvgrip--jog", 40);
-        const jogged = await gripState();
-        await dragBy(".tvgrip--jog", -40);
-        await dragBy(".tvgrip--col", 40);
-        const widened = await gripState();
-        await dragBy(".tvgrip--col", -40);
-        return { jog: jogged.svg > before.svg, col: widened.name > before.name };
+      const NAME_GRIP = '.tvgrip--col[data-resize="column:name"]';
+      const nameWidth = () => page.evaluate(() => window.ViewerApp.topoColumn("name").width);
+      // Dragged out and straight back, so the check leaves the page as it
+      // found it.
+      const gripAnswers = async () => {
+        const before = await nameWidth();
+        await dragBy(NAME_GRIP, 40);
+        const widened = await nameWidth();
+        await dragBy(NAME_GRIP, -40);
+        return widened > before;
       };
-      // The divider is where the reader's own hand is: dragging it LEFT widens
-      // the preview pane and narrows the grid.
-      const setPane = async (target) => {
-        // The divider is full height and the grips' own scroll-into-view moved
-        // the page: aim at it from the top.
-        await scrollRegionsTop(page);
-        const box = await page.locator("#detail-divider").boundingBox();
-        const now = await page.evaluate(() =>
-          document.getElementById("detail").getBoundingClientRect().width);
+      const columnWidth = () => page.evaluate(() =>
+        Math.round(document.querySelector(".tv__main").getBoundingClientRect().width));
+      // The side divider is where the reader's own hand is: dragging it LEFT
+      // widens the column and narrows the DAG.
+      const setColumn = async (target) => {
+        const box = await page.locator("#side-divider").boundingBox();
+        const now = await columnWidth();
         await page.mouse.move(box.x + box.width / 2, box.y + 120);
         await page.mouse.down();
         await page.mouse.move(box.x + box.width / 2 - (target - now), box.y + 120,
           { steps: 8 });
         await page.mouse.up();
         await page.waitForTimeout(140);
-        return page.evaluate(() =>
-          Math.round(document.getElementById("detail").getBoundingClientRect().width));
+        return columnWidth();
       };
       await pickModel(page, "vpa_pitch_linkage");
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const paneAtStart = await page.evaluate(() =>
-        Math.round(document.getElementById("detail").getBoundingClientRect().width));
-      // The ELEMENT column dragged wide first, which is half of the reported
-      // repro and the state its own grip was unreachable in at EVERY pane
-      // width -- its boundary ends up ~550px right of anything on screen.
-      await dragBy(".tvgrip--col", 220);
-      for (const target of [560, PANE_MAX]) {
-        const got = await setPane(target);
-        const answered = await gripsAnswer();
-        push(`[real] with the preview pane dragged to ${got}px, the jog grip ` +
+      const columnAtStart = await columnWidth();
+      // The ELEMENT column dragged wide first: its boundary then ends up well
+      // right of anything on screen in a narrowed column.
+      await dragBy(NAME_GRIP, 220);
+      for (const target of [520, 760]) {
+        const got = await setColumn(target);
+        push(`[real] with the grid's column dragged to ${got}px, the ELEMENT column's grip ` +
           `still answers a pointer-down (topology_grid_scroll_and_grips)`,
-          answered.jog);
-        push(`[real] ...and so does the ELEMENT column's, ${
-          got === PANE_MAX ? "at the pane's own maximum" : "220px of column later"}`,
-          answered.col);
+          await gripAnswers());
       }
-      await dragBy(".tvgrip--col", -220);
-      await setPane(paneAtStart);
-      push("[real] and the page is back on the pane width it started at, so " +
+      await dragBy(NAME_GRIP, -220);
+      await setColumn(columnAtStart);
+      push("[real] and the page is back on the column width it started at, so " +
         "the divider block below measures what it thinks it does",
-        Math.abs((await page.evaluate(() =>
-          document.getElementById("detail").getBoundingClientRect().width)) -
-          paneAtStart) < 2);
-      await page.evaluate(() =>
-        window.localStorage.removeItem("tolstack.viewer.detailWidth"));
+        Math.abs((await columnWidth()) - columnAtStart) < 2);
+      await page.evaluate((k) => window.localStorage.removeItem(k),
+        await page.evaluate(() => window.ViewerApp.PANE_WIDTH_KEY));
     }
 
-    // --- the preview pane's own divider (viewer_component_names_and_
-    //     reference_copy, 2026-09-15) -------------------------------------
+    // --- the seams (viewer_component_names_and_reference_copy, 2026-09-15;
+    //     the fixed shell, 2026-11-14) ----------------------------------------
     //
-    // Jeff: "the right preview pane is resizable. It's too narrow." Three
-    // claims a DOM shim cannot make: that a real pointer drag on the divider
-    // widens the pane, that the DAG beside it gives up the width rather than
-    // overflowing, and that a RELOAD gets the width back. The last one is the
-    // interesting one -- it is the only preference on this page that persists,
-    // so a reload is the whole test.
-    const paneWidth = () => page.evaluate(() => ({
-      pane: document.getElementById("detail").getBoundingClientRect().width,
-      main: document.querySelector(".tv__main").getBoundingClientRect().width,
-      stored: window.localStorage.getItem("tolstack.viewer.detailWidth"),
+    // Jeff: "the right preview pane is resizable. It's too narrow." Since the
+    // fixed shell the Preview is under the grid, so two seams answer him: the
+    // side divider (the column's width) and the row divider (the Preview's
+    // height). Three claims a DOM shim cannot make, for each: a real pointer
+    // drag moves the seam the right way, the neighbour gives up the room
+    // rather than the page overflowing, and a RELOAD gets the size back.
+    const sizes = () => page.evaluate(() => ({
+      column: document.querySelector(".tv__main").getBoundingClientRect().width,
+      dag: document.querySelector("#topopane").getBoundingClientRect().width,
+      preview: document.getElementById("detail").getBoundingClientRect().height,
+      grid: document.getElementById("topogrid").getBoundingClientRect().height,
+      storedColumn: window.localStorage.getItem(window.ViewerApp.PANE_WIDTH_KEY),
+      storedPreview: window.localStorage.getItem(window.ViewerApp.PREVIEW_HEIGHT_KEY),
+      overflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth +
+        document.scrollingElement.scrollHeight - document.scrollingElement.clientHeight,
     }));
-
-    const divider = page.locator("#detail-divider");
-    push("the preview pane carries a full-height drag divider",
-      await divider.count() === 1);
-    const dividerBox = await divider.boundingBox();
-    const beforePane = await paneWidth();
-    // Full height of the flex row, not a grip inside a header: a reader must
-    // be able to grab the seam anywhere down it.
-    push("the divider spans the panes it sits between",
-      dividerBox.height > 300);
-    // Drag LEFT to widen -- the pane is on the right of its divider, and
+    const drag = async (sel, dx, dy) => {
+      const b = await page.locator(sel).boundingBox();
+      const x = b.x + b.width / 2, y = b.y + b.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + dx, y + dy, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(140);
+    };
+    const side = page.locator("#side-divider");
+    const row = page.locator("#detail-divider");
+    push("the column right of the DAG carries a full-height drag divider, and the " +
+      "Preview a full-width one along the grid's foot",
+      await side.count() === 1 && (await side.boundingBox()).height > 300 &&
+      await row.count() === 1 && (await row.boundingBox()).width > 300);
+    const beforeSeams = await sizes();
+    // Drag LEFT to widen -- the column is on the right of its divider, and
     // getting that sign backwards is the likeliest mistake in the feature.
-    await page.mouse.move(dividerBox.x + dividerBox.width / 2,
-                          dividerBox.y + 120);
-    await page.mouse.down();
-    await page.mouse.move(dividerBox.x + dividerBox.width / 2 - 160,
-                          dividerBox.y + 120, { steps: 8 });
-    await page.mouse.up();
-    await page.waitForTimeout(120);
-    const afterPane = await paneWidth();
-    push("dragging the divider LEFT widens the preview pane",
-      afterPane.pane > beforePane.pane + 120);
-    push("and the centre pane gave up the width rather than overflowing",
-      afterPane.main < beforePane.main - 120 &&
-      (await page.evaluate(() =>
-        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)));
-    push("the drag wrote the width down when the pointer came up",
-      Number(afterPane.stored) === Math.round(afterPane.pane));
-    push("leaders still land on their dots and seams beside a wider pane",
+    await drag("#side-divider", -160, 0);
+    const wider = await sizes();
+    push("dragging the side divider LEFT widens the column, the DAG gives up the " +
+      "width, nothing overflows, and the width is written down",
+      wider.column > beforeSeams.column + 120 && wider.dag < beforeSeams.dag - 120 &&
+      wider.overflow <= 0 && Number(wider.storedColumn) === Math.round(wider.column));
+    // UP to grow -- the Preview is below its divider.
+    await drag("#detail-divider", 0, -120);
+    const taller = await sizes();
+    push("dragging the row divider UP makes the Preview taller, the grid gives up the " +
+      "height, nothing overflows, and the height is written down",
+      taller.preview > wider.preview + 80 && taller.grid < wider.grid - 1 &&
+      taller.overflow <= 0 && Number(taller.storedPreview) === Math.round(taller.preview));
+    push("every row keeps its bar beside the moved seams",
       (await correspondence()).drift.length === 0);
 
-    // The keyboard path, which needs no pointer at all: the divider is
-    // focusable and the arrow keys nudge it.
-    await divider.focus();
+    // The keyboard path, which needs no pointer at all: both dividers are
+    // focusable and their own arrow keys nudge them.
+    await side.focus();
     await page.keyboard.press("ArrowRight");
+    await row.focus();
+    await page.keyboard.press("ArrowDown");
     await page.waitForTimeout(80);
-    const nudged = await paneWidth();
-    push("the arrow keys nudge the divider without a pointer",
-      nudged.pane < afterPane.pane - 4 &&
-      Number(nudged.stored) === Math.round(nudged.pane));
+    const nudged = await sizes();
+    push("the arrow keys nudge both dividers without a pointer",
+      nudged.column < taller.column - 4 && nudged.preview < taller.preview - 4 &&
+      Number(nudged.storedColumn) === Math.round(nudged.column) &&
+      Number(nudged.storedPreview) === Math.round(nudged.preview));
     push("and the divider keeps its focus across the re-render the nudge caused",
       await page.evaluate(() => document.activeElement &&
         document.activeElement.id === "detail-divider"));
 
     // THE claim. A reload constructs the page from scratch; nothing but
-    // localStorage carries the width across it.
+    // localStorage carries the sizes across it.
     await page.reload();
     await page.waitForSelector(".tvtable", { timeout: 15000 });
-    const reloaded = await paneWidth();
-    push("a reload gets the remembered pane width back",
-      Math.abs(reloaded.pane - nudged.pane) < 2);
-    // And it is the ONLY preference that does: the diagram settings are back
-    // to their defaults, which is the asymmetry the README argues for.
+    const reloaded = await sizes();
+    push("a reload gets the remembered column width and Preview height back",
+      Math.abs(reloaded.column - nudged.column) < 2 &&
+      Math.abs(reloaded.preview - nudged.preview) < 2);
+    // ...and the diagram's own preferences are back to their defaults, which
+    // is the asymmetry the README argues for.
     push("the diagram's own preferences did NOT persist with it",
       /comfortable/i.test(await page.locator("#density-toggle").textContent()));
-    await page.evaluate(() => window.localStorage.removeItem("tolstack.viewer.detailWidth"));
+    await page.evaluate(() => {
+      window.localStorage.removeItem(window.ViewerApp.PANE_WIDTH_KEY);
+      window.localStorage.removeItem(window.ViewerApp.PREVIEW_HEIGHT_KEY);
+    });
 
     // --- the nav's own divider (a_face_is_picked_the_way_cad_picks_it) ------
     // Jeff: "the left side menu needs to be draggable to resize." The nav is
@@ -14396,7 +14259,10 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     const caughtMidFlight = await page.evaluate(async ({ selector }) => {
       const VA = window.ViewerApp;
       document.querySelector(selector).click();
-      const deadline = Date.now() + 3000;
+      // The same ceiling catchFrame waits under: a study click reaches the
+      // transition through the worksheet read, and on the product graph its
+      // first frame can be seconds away on a loaded box.
+      const deadline = Date.now() + 15000;
       while (Date.now() < deadline) {
         if (VA.lastTopoRender.tweening &&
             document.querySelector("div.tv__ghost")) {

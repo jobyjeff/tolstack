@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: open
+status: resolved
 area: viewer/layout
 reporter: agent
 audience: strategy
@@ -26,3 +26,13 @@ filed here so F1c has a measured case. Related but not the same issue:
 
 Repro: `node tests/debug_one_selection_both_ways_20261112.mjs --phase topology`,
 then look at `c2_grid_row_selected_after.png`.
+
+## Resolved 2026-11-14 (the_page_is_a_fixed_layout_and_nothing_scrolls_the_document)
+
+The shell now sizes the pane's region: with no width the reader dragged, the
+pane opens at half of the middle (the window less the tree's column and the
+grid's), so at 3840x2160 on v2 it measures 1200x2160 CSS px beside a
+1211-px DAG region, and it starts at the window's top. The settings bar and
+the grid moved to the column right of the DAG, so nothing is drawn over the
+pane's top bar from the page. The measurements and shots are in the lesson,
+`docs/sessions/lessons/LESSONS_20261112_the_page_is_a_fixed_layout_and_nothing_scrolls_the_document.md`.

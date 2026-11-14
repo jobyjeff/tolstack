@@ -146,12 +146,9 @@
         them.</b> The grid beside the diagram holds one row per <b>dimension</b>,
         in the same walk order, grouped into components: the merged left cell
         spans each part's own rows.</li>
-      <li><b>A leader line is a part boundary.</b> Each line runs from an
-        interface's dot to the seam between the two grid rows it separates — and
-        it is only drawn where the dimensions meeting at that interface belong
-        to different parts (or a clearance). An interface inside one part
-        (several tolerances on one feature) gets no leader, which is what makes
-        component membership visible at a glance.</li>
+      <li><b>A leader line runs to the 3D scene.</b> With the 3D pane open
+        beside the diagram and Leaders on, each lit interface's dot is joined to
+        the point in the scene where that interface is.</li>
       <li><b>A column is a branch, not a part.</b> The walk is depth-first from
         the document's first node; a branch keeps its column until it rejoins or
         ends, which is why a fork fans out sideways and a grounded loop closes
@@ -180,10 +177,9 @@
         as "too small — or unstated — to show to scale", never as a measured
         proportion. Whatever the setting, the diagram is scaled to fit the
         window — and where even the minimum lengths will not fit, every bar sits
-        at that minimum and the page scrolls rather than shrinking a bar out of
-        reach. The grid's rows stay evenly spaced through all of it: the diagram
-        and the grid are centred against each other and the leader lines absorb
-        the difference.</li>
+        at that minimum and the diagram scrolls rather than shrinking a bar out
+        of reach. The grid's rows stay evenly spaced through all of it, in the
+        grid's own column.</li>
       <li><b>An accent-ringed dot marks a branch point.</b> A study reaching one
         with two unconsumed
         selected edges raises <code>BranchAmbiguity</code> and names both. Which

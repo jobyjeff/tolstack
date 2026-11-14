@@ -475,8 +475,8 @@ has not been built.
   features were identified, the study's authored provenance, and the check's
   excluded terms as **Not in these numbers**. A chain study's page shows its
   verdicts at the top of the same pane, as the same strip (its totals stay at
-  the grid's foot). The pane is pinned under the topbar like the nav, so the
-  results stay on screen while the page scrolls the model.
+  the grid's foot). The pane is a region of its own under the grid (since
+  2026-11-14), so the results stay on screen while the model scrolls.
 - **The model** (2026-10-26, `the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`).
   A kinematic study is a lit subset of its topology's one model, so its page
   draws that model's DAG, exactly as a chain study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
@@ -921,6 +921,12 @@ grid, preview panes and hover cards.
 
 ### Reading the leaders: two styles, and two widths you can drag
 
+> **Superseded 2026-11-14**: the grid has its own region, so no leader runs
+> from the DAG to the grid and the jog zone has no grip; the Leaders control
+> governs the leaders across the seam to the 3D scene only. See "The page is a
+> fixed layout, and nothing scrolls the document". What follows is the
+> history.
+
 Jeff, reviewing the shipped arcs: *"The jogged leader lines between the dag and
 the grid view rows are near impossible to follow because the vertical sections
 are so bunched up."* Three answers, all of them **display preferences** — they
@@ -1341,7 +1347,54 @@ row boxes, every topology, in both layouts, after scrolling, at both densities.
 That is the check no DOM shim can make, and it is why the browser tier is not
 optional here.
 
+### The page is a fixed layout, and nothing scrolls the document
+
+`the_page_is_a_fixed_layout_and_nothing_scrolls_the_document` (2026-11-14),
+Jeff's layout of 2026-11-09. The page is exactly the window, at every size,
+and four regions each scroll by themselves inside it:
+
+| Region | Where | Scrolls |
+|---|---|---|
+| the title and the model's tree | left column (`.tv__left`): the title above `#navtree`, the model picker pinned at the tree's top | the tree, vertically |
+| the 3D pane | `#annotate-flyout`, beside the tree | its own scene |
+| the DAG | `#topopane`, full height; its scroller is `.tv__hscroll` | both ways; the wheel zooms, a drag pans |
+| the settings, the grid and the Preview | the column right of the DAG (`.tv__main`): the banner, `#toolbar`, `#topogrid` (scroller `.tv__gridscroll`, its header pinned by CSS `position: sticky`), the study totals, then `#detail` | the grid both ways, its sideways scrollbar directly under its rows; the Preview vertically |
+
+Every seam is a divider, wired once at boot (`wireDivider`) and remembered:
+the tree's width (`#nav-divider`), the 3D pane's (`#flyout-divider`), the
+right-hand column's (`#side-divider`, `VA.TOPO_PANE_WIDTH`, defaulting to the
+grid's own width up to half the window) and the Preview's height
+(`#detail-divider`, a row divider, `VA.PREVIEW_HEIGHT`). Every grid column is
+resizable, Contribution starts narrow, and a dragged width lasts the session.
+
+**Side by side · 3D · DAG** (`VA.PANE_VIEWS`), one control in the settings bar
+while the 3D pane is open: side by side is the default; "3D" gives the pane the
+DAG's region too, "DAG" gives the DAG the pane's (the pane is hidden, never
+closed, so its scene survives). The choice is remembered
+(`VA.PANE_VIEW_KEY`) and in the URL (`?view=3d`, `?view=dag`). Highlight and
+selection run the same in all three: a hidden surface is still lit, the other
+three are on screen.
+
+**No leader runs to the grid any more**: it is in its own region, so a leader
+ending at the drawing's right edge would point at a row that is somewhere
+else. The Leaders control governs the leaders across the seam to the 3D scene,
+and is disabled, saying why on hover (`VA.LEADERS_UNAVAILABLE`), whenever the
+pane is closed or not side by side. A selection anywhere scrolls its grid row
+into view in the grid's region and its mark into view in the DAG's, each by its
+own scroller (`scrollSelectionIntoView`).
+
+`scripts/run_viewer_browser_tests.mjs`'s `testHeightBudget` pins the region
+contract: no document overflow either way, each region a scroll container
+inside the window, one region's scroll moving no other, and the grid's rows
+directly under their header in every length mode. The two sections below are
+the history this replaced.
+
 ### The DAG owns the main area
+
+> **Superseded 2026-11-14** by "The page is a fixed layout, and nothing
+> scrolls the document", above: the document no longer scrolls, the DAG and
+> the grid are separate regions, and the header is pinned by CSS. What follows
+> is the history.
 
 `HANDOFF_20260904_dag_viewer_vertical_budget.md` gave the graph pane
 (`.tv__scroll`) a 10-row `min-height` floor because the chrome above it — a
@@ -1646,8 +1699,9 @@ minimum is chosen so the whole walk, in its tallest mode, shows in a 900px pane
 (a test re-derives that off the real model).
 
 * **Wheel** over the drawing zooms about the pointer; Ctrl/Cmd+wheel (and a
-  trackpad pinch) zooms from anywhere over the pane. A plain wheel over the
-  grid still scrolls the page — the document is the scroller. A drag on the
+  trackpad pinch) zooms from anywhere over the pane. A plain wheel elsewhere
+  scrolls the region it is over (since 2026-11-14 nothing scrolls the
+  document). A drag on the
   drawing's empty space pans: the SVG itself and a study's field, never a
   control — and since 2026-11-13 a body's field border is a control (it
   selects the body), so a drag cannot start on it; its interior, drawn with
@@ -1664,14 +1718,11 @@ minimum is chosen so the whole walk, in its tallest mode, shows in a 900px pane
 * **The leaders across the seam** read each dot in the rails SVG's own
   pixels with the zoom already in it (`VA.lastTopoRender.seam`, `VA.seamDots`),
   and the SVG itself is never scaled.
-* **The grid header** (`.tv__head`) sits directly above the first grid row and
-  is held at the top of the visible pane while any grid row is on screen
-  (`VA.pinTopoHead`). `position: sticky` cannot do it — its nearest scrollport,
-  `.tv__hscroll`, never scrolls vertically — so the pin is written from the
-  scroll events. `.tv__rails` and the jog grip are plain `position: sticky`
-  at every zoom: nothing above them is scaled (until 2026-10-29 they rode a
-  `--tv-shift` variable under the shared transform, which Chrome's sticky
-  offset could not survive).
+* **The grid header** (`.tv__head`) is the first thing in the grid's own
+  scroller (`.tv__gridscroll`) and is pinned at its top by CSS `position:
+  sticky` (since 2026-11-14; until then the grid shared the DAG's strip,
+  whose scroller never scrolled vertically, and `VA.pinTopoHead` wrote the pin
+  from the page's scroll events).
 
 ### The DAG and the grid are centred against each other
 
