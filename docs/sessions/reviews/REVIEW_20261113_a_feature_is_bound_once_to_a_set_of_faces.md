@@ -3,7 +3,7 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
 reviewer: agent
 date: 2026-11-13
-verdict: REQUEST CHANGES
+verdict: REQUEST CHANGES (round 2)
 blockers: 1
 ---
 
@@ -150,3 +150,107 @@ The post-merge full suite, the whole browser tier and the witness
   identity step prints the summary line.
 - Re-run the B1 probe: fold a v1 binding plus each bind-mode event through
   the Python `build_projection`.
+
+## Re-run 2026-11-13 — round 2
+
+Round 1 was REQUEST CHANGES with one blocker (B1, bind mode wrote v0
+events). This round reviews `9dbce3b3` + `be1ad041` on top of `57bc82a8`.
+Integration had not moved (`46415114`), so the merge was clean. It was
+**not** landed: as in round 1, I reset the review branch afterwards.
+
+### B1 — closed
+
+- Every bind-mode write (Bind, Replace, the bindings block's Flip) and
+  `cmdFlip` now goes through `AA.planFeatureWrite`.
+- A target on the same feature is superseded. A target on another feature
+  is taken back there with a v1 `retracted`, which is the one cross-shape
+  pointer the fold accepts.
+- `test_every_bind_mode_write_folds_in_python` builds all four writes with
+  the annotator's own planner, against a record holding a v1 binding and an
+  old one. It folds each through `build_projection` and checks the outcome.
+  Its witness reproduces B1 exactly (supersede whatever the target), and the
+  author reports it WITNESSED.
+- The extra fix is right: the pane now repaints on write, and Flip
+  re-checks that its binding still stands.
+- S1 (the lesson's fits.json sentence) is corrected, and the gap is filed as
+  `ISSUE_20261113_no_rail_rebuilds_fits_json_…`. S2 (the bind-mode
+  click-around) is done in shots 07–09; shot 09 reads "hub spindle bore axis
+  · face 2565" after the flip.
+
+### Blocker (round 2)
+
+**B2. The merged tree reddens five browser suites, all on the annotator
+surfaces this handoff changed, and none of them was run before hand-back.**
+The lesson says "No browser suite was added or changed". That is true of the
+suite files, but the behaviour these suites pin did change: the armed click,
+Take and the bind form all write a different event now. The previous
+landing recorded the tier at 44/44 on `integration` (`b24cc81a`, same day).
+The merged tree, built into a scratch root with every projection paired at
+`bdf8c746`, gives **39/44**:
+
+- `annotate armed pick`: **aborted** after 15 sub-checks, 4 failed.
+  - "a click binds face 1 at the end's own direction" still asserts the v0
+    shape (`"direction":"from"` plus the edge id).
+  - "the pick disarms" fails too. Then `.an__sweep-back button` is never
+    visible, so the suite times out. That does not look like only a stale
+    assertion. Check whether the click now waits on a group offer.
+  - This is also the witness the tactical re-pointed and left for the
+    review ("not run").
+- `annotate rail suggestion` 15/19:
+  - the reject-then-bind of a different face;
+  - "…the end reads bound to the face picked";
+  - "Take writes one `bound` event … and the row reads bound · face N";
+  - `[real]` "the topology-level rail shows a suggestion on every edge with
+    an open proposal".
+- `annotate rail holds still` 9/17: every `[real]` check after a Take. The
+  DIAG line reads `no faces layer after the Take: {"slots":0}`, so the
+  faces layer does not follow the partner end any more.
+- `annotate bind form` 13/15:
+  - "after one Bind the form shows that end as taken … the end it was written
+    at is the one chosen". The tactical re-pointed this witness's anchor in
+    round 2 and did not run it.
+  - "picking the second face draws the leader …".
+- `the model drawn alone and led` 21/23:
+  - `[real]` Escape with a pick armed cancels the pick;
+  - `[real]` a hovered gap edge overlays its bound face.
+
+For each sub-check, decide whether the assertion is stale (it pins v0) or
+the behaviour regressed. Update the stale ones so they still check the right
+feature, and fix the regressions. Then run each suite with
+`node scripts/run_viewer_browser_tests.mjs --only "<suite>"` against
+projections built from the branch. That is the CLAUDE.md table's tactical
+row, and it covers a suite whose behaviour changed, not only one whose file
+did. Run the two re-pointed browser witnesses with `--only` as well.
+
+### What passed on the merged tree (round 2)
+
+- **Risky subset:** `test_identity_fold_is_paired`, `test_feature_bound_once`,
+  `test_mutation_witnesses`, `test_annotate_js_suite` and
+  `test_feature_identity`: **145 passed**.
+  `node apps/annotate/run_tests.cjs`: **315/315**.
+- **Projections** were built from the merged tree into
+  `data/scratch/rv_fbo`. Feature-identity summary: `9 feature(s) bound, 0
+  holding a set, 1 disagreement(s), 0 orphan(s); 78 old event(s) read
+  through`, unchanged. The fit gives `9 fitted, 1 unresolved` (reason
+  `disagreement`), matching the lesson. Kinematic studies: 1 of 1 built.
+- **Viewer fast tier with `[real]`:**
+  `node apps/viewer/run_tests.cjs --repo <scratch>` gives **691/691**, with
+  every projection paired at `bdf8c746`.
+- **Full pytest, post-merge, review worktree:**
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gives **1 failed, 1977 passed, 1 skipped** in 426 s (recorded, inside
+  budget).
+  - The failure is `test_viewer_js_suite`, the documented worktree red. Its
+    tier is the 691/691 run above.
+  - This repo's conftest prints no contention header lines.
+  - `data/` in the main checkout is unchanged: the run wrote only to pytest
+    tmp dirs and the scratch root.
+- **Browser tier:** 1795 s, recorded by the runner itself, inside budget.
+- **Witness `--changed-since` gate:** not run. It is owed by the landing
+  round.
+
+### Filed this round
+
+`docs/issues/ISSUE_20261113_the_hub_locating_boss_has_two_bound_faces_and_needs_jeffs_keep.md`
+(`needs: jeff`). It asks for the Keep the lesson names. It rides this branch
+and reaches the board when the work lands.
