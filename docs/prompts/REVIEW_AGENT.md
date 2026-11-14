@@ -5697,6 +5697,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `app.js`, bind mode included, and fold each one's event after a v1
       binding exists on that feature. The JS fold never refuses, so the page
       looks fine while the rebuild fails.
+- [ ] **"No browser suite was added or changed" on a diff that changes what a
+      pinned surface WRITES.** New 2026-11-13 (same handoff, round 2). The
+      tactical row in CLAUDE.md's table ran no `--only`, because no suite
+      file moved. But the armed click, Take and the bind form now wrote v1
+      events, and five annotate suites went red on the merged tree (39/44).
+      Grep `scripts/run_viewer_browser_tests.mjs` for the event fields the
+      diff stopped writing (`"direction"`, `geometry_key`, an edge id in a
+      captured write), and ask for `--only` on every suite that hits.
 - [ ] **A writer numbering a new event off a snapshot, not off the log.**
       (2026-11-08, `the_bindings_projection_folds_the_events_jeff_accepted`.)
       `AA.nextEventSeq` read only the loaded projection plus the session, so
