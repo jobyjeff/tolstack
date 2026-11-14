@@ -8,8 +8,8 @@
       "issue": null,
       "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). A sliver of a Preview.",
       "file": "apps/viewer/topology.css",
-      "find": "  flex: 0 0 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;",
-      "replace": "  flex: 0 0 auto; height: 10%; max-height: calc(100% - 160px); min-height: 0; width: auto;"
+      "find": "  flex: 0 1 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;",
+      "replace": "  flex: 0 1 auto; height: 10%; max-height: calc(100% - 160px); min-height: 0; width: auto;"
     }
   ]
 }

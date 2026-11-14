@@ -620,7 +620,7 @@ body { display: flex; flex-direction: column; }
    so its sideways scrollbar sits directly under the last row. Its header
    stays at the top of it by CSS (`.tv__gridscroll > .tv__head`). */
 .tv__gridregion {
-  flex: 0 1 auto; min-height: min(160px, 30%); display: flex; flex-direction: column;
+  flex: 0 1000 auto; min-height: min(160px, 30%); display: flex; flex-direction: column;
   position: relative;
 }
 /* The study's summary under the grid gives way too, scrolling itself. */
@@ -1460,9 +1460,11 @@ body.tv-resizing-row { cursor: row-resize; }
    place it lives (the bounds a drag is clamped to are VA.PREVIEW_HEIGHT,
    views/topology.js). It scrolls by itself. */
 .tv .detail {
-  /* It keeps its height however long the grid is (the grid scrolls), and on
-     a short window it never takes the grid's last 160px. */
-  flex: 0 0 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;
+  /* It keeps its height however long the grid is: the grid gives way first
+     (its region's shrink weight, below) and scrolls. Only on a window too
+     short for both does this shrink too, never under 120px nor into the
+     grid's last 160px. */
+  flex: 0 1 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;
   border-left: none; border-top: 1px solid var(--line);
   position: static; max-height: none; overflow-y: auto;
 }
