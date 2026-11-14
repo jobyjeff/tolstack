@@ -400,7 +400,7 @@ export const DECLARED_GUARDS = {
   // and_nothing_goes_opaque): +1, the page's light (its grammar, looks,
   // layers and emphasis); the action-looks guard renamed with the rule
   // (about keeps its resting look). Both carry a spec.
-  annotate: { declared: 314, enrollable: 314, names: "32a5225206c8" },
+  annotate: { declared: 315, enrollable: 315, names: "d77c397073b0" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
