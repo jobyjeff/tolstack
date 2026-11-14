@@ -1,6 +1,6 @@
 // A filmstrip scenario (scripts/filmstrip.mjs --scenario <this file>) for
 // handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document
-// (2026-11-14). NOT a tier -- pytest never collects it. The end-stop model v2
+// (2026-11-14). NOT a tier -- pytest never collects it. The product model v1
 // with both regions at their tops; the trigger is a click on the tree's last
 // interface row, whose dimension sits at the bottom of the grid and of the
 // DAG. The frames show the grid's own region and the DAG's own region each
@@ -9,7 +9,9 @@
 //   node scripts/filmstrip.mjs --scenario tests/debug_filmstrip_tree_selection_scrolls_regions_20261114.mjs
 //        --viewport 3840x2160 --width 2400 --frames 6 --interval 120 --real-time
 //        --repo <a data root built from this tree> --out <dir> --name tree_selection
-const V2 = "vpa_end_stop_v2";
+// v1: its DAG and its grid are both taller than their regions at 3840x2160,
+// so the selection has something to scroll (v2 fits whole).
+const V2 = process.env.FILM_MODEL || "vpa_pitch_linkage";
 
 export default {
   async setup(page, h) {
@@ -51,7 +53,7 @@ export default {
       dagScroll: dag.scrollTop, gridScroll: grid.scrollTop,
       docScroll: document.scrollingElement.scrollTop,
       selectedRow: row ? row.getAttribute("data-id") : null,
-      rowInGrid: r ? r.top >= g.top && r.bottom <= g.bottom : null,
+      rowInGrid: r ? r.top >= g.top - 1 && r.bottom <= g.bottom + 1 : null,
       selection: sel || null,
     };
   }),

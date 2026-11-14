@@ -1407,8 +1407,11 @@ body { display: flex; flex-direction: column; }
    live inside the column header because that is where a reader looks to
    resize a COLUMN. Same 7px hit area and same hairline-turns-accent hover as
    those (.tvgrip above), because it is the same gesture. */
+/* Over the 3D pane's dialog (z-index 3), whose box overlaps the seam's
+   3px overhang: under it the tree's divider took no pointer with the pane
+   open. */
 .tv__divider {
-  flex: none; width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 3;
+  flex: none; width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 4;
   position: relative; background: none; border: none; padding: 0;
 }
 /* Visible at rest since 2026-09-16, and that is the whole of Jeff's third

@@ -1,0 +1,56 @@
+[
+ {
+  "t": 0,
+  "dagScroll": 0,
+  "gridScroll": 0,
+  "docScroll": 0,
+  "selectedRow": null,
+  "rowInGrid": null,
+  "selection": null
+ },
+ {
+  "t": 698,
+  "dagScroll": 0,
+  "gridScroll": 0,
+  "docScroll": 0,
+  "selectedRow": "travel_between_end_stops",
+  "rowInGrid": true,
+  "selection": null
+ },
+ {
+  "t": 2436,
+  "dagScroll": 0,
+  "gridScroll": 0,
+  "docScroll": 0,
+  "selectedRow": "travel_between_end_stops",
+  "rowInGrid": true,
+  "selection": null
+ },
+ {
+  "t": 3736,
+  "dagScroll": 0,
+  "gridScroll": 0,
+  "docScroll": 0,
+  "selectedRow": "travel_between_end_stops",
+  "rowInGrid": true,
+  "selection": null
+ },
+ {
+  "t": 5266,
+  "dagScroll": 0,
+  "gridScroll": 0,
+  "docScroll": 0,
+  "selectedRow": "travel_between_end_stops",
+  "rowInGrid": true,
+  "selection": null
+ },
+ {
+  "t": 9971,
+  "dagScroll": 0,
+  "gridScroll": 0,
+  "docScroll": 0,
+  "selectedRow": "travel_between_end_stops",
+  "rowInGrid": true,
+  "selection": null
+ }
+]
