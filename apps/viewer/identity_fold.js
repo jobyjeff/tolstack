@@ -328,8 +328,12 @@
       var r = out[t];
       var old = (inherited[t] || []).slice().sort(byPos);
       if (written[t]) r.replaced = old; else r.bindings = old;
-      r.history.sort(function (a, b) { return pos[a] - pos[b]; });
+      var byIdPos = function (a, b) { return pos[a] - pos[b]; };
+      r.history.sort(byIdPos);
+      r.read_through.sort(byIdPos);
+      r.accepted_proposals.sort(byIdPos);
       r.proposals.sort(byPos);
+      ["rejected_proposals", "superseded", "retracted"].forEach(function (name) { r[name].sort(byPos); });
       var o = outcomeOf(r.bindings, !!written[t], shared);
       r.outcome = o[0]; r.faces = o[1]; r.disagreement = o[2];
       r.state = VA.featureRecordState(r);

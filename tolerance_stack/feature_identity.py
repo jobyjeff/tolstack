@@ -789,6 +789,9 @@ class FeatureIdentityProjection:
     # Face pairs read through to one feature that share a surface, as sorted
     # (token, token) -- what the browser's fold reads instead of a mesh.
     same_surface: List[Tuple[str, str]] = field(default_factory=list)
+    # Was the fold given the models? Only then is there a feature fold to
+    # report -- an empty one and none at all are different answers.
+    featured: bool = False
 
     def for_stack_key(self, key: StackKey) -> Optional[StackKeyBindings]:
         return self.by_stack_key.get(key.as_key())
@@ -826,15 +829,17 @@ class FeatureIdentityProjection:
                 f"{s['read_through']} old event(s) read through")
 
     def as_dict(self) -> Dict[str, Any]:
-        return {
+        out = {
             "schema": SCHEMA_PROJECTION,
             "built_from_events": self.events,
             "counts": self.counts(),
             "stack_keys": [v.as_dict() for _, v in sorted(self.by_stack_key.items())],
-            "features": [v.as_dict() for _, v in sorted(self.by_feature.items())],
-            "orphans": [{"event_id": k, "reason": v} for k, v in sorted(self.orphans.items())],
-            "summary": self.summary(),
         }
+        if self.featured:
+            out["features"] = [v.as_dict() for _, v in sorted(self.by_feature.items())]
+            out["orphans"] = [{"event_id": k, "reason": v} for k, v in sorted(self.orphans.items())]
+            out["summary"] = self.summary()
+        return out
 
 
 def build_projection(events: Iterable[FeatureIdentityEvent],
@@ -926,6 +931,7 @@ def build_projection(events: Iterable[FeatureIdentityEvent],
         # to the event it names
     if topologies is not None:
         _fold_features(projection, surface_of)
+        projection.featured = True
     return projection
 
 
@@ -1108,6 +1114,10 @@ def _fold_features(projection: FeatureIdentityProjection,
             target.bindings = old
             new_shape = False
         target.history.sort(key=lambda eid: order[eid])
+        target.read_through.sort(key=lambda eid: order[eid])
+        target.accepted_proposals.sort(key=lambda eid: order[eid])
+        for name in ("rejected_proposals", "superseded", "retracted"):
+            getattr(target, name).sort(key=lambda e: order[e.event_id])
         target.proposals.sort(key=lambda e: order[e.event_id])
         target.outcome, target.faces, target.disagreement = _outcome(target.bindings, new_shape, share)
     projection.by_feature = out
@@ -1377,10 +1387,11 @@ def served_log(events: Iterable[FeatureIdentityEvent], installed: List[str],
     With the folded ``projection`` (built with the models) it also carries
     what the browser cannot work out alone, because it has neither the other
     models nor the meshes' fits (handoff a_feature_is_bound_once_to_a_set_of_
-    faces): ``read_through`` -- every old event's feature, or null -- and
-    ``same_surface``, the face pairs read through to one feature that are one
-    surface. Both are facts about old events, which are never written again,
-    so a page that rewrites the log carries them over unchanged.
+    faces): ``same_surface``, the face pairs read through to one feature that
+    are one surface. It is a fact about old events, which are never written
+    again, so a page that rewrites the log carries it over unchanged. Which
+    feature an old event reads through to the page works out itself, from the
+    topology projection's own feature identities.
     """
     doc: Dict[str, Any] = {
         "schema": SCHEMA_SERVED_LOG,
@@ -1388,8 +1399,6 @@ def served_log(events: Iterable[FeatureIdentityEvent], installed: List[str],
         "installed_meshes": list(installed),
     }
     if projection is not None:
-        doc["read_through"] = {eid: (f.as_dict() if f is not None else None)
-                               for eid, f in sorted(projection.read_through.items())}
         doc["same_surface"] = [list(pair) for pair in projection.same_surface]
     return doc
 
