@@ -606,12 +606,13 @@ body { display: flex; flex-direction: column; }
 /* The column right of the DAG: the settings bar, the grid, the Preview. Its
    width is the side divider's (`.tv__main`'s inline width, topology_app.js's
    applyPaneWidth); with none remembered the page sizes it to the grid. */
-/* It never takes more than half the window, so the middle keeps the other
-   half less the tree: on a narrower screen the grid scrolls sideways under
+/* With no width dragged the page sizes it (applyPaneWidth): the grid's own
+   width, or less on a narrower screen, where the grid scrolls sideways under
    its rows instead (Jeff, 2026-11-09: "if it needs to be scrollable (on
-   smaller monitors), the scroll bar should be directly below that pane"). */
+   smaller monitors), the scroll bar should be directly below that pane").
+   The bound here only keeps a dragged width from pushing the middle off. */
 .tv__main {
-  flex: none; width: min(1120px, 45vw); max-width: 50vw;
+  flex: none; width: min(1120px, 45vw); max-width: calc(100vw - 420px);
   min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
 }

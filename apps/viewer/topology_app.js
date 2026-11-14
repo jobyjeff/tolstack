@@ -396,6 +396,7 @@
         if (resizeTimer) window.clearTimeout(resizeTimer);
         resizeTimer = window.setTimeout(function () {
           resizeTimer = null;
+          applyPaneWidth();
           render();
         }, 150);
       });
@@ -3254,14 +3255,25 @@
   // remembered -- the grid's own width, so the grid fits it with no sideways
   // scroll (Jeff, 2026-11-09: "The gridview ideally would fully fit with no
   // horizontal scroll bar"). The window still caps it (topology.css).
+  //
+  // The default leaves the middle room for the 3D pane at its floor beside a
+  // DAG a drawing can be read in (MIDDLE_KEEPS, with the tree's own column):
+  // at 1600 wide the grid's whole width would leave the DAG under 100px.
   function applyPaneWidth() {
     if (!nodes.main || !nodes.main.style) return;
-    var w = state.sideWidth !== null ? state.sideWidth
-      : VA.topoTableWidth() + GRID_GUTTER;
+    var w = state.sideWidth;
+    if (w === null) {
+      var room = (typeof window !== "undefined" && window.innerWidth) || 0;
+      w = VA.topoTableWidth() + GRID_GUTTER;
+      if (room > 0) w = Math.min(w, Math.max(VA.TOPO_PANE_WIDTH.min, room - MIDDLE_KEEPS));
+    }
     nodes.main.style.width = w + "px";
   }
   // The grid region's vertical scrollbar, beside the table it scrolls.
   var GRID_GUTTER = 16;
+  // What the default column width leaves the tree and the middle: the tree's
+  // own 300px, the 3D pane's floor and a readable DAG beside it.
+  var MIDDLE_KEEPS = 1060;
 
   // The remembered height onto the Preview, or nothing at all -- the
   // stylesheet's own height stands.
