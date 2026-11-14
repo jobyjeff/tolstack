@@ -137,10 +137,13 @@ def built(tmp_path):
     return data
 
 
-def rows_for(data, edge, direction=None):
-    return [r for r in data["fits"]
-            if r["stack_key"]["edge_id"] == edge
-            and (direction is None or r["direction"] == direction)]
+def rows_for(data, edge, direction):
+    """The fit rows of the FEATURE an edge end is (a row is a bound feature
+    since 2026-11-12, handoff a_feature_is_bound_once_to_a_set_of_faces)."""
+    from tolerance_stack.feature_identity import StackKey, edge_end_feature, load_models
+    key = StackKey(kind="topology_edge", topology_id="vpa_pitch_linkage", edge_id=edge)
+    feature, _ = edge_end_feature(load_models(TOPOLOGY_FILE.parent), key, direction)
+    return [r for r in data["fits"] if r["feature"] == feature.as_dict()]
 
 
 @needs_meshes
@@ -248,9 +251,15 @@ def test_the_pitch_plates_spindle_bore_is_the_assembly_z_axis(built):
     installed, and in the assembly frame it comes out along Z. The HUB's spindle
     bore is the other half of Jeff's question and has no mesh yet -- this test
     says nothing about it, deliberately.
+
+    Its two halves are bound at one end, so since 2026-11-12 they are one
+    feature holding a set (the two are one surface, feature_geometry.
+    same_surface), fitted ONCE: one cylinder through both.
     """
     rows = rows_for(built, "pitch_plate_attach_radius", "from")
-    assert len(rows) == len(PLATE_SPINDLE_FACES)
+    assert len(rows) == 1
+    assert sorted(g["face_id"] for g in rows[0]["geometry_keys"]) == sorted(PLATE_SPINDLE_FACES)
+    assert len(rows[0]["event_ids"]) == len(PLATE_SPINDLE_FACES)
     axes = []
     for row in rows:
         assert row["local"]["surface"] == "cylindrical"
@@ -488,5 +497,6 @@ def test_a_superseded_binding_produces_no_fit(tmp_path):
     (events / "0002.json").write_text(json.dumps(second, indent=2), encoding="utf-8")
 
     _out, data = fbf.build(events, meshes_dir(), tmp_path / "projections")
-    assert [r["direction"] for r in rows_for(data, edge)] == ["to"]
+    assert [r["direction"] for r in data["fits"]] == ["to"]
+    assert rows_for(data, edge, "from") == []
     assert data["summary"]["bindings"] == 1

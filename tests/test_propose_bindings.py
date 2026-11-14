@@ -103,18 +103,23 @@ def refusal_of(store, proposal, actor=ACTOR):
 
 def test_a_proposal_is_written_as_a_proposed_event_with_the_faces_fingerprint(store):
     ((filename, event),) = pb.propose_all([row()], ctx(store), ACTOR)
-    assert filename == "0001_shank_in_hole_proposed.json"
+    assert filename == "0001_shank_n_proposed.json"
     assert events_in(store) == [filename]
     data, _ = store
     on_disk = json.loads((data / "inbox" / "feature-identity" / filename).read_text(encoding="utf-8"))
     loaded = fi.FeatureIdentityEvent.from_dict(on_disk)
     assert loaded.verdict == "proposed"
     assert loaded.recorded_by == ACTOR
+    # A FEATURE's proposal (2026-11-12): the bolt's shank, whichever end of
+    # whichever dimension the row came by.
+    assert loaded.feature_key == fi.FeatureKey("fixture", "bolt_part", "shank_n")
+    assert loaded.stack_key is None and loaded.direction is None
     assert (loaded.confidence, loaded.surface_class) == ("high", "cylindrical")
     manifest = json.loads((data / "meshes" / BOLT / "manifest.json").read_text(encoding="utf-8"))
     face = manifest["faces"][SHANK_FACE]
-    assert loaded.geometry_key.area_native2 == pytest.approx(face["area_native2"])
-    assert list(loaded.geometry_key.centroid_native) == pytest.approx(face["centroid_native"])
+    (key,) = loaded.faces
+    assert key.area_native2 == pytest.approx(face["area_native2"])
+    assert list(key.centroid_native) == pytest.approx(face["centroid_native"])
 
 
 def test_the_second_proposal_takes_the_next_number_and_seq(store):
@@ -142,22 +147,26 @@ def test_the_cli_writes_one_and_a_dry_run_writes_none(store, capsys):
 
 
 def test_a_proposal_made_on_a_model_that_reuses_ids_is_keyed_to_the_source_model(store):
-    """A shared id under ``ids_from`` has one key, the source model's
-    (``topology.identity_topology_id``): proposed under the reusing model, it
-    is written under the source's, so the human's answer and any later
-    re-pick stay on one record. An id only the reusing model has keeps its
-    own key."""
+    """A feature the reusing model shares with its source (``ids_from``) --
+    the same node on the same part -- has one key, the source model's
+    (``topology.feature_identity_topology_id``): proposed under the reusing
+    model, it is written under the source's, so the human's answer and any
+    later re-pick stay on one record. A node only the reusing model has keeps
+    its own key, whichever edge it came by."""
     data, topologies = store
     raw = json.loads((topologies / "topology_fixture.json").read_text(encoding="utf-8"))
+    plate = [e for e in raw["edges"] if e["id"] == "plate_thickness"][0]
     raw.update(id="fixture_v2", title="Fixture v2", ids_from="fixture",
+               nodes=raw["nodes"] + [{"id": "plate_top_v2_n", "name": "plate top face", "kind": "datum_feature",
+                                      "parts": ["plate_part"]}],
                edges=[e for e in raw["edges"] if e["id"] == "shank_in_hole"]
-               + [dict(e, id="plate_thickness_v2_only") for e in raw["edges"] if e["id"] == "plate_thickness"])
+               + [dict(plate, id="plate_thickness_v2_only", **{"from": "plate_top_v2_n"})])
     (topologies / "topology_fixture_v2.json").write_text(json.dumps(raw), encoding="utf-8")
     ((_, shared),) = pb.propose_all([row(topology="fixture_v2")], ctx(store), ACTOR)
-    assert shared.stack_key.topology_id == "fixture"
+    assert shared.feature_key.topology_id == "fixture"
     ((_, own),) = pb.propose_all([row(topology="fixture_v2", edge="plate_thickness_v2_only",
                                       sha256=PLATE, face_id=PLATE_TOP_FACE)], ctx(store), ACTOR)
-    assert own.stack_key.topology_id == "fixture_v2"
+    assert own.feature_key == fi.FeatureKey("fixture_v2", "plate_part", "plate_top_v2_n")
     assert refusal_of(store, row(topology="fixture")) == "already_there", (
         "the same face on the same end, proposed under the source model, is the one proposal")
 
@@ -205,15 +214,15 @@ def test_the_same_face_cannot_be_proposed_twice_for_one_end(store):
 def _human_answer(store, verdict, proposal_event, seq, filename):
     data, _ = store
     event = {
-        "schema": fi.SCHEMA_EVENT, "event_id": f"human-{seq}", "seq": seq,
+        "schema": fi.SCHEMA_EVENT_V1, "event_id": f"human-{seq}", "seq": seq,
         "created_at": "2026-10-28T12:00:00Z", "recorded_by": "annotate-app:jeff",
-        "stack_key": proposal_event.stack_key.as_dict(), "verdict": verdict,
+        "feature_key": proposal_event.feature_key.as_dict(), "verdict": verdict,
     }
     if verdict == "rejected":
         event["rejects"] = proposal_event.event_id
     else:
-        event.update(geometry_key=proposal_event.geometry_key.as_dict(),
-                     direction=proposal_event.direction, ratifies=proposal_event.event_id)
+        event.update(geometry_keys=[f.as_dict() for f in proposal_event.faces],
+                     ratifies=proposal_event.event_id)
     (data / "inbox" / "feature-identity" / filename).write_text(json.dumps(event), encoding="utf-8")
 
 
@@ -221,7 +230,7 @@ def test_a_rejected_face_is_never_proposed_again_for_that_key(store):
     ((_, proposal),) = pb.propose_all([row()], ctx(store), ACTOR)
     _human_answer(store, "rejected", proposal, 2, "0002_shank_in_hole_rejected.json")
     assert refusal_of(store, row()) == "rejected_before"
-    # The other end of the same key is a different question, and stays open.
+    # The other end of the same edge is a different feature, and stays open.
     assert refusal_of(store, row(direction="to", sha256=PLATE, face_id=PLATE_TOP_FACE)) == "wrong_shape"
 
 
@@ -253,15 +262,17 @@ def test_every_refusal_word_is_reached_by_a_test_here():
 
 
 def test_a_proposal_produces_no_fitted_nominal_and_its_accept_does(store, tmp_path):
-    data, _ = store
+    data, topologies = store
     events_dir = data / "inbox" / "feature-identity"
     ((_, proposal),) = pb.propose_all([row()], ctx(store), ACTOR)
 
-    _out, before = fbf.build(events_dir, data / "meshes", tmp_path / "fits_before")
+    _out, before = fbf.build(events_dir, data / "meshes", tmp_path / "fits_before",
+                             topologies_dir=topologies)
     assert before["fits"] == [] and before["summary"]["bindings"] == 0
 
     _human_answer(store, "bound", proposal, 2, "0002_shank_in_hole_bound.json")
-    _out, after = fbf.build(events_dir, data / "meshes", tmp_path / "fits_after")
+    _out, after = fbf.build(events_dir, data / "meshes", tmp_path / "fits_after",
+                            topologies_dir=topologies)
     (fit,) = after["fits"]
     assert fit["event_id"] == "human-2"
     assert fit["local"]["surface"] == "cylindrical"

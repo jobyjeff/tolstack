@@ -1431,12 +1431,14 @@ def mesh_surface_of(meshes_dir: Path) -> Callable[[GeometryKey], Optional[Dict[s
 
 def fold_with_models(events_dir: Path, data_root: Path,
                      topologies_dir: Path = TOPOLOGIES_DIR,
+                     meshes_dir: Optional[Path] = None,
                      ) -> Tuple[List[FeatureIdentityEvent], FeatureIdentityProjection]:
     """The log at ``events_dir``, folded with every model and the meshes under
-    ``data_root`` -- the feature fold every builder and reader runs."""
+    ``data_root`` (or ``meshes_dir``) -- the feature fold every builder and
+    reader runs."""
     events = load_events(events_dir)
-    projection = build_projection(events, load_models(topologies_dir),
-                                  mesh_surface_of(Path(data_root) / MESHES_SUBDIR))
+    meshes = Path(meshes_dir) if meshes_dir is not None else Path(data_root) / MESHES_SUBDIR
+    projection = build_projection(events, load_models(topologies_dir), mesh_surface_of(meshes))
     return events, projection
 
 

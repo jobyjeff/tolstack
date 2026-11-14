@@ -3,7 +3,7 @@
     docs/topologies/topology_*.json          (the key: an edge, its two ends)
   + data/meshes/<sha>/                       (the face, its shape)
   + data/inbox/feature-identity/*.json       (what is bound, proposed, rejected)
-  -> data/inbox/feature-identity/<NNNN>_<edge>_proposed.json
+  -> data/inbox/feature-identity/<NNNN>_<node>_proposed.json
 
 Built 2026-10-28 by handoff ``an_agent_proposes_a_face_binding_and_a_human_ratifies_it``.
 Seven weeks after the annotator could bind a face, none was bound -- and every
@@ -18,6 +18,19 @@ A human's Accept writes the ``bound`` event. An ``agent:`` actor cannot write
 ``bound`` or ``rejected`` at all -- the schema refuses it, so this is not a
 convention this script happens to follow.
 
+A proposal is a FEATURE's (2026-11-12)
+--------------------------------------
+
+Since handoff ``a_feature_is_bound_once_to_a_set_of_faces`` a binding names a
+feature -- a node as seen on one part -- and so does a proposal: the event is
+``feature-identity/v1``, keyed ``{topology_id, part, node}``, its face in
+``geometry_keys``. A row is still addressed by an edge end, because the end is
+what the shape rule reads (a "diameter" edge, a "centre" node); the end is
+turned into its feature by the fold's own rule
+(``tolerance_stack.feature_identity.edge_end_feature``) and every check below
+is the feature's: rejected for the feature, bound on the feature, already
+proposed for the feature -- whichever end of whichever dimension it came by.
+
 What it refuses, before anything is written
 -------------------------------------------
 
@@ -27,9 +40,9 @@ What it refuses, before anything is written
 * **wrong shape** -- the end asks for a surface class (the annotator's own
   suggestion rule, ``tolerance_stack.feature_geometry.end_surface_class``) and
   the face is another (``fit_face``): a diameter on a flat face;
-* **rejected before** -- a human turned this face down for this key;
-* **already there** -- the end is already bound, or the same face is already
-  proposed for it.
+* **rejected before** -- a human turned this face down for this feature;
+* **already there** -- the feature is already bound, or the same face is
+  already proposed for it.
 
 ``--from-report`` is all-or-nothing: every row is checked, against the log and
 against the rows before it, and one refusal writes none.
@@ -68,7 +81,7 @@ import build_topology_projection as btp  # noqa: E402 -- resolved from scripts/
 
 from tolerance_stack import feature_geometry as fg  # noqa: E402
 from tolerance_stack import feature_identity as fi  # noqa: E402
-from tolerance_stack.topology import identity_topology_id, load_topology  # noqa: E402
+from tolerance_stack.topology import load_topology  # noqa: E402
 
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
 EVENTS_SUBDIR = Path("inbox") / "feature-identity"
@@ -130,7 +143,8 @@ class Context:
         self.meshes = btp.installed_meshes(self.meshes_dir)
         self.aliases = btp.load_mesh_aliases(Path(topologies_dir))
         self.events = fi.load_events(self.events_dir) if self.events_dir.is_dir() else []
-        self.projection = fi.build_projection(self.events)
+        self.projection = fi.build_projection(self.events, self.topologies,
+                                              fi.mesh_surface_of(self.meshes_dir))
         self._manifests: Dict[str, Dict[str, Any]] = {}
         self._meshes: Dict[str, fg.Mesh] = {}
 
@@ -187,22 +201,21 @@ def check(proposal: Proposal, ctx: Context, planned: Sequence[fi.FeatureIdentity
         raise Refused("wrong_shape", f"{node_id!r} asks for a {rule['surface']} face "
                       f"({why}), and face {proposal.face_id} is {surface}")
 
-    # A shared id under ids_from has one key, the source model's
+    # The end's feature, keyed under the model whose ids it is
     # (docs/DAG_TOPOLOGY.md, "Models"): proposed under v2, written under v1.
-    key = fi.StackKey(kind="topology_edge", edge_id=proposal.edge,
-                      topology_id=identity_topology_id(topology, proposal.edge, ctx.topologies))
-    record = ctx.projection.for_stack_key(key)
+    end_key = fi.StackKey(kind="topology_edge", edge_id=proposal.edge, topology_id=topology.id)
+    key, _reason = fi.edge_end_feature(ctx.topologies, end_key, proposal.direction)
+    record = ctx.projection.for_feature(key)
     face_key = (proposal.sha256, proposal.face_id)
-    if record and face_key in record.rejected_faces():
-        raise Refused("rejected_before", f"face {proposal.face_id} was rejected for {proposal.edge!r}")
-    standing = list(record.bindings) if record else []
-    if any(b.direction == proposal.direction for b in standing):
-        raise Refused("already_there", f"{proposal.edge!r} is already bound at {proposal.direction!r}")
+    named = f"{key.part}@{key.node}"
+    if record and face_key in {f.as_key() for e in record.rejected_proposals for f in e.faces}:
+        raise Refused("rejected_before", f"face {proposal.face_id} was rejected for {named!r}")
+    if record and record.state == "bound":
+        raise Refused("already_there", f"{named!r} is already bound")
     open_proposals = (list(record.proposals) if record else []) + [
-        p for p in planned if p.stack_key.as_key() == key.as_key()]
-    if any(p.direction == proposal.direction and p.geometry_key.as_key() == face_key for p in open_proposals):
-        raise Refused("already_there", f"face {proposal.face_id} is already proposed for "
-                      f"{proposal.edge!r} at {proposal.direction!r}")
+        p for p in planned if p.feature_key == key]
+    if any(face_key in {f.as_key() for f in p.faces} for p in open_proposals):
+        raise Refused("already_there", f"face {proposal.face_id} is already proposed for {named!r}")
     return {"key": key, "face": face, "surface": surface, "rule": rule}
 
 
@@ -222,19 +235,20 @@ def build_event(proposal: Proposal, ctx: Context, actor: str,
         raise Refused("bad_actor", f"an agent writes as 'agent:<handoff-slug>', got {actor!r}")
     found = check(proposal, ctx, planned)
     file_no, seq = _next_numbers(ctx, len(planned))
-    filename = f"{file_no:04d}_{proposal.edge}_proposed.json"
+    key = found["key"]
+    filename = f"{file_no:04d}_{key.node}_proposed.json"
     event = fi.FeatureIdentityEvent(
-        event_id=f"proposal-{file_no:04d}-{proposal.edge}-{proposal.direction}",
+        event_id=f"proposal-{file_no:04d}-{key.part}-{key.node}",
         seq=seq,
         created_at=created_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         recorded_by=actor,
-        stack_key=found["key"],
+        stack_key=None,
+        feature_key=key,
         verdict="proposed",
-        geometry_key=fi.GeometryKey(
+        geometry_keys=(fi.GeometryKey(
             source_step_sha256=proposal.sha256, face_id=proposal.face_id,
             area_native2=float(found["face"]["area_native2"]),
-            centroid_native=tuple(float(c) for c in found["face"]["centroid_native"])),
-        direction=proposal.direction,
+            centroid_native=tuple(float(c) for c in found["face"]["centroid_native"])),),
         confidence=proposal.confidence,
         basis=proposal.basis,
         surface_class=found["surface"],
@@ -308,8 +322,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
     verb = "would write" if args.dry_run else "wrote"
     for filename, event in written:
-        print(f"{verb} {filename}: {event.stack_key.edge_id} {event.direction} face "
-              f"{event.geometry_key.face_id} ({event.surface_class}, {event.confidence})")
+        print(f"{verb} {filename}: {event.feature_key.part}@{event.feature_key.node} face "
+              f"{event.faces[0].face_id} ({event.surface_class}, {event.confidence})")
     print(f"{len(written)} proposal(s); nothing is bound until a human accepts one in the annotator")
     return 0
 
