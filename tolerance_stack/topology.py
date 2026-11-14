@@ -1838,6 +1838,23 @@ def identity_topology_id(topology: Topology, edge_id: str,
     return topology.id
 
 
+def feature_identity_topology_id(topology: Topology, part_id: str, node_id: str,
+                                 topologies: Dict[str, Topology]) -> str:
+    """The topology id a feature-identity key on feature ``part@node`` carries
+    (handoff ``a_feature_is_bound_once_to_a_set_of_faces``).
+
+    :func:`identity_topology_id`'s rule, for a feature: a node the model shares
+    with the model it reuses ids from (``ids_from``), on a part that model also
+    puts there, is ONE feature in both, keyed under the source model; anything
+    else is keyed to its own model. The topology projection writes it on every
+    feature (``model.features[].identity``), so no browser asks.
+    """
+    source = topologies.get(topology.ids_from) if topology.ids_from else None
+    if source is not None and node_id in source._nodes and part_id in source.node(node_id).parts:
+        return source.id
+    return topology.id
+
+
 def in_model_order(topologies: Iterable[Any]) -> List[Any]:
     """``topologies`` with every model ahead of the model it reuses ids from.
 

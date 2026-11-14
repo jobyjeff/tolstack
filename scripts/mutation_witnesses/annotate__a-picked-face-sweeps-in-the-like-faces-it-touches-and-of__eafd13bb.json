@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a picked face sweeps in the like faces it touches and offers the like faces it does not (a split cylinder, two seats of one bore)",
+  "mutations": [
+    {
+      "contract": "A face on the picked face's surface that touches it is swept in with the pick, never offered as a question.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_feature_is_bound_once_to_a_set_of_faces.md",
+      "note": "Declared with the guard by handoff a_feature_is_bound_once_to_a_set_of_faces. The defect it stands for happened on the branch: AA.facesTouch read the vertex ranges as pairs, touched nothing, and every split half came back offered -- the hub boss's re-pick waited on an offer nobody saw.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "      (joined[n] ? out.swept : out.offered).push(n);",
+      "replace": "      out.offered.push(n);"
+    }
+  ]
+}

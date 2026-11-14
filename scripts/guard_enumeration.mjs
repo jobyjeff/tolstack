@@ -318,7 +318,10 @@ export const DECLARED_GUARDS = {
   // by id; seven hover guards, the resolver guard and the tree guard renamed
   // with the two-tier rule (each spec renamed and re-anchored). Every name
   // carries a spec.
-  fast: { declared: 691, enrollable: 691, names: "666c806e67a2" },
+  // 2026-11-13 (a_feature_is_bound_once_to_a_set_of_faces, review round 2):
+  // +1 -- a disagreement's body: each face with Keep, and Pick a face. It
+  // carries a spec.
+  fast: { declared: 692, enrollable: 692, names: "23716d159cc8" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -400,7 +403,10 @@ export const DECLARED_GUARDS = {
   // and_nothing_goes_opaque): +1, the page's light (its grammar, looks,
   // layers and emphasis); the action-looks guard renamed with the rule
   // (about keeps its resting look). Both carry a spec.
-  annotate: { declared: 314, enrollable: 314, names: "32a5225206c8" },
+  // 2026-11-13 (a_feature_is_bound_once_to_a_set_of_faces, review round 2):
+  // +1 -- a rail row's suggestion chip counts only proposals at unbound ends
+  // (a proposal follows its feature). It carries a spec.
+  annotate: { declared: 316, enrollable: 316, names: "0161fd91c13e" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -625,7 +631,11 @@ export const DECLARED_GUARDS = {
   // 2026-11-13 (the same handoff, round 2 after review): +2, Escape letting
   // go of a body selection and a real pointer on a body's field selecting
   // it -- the review's two blockers, each with a spec.
-  browser: { declared: 886, enrollable: 853, names: "b17ec25ae425" },
+  // 2026-11-13 (a_feature_is_bound_once_to_a_set_of_faces, review round 2):
+  // +1 -- the armed pick's click on a face with an interrupted like face
+  // offers the group and writes nothing until it is answered. It carries a
+  // spec.
+  browser: { declared: 887, enrollable: 854, names: "c995cd7bdf45" },
 };
 
 

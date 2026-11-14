@@ -6,9 +6,9 @@
     {
       "contract": "An Accept on an end that already has one binding supersedes it, so the end never carries two faces.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
-      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Dropping the supersede leaves the old face standing beside the accepted one.",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Dropping the supersede leaves the old face standing beside the accepted one. Since 2026-11-12 the count is of distinct events (an end reads a feature's set once per face).",
       "file": "apps/annotate/binding_state.js",
-      "find": "    return (standing || []).length === 1 ? standing[0].event_id : null;",
+      "find": "    return ids.length === 1 ? ids[0] : null;",
       "replace": "    return null;"
     }
   ]

@@ -591,6 +591,9 @@
           // point, as tolerance_stack/feature_geometry.py's fit_plane names it
           // (`point`) -- where the model layer anchors a bound flat face.
           point: centroid,
+          // The face's own size, which AA.sameSurface measures a coplanar
+          // gap against (feature_geometry.surface_record's `extent`).
+          extent: extent,
           normalSpreadDeg: worst.normalDeg,
           flatness: extent > 0 ? flat / extent : 0,
         };
@@ -899,5 +902,118 @@
     if (!(a.radius > 0) || !(b.radius > 0)) return false;
     var reference = Math.max(a.radius, b.radius);
     return Math.abs(a.radius - b.radius) <= tol.radiusFraction * reference;
+  };
+
+  // --- one surface, several faces (handoff a_feature_is_bound_once_to_a_set_
+  // of_faces, 2026-11-12) ------------------------------------------------------
+  //
+  // A feature may be several faces: a cylinder the STEP export split into two
+  // arcs, two coaxial seats of one bore, coplanar feet. Two faces of ONE mesh
+  // are one surface when they are coaxial at one radius, coplanar facing one
+  // way, or concentric at one radius -- far tighter than the relations above,
+  // which ask whether two DIFFERENT surfaces mate. The numbers, and the
+  // measurement behind each, are tolerance_stack/feature_geometry.py's
+  // SAME_SURFACE_TOLERANCES; tests/test_feature_bound_once.py pairs them.
+  AA.SAME_SURFACE = Object.freeze({
+    radiusFraction: 5e-5,
+    axisDistanceFraction: 2e-3,
+    axisDeg: 0.2,
+    planeOffsetFraction: 1e-4,
+    planeNormalDeg: 0.1,
+    sphereCentreFraction: 2e-3,
+  });
+
+  // feature_geometry.same_surface, statement for statement.
+  AA.sameSurface = function (a, b, tolerances) {
+    var tol = Object.assign({}, AA.SAME_SURFACE, tolerances || {});
+    if (!a || !b || a.surface !== b.surface) return false;
+    if (a.surface === "planar") {
+      if (angleBetweenDeg(a.normal, b.normal) > tol.planeNormalDeg) return false;
+      var gap = Math.abs(dot(unit(a.normal), sub(b.point, a.point)));
+      return gap <= tol.planeOffsetFraction * Math.max(a.extent || 0, b.extent || 0);
+    }
+    if (!(a.radius > 0) || !(b.radius > 0)) return false;
+    var radius = Math.max(a.radius, b.radius);
+    if (Math.abs(a.radius - b.radius) > tol.radiusFraction * radius) return false;
+    if (a.surface === "spherical") return norm(sub(a.centre, b.centre)) <= tol.sphereCentreFraction * radius;
+    if (a.surface !== "cylindrical") return false;
+    if (axialAngleDeg(a.axis, b.axis) > tol.axisDeg) return false;
+    var direction = unit(a.axis);
+    var delta = sub(b.axisPoint, a.axisPoint);
+    return norm(sub(delta, scale(direction, dot(delta, direction)))) <= tol.axisDistanceFraction * radius;
+  };
+
+  // Do two faces of one mesh TOUCH -- share a node of their common boundary?
+  // OCC triangulates each face on its own but discretises a shared edge once,
+  // so the nodes along it are the same point in both faces' runs -- to the
+  // float32 store, which can put two copies of one node an ulp apart and on
+  // either side of any grid line. So a node of B touches A when a node of A
+  // is within 2^-20 of the two faces' largest coordinate, found through a
+  // grid of that step and its 26 neighbouring cells. `ranges` is
+  // AA.faceVertexRanges ({start, count} per face id).
+  AA.facesTouch = function (positions, ranges, faceA, faceB) {
+    var ra = ranges[faceA], rb = ranges[faceB];
+    if (!ra || !rb) return false;
+    var big = 0;
+    [ra, rb].forEach(function (r) {
+      for (var i = r.start * 3; i < (r.start + r.count) * 3; i++) big = Math.max(big, Math.abs(positions[i]));
+    });
+    var q = (big || 1) * Math.pow(2, -20);
+    var cells = {};
+    var cell = function (i) {
+      return [Math.floor(positions[i * 3] / q), Math.floor(positions[i * 3 + 1] / q), Math.floor(positions[i * 3 + 2] / q)];
+    };
+    for (var a = ra.start; a < ra.start + ra.count; a++) {
+      var c = cell(a).join(",");
+      (cells[c] = cells[c] || []).push(a);
+    }
+    for (var b = rb.start; b < rb.start + rb.count; b++) {
+      var k = cell(b);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) for (var dz = -1; dz <= 1; dz++) {
+        var list = cells[(k[0] + dx) + "," + (k[1] + dy) + "," + (k[2] + dz)];
+        if (!list) continue;
+        for (var j = 0; j < list.length; j++) {
+          var n = list[j];
+          if (Math.abs(positions[n * 3] - positions[b * 3]) <= q &&
+              Math.abs(positions[n * 3 + 1] - positions[b * 3 + 1]) <= q &&
+              Math.abs(positions[n * 3 + 2] - positions[b * 3 + 2]) <= q) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // The faces that go with a picked one, Jeff's first two cases (the handoff's
+  // table): `swept` -- on its surface AND joined to it through faces on that
+  // surface (a split cylinder: taken with it, never a question); `offered` --
+  // on its surface but not joined (an interrupted feature: two seats of one
+  // bore, coplanar feet; Jeff confirms the group or keeps the one). `classes`
+  // is the part's classification by face id; `touch(a, b)` is AA.facesTouch
+  // bound to the part's buffers. Ids in ascending order, the pick excluded.
+  AA.surfaceSiblings = function (classes, pickedId, touch) {
+    var picked = classes && classes[pickedId];
+    var out = { swept: [], offered: [] };
+    if (!picked || picked.surface === "other") return out;
+    var like = [];
+    Object.keys(classes).forEach(function (id) {
+      var n = Number(id);
+      if (n !== Number(pickedId) && AA.sameSurface(picked, classes[id])) like.push(n);
+    });
+    var joined = {};
+    joined[Number(pickedId)] = true;
+    var frontier = [Number(pickedId)];
+    while (frontier.length) {
+      var next = [];
+      frontier.forEach(function (f) {
+        like.forEach(function (n) {
+          if (!joined[n] && touch(f, n)) { joined[n] = true; next.push(n); }
+        });
+      });
+      frontier = next;
+    }
+    like.sort(function (a, b) { return a - b; }).forEach(function (n) {
+      (joined[n] ? out.swept : out.offered).push(n);
+    });
+    return out;
   };
 })(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

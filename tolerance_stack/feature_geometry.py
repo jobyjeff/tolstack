@@ -1328,6 +1328,164 @@ def fit_part_faces(mesh: Mesh,
 
 
 # ---------------------------------------------------------------------------
+# one surface, several faces (handoff a_feature_is_bound_once_to_a_set_of_faces)
+# ---------------------------------------------------------------------------
+
+#: When two faces of ONE mesh are one underlying surface: a cylinder a STEP
+#: export split into arcs, two coaxial seats of one bore, coplanar feet. Each
+#: is a fraction of the face's own size or an angle, so none assumes a unit.
+#:
+#: Measured 2026-11-12 over every same-class face pair of six installed meshes
+#: (pitch plate 215177-001, gas-spring mount 213668-002, bushing 214820-002,
+#: hub 214373-002, piston 214700-002, tangential link mount 215175-001; 10838
+#: cylinder pairs and 3992 plane pairs within a loose window):
+#:
+#: * ``radius_fraction``: cylinder pairs that are one surface agree on radius
+#:   to <= 1.1e-5 of it (the split pilot boss of the pitch plate, faces
+#:   487/521: 1.2e-15; the hub's 43.405 bands: 1.0e-6); the nearest pair that
+#:   is two surfaces is 1.44e-4 apart (the link mount's 111.997/112.013 bands,
+#:   a 0.016 mm step), and 1375/1458 on the pitch plate (3.975 against 3.983)
+#:   are 1.94e-3 apart. 5e-5 sits between, x4.5 above the one and x2.9 below
+#:   the other.
+#: * ``axis_distance_fraction`` (the two axis lines' separation, of the
+#:   radius): one-surface pairs are <= 1e-4 (the dense population), with a thin
+#:   tail to 1.2e-3 on narrow fillet arcs whose axis position is poorly
+#:   determined; different holes of one radius are >= 2.4e-2 apart (the 5.5
+#:   bolt circle: 0.18). 2e-3 keeps the tail and refuses every hole pattern.
+#: * ``axis_deg``: well-conditioned pairs agree to 1e-4 degrees; the narrow
+#:   arcs to 0.17. 0.2 degrees.
+#: * ``plane_offset_fraction`` (offset difference, of the larger face's
+#:   extent): coplanar pairs are <= 1e-5, then the population thins to 13 pairs
+#:   at 1e-4 and rises again at 1e-3 (real steps of a few hundredths of a mm).
+#:   1e-4.
+#: * ``plane_normal_deg``: coplanar pairs are <= 3e-4 degrees apart, the next
+#:   population is at 1 degree. 0.1. Same SENSE: two faces of a plate's two
+#:   sides face apart and are not one surface.
+#: * ``sphere_centre_fraction``: no installed part carries a split ball to
+#:   measure; the cylinder's axis-distance number, for the same reason (a
+#:   centre is located as well as an axis line is).
+SAME_SURFACE_TOLERANCES: Dict[str, float] = {
+    "radius_fraction": 5e-5,
+    "axis_distance_fraction": 2e-3,
+    "axis_deg": 0.2,
+    "plane_offset_fraction": 1e-4,
+    "plane_normal_deg": 0.1,
+    "sphere_centre_fraction": 2e-3,
+}
+
+#: ``SAME_SURFACE_TOLERANCES`` key -> the ``AA.SAME_SURFACE`` key that holds the
+#: same number in the annotator, which sweeps a picked face's siblings by it.
+JS_SAME_SURFACE_NAMES = {
+    "radius_fraction": "radiusFraction",
+    "axis_distance_fraction": "axisDistanceFraction",
+    "axis_deg": "axisDeg",
+    "plane_offset_fraction": "planeOffsetFraction",
+    "plane_normal_deg": "planeNormalDeg",
+    "sphere_centre_fraction": "sphereCentreFraction",
+}
+
+
+def surface_record(fit: FaceFit) -> Optional[Dict[str, Any]]:
+    """A fitted face as :func:`same_surface` reads it: the class, the face's
+    extent and its geometry -- or ``None`` for an ``other`` face, which is one
+    surface with nothing."""
+    if fit.surface not in FITTED_SURFACE_CLASSES:
+        return None
+    return dict(fit.geometry, surface=fit.surface, extent=fit.extent)
+
+
+def same_surface(a: Dict[str, Any], b: Dict[str, Any],
+                 tolerances: Optional[Dict[str, float]] = None) -> bool:
+    """Are two fitted faces of one mesh (:func:`surface_record`) one surface?
+
+    Coaxial with equal radius (cylinders), coplanar facing the same way
+    (planes), concentric with equal radius (spheres), each within
+    :data:`SAME_SURFACE_TOLERANCES`. Different classes never are.
+    """
+    tol = dict(SAME_SURFACE_TOLERANCES)
+    tol.update(tolerances or {})
+    if not a or not b or a.get("surface") != b.get("surface"):
+        return False
+    kind = a["surface"]
+    if kind == "planar":
+        if _angle_between_deg(a["normal"], b["normal"]) > tol["plane_normal_deg"]:
+            return False
+        normal = _unit(a["normal"])
+        gap = abs(_dot(normal, _sub(b["point"], a["point"])))
+        return gap <= tol["plane_offset_fraction"] * max(a.get("extent") or 0.0, b.get("extent") or 0.0)
+    radius = max(a["radius"], b["radius"])
+    if abs(a["radius"] - b["radius"]) > tol["radius_fraction"] * radius:
+        return False
+    if kind == "spherical":
+        return _norm(_sub(a["centre"], b["centre"])) <= tol["sphere_centre_fraction"] * radius
+    if kind != "cylindrical":
+        return False
+    angle = _angle_between_deg(a["axis"], b["axis"])
+    if min(angle, 180.0 - angle) > tol["axis_deg"]:
+        return False
+    direction = _unit(a["axis"])
+    delta = _sub(b["axis_point"], a["axis_point"])
+    perpendicular = _norm(_sub(delta, _scale(direction, _dot(delta, direction))))
+    return perpendicular <= tol["axis_distance_fraction"] * radius
+
+
+def fit_face_set(mesh: Mesh, face_ids: Sequence[int],
+                 tolerances: Optional[Dict[str, float]] = None) -> FaceFit:
+    """ONE nominal through several faces of one feature: one cylinder through
+    both seats of a bore, one plane through all the feet.
+
+    Each face is classified on its own first (:func:`fit_face`). They must all
+    be one class; then that class is fitted to the union of their vertices --
+    a plane about the area-weighted normal of the faces, a cylinder refined
+    from the first face's axis (:func:`refine_cylinder`), a sphere outright.
+    A set whose faces disagree on class, or include an ``other``, is ``other``
+    with the reason. One face is :func:`fit_face` itself.
+
+    The result is a :class:`FaceFit` whose ``face_id`` is the first face's,
+    whose ``area`` is the sum, and whose ``geometry`` is the shape
+    :func:`fit_face` gives, so a consumer reads one fit or a set's the same way.
+    """
+    ids = [int(f) for f in face_ids]
+    if not ids:
+        raise MeshError("a face set needs at least one face")
+    singles = [fit_face(mesh, fid, tolerances) for fid in ids]
+    if len(ids) == 1:
+        return singles[0]
+    first = singles[0]
+    combined = FaceFit(face_id=first.face_id, surface="other",
+                     triangles=sum(s.triangles for s in singles),
+                     area=sum(s.area for s in singles), extent=0.0)
+    classes = {s.surface for s in singles}
+    if len(classes) != 1 or first.surface not in FITTED_SURFACE_CLASSES:
+        combined.why = ("the faces are not one kind of surface: "
+                      + ", ".join(f"{s.face_id} {s.surface}" for s in singles))
+        return combined
+    vertices: List[Vec] = []
+    for fid in ids:
+        vertices.extend(face_vertices(mesh, fid))
+    centroid_extent = _centroid_and_extent(vertices)
+    combined.extent = centroid_extent[1]
+    kind = first.surface
+    if kind == "planar":
+        weighted = [0.0, 0.0, 0.0]
+        for s in singles:
+            n = _unit(s.geometry["normal"])
+            weighted = [w + c * s.area for w, c in zip(weighted, n)]
+        fit = fit_plane(vertices, tuple(weighted), centroid_extent)
+    elif kind == "cylindrical":
+        fit = refine_cylinder(vertices, tuple(first.geometry["axis"]), centroid_extent)
+    else:
+        fit = fit_sphere(vertices, centroid_extent)
+    if not fit:
+        combined.why = f"no single {kind} surface fits the faces together"
+        return combined
+    combined.fits = {kind: fit}
+    combined.surface = kind
+    combined.geometry = {k: v for k, v in fit.items() if k not in ("surface", "rms", "max_residual", "extent")}
+    return combined
+
+
+# ---------------------------------------------------------------------------
 # placement -- a 3x4 row-major matrix, as provenance.json records one
 # ---------------------------------------------------------------------------
 

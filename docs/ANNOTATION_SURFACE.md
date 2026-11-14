@@ -91,6 +91,14 @@ One immutable JSON file per event, append-only, in
 disposition rather than the spec library's committed one). Schema and every
 vocabulary constant: `tolerance_stack/feature_identity.py`.
 
+**Since 2026-11-12 a new event is `joby.tolerance_stack/feature-identity/v1`**
+(handoff `a_feature_is_bound_once_to_a_set_of_faces`; see "A feature is bound
+once, to a set of faces" below). Its subject is the feature, `feature_key:
+{topology_id, part, node}`, and its face side is `geometry_keys`, a list of
+the v0 `geometry_key` shape -- one or more faces of one mesh. It has no
+`direction`. The verdicts are unchanged. v0 events still load and are never
+rewritten; the fold reads them through.
+
 ### The mesh format
 
 `data/meshes/<source_step_sha256>/` — the spike's binary format verbatim:
@@ -943,6 +951,53 @@ the tree read none at all. What changed:
   the foot of the tree -- "2 bindings name something that no longer exists" --
   opening to the list (`VA.orphanBindings`). It refuses nothing.
 
+### A feature is bound once, to a set of faces (2026-11-12)
+
+Jeff, 2026-11-10: "agreed, once per feature"; and "we will need to support
+multi-surface features". A binding attaches to a part's FEATURE -- the model
+view's `<part>@<node>`, keyed under the model whose ids it is
+(`tolerance_stack.topology.feature_identity_topology_id`, written on every
+feature as `model.features[].identity`) -- not to a dimension's end. The hub's
+locating boss is the start of three v2 dimensions, the v2 pilot fit and four
+v1 edges; it is picked once and every one of those ends reads it.
+
+- **Old events are read through, never rewritten.** The fold maps each v0
+  edge-end event to the feature its end is (`model_view.end_feature`: the end
+  node, on the dimension's part or a gap edge's end node's first part). Where
+  several land on one feature: the same face stands once; different faces
+  that are one surface (`feature_geometry.same_surface`, its thresholds
+  measured over six meshes and stated there) stand as one set; anything else
+  is a **disagreement** -- shown on the feature ("2 faces disagree", each face
+  hoverable, **Keep** on each, and **Pick a face** for when neither is
+  right), never chosen silently, and read as a suggestion until a face is
+  kept or picked; until then no end of it shows a bound face. An event whose model or edge is gone is an
+  orphan, kept in history.
+- **A feature-keyed event replaces what was read through.** Once a v1 `bound`
+  or `retracted` names the feature, its v1 events alone decide it; the old
+  bindings stay in history as `replaced`. A v1 event may answer, correct or
+  unbind an old event read through to the same feature -- the one pointer
+  that crosses shapes. Two standing v1 bindings that name different sets
+  disagree.
+- **A pick may take several faces.** Picking one face sweeps in its siblings
+  on the same surface that touch it (a cylinder the STEP split into arcs) --
+  never a question. Like faces on that surface that do not touch it (two
+  seats of one bore, coplanar feet) are lit and offered: **Take all N** or
+  **Just this one** (`group all|one`). A face pattern (fastener clocking) is
+  not offered as a group; the event shape holds N faces, the pattern fit is a
+  later handoff.
+- **The feature body lists a set** ("bound · 4 faces of 213668-002", then
+  each face, hoverable, with **Remove**); **Correct** re-picks the whole set.
+- **Every reader asks the feature.** The fold's `features` records hold the
+  answer; an edge-end reader (the pane's rows, the marks, an Accept) reads the
+  end view (`VA.endView`), whose row at an end is the feature that end is.
+  Proposals and contact suggestions are keyed the same way (a proposal is a
+  v1 event; a contact row's ends carry `feature`), and
+  `scripts/fit_bound_features.py` fits one nominal through a feature's set.
+- **The served log carries `same_surface`**, the face pairs read through to
+  one feature that are one surface, because a page has no meshes' fits. Which
+  feature an old event reads through to the page works out from the topology
+  projection; `tests/test_identity_fold_is_paired.py` folds one log both ways.
+
 ### Proposals — an agent proposes, a human ratifies (2026-10-28)
 
 Seven weeks after the surface could bind, nothing was bound, and every node in
@@ -988,7 +1043,10 @@ does. The rail row is the surface, in both modes and in the shell's mirror:
   bound end reads as bound (bound wins, as the fold says), and a proposal at
   the *other* end of an edge is not a suggestion at this one. Its state is
   `proposed`, which raises no alert. Bind mode's element row (one row per
-  edge) carries the same line, naming the surest of the edge's proposals.
+  edge) carries the same line, naming the surest of the edge's proposals at
+  an end nothing is bound at. Since 2026-11-12 a proposal follows its
+  feature, so a feature bound through one edge still lists the proposals
+  other edges' ends were read through to it; those raise no line.
 - **Selecting the row lights the face** (`inspect feature <edge> <end>`): the
   proposed face is drawn **solid** in the suggestion colour on every
   occurrence of its part, the camera frames the occurrence the end's body

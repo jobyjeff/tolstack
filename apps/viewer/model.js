@@ -15,16 +15,19 @@
 //
 // A feature is a node AS SEEN ON ONE PART (`<part>@<node>`), so a node two
 // parts share is two features, one per part, and a part's features are its
-// own. That is a view id: bindings stay keyed by edge end
-// (docs/DAG_TOPOLOGY.md, "The model view").
+// own. Since 2026-11-12 a binding is keyed by the feature too
+// (`model.features[].identity`; handoff a_feature_is_bound_once_to_a_set_of_
+// faces): the fold's `features` hold it, and every end-addressed lookup below
+// reads its end's feature through VA.endView.
 (function (VA) {
   "use strict";
 
   // One status mark per feature: the coloured circle and the warning triangle
   // the two rails used to wear are one mark now (Jeff, 2026-11-09). A module-
   // level table, never an inline literal (repo rule).
-  //   bound      a committed binding stands at this end of an edge on the node
-  //   suggested  an agent's open proposal at this end, and nothing bound
+  //   bound      a committed binding stands on the feature
+  //   suggested  an agent's open proposal on it, and nothing bound -- or
+  //              faces that disagree, which nothing settles but a Keep
   //   none       neither
   VA.FEATURE_STATUSES = Object.freeze({
     bound: "bound",
@@ -93,8 +96,9 @@
   // its OWN ends only. A binding or a proposal is at an end when its
   // `direction` names it (AA.sweepFeatureState applies the same end rule in
   // the pane).
-  function featureStatus(ends, identity, identityIds) {
+  function featureStatus(ends, identity, identityIds, record) {
     var S = VA.FEATURE_STATUSES;
+    if (record && record.state === VA.FEATURE_STATES[1]) return S.suggested;
     if (featureEvents(ends, identity, identityIds, "bindings").length) return S.bound;
     if (featureEvents(ends, identity, identityIds, "proposals").length) return S.suggested;
     return S.none;
@@ -108,6 +112,13 @@
   VA.buildModel = function (topoProj, identity) {
     var view = topoProj && topoProj.model;
     if (!view) return null;
+    // The fold's feature records, and -- for every lookup addressed by an
+    // edge end -- the end view: each end's row is its feature's.
+    var folded = identity && identity.features ? identity : null;
+    if (folded) identity = VA.endView(folded, topoProj);
+    var recordOf = function (feature) {
+      return folded && feature && feature.identity ? VA.featureRecordOf(folded, feature.identity) : null;
+    };
     var byId = function (rows) {
       var out = {};
       (rows || []).forEach(function (row) { out[row.id] = row; });
@@ -135,7 +146,7 @@
     (view.features || []).forEach(function (feature) {
       var first = features[featuresByNode[feature.node][0]];
       ends[feature.id] = featureEnds(feature, edgesByNode, first ? first.part : null);
-      status[feature.id] = featureStatus(ends[feature.id], identity, identityIds);
+      status[feature.id] = featureStatus(ends[feature.id], identity, identityIds, recordOf(feature));
     });
 
     // A body's tint index, the DAG's rule (VA.bodyTint): its position in the
@@ -213,6 +224,9 @@
       proposalsOf: function (featureId) {
         return featureEvents(ends[featureId] || [], identity, identityIds, "proposals");
       },
+      // The feature's own record in the fold (VA.featureRecordOf): the faces
+      // it holds, its outcome, a disagreement's groups -- or null.
+      featureRecord: function (featureId) { return recordOf(features[featureId]); },
       // Does the part have an installed mesh the scene could draw?
       hasMesh: function (partId) {
         var p = parts[partId];

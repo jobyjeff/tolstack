@@ -90,6 +90,24 @@ builder's *input* is gitignored ``data/`` too, not tracked ``docs/``, so a
 into the right tree's projection
 (``ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md``).
 
+One fit per FEATURE, through every face it holds
+---------------------------------------------------
+
+Since 2026-11-12 (handoff ``a_feature_is_bound_once_to_a_set_of_faces``) a
+binding is a feature's, and a feature may be several faces. So a row is one
+bound feature (``feature``, from the feature fold), fitted ONCE through all of
+its faces (:func:`tolerance_stack.feature_geometry.fit_face_set`: one cylinder
+through both seats of a bore, one plane through all the feet). The schema
+stays ``/v0``: every field ``C:\\workspace\\linkage`` reads (``event_id``,
+``mesh``, ``local.surface``, ``occurrences[].geometry``,
+``occurrences[].instance_path``) keeps its place and meaning, and the new ones
+are added beside them -- ``feature``, ``event_ids`` (every standing event
+behind it), ``geometry_keys`` (the set; ``geometry_key`` is its first face).
+``stack_key``/``direction`` stay on a row whose feature stands on one old
+edge-end event, and are absent where it stands on a feature-keyed one. A
+feature whose faces disagree is not fitted: it is ``unresolved`` with reason
+``disagreement`` until a human keeps one.
+
 Gated like every shared projection writer here
 (``scripts/projection_provenance.py``): it refuses to overwrite a file built
 from a tree this one does not contain, exit 3, unless ``--allow-older-tree``.
@@ -113,8 +131,8 @@ import projection_provenance as prov  # noqa: E402 -- resolved from scripts/
 
 from tolerance_stack import feature_geometry as fg  # noqa: E402
 from tolerance_stack.feature_identity import (  # noqa: E402
-    build_projection,
-    load_events,
+    TOPOLOGIES_DIR,
+    fold_with_models,
 )
 
 SCHEMA = "joby.tolerance_stack/feature-geometry-projection/v0"
@@ -322,20 +340,35 @@ def place_geometry(geometry: Dict[str, Any],
     return out
 
 
-def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
+def fit_one_feature(record, meshes_dir: Path, rotorkit_root: Path,
                     cache: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]],
                                                     Optional[Dict[str, Any]]]:
-    """``(fit row, unresolved row)`` -- exactly one of the two is not ``None``."""
-    key = event.geometry_key
+    """``(fit row, unresolved row)`` for one bound feature
+    (:class:`~tolerance_stack.feature_identity.FeatureBindings`) -- exactly
+    one of the two is not ``None``."""
+    faces = list(record.faces)
+    key = faces[0]
     sha = key.source_step_sha256
-    base = {
-        "event_id": event.event_id,
-        "stack_key": event.stack_key.as_dict(),
-        "direction": event.direction,
-        "geometry_key": key.as_dict(),
+    first = record.bindings[0]
+    base: Dict[str, Any] = {
+        "event_id": first.event_id,
+        "event_ids": [e.event_id for e in record.bindings],
+        "feature": record.feature_key.as_dict(),
     }
-    if event.owner_part:
-        base["owner_part"] = event.owner_part
+    if len(record.bindings) == 1 and first.stack_key is not None:
+        base["stack_key"] = first.stack_key.as_dict()
+        base["direction"] = first.direction
+    base["geometry_key"] = key.as_dict()
+    base["geometry_keys"] = [f.as_dict() for f in faces]
+    owner = next((e.owner_part for e in record.bindings if e.owner_part), None)
+    if owner:
+        base["owner_part"] = owner
+
+    if record.outcome == "disagreement":
+        return None, dict(base, reason="disagreement",
+                          note=f"{len(record.disagreement)} faces disagree; nothing is fitted until one is kept")
+    if len({f.source_step_sha256 for f in faces}) != 1:
+        return None, dict(base, reason="unreadable", note="the feature's faces are on more than one mesh")
 
     mesh_dir = meshes_dir / sha
     if not (mesh_dir / "manifest.json").is_file():
@@ -372,7 +405,7 @@ def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
     mesh = entry["mesh"]
 
     try:
-        fit = fg.fit_face(mesh, key.face_id)
+        fit = fg.fit_face_set(mesh, [f.face_id for f in faces])
     except fg.MeshError as exc:
         return None, dict(base, reason="no_face", note=str(exc))
 
@@ -386,8 +419,9 @@ def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
     base["local"] = fit.as_dict()
 
     if fit.surface == "other":
+        named = ", ".join(str(f.face_id) for f in faces)
         return None, dict(base, reason="unreadable",
-                          note=f"face {key.face_id} is not a shape this reads: {fit.why}")
+                          note=f"face(s) {named}: not a shape this reads: {fit.why}")
 
     occurrences = entry["occurrences"]
     if not occurrences:
@@ -415,7 +449,8 @@ def fit_one_binding(event, meshes_dir: Path, rotorkit_root: Path,
 
 def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
           rotorkit_root: Path = ROTORKIT_ROOT,
-          allow_older: bool = False) -> Tuple[Path, Dict[str, Any]]:
+          allow_older: bool = False,
+          topologies_dir: Optional[Path] = None) -> Tuple[Path, Dict[str, Any]]:
     """Wipe and rebuild ``<data-root>/projections/feature-geometry/fits.json``."""
     out_dir = Path(out_dir)
     out_path = out_dir / PROJECTION_NAME
@@ -426,17 +461,17 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
     for line in prov.note_lines(provenance):
         print(line, file=sys.stderr)
 
-    events = load_events(events_dir)
-    projection = build_projection(events)
+    _events, projection = fold_with_models(Path(events_dir), Path(meshes_dir).parent,
+                                           Path(topologies_dir) if topologies_dir else TOPOLOGIES_DIR,
+                                           meshes_dir=Path(meshes_dir))
 
     cache: Dict[str, Any] = {}
     fits: List[Dict[str, Any]] = []
     unresolved: List[Dict[str, Any]] = []
-    for _key, record in sorted(projection.by_stack_key.items()):
-        for binding in record.bindings:
-            row, missing = fit_one_binding(binding, Path(meshes_dir),
-                                           Path(rotorkit_root), cache)
-            (fits if row is not None else unresolved).append(row or missing)
+    standing = [r for _key, r in sorted(projection.by_feature.items()) if r.bindings]
+    for record in standing:
+        row, missing = fit_one_feature(record, Path(meshes_dir), Path(rotorkit_root), cache)
+        (fits if row is not None else unresolved).append(row or missing)
 
     data: Dict[str, Any] = {
         "schema": SCHEMA,
@@ -444,7 +479,8 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
         "built_from_events": projection.events,
         "meshes_dir": str(Path(meshes_dir)),
         "summary": {
-            "bindings": sum(len(r.bindings) for r in projection.by_stack_key.values()),
+            "bindings": sum(len(r.bindings) for r in standing),
+            "features": len(standing),
             "fitted": len(fits),
             "unresolved": len(unresolved),
             "by_surface": _count(fits, lambda row: row["local"]["surface"]),
@@ -501,7 +537,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     summary = data["summary"]
     print(f"wrote {out}")
     print(f"  {summary['fitted']} fitted, {summary['unresolved']} unresolved, "
-          f"from {summary['bindings']} binding(s)")
+          f"from {summary['features']} bound feature(s) ({summary['bindings']} binding(s))")
     for word, count in summary["by_surface"].items():
         print(f"    {count:>4}  {word}")
     for reason, count in summary["by_reason"].items():

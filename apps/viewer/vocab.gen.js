@@ -92,6 +92,20 @@
     // tolerance_stack/feature_identity.py: PROPOSAL_CONFIDENCES
     PROPOSAL_CONFIDENCES: ["high", "medium", "low"],
 
+    // tolerance_stack/feature_identity.py: FEATURE_OUTCOMES
+    FEATURE_OUTCOMES: ["one", "set", "disagreement"],
+
+    // tolerance_stack/feature_identity.py: FEATURE_STATES
+    FEATURE_STATES: [
+      "bound", "disagreement", "owner_not_in_set", "proposed", "unbound"
+    ],
+
+    // tolerance_stack/feature_identity.py: FACE_VERDICTS
+    FACE_VERDICTS: ["bound", "proposed"],
+
+    // tolerance_stack/feature_identity.py: ORPHAN_REASONS
+    ORPHAN_REASONS: ["no_model", "no_edge", "no_end"],
+
     // tolerance_stack/stack.py: EXPORT_STATUSES
     EXPORT_STATUSES: ["established", "unestablished"],
 

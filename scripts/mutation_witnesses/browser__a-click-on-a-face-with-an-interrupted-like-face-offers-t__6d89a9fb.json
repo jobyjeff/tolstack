@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "a click on a face with an interrupted like face offers the two as a group, writing nothing, still armed",
+  "mutations": [
+    {
+      "contract": "Like faces on the picked face's surface that do not touch it are offered as a group, and nothing is written until the offer is answered.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_feature_is_bound_once_to_a_set_of_faces.md",
+      "note": "Declared with the guard by handoff a_feature_is_bound_once_to_a_set_of_faces (review round 2). The mutation binds the clicked face alone and never asks -- the interrupted seats of one bore would be bound one at a time as separate answers.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (siblings.offered.length) {",
+      "replace": "  if (false) {"
+    }
+  ]
+}

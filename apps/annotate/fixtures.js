@@ -348,9 +348,13 @@
           // suggestion rules these are flat surfaces, and a bare id tells them
           // nothing. Node `d` is the far end of the third edge and names no
           // part, same as the real joints' own last clamped surface.
+          // Nodes `a` and `b` are on the demo triangle (2026-11-13): a binding
+          // is written to the feature an end IS -- its node on its part -- so
+          // the traced edge's two ends need a part to be bound at all, as
+          // every end of the real models has.
           nodes: [
-            { id: "a", name: "demo bolt-head bearing face", kind: "mating_surface" },
-            { id: "b", name: "demo bushing face against the plate", kind: "mating_surface" },
+            { id: "a", name: "demo bolt-head bearing face", kind: "mating_surface", parts: ["demo_triangle"] },
+            { id: "b", name: "demo bushing face against the plate", kind: "mating_surface", parts: ["demo_triangle"] },
             { id: "c", name: "demo plate far face", kind: "mating_surface" },
             { id: "d", name: "demo washer far face", kind: "datum_feature" },
           ],

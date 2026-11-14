@@ -23,8 +23,10 @@ The entities, and what each is:
 * **features** -- a node *as seen on one part*. A node on two parts (a mating
   surface) is two features, one per part, so a part's features are its own and
   a face two parts share is a pin on each. A feature's id is
-  ``<part>@<node>``; nothing else in this repo spells it, and it is a view id,
-  not a feature-identity key (bindings stay keyed by edge end).
+  ``<part>@<node>``; nothing else in this repo spells it. Since 2026-11-12
+  (handoff ``a_feature_is_bound_once_to_a_set_of_faces``) a binding is keyed
+  by the feature too: ``identity`` is its feature-identity key, ``{topology_id,
+  part, node}``, under the model whose ids it is.
 * **dimensions** -- the structural edges, each on one part between two of its
   features.
 * **interfaces** -- the two authored shapes for "two parts meet", in one list:
@@ -53,11 +55,12 @@ from __future__ import annotations
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .topology import Edge, Node, Part, Topology
+from .topology import Edge, Node, Part, Topology, feature_identity_topology_id
 
 __all__ = [
     "CONTACT_KIND",
     "INTERFACE_SOURCES",
+    "end_feature",
     "feature_id",
     "part_label",
     "model_view",
@@ -130,13 +133,29 @@ def _end_part(topology: Topology, node: Node) -> str:
     return node.parts[0]
 
 
+def end_feature(topology: Topology, edge: Edge, direction: str) -> Tuple[str, str]:
+    """``(part, node)`` -- the feature an edge's ``direction`` end is: the end
+    node, on the dimension's own part or, for a gap edge, on the end node's
+    first part (:func:`_end_part`). The one rule an old edge-end binding is
+    read through by (``tolerance_stack.feature_identity.edge_end_feature``)
+    and the one the browser's ``featureEnds`` inverts."""
+    node_id = edge.from_node if direction == "from" else edge.to_node
+    if edge.kind == "structural":
+        return edge.part, node_id
+    return _end_part(topology, topology.node(node_id)), node_id
+
+
 def model_view(topology: Topology,
-               mesh_of: Optional[Callable[[str], Any]] = None) -> Dict[str, Any]:
+               mesh_of: Optional[Callable[[str], Any]] = None,
+               topologies: Optional[Dict[str, Topology]] = None) -> Dict[str, Any]:
     """The entity view of ``topology`` (module docstring), as plain JSON.
 
     ``mesh_of(part_id)`` is the projection's own resolution of a part's
     installed mesh (``build_topology_projection.mesh_fact``); ``None`` writes
     ``mesh: None`` on every part, which is what a tree with no meshes reads.
+    ``topologies`` is every model by id, so a feature this model shares with
+    the model it reuses ids from is keyed under that one; without it every
+    feature is keyed to this model.
     """
     body_of: Dict[str, Optional[str]] = {}
     for part in topology.parts:
@@ -157,6 +176,11 @@ def model_view(topology: Topology,
                 "kind": node.kind,
                 "shared": shared,
                 "body": body_of[part_id],
+                "identity": {
+                    "topology_id": feature_identity_topology_id(topology, part_id, node.id, topologies or {}),
+                    "part": part_id,
+                    "node": node.id,
+                },
             })
             feature_ids_of_part[part_id].append(fid)
 

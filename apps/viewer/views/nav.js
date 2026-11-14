@@ -890,11 +890,15 @@
   // Now the body is planned here from the model (its status, its bindings,
   // its own ends) and the pane's rows are drawn only for a suggestion:
   //
-  //   bound      one line per standing binding -- "bound · face 12 of
-  //              214373-002" -- hovering it lights the face; Correct (arm the
-  //              pick on the feature's part; the new face supersedes), Unbind
-  //              (a retraction), and Flip where the binding sits on a
-  //              dimension whose other end is free
+  //   bound      "bound · face 12 of 214373-002" -- hovering it lights the
+  //              face; Correct (arm the pick on the feature's part; the new
+  //              set supersedes), Unbind (a retraction), and Flip where the
+  //              feature is a dimension's end whose other end is free. A
+  //              feature holding a set says "bound · 3 faces of ..." and
+  //              lists each face (hoverable) with Remove
+  //   disagree   "2 faces disagree", each face hoverable with Keep: nothing
+  //              is bound until one is kept (the feature reads suggested);
+  //              Pick a face, for when neither is the feature's face
   //   suggested  the pane's candidate rows, as before; with none (the run does
   //              not carry the feature) the suggestion's line and Pick a face
   //   neither    "not bound" and Pick a face, which arms the same pick
@@ -905,6 +909,13 @@
   // the words are this table's.
   VA.FEATURE_BODY_WORDS = Object.freeze({
     bound: "bound · face {face} of {part}",
+    boundSet: "bound · {n} faces of {part}",
+    setFace: "face {face}",
+    remove: "Remove",
+    removeTitle: "take this face out of the feature's set",
+    disagree: "{n} faces disagree",
+    keep: "Keep",
+    keepTitle: "this is the feature's face; the others are let go",
     none: "not bound",
     noMesh: "not bound · no 3D model of this part",
     suggested: "suggested · {confidence}",
@@ -922,10 +933,12 @@
 
   // The pane verbs a body's actions post, each `<verb> <edge> <end>
   // <topology>` except `arm off` (apps/annotate/app.js registers them).
-  VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip" });
+  VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip", keep: "keep",
+    dropFace: "drop-face" });
 
   // The kinds of body VA.featureBodyPlan returns (null: draw the pane's rows).
-  VA.FEATURE_BODY_KINDS = Object.freeze({ bound: "bound", none: "none", armed: "armed" });
+  VA.FEATURE_BODY_KINDS = Object.freeze({ bound: "bound", none: "none", armed: "armed",
+    disagree: "disagree" });
 
   function fill(template, values) {
     return String(template).replace(/\{(\w+)\}/g, function (_, k) {
@@ -949,18 +962,52 @@
         actions: [{ text: W.cancel, title: W.cancelTitle, command: [V.arm, "off"] }] };
     }
     var status = model.status(fid);
-    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length) return null;
+    var record = model.featureRecord ? model.featureRecord(fid) : null;
+    var disagree = record && record.state === VA.FEATURE_STATES[1];
+    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length && !disagree) return null;
     var part = model.part(feature.part);
     var partWords = (part && (part.number || part.label)) || feature.part;
     // `arm` also names the feature's own part, armed first (a shared node is
-    // two features); unbind and flip need only the end.
-    var verb = function (name, e) {
+    // two features); unbind and flip need only the end; keep and remove name
+    // the face too.
+    var verb = function (name, e, face) {
       var cmd = [name, e.edgeId, e.end, topologyId];
+      if (face) return cmd.concat([face.source_step_sha256, String(face.face_id)]);
       return name === V.arm ? cmd.concat([feature.part]) : cmd;
     };
+    var faceLine = function (face, text, actions) {
+      return { text: text, face: { sha256: face.source_step_sha256, faceId: face.face_id }, actions: actions };
+    };
+    if (disagree && ends.length) {
+      var faces = [];
+      record.disagreement.forEach(function (g) { faces = faces.concat(g.faces); });
+      return { kind: K.disagree, lines: [{ text: fill(W.disagree, { n: faces.length }) }].concat(faces.map(function (f) {
+        return faceLine(f, fill(W.setFace, { face: f.face_id }),
+          [{ text: W.keep, title: W.keepTitle, command: verb(V.keep, ends[0], f) }]);
+      })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }] };
+    }
+    if (status === VA.FEATURE_STATUSES.bound && record && (record.faces || []).length > 1 && ends.length) {
+      var end = model.bindingsOf(fid)[0] || ends[0];
+      return { kind: K.bound, lines: [{ text: fill(W.boundSet, { n: record.faces.length, part: partWords }),
+        actions: [
+          { text: W.correct, title: W.correctTitle, command: verb(V.arm, end) },
+          { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, end) },
+        ] }].concat(record.faces.map(function (f) {
+        return faceLine(f, fill(W.setFace, { face: f.face_id }),
+          [{ text: W.remove, title: W.removeTitle, command: verb(V.dropFace, end, f) }]);
+      })), actions: [] };
+    }
     if (status === VA.FEATURE_STATUSES.bound) {
       var plan = { kind: K.bound, lines: [], actions: [] };
-      model.bindingsOf(fid).forEach(function (b) {
+      // The feature's binding reaches it at every end that uses it: one line.
+      var seenFace = {};
+      model.bindingsOf(fid).filter(function (b) {
+        var k = b.event.geometry_key || {};
+        var id = k.source_step_sha256 + "#" + k.face_id;
+        if (seenFace[id]) return false;
+        seenFace[id] = true;
+        return true;
+      }).forEach(function (b) {
         var key = b.event.geometry_key || {};
         var actions = [
           { text: W.correct, title: W.correctTitle, command: verb(V.arm, b) },

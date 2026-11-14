@@ -603,7 +603,8 @@
       state.crops = all[1];
       state.stacksResults = all[2];
       state.kinematic = all[3] || null;
-      var identity = VA.identityFromSources(all[5], all[4], null);
+      var identity = VA.identityFromSources(all[5], all[4], null,
+        (state.topologies && state.topologies.topologies) || null);
       state.identity = identity.projection;
       state.installedMeshes = identity.installedMeshes;
       // One model object per topology, built here and only here.
