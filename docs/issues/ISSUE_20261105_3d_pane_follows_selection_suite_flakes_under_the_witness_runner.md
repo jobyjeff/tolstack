@@ -78,3 +78,25 @@ and red once more run alone. That second run's DIAG had the pane holding the
 hover (`{"kind":"body","name":"base"}`), and the scene still did not light.
 So the pane-clears-hover reading above is one of two ways it fails, not the
 only one. The same check was green in round 1's full tier on the same merge.
+
+## Addendum 2026-11-14, review round 3 of a_feature_is_bound_once_to_a_set_of_faces
+
+A different sub-check this time: "[real] ...and leaving it takes the light
+down" (the check right after the body-row hover). The run was against a
+scratch root built from the merged tree (`data/scratch/rv_fbo3`). The guard
+`browser__real-a-bound-feature-s-body-is-one-line-naming-its-face__a2a7fb36`
+read NOT WITNESSED, "the tier was red before the mutation". Counts per tree:
+
+| Tree | Where | Green | Red |
+|---|---|---|---|
+| merged (`bfc81e1b`) | witness shadow tree | 1 | 2 (the `--changed-since` gate, then the first `--only` re-check) |
+| merged | the worktree | 5 (full tier, 4 runs `--only`) | 0 |
+| integration (`46415114`, `git archive`) | witness shadow tree | 2 | 0 |
+| integration | its tree, `--only` | 3 | 0 |
+
+The second `--only` re-check on the merged tree was green and WITNESSED.
+Same shape as before: red only under the witness runner, green alone,
+intermittent. Two reds in three shadow runs is not enough to say that
+handoff widened the window. It only touched the disagreement body and the
+pane's write repaint, neither on this hover path. It is not enough to rule
+that out either.

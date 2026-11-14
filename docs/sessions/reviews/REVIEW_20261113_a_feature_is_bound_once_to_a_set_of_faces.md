@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
 reviewer: agent
 date: 2026-11-13
-verdict: REQUEST CHANGES (round 2)
-blockers: 1
+verdict: APPROVE (round 3)
+blockers: 0
 ---
 
 # Review — a_feature_is_bound_once_to_a_set_of_faces (round 1)
@@ -254,3 +254,129 @@ did. Run the two re-pointed browser witnesses with `--only` as well.
 `docs/issues/ISSUE_20261113_the_hub_locating_boss_has_two_bound_faces_and_needs_jeffs_keep.md`
 (`needs: jeff`). It asks for the Keep the lesson names. It rides this branch
 and reaches the board when the work lands.
+
+## Re-run 2026-11-14 — round 3
+
+Round 2 was REQUEST CHANGES with one blocker (B2: five annotate browser
+suites red on the merged tree). This round reviews `1ab32420`, `c19cd947` and
+`8aff1b82` on top of `be1ad041`. Integration had not moved (`46415114`), so
+the merge into `review/…` (`bfc81e1b`) was clean.
+
+### B2 — closed
+
+The lesson sorts each red sub-check into "stale assertion", "behaviour,
+correct" or "regression". I agree with each call:
+
+- **Armed pick and rail suggestion.** The demo triangle's two coplanar faces
+  do not touch, so the click now offers them as a group (round 1's design)
+  and writes nothing until the offer is answered. That is why "the pick
+  disarms" failed: it was not a regression. The suites now answer "Just this
+  one" and assert the feature-keyed event: node `a` on `demo_triangle`, faces
+  `[1]`, no `direction`. A new check pins the offer itself. Its witness is
+  WITNESSED on the merged tree (below).
+- **The rail chip counted leftover proposals (real regression, fixed).**
+  - Since round 1 a proposal follows its feature. So a feature bound through
+    one edge still lists proposals that other edges' ends read through to it,
+    and bind mode's chip counted them.
+  - `AA.proposalChip` now counts only proposals at an end nothing is bound
+    at. That is the rule `ANNOTATION_SURFACE.md` already stated for the
+    sweep rail; the doc is extended to bind mode.
+  - The fix has a fast check, witnessed.
+  - The `[real]` oracle derives its expected set through features
+    independently. It re-implements the end-to-feature rule rather than
+    calling `VA.endFeatureKey`, which is what an oracle should do.
+- **Bind form (real regression in the mock, fixed).**
+  - The mock's traced edge had no feature at either end, and the in-memory
+    transport has no log, so a v1 write never reached an end.
+  - Fixture nodes `a`/`b` now name the demo triangle.
+  - `placeAtFeatureEnds` puts a no-log session's feature-keyed write on every
+    end that reads the feature.
+  - I checked the claim that production never reaches this path.
+    `sessionIdentityProjection` refolds `state.identityEvents` whenever a log
+    was read (`app.js:5276-5281`), and both real transports read one. Only
+    `?mock=1` and the tiers fall through to it.
+- **Rail holds still.** In `[real]` mode the test transport now reads the
+  served log, as the FSA and HTTP transports do, so its `unaccept` reaches the
+  pane by the production route.
+- **Model drawn alone: Escape-with-pick armed (a real gap, fixed).**
+  - The hub boss's disagreement body offered only Keep, so there was nothing
+    to arm when neither face is right. It now also offers Pick a face (fast
+    check, witnessed).
+  - Round-3 shot 01 reads "2 faces disagree · face 3460 Keep · face 144 Keep
+    · Pick a face".
+- **Model drawn alone: gap hover (data, correct).**
+  - The pilot gap's hub end is the disagreement, so nothing is bound there
+    until Keep. The overlay is now required exactly when the projection says
+    an end is bound.
+  - The `catch { pilotBound = true; }` fallback errs strict: an unreadable
+    projection demands the overlay.
+
+### Merge tiers on the merged tree (`bfc81e1b`)
+
+Scratch root `data/scratch/rv_fbo3`:
+- Inputs: inbox, meshes and non-viewer projections copied from the main
+  checkout; docs from the merged tree; `venv-win` and `node_modules`
+  junctioned.
+- All seven builders and `generate_js_vocabulary.py` ran from the merged tree
+  with `--data-root`. The generator left no diff.
+
+| Tier | Command | Result |
+|---|---|---|
+| feature-identity fold | `build_feature_identity_projection.py --data-root …` | `9 feature(s) bound, 0 holding a set, 1 disagreement(s), 0 orphan(s); 78 old event(s) read through`. Unchanged. |
+| fits | `fit_bound_features.py --data-root …` | 1 unresolved (reason `disagreement`), as the lesson says |
+| kinematic | `build_kinematic_projection.py --data-root …` | 1 of 1 built |
+| annotate fast | `node apps/annotate/run_tests.cjs` | **316/316** |
+| viewer fast with `[real]` | `node apps/viewer/run_tests.cjs --repo <scratch>` | **692/692** |
+| default pytest | `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider` | **1 failed, 1977 passed, 1 skipped**, 459 s. The one failure is `test_viewer_js_suite_is_green` (line 123, the worktree's skipped node-fs tier), whose tier is the 692/692 above. |
+| browser tier | `node scripts/run_viewer_browser_tests.mjs --repo <scratch>` | **44/44**, 1142 checks, 1712 s, slot wait 0 s. The runner records its own ledger row. |
+| witness gate | `node scripts/run_mutation_witness_tests.mjs --repo <scratch> --changed-since integration` | 61 selected, 50 reached in 30m38s, 11 left to the sweep (budget). **49/50 WITNESSED.** The one exception is explained below. |
+
+**The one NOT WITNESSED is the known flake, re-checked with `--only` and
+WITNESSED.**
+- The entry: `browser__real-a-bound-feature-s-body-is-one-line-naming-its-face__a2a7fb36`.
+  It is an integration spec this diff did not touch; the hunks in
+  `views/nav.js` selected it.
+- It read "the tier was red before the mutation".
+- The red was one sub-check before the guard: "[real] ...and leaving it takes
+  the light down". That is in the "3D pane follows the selection" suite, which
+  `ISSUE_20261105_3d_pane_follows_selection_suite_flakes_under_the_witness_runner.md`
+  has tracked since 2026-11-05 for exactly this shape (red under the witness
+  runner, green alone).
+- Measured counts:
+  - merged tree, witness shadow tree: 2 red then 1 green; the green run was
+    **WITNESSED**;
+  - merged tree, in the worktree: green 5 of 5 (the full tier and 4 `--only`
+    runs);
+  - integration's own tree (`git archive integration`, same scratch data):
+    green 3 of 3 `--only`, and the witness green and WITNESSED 2 of 2.
+- I also applied the spec's mutation by hand in the worktree and ran the suite
+  `--only`. The guard and its two bind-mode neighbours went red, then I
+  reverted.
+- The counts went into a dated addendum on the issue. They are too small to
+  say this diff widened the window. Its changes, the disagreement body and the
+  write repaint, are not on that hover path.
+
+### Nits (unfixed, non-blocking)
+
+- **Design:** in round-3 shot 04 the armed pick's group offer covers the
+  previous write's toast in the pane header ("Bound locating bo…"). Filed as
+  `ISSUE_20261114_design_the_group_offer_bar_covers_the_write_toast_in_the_pane_header.md`
+  (low).
+- The `[real]` rail-suggestion oracle re-states the end-to-feature rule
+  (`structural ? edge.part : first part of the node`). If that rule moves,
+  this check needs the same edit. That is acceptable for an oracle, and it
+  will fail loudly rather than agree with itself.
+
+### Carried forward
+
+- `ISSUE_20261113_the_hub_locating_boss_has_two_bound_faces_and_needs_jeffs_keep.md`
+  (`needs: jeff`) lands with this branch.
+- `ISSUE_20261113_no_rail_rebuilds_fits_json_…` was filed by the tactical in
+  round 2.
+- Round 1's design issue (disagreement rows name each face by number alone)
+  stands.
+- Every should-fix from rounds 1–2 is fixed. Nothing else is left without an
+  owner.
+
+**Verdict: APPROVE (round 3).** Landed on `integration` as a fast-forward.
+Trunk was not touched.
