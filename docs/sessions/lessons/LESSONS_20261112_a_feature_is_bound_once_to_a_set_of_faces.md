@@ -318,3 +318,51 @@ from this tree, which is the review's gate.
   review's gate).
 - **Browser.** The bind-mode probe ran (above). No browser suite was added or
   changed.
+
+## Re-run 2026-11-13 — review round 2 (B2: five annotate browser suites red)
+
+**Correction to the round-2 record above.** "No browser suite was added or
+changed" was true of the suite files and beside the point: the armed click,
+Take and the bind form all write a different event now, and five suites pin
+exactly that. A diff that changes what a pinned surface writes owes `--only`
+on those suites; I ran none. Each red sub-check, sorted:
+
+| Suite | What it was | Fix |
+|---|---|---|
+| annotate armed pick (abort) | **behaviour, correct**: the demo triangle's two faces are coplanar and do not touch, so the click now offers them as a group and writes nothing until answered; the suite waited for a write that never came | the suite answers "Just this one" and asserts the v1 event (node `a`, faces [1], no direction); a new check pins the offer itself |
+| rail suggestion: reject-then-bind, Take | stale v0 assertions (and the same offer) | assert the feature-keyed event |
+| rail suggestion `[real]` topology-level rail | **a regression**: a proposal follows its feature, so a feature bound through one edge still listed the proposals other edges' ends read through to it, and bind mode's chip counted them: 41 rows read "suggested", 9 of them beside a bound end | `AA.proposalChip` counts proposals only at ends nothing is bound at (the rule the sweep rail and this check already stated); the check derives its expected set through features: 32 = 32 |
+| bind form: after one Bind, the leader | **a regression**: the mock's traced edge had no feature at either end (its nodes named no part), so Bind refused ("a binding names the feature it is on") into the console; and the in-memory transport has no log, so a v1 session write never reached an edge end | fixture nodes `a`, `b` are on the demo triangle (every real end has a part: measured, 0 of 129); `placeAtFeatureEnds` puts a no-log session's feature-keyed write on every end that reads its feature |
+| rail holds still (8 `[real]`) | the test's `unaccept` reopened `stack_keys` only, and the pane (mock, no log) read `features` | in `[real]` mode the pane now reads the served log, as every real transport does, through the route that already applies `unaccept`; the taken face is read from `geometry_keys` |
+| model drawn alone: Escape with a pick armed | **a gap**: the hub boss is a disagreement and its body offered Keep only, so there was no pick to arm when neither face is right | the body offers **Pick a face** beside each Keep (fast check, witnessed) |
+| model drawn alone: gap edge overlays its bound face | **data, correct**: the pilot gap's hub end is the disagreement, so nothing is bound there until Keep | the overlay is asked for exactly when the projection says an end is bound |
+| model drawn alone: two rest checks (appeared once Escape-armed worked) | the test's rest snapshot was taken with the pointer over the re-rendered disagree body's face line, which lights its part (pane light: a hover layer) | the pointer leaves first |
+
+The memory-transport fallback is not reached in production (FSA and HTTP
+both read the log, and a projection with `features` is always served beside
+one); it exists for `?mock=1` and the tiers, and is written to put an event
+where the end view would, not to fold.
+
+### Round-3 tests
+
+All against a scratch root `data/scratch/fbo_r3` (inbox, meshes and
+non-viewer projections copied; all seven builders run from this branch at
+`be1ad041`; summary unchanged: 9 bound, 0 sets, 1 disagreement, 0 orphans, 78
+read through; kinematic 1 of 1).
+- **Browser, the five suites `--only`**: armed pick 18/18, rail suggestion
+  19/19, rail holds still 17/17, bind form 15/15, model drawn alone 23/23.
+- **Browser, the whole tier** (the mock fixture and the mock transport reach
+  every mock suite, so `--only` was not enough): **44/44**, 1142 checks,
+  1694 s, the runner's own ledger row.
+- **Witness `--only`**, each WITNESSED: the three new specs (disagree body,
+  chip, group offer) and the two re-pointed browser specs (`a click binds
+  face 1…`, `after one Bind…`).
+- **Fast tiers**: viewer 692/692 with `[real]` against the scratch root;
+  annotate 316/316. Census +1 per tier, each with its spec.
+- **Default pytest**, worktree: 1 failed (`test_viewer_js_suite`, the
+  worktree red; its tier is the 692/692 above), 1977 passed, 1 skipped,
+  2 deselected, 444 s, recorded (inside budget).
+- **Probe re-run** (`--shots …/round3`, 3840 wide): shot 01 now reads
+  "2 faces disagree · face 3460 Keep · face 144 Keep · Pick a face"; Keep,
+  the split sweep, the group offer, Take all and the reload all hold; Python
+  folds the scratch log: 10 bound, 2 sets, 0 disagreements.
