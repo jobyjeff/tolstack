@@ -17012,7 +17012,7 @@
           });
 
         await test("[real] every edge of every topology renders as a row in " +
-          "walk order, with its leaders and merged groups", function () {
+          "walk order, with its merged groups, and every part boundary keeps its seam row", function () {
             liveTopos.forEach(function (topoProj) {
               var plan = VA.gridPlan(topoProj.layout, topoProj);
               var root = render(function (r) {
@@ -17030,9 +17030,12 @@
               rows.forEach(function (row, i) {
                 eq(row.getAttribute("data-id"), edgeOrder[i]);
               });
-              // Every non-internal node has its leader on screen; every row
-              // has its own part cells, the words on its group's first row.
-              eq(all(root, "path.rail__leader").length, plan.leaders.length,
+              // No leader runs across to the grid (its own region since
+              // 2026-11-14), and every non-internal node still names the row
+              // its seam is above; every row has its own part cells, the
+              // words on its group's first row.
+              eq(all(root, "path.rail__leader").length, 0, topoProj.id);
+              eq(Object.keys(VA.lastTopoRender.boundaryEdge).length, plan.leaders.length,
                  topoProj.id);
               var cells = all(root, "td.tvcell--description");
               eq(cells.length, topoProj.edges.length, topoProj.id);
