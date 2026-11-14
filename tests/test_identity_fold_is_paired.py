@@ -391,3 +391,89 @@ process.stdout.write(JSON.stringify([bound, fix, unbind, accept, reject]));
     assert [e.event_id for e in record.bindings] == ["w4"]
     assert [f.face_id for f in record.bindings[0].faces] == [7, 8], "the proposed face first, the pick's beside it"
     assert [e.event_id for e in record.rejected_proposals] == ["q"]
+
+
+_BIND_MODE_JS = r"""
+const vm = require("vm"), fs = require("fs"), path = require("path");
+const repo = process.argv[1];
+const box = { console }; box.window = box; vm.createContext(box);
+for (const f of ["apps/viewer/vocab.gen.js", "apps/viewer/identity_fold.js", "apps/annotate/config.js",
+                 "apps/annotate/binding_state.js"]) {
+  vm.runInContext(fs.readFileSync(path.join(repo, f), "utf8"), box, { filename: f });
+}
+const AA = box.AnnotateApp, VA = box.ViewerApp;
+const input = JSON.parse(fs.readFileSync(0, "utf8"));
+const v1 = input.topologies.find((t) => t.id === "vpa_pitch_linkage");
+const fold = VA.foldIdentityEvents(input.events, null, { topologies: input.topologies, sameSurface: [] });
+const view = AA.identityReadThrough(fold, v1);
+const row = (edge) => view.stack_keys.find((r) => r.stack_key.edge_id === edge);
+const face = (id) => ({ sourceStepSha256: "cd".repeat(32), faceId: id, areaNative2: 1, centroidNative: [0, 0, 0] });
+const fields = (id) => ({ eventId: id, seq: 100, createdAt: "2026-11-13T00:00:00Z", recordedBy: AA.humanActor("tester") });
+const feature = (edge, end) => VA.endFeatureKey(v1, edge, end);
+const pl = row("pitch_link_length"), tl = row("tan_link_length");
+const at = (r, end) => ((r && r.bindings) || []).filter((b) => b.direction === end);
+process.stdout.write(JSON.stringify({
+  // the bind form's Replace, on a feature whose binding is feature-keyed
+  replace: AA.planFeatureWrite({ target: at(pl, "to")[0], standing: at(pl, "to"),
+    featureKey: feature("pitch_link_length", "to"), faces: [face(141)], fields: fields("replace") }),
+  // the bind form correcting that binding onto the dimension's other end
+  correct_other_end: AA.planFeatureWrite({ target: at(pl, "to")[0], standing: at(pl, "from"),
+    featureKey: feature("pitch_link_length", "from"), faces: [face(140)], fields: fields("other") }),
+  // the bind form's plain Bind on a feature already bound: it replaces
+  plain_bind: AA.planFeatureWrite({ target: null, standing: at(pl, "to"),
+    featureKey: feature("pitch_link_length", "to"), faces: [face(142)], fields: fields("plain") }),
+  // the bindings block's Flip of an OLD edge-end binding read through
+  flip_old: AA.planFeatureWrite({ target: at(tl, "from")[0],
+    featureKey: feature("tan_link_length", "to"), faces: AA.eventFaceFields(at(tl, "from")[0]),
+    fields: fields("flip") }),
+}));
+"""
+
+
+def test_every_bind_mode_write_folds_in_python():
+    """Review round 1, B1: bind mode (outside sweep) wrote edge-end events
+    whose `supersedes` named a feature's binding, and the Python fold refused
+    the log. Every bind-mode write -- Replace, a correction onto the other
+    end, a plain Bind on a bound feature, a Flip of an old binding read
+    through -- is built here by the annotator's own planner against a record
+    holding a v1 binding and an old one, and must fold, with the outcome a
+    reader expects."""
+    from tolerance_stack.feature_identity import load_models
+
+    upper = FeatureKey(_V1, "pitch_link", "pitch_link_upper_sphere_centre")
+    lower = FeatureKey(_V1, "pitch_link", "pitch_link_lower_sphere_centre")
+    tan_lower = FeatureKey(_V1, "tan_link_212956_005", "tan_link_lower_sphere_centre")
+    tan_upper = FeatureKey(_V1, "tan_link_212956_005", "tan_link_upper_sphere_centre")
+    base = [
+        _new("n1", 1, upper.part, upper.node, "bound", (140,)),
+        _old("o1", 2, _V1, "tan_link_length", "bound", "from", 64),
+    ]
+    node = shutil.which("node")
+    assert node
+    proc = subprocess.run([node, "-e", _BIND_MODE_JS, str(REPO)], capture_output=True, text=True,
+                          encoding="utf-8", timeout=120,
+                          input=json.dumps({"events": [e.as_dict() for e in base],
+                                            "topologies": _topology_projection()}))
+    assert proc.returncode == 0, proc.stderr
+    written = json.loads(proc.stdout)
+    models = load_models(REPO / "docs" / "topologies")
+
+    def fold(name):
+        events = [FeatureIdentityEvent.from_dict(d) for d in written[name]]
+        assert all(e.feature_key is not None for e in events), f"{name} wrote an edge-end event"
+        return build_projection(base + events, models)
+
+    def faces(projection, key):
+        record = projection.for_feature(key)
+        return (record.state, [f.face_id for f in record.faces]) if record else None
+
+    p = fold("replace")
+    assert faces(p, upper) == ("bound", [141])
+    assert [e.event_id for e in p.for_feature(upper).superseded] == ["n1"]
+    p = fold("correct_other_end")
+    assert faces(p, lower) == ("bound", [140]) and faces(p, upper) == ("unbound", [])
+    p = fold("plain_bind")
+    assert faces(p, upper) == ("bound", [142]), "a feature holds one binding: a Bind replaces it"
+    p = fold("flip_old")
+    assert faces(p, tan_upper) == ("bound", [64])
+    assert faces(p, tan_lower) == ("unbound", []), "the old binding was taken back where it was"

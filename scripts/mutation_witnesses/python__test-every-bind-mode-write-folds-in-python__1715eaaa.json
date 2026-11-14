@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_identity_fold_is_paired.py",
+  "expect_red": "test_every_bind_mode_write_folds_in_python",
+  "mutations": [
+    {
+      "contract": "A bind-mode write supersedes only a binding on the SAME feature; a binding on another feature is taken back there, never superseded across features.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_feature_is_bound_once_to_a_set_of_faces.md",
+      "note": "Review round 1, B1: bind mode named a binding on another key in `supersedes`, and build_projection refused the whole log. Superseding the target whatever feature it is on reproduces it in the correction onto the dimension's other end.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    fields.supersedes = same ? target.event_id : null;",
+      "replace": "    fields.supersedes = target ? target.event_id : null;"
+    }
+  ]
+}

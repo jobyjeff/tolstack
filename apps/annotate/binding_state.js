@@ -745,6 +745,46 @@
     return AA.buildBoundEvent(merged);
   };
 
+  // --- every bind-mode write, planned once (review round 1, B1) -------------
+  //
+  // A binding is a feature's, so the bind form's Bind and Replace, and the
+  // bindings block's Flip, all write feature-keyed events, planned here:
+  //   - `target` is the binding being replaced (a correction) -- or, with
+  //     none named, the feature's one standing binding (`standing`, the end's
+  //     rows: one per face, so counted by event), since a feature holds one;
+  //   - the target on THIS feature is superseded (a v1 binding, or an old
+  //     edge-end one read through to it -- the one pointer that crosses);
+  //   - a target on ANOTHER feature (a flip, a correction to the other end)
+  //     is taken back there, after the new binding is written here.
+  // `fields` is {eventId, seq, createdAt, recordedBy, ...notes}; a second
+  // event takes the next seq. Returns the events in the order to write them.
+  AA.planFeatureWrite = function (args) {
+    var a = args || {};
+    if (!a.featureKey) throw new Error("a binding names the feature it is on");
+    var token = function (k) { return k ? [k.topology_id, k.part, k.node].join(" ") : null; };
+    var ids = [];
+    (a.standing || []).forEach(function (b) { if (ids.indexOf(b.event_id) === -1) ids.push(b.event_id); });
+    var target = a.target || (ids.length === 1 ? a.standing.filter(function (b) { return b.event_id === ids[0]; })[0] : null);
+    var same = !!(target && target.feature_key && token(target.feature_key) === token(a.featureKey));
+    var fields = {};
+    Object.keys(a.fields || {}).forEach(function (k) { fields[k] = a.fields[k]; });
+    fields.featureKey = a.featureKey;
+    fields.geometryKeys = a.faces;
+    fields.geometryKey = null;
+    fields.stackKey = null;
+    fields.direction = null;
+    fields.supersedes = same ? target.event_id : null;
+    var out = [AA.buildBoundEvent(fields)];
+    if (target && !same) {
+      out.push(AA.buildRetractEvent(target, { eventId: fields.eventId + "-here", seq: fields.seq + 1,
+        createdAt: fields.createdAt, recordedBy: fields.recordedBy }));
+    }
+    return out;
+  };
+
+  // The faces an event names, as the geometry fields a planner takes.
+  AA.eventFaceFields = function (e) { return eventFaceDicts(e).map(geometryFields); };
+
   // The other end of an edge's dimension.
   AA.otherDirection = function (direction) {
     return AA.DIRECTIONS.filter(function (d) { return d !== direction; })[0];

@@ -308,6 +308,77 @@ async function clickFace(page, faceId) {
   return true;
 }
 
+const pyFold = () => {
+  const r = spawnSync(join(MAIN, "venv-win", "Scripts", "python.exe"), ["-c", [
+    "import sys; sys.path.insert(0, sys.argv[1])",
+    "from pathlib import Path",
+    "from tolerance_stack.feature_identity import fold_with_models",
+    "evs, proj = fold_with_models(Path(sys.argv[2]), Path(sys.argv[3]))",
+    "print(proj.summary_line())",
+  ].join("\n"), HERE, join(SCRATCH, "inbox", "feature-identity"), join(MAIN, "data")], { encoding: "utf-8" });
+  return r.status === 0 ? r.stdout.trim() : "REFUSED: " + r.stderr.trim().split("\n").pop();
+};
+let page;
+if (argv.includes("--bind-mode")) {
+  // Review round 1, S2: bind mode (outside sweep), on a dimension one of
+  // whose ends is bound by an old event: Correct -> Replace (a feature-keyed
+  // binding superseding the old one), then Flip it onto the other end's
+  // feature (bound there, taken back here). The Python loader folds the
+  // scratch log after each write.
+  const EDGE = "hub_blade_axis_offset";
+  const BLADE = "hub@hub_blade1_root_bearing_bore";
+  page = await open();
+  await openPane(page);
+  const pane = frameOf(page);
+  const exec = (cmd) => pane.evaluate((c) => window.AnnotateApp.exec(c), cmd);
+  log("goto", await exec("goto vpa_pitch_linkage " + EDGE).catch((e) => String(e)));
+  await page.waitForTimeout(8000);
+  const bound = () => pane.evaluate(() => Array.from(document.querySelectorAll(".an__bound-row"))
+    .map((r) => ({ end: r.dataset.direction, text: r.textContent.replace(/\s+/g, " ").trim() })));
+  log("bind mode, before", await bound());
+  await page.screenshot({ path: join(SHOTS, "07_bind_mode_old_binding.png"), timeout: 180000 });
+  await pane.locator('.an__bound-row[data-direction="to"] .an__bound-correct').click({ force: true });
+  await page.waitForTimeout(1500);
+  const sha = await pane.evaluate((pre) => Array.from(window.__scene.parts.keys()).find((k) => k.startsWith(pre)), HUB_SHA);
+  log("select-face", await exec("select-face " + sha + " 2565").catch((e) => String(e)));
+  await page.waitForTimeout(3000);
+  const untilEvents = async (n) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 120000 && scratchEvents() < n) await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
+    return { events: scratchEvents(), ms: Date.now() - t0 };
+  };
+  const before = scratchEvents();
+  await pane.locator(".bind-form__bind").click({ force: true });
+  log("replace written", await untilEvents(before + 1));
+  log("banner after Replace", await pane.evaluate(() => {
+    const b = document.getElementById("banner") || document.querySelector(".banner, [data-banner], #notice-text");
+    return b ? b.textContent : Array.from(document.querySelectorAll("[class*=banner]")).map((x) => x.textContent).join(" | ");
+  }));
+  if (argv.includes("--diagnose")) {
+    log("fold after Replace", (await pane.evaluate(() => window.__endsBound("vpa_pitch_linkage")))
+      .filter((e) => e.edge === "hub_blade_axis_offset"));
+    log("rows before re-render", await bound());
+    await exec("select-edge hub_blade_axis_offset").catch((e) => String(e));
+    await page.waitForTimeout(2000);
+    log("rows after re-render", await bound());
+    process.exit(0);
+  }
+  log("after Replace", { rows: await bound(), python: pyFold(), scratchEvents: scratchEvents() });
+  await page.screenshot({ path: join(SHOTS, "08_bind_mode_replaced.png"), timeout: 180000 });
+  const flip = pane.locator('.an__bound-row[data-direction="to"] .an__bound-flip');
+  log("flip offered", await flip.count());
+  if (await flip.count()) {
+    const n = scratchEvents();
+    await flip.click({ force: true });
+    log("flip written", await untilEvents(n + 2));
+  }
+  log("after Flip", { rows: await bound(), python: pyFold(), scratchEvents: scratchEvents(),
+    blade: await (async () => { await showFeature(page, BLADE); return tree(page, BLADE); })(),
+    boss: await (async () => { await showFeature(page, HUB); return tree(page, HUB); })() });
+  await page.screenshot({ path: join(SHOTS, "09_bind_mode_flipped.png"), timeout: 180000 });
+  await page.close();
+} else {
 // --- 01..03: the hub's locating boss -----------------------------------------
 let page = await open();
 await openPane(page);
@@ -362,11 +433,13 @@ await selectFeature(page, MOUNT);
 await shot(page, "06_reload_pane_closed", MOUNT);
 await page.close();
 
+}
 const written = readdirSync(join(SCRATCH, "inbox", "feature-identity")).filter((n) => n.endsWith(".json"))
   .map((n) => JSON.parse(readFileSync(join(SCRATCH, "inbox", "feature-identity", n), "utf-8")))
   .filter((e) => e.schema && e.schema.endsWith("/v1"));
 log("v1 events written", written.map((e) => ({ id: e.event_id, verdict: e.verdict, feature: e.feature_key,
-  faces: (e.geometry_keys || []).map((g) => g.face_id), supersedes: e.supersedes || null })));
+  faces: (e.geometry_keys || []).map((g) => g.face_id), supersedes: e.supersedes || null,
+  retracts: e.retracts || null })));
 const fold = spawnSync(join(MAIN, "venv-win", "Scripts", "python.exe"), ["-c", [
   "import sys; sys.path.insert(0, sys.argv[1])",
   "from pathlib import Path",

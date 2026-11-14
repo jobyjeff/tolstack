@@ -3191,40 +3191,35 @@ async function cmdDropFace(edgeId, direction, topologyId, sha256, faceText) {
 // never what a one-click flip should make).
 async function cmdFlip(edgeId, direction, topologyId) {
   const t = bodyTarget("flip", edgeId, direction, topologyId);
-  if (t.standing.length !== 1) {
-    throw new Error("flip needs exactly one face bound at " + (t.names[direction] || direction) +
-      ", found " + t.standing.length);
+  // An end reads its feature's binding once per face: count events.
+  const ids = Array.from(new Set(t.standing.map((b) => b.event_id)));
+  if (ids.length !== 1) {
+    throw new Error("flip needs exactly one binding at " + (t.names[direction] || direction) +
+      ", found " + ids.length);
   }
   const other = AA.otherDirection(direction);
   if (AA.endBindings(t.record, other).length) {
     throw new Error((t.names[other] || other) + " already has a face, so this one cannot move there");
   }
-  const seq = await nextEventSeq();
-  const fields = { eventId: "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-flip", seq,
-    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) };
-  const toast = AA.BODY_VERB_WORDS.flipped.replace("{end}", t.names[other] || other);
   const binding = t.standing[0];
-  if (!binding.feature_key) {
-    const event = AA.buildCorrectionEvent(binding, Object.assign(fields, { direction: other }));
-    await writeIdentityEvent(AA.eventFilename(seq, slugify(t.edge.id) + "_flipped"), event, toast);
-    showToast(toast);
-    renderSweepRail();
-    return { supersedes: binding.event_id, direction: other, event: event.event_id };
-  }
-  // A feature's binding moves to the other end's feature: bound there with
-  // the same faces, then taken back here -- two events, one gesture.
-  const there = AA.buildBoundEvent(Object.assign({}, fields, {
+  const seq = await nextEventSeq();
+  // The face belongs to the other end's FEATURE: bound there with the same
+  // faces, taken back here (AA.planFeatureWrite, the bind form's planner too).
+  const events = AA.planFeatureWrite({
+    target: binding,
     featureKey: endFeature(t.topology, t.edge.id, other),
-    geometryKeys: AA.eventFaceDicts(binding).map((f) => ({ sourceStepSha256: f.source_step_sha256,
-      faceId: f.face_id, areaNative2: f.area_native2, centroidNative: f.centroid_native })),
-  }));
-  const back = AA.buildRetractEvent(binding, { eventId: fields.eventId + "-here", seq: seq + 1,
-    createdAt: fields.createdAt, recordedBy: fields.recordedBy });
-  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.edge.id) + "_flipped"), there, toast);
-  await writeIdentityEvent(AA.eventFilename(seq + 1, slugify(t.edge.id) + "_unbound"), back, toast);
+    faces: AA.eventFaceFields(binding),
+    fields: { eventId: "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-flip", seq,
+      createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) },
+  });
+  const toast = AA.BODY_VERB_WORDS.flipped.replace("{end}", t.names[other] || other);
+  for (const event of events) {
+    await writeIdentityEvent(AA.eventFilename(event.seq, slugify(t.edge.id) +
+      (event.verdict === "retracted" ? "_unbound" : "_flipped")), event, toast);
+  }
   showToast(toast);
   renderSweepRail();
-  return { supersedes: binding.event_id, direction: other, event: there.event_id };
+  return { supersedes: binding.event_id, direction: other, event: events[0].event_id };
 }
 
 // What the armed row says at rest: the generic line, or -- when the end has
@@ -6046,25 +6041,30 @@ function buildBindForm(edge, pick, bind, onChoose) {
   btn.onclick = async () => {
     if (!selected) return;
     try {
+      // The feature the chosen end IS, with the faces its surface was split
+      // into (AA.planFeatureWrite: one feature-keyed binding, replacing the
+      // feature's own or taking a corrected one back where it was).
+      const swept = (await surfaceSiblingsOf(pick.sha256, pick.faceId)).swept;
       const seq = await nextEventSeq();
       const eventId = "annotate-" + Date.now() + "-" + slugify(edge.id);
-      const event = AA.buildBoundEvent({
-        eventId,
-        seq,
-        createdAt: nowIso(),
-        recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-        stackKey: identityWriteKey(state.currentTopology, edge.id),
-        geometryKey: AA.geometryKeyOfPick(pick),
-        direction: selected,
-        compositionNote: composition.input.value || null,
-        ownerPart: ownerPart.input.value || null,
-        gdtModifier: gdt.select.value || null,
-        generalTolRegime: regime.input.value || null,
-        note: noteField.input.value || null,
-        supersedes: bind.target ? bind.target.event_id : null,
+      const events = AA.planFeatureWrite({
+        target: bind.target || null,
+        standing: AA.endBindings(bind.record, selected),
+        featureKey: endFeature(state.currentTopology, edge.id, selected),
+        faces: [AA.geometryKeyOfPick(pick)].concat(swept.map((f) => faceGeometryKey(pick.sha256, f))),
+        fields: {
+          eventId, seq, createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer),
+          compositionNote: composition.input.value || null,
+          ownerPart: ownerPart.input.value || null,
+          gdtModifier: gdt.select.value || null,
+          generalTolRegime: regime.input.value || null,
+          note: noteField.input.value || null,
+        },
       });
       state.correcting = null;
-      await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id)), event, (name) => "Wrote " + name);
+      for (const event of events) {
+        await writeIdentityEvent(AA.eventFilename(event.seq, slugify(edge.id)), event, (name) => "Wrote " + name);
+      }
     } catch (err) {
       setWriteFailure("Bind", err);
     }
@@ -6114,6 +6114,12 @@ function correctionTarget(record, edge) {
 async function writeIdentityEvent(filename, event, banner) {
   const written = (await state.storage.writeFeatureIdentityEvent(filename, event)) || filename;
   state.sessionEvents.push(event);
+  // Repaint from the session's fold NOW: the served-log rewrite below takes
+  // seconds, and a panel still showing the binding this event replaced is a
+  // panel whose buttons act on a binding that no longer stands (review
+  // round 1: a Flip clicked in that window wrote a log the loader refused).
+  renderElementList();
+  renderDetail();
   await publishIdentity(true);
   buildModel().catch(() => { /* the layer keeps its last anchors */ });
   setBanner(typeof banner === "function" ? banner(written) : banner, "ok");
@@ -6251,17 +6257,29 @@ function buildBindingsBlock(edge, bind, canWrite) {
         flip.title = "this face belongs at " + bind.names[other];
         flip.onclick = async () => {
           try {
+            // The row as drawn may be older than the record (a write still
+            // landing): act only on a binding that stands now.
+            const now = AA.findBindingRecord(mergedIdentityProjection(), bind.record && bind.record.stack_key);
+            const live = ((now && now.bindings) || []).find((b) => b.event_id === row.eventId);
+            if (!live) {
+              renderDetail();
+              return;
+            }
+            // The face belongs to the other end's FEATURE: bound there with
+            // the same faces, taken back here (AA.planFeatureWrite).
             const seq = await nextEventSeq();
-            const event = AA.buildCorrectionEvent(row.event, {
-              eventId: "annotate-" + Date.now() + "-" + slugify(edge.id),
-              seq,
-              createdAt: nowIso(),
-              recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-              direction: other,
+            const events = AA.planFeatureWrite({
+              target: live,
+              featureKey: endFeature(state.currentTopology, edge.id, other),
+              faces: AA.eventFaceFields(live),
+              fields: { eventId: "annotate-" + Date.now() + "-" + slugify(edge.id), seq,
+                createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) },
             });
             state.correcting = null;
-            await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id)), event,
-              "Moved the face to " + bind.names[other]);
+            for (const event of events) {
+              await writeIdentityEvent(AA.eventFilename(event.seq, slugify(edge.id)), event,
+                "Moved the face to " + bind.names[other]);
+            }
           } catch (err) {
             setWriteFailure("Correction", err);
           }

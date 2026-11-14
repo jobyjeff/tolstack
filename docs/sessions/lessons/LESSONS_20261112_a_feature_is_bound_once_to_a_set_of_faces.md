@@ -81,7 +81,10 @@ it was no baseline. "After" is this tree's fitter, also run into scratch.
   conflict this handoff exists to stop.
 - **Not written to the main checkout.** The fit was not written to the main
   checkout's projections. That writes linkage's input from an unmerged
-  branch; it is the rebuild rail's job after the merge.
+  branch. (Round 1 said "the rebuild rail's job after the merge". That was
+  wrong: no rail runs `fit_bound_features.py`. It is run by hand from the
+  main checkout after the batch merge, and the gap is filed as
+  `ISSUE_20261113_no_rail_rebuilds_fits_json_so_linkage_reads_whatever_was_last_run_by_hand.md`.)
 - **The kinematic study was not rebuilt here.** `build_kinematic_projection.py`
   does not read the identity stream (`grep` finds no `feature_identity` or
   `fits.json` in it), so this change cannot move it. The review's
@@ -233,3 +236,67 @@ Filed: `docs/issues/ISSUE_20261113_a_hole_pattern_is_a_feature_of_n_like_faces_a
 `--changed-since` gate. **Rebuild the projections first.** The topology
 projection must carry `model.features[].identity`; without it the browser
 keys v2-only events under v2, and the hub boss's two models stop meeting.
+
+## Re-run 2026-11-13 — review round 1 (REQUEST CHANGES, B1, S1, S2)
+
+**B1. Bind mode wrote edge-end events.** Outside sweep, the bind form's
+Bind/Replace and the bindings block's **Flip direction** still built v0
+events:
+- a Replace superseded a feature's binding across keys, and the Python loader
+  refused the whole log;
+- Flip superseded itself on the same feature, a silent no-op;
+- a plain Bind on a feature with a v1 binding was folded straight into
+  `replaced`.
+
+I had converted `cmdFlip` and missed the second flip site, which is the "a
+fix applied at one of N sites" class.
+
+**Fix.** Every bind-mode write now goes through `AA.planFeatureWrite`
+(`binding_state.js`), and so does `cmdFlip`:
+- the event is always feature-keyed, with the pick's swept siblings;
+- a target on the same feature is superseded;
+- a target on another feature (a Flip, or a correction onto the other end)
+  is taken back there after the new binding is written;
+- with no target named, the feature's one standing binding is the target,
+  because a feature holds one.
+
+`test_every_bind_mode_write_folds_in_python`
+(`tests/test_identity_fold_is_paired.py`) builds Replace, a correction onto
+the other end, a plain Bind on a bound feature, and a Flip of an old binding,
+all through the annotator's planner against a record holding a v1 binding
+and an old one. It then folds each through `build_projection` and checks the
+outcome. Its witness (`python__test-every-bind-mode-write-folds-in-python__1715eaaa`)
+supersedes across features, which is B1 itself: WITNESSED.
+
+**S2, the bind-mode click-around** (`--bind-mode` in the probe, shots
+07–09). On `hub_blade_axis_offset` (v1), whose blade end held an old binding
+(face 2564):
+- Correct, then select face 2565, then Replace. The row reads face 2565. The
+  event is v1, superseding the old event across shapes, and Python folds it.
+- Flip direction. Face 2565 moves to the hub boss's feature, which settles
+  its disagreement, and is taken back at the blade end. Python reads 9 bound,
+  0 disagreements.
+
+**The click-around found a second defect, and it is fixed.** After a write,
+the pane repainted only after the served-log rewrite, which takes about 8 s
+through the probe's handle. In that window the panel showed the binding just
+replaced, with live buttons. A Flip clicked there retracted a superseded
+binding, and the loader refused the log ("…which … already superseded").
+Now:
+- `writeIdentityEvent` repaints the moment the event is on disk, from the
+  session's fold;
+- Flip re-reads its row's binding at click time and acts only on one that
+  still stands.
+
+The shell's tree still follows ~8 s later, because it waits for the pane's
+post, which comes after the rewrite. Making that post earlier is the filed
+narrow-refold issue's territory, not this change.
+
+**S1.** No rail rebuilds `fits.json`. The sentence above is corrected, and
+the gap is filed:
+`ISSUE_20261113_no_rail_rebuilds_fits_json_so_linkage_reads_whatever_was_last_run_by_hand.md`.
+
+**Witness anchors.** The bind form's browser spec (`after one Bind the form
+shows that end as taken…`) now mutates the end's feature, not a direction.
+It is not run here; it needs the browser tier against projections built
+from this tree, which is the review's gate.
