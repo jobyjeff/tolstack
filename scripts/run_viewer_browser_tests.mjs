@@ -3580,6 +3580,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       dag: document.querySelector("#topopane").getBoundingClientRect().width,
       preview: document.getElementById("detail").getBoundingClientRect().height,
       grid: document.getElementById("topogrid").getBoundingClientRect().height,
+      gridBottom: document.getElementById("topogrid").getBoundingClientRect().bottom,
+      previewTop: document.getElementById("detail").getBoundingClientRect().top,
       storedColumn: window.localStorage.getItem(window.ViewerApp.PANE_WIDTH_KEY),
       storedPreview: window.localStorage.getItem(window.ViewerApp.PREVIEW_HEIGHT_KEY),
       overflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth +
@@ -3614,7 +3616,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const taller = await sizes();
     push("dragging the row divider UP makes the Preview taller, the grid gives up the " +
       "height, nothing overflows, and the height is written down",
-      taller.preview > wider.preview + 80 && taller.grid < wider.grid - 1 &&
+      // The grid gives up what it has spare first: a grid shorter than its
+      // room keeps its height, and only never runs under the Preview.
+      taller.preview > wider.preview + 80 && taller.grid <= wider.grid + 0.5 &&
+      taller.gridBottom <= taller.previewTop + 1 &&
       taller.overflow <= 0 && Number(taller.storedPreview) === Math.round(taller.preview));
     push("every row keeps its bar beside the moved seams",
       (await correspondence()).drift.length === 0);
@@ -16381,6 +16386,10 @@ async function testSeamLeaders(browser, label, topologies) {
       traceHolds(relaid, [e2.from, e2.to]) && traceHolds(relaidBack, [e2.from, e2.to]) &&
       relaid.seamLit.length > 0);
     await live.setViewportSize({ width: 1920, height: 1080 });
+    // The resize repaint is debounced, and it sizes the grid's column to the
+    // new window (the fixed shell, 2026-11-14): the rows move when it lands.
+    await live.waitForTimeout(400);
+    await liveSettle();
     const at1920 = await traceRound(order.slice(2));
     push("[real] ...and at 1920x1080, after the window grew under them",
       at1920.every((r) => r.held) && at1920.some((r) => r.t.seamLit.length > 0));
