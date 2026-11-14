@@ -3745,6 +3745,29 @@ check("radiiMatch is the ONE relation that needs no shared frame: it compares " 
   }
 });
 
+check("a picked face sweeps in the like faces it touches and offers the like faces it does not " +
+  "(a split cylinder, two seats of one bore)", () => {
+  // Four faces of one mesh, three nodes each, in AA.faceVertexRanges' layout.
+  // 0 and 1 share a node (a split boss); 2 is the same surface further along
+  // its axis (the other seat); 3 touches 0 but is another radius.
+  const nodes = [
+    [20, 0, 0], [0, 20, 0], [0, 20, 5],
+    [0, 20, 5], [-20, 0, 0], [-20, 0, 5],
+    [20, 0, 40], [0, 20, 40], [0, 20, 45],
+    [0, 20, 5], [9, 0, 0], [0, 9, 0],
+  ];
+  const positions = new Float32Array([].concat(...nodes));
+  const ranges = AA.faceVertexRanges([0, 1, 2, 3].map((id) => ({ face_id: id, n_vertices: 3 })));
+  const cyl = (radius) => ({ surface: "cylindrical", axis: [0, 0, 1], axisPoint: [0, 0, 0], radius });
+  const classes = [cyl(20), cyl(20), cyl(20), cyl(9)];
+  const touch = (a, b) => AA.facesTouch(positions, ranges, a, b);
+  if (!touch(0, 1) || touch(0, 2)) throw new Error("touch: 0-1 share a node, 0-2 do not");
+  assertEqual({ swept: [1], offered: [2] }, AA.surfaceSiblings(classes, 0, touch),
+    "the split half is swept and the other seat offered");
+  assertEqual({ swept: [], offered: [] }, AA.surfaceSiblings(classes, 3, touch),
+    "a face alone on its surface brings nothing, whatever it touches");
+});
+
 // --- the rule table (suggestions.js) ----------------------------------------
 
 check("SUGGESTION_RULES: every row names a class the classifier can actually " +

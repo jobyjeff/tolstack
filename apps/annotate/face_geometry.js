@@ -945,24 +945,41 @@
 
   // Do two faces of one mesh TOUCH -- share a node of their common boundary?
   // OCC triangulates each face on its own but discretises a shared edge once,
-  // so the nodes along it are the same point in both faces' runs. Compared on
-  // a grid of 2^-20 of the two faces' largest coordinate, which absorbs the
-  // float32 store and nothing coarser. `ranges` is AA.faceVertexRanges.
+  // so the nodes along it are the same point in both faces' runs -- to the
+  // float32 store, which can put two copies of one node an ulp apart and on
+  // either side of any grid line. So a node of B touches A when a node of A
+  // is within 2^-20 of the two faces' largest coordinate, found through a
+  // grid of that step and its 26 neighbouring cells. `ranges` is
+  // AA.faceVertexRanges ({start, count} per face id).
   AA.facesTouch = function (positions, ranges, faceA, faceB) {
     var ra = ranges[faceA], rb = ranges[faceB];
     if (!ra || !rb) return false;
     var big = 0;
     [ra, rb].forEach(function (r) {
-      for (var i = r[0] * 3; i < (r[0] + r[1]) * 3; i++) big = Math.max(big, Math.abs(positions[i]));
+      for (var i = r.start * 3; i < (r.start + r.count) * 3; i++) big = Math.max(big, Math.abs(positions[i]));
     });
     var q = (big || 1) * Math.pow(2, -20);
-    var seen = {};
-    function key(i) {
-      return Math.round(positions[i * 3] / q) + "," + Math.round(positions[i * 3 + 1] / q) + "," +
-        Math.round(positions[i * 3 + 2] / q);
+    var cells = {};
+    var cell = function (i) {
+      return [Math.floor(positions[i * 3] / q), Math.floor(positions[i * 3 + 1] / q), Math.floor(positions[i * 3 + 2] / q)];
+    };
+    for (var a = ra.start; a < ra.start + ra.count; a++) {
+      var c = cell(a).join(",");
+      (cells[c] = cells[c] || []).push(a);
     }
-    for (var a = ra[0]; a < ra[0] + ra[1]; a++) seen[key(a)] = true;
-    for (var b = rb[0]; b < rb[0] + rb[1]; b++) if (seen[key(b)]) return true;
+    for (var b = rb.start; b < rb.start + rb.count; b++) {
+      var k = cell(b);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) for (var dz = -1; dz <= 1; dz++) {
+        var list = cells[(k[0] + dx) + "," + (k[1] + dy) + "," + (k[2] + dz)];
+        if (!list) continue;
+        for (var j = 0; j < list.length; j++) {
+          var n = list[j];
+          if (Math.abs(positions[n * 3] - positions[b * 3]) <= q &&
+              Math.abs(positions[n * 3 + 1] - positions[b * 3 + 1]) <= q &&
+              Math.abs(positions[n * 3 + 2] - positions[b * 3 + 2]) <= q) return true;
+        }
+      }
+    }
     return false;
   };
 
