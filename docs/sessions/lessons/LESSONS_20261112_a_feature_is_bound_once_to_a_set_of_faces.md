@@ -300,3 +300,21 @@ the gap is filed:
 shows that end as taken…`) now mutates the end's feature, not a direction.
 It is not run here; it needs the browser tier against projections built
 from this tree, which is the review's gate.
+
+### Round-2 tests
+
+- **Default pytest tier.** `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`,
+  run in the worktree, single process: **1 failed, 1977 passed, 1 skipped**
+  in 442 s. The time is in the ledger, inside budget.
+  - The failure is `tests/test_viewer_js_suite.py`, the documented worktree
+    red (no projection in the worktree's `data/`).
+  - The skip is `test_fit_bound_features.py`'s uninstalled re-extraction.
+  - The MAX_PATH shadow test passed this time.
+- **Fast node tiers.** `node apps/viewer/run_tests.cjs`: 568/568, `[real]`
+  skipped (projections predate this tree). `node apps/annotate/run_tests.cjs`:
+  315/315.
+- **Witness `--only`.** `python__test-every-bind-mode-write-folds-in-python`
+  is WITNESSED. The re-pointed browser bind-form spec was not run (it is the
+  review's gate).
+- **Browser.** The bind-mode probe ran (above). No browser suite was added or
+  changed.
