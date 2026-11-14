@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the settings bar offers the view only while the 3D pane is open, presses the one in force, and the leaders control says when it can draw nothing",
+  "mutations": [
+    {
+      "contract": "The view control is offered only while the 3D pane is open.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The control is drawn with the pane closed, where it switches nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (handlers.onPaneView && handlers.paneOpen) {",
+      "replace": "    if (handlers.onPaneView) {"
+    }
+  ]
+}

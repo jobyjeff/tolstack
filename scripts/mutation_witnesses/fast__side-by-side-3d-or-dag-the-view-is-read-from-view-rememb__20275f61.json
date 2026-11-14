@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "side by side, 3D or DAG: the view is read from `?view=`, remembered under its own key, and written back to the URL beside the other parameters",
+  "mutations": [
+    {
+      "contract": "The default view is no parameter at all in the URL.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Writes `view=both` into every URL the page rewrites.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (id && id !== VA.DEFAULT_PANE_VIEW) parts.push(\"view=\" + encodeURIComponent(id));",
+      "replace": "    if (id) parts.push(\"view=\" + encodeURIComponent(id));"
+    }
+  ]
+}

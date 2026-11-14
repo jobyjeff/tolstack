@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the render puts the header at the top of the grid's own scroller, the drawing in the DAG's, and draws only the DAG at the zoom",
+  "mutations": [
+    {
+      "contract": "The header is the grid's, in the grid's own scroller.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Renamed from the header-above-the-first-grid-row guard (2026-10-29), whose own anchor left with the JS pin. Puts the header back in the DAG's scroller.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    gridScroll.appendChild(head);",
+      "replace": "    hscroll.appendChild(head);"
+    },
+    {
+      "contract": "The header is the grid's, in the grid's own scroller.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Renamed from the header-above-the-first-grid-row guard (2026-10-29), whose own anchor left with the JS pin. Puts the header back in the DAG's scroller.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var dagTransform = leaderGeo.zoom !== 1",
+      "replace": "    var dagTransform = false"
+    }
+  ]
+}

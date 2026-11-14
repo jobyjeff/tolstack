@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the RENDER builds no leader across to the grid, in any style: the grid is in a region of its own",
+  "mutations": [
+    {
+      "contract": "No DAG-to-grid leader is built while the grid has its own region.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Hands the toolbar's style to the geometry again, which draws leaders ending at the drawing's edge, pointing at rows that are in another region.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      style: \"off\",",
+      "replace": "      style: ctx.leaderStyle,"
+    }
+  ]
+}

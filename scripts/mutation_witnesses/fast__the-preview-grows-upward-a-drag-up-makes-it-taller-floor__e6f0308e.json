@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the Preview grows UPWARD: a drag up makes it taller, floored at its min and capped short of the column it shares with the grid",
+  "mutations": [
+    {
+      "contract": "The Preview is below its divider, so a drag up makes it taller.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The sign flipped, as a divider copied from the nav's would have it.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampPreviewHeight(startHeight - dy, room);",
+      "replace": "    return VA.clampPreviewHeight(startHeight + dy, room);"
+    }
+  ]
+}

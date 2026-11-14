@@ -606,8 +606,12 @@ body { display: flex; flex-direction: column; }
 /* The column right of the DAG: the settings bar, the grid, the Preview. Its
    width is the side divider's (`.tv__main`'s inline width, topology_app.js's
    applyPaneWidth); with none remembered the page sizes it to the grid. */
+/* It never takes more than half the window, so the middle keeps the other
+   half less the tree: on a narrower screen the grid scrolls sideways under
+   its rows instead (Jeff, 2026-11-09: "if it needs to be scrollable (on
+   smaller monitors), the scroll bar should be directly below that pane"). */
 .tv__main {
-  flex: none; width: min(1120px, 45vw); max-width: calc(100vw - 420px);
+  flex: none; width: min(1120px, 45vw); max-width: 50vw;
   min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
 }
@@ -615,9 +619,11 @@ body { display: flex; flex-direction: column; }
    so its sideways scrollbar sits directly under the last row. Its header
    stays at the top of it by CSS (`.tv__gridscroll > .tv__head`). */
 .tv__gridregion {
-  flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column;
+  flex: 0 1 auto; min-height: min(160px, 30%); display: flex; flex-direction: column;
   position: relative;
 }
+/* The study's summary under the grid gives way too, scrolling itself. */
+.tv__main > .tvtotals { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
 .tv__gridscroll { flex: 0 1 auto; min-height: 0; overflow: auto; }
 /* The stack page's elements table takes the grid's place, and scrolls the
    same way. */
@@ -1455,7 +1461,9 @@ body.tv-resizing-row { cursor: row-resize; }
    place it lives (the bounds a drag is clamped to are VA.PREVIEW_HEIGHT,
    views/topology.js). It scrolls by itself. */
 .tv .detail {
-  flex: 0 0 auto; height: 40%; min-height: 0; width: auto;
+  /* It gives way before the grid does on a short window: never more than
+     half the column. */
+  flex: 0 1 auto; height: 40%; max-height: 50%; min-height: 120px; width: auto;
   border-left: none; border-top: 1px solid var(--line);
   position: static; max-height: none; overflow-y: auto;
 }
