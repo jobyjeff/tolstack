@@ -325,7 +325,9 @@ await shot(page, "02_hub_boss_kept_every_end_bound", HUB);
 
 await clickBody(page, HUB, "Correct");
 await page.waitForTimeout(5000);
-if (await clickFace(page, 144)) await waitBody(page, HUB, /2 faces/, 240000);
+const classesAt = Date.now();
+await frameOf(page).waitForFunction(() => !/classif/i.test(document.body.textContent), null, { timeout: 5000 }).catch(() => null);
+if (await clickFace(page, 144)) await waitBody(page, HUB, /2 faces/, 480000);
 await page.mouse.move(4, 4);
 await page.waitForTimeout(1500);
 log("hub ends after the split pick", await endsOf(page, HUB));

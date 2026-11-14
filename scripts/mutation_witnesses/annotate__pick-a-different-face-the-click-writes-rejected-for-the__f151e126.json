@@ -6,10 +6,10 @@
     {
       "contract": "Binding a different face at a proposed end turns the proposal down, so the engine never proposes that face for the key again.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place.md",
-      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the rejection the proposal stays open beside the binding the human chose instead.",
+      "note": "Declared with the guard by handoff a_rail_row_with_a_proposal_says_so_and_accepts_it_in_place (2026-10-29). Without the rejection the proposal stays open beside the binding the human chose instead. Since 2026-11-12 the filter also folds one proposal reached once per face into one answer.",
       "file": "apps/annotate/binding_state.js",
-      "find": "      reject: (a.open || []).filter(function (p) { return p !== same; }),",
-      "replace": "      reject: [],"
+      "find": "      reject: (a.open || []).filter(function (p) {",
+      "replace": "      reject: [].filter(function (p) {"
     }
   ]
 }

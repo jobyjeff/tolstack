@@ -44,6 +44,8 @@
   VA.FEATURE_OUTCOMES = VOCAB.list("FEATURE_OUTCOMES");
   VA.FEATURE_STATES = VOCAB.list("FEATURE_STATES");
   VA.READ_THROUGH_ORPHANS = VOCAB.list("ORPHAN_REASONS");
+  // The verdicts that name a face, read through by their end.
+  VA.FACE_VERDICTS = VOCAB.list("FACE_VERDICTS");
   var ONE = VA.FEATURE_OUTCOMES[0], SET = VA.FEATURE_OUTCOMES[1], DISAGREE = VA.FEATURE_OUTCOMES[2];
 
   // The lists a record carries, each a list of whole events except
@@ -215,7 +217,7 @@
       if (e.feature_key) return;
       var key = null, reason = reasons[2];
       var k = e.stack_key || {};
-      if (e.verdict === "bound" || e.verdict === "proposed") {
+      if (VA.FACE_VERDICTS.indexOf(e.verdict) !== -1) {
         if (k.kind === "topology_edge" && (e.direction === "from" || e.direction === "to")) {
           var t = index[k.topology_id];
           if (!t) reason = reasons[0];

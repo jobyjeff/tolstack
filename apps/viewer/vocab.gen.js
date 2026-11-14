@@ -100,6 +100,9 @@
       "bound", "disagreement", "owner_not_in_set", "proposed", "unbound"
     ],
 
+    // tolerance_stack/feature_identity.py: FACE_VERDICTS
+    FACE_VERDICTS: ["bound", "proposed"],
+
     // tolerance_stack/feature_identity.py: ORPHAN_REASONS
     ORPHAN_REASONS: ["no_model", "no_edge", "no_end"],
 

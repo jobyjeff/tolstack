@@ -1174,7 +1174,19 @@ function cmdTransparency(value) {
 // adapter directly rather than through the scene, because a REFERENCE face
 // (the other half of an interface, on the adjacent part) can live on a part
 // nobody has opened -- and classifying a shape does not require rendering it.
-async function ensureFaceClasses(sha256) {
+// One classification per part at a time: the arm starts one, and a click
+// that needs the classes before it ends (a pick's surface siblings) waits for
+// THAT one rather than starting a second over the same 3473 faces.
+const faceClassesPending = new Map();
+function ensureFaceClasses(sha256) {
+  if (state.faceClasses[sha256]) return Promise.resolve(state.faceClasses[sha256]);
+  if (!faceClassesPending.has(sha256)) {
+    faceClassesPending.set(sha256, classifyFaces(sha256).finally(() => faceClassesPending.delete(sha256)));
+  }
+  return faceClassesPending.get(sha256);
+}
+
+async function classifyFaces(sha256) {
   if (state.faceClasses[sha256]) return state.faceClasses[sha256];
   const manifest = await state.storage.readMeshManifest(sha256);
   if (!manifest) return null;
