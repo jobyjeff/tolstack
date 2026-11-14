@@ -4337,7 +4337,8 @@
     paneCtx.contributions = VA.kinematicContributions(study, drawnStop, pose);
     paneCtx.lengths = VA.kinematicPoseLengths(study, pose);
     if (film) film.apply(pose.index);
-    VA.applyStackText(nodes.pane, stack);
+    // The rows are in the grid's own region (the fixed shell, 2026-11-14).
+    VA.applyStackText(nodes.topogrid, stack);
     VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, index), panePlaying);
     scheduleSeamDraw();
     // The pane's own pose is not told back to it: it is the one moving it.

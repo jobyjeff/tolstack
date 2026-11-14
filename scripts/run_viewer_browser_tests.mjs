@@ -6632,9 +6632,13 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       await page.mouse.up();
       return (await flyoutBox()).width;
     };
+    // Since the fixed shell (2026-11-14) the panel opens at half the middle,
+    // which at 1920 is its floor: it is widened first, to the clamp, so the
+    // narrowing below has room to happen.
+    const opened = await dragBy(400);
     const narrowed = await dragBy(-200);
     push("dragging the divider LEFT narrows the flyout",
-      narrowed < docked.width - 100);
+      narrowed < opened - 100);
     const widened = await dragBy(160);
     push("dragging the divider RIGHT widens the flyout (the pane's divider " +
       "runs the other way)",
