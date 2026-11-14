@@ -999,49 +999,25 @@ body { display: flex; flex-direction: column; }
 .seam__leader--dim, .seam__end--dim { opacity: .28; }
 
 /* --- the resize grips (viewer_leader_grid_legibility) --------------------
-   Two of them, both in the sticky column header: the jog zone's sits on the
-   seam between the SVG and the grid, the ELEMENT column's on that header
-   cell's right edge. Neither adds a pixel of layout width -- a grip that took
-   space between a leader's last segment and the grid's first column would be
-   the one seam this page has nothing to align against. Visible as a hairline
-   at rest, brighter on hover/focus: enough to find, not enough to read as a
-   column border.
+   One per column, in the grid's column header, on that header cell's right
+   edge (every column since 2026-11-14). A grip adds no pixel of layout width.
+   Visible as a hairline at rest, brighter on hover/focus: enough to find, not
+   enough to read as a column border.
 
-   CLAMPED INTO THE PANE'S VISIBLE WINDOW since topology_grid_scroll_and_grips
-   (2026-09-16), and that is what makes them reachable at all. Parked at a
-   content coordinate they walked out of that window -- `.tv__hscroll`'s own
-   `overflow-x` clips there -- so a reader who widened the preview pane (or the
-   jog zone, or the ELEMENT column) was left pressing on a grip the browser had
-   already clipped away. Measured on the real pitch_system at 1600x1000, jog
-   zone 5.5x, ELEMENT +220: at the shipped 430px pane the jog grip answered a
-   pointer and at 560px it did not, and the ELEMENT grip answered at neither.
-   The two are clamped by different mechanisms, because they mark two different
-   kinds of boundary:
+   ABSOLUTE, with its `left` written per render and per sideways scroll of the
+   grid (VA.columnGripLeft): it rides its column's edge while the edge is on
+   screen and pins to the grid region's right edge past that, so a reader who
+   widened a column is never left pressing on a grip the scroller clipped
+   away (topology_grid_scroll_and_grips, 2026-09-16). `position: sticky;
+   right: 0` is the obvious CSS for that and does NOT work here -- measured in
+   Chrome on this page, a sticky box whose natural position is right of the
+   scrollport is left exactly where it is at every scrollLeft, so the grip
+   never came in. Do not "simplify" this back to a right inset without
+   re-measuring it.
 
-     * the JOG grip is STICKY, with its `left` written inline from the geometry
-       (views/topology.js's VA.jogGripInset). The seam it marks is itself
-       sticky -- `.tv__rails`'s `position: sticky; left: 0` holds the SVG's
-       right edge exactly `railWidth` from the pane's VISIBLE left edge at
-       every scroll -- so the grip has to be held by the same mechanism or it
-       drifts off the very seam it names the moment the reader scrolls
-       sideways. Sticky also means the browser holds it, frame for frame with
-       the SVG, rather than a scroll handler catching up a frame later;
-     * the ELEMENT grip is ABSOLUTE, with its `left` written per render and
-       per scroll (VA.columnGripLeft). Its boundary is a column edge and really
-       does scroll, so there is no fixed inset to sticky it at: it rides the
-       edge while the edge is on screen and pins to the pane's right edge past
-       that. `position: sticky; right: 0` is the obvious CSS for that and does
-       NOT work here -- measured in Chrome on this page, a sticky box whose
-       natural position is right of the scrollport is left exactly where it is
-       at every scrollLeft, so the grip never came in. Do not "simplify" this
-       back to a right inset without re-measuring it.
-
-   The jog grip's inset is clamped 7px clear of the ELEMENT grip's right-hand
-   pin, so the two cannot land on the same pixel on a pane narrower than the
-   DAG (reachable: the preview pane drags to VA.TOPO_PANE_WIDTH.max = 1000px,
-   which leaves the grid ~298px). `.tvgrip`'s width is paired against
-   VA.TOPO_GRIP by a test in apps/viewer/tests.js -- that arithmetic is in JS
-   and the pixels are here, so the two are one number or they are a bug. */
+   `.tvgrip`'s width is paired against VA.TOPO_GRIP by a test in
+   apps/viewer/tests.js -- that arithmetic is in JS and the pixels are here,
+   so the two are one number or they are a bug. */
 .tvgrip {
   position: absolute; top: 0; width: 7px; height: 100%;
   cursor: col-resize; z-index: 3; background: none; border: none; padding: 0;
@@ -1526,27 +1502,15 @@ body.tv-resizing-row { cursor: row-resize; }
 
 /* --- the 3D scene column (study_3d_flyout) --------------------------------
    A non-modal <dialog> (dialog.show(), no top layer), laid out IN `.tv`'s
-   row since 2026-10-26: nav | scene | DAG + grid (handoff the_shell_seats_
-   the_scene_beside_the_model; Jeff: "a single canvas that contains the 3d
-   viewer and the DAG view, with the dag on the right side of the canvas.
-   This could potentially be faked by using two separate canvases with the
-   same background color and no border between them").
+   row: tree | scene | DAG | settings, grid and Preview (the fixed shell,
+   2026-11-14; Jeff, 2026-10-26: "a single canvas that contains the 3d viewer
+   and the DAG view, with the dag on the right side of the canvas"). So: the
+   page's own background, no border and no shadow at either seam, and the
+   row's full height.
 
-   So: the page's own background, no border and no shadow at either seam,
-   and the column sticks under the topbar the way the nav does, a window
-   tall while the document scrolls past it. It was a `position: fixed` panel
-   docked at the window's left edge from 2026-09-16 -- adjacent to the DAG,
-   with the page shifted out from under it by a margin and, after 2026-10-20,
-   the nav between the two (pane | nav | DAG). On a chain study at 1600 wide
-   that left the DAG and grid about 170px
-   (ISSUE_20261020_with_the_3d_pane_open_a_chain_study_page_leaves_the_dag_a_
-   narrow_strip). Here the preview pane stands down instead (below), so the
-   scene takes the room the preview had and the DAG keeps its own.
-
-   The width it asks for is the preview pane's own (560px, `.tv .detail`):
-   opening the scene on a page whose preview it replaces leaves the DAG and
-   grid the width they had. topology_app.js clamps it per page
-   (VA.clampFlyoutWidth) and applies the reader's chosen width. */
+   The width here is a fallback only: with none chosen, topology_app.js gives
+   the scene half of the middle (flyoutDefaultWidth) and clamps it per page
+   (VA.clampFlyoutWidth); a width the reader dragged is applied over both. */
 dialog#annotate-flyout {
   position: relative; inset: auto; margin: 0; padding: 0;
   flex: none; width: min(560px, 40vw);
@@ -1663,18 +1627,8 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    `close` event, which is the ONE seam every close path goes through (the
    Close button, a `.close()` from anywhere).
 
-   No border at the nav's seam: its right rule goes.
-
-   The right-hand pane stays where it is with the scene open (2026-10-28):
-   it holds every study page's results, so the row is nav | scene | model +
-   grid | results, the detail divider setting the last one's width. */
-body.flyout-open .navtree { border-right: none; }
-/* ...and the results pane is the one that gives way (the_demo_path_reads_
-   cleanly_on_a_projector). At 1920 wide the row is the nav (300), the scene at
-   its floor (400, VA.FLYOUT_WIDTH.min), the drawing and the grid through
-   ELEMENT (about 1000, VA.gridKeptWidth -- the scene's clamp keeps it) and this
-   pane: what is left, 1706px less than the window, between 200 and its usual
-   560. */
+   No border at the nav's seam: its right rule goes. */
+body.flyout-open .tv__left { border-right: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

@@ -1504,28 +1504,6 @@
   // leaves lasts the session.
   VA.TOPO_COLUMNS = COLUMNS;
 
-  // What Fit leaves the grid beside the DAG (deliverable 5: "at 1600 px wide
-  // with the preview open, every row's part and element ... are clickable"):
-  // PART, DESCRIPTION, # and ELEMENT, read off the array so a widened ELEMENT
-  // widens the floor. Fit (the control and `0`; not a study's arrival, which
-  // only fits the pane) scales the drawing down to leave it, never below
-  // `minShare` of the pane; past that the strip scrolls sideways.
-  VA.TOPO_GRID_FLOOR = {
-    columns: ["part", "description", "ord", "name"],
-    minShare: 0.35,
-    width: function () {
-      return COLUMNS.filter(function (c) {
-        return VA.TOPO_GRID_FLOOR.columns.indexOf(c.cls) !== -1;
-      }).reduce(function (sum, c) { return sum + c.width; }, 0);
-    },
-  };
-
-  // The width Fit may give the DAG in a pane `paneWidth` wide.
-  VA.dagFitWidth = function (paneWidth) {
-    if (!(paneWidth > 0)) return paneWidth;
-    return Math.max(paneWidth - VA.TOPO_GRID_FLOOR.width(),
-                    paneWidth * VA.TOPO_GRID_FLOOR.minShare);
-  };
   VA.TOPO_COLUMN_WIDTH = { min: 24, max: 900 };
 
   // --- the right-hand column's width (Jeff, 2026-09-15: "it's too narrow") --
@@ -1549,7 +1527,7 @@
   // The width a drag lands on. The pane is on the RIGHT of its divider, so
   // dragging left (negative dx) makes it WIDER — the sign inversion is here,
   // in the pure layer, rather than in the app shell's pointer handler, for the
-  // same reason VA.jogZoneScaleAfterDrag is: it is the one line of arithmetic
+  // same reason every *AfterDrag function's is: it is the one line of arithmetic
   // a test can check without a pointer, and getting it backwards is the
   // likeliest mistake in the whole feature.
   VA.paneWidthAfterDrag = function (startWidth, dx) {
@@ -1868,21 +1846,6 @@
     column.width = Math.min(VA.TOPO_COLUMN_WIDTH.max,
       Math.max(VA.TOPO_COLUMN_WIDTH.min, Math.round(n)));
     return column.width;
-  };
-
-  // How much of the grid a pane beside it must leave on screen: every column
-  // up to and including ELEMENT (`GRID_KEPT_THROUGH`), at its current width
-  // -- ELEMENT's is the reader's to drag. The scene's width gives way to it
-  // (topology_app.js's graphNeed); the number columns right of it scroll.
-  VA.GRID_KEPT_THROUGH = "name";
-
-  VA.gridKeptWidth = function () {
-    var sum = 0;
-    for (var i = 0; i < COLUMNS.length; i++) {
-      sum += COLUMNS[i].width;
-      if (COLUMNS[i].cls === VA.GRID_KEPT_THROUGH) return sum;
-    }
-    return sum;
   };
 
   function tableWidth() {

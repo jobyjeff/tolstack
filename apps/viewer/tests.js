@@ -4722,21 +4722,12 @@
       });
 
     await test("the jog-zone scale is a multiple of the zone's natural width, " +
-      "clamped, and a drag never compounds", function () {
-        // A multiple rather than a pixel width because the preference
-        // outlives the topology it was set on.
-        eq(VA.jogZoneScaleAfterDrag(1, 40, 40), 2);
-        eq(VA.jogZoneScaleAfterDrag(2, 40, 40), 3);
-        eq(VA.jogZoneScaleAfterDrag(2, -40, 40), 1);
-        // Dragging LEFT past the natural width is refused, not inverted: the
-        // lanes have to stay far enough apart to be separate lines.
-        eq(VA.jogZoneScaleAfterDrag(1, -400, 40), VA.JOG_ZONE_SCALE.min);
-        eq(VA.jogZoneScaleAfterDrag(1, 40000, 40), VA.JOG_ZONE_SCALE.max);
+      "clamped by the geometry", function () {
+        // A multiple rather than a pixel width because the setting outlives
+        // the topology it was set on.
         eq(VA.clampJogZoneScale(0), VA.JOG_ZONE_SCALE.min);
         eq(VA.clampJogZoneScale("x"), VA.JOG_ZONE_SCALE.min);
         eq(VA.clampJogZoneScale(1e9), VA.JOG_ZONE_SCALE.max);
-        // A zone with no leaders in it has no natural width to scale.
-        eq(VA.jogZoneScaleAfterDrag(1, 40, 0), 1);
         // And the clamp is what the geometry applies, not the caller.
         var plan = VA.gridPlan(TOPO.layout, TOPO);
         eq(VA.leaderGeometry(TOPO.layout, plan, VA.RAIL_METRICS, null,
@@ -6008,6 +5999,102 @@
         eq(VA.sceneInspectStep(null, "n1", null), { letGo: false, held: null });
       });
 
+    // --- the fixed shell (the_page_is_a_fixed_layout_and_nothing_scrolls_the_
+    //     document, 2026-11-14) ---------------------------------------------
+    await test("the Preview grows UPWARD: a drag up makes it taller, floored at " +
+      "its min and capped short of the column it shares with the grid", function () {
+        eq(VA.previewHeightAfterDrag(400, -40, 1600), 440);
+        eq(VA.previewHeightAfterDrag(400, 40, 1600), 360);
+        eq(VA.previewHeightAfterDrag(400, 900, 1600), VA.PREVIEW_HEIGHT.min);
+        eq(VA.previewHeightAfterDrag(400, -4000, 1600), 1600 - VA.PREVIEW_HEIGHT.keep,
+          "the grid keeps a strip of the column");
+        // No layout to go on: only the floor and the cap on a stored number.
+        eq(VA.clampPreviewHeight(900, 0), 900);
+        eq(VA.clampPreviewHeight("x", 1600), VA.PREVIEW_HEIGHT.min);
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k) ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        eq(VA.readStoredPreviewHeight(store), null);
+        VA.writeStoredPreviewHeight(store, 333);
+        eq(VA.readStoredPreviewHeight(store), 333);
+        ok([VA.PANE_WIDTH_KEY, VA.NAV_WIDTH_KEY, VA.FLYOUT_WIDTH_KEY, VA.PANE_VIEW_KEY]
+          .indexOf(VA.PREVIEW_HEIGHT_KEY) === -1, "one key per control");
+        eq(VA.readStoredPreviewHeight({ getItem: function () { throw new Error("no"); } }), null);
+      });
+
+    await test("side by side, 3D or DAG: the view is read from `?view=`, " +
+      "remembered under its own key, and written back to the URL beside the " +
+      "other parameters", function () {
+        eq(VA.PANE_VIEW_ORDER, ["both", "3d", "dag"]);
+        eq(VA.DEFAULT_PANE_VIEW, "both", "side by side is the default");
+        VA.PANE_VIEW_ORDER.forEach(function (id) {
+          ok(VA.PANE_VIEWS[id].label && VA.PANE_VIEWS[id].title, id + " says what it is");
+        });
+        eq(VA.parsePaneViewParam("?topology=t&view=3d"), "3d");
+        eq(VA.parsePaneViewParam("?view=dag"), "dag");
+        eq(VA.parsePaneViewParam("?view=sideways"), null);
+        eq(VA.parsePaneViewParam(""), null);
+        eq(VA.withPaneViewParam("?topology=t&view=3d&pose=2", "dag"),
+          "?topology=t&pose=2&view=dag");
+        eq(VA.withPaneViewParam("?topology=t&view=3d", "both"), "?topology=t",
+          "the default is no parameter at all");
+        eq(VA.withPaneViewParam("", "both"), "");
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k) ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        eq(VA.readStoredPaneView(store), null);
+        VA.writeStoredPaneView(store, "3d");
+        eq(VA.readStoredPaneView(store), "3d");
+        VA.writeStoredPaneView(store, "nonsense");
+        eq(VA.readStoredPaneView(store), "3d", "a word the control does not have is not stored");
+        store.data[VA.PANE_VIEW_KEY] = "garbage";
+        eq(VA.readStoredPaneView(store), null);
+      });
+
+    await test("the settings bar offers the view only while the 3D pane is open, " +
+      "presses the one in force, and the leaders control says when it can draw " +
+      "nothing", function () {
+        var picked = [];
+        var bar = function (handlers) {
+          return render(function (r) {
+            VA.renderTopoToolbar(r, { rowDensity: "comfortable", leaderStyle: "angled",
+              paneView: "3d", edgeLengthMode: "uniform" }, TOPO, handlers);
+          });
+        };
+        var closed = bar({ onPaneView: function (id) { picked.push(id); }, paneOpen: false });
+        var viewButtons = function (root) {
+          return all(root, "button").filter(function (b) { return b.getAttribute("data-view"); });
+        };
+        eq(viewButtons(closed).length, 0, "no pane, no control");
+        var open = bar({ onPaneView: function (id) { picked.push(id); }, paneOpen: true,
+          leadersDrawable: false });
+        var buttons = viewButtons(open);
+        eq(buttons.map(function (b) { return b.getAttribute("data-view"); }), VA.PANE_VIEW_ORDER);
+        eq(buttons.map(function (b) { return b.getAttribute("aria-pressed"); }),
+          ["false", "true", "false"]);
+        buttons[2].onclick();
+        eq(picked, ["dag"]);
+        var leaderOf = function (root) {
+          return all(root, "button").filter(function (b) {
+            return b.getAttribute("id") === "leader-style-toggle";
+          })[0];
+        };
+        var leaders = leaderOf(open);
+        ok(leaders.disabled, "nothing to draw, nothing to click");
+        eq(leaders.getAttribute("title"), VA.LEADERS_UNAVAILABLE);
+        var drawable = leaderOf(bar({ paneOpen: true, onPaneView: function () {},
+          leadersDrawable: true, onLeaderStyle: function () {} }));
+        ok(!drawable.disabled, "side by side, the leaders cycle");
+      });
+
     // --- the nav's width (a_face_is_picked_the_way_cad_picks_it) ------------
     await test("the nav widens to the RIGHT, floors at its min and caps at " +
       "half the window it is shown in", function () {
@@ -6638,20 +6725,6 @@
         });
         ok(railXs.some(function (railX) { return railX < spineX; }),
            "the branches extend LEFT of the spine");
-
-        // And the observable that buys: a leader off a mainline dot starts
-        // clear of every rail, so it runs straight into its seam.
-        var leaders = all(root, "path.rail__leaderhit").filter(function (hit) {
-          return onMainline[hit.getAttribute("data-leader-id")];
-        });
-        ok(leaders.length > 0, "a mainline interface is a part boundary");
-        leaders.forEach(function (hit) {
-          var startX = Number(/^M ([\d.]+) /.exec(hit.getAttribute("d"))[1]);
-          railXs.forEach(function (railX) {
-            ok(railX < startX,
-               hit.getAttribute("data-leader-id") + " leaves past a rail at " + railX);
-          });
-        });
       });
 
     // --- the leader-legibility WIRING (viewer_leader_grid_legibility) -----
@@ -6677,7 +6750,6 @@
         // The zebra bands are gone (the_dag_and_grid_nest_coloured_bodies_
         // and_compact_means_denser_rows): Jeff, 11-05 and 11-08.
         eq(all(root, "path.rail__band").length, 0, "no band is drawn");
-        ok(all(root, "path.rail__leader").length > 0, "the leaders still are");
 
         // No row wears a tint (the_grid_fits_the_screen_and_its_brackets_say_
         // what_nests_in_what): a body that holds more than one part is a
@@ -6703,50 +6775,23 @@
         eq(VA.bodyTint(topo, "back"), 1);
       });
 
-    await test("the RENDER draws the leaders in the style the state asks for, " +
-      "with both ends where they always were", function () {
-        var ends = function (root) {
-          return all(root, "path.rail__leaderhit").map(function (hit) {
-            var d = hit.getAttribute("d");
-            var head = /^M ([-\d.]+) ([-\d.]+)/.exec(d);
-            var tail = /([-\d.]+) ([-\d.]+)$/.exec(d.replace(/ H ([-\d.]+)$/, function (_, x) {
-              return " " + x + " " + /V ([-\d.]+)/.exec(d)[1];
-            }));
-            return { id: hit.getAttribute("data-leader-id"), d: d,
-                     x1: Number(head[1]), y1: Number(head[2]),
-                     x2: Number(tail[1]), y2: Number(tail[2]) };
+    await test("the RENDER builds no leader across to the grid, in any style: " +
+      "the grid is in a region of its own", function () {
+        // The fixed shell (2026-11-14): the grid scrolls by itself in the
+        // column right of the DAG, so a leader ending at the drawing's right
+        // edge would point at a row that is somewhere else. Every style.
+        Object.keys(VA.LEADER_STYLES).forEach(function (style) {
+          var root = render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ leaderStyle: style }));
           });
-        };
-        var jogged = ends(render(function (r) { VA.renderTopoPane(r, topoCtx()); }));
-        var angled = ends(render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ leaderStyle: "angled" }));
-        }));
-        ok(jogged.length > 0, "the demo mechanism has leaders");
-        eq(angled.length, jogged.length);
-        angled.forEach(function (leader, i) {
-          eq(leader.id, jogged[i].id);
-          // The style really changed in the DOM: three orthogonal segments
-          // against a flat run out of the rails and one straight one.
-          ok(/ H .* V .* H /.test(jogged[i].d), "jogged still jogs: " + jogged[i].d);
-          ok(/^M [-\d.]+ [-\d.]+ H [-\d.]+ L [-\d.]+ [-\d.]+$/.test(leader.d),
-             "angled is flat, then one straight segment: " + leader.d);
-          // ...and BOTH ends are untouched, which is what keeps the browser
-          // tier's endpoint correspondence true in either style.
-          eq(leader.x1, jogged[i].x1, leader.id);
-          eq(leader.y1, jogged[i].y1, leader.id);
-          eq(leader.x2, jogged[i].x2, leader.id);
-          eq(leader.y2, jogged[i].y2, leader.id);
+          eq(all(root, "path.rail__leader").length, 0, style);
+          eq(all(root, "path.rail__leaderhit").length, 0, style);
+          ok(all(root, "tr.tvrow").length > 0, "the grid is still drawn: " + style);
         });
-        // The visible twin is drawn from the same path as the hit path.
-        var visible = all(render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ leaderStyle: "angled" }));
-        }), "path.rail__leader");
-        eq(visible.length, angled.length);
-        visible.forEach(function (path, i) { eq(path.getAttribute("d"), angled[i].d); });
       });
 
     await test("the RENDER widens the jog zone when the preference says so, " +
-      "and the SVG, the header offset and the leaders all move together",
+      "and the grid's header, in its own scroller, takes none of it",
       function () {
         var M = VA.RAIL_METRICS;
         var layout = VA.spineRight(TOPO.layout);
@@ -6760,19 +6805,15 @@
         });
         var svg = root.querySelector("svg.tv__rails");
         eq(Number(svg.getAttribute("width")), want, "the SVG spans the wider zone");
-        // The header is padded by exactly the SVG's width, or every column
-        // label stops sitting over its own column.
-        eq(root.querySelector("div.tv__head").style.paddingLeft, want + "px");
-        // Every leader hands off at the new right edge -- the grid's left one.
-        all(root, "path.rail__leaderhit").forEach(function (hit) {
-          var d = hit.getAttribute("d");
-          eq(Number(/ H ([-\d.]+)$/.exec(d)[1]), want,
-             hit.getAttribute("data-leader-id"));
-        });
+        // The header is the grid's, at its scroller's left edge.
+        var head = root.querySelector(".tv__gridscroll").childNodes[0];
+        ok(head && hasClass(head, "tv__head"), "the header is the first thing in the grid's scroller");
+        eq(head.style.paddingLeft || "", "", "no rail width to pad by");
+        ok(!root.querySelector(".tv__hscroll .tv__head"), "and nothing of it is in the DAG's");
       });
 
-    await test("the header carries a grip for the jog zone and one for the " +
-      "ELEMENT column, and both drive the app's own handlers", function () {
+    await test("the header carries a grip for every column, and each drives " +
+      "the app's own handlers", function () {
         var started = [], nudged = [];
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({
@@ -6781,11 +6822,13 @@
           }));
         });
         var grips = all(root, "div.tvgrip");
-        eq(grips.length, 2, "one grip per resizable boundary");
+        eq(grips.length, VA.TOPO_COLUMNS.length, "one grip per column");
         var byKey = {};
         grips.forEach(function (g) { byKey[g.getAttribute("data-resize")] = g; });
-        ok(byKey["jog"], "the jog zone's grip");
-        ok(byKey["column:name"], "the ELEMENT column's grip");
+        VA.TOPO_COLUMNS.forEach(function (c) {
+          ok(byKey["column:" + c.cls], c.cls + " has its grip");
+        });
+        ok(!byKey["jog"], "no grip spreads leaders the grid no longer has");
         // Reachable without a pointer: focusable, and named for a reader.
         grips.forEach(function (g) {
           eq(g.getAttribute("tabindex"), "0");
@@ -6793,29 +6836,19 @@
           eq(g.getAttribute("role"), "separator");
         });
 
-        // The jog grip hands the app the zone's NATURAL width, which is what
-        // turns a pixel drag into a scale -- without it the drag has nothing
-        // to divide by.
-        byKey.jog.onpointerdown({ preventDefault: function () {}, clientX: 10 });
+        byKey["column:contribution"].onpointerdown({ preventDefault: function () {}, clientX: 10 });
         eq(started.length, 1);
-        eq(started[0].kind, "jog");
-        eq(started[0].naturalZone,
-           VA.leaderGeometry(VA.spineRight(TOPO.layout),
-             VA.gridPlan(VA.spineRight(TOPO.layout), TOPO), VA.RAIL_METRICS).naturalZone);
-
-        byKey["column:name"].onpointerdown({ preventDefault: function () {}, clientX: 10 });
-        eq(started.length, 2);
-        eq(started[1].kind, "column");
-        eq(started[1].cls, "name");
+        eq(started[0].kind, "column");
+        eq(started[0].cls, "contribution");
 
         // Arrow keys nudge; anything else is not ours to swallow.
         var key = function (grip, k, shift) {
           grip.onkeydown({ key: k, shiftKey: !!shift, preventDefault: function () {} });
         };
-        key(byKey.jog, "ArrowRight");
-        key(byKey.jog, "ArrowLeft");
+        key(byKey["column:name"], "ArrowRight");
+        key(byKey["column:name"], "ArrowLeft");
         key(byKey["column:name"], "ArrowRight", true);
-        key(byKey.jog, "Enter");
+        key(byKey["column:name"], "Enter");
         eq(nudged.length, 3);
         eq(nudged[0][1], 8);
         eq(nudged[1][1], -8);
@@ -6830,20 +6863,6 @@
     // is drawn is arithmetic and not a constant. The two functions below are
     // that arithmetic; the browser tier drags the real grips at the real pane
     // widths, which is the claim these cannot make.
-    await test("the jog grip rides the seam, wherever the pane is: the seam " +
-      "scrolls with the strip, so there is nothing to clamp it into", function () {
-        var G = VA.TOPO_GRIP;
-        // The seam, less the hairline's own offset inside the grip, so the
-        // hairline lands ON the boundary -- at every pane width, since the
-        // rails stopped being sticky (the_grid_fits_the_screen_and_its_
-        // brackets_say_what_nests_in_what) and a seam off the pane's right
-        // edge is reached by scrolling, like the rest of the strip.
-        eq(VA.jogGripInset(316, 868), 316 - G.half);
-        eq(VA.jogGripInset(316, 0), 316 - G.half);
-        eq(VA.jogGripInset(316, 298), 316 - G.half);
-        eq(VA.jogGripInset(316, 4), 316 - G.half);
-      });
-
     await test("a column grip rides its own boundary while that boundary is " +
       "on screen, and pins to the pane's right edge past it", function () {
         var G = VA.TOPO_GRIP;
@@ -6864,19 +6883,21 @@
       "are the stylesheet's own", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var lanes = all(root, "div.tv__griplane");
-        eq(lanes.length, 2, "one lane per grip");
+        eq(lanes.length, VA.TOPO_COLUMNS.length, "one lane per grip");
         lanes.forEach(function (lane) {
           eq(all(lane, "div.tvgrip").length, 1,
              "a shared lane would measure one grip's position from another's");
         });
-        var jog = all(root, "div.tvgrip").filter(function (g) {
-          return g.getAttribute("data-resize") === "jog";
-        })[0];
-        ok(jog, "the jog grip");
-        var railWidth = VA.leaderGeometry(VA.spineRight(TOPO.layout),
-          VA.gridPlan(VA.spineRight(TOPO.layout), TOPO), VA.RAIL_METRICS).width;
-        // No layout in the shim, so this is the unclamped seam.
-        eq(jog.style.left, VA.jogGripInset(railWidth, 0) + "px");
+        // No layout in the shim, so each grip sits on its own boundary,
+        // counted from the grid's left edge.
+        var boundary = 0;
+        VA.TOPO_COLUMNS.forEach(function (c) {
+          boundary += c.width;
+          var g = all(root, "div.tvgrip").filter(function (x) {
+            return x.getAttribute("data-resize") === "column:" + c.cls;
+          })[0];
+          eq(g.style.left, VA.columnGripLeft(boundary, 0, 0) + "px", c.cls);
+        });
         var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
         if (!src) return;
         // One number in two files is this repo's most-repeated defect: the
@@ -7173,34 +7194,6 @@
         ok(nothingLit(root), "the page's clear takes both surfaces down");
       });
 
-    await test("a hovered grid row lights its two ends' leaders and no other, " +
-      "whichever leaders' seams it starts at", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ onHot: function () {} })); });
-        var index = VA.topologyIndex(TOPO);
-        var hits = all(root, "path.rail__leaderhit");
-        var drawn = {};
-        hits.forEach(function (h) { drawn[h.getAttribute("data-leader-id")] = true; });
-        // At least one row lighting a leader whose seam is NOT its own: the
-        // far end's, which the old seam rule (data-boundary-edge) left dark.
-        var farEnd = 0;
-        all(root, "tr.tvrow--edge").forEach(function (row) {
-          var id = row.getAttribute("data-id");
-          var ends = VA.selectedLeaderNodes({ kind: "edge", id: id }, index);
-          VA.lightTopoKeys(keysFor("edge", id));
-          var lit = all(root, "path.rail__leaderhit--hot").map(function (h) {
-            return h.getAttribute("data-leader-id");
-          }).sort();
-          eq(lit, Object.keys(ends).filter(function (n) { return drawn[n]; }).sort(), id);
-          eq(all(root, "path.rail__leader--lead").length, lit.length, id);
-          hits.forEach(function (h) {
-            if (h.getAttribute("class").indexOf("--hot") !== -1 &&
-                h.getAttribute("data-boundary-edge") !== id) farEnd++;
-          });
-          VA.lightTopoKeys(null);
-        });
-        ok(farEnd > 0, "some row lights a leader that lands at another row's seam");
-      });
-
     await test("an interface has no grid row of its own: its dot is the own tier, and the " +
       "dimensions that meet it light only as touching -- their rows and bars fainter, never " +
       "as the thing pointed at", function () {
@@ -7454,15 +7447,6 @@
         eq(none.bottom, pos.height);
       });
 
-    await test("the grid header is held at the top of the visible pane while " +
-      "any of its rows is, and let go at the grid's last row", function () {
-        // Natural top 500, grid ends at 900, head 26 high.
-        eq(VA.headPinOffset(500, 100, 900, 26), 0, "not reached yet");
-        eq(VA.headPinOffset(500, 500, 900, 26), 0, "exactly at its place");
-        eq(VA.headPinOffset(500, 650, 900, 26), 150, "follows the visible top");
-        eq(VA.headPinOffset(500, 5000, 900, 26), 374, "stops at the grid's end");
-      });
-
     await test("the DAG's header height is the stylesheet's own", function () {
         var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
         if (!src) return;
@@ -7477,36 +7461,35 @@
            "VA.DAG_FIT.headHeight must be .tv__head's own CSS height");
       });
 
-    await test("the render puts the header above the first grid row, pushes the " +
-      "body down by what it lacks, and draws only the DAG at the zoom", function () {
+    await test("the render puts the header at the top of the grid's own scroller, " +
+      "the drawing in the DAG's, and draws only the DAG at the zoom", function () {
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance", zoom: 0.5 }));
         });
-        var positions = VA.lastTopoRender.positions;
         var zoomed = root.querySelector("div.tv__zoom");
         ok(zoomed, "one zoom box");
-        // 2026-10-29: the box holding the header, the DAG and the grid is
-        // never scaled; the DAG's two layers in the rails SVG carry the zoom,
-        // and the grid and its header stay at 1.
+        // 2026-10-29: the box holding the DAG is never scaled; the DAG's two
+        // layers in the rails SVG carry the zoom, and the grid and its header
+        // stay at 1.
         eq(zoomed.style.transform || "", "", "the box itself is not scaled");
         eq(zoomed.getAttribute("data-zoom"), "0.5");
         var layers = all(root, "g.tv__dag");
-        eq(layers.length, 2, "the DAG under the leaders, and its marks over them");
+        eq(layers.length, 2, "the DAG's two layers");
         layers.forEach(function (g) {
           ok(/scale\(0\.5\)/.test(g.getAttribute("transform") || ""), "each layer at the zoom");
         });
-        var railsSvg = root.querySelector("svg.tv__rails");
-        ok(all(root, "path.rail__leader").length > 0 &&
-           all(root, "path.rail__leader").every(function (p) { return p.parentNode === railsSvg; }),
-           "the leaders are drawn in the SVG's own pixels, outside the DAG's layers");
-        var head = zoomed.querySelector(".tv__head");
-        ok(head, "the header lives in the zoom box with the rails and the rows");
-        eq(root.querySelector(".tv__hscroll > .tv__head"), null,
-           "...and no longer ahead of the whole DAG");
-        var pad = Math.max(0, VA.DAG_FIT.headHeight - positions.gridOffset);
-        var top = pad + positions.gridOffset - VA.DAG_FIT.headHeight;
-        ok(Math.abs(parseFloat(head.style.top) - top) < 0.05, "the header sits just above the first grid row");
-        ok(zoomed.querySelector("svg.tv__rails") && zoomed.querySelector("div.tv__rows"));
+        // The two regions (the fixed shell, 2026-11-14): the drawing in its
+        // scroller, the header and the rows in the grid's.
+        var dag = root.querySelector(".tv__hscroll");
+        var grid = root.querySelector(".tv__gridscroll");
+        ok(dag && grid, "a scroller each");
+        ok(dag.querySelector("svg.tv__rails") && !dag.querySelector("div.tv__rows"),
+           "the drawing alone in the DAG's");
+        var head = grid.childNodes[0];
+        ok(head && hasClass(head, "tv__head"), "the header first in the grid's");
+        ok(grid.querySelector("div.tv__rows") && !grid.querySelector("svg.tv__rails"),
+           "then the rows, and no drawing");
+        eq(head.style.top || "", "", "pinned by the stylesheet, not by an inline offset");
         var span = VA.lastTopoRender.span;
         ok(span && span.bottom > span.top, "Fit has something to bring into view");
       });
@@ -7610,28 +7593,20 @@
            "height-centring is far worse here: " + byHeight + " vs " + shipped);
       });
 
-    await test("the render offsets the grid TABLE by the store's own " +
-      "gridOffset — the centring is one number, not two", function () {
+    await test("the grid's rows start right under their header, in their own " +
+      "region: the DAG's centring offsets the drawing and never the table", function () {
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance" }));
         });
         var positions = VA.lastTopoRender.positions;
         ok(positions.gridOffset > 0, "the demo grid is the shorter block");
-        // Read back as a NUMBER: a real browser re-serialises an inline
-        // length ("226.19999999999982px" comes back "226.2px") while the fast
-        // tier's DOM shim hands back the string it was given, and this suite
-        // runs in both.
-        var px = function (value) { return parseFloat(value); };
-        ok(Math.abs(px(root.querySelector("div.tv__rows").style.marginTop) -
-                    positions.gridOffset) < 0.05,
-           "the grid table carries the store's own gridOffset");
-        // And the SVG is drawn tall enough to hold whichever block is longer,
-        // so a leader's seam end is never outside the viewBox.
+        var px = function (value) { return parseFloat(value) || 0; };
+        eq(px(root.querySelector("div.tv__rows").style.marginTop), 0,
+           "the table is not pushed down by the store's gridOffset");
+        // ...and the SVG is still drawn tall enough to hold the store.
         ok(Math.abs(px(root.querySelector("svg.tv__rails").style.height) -
                     positions.height) < 0.05,
-           "the SVG is the taller of the two blocks");
-        ok(positions.height >= positions.gridOffset + positions.gridHeight);
-        ok(positions.height >= positions.offset + positions.dagHeight);
+           "the SVG is the store's height");
       });
 
     // --- the respine animation (viewer_study_respine_animation) -------------
@@ -8362,18 +8337,17 @@
            "drawn y1 " + bar.getAttribute("y1") + " should be " + want);
 
         // The horizontal half, and it is in the GEOMETRY rather than in a
-        // transform: the SVG is drawn at the interpolated pane width, so the
-        // grid beside it and the header padded to sit over it follow without
-        // either of them learning that a transition exists. Nothing carries a
-        // translate any more -- a block slide is what drew the incoming
-        // serialisation off the pane.
+        // transform: the SVG is drawn at the interpolated pane width. The
+        // grid and its header are in their own region and do not move with
+        // it. Nothing carries a translate -- a block slide is what drew the
+        // incoming serialisation off the pane.
         var x = VA.respineX(s.walk, s.walkPlan, s.M, from, 0.5);
         var svg = root.querySelector("svg.tv__rails");
         ok(Math.abs(parseFloat(svg.getAttribute("width")) - x.width) < 0.05,
            "the SVG is drawn at " + svg.getAttribute("width") +
            ", should be " + x.width);
-        ok(Math.abs(parseFloat(root.querySelector(".tv__head").style.paddingLeft)
-                    - x.width) < 0.05, "and the header sits over it");
+        eq(root.querySelector(".tv__head").style.paddingLeft || "", "",
+           "and the header, in the grid's region, takes none of it");
         ok(x.width !== from.width, "this fixture's two widths really differ");
         [".tv__head", ".tv__body"].forEach(function (sel) {
           eq(root.querySelector(sel).style.transform || "", "",
@@ -8552,8 +8526,8 @@
            "the ghost holds the very nodes the previous paint rendered");
         eq(ghost.getAttribute("aria-hidden"), "true",
            "it is a picture of a state the reader has left, not content");
-        eq(ghost.querySelector(".tv__head").style.display, "none",
-           "the column header is the same header in both — no double image");
+        eq(ghost.querySelector(".tv__head"), null,
+           "the column header is in the grid's region, which fades in place: no double image");
         eq(parseFloat(ghost.style.opacity), 1);
         eq(parseFloat(root.querySelector("div.tv__rows").style.opacity), 0);
         eq(queue.length, 1, "and it asks for the next frame");
@@ -8778,28 +8752,28 @@
       });
 
     await test("the grid renders one row per EDGE in walk order, at the rail " +
-      "pitch, with the leaders drawn and internal nodes omitted", function () {
+      "pitch, and the plan still names each part boundary's seam row, drawn or not", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var rows = all(root, "tr.tvrow");
         eq(rows.length, TOPO.edges.length);
         rows.forEach(function (row, i) {
           eq(row.getAttribute("data-id"), TOPO_EDGE_ORDER[i]);
           eq(row.getAttribute("data-row-kind"), "edge");
-          // Set inline from VA.RAIL_METRICS, not from the stylesheet: this is
-          // the number the leader geometry's seams came from, so it cannot
-          // drift from them.
+          // Set inline from VA.RAIL_METRICS, not from the stylesheet.
           eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
         });
-        // No node rows at all: an interface is its dot and its leader now.
+        // No node rows at all: an interface is its dot.
         eq(all(root, "tr.tvrow--node").length, 0);
-        var leaders = all(root, "path.rail__leader");
-        var hits = all(root, "path.rail__leaderhit");
-        eq(leaders.length, 5);
-        eq(hits.length, 5);
-        eq(hits.map(function (h) { return h.getAttribute("data-leader-id"); }),
-          ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
-           "post_strut_bushing"]);
-        eq(hits[0].getAttribute("data-boundary-edge"), "post_height");
+        // No leader is drawn across to the grid (its own region since
+        // 2026-11-14), but the plan's seams are kept: a selected node scrolls
+        // the row its seam is above into view (scrollSelectionIntoView).
+        eq(all(root, "path.rail__leader").length, 0);
+        var seams = VA.lastTopoRender.boundaryEdge;
+        ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
+         "post_strut_bushing"].forEach(function (id) {
+          ok(seams[id], id + " has a seam row");
+        });
+        eq(seams.base_post_seat, "post_height");
       });
 
     await test("the grid is a real <table>, so a rectangular selection can " +
@@ -9440,23 +9414,20 @@
         eq(all(frozen, "img")[0].getAttribute("src"), "blob:selected");
       });
 
-    await test("selecting a node marks its dot and its leader — the grid has " +
-      "no node row to outline", function () {
+    await test("selecting a node marks its dot — the grid has no node row to " +
+      "outline", function () {
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({
             selection: { kind: "node", id: "base_post_seat" } }));
         });
         eq(all(root, "circle.rail__dot--selected").length, 1);
-        eq(all(root, "path.rail__leader--selected").length, 1);
         eq(all(root, "tr.tvrow--selected").length, 0);
-        // An internal node still selects (its dot is clickable), it just has
-        // no leader to mark.
+        // An internal node selects the same way (its dot is clickable).
         var internalRoot = render(function (r) {
           VA.renderTopoPane(r, topoCtx({
             selection: { kind: "node", id: "base_datum" } }));
         });
         eq(all(internalRoot, "circle.rail__dot--selected").length, 1);
-        eq(all(internalRoot, "path.rail__leader--selected").length, 0);
       });
 
     await test("the preview pane says which side of the leader rule an " +
@@ -9644,36 +9615,24 @@
 
     await test("the leaders run to the chain and nowhere else, and every one " +
       "of them lands on a seam one of its OWN edges bounds", function () {
-        var deselected = render(function (r) {
-          VA.renderTopoPane(r, topoCtx());
-        });
-        var leaderIds = function (root) {
-          return all(root, "path.rail__leaderhit").map(function (n) {
-            return n.getAttribute("data-leader-id");
-          });
+        // The plan's leaders -- the seams a selected node scrolls to, since
+        // none is drawn across to the grid (2026-11-14).
+        var index = VA.topologyIndex(TOPO);
+        var layout = VA.spineRight(TOPO.layout);
+        var leaderIds = function (plan) {
+          return plan.leaders.map(function (l) { return l.id; });
         };
         // The walk's own boundaries: every non-internal node of the document.
-        eq(leaderIds(deselected),
+        eq(leaderIds(VA.gridPlan(layout, TOPO)),
            ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
             "post_strut_bushing"]);
         var study = topoStudy("demo_strut_branch");
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ study: study }));
-        });
-        // A leader is drawn or it is not -- there is no faded one. That
-        // absence is the emphasis Jeff asked for first: it should be obvious
-        // that no leader line points at certain elements.
-        eq(leaderIds(root), ["base_post_seat", "strut_end",
-                             "post_strut_bushing"]);
-        eq(all(root, "path.rail__leader--off").length, 0);
-        eq(all(root, "path.rail__leader--on").length, 3);
-        // And the honesty claim under it: a leader says "this interface is
-        // the seam between these two rows", so the seam it points at must be
-        // bounded by one of its own edges. Measured over every study of the
-        // fixture; the same sweep over the five live topologies' 21 studies
-        // finds 99 leaders and 0 violations (viewer_respine_whole_walk).
-        var index = VA.topologyIndex(TOPO);
-        var layout = VA.spineRight(TOPO.layout);
+        eq(leaderIds(VA.gridPlan(layout, TOPO,
+             { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) })),
+           ["base_post_seat", "strut_end", "post_strut_bushing"]);
+        // And the honesty claim under it: a seam says "this interface is
+        // between these two rows", so the seam it names must be bounded by one
+        // of its own edges. Measured over every study of the fixture.
         TOPO.studies.forEach(function (s) {
           if (s.status !== "ok") return;
           var plan = VA.gridPlan(layout, TOPO,
@@ -14531,7 +14490,7 @@
         eq(seam.dots.b2, [VA.railX(1, SEAM_M), pill.y]);
       });
 
-    await test("one selection lights its leaders on both overlays -- a node's own, " +
+    await test("one selection lights its leaders across the seam -- a node's own, " +
       "an edge's two ends -- and the rest step back", function () {
         var index = VA.topologyIndex(TOPO);
         var edge = TOPO.edges[0];
@@ -14556,25 +14515,6 @@
         states = VA.seamLeaderStates(ids, null, ["node|" + edge.from, "node|" + other], index);
         eq([states[edge.from], states[edge.to], states[other]], [S[1], "", S[1]],
           "a joint's members all light");
-        // The DAG↔grid leaders read the same rule.
-        var study = topoStudy("demo_base_to_tip");
-        var picked = study.selection.map(function (id) { return index.edges[id]; })
-          .filter(Boolean)[0];
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ study: study,
-            selection: { kind: "edge", id: picked.id } }));
-        });
-        var lead = VA.selectedLeaderNodes({ kind: "edge", id: picked.id }, index);
-        var lines = all(root, "path.rail__leader");
-        all(root, "path.rail__leaderhit").forEach(function (hit, i) {
-          var id = hit.getAttribute("data-leader-id");
-          var cls = lines[i].getAttribute("class");
-          ok(lead[id] ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls),
-            id + ": " + cls);
-        });
-        ok(all(root, "path.rail__leader--selected").length > 0, "the edge has a leader to light");
-        var calm = render(function (r) { VA.renderTopoPane(r, topoCtx({ study: study })); });
-        eq(all(calm, "path.rail__leader--dim").length, 0, "nothing selected, nothing dimmed");
       });
 
     await test("the overlay draws each leader in its state, the selected one on top, " +

@@ -111,21 +111,6 @@
     // the DAG, the chart's cursor and the 3D pane all read it; `?pose=<angle>`
     // carries it in the URL (VA.POSE_PARAM).
     kinematicPose: null,
-    // How far the jog zone has been dragged open, as a multiple of its own
-    // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
-    // a pixel width precisely BECAUSE it outlives the topology it was set on:
-    // two topologies' natural zones differ by as many times as their leader
-    // counts do, so "twice as spread out" survives the switch where a stored
-    // pixel width would crush one diagram's lanes together and leave the
-    // other's barely moved.
-    //
-    // In-session only, like every other display preference on this page.
-    // localStorage was considered and left alone: the page is opened from
-    // file:// as often as it is served, where a storage write is at best
-    // per-file-path and at worst a throw, and nothing else here persists
-    // either -- one inconsistent preference would be the surprise, not the
-    // feature.
-    jogZoneScale: 1,
     // The DAG's view settings -- colour overlay, group fill, graph width
     // (VA.readDagView, topology.js) -- remembered across sessions in one
     // store entry, read at boot. Display preferences: selectTopology() never
@@ -3434,18 +3419,16 @@
       var column = VA.topoColumn(spec.cls);
       return { kind: "column", cls: spec.cls, width: column ? column.width : 0 };
     }
-    return { kind: "jog", naturalZone: spec && spec.naturalZone,
-             scale: state.jogZoneScale };
+    return null;
   }
 
-  // The arithmetic is the pure layer's (VA.jogZoneScaleAfterDrag,
-  // VA.setTopoColumnWidth): this shell holds no resize maths of its own, and
+  // The arithmetic is the pure layer's (VA.setTopoColumnWidth and the
+  // *AfterDrag functions): this shell holds no resize maths of its own, and
   // the column width is written into the ONE COLUMNS array the head table and
   // the body table both take their <col> widths from.
   function applyResize(from, dx) {
-    if (from.kind === "jog") {
-      state.jogZoneScale = VA.jogZoneScaleAfterDrag(from.scale, dx, from.naturalZone);
-    } else if (from.kind === "column") {
+    if (!from) return;
+    if (from.kind === "column") {
       VA.setTopoColumnWidth(from.cls, from.width + dx);
     } else if (from.kind === "pane") {
       // The sign inversion (the pane is RIGHT of its divider) is
@@ -3776,12 +3759,10 @@
         // variant the reader did not select (VA.otherVariantParts).
         otherVariantParts: VA.otherVariantParts(topoProj, state.tagFilter,
           state.topologies && state.topologies.variant_axis),
-        // The two leader-legibility preferences (viewer_leader_grid_
-        // legibility): which style a leader is drawn in, and how far the jog
-        // zone has been dragged open. The grips the pane renders for the
-        // second one call back through onResizeStart/onResizeNudge below.
+        // Which style a leader is drawn in (viewer_leader_grid_legibility).
+        // The grid's column grips call back through onResizeStart/
+        // onResizeNudge below.
         leaderStyle: state.leaderStyle,
-        jogZoneScale: state.jogZoneScale,
         onResizeStart: onResizeStart,
         onResizeNudge: onResizeNudge,
         // The grid's thumbnail column reads fetched crop PNGs out of this

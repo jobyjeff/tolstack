@@ -1451,15 +1451,6 @@
     return Math.min(VA.JOG_ZONE_SCALE.max, Math.max(VA.JOG_ZONE_SCALE.min, n));
   };
 
-  // The scale a drag lands on: the zone's natural width times the scale it
-  // started at, plus however many pixels the grip moved, back over the
-  // natural width. Pure so the app shell holds no resize arithmetic of its
-  // own, and so a test can check the drag without a pointer.
-  VA.jogZoneScaleAfterDrag = function (startScale, dx, naturalWidth) {
-    if (!naturalWidth) return VA.clampJogZoneScale(startScale);
-    return VA.clampJogZoneScale((naturalWidth * startScale + dx) / naturalWidth);
-  };
-
   // The scale's two shape constants, in ROW HEIGHTS so both densities scale
   // together. Nothing renders shorter than one row -- the legibility floor
   // that keeps a zero/tiny/unstated edge clickable (whole-edge hover is a
