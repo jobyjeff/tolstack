@@ -1457,9 +1457,9 @@ body.tv-resizing-row { cursor: row-resize; }
    place it lives (the bounds a drag is clamped to are VA.PREVIEW_HEIGHT,
    views/topology.js). It scrolls by itself. */
 .tv .detail {
-  /* It gives way before the grid does on a short window: never more than
-     half the column. */
-  flex: 0 1 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;
+  /* It keeps its height however long the grid is (the grid scrolls), and on
+     a short window it never takes the grid's last 160px. */
+  flex: 0 0 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;
   border-left: none; border-top: 1px solid var(--line);
   position: static; max-height: none; overflow-y: auto;
 }
