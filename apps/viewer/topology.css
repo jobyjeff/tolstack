@@ -195,16 +195,11 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    once: one topology's studies as children, and every stack no topology
    re-expresses as a leaf of the same tree. views/nav.js.
 
-   The one independent scroll region left on the page (full-page-scroll,
-   viewer_error_surface_and_layout, 2026-09-09): everything else now
-   contributes its full height to the document and lets IT scroll (below),
-   so this is the only box still capped to the viewport. `position: sticky`
-   pins it under the topbar (--bar-h, the same offset style.css's shared
-   `.detail` rule assumes) as the page scrolls past the banner; `max-height`
-   is what makes `overflow-y: auto` actually clip rather than grow. */
+   The left column of the fixed shell, under the page title: the tree
+   scrolls by itself, and the model picker at its top stays put
+   (`.navtree__picker`, below). */
 .navtree {
-  width: 300px; flex: none; padding: 8px; border-right: 1px solid var(--line);
-  position: sticky; top: var(--bar-h); max-height: calc(100vh - var(--bar-h));
+  width: 300px; flex: 1 1 auto; min-height: 0; padding: 0 8px 8px;
   overflow-y: auto;
 }
 .navtree__list, .navtree__children { list-style: none; margin: 0; padding: 0; }
@@ -283,7 +278,7 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    bodies, the studies. Hierarchy by type and indent, not decoration: a body's
    name is the one weighted row, a group label is a small muted capital, a
    feature is body text behind its one mark. */
-.navtree__picker { padding: 2px 4px 8px; }
+.navtree__picker { padding: 8px 4px; position: sticky; top: 0; z-index: 1; background: var(--bg); }
 .navtree__select {
   width: 100%; font: inherit; font-size: var(--t-dense); color: var(--ink);
   background: var(--panel, #1a1d24); border: 1px solid var(--line); border-radius: 6px;
@@ -527,15 +522,13 @@ details[open] > .navtree__scenesummary .navtree__scenetwisty::before,
 }
 
 /* --- the toolbar: layout mode, row density, annotate — display preference,
-   not selection, so it stays a slim strip above the DAG pane rather than
-   growing back into a second picker. Topology mode only. */
+   not selection, so it stays a slim strip above the grid (Jeff, 2026-11-09:
+   "the banner with view settings ... can be stacked above the grid view")
+   rather than growing back into a second picker. */
 .tv__toolbar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
-  /* Pinned under the page bar, so the view filters stay in reach while the page
-     scrolls the DAG and its grid; the grid header pins under THIS
-     (VA.stickyOffsets). Under the bar's own z-index, over the pane's. */
-  position: sticky; top: var(--bar-h); z-index: 4;
+  flex: none;
 }
 
 /* Quiet controls (design_pass_typography, 2026-09-17). These five are display
@@ -563,14 +556,11 @@ details[open] > .navtree__scenesummary .navtree__scenetwisty::before,
 .tv__jointwrap { padding: 0 12px; }
 .tv__jointwrap:empty { display: none; }
 
-/* The page is a flex column, topbar/banner/`.tv` stacked in the normal document
-   flow (full-page-scroll, viewer_error_surface_and_layout, 2026-09-09): NOT
-   pinned to the viewport height any more (that was the DAG pane's own inner
-   scrollport, retired below) -- `min-height: 100vh` only keeps a short page
-   from looking clipped, and the document grows past it and scrolls as one
-   page once the DAG's own rows (or anything else) need more room than the
-   viewport gives. Scoped to this page: topology.css loads nowhere else. */
-html, body { min-height: 100vh; }
+/* The fixed shell (the_page_is_a_fixed_layout_and_nothing_scrolls_the_
+   document, 2026-11-14): the page is exactly the window, and nothing scrolls
+   the document at any size -- each region below scrolls by itself. Scoped to
+   this page: topology.css loads nowhere else. */
+html, body { height: 100%; overflow: hidden; }
 body { display: flex; flex-direction: column; }
 
 /* The banner's alarm list is the one un-shrinkable, data-dependent block this
@@ -582,52 +572,60 @@ body { display: flex; flex-direction: column; }
    read in full. Scoped to this page: topology.css loads nowhere else, so the
    stack viewer's own banner is untouched. */
 #banner .banner__stale-list { max-height: 4.6em; overflow-y: auto; }
+#banner { flex: none; }
+#banner:empty { display: none; }
 
+/* The row: the left column (title + tree), the 3D pane, the DAG, and the
+   column of settings, grid and Preview. Every item is the row's own height,
+   so a region's scroll is its own. */
 .tv {
   display: flex; align-items: stretch; gap: 0;
-  flex: 1 1 auto; min-height: 0;
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
 }
-.tv__main {
-  flex: 1 1 640px; min-width: 0; min-height: 0;
-  display: flex; flex-direction: column;
+.tv__left {
+  flex: none; display: flex; flex-direction: column; min-height: 0;
   border-right: 1px solid var(--line);
 }
-.tv__scroll {
-  flex: 1 1 auto;
-  /* The containing block the respine's outgoing ghost is positioned against
-     (`.tv__ghost` below) -- it has to be this box and not the page, or a
-     fading DAG would be laid over whatever else the window happens to show. */
-  position: relative;
-  /* Full-page scroll (viewer_error_surface_and_layout, 2026-09-09): this pane
-     owned its OWN scrollport until now (`overflow: auto`, clipped to
-     whatever the viewport left after the banner and the toolbar) — the same
-     "squeeze the DAG to fit" shape the retired 10-row floor
-     (dag_viewer_vertical_budget, 2026-09-04) and viewer_v2_single_nav
-     (2026-09-08) both fought from the other side. No `overflow` at all now:
-     every row the layout carries renders, at its full height, and
-     contributes that height to the DOCUMENT — which scrolls, once the DAG
-     (or anything else on the page) is taller than the viewport. The one
-     remaining independent scroll region is the left nav sidebar
-     (`.navtree`, above); scripts/run_viewer_browser_tests.mjs's
-     testHeightBudget pins this contract directly. Rails and rows still share
-     one box, which is still the whole implementation of "the two cannot
-     drift apart while scrolling" — the scrolling is just the page's now,
-     not this box's own. Horizontal overflow is a SEPARATE, pre-existing
-     concern this handoff did not touch — see `.tv__hscroll` below, which
-     still clips/scrolls sideways exactly as `.tv__scroll` itself used to
-     clip both directions. */
+/* The title wraps inside the nav's width and never sets it: a zero width
+   that grows to the column's (min-width) adds nothing to the column's own. */
+.tv__left .topbar {
+  position: static; padding: 8px 12px; gap: 6px 10px;
+  width: 0; min-width: 100%; box-sizing: border-box;
 }
-/* The one horizontal scrollport left (full-page-scroll, viewer_error_
-   surface_and_layout, 2026-09-09): the grid's columns (COLUMNS,
-   views/topology.js) sum to well over a typical pane's width, and always
-   have — `.tv__rails`'s own `position: sticky; left: 0` (below) only means
-   anything with a scrolling ancestor to stick within. Wrapping just the
-   header and the body (not all of `.tv__scroll`) keeps this scroll
-   HORIZONTAL only: the element has no height constraint of its own, so the
-   `overflow-x: auto` a browser requires it to also compute `overflow-y` as
-   `auto` for (the "one visible + one not" interaction rule) never actually
-   clips or scrolls vertically in practice. */
-.tv__hscroll { overflow-x: auto; height: max-content; }
+.tv__left .topbar h1 { flex: 1 1 100%; }
+/* The DAG's region: a box the row's height that does not scroll itself --
+   the drawing's scroller (`.tv__hscroll`) inside it does, both ways. It is
+   the containing block the respine's outgoing ghost is positioned against
+   (`.tv__ghost` below), so a fading DAG is laid over this region and nothing
+   else. */
+.tv__scroll {
+  flex: 1 1 0; min-width: 0; min-height: 0;
+  position: relative; overflow: hidden;
+}
+.tv__hscroll { position: absolute; inset: 0; overflow: auto; }
+/* The column right of the DAG: the settings bar, the grid, the Preview. Its
+   width is the side divider's (`.tv__main`'s inline width, topology_app.js's
+   applyPaneWidth); with none remembered the page sizes it to the grid. */
+.tv__main {
+  flex: none; width: min(1120px, 45vw); max-width: calc(100vw - 420px);
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+}
+/* The grid's region: as tall as its rows, up to whatever the Preview leaves,
+   so its sideways scrollbar sits directly under the last row. Its header
+   stays at the top of it by CSS (`.tv__gridscroll > .tv__head`). */
+.tv__gridregion {
+  flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column;
+  position: relative;
+}
+.tv__gridscroll { flex: 0 1 auto; min-height: 0; overflow: auto; }
+/* The stack page's elements table takes the grid's place, and scrolls the
+   same way. */
+.tv__main > .stackview { flex: 1 1 auto; min-height: 0; overflow: auto; }
+/* A page with no DAG (a stack, a study with no model): the column takes the
+   middle too. */
+.tv--nodag .tv__main { flex: 1 1 auto; width: auto !important; max-width: none; }
+.tv--nodag #side-divider { display: none; }
 /* `width: max-content` on BOTH of the scrollport's children, and it is load-
    bearing rather than tidiness (topology_grid_scroll_and_grips, 2026-09-16).
    A block child of a scroll container is sized to the scrollport, NOT to the
@@ -650,20 +648,15 @@ body { display: flex; flex-direction: column; }
    still fill it, or the header band stops short of the pane's right edge in
    the other direction. */
 .tv__head {
-  display: flex; position: absolute; left: 0; z-index: 2;
+  display: flex; position: sticky; top: 0; z-index: 2;
   width: max-content; min-width: 100%;
   color: var(--muted); font-size: var(--t-micro); text-transform: uppercase;
   letter-spacing: .04em; height: 26px; line-height: 25px;
-  /* Transparent and inert over the rails' own width (the head's left padding):
-     only the table is the header band, so a header that has been pinned over
-     the DAG's part of the pane does not cover the rails or swallow a click. */
-  pointer-events: none;
+  background: var(--panel);
 }
-/* Absolute, not sticky (the_dag_is_zoomable_and_a_length_mode_draws_to_scale):
-   `.tv__head` sits at the first grid row inside `.tv__zoom`, and
-   VA.pinTopoHead holds it at the top of the visible pane with a transform. A
-   `position: sticky` here was inert -- its nearest scrollport, `.tv__hscroll`,
-   never scrolls vertically -- which is the defect this replaced. */
+/* The header rides at the top of the grid's own scroller (`position:
+   sticky` above): the grid region is a real scroll container, so the browser
+   pins it and nothing in JS does. */
 .tvheadtable {
   background: var(--panel); border-bottom: 1px solid var(--line);
   pointer-events: auto;
@@ -1453,72 +1446,42 @@ body { display: flex; flex-direction: column; }
 /* ...and the grip mark that says the seam is a HANDLE rather than a border.
    Three dots, the universal drag affordance, so nothing has to be explained
    in words (house rule: if a control needs a paragraph, redesign the control).
-
-   STICKY, not centred: this page scrolls as one document (full-page-scroll,
-   viewer_error_surface_and_layout), so the divider's own box is as tall as the
-   whole page and a mark at `top: 50%` would sit halfway down the DOCUMENT --
-   off screen for most of a long study. Sticky clamps it to the middle of the
-   VIEWPORT instead, bounded by the divider, so it is in front of the reader at
-   every scroll position. The hit area is the full 7px column either way; this
-   is what the eye finds, not what the pointer needs. */
+   Centred: every divider is as tall (or, a row divider, as wide) as the
+   region it sits between, never the document. */
 .tv__divider::after {
-  content: ""; display: block; position: sticky; top: 50vh;
+  content: ""; display: block; position: absolute; top: 50%; left: 0;
+  transform: translateY(-50%);
   width: 5px; height: 23px; margin: 0 1px;
   background-image: radial-gradient(circle at center,
     var(--muted) 1.1px, transparent 1.3px);
   background-size: 5px 7px; background-position: center;
 }
+/* The seam between the grid and the Preview: the same control turned on its
+   side. */
+.tv__divider--row {
+  width: auto; height: 7px; margin: -3px 0; cursor: row-resize;
+}
+.tv__divider--row::before { top: 3px; bottom: auto; left: 0; right: 0; width: auto; height: 1px; }
+.tv__divider--row::after {
+  top: 0; left: 50%; transform: translateX(-50%); margin: 1px 0;
+  width: 23px; height: 5px; background-size: 7px 5px;
+}
+body.tv-resizing-row { cursor: row-resize; }
 .tv__divider:hover::after, .tv__divider:focus::after {
   background-image: radial-gradient(circle at center,
     var(--accent) 1.3px, transparent 1.5px);
 }
 .tv__divider:focus { outline: none; }
 
-/* THE DEFAULT ONLY, and still the one place it lives: a remembered width is
-   written as an INLINE width over this rule, and a page with nothing
-   remembered sets no inline width at all rather than restating this number in
-   JS. (The bounds a drag is clamped to have their own one place:
-   VA.TOPO_PANE_WIDTH, views/topology.js.)
-
-   560px since 2026-09-16, and the history is the point. It went to 560 on
-   2026-09-15 with the drag and came straight back the same day: at 560 the
-   centre pane is 133px narrower, and the grid's content overflows it
-   horizontally either way (the head table is fixed-width and this page has no
-   inner scrollport by design) -- so a widened jog zone put its own drag grip
-   OUT of the pane's visible window, where `.tv__hscroll`'s overflow-x clips it
-   and a pointer reached this pane instead. The browser tier caught it on
-   pitch_system at 1600px wide with the zone at 5.5x.
-
-   That reachability hazard is FIXED (topology_grid_scroll_and_grips,
-   2026-09-16 -- see `.tvgrip` below, where both grips are clamped into the
-   visible window and the browser tier drags them at a 560px pane and at
-   VA.TOPO_PANE_WIDTH.max), and
-   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips is
-   closed on it. So the only thing still holding the default at 430 was that
-   Jeff had asked for RESIZABLE and not for wider -- and on 2026-09-16 he
-   asked for wider too ("Make the right side preview pane resizable. It's too
-   narrow", carried forward as still-open). 560 is the width already measured
-   safe at the tier's own viewport; it is not a fresh guess.
-
-   The MAX stays at 1000 (VA.TOPO_PANE_WIDTH), considered and declined rather
-   than overlooked: at this suite's 1600px viewport a 1000px pane already
-   leaves the grid ~298px, which `.tvgrip`'s own clamp arithmetic is written
-   against, and a higher cap buys a reader nothing they cannot reach by
-   dragging on a wider screen. */
+/* The Preview, under the grid (Jeff, 2026-11-09: "the preview pane should go
+   beneath the grid view"). Its height is the row divider's: a remembered
+   height is written INLINE over this rule, which is the default and the one
+   place it lives (the bounds a drag is clamped to are VA.PREVIEW_HEIGHT,
+   views/topology.js). It scrolls by itself. */
 .tv .detail {
-  width: 560px; flex: none;
-  /* Pinned under the topbar like the nav (2026-10-28): the pane holds every
-     study page's RESULTS now -- a kinematic study's verdicts and chart, a
-     chain study's verdict chips -- and they stay on screen while the page
-     scrolls the model and its grid. From 2026-09-09 to then it was
-     `position: static; overflow: visible`, scrolling away with the
-     document (full-page-scroll, viewer_error_surface_and_layout), which
-     was right while it held only a preview. `align-self: flex-start` is
-     what lets a flex item stick: stretched to the row's height it has
-     nowhere to stick within. The shared `.detail` rule (style.css) is the
-     stack viewer's and is never edited from here. */
-  align-self: flex-start;
-  position: sticky; top: var(--bar-h); height: calc(100vh - var(--bar-h)); overflow-y: auto;
+  flex: 0 0 auto; height: 40%; min-height: 0; width: auto;
+  border-left: none; border-top: 1px solid var(--line);
+  position: static; max-height: none; overflow-y: auto;
 }
 /* A chip longer than the pane wraps inside its pill rather than clipping: the
    pane is narrow beside an open scene (body.flyout-open, below), and
@@ -1585,9 +1548,9 @@ body { display: flex; flex-direction: column; }
    grid the width they had. topology_app.js clamps it per page
    (VA.clampFlyoutWidth) and applies the reader's chosen width. */
 dialog#annotate-flyout {
-  position: sticky; top: var(--bar-h); inset: var(--bar-h) auto auto auto; margin: 0; padding: 0;
+  position: relative; inset: auto; margin: 0; padding: 0;
   flex: none; width: min(560px, 40vw);
-  height: calc(100vh - var(--bar-h)); max-height: calc(100vh - var(--bar-h));
+  height: auto; max-height: none; align-self: stretch;
   background: var(--bg); color: var(--ink);
   border: none; box-shadow: none;
   z-index: 3; /* its divider's hit area overhangs the DAG's first pixels */
@@ -1670,8 +1633,7 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    between the nav and the model. A zero-width column of the row, so opening
    nothing moves nothing; the tab straddles the seam. */
 .panehandle {
-  flex: none; width: 0; position: sticky; top: var(--bar-h);
-  height: calc(100vh - var(--bar-h)); align-self: flex-start; z-index: 4;
+  flex: none; width: 0; position: relative; z-index: 4;
 }
 .panehandle__tab {
   position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
@@ -1682,6 +1644,19 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
 }
 .panehandle__tab:hover, .panehandle__tab:focus { color: var(--accent); outline: none; }
 .flyout__frame { flex: 1; width: 100%; border: none; background: var(--bg); }
+
+/* --- side by side · 3D · DAG (VA.PANE_VIEWS) -----------------------------
+   One control in the settings bar, while the 3D pane is open: "3D" gives the
+   pane the DAG's region too, "DAG" gives the DAG the pane's. The pane is
+   hidden, never closed, in "DAG": its scene, camera and loaded meshes stay,
+   and it still lights from the one selection. */
+.tv--view-dag dialog#annotate-flyout[open] { display: none; }
+.tv--view-3d #topopane, .tv--view-3d #side-divider { display: none; }
+.tv--view-3d dialog#annotate-flyout[open] { flex: 1 1 auto; width: auto !important; }
+.tv--view-3d .flyout__divider { display: none; }
+.tvview { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 6px; }
+.tv__toolbar .tvview button.ghost { border-radius: 0; border: none; }
+.tv__toolbar .tvview button.ghost[aria-pressed="true"] { color: var(--ink); background: #363b45; }
 
 /* --- what the page does while the scene is open ---------------------------
    `body.flyout-open` is added on launch and removed by the dialog's own
@@ -1699,9 +1674,7 @@ body.flyout-open .navtree { border-right: none; }
    its floor (400, VA.FLYOUT_WIDTH.min), the drawing and the grid through
    ELEMENT (about 1000, VA.gridKeptWidth -- the scene's clamp keeps it) and this
    pane: what is left, 1706px less than the window, between 200 and its usual
-   560. A scene squeezed to 290 crushed its sweep bar; this pane holds a hint
-   while a sweep plays. A width the reader dragged is inline and still wins. */
-body.flyout-open .tv .detail { width: clamp(200px, calc(100vw - 1706px), 560px); }
+   560. */
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

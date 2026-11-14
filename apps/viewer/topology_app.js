@@ -131,18 +131,23 @@
     // store entry, read at boot. Display preferences: selectTopology() never
     // resets them.
     dagView: Object.assign({}, VA.DAG_VIEW_DEFAULTS),
-    // How wide the right preview pane is, in px, or null for "whatever
-    // topology.css declares" (Jeff, 2026-09-15: "the right preview pane is
-    // resizable. It's too narrow"). The ONE preference on this page that
-    // outlives the session -- VA.readStoredPaneWidth/writeStoredPaneWidth own
-    // the storage and argue there why this one and none of the four above.
-    // null rather than a number by default so the stylesheet stays the single
-    // place the default width lives; nothing is written inline until a drag
-    // or a remembered value says otherwise.
-    detailWidth: null,
+    // How wide the column right of the DAG is -- the settings bar, the grid
+    // and the Preview under it -- in px, or null for "as wide as the grid"
+    // (Jeff, 2026-09-15: "the right preview pane is resizable. It's too
+    // narrow"; the column since 2026-11-14). Remembered across sessions --
+    // VA.readStoredPaneWidth/writeStoredPaneWidth own the storage and argue
+    // there why this and none of the four above.
+    sideWidth: null,
+    // How tall the Preview under the grid is, in px, or null for "whatever
+    // topology.css declares" -- the same contract over VA.PREVIEW_HEIGHT_KEY.
+    previewHeight: null,
+    // Which of the 3D pane and the DAG the middle shows while the pane is
+    // open (VA.PANE_VIEWS): read at boot from `?view=`, else the remembered
+    // choice, else side by side.
+    paneView: VA.DEFAULT_PANE_VIEW,
     // How wide the left-docked annotator flyout is, in px, or null for
     // "whatever topology.css declares" — the same contract, the same reason
-    // and the same remembered-across-sessions posture as `detailWidth` above,
+    // and the same remembered-across-sessions posture as `sideWidth` above,
     // over its own key (VA.FLYOUT_WIDTH_KEY). Jeff asked for the 3D panel
     // beside the DAG, and how much of the window a reader wants to give it is
     // exactly the kind of preference that means the same thing on every
@@ -247,6 +252,11 @@
       toolbar: document.getElementById("toolbar"),
       topojoint: document.getElementById("topojoint"),
       pane: document.getElementById("topopane"),
+      topogrid: document.getElementById("topogrid"),
+      shell: document.querySelector ? document.querySelector("main.tv") : null,
+      left: document.querySelector ? document.querySelector(".tv__left") : null,
+      main: document.querySelector ? document.querySelector(".tv__main") : null,
+      sideDivider: document.getElementById("side-divider"),
       stackview: document.getElementById("stackview"),
       totals: document.getElementById("totals"),
       legendToggle: document.getElementById("legend-toggle"),
@@ -271,9 +281,15 @@
     state.dagView = VA.readDagView(widthStore());
     VA.applyGraphWidth(state.dagView.graphWidth);
     applyPalette();
-    state.detailWidth = VA.readStoredPaneWidth(widthStore());
+    state.sideWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
-    wireDetailDivider();
+    wireDivider(nodes.sideDivider, { kind: "pane" });
+    state.previewHeight = VA.readStoredPreviewHeight(widthStore());
+    applyPreviewHeight();
+    wireDivider(nodes.detailDivider, { kind: "preview", axis: "y" });
+    state.paneView = (typeof window !== "undefined" && window.location &&
+        VA.parsePaneViewParam(window.location.search)) ||
+      VA.readStoredPaneView(widthStore()) || VA.DEFAULT_PANE_VIEW;
     state.navWidth = VA.readStoredNavWidth(widthStore());
     applyNavWidth();
     wireDivider(nodes.navDivider, { kind: "nav" });
@@ -310,6 +326,8 @@
     // the whole of "closing restores whatever it covered".
     nodes.flyout.addEventListener("close", function () {
       document.body.classList.remove("flyout-open");
+      applyPaneView();
+      repaintToolbar();
       // The scene's tree leaves the nav.
       sceneTree = null;
       renderNav();
@@ -1854,7 +1872,7 @@
   // layout imposed is not a preference (the same rule launchAnnotate keeps).
   function refitPane() {
     state.flyoutWidth = VA.clampFlyoutWidth(
-      flyoutWanted !== null ? flyoutWanted : flyoutWidthNow(),
+      flyoutWanted !== null ? flyoutWanted : flyoutDefaultWidth(),
       roomBesideFlyout(), graphNeed());
     applyFlyoutWidth();
   }
@@ -1893,6 +1911,8 @@
     // column to the right (2026-10-28). The class comes off again in the
     // dialog's own `close` event, wired once at boot.
     document.body.classList.add("flyout-open");
+    applyPaneView();
+    repaintToolbar();
     VA.writeStoredFlyoutOpen(widthStore(), true);
     syncPaneHandle();
     // The nav grows the slot the scene's tree is drawn into.
@@ -1909,7 +1929,7 @@
     // layout imposed is not a preference the reader expressed, so
     // rememberWidth() is deliberately not called here.
     state.flyoutWidth = VA.clampFlyoutWidth(
-      flyoutWanted !== null ? flyoutWanted : flyoutWidthNow(),
+      flyoutWanted !== null ? flyoutWanted : flyoutDefaultWidth(),
       roomBesideFlyout(), keep);
     applyFlyoutWidth();
   }
@@ -2466,6 +2486,54 @@
     return state.leaderStyle === "off";
   }
 
+  // A leader runs from the DAG to the 3D scene, so it can be drawn only while
+  // both are on screen: the pane open and the view side by side.
+  function leadersDrawable() {
+    return !!(nodes.flyout && nodes.flyout.open && state.paneView === "both");
+  }
+
+  // --- side by side · 3D · DAG (VA.PANE_VIEWS) -------------------------------
+  //
+  // The middle's view is a class on the shell, and only while the pane is
+  // open: closed, the DAG has the middle whatever the choice.
+  function applyPaneView() {
+    if (!nodes.shell || !nodes.shell.classList) return;
+    var open = !!(nodes.flyout && nodes.flyout.open);
+    nodes.shell.classList.toggle("tv--view-3d", open && state.paneView === "3d");
+    nodes.shell.classList.toggle("tv--view-dag", open && state.paneView === "dag");
+  }
+
+  function setPaneView(id) {
+    if (!VA.isPaneView(id) || id === state.paneView) return;
+    state.paneView = id;
+    VA.writeStoredPaneView(widthStore(), id);
+    writePaneViewUrl(id);
+    dropBandPad();
+    applyPaneView();
+    // The leaders, the toolbar's pressed button and the DAG at its region's
+    // new width.
+    forgetSeamAnchors(true);
+    render();
+  }
+
+  function writePaneViewUrl(id) {
+    if (typeof window === "undefined" || !window.history || !window.history.replaceState ||
+        !window.location) return;
+    var search = VA.withPaneViewParam(window.location.search, id);
+    if (search === window.location.search) return;
+    try {
+      window.history.replaceState(window.history.state, "",
+        window.location.pathname + search + (window.location.hash || ""));
+    } catch (err) {
+      // A page that cannot rewrite its URL (file://, a sandbox) still switches.
+    }
+  }
+
+  // The toolbar again, with the handlers of the last paint: the pane opening
+  // or closing adds or takes away the view control and the leaders' state.
+  var repaintToolbarFn = null;
+  function repaintToolbar() { if (repaintToolbarFn) repaintToolbarFn(); }
+
   function drawSeamLeaders() {
     var svg = seamOverlay();
     if (!svg) return null;
@@ -2476,7 +2544,7 @@
     var topoProj = currentTopology();
     var rails = nodes.pane && nodes.pane.querySelector
       ? nodes.pane.querySelector(".tv__hscroll svg.tv__rails") : null;
-    if (leadersOff() || !nodes.flyout || !nodes.flyout.open || !flyoutFrame || !seamAnchors ||
+    if (leadersOff() || !leadersDrawable() || !flyoutFrame || !seamAnchors ||
         !rails || !drawn || !drawn.seam || !topoProj ||
         drawn.topologyId !== topoProj.id || nodes.pane.style.display === "none") {
       VA.clear(svg);
@@ -2488,12 +2556,6 @@
     var r = rails.getBoundingClientRect();
     var f = flyoutFrame.getBoundingClientRect();
     var p = nodes.pane.getBoundingClientRect();
-    // The pinned header covers a dot only where it is painted: its table. Over
-    // the rails it is transparent (topology.css, `.tv__head`), and a dot drawn
-    // there is on screen and keeps its leader.
-    var head = nodes.pane.querySelector(".tv__zoom .tv__head");
-    var band = head && head.getAttribute("data-pinned")
-      ? head.querySelector(".tvheadtable") : null;
     var bottom = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : Infinity;
     var dots = {};
     Object.keys(drawn.seam.dots).forEach(function (id) {
@@ -2512,7 +2574,6 @@
       // Inside the pane, inside the window, and not under the pinned header.
       dotClip: { left: p.left, right: p.right, top: Math.max(p.top, 0),
                  bottom: Math.min(p.bottom, bottom) },
-      dotCover: band ? rectOf(band.getBoundingClientRect()) : null,
       anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),
                     bottom: Math.min(f.bottom, bottom) },
     });
@@ -2607,47 +2668,46 @@
     if (ok) sceneVisibilityPosted = key;
   }
 
-  // A selection made anywhere brings its grid row into view -- an edge's own
-  // row, a node's the row its DAG↔grid leader lands above -- together with the
-  // element's own mark on the DAG when the two fit in the box at once, so all
-  // three ends of its leaders are on screen. Only the pane's OWN scroll moves
-  // (the kinematic page's bounded box), never the document's: `scrollIntoView`
-  // would scroll the page too, sliding another row under a pointer that has
-  // not moved, and that row's hover would take the scene's highlight off the
-  // selection.
+  // A selection made anywhere brings its grid row into view in the grid's
+  // region -- an edge's own row, a node's the row its seam is above -- and its
+  // mark on the DAG into view in the DAG's, each by its own scroller. Never the
+  // document, which does not scroll: `scrollIntoView` would also move every
+  // scrolled ancestor, sliding another row under a pointer that has not moved,
+  // and that row's hover would take the scene's highlight off the selection.
   function scrollSelectionIntoView() {
     var sel = state.selection;
     var key = sel ? sel.kind + "|" + sel.id : null;
     if (key === seamScrolledTo) return;
     seamScrolledTo = key;
-    var box = nodes.pane;
-    if (!sel || !box || !box.querySelector || !(box.scrollHeight > box.clientHeight)) return;
+    if (!sel) return;
     var edgeId = sel.id;
     if (sel.kind === "node") {
-      // The row its seam is above, off the paint's own plan (drawn or not:
-      // leaders may be off).
+      // The row its seam is above, off the paint's own plan.
       var seams = VA.lastTopoRender && VA.lastTopoRender.boundaryEdge;
       edgeId = seams ? seams[sel.id] || null : null;
     }
-    var row = edgeId ? box.querySelector('tr.tvrow[data-id="' + edgeId + '"]') : null;
-    if (!row || !row.getBoundingClientRect) return;
-    var mark = box.querySelector('svg.tv__rails [data-row-kind="' + sel.kind + '"][data-id="' +
-      sel.id + '"]');
-    var b = box.getBoundingClientRect();
-    var head = box.querySelector(".tv__zoom .tv__head");
-    var top = b.top + (head ? head.offsetHeight : 0);
-    var r = row.getBoundingClientRect();
-    var lo = r.top;
-    var hi = r.bottom;
-    if (mark && mark.getBoundingClientRect) {
-      var m = mark.getBoundingClientRect();
-      if (Math.max(hi, m.bottom) - Math.min(lo, m.top) <= b.bottom - top) {
-        lo = Math.min(lo, m.top);
-        hi = Math.max(hi, m.bottom);
-      }
+    var grid = gridScroller();
+    var row = grid && edgeId ? grid.querySelector('tr.tvrow[data-id="' + edgeId + '"]') : null;
+    if (row) {
+      var head = grid.querySelector(".tv__head");
+      bringIntoView(grid, row, head ? head.offsetHeight : 0);
     }
-    if (lo < top) box.scrollTop -= top - lo;
-    else if (hi > b.bottom) box.scrollTop += hi - b.bottom;
+    var dag = paneHscroll();
+    var mark = dag ? dag.querySelector('svg.tv__rails [data-row-kind="' + sel.kind +
+      '"][data-id="' + sel.id + '"]') : null;
+    if (mark) bringIntoView(dag, mark, 0);
+  }
+
+  // Scroll `box` the least that puts `node` inside it, under a `top` inset.
+  function bringIntoView(box, node, inset) {
+    if (!box.getBoundingClientRect || !node.getBoundingClientRect ||
+        !(box.scrollHeight > box.clientHeight)) return;
+    var b = box.getBoundingClientRect();
+    var top = b.top + inset;
+    var bottom = b.top + box.clientHeight;
+    var r = node.getBoundingClientRect();
+    if (r.top < top) box.scrollTop -= top - r.top;
+    else if (r.bottom > bottom) box.scrollTop += Math.min(r.bottom - bottom, r.top - top);
   }
 
   // A pick in the scene selects its row in the scene's rail, and the tree it
@@ -2699,31 +2759,33 @@
 
   // --- the DAG's zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) --
   //
-  // One scale, VA.applyTopoZoom, with the page scrolling it into place: the
-  // wheel over the DRAWING zooms about the pointer (a plain wheel over the grid
-  // still scrolls the page -- the document is the scroller, and a pane that
-  // swallowed every wheel would trap the reader), Ctrl/Cmd+wheel and a trackpad
-  // pinch zoom from anywhere over the pane, a drag on the drawing's empty
+  // One scale, VA.applyTopoZoom, with the drawing's own scroller moving it into
+  // place: the wheel over the DRAWING zooms about the pointer (a plain wheel
+  // anywhere else in the region scrolls it), Ctrl/Cmd+wheel and a trackpad
+  // pinch zoom from anywhere over the region, a drag on the drawing's empty
   // space pans, Fit shows what is lit, and `0` is Fit. The scale lives in
   // `state.dagZoom` and nowhere else.
-  function paneScroller() {
-    return nodes.pane && nodes.pane.classList &&
-      nodes.pane.classList.contains("tv__scroll--bounded") ? nodes.pane : null;
-  }
-
+  //
+  // The drawing's scroller (`.tv__hscroll`, both ways) is the one thing a pan,
+  // a zoom's compensation or a landing moves -- the document never scrolls
+  // (the fixed shell, 2026-11-14).
   function paneHscroll() {
     return nodes.pane && nodes.pane.querySelector
       ? nodes.pane.querySelector(".tv__hscroll") : null;
   }
 
-  // Scroll the page (or the bounded pane) by `dy`, and the drawing sideways by
-  // `dx`. The one place a pan or a zoom's compensation moves anything.
+  // The grid's scroller, in its own region.
+  function gridScroller() {
+    return nodes.topogrid && nodes.topogrid.querySelector
+      ? nodes.topogrid.querySelector(".tv__gridscroll") : null;
+  }
+
+  // Scroll the drawing by (dx, dy).
   function scrollDag(dx, dy) {
     var hscroll = paneHscroll();
-    if (hscroll && dx) hscroll.scrollLeft += dx;
-    var bounded = paneScroller();
-    if (bounded) bounded.scrollTop += dy;
-    else if (dy && typeof window !== "undefined" && window.scrollBy) window.scrollBy(0, dy);
+    if (!hscroll) return;
+    if (dx) hscroll.scrollLeft += dx;
+    if (dy) hscroll.scrollTop += dy;
   }
 
   function zoomBox() {
@@ -2755,10 +2817,9 @@
     // left edge -- anchoring on the pointer scrolled the grid UNDER the sticky
     // rails, which is how COMPONENT came to sit beneath the DAG. Since
     // 2026-10-29 the grid is not scaled at all, so its sideways scroll stays
-    // exactly where it was (the repaint carries it). Only the bounded pane, a
-    // scrollport of its own, keeps the point under the pointer.
-    scrollDag(0, paneScroller() ? after.top + cy * to - clientY : 0);
-    VA.pinTopoHead(nodes.pane);
+    // exactly where it was (the repaint carries it). Vertically the drawing's
+    // own scroller keeps the point under the pointer.
+    scrollDag(0, after.top + cy * to - clientY);
     scheduleSeamDraw();
   }
 
@@ -2812,15 +2873,13 @@
   // starts (VA.animateTopoPane's `landing`), and the pad and the scroll are
   // interpolated with the transition: one continuous frame start to end.
   function dagScrollY() {
-    var bounded = paneScroller();
-    if (bounded) return bounded.scrollTop;
-    return typeof window !== "undefined" ? (window.scrollY || 0) : 0;
+    var hs = paneHscroll();
+    return hs ? hs.scrollTop : 0;
   }
 
   function setDagScroll(y) {
-    var bounded = paneScroller();
-    if (bounded) bounded.scrollTop = y;
-    else if (typeof window !== "undefined" && window.scrollTo) window.scrollTo(window.scrollX || 0, y);
+    var hs = paneHscroll();
+    if (hs) hs.scrollTop = y;
   }
 
   // The frame on screen right now, read off the drawing itself: its pad is what
@@ -2865,13 +2924,9 @@
   // page, as fitDagTo measures it.
   function viewport() {
     var hs = paneHscroll();
-    if (!hs || !nodes.pane || !nodes.pane.getBoundingClientRect) return null;
-    var bounded = paneScroller();
-    var topEdge = bounded ? nodes.pane.getBoundingClientRect().top
-      : VA.stickyOffsets().top;
-    var visible = bounded ? nodes.pane.clientHeight
-      : (typeof window !== "undefined" ? window.innerHeight : 0) - topEdge;
-    return { topEdge: topEdge, visible: visible, width: hs.clientWidth };
+    if (!hs || !hs.getBoundingClientRect) return null;
+    return { topEdge: hs.getBoundingClientRect().top, visible: hs.clientHeight,
+             width: hs.clientWidth };
   }
 
   // The hooks VA.animateTopoPane calls (`landing`). `ctx` is this paint's own:
@@ -2997,30 +3052,28 @@
     var hscroll = paneHscroll();
     var drawn = VA.lastTopoRender;
     if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
-    var bounded = paneScroller();
     var vp = viewport();
+    // The DAG's region is hidden (the 3D view, VA.PANE_VIEWS): there is no
+    // window to fit into, and the landing waits for one.
+    if (!vp || !(vp.visible > 0) || !(vp.width > 0)) return;
     var topEdge = vp.topEdge;
     var visible = vp.visible;
     var pad = FIT_PAD;
     // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
     // beside it is not part of what a scale can fit.
     var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit the pane too. Fit -- the
-    // reader's own ask -- also leaves the grid its floor beside it
-    // (VA.dagFitWidth), so the drawing and PART..ELEMENT share the pane. A
-    // study's arrival does not: it is measured off the outgoing layout, and
-    // a floor applied there ratchets the zoom down a little on every arrival
-    // and moves the first frame of the transition.
+    // Both axes: the DAG's own width must fit its region too. The grid has a
+    // region of its own (the fixed shell, 2026-11-14), so the whole width is
+    // the drawing's.
     if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
-      var room = centre ? hscroll.clientWidth : VA.dagFitWidth(hscroll.clientWidth);
-      to = Math.min(to, VA.clampDagZoom((room - pad) / drawn.dagWidth));
+      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.dagWidth));
     }
     // A study's arrival only ever scales DOWN, and only when the band does not
     // fit at the zoom the reader has: a zoom they chose is theirs until the
     // next study change moves the band.
     if (centre) to = Math.min(to, state.dagZoom);
     state.dagZoom = to;
-    VA.applyTopoZoom(nodes.pane, to, true);
+    VA.applyTopoZoom(nodes.pane, to);
     // A zoom repaints the pane: the box and the span are read off the new one.
     box = zoomBox();
     hscroll = paneHscroll();
@@ -3082,7 +3135,6 @@
         if (left) sizer.style.marginLeft = left + "px";
       }
     }
-    VA.pinTopoHead(nodes.pane);
     scheduleSeamDraw();
   }
 
@@ -3152,12 +3204,8 @@
 
   function wireSeam() {
     if (typeof window === "undefined" || !document.addEventListener) return;
-    // The pane's own scroll as well as the page's: captured, since a scroll
-    // does not bubble.
-    // The grid header's pin is written in the same event, before the frame
-    // paints (VA.pinTopoHead), so it never trails the rows it labels.
+    // Every region's own scroll: captured, since a scroll does not bubble.
     document.addEventListener("scroll", function () {
-      if (nodes.pane) VA.pinTopoHead(nodes.pane);
       // Leaders off: nothing to re-measure (leadersOff).
       if (!leadersOff()) scheduleSeamDraw();
     }, true);
@@ -3208,8 +3256,8 @@
   // TOUCHING window.localStorage throws, which is before either of those
   // functions gets a chance to catch anything.
   //
-  // Shared by both remembered widths (the preview pane's, the flyout's); the
-  // KEYS are the pure layer's, one per control.
+  // Shared by every remembered size (the column's, the Preview's, the nav's,
+  // the flyout's); the KEYS are the pure layer's, one per control.
   function widthStore() {
     try {
       return (typeof window !== "undefined" && window.localStorage) || null;
@@ -3218,12 +3266,36 @@
     }
   }
 
-  // The remembered width onto the pane, or nothing at all -- an unset
-  // `detailWidth` must leave the stylesheet's own width standing rather than
-  // overwrite it with a number this file guessed.
+  // The remembered width onto the column right of the DAG, or -- with none
+  // remembered -- the grid's own width, so the grid fits it with no sideways
+  // scroll (Jeff, 2026-11-09: "The gridview ideally would fully fit with no
+  // horizontal scroll bar"). The window still caps it (topology.css).
   function applyPaneWidth() {
-    if (!nodes.detail || state.detailWidth === null) return;
-    nodes.detail.style.width = state.detailWidth + "px";
+    if (!nodes.main || !nodes.main.style) return;
+    var w = state.sideWidth !== null ? state.sideWidth
+      : VA.topoTableWidth() + GRID_GUTTER;
+    nodes.main.style.width = w + "px";
+  }
+  // The grid region's vertical scrollbar, beside the table it scrolls.
+  var GRID_GUTTER = 16;
+
+  // The remembered height onto the Preview, or nothing at all -- the
+  // stylesheet's own height stands.
+  function applyPreviewHeight() {
+    if (!nodes.detail || state.previewHeight === null) return;
+    nodes.detail.style.height = state.previewHeight + "px";
+  }
+
+  function previewHeightNow() {
+    var measured = nodes.detail && nodes.detail.offsetHeight;
+    if (typeof measured === "number" && measured > 0) return measured;
+    if (state.previewHeight !== null) return state.previewHeight;
+    return VA.PREVIEW_HEIGHT.min;
+  }
+
+  function columnHeight() {
+    var h = nodes.main && nodes.main.clientHeight;
+    return typeof h === "number" && h > 0 ? h : 0;
   }
 
   // The remembered nav width onto the nav, fitted to the window it is shown
@@ -3247,65 +3319,53 @@
   // whatever the stylesheet declared; the remembered width where there is one;
   // and the clamp's minimum in the DOM shim, which has no layout to measure.
   function paneWidthNow() {
-    var measured = nodes.detail && nodes.detail.offsetWidth;
+    var measured = nodes.main && nodes.main.offsetWidth;
     if (typeof measured === "number" && measured > 0) return measured;
-    if (state.detailWidth !== null) return state.detailWidth;
+    if (state.sideWidth !== null) return state.sideWidth;
     return VA.TOPO_PANE_WIDTH.min;
   }
 
   // The divider is static markup (topology.html), so it is wired once at boot
   // rather than per render -- which also means a re-render mid-drag cannot
   // destroy the node the gesture started on, the problem the column grip's own
-  // re-focus dance exists to work around. Both dividers on this page (the
-  // preview pane's, the flyout's) are that shape, so they share one wiring
-  // function and differ only in the spec they carry.
+  // re-focus dance exists to work around. Every divider on this page is that
+  // shape, so they share one wiring function and differ only in the spec they
+  // carry; a row divider (`axis: "y"`) takes the up and down arrows.
   function wireDivider(divider, spec) {
     if (!divider) return;
+    var keys = spec.axis === "y" ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"];
     divider.onpointerdown = function (event) {
       if (event && event.preventDefault) event.preventDefault();
       onResizeStart(spec, event);
     };
     divider.onkeydown = function (event) {
       var key = event && event.key;
-      if (key !== "ArrowLeft" && key !== "ArrowRight") return;
+      if (keys.indexOf(key) === -1) return;
       if (event.preventDefault) event.preventDefault();
-      onResizeNudge(spec, (event.shiftKey ? 40 : 8) * (key === "ArrowRight" ? 1 : -1));
+      onResizeNudge(spec, (event.shiftKey ? 40 : 8) * (key === keys[1] ? 1 : -1));
     };
-  }
-
-  function wireDetailDivider() {
-    wireDivider(nodes.detailDivider, { kind: "pane" });
   }
 
   function wireFlyoutDivider() {
     wireDivider(nodes.flyoutDivider, { kind: "flyout" });
   }
 
-  // How much window there is to divide between the flyout and THE DAG -- the
-  // viewport less whatever the preview pane is currently taking, because the
-  // right-hand edge of this page is that pane and the flyout is not competing
-  // with it for the reader's attention. VA.clampFlyoutWidth reserves a strip of
-  // this, which is what makes the reserve give back graph rather than pane.
+  // How much window there is to divide between the flyout and THE DAG: the
+  // window, less the left column and less the column right of the DAG (the
+  // settings bar, the grid and the Preview), neither of which is the scene's
+  // to take.
   //
-  // Read at the moment of the gesture, never cached: BOTH terms move (a reader
-  // can resize the window, and the pane has its own divider), so a remembered
-  // number would be honest only until either one was touched. 0 where there is
-  // nothing to measure (the DOM shim), which the clamp reads as "no layout to
-  // go on" and answers with its px max.
-  // The width the panel and the page's own content are dividing: the window,
-  // less what sits to the RIGHT of the graph (the preview pane, where it has
-  // not stood down for the scene) and less the nav, which sits LEFT of the
-  // scene since 2026-10-26 (the_shell_seats_the_scene_beside_the_model) and
-  // whose width is not the scene's to take.
-  //
-  // Deliberately reads neither the panel nor the page shift, so there is no
-  // circularity: every term it does read (the window, the preview pane, the
-  // rail) is independent of how wide the panel is.
+  // Read at the moment of the gesture, never cached: every term moves (a
+  // reader can resize the window, and each column has its own divider), so a
+  // remembered number would be honest only until one was touched. 0 where
+  // there is nothing to measure (the DOM shim), which the clamp reads as "no
+  // layout to go on" and answers with its px max. Deliberately reads neither
+  // the panel nor the DAG, so there is no circularity.
   function roomBesideFlyout() {
     var room = (typeof window !== "undefined" && window.innerWidth) || 0;
     if (!room) return 0;
     var taken = 0;
-    [nodes.detail, nodes.detailDivider, nodes.navtree].forEach(function (node) {
+    [nodes.left, nodes.main, nodes.sideDivider, nodes.navDivider].forEach(function (node) {
       var w = node && node.offsetWidth;
       if (typeof w === "number" && w > 0) taken += w;
     });
@@ -3315,27 +3375,19 @@
   // How much of that has to be left for the page: the DAG DRAWING's own width.
   //
   // `svg.tv__rails` and not `#topopane`, and that distinction is the whole of
-  // the review's blocker (2026-09-16). `#topopane` is the drawing's horizontal
-  // scrollport; the drawing is the SVG pinned at its left edge, 90-262px wide
-  // across the live studies, `position: sticky; left: 0` so no scroll position
-  // can bring it out from under anything. Measuring the scrollport reported
-  // 300px of clearance over a diagram that was 100% covered.
+  // the review's blocker (2026-09-16): measuring the region reported 300px of
+  // clearance over a diagram that was 100% covered. The grid has its own
+  // column now (2026-11-14), so it is no part of what the scene must leave.
   //
-  // 0 where nothing is drawn -- stack mode, a pre-layout call -- which
-  // VA.clampFlyoutWidth reads as "nothing measured" and answers with its own
-  // floor.
-  //
-  // ...and the grid beside it, through its ELEMENT column (the_demo_path_
-  // reads_cleanly_on_a_projector): at 1920 wide the scene kept only the
-  // drawing, and the grid beside an open pane showed nothing but its body
-  // labels. VA.gridKeptWidth is the columns' own sum, so no scroll position
-  // and no half-laid-out row can make it read short.
+  // 0 where nothing is drawn -- stack mode, a pre-layout call, the DAG's
+  // region hidden -- which VA.clampFlyoutWidth reads as "nothing measured" and
+  // answers with its own floor.
   function graphNeed() {
     var rails = nodes.pane && nodes.pane.querySelector
       ? nodes.pane.querySelector("svg.tv__rails") : null;
     var box = rails && rails.getBoundingClientRect
       ? rails.getBoundingClientRect() : null;
-    return box && box.width > 0 ? Math.round(box.width) + VA.gridKeptWidth() : 0;
+    return box && box.width > 0 ? Math.round(box.width) : 0;
   }
 
   // The remembered flyout width onto the dialog, or nothing at all -- same
@@ -3348,6 +3400,16 @@
 
   // What a drag on the flyout's divider measures FROM -- the same three-way
   // fallback paneWidthNow uses, and for the same reasons.
+  // With no width the reader chose, the pane takes half of the middle -- the
+  // window less the left column and the grid's column -- and the DAG the other
+  // half (the shell sizes the pane's region; ISSUE_20261112_at_3840_the_3d_
+  // pane_is_a_narrow_strip_under_the_sweep_bar). No layout to measure: what
+  // the stylesheet declared.
+  function flyoutDefaultWidth() {
+    var room = roomBesideFlyout();
+    return room > 0 ? Math.round(room / 2) : flyoutWidthNow();
+  }
+
   function flyoutWidthNow() {
     var measured = nodes.flyout && nodes.flyout.offsetWidth;
     if (typeof measured === "number" && measured > 0) return measured;
@@ -3358,6 +3420,9 @@
   function resizeFrom(spec) {
     if (spec && spec.kind === "pane") {
       return { kind: "pane", width: paneWidthNow() };
+    }
+    if (spec && spec.kind === "preview") {
+      return { kind: "preview", height: previewHeightNow(), room: columnHeight() };
     }
     if (spec && spec.kind === "flyout") {
       return { kind: "flyout", width: flyoutWidthNow() };
@@ -3389,8 +3454,12 @@
       // than waiting for the render this drag schedules: the pane's width is
       // pure layout, and moving it a frame early is what makes the drag feel
       // attached to the pointer even while a big topology repaints.
-      state.detailWidth = VA.paneWidthAfterDrag(from.width, dx);
+      state.sideWidth = VA.paneWidthAfterDrag(from.width, dx);
       applyPaneWidth();
+    } else if (from.kind === "preview") {
+      // BELOW its divider: dragging up makes it taller (the pure layer's sign).
+      state.previewHeight = VA.previewHeightAfterDrag(from.height, dx, from.room);
+      applyPreviewHeight();
     } else if (from.kind === "flyout") {
       // The OPPOSITE sign inversion to the pane's, and for the same structural
       // reason: this panel is LEFT of its divider, so dragging right widens it.
@@ -3411,15 +3480,19 @@
   // position: fixed dialog whose only child is an iframe, so a repaint of the
   // DAG on every pointermove of its seam would be a full SVG rebuild per frame
   // for no visible difference.
+  // The Preview's height neither: it is a box in a flex column, and nothing the
+  // pane draws depends on it.
   function resizeRepaints(kind) {
-    return kind !== "flyout";
+    return kind !== "flyout" && kind !== "preview";
   }
 
   function onResizeStart(spec, event) {
     var from = resizeFrom(spec);
-    var startX = event && typeof event.clientX === "number" ? event.clientX : 0;
+    // A row divider measures the pointer's travel down the page.
+    var axis = spec && spec.axis === "y" ? "clientY" : "clientX";
+    var start = event && typeof event[axis] === "number" ? event[axis] : 0;
     var move = function (ev) {
-      applyResize(from, ev.clientX - startX);
+      applyResize(from, ev[axis] - start);
       if (resizeRepaints(from.kind)) scheduleResizePaint();
     };
     var end = function () {
@@ -3427,6 +3500,7 @@
       document.removeEventListener("pointerup", end);
       document.removeEventListener("pointercancel", end);
       document.body.classList.remove("tv-resizing");
+      document.body.classList.remove("tv-resizing-row");
       rememberWidth(spec);
     };
     document.addEventListener("pointermove", move);
@@ -3435,6 +3509,7 @@
     // A drag across a grid is otherwise a text selection, and the cursor
     // reverts to whatever it is over the moment it leaves the 7px grip.
     document.body.classList.add("tv-resizing");
+    if (axis === "clientY") document.body.classList.add("tv-resizing-row");
   }
 
   // The keyboard path: the grip is focusable and the arrow keys nudge it (with
@@ -3450,11 +3525,12 @@
     applyResize(resizeFrom(spec), dx);
     if (resizeRepaints(spec.kind)) render();
     rememberWidth(spec);
-    // Both dividers are static markup and survive a render, so each keeps its
+    // The dividers are static markup and survive a render, so each keeps its
     // own focus and needs none of what follows -- which exists because
     // render() rebuilds the column header and destroys the grip the keydown
     // came from.
-    if (spec.kind === "pane" || spec.kind === "flyout" || spec.kind === "nav") return;
+    if (spec.kind === "pane" || spec.kind === "preview" || spec.kind === "flyout" ||
+        spec.kind === "nav") return;
     var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
     var grip = document.querySelector('[data-resize="' + key + '"]');
     if (grip && grip.focus) grip.focus();
@@ -3464,8 +3540,10 @@
   // hundreds of moves and a localStorage write is synchronous.
   function rememberWidth(spec) {
     if (!spec) return;
-    if (spec.kind === "pane" && state.detailWidth !== null) {
-      VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
+    if (spec.kind === "pane" && state.sideWidth !== null) {
+      VA.writeStoredPaneWidth(widthStore(), state.sideWidth);
+    } else if (spec.kind === "preview" && state.previewHeight !== null) {
+      VA.writeStoredPreviewHeight(widthStore(), state.previewHeight);
     } else if (spec.kind === "nav" && state.navWidth !== null) {
       VA.writeStoredNavWidth(widthStore(), state.navWidth);
     } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
@@ -3574,6 +3652,11 @@
     nodes.toolbar.style.display = showDag ? "" : "none";
     nodes.topojoint.style.display = showTopology ? "" : "none";
     nodes.pane.style.display = showDag ? "" : "none";
+    if (nodes.topogrid) nodes.topogrid.style.display = showDag ? "" : "none";
+    // A page with no DAG (a stack, a study with no model) gives the column
+    // right of it the middle too.
+    if (nodes.shell && nodes.shell.classList) nodes.shell.classList.toggle("tv--nodag", !showDag);
+    applyPaneView();
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showStack ? "" : "none";
 
@@ -3605,6 +3688,7 @@
     if (!hasWorksheet && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
 
     repaintDag = null;
+    repaintToolbarFn = null;
     if (showDag) {
       // Which containers are drawn (VA.GROUP_KINDS): the reader's own set for
       // this topology, else every kind. Every study of the topology has a
@@ -3625,6 +3709,8 @@
         ? VA.kinematicPoseLengths(kinematicStudy, livePoseIndex) : null;
       var lengthMode = VA.edgeLengthModeFor(state.edgeLengthMode, !!poseLengths);
       var ctx = {
+        // The grid's own region (VA.renderTopoPane): the DAG's is nodes.pane.
+        gridRoot: nodes.topogrid,
         groupKinds: groupKinds,
         colourBy: state.dagView.colourBy,
         groupFill: state.dagView.groupFill,
@@ -3788,6 +3874,8 @@
           state.leaderStyle = style ? style.next : VA.DEFAULT_LEADER_STYLE;
           render();
         },
+        // Side by side · 3D · DAG (VA.PANE_VIEWS), while the pane is open.
+        onPaneView: setPaneView,
         // "View in 3D" (study_3d_flyout): the toolbar builds the params
         // (topology + study + trace), this just launches them.
         onStudy3d: launchAnnotate,
@@ -3800,16 +3888,23 @@
           repaintDag(true);
         },
       };
-      VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
+      // What the toolbar reads off the pane each time it is drawn: the pane
+      // opens and closes between paints (repaintToolbar).
+      repaintToolbarFn = function () {
+        toolbarHandlers.paneOpen = !!(nodes.flyout && nodes.flyout.open);
+        toolbarHandlers.leadersDrawable = leadersDrawable();
+        VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
+      };
+      repaintToolbarFn();
       // The DAG's own repaint, for the controls that change only what the
       // model draws (Unused, Groups): the pane (and, for Unused, its toolbar
       // label and the 3D scene's copy of the word), never the results, the
       // nav or the preview -- the results are a different component and
       // re-rendering the page around them was what coupled the two.
       repaintDag = function (rewound) {
-        if (rewound) VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
+        if (rewound) repaintToolbarFn();
         VA.renderTopoPane(nodes.pane, ctx);
-        if (rewound) nodes.pane.scrollTop = 0;
+        if (rewound) scrollRegionsToTop();
         syncSceneModel();
         applyFocus();
       };
@@ -3933,8 +4028,6 @@
     }
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
-
-    VA.syncStickyOffsets();
 
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
@@ -4373,8 +4466,17 @@
 
   function rewind() {
     render();
-    if (nodes.pane) nodes.pane.scrollTop = 0;
+    scrollRegionsToTop();
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
+  }
+
+  // The DAG's and the grid's scrollers back to their top: which rows are on
+  // screen changed.
+  function scrollRegionsToTop() {
+    var hs = paneHscroll();
+    var gs = gridScroller();
+    if (hs) hs.scrollTop = 0;
+    if (gs) gs.scrollTop = 0;
   }
 
   // --- rebuild (viewer_rebuild_affordance): the banner's button, end to end -

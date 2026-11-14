@@ -20,31 +20,31 @@
   <link rel="stylesheet" href="./topology.css" />
 </head>
 <body>
-  <div class="topbar">
-    <h1>tolstack — viewer</h1>
-    <!-- It said `renders <code>data/projections/viewer/</code>` until
-         2026-09-18: a repo-relative path into a gitignored directory, on the
-         one line of copy that is on screen at all times. Nothing scanned
-         this file -- the reader-facing-copy walks render JS surfaces, not
-         the markup around them -- which is the same gap that left the
-         annotator's own two static strings standing. The claim that
-         matters is the one either side of it: this page reads a built
-         projection and does no arithmetic. -->
-    <span class="sub">read-only · renders the built projections · computes nothing</span>
-    <span class="topbar__spacer"></span>
-    <button id="legend-toggle" class="ghost">How to read this</button>
-    <button id="worksheet-toggle" class="ghost">Show worksheet</button>
-  </div>
-  <div id="banner" class="banner"></div>
-
+  <!-- The fixed shell (the_page_is_a_fixed_layout_and_nothing_scrolls_the_
+       document, 2026-11-14): one row the window's height, and nothing scrolls
+       the document. Left to right: the title and the model's tree; the 3D
+       pane; the DAG, full height; then the settings bar, the grid and the
+       Preview stacked. Each region scrolls by itself and every seam is a
+       divider (topology_app.js's wireDivider). -->
   <main class="tv">
-    <!-- The one nav (viewer_v2_single_nav, 2026-09-08): every topology with
-         its studies as children, and every stack no topology re-expresses as
-         a leaf of the same tree -- see views/nav.js, whose header carries why
-         a covered stack has no row of its own. The TOPOLOGY/STUDY <select>
-         pickers and the separate stack rail both retired into this one
-         element. -->
-    <nav id="navtree" class="navtree"></nav>
+    <div class="tv__left">
+      <div class="topbar">
+        <h1>tolstack — viewer</h1>
+        <!-- It said `renders <code>data/projections/viewer/</code>` until
+             2026-09-18: a repo-relative path into a gitignored directory, on
+             the one line of copy that is on screen at all times. The claim
+             that matters is the one either side of it: this page reads a
+             built projection and does no arithmetic. -->
+        <span class="sub">read-only · renders the built projections · computes nothing</span>
+        <span class="topbar__spacer"></span>
+        <button id="legend-toggle" class="ghost">How to read this</button>
+        <button id="worksheet-toggle" class="ghost">Show worksheet</button>
+      </div>
+      <!-- The one nav (viewer_v2_single_nav, 2026-09-08): the model picker
+           and the model's tree (views/nav.js). It scrolls by itself; the
+           picker at its top stays put. -->
+      <nav id="navtree" class="navtree"></nav>
+    </div>
     <!-- The nav's own drag divider (handoff a_face_is_picked_the_way_cad_picks_it):
          the preview pane's control, on the nav's right edge. -->
     <div id="nav-divider" class="tv__divider" role="separator"
@@ -62,24 +62,21 @@
               title="show the selection in 3D beside the page"
               aria-label="show the selection in 3D beside the page">3D</button>
     </div>
-    <!-- The 3D scene column (study_3d_flyout; a pane since 2026-10-20; a
-         column since 2026-10-26, the_shell_seats_the_scene_beside_the_model):
-         nav | scene | DAG + grid | results, left to right (the right-hand
-         pane stays open beside it since 2026-10-28). A NON-modal <dialog> kept
-         for its open/close/`close`-event contract, laid out IN the page's
-         row like the nav beside it -- same background, no border at its
-         seams. Its iframe is
-         created lazily by topology_app.js on the first launch and kept
-         across launches (the annotator's folder grant, loaded meshes and
-         camera survive); it only ever renders where the same-origin probe
-         found ../annotate/ served beside this page -- everywhere else the
-         pre-flyout links remain and this element stays closed and empty.
-         The annotator's own rail is drawn in the nav, under the study row
-         (views/nav.js's renderSceneTree), not in here.
+    <!-- The 3D pane (study_3d_flyout): a NON-modal <dialog>, kept for its
+         open/close/`close`-event contract, laid out in the shell's row
+         between the tree and the DAG. Its iframe is created lazily by
+         topology_app.js on the first launch and kept across launches (the
+         annotator's folder grant, loaded meshes and camera survive); it only
+         ever renders where the same-origin probe found ../annotate/ served
+         beside this page -- everywhere else this element stays closed and
+         empty. The annotator's own rail is drawn in the nav, under the study
+         row (views/nav.js's renderSceneTree), not in here. Which of the pane
+         and the DAG the middle shows -- both, the pane alone or the DAG
+         alone -- is the settings bar's one control (VA.PANE_VIEWS).
 
-         The divider is static markup here for the same two reasons the
-         preview pane's is: a re-render must not destroy the node a drag is
-         in progress on, and no view owns it. -->
+         The divider is static markup here for the same two reasons the other
+         dividers are: a re-render must not destroy the node a drag is in
+         progress on, and no view owns it. -->
     <dialog id="annotate-flyout" class="flyout">
       <div class="flyout__head">
         <!-- The annotator's own one-line answer to what it is showing
@@ -99,29 +96,39 @@
                 title="close the 3D panel" aria-label="close the 3D panel">‹</button>
       </div>
     </dialog>
+    <!-- The DAG's region, full height (views/topology.js's renderTopoPane):
+         it holds the drawing's own scroller, which scrolls both ways. The
+         grid it reads beside is #topogrid, in the column to its right. -->
+    <section id="topopane" class="tv__scroll"></section>
+    <!-- The seam between the DAG and the column of settings, grid and
+         Preview: dragging it sets that column's width. -->
+    <div id="side-divider" class="tv__divider" role="separator"
+         aria-orientation="vertical" tabindex="0"
+         title="drag to resize the grid and preview (or use the arrow keys)"></div>
     <div class="tv__main">
+      <!-- Where the data came from, and anything the projection needs saying
+           (views/banner.js): at the head of the column, so the 3D pane and the
+           DAG start at the top of the window. -->
+      <div id="banner" class="banner"></div>
       <div id="toolbar" class="tv__toolbar"></div>
       <!-- The topology's own joint block (deliverable 4, viewer_v2_single_nav):
            the same free-form assembly/context prose a stack's carries,
-           collapsed by default so an empty one (most topologies do have one;
-           pitch_system spans more than one physical joint and has none) costs
-           one line, not vertical budget the DAG pane needs. -->
+           collapsed by default so an empty one costs one line. -->
       <div id="topojoint" class="tv__jointwrap"></div>
-      <section id="topopane" class="tv__scroll"></section>
+      <!-- The grid's region: its header stays at the top of it, and its
+           sideways scrollbar is directly under the rows. -->
+      <section id="topogrid" class="tv__gridregion"></section>
       <section id="stackview" class="stackview"></section>
       <section id="totals" class="tvtotals"></section>
+      <!-- The seam between the grid and the Preview (Jeff, 2026-09-15: "the
+           right preview pane is resizable"; under the grid since
+           2026-11-14): dragging it sets the Preview's height. Static markup
+           for the reason the other dividers are. -->
+      <div id="detail-divider" class="tv__divider tv__divider--row" role="separator"
+           aria-orientation="horizontal" tabindex="0"
+           title="drag to resize the preview (or use the arrow keys)"></div>
+      <aside id="detail" class="detail"></aside>
     </div>
-    <!-- The preview pane's drag divider (Jeff, 2026-09-15: "the right preview
-         pane is resizable. It's too narrow"). Static markup, not rendered by a
-         view, because the pane serves BOTH modes and neither mode's renderer
-         owns it -- and because a re-render must not destroy the node a drag is
-         in progress on. The drag itself is topology_app.js's onResizeStart,
-         the same document-level pointer handler the column and jog-zone grips
-         already use; the arrow keys nudge it without a pointer. -->
-    <div id="detail-divider" class="tv__divider" role="separator"
-         aria-orientation="vertical" tabindex="0"
-         title="drag to resize the preview pane (or use the arrow keys)"></div>
-    <aside id="detail" class="detail"></aside>
   </main>
   <div id="croppop" class="croppop"></div>
 

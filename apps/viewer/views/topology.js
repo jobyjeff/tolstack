@@ -112,12 +112,38 @@
     // control exists.
     var leaderPreset = VA.LEADER_STYLES[state.leaderStyle] ||
       VA.LEADER_STYLES[VA.DEFAULT_LEADER_STYLE];
+    // Since 2026-11-14 a leader runs between the DAG and the 3D scene only
+    // (the grid is in a region of its own), so the control can draw nothing
+    // unless both are on screen: it says so on hover and takes no click.
     var leaderStyle = VA.el("button", "ghost tvpick__mode",
       "Leaders: " + leaderPreset.label);
     leaderStyle.setAttribute("id", "leader-style-toggle");
-    leaderStyle.setAttribute("title", leaderPreset.title);
-    leaderStyle.onclick = handlers.onLeaderStyle;
+    if (handlers.leadersDrawable === false) {
+      leaderStyle.disabled = true;
+      leaderStyle.setAttribute("title", VA.LEADERS_UNAVAILABLE);
+    } else {
+      leaderStyle.setAttribute("title", leaderPreset.title);
+      leaderStyle.onclick = handlers.onLeaderStyle;
+    }
     root.appendChild(leaderStyle);
+
+    // Which of the 3D pane and the DAG the middle shows (VA.PANE_VIEWS), only
+    // while the pane is open: with it closed the DAG has the middle anyway.
+    if (handlers.onPaneView && handlers.paneOpen) {
+      var views = VA.el("span", "tvview");
+      views.setAttribute("id", "pane-view");
+      views.setAttribute("role", "group");
+      views.setAttribute("aria-label", "what the middle shows");
+      VA.PANE_VIEW_ORDER.forEach(function (id) {
+        var b = VA.el("button", "ghost tvpick__mode", VA.PANE_VIEWS[id].label);
+        b.setAttribute("data-view", id);
+        b.setAttribute("title", VA.PANE_VIEWS[id].title);
+        b.setAttribute("aria-pressed", String(state.paneView === id));
+        b.onclick = function () { handlers.onPaneView(id); };
+        views.appendChild(b);
+      });
+      root.appendChild(views);
+    }
 
     // The model outside the page's lit set, dimmed or hidden
     // (VA.UNLIT_STYLES). Only where something IS lit -- a study, or a
@@ -311,27 +337,28 @@
     return root;
   };
 
-  // --- rails + grid, in one scrolling box ----------------------------------
+  // --- the DAG and the grid, each in its own region --------------------------
   //
-  // `root` is the scroll container. Both panes live inside it, which is the
-  // whole implementation of "scrolling keeps them locked together": there is one
-  // scrollport, so there is nothing to synchronise and nothing to drift.
+  // `root` is the DAG's region and `ctx.gridRoot` the grid's (topology.html's
+  // #topopane and #topogrid; the fixed shell, 2026-11-14). Each holds one
+  // scroller built here -- `.tv__hscroll` for the drawing, both ways;
+  // `.tv__gridscroll` for the header and the rows -- and each scrolls alone.
+  // With no `gridRoot` (a detached render: the pose film's shadow, the fast
+  // tier) the grid's scroller is built into `root` after the drawing's.
 
   VA.renderTopoPane = function (root, ctx) {
-    // The reader's own sideways scroll, read BEFORE the pane it lives on is
+    var gridRoot = ctx.gridRoot || root;
+    // Both regions' scroll, read BEFORE the scrollers they live on are
     // destroyed (ISSUE_20260915_every_topology_pane_render_throws_away_the_
-    // readers_sideways_scroll). See carriedScroll for why this is the first
-    // line of the function and not a detail of the append below.
+    // readers_sideways_scroll): a repaint -- a row click, a hover card, every
+    // frame of a respine -- puts each region back where the reader left it.
+    // See carriedScroll for why this is the first line of the function.
     var carried = carriedScroll(root, ctx.topoProj, ctx.tween);
-    // A BOUNDED pane scrolls vertically itself (the kinematic page's), and
-    // emptying it below clamps that scroll to 0 -- so it is read here and put
-    // back after the paint, or every repaint (a row click, a hover card)
-    // would throw the reader back to the walk's first row.
-    var carriedTop = ctx.bounded && typeof root.scrollTop === "number" ? root.scrollTop : 0;
+    var carriedGrid = carriedGridScroll(gridRoot, ctx.topoProj);
     VA.clear(root);
-    // `bounded`: the kinematic page's capped box (topology.css), which
-    // the scroll handler pins the grid's header against.
-    root.className = "tv__scroll" + (ctx.bounded ? " tv__scroll--bounded" : "");
+    if (gridRoot !== root) VA.clear(gridRoot);
+    root.className = "tv__scroll";
+    root.topoGridRoot = gridRoot;
     var topoProj = ctx.topoProj;
     if (!topoProj) {
       // The SAME two sentences the banner's own missing-projection box shows,
@@ -501,8 +528,12 @@
     // its own scale. The leaders bridge the two (VA.leaderGeometry's `zoom`).
     var zoom = VA.clampDagZoom(ctx.zoom || 1);
     var dagZoom = { k: zoom, y0: positions.offset || 0 };
+    // The leaders across to the grid are never built: the grid is in its own
+    // region, with its own scroll, so a leader ending at the drawing's right
+    // edge would point at a row that is somewhere else. The width the zone
+    // takes is computed as ever (VA.leaderGeometry's "off").
     var leaderGeo = VA.leaderGeometry(layout, plan, M, positions, {
-      style: ctx.leaderStyle,
+      style: "off",
       zoneScale: ctx.jogZoneScale,
       x: xTween,
       zoom: dagZoom,
@@ -540,25 +571,10 @@
                           zoom: zoom };
     var index = VA.topologyIndex(topoProj);
 
-    // The header and the body share ONE horizontal scrollport
-    // (`.tv__hscroll`, topology.css) so a wide grid's columns and the rail
-    // that stays pinned at its left edge (`.tv__rails`'s own `position:
-    // sticky; left: 0`) both move together when scrolled sideways — full-
-    // page-scroll (viewer_error_surface_and_layout, 2026-09-09) retired
-    // `.tv__scroll`'s own VERTICAL clipping, not this pane's pre-existing
-    // horizontal one; without a scrolling ancestor of its own, the sticky
-    // rail has nothing to stick within, and a wide row simply bleeds into
-    // whatever sits to the pane's right.
+    // The drawing's scroller, both ways. Inside it the sizer holds the space a
+    // study arrival puts before the drawing, and `.tv__zoom` the drawing at the
+    // page's own pixels (the zoom is drawn INTO the rails SVG).
     var hscroll = VA.el("div", "tv__hscroll");
-    // How much of the pane the reader can actually see -- the window the two
-    // drag grips are clamped into (VA.jogGripInset). Measured off the emptied
-    // pane, the same box and the same moment the zoom's minimum width is read;
-    // 0 in the DOM shim, which reports no widths and needs no clamp.
-    var paneWidth = (root && typeof root.clientWidth === "number")
-      ? root.clientWidth : 0;
-    // The zoom is drawn INTO the rails SVG (railsSvg's DAG layers), so
-    // `.tv__zoom` is no longer scaled: it holds the header, the SVG and the
-    // grid at the page's own pixels, and its layout is its scroll extent.
     var sizer = VA.el("div", "tv__zoomsizer");
     // The space a study arrival put before the drawing to centre its band
     // (topology_app.js, fitDagTo); it outlives a repaint, not a study change.
@@ -567,103 +583,74 @@
       if (ctx.bandPad.left > 0) sizer.style.marginLeft = ctx.bandPad.left + "px";
     }
     var zoomed = VA.el("div", "tv__zoom");
-    // The column header rides with the GRID (it used to be the first thing in
-    // the pane, above the whole DAG, where its `position: sticky` was inert:
-    // the nearest scrollport above it is `.tv__hscroll`, which never scrolls
-    // vertically). It sits directly above the first grid row, and
-    // VA.pinTopoHead holds it at the top of the visible pane while any row is
-    // on screen. The body is pushed down by whatever the head needs above the
-    // grid when the centring left less than a head's height there -- both the
-    // rails and the grid move together, so every leader's two ends keep their
-    // relation.
-    // The pane's width: the grips are clamped into the visible window.
-    var head = header(leaderGeo, ctx, paneWidth);
-    var gridTop = positions.gridOffset || 0;
-    var bodyPad = Math.max(0, VA.DAG_FIT.headHeight - gridTop);
-    var headTop = bodyPad + gridTop - VA.DAG_FIT.headHeight;
-    head.style.top = headTop + "px";
-    head.setAttribute("data-natural-top", String(headTop));
-    head.setAttribute("data-block-bottom",
-      String(bodyPad + gridTop + (positions.gridHeight || 0)));
     // What Fit brings into view, in `.tv__zoom`'s own (unscaled) pixels: the
-    // lit set's span in the store, moved down by the body's own padding, and
-    // reaching up to the header when the grid is part of it.
-    // The DAG's part only: the grid does not scale, so no zoom can fit it.
-    // `at(k)` is that span in `.tv__zoom`'s pixels drawn at k, reaching up to
-    // the header when the grid is part of what is lit.
-    // With nothing lit it is the whole DAG block, not the taller of the two.
+    // lit set's span in the store; with nothing lit, the whole DAG block.
+    // `at(k)` is that span drawn at k.
     var litSpan = marking ? VA.litSpan(positions, lit, null, M)
       : { top: dagZoom.y0, bottom: dagZoom.y0 + (positions.dagHeight || 0) };
-    var withHead = !!(plan.rows.length && marking);
     VA.lastTopoRender.span = {
       top: litSpan.top, bottom: litSpan.bottom,
       at: function (k) {
         return {
-          top: Math.min(bodyPad + dagZoom.y0 + k * (litSpan.top - dagZoom.y0),
-            withHead ? headTop : Infinity),
-          bottom: bodyPad + dagZoom.y0 + k * (litSpan.bottom - dagZoom.y0),
+          top: dagZoom.y0 + k * (litSpan.top - dagZoom.y0),
+          bottom: dagZoom.y0 + k * (litSpan.bottom - dagZoom.y0),
         };
       },
     };
     // Fit's horizontal half: the DAG and its jog zone, at 1 (both scale).
     VA.lastTopoRender.dagWidth = leaderGeo.width / zoom;
-    zoomed.appendChild(head);
     var body = VA.el("div", "tv__body");
-    if (bodyPad) body.style.paddingTop = bodyPad + "px";
     // The view's colour overlay, built once per paint (VA.dagOverlay).
     ctx.overlay = VA.dagOverlay(ctx.colourBy, topoProj,
       { contributions: ctx.contributions || null, units: ctx.contributionUnits || null });
     body.appendChild(railsSvg(geometry, leaderGeo, index,
       marking ? lit.edges : {}, marking ? lit.nodes : {}, marking, ctx, fade,
       fadeLink, hot, layout, lit));
-    var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset,
-      fade, hot);
-    // The grid is the one block a respine CROSS-FADES rather than moves. Its
-    // rows are not positioned from the store at all -- the table's pitch is
-    // fixed and only the block's offset tweens -- and the two serialisations
-    // disagree about which rows exist and in what order, so the outgoing
-    // table and the incoming one can never be made to line up the way the
-    // DAG's dots and bars do. Drawn solid over each other they read as
-    // garbled text; each at its own share of the transition they read as one
-    // table resolving into another. The SVG beside it needs none of this: its
-    // surviving marks are at the same place in both frames at e = 0 and
-    // separate from there, which is the movement this is all for.
-    if (tween) rows.style.opacity = String(tween.e);
-    body.appendChild(rows);
     zoomed.appendChild(body);
     sizer.appendChild(zoomed);
     hscroll.appendChild(sizer);
     root.appendChild(hscroll);
+
+    // The grid's scroller: the column header, pinned at its top by CSS
+    // (`position: sticky` -- this is a real scroll container), then the rows,
+    // from the top. The grips are clamped into the visible window.
+    var gridScroll = VA.el("div", "tv__gridscroll");
+    gridRoot.appendChild(gridScroll);
+    var gridWidth = (gridRoot && typeof gridRoot.clientWidth === "number")
+      ? gridRoot.clientWidth : 0;
+    var head = header(ctx, gridWidth);
+    gridScroll.appendChild(head);
+    var rows = grid(plan, index, chain, marking, ctx, 0, fade, hot);
+    // The grid is the one block a respine CROSS-FADES rather than moves: its
+    // rows are not positioned from the store at all, and the two
+    // serialisations disagree about which rows exist and in what order, so
+    // the incoming table fades in over the transition.
+    if (tween) rows.style.opacity = String(tween.e);
+    gridScroll.appendChild(rows);
     // A zoom change repaints at the new scale (VA.applyTopoZoom): the same
     // context, at rest, at k.
     root.topoRezoom = function (k) {
       VA.renderTopoPane(root, Object.assign({}, ctx, {
-        zoom: k, tween: null, scrollToGrid: false }));
+        zoom: k, tween: null }));
     };
-    VA.applyTopoZoom(root, zoom, true);
-    // ...and the reader's sideways scroll back onto the pane that replaced the
-    // one they scrolled. Written after the append, so the browser has a laid-
-    // out content width to CLAMP it against -- which is the whole behaviour a
-    // reader parked at the right-hand end of a grid that just got narrower
-    // wants, and the reason this is a restore rather than a stored preference.
-    if (carried) hscroll.scrollLeft = carried;
-    // ...and the bounded pane's vertical scroll: where the page asks for it,
-    // the grid of lit rows at the box's top (`scrollToGrid`, an arrival or a
-    // re-lay), otherwise wherever the reader left it.
-    if (ctx.bounded) {
-      root.scrollTop = ctx.scrollToGrid
-        ? Math.max(0, headTop)
-        : carriedTop;
-    }
-    VA.pinTopoHead(root);
-    // The one grip whose boundary scrolls, kept over that boundary as the
-    // reader scrolls (VA.columnGripLeft). The listener is on the node this
-    // render just built, so the next render drops it with the node -- there is
-    // nothing to unwire and nothing to leak.
+    VA.applyTopoZoom(root, zoom);
+    // ...and each region's scroll back onto the scroller that replaced the
+    // one the reader scrolled. Written after the append, so the browser has a
+    // laid-out extent to CLAMP it against -- which is the whole behaviour a
+    // reader parked at the end of a grid that just got shorter wants, and the
+    // reason this is a restore rather than a stored preference.
+    if (carried.left) hscroll.scrollLeft = carried.left;
+    if (carried.top) hscroll.scrollTop = carried.top;
+    if (carriedGrid.left) gridScroll.scrollLeft = carriedGrid.left;
+    if (carriedGrid.top) gridScroll.scrollTop = carriedGrid.top;
+    // The column grips are the ones a sideways scroll of the grid moves, kept
+    // over their boundaries as the reader scrolls (VA.columnGripLeft). The
+    // listener is on the node this render just built, so the next render drops
+    // it with the node -- there is nothing to unwire and nothing to leak.
     if (head.placeColumnGrips) {
       var place = function () { VA.syncTopoScroll(root); };
-      hscroll.onscroll = place;
-      if (carried) place();
+      gridScroll.onscroll = place;
+      if (carriedGrid.left) place();
     }
     // The outgoing paint, fading out underneath: the rows a study re-lay
     // DROPS are not in the target serialisation at all, so there is nothing
@@ -672,20 +659,20 @@
     if (tween && tween.ghost) {
       tween.ghost.style.opacity = String(1 - tween.e);
       root.appendChild(tween.ghost);
-      // The ghost shows the SAME horizontal window as the live frame over it.
-      // Its `.tv__hscroll` is `overflow: hidden` (topology.css) but is still a
+      // The ghost shows the SAME window as the live frame over it. Its
+      // `.tv__hscroll` is `overflow: hidden` (topology.css) but is still a
       // scroll container, and re-parenting a node out of the document resets
       // its scroll to 0 -- so without this the cross-fade is two different
-      // slices of the same table laid on each other, which reads as the text
-      // doubling rather than as one table resolving into another. Taken from
-      // the LIVE pane after its own clamp, not from `carried`: the outgoing
-      // paint is the wider one, so only the live pane knows which window the
-      // reader is actually being shown.
+      // slices of the same drawing laid on each other. Taken from the LIVE
+      // scroller after its own clamp: only it knows which window the reader
+      // is actually being shown.
       var ghostPane = tween.ghost.querySelector
         ? tween.ghost.querySelector(".tv__hscroll") : null;
       if (ghostPane) {
         ghostPane.scrollLeft = typeof hscroll.scrollLeft === "number"
-          ? hscroll.scrollLeft : carried;
+          ? hscroll.scrollLeft : carried.left;
+        ghostPane.scrollTop = typeof hscroll.scrollTop === "number"
+          ? hscroll.scrollTop : carried.top;
       }
     }
     // The page's overlay reads VA.lastTopoRender.seam and this pane's rect.
@@ -719,13 +706,27 @@
   //     the ghost, which is where the first frame finds it; every frame after
   //     that reads the live pane this function built, already clamped.
   function carriedScroll(root, topoProj, tween) {
+    var none = { left: 0, top: 0 };
     if (!topoProj || !VA.lastTopoRender ||
-        VA.lastTopoRender.topologyId !== topoProj.id) return 0;
+        VA.lastTopoRender.topologyId !== topoProj.id) return none;
     var live = (root && root.querySelector)
       ? root.querySelector(".tv__hscroll") : null;
-    var n = live ? live.scrollLeft
-                 : (tween && tween.ghost ? tween.ghost.paneScrollLeft : 0);
-    return typeof n === "number" && n > 0 ? n : 0;
+    var ghost = !live && tween && tween.ghost ? tween.ghost : null;
+    var n = function (v) { return typeof v === "number" && v > 0 ? v : 0; };
+    if (live) return { left: n(live.scrollLeft), top: n(live.scrollTop) };
+    return ghost ? { left: n(ghost.paneScrollLeft), top: n(ghost.paneScrollTop) } : none;
+  }
+
+  // The grid's own scroll, by the same rule: a different topology starts at
+  // the top-left. Never in a ghost -- the grid cross-fades in place.
+  function carriedGridScroll(gridRoot, topoProj) {
+    var none = { left: 0, top: 0 };
+    if (!topoProj || !VA.lastTopoRender ||
+        VA.lastTopoRender.topologyId !== topoProj.id) return none;
+    var live = (gridRoot && gridRoot.querySelector)
+      ? gridRoot.querySelector(".tv__gridscroll") : null;
+    var n = function (v) { return typeof v === "number" && v > 0 ? v : 0; };
+    return live ? { left: n(live.scrollLeft), top: n(live.scrollTop) } : none;
   }
 
   // --- the respine animator (viewer_study_respine_animation) ---------------
@@ -909,7 +910,6 @@
         applyBandPad(root, ctx.bandPad);
         landing.placed(f.e, w);
       }
-      VA.pinTopoHead(root);
       if (ctx.onPainted) ctx.onPainted();
     };
     var step = function () {
@@ -984,10 +984,18 @@
     return Object.keys(a);
   }
 
-  // Every element under the live pane's scroller, in document order, with the
-  // attributes and the style properties the tween may move.
+  // Both regions' scrollers -- the drawing's, then the grid's -- wherever the
+  // render put them (VA.renderTopoPane's `gridRoot`).
+  function paneScrollers(root) {
+    var gridRoot = root.topoGridRoot || root;
+    return [root.querySelector(".tv__hscroll"),
+      gridRoot.querySelector ? gridRoot.querySelector(".tv__gridscroll") : null]
+      .filter(Boolean);
+  }
+
+  // Every element under the live pane's two scrollers, in document order, with
+  // the attributes and the style properties the tween may move.
   function takeSnapshot(root) {
-    var scroller = root.querySelector(".tv__hscroll");
     var nodes = [];
     var walk = function (n) {
       var kids = n.childNodes || [];
@@ -1011,7 +1019,7 @@
         walk(c);
       }
     };
-    if (scroller) walk(scroller);
+    paneScrollers(root).forEach(walk);
     return nodes;
   }
 
@@ -1141,8 +1149,10 @@
         var keepRender = VA.lastTopoRender;
         var keepHot = VA.lastTopoHot;
         try {
+          // Both regions into the shadow: never the live grid's region.
           var shadow = VA.el("div");
-          VA.renderTopoPane(shadow, ctxAt(poses[snaps.length]));
+          VA.renderTopoPane(shadow, Object.assign({}, ctxAt(poses[snaps.length]),
+            { gridRoot: null }));
           snaps.push(takeSnapshot(shadow));
           drawn.push(VA.lastTopoRender);
         } finally {
@@ -1221,7 +1231,6 @@
         }
         // The page's seam reads what the pane drew: the picture on screen.
         VA.lastTopoRender = blendValue(drawn[k], drawn[k + 1], u);
-        VA.pinTopoHead(root);
         return p;
       },
     };
@@ -1337,18 +1346,16 @@
   function ghostOf(root) {
     var live = root.querySelector(".tv__hscroll");
     if (!live) return null;
-    // The column header is the same header in both serialisations -- same
-    // nine columns, same words, only its left pad differs -- so a fading copy
-    // of it under the live one is pure double-image with nothing to say.
-    var head = live.querySelector(".tv__head");
-    if (head) head.style.display = "none";
+    // The drawing's scroller only: the grid fades in place, in its own region
+    // (renderTopoPane's cross-fade), so its outgoing rows need no ghost.
     var ghost = VA.el("div", "tv__ghost");
     ghost.setAttribute("aria-hidden", "true");
-    // The sideways scroll the outgoing pane was carrying, read HERE or not at
-    // all: the append below takes this node out of the document, which resets
-    // its scroll to 0. carriedScroll (above) is the one reader -- the first
-    // frame of the transition has no live pane left to read.
+    // The scroll the outgoing pane was carrying, read HERE or not at all: the
+    // append below takes this node out of the document, which resets its
+    // scroll to 0. carriedScroll (above) is the one reader -- the first frame
+    // of the transition has no live pane left to read.
     ghost.paneScrollLeft = typeof live.scrollLeft === "number" ? live.scrollLeft : 0;
+    ghost.paneScrollTop = typeof live.scrollTop === "number" ? live.scrollTop : 0;
     ghost.appendChild(live);
     return ghost;
   }
@@ -1393,7 +1400,7 @@
   // renderTopoPane); one it was painted at only records itself and re-syncs
   // the sideways pins. The wheel calls this per event; renderTopoPane once per
   // paint. Returns the clamped scale applied, or 0 where there is no zoom box.
-  VA.applyTopoZoom = function (root, zoom, skipPin) {
+  VA.applyTopoZoom = function (root, zoom) {
     var zoomed = root && root.querySelector ? root.querySelector(".tv__zoom") : null;
     if (!zoomed) return 0;
     var k = VA.clampDagZoom(zoom);
@@ -1405,94 +1412,20 @@
     zoomed.setAttribute("data-zoom", String(k));
     VA.sizeTopoZoomBox(root);
     VA.syncTopoScroll(root);
-    if (!skipPin) VA.pinTopoHead(root);
     return k;
   };
 
-  // The sideways scroll, for the one thing that follows it by hand: the
-  // column grips' pin to the pane's right edge. The rails and the jog grip
-  // are plain `position: sticky` at every zoom, since nothing above them is
-  // scaled any more.
+  // The grid's sideways scroll, for the one thing that follows it by hand: the
+  // column grips' pin to the region's right edge. The header itself is pinned
+  // to the top of the grid's scroller by CSS (`position: sticky`).
   VA.syncTopoScroll = function (root) {
-    var hscroll = root && root.querySelector ? root.querySelector(".tv__hscroll") : null;
-    var zoomed = hscroll ? hscroll.querySelector(".tv__zoom") : null;
-    if (!zoomed) return;
-    var left = typeof hscroll.scrollLeft === "number" ? hscroll.scrollLeft : 0;
-    var head = zoomed.querySelector(".tv__head");
-    if (head && head.placeColumnGrips) {
-      head.placeColumnGrips(left, hscroll.clientWidth || 0);
-    }
-  };
-
-  // Holding the column header at the top of what the reader can see
-  // (the_dag_is_zoomable_and_a_length_mode_draws_to_scale). A CSS `position:
-  // sticky` cannot do it: the head lives inside `.tv__hscroll`, which is the
-  // nearest scrollport and never scrolls vertically, so the browser pins it
-  // against a box that does not move. The page scrolls (or, on the kinematic
-  // page, the bounded pane does), so the pin is written from the scroll
-  // events themselves -- synchronously, before the frame paints, so it does
-  // not lag the rows it labels.
-  //
-  // How far the head must move DOWN from its natural place, on screen: it
-  // follows the top of the visible window once that has passed it, and stops
-  // when it would leave the grid block it labels.
-  VA.headPinOffset = function (naturalTop, visibleTop, blockBottom, headHeight) {
-    var room = blockBottom - headHeight - naturalTop;
-    return Math.max(0, Math.min(visibleTop - naturalTop, room));
-  };
-
-  // What the page pins at its top, as two heights (style.css's --bar-h and
-  // --filter-h are written from these, so CSS and JS read one measurement):
-  // the page bar, and the view filters under it where the page has any.
-  VA.stickyOffsets = function () {
-    if (typeof document === "undefined" || !document.querySelector) {
-      return { bar: 0, filter: 0, top: 0 };
-    }
-    var height = function (node) {
-      return node && node.getBoundingClientRect ? node.getBoundingClientRect().height : 0;
-    };
-    var bar = height(document.querySelector(".topbar"));
-    var tool = document.querySelector(".tv__toolbar");
-    var filter = tool && tool.childNodes && tool.childNodes.length ? height(tool) : 0;
-    return { bar: bar, filter: filter, top: bar + filter };
-  };
-
-  VA.syncStickyOffsets = function () {
-    var o = VA.stickyOffsets();
-    var root = typeof document !== "undefined" ? document.documentElement : null;
-    if (root && root.style && root.style.setProperty && o.bar > 0) {
-      root.style.setProperty("--bar-h", o.bar + "px");
-      root.style.setProperty("--filter-h", o.filter + "px");
-    }
-    return o;
-  };
-
-  // The top of what the reader can see of the drawing, in viewport pixels: the
-  // bounded pane's own top, otherwise under everything the page pins -- the bar
-  // and the view filters.
-  function visibleTop(root) {
-    if (root.classList && root.classList.contains("tv__scroll--bounded")) {
-      return root.getBoundingClientRect().top;
-    }
-    return VA.stickyOffsets().top;
-  }
-
-  VA.pinTopoHead = function (root) {
-    if (!root || !root.querySelector) return 0;
-    var head = root.querySelector(".tv__head");
-    var zoomed = head && head.parentNode;
-    if (!head || !zoomed || typeof zoomed.getBoundingClientRect !== "function") return 0;
-    // The header is at the grid's scale, which is 1 whatever the DAG's zoom.
-    var natural = parseFloat(head.getAttribute("data-natural-top")) || 0;
-    var bottom = parseFloat(head.getAttribute("data-block-bottom")) || 0;
-    var top = zoomed.getBoundingClientRect().top;
-    var dy = VA.headPinOffset(top + natural, visibleTop(root), top + bottom,
-      VA.DAG_FIT.headHeight);
-    // `top`, not a transform: a transform on the head is what the respine's
-    // settled-frame check reads as an unfinished transition.
-    head.style.top = (natural + dy) + "px";
-    head.setAttribute("data-pinned", dy > 0 ? "1" : "");
-    return dy;
+    var gridRoot = root && (root.topoGridRoot || root);
+    var scroller = gridRoot && gridRoot.querySelector
+      ? gridRoot.querySelector(".tv__gridscroll") : null;
+    var head = scroller ? scroller.querySelector(".tv__head") : null;
+    if (!head || !head.placeColumnGrips) return;
+    var left = typeof scroller.scrollLeft === "number" ? scroller.scrollLeft : 0;
+    head.placeColumnGrips(left, scroller.clientWidth || 0);
   };
 
   // The grid is a REAL <table> (deliverable 2): a rectangular selection has to
@@ -1532,26 +1465,29 @@
     // sits in a gutter at the column's left, so the column is that much
     // wider (VA.braceGutter). A part's number is in its bracket's strip,
     // inside the 112px, and not in the cell as well.
-    { cls: "part", label: "part", width: 112 + BRACE_STRIPS.body },
-    { cls: "description", label: "description", width: 140 },
-    { cls: "ord", label: "#", width: 30 },
+    { cls: "part", label: "part", width: 112 + BRACE_STRIPS.body, resizable: true },
+    { cls: "description", label: "description", width: 140, resizable: true },
+    { cls: "ord", label: "#", width: 30, resizable: true },
     { cls: "name", label: "element", width: 220, resizable: true },
     // A totals row's RSS bound, `-13.735566` (the M10 grip), is 82px.
-    { cls: "nominal", label: "nominal", width: 84 },
-    { cls: "min", label: "min", width: 84 },
-    { cls: "max", label: "max", width: 84 },
+    { cls: "nominal", label: "nominal", width: 84, resizable: true },
+    { cls: "min", label: "min", width: 84, resizable: true },
+    { cls: "max", label: "max", width: 84, resizable: true },
     // The sweep's sensitivity on a kinematic page (`coefficient`, signed, in
     // the measure's units per the band's); a chain study's ratio, 1 for an
     // unscaled edge -- so the two kinds of study share one column set
     // (the_kinematic_grid_is_a_stack_of_sub_stacks). Its header word, set in
     // the header's capitals, is the column's widest text.
-    { cls: "sensitivity", label: "sensitivity", width: 92 },
+    { cls: "sensitivity", label: "sensitivity", width: 92, resizable: true },
     // A chain row prints its weight and its signed band, and a stack's total
     // its fold and its RSS (`±2.355 deg · RSS ±1.034`). The longest is a
-    // kinematic term's `+ 1.953125 × -0.029297 … 0.029297 deg`, 264px.
-    { cls: "contribution", label: "contribution", width: 270 },
+    // kinematic term's `+ 1.953125 × -0.029297 … 0.029297 deg`, 264px -- so
+    // the column starts narrow (Jeff, 2026-11-09: "The Contribution column is
+    // still way too wide") and a reader who wants the whole string drags it
+    // wider; a clipped cell keeps its words on hover where it has a title.
+    { cls: "contribution", label: "contribution", width: 150, resizable: true },
     // One mark, no words (VA.rowSourcingMark); its header is the mark too.
-    { cls: "sourcing", label: "", title: "sourcing", width: 30 },
+    { cls: "sourcing", label: "", title: "sourcing", width: 30, resizable: true },
   ];
 
   // The array IS the width, and since viewer_leader_grid_legibility it is the
@@ -1562,11 +1498,10 @@
   // colgroup exists to prevent and which a resizable column would have made
   // real within one drag.
   //
-  // `resizable` marks the columns whose header carries a drag grip. Only
-  // ELEMENT does today (Jeff: "the descriptions get truncated and there's no
-  // way to see the entire text without clicking and expanding the preview"),
-  // and the mutator below is deliberately general anyway: a second resizable
-  // column is a flag, not a mechanism.
+  // `resizable` marks the columns whose header carries a drag grip: every
+  // one since 2026-11-14 (Jeff, 2026-11-09: "make all the columns on the grid
+  // view as narrow as possible and/or make them resizable"). The width a drag
+  // leaves lasts the session.
   VA.TOPO_COLUMNS = COLUMNS;
 
   // What Fit leaves the grid beside the DAG (deliverable 5: "at 1600 px wide
@@ -1591,21 +1526,18 @@
     return Math.max(paneWidth - VA.TOPO_GRID_FLOOR.width(),
                     paneWidth * VA.TOPO_GRID_FLOOR.minShare);
   };
-  VA.TOPO_COLUMN_WIDTH = { min: 80, max: 900 };
+  VA.TOPO_COLUMN_WIDTH = { min: 24, max: 900 };
 
-  // --- the preview pane's width (Jeff, 2026-09-15: "it's too narrow") -------
+  // --- the right-hand column's width (Jeff, 2026-09-15: "it's too narrow") --
   //
-  // The pane shows a drawing crop at the pane's own width, so how wide it
-  // wants to be is a property of the DOCUMENT a reader happens to be reading,
-  // not something this page can pick once. It is dragged, by the divider on
-  // its left edge (topology.html), and remembered.
+  // The column right of the DAG -- the settings bar, the grid and the Preview
+  // under it (the fixed shell, 2026-11-14) -- is dragged by the divider on its
+  // left edge (topology.html's #side-divider) and remembered. With nothing
+  // remembered it is as wide as the grid (topology_app.js's applyPaneWidth).
   //
-  // `min` keeps the values column's two number rows from wrapping; `max`
-  // exists so a drag cannot leave the grid unreadably narrow, which is the
-  // only failure a drag on this divider can produce. `preset` is the width
-  // topology.css declares — not repeated here, READ from the pane at boot, so
-  // the stylesheet stays the one place the default lives.
-  VA.TOPO_PANE_WIDTH = { min: 320, max: 1000 };
+  // `min` keeps the grid's first four columns in view; `max` is a bound on a
+  // stored number, and the window caps the rendered width (topology.css).
+  VA.TOPO_PANE_WIDTH = { min: 480, max: 2400 };
 
   VA.clampPaneWidth = function (px) {
     var n = Math.round(Number(px));
@@ -1641,7 +1573,9 @@
   // best and throws outright in some configurations, and a preference is never
   // worth a crash. A read that cannot answer returns null, which the caller
   // reads as "no preference stored" — the stylesheet's width.
-  VA.PANE_WIDTH_KEY = "tolstack.viewer.detailWidth";
+  // A new key on 2026-11-14: the old one held the Preview's width beside the
+  // grid, a number that means something else now.
+  VA.PANE_WIDTH_KEY = "tolstack.viewer.sideWidth";
 
   // Both directions of a remembered width, over any key and any clamp. Two
   // widths are remembered on this page now (the preview pane, the annotator
@@ -1673,6 +1607,99 @@
 
   VA.writeStoredPaneWidth = function (store, px) {
     writeStoredWidth(store, VA.PANE_WIDTH_KEY, VA.clampPaneWidth, px);
+  };
+
+  // --- the Preview's height (the fixed shell, 2026-11-14) -------------------
+  //
+  // The Preview sits under the grid, and the divider between them sets how
+  // tall it is. It is BELOW its divider, so dragging up (negative dy) makes it
+  // taller -- the sign is here, where a test can check it without a pointer.
+  // `room` is the column's height; 0 or absent is "no layout to go on" and
+  // leaves only the floor and the cap.
+  VA.PREVIEW_HEIGHT = { min: 120, max: 2400, keep: 120 };
+
+  VA.clampPreviewHeight = function (px, room) {
+    var n = Math.round(Number(px));
+    if (!isFinite(n)) return VA.PREVIEW_HEIGHT.min;
+    var have = Math.round(Number(room));
+    var cap = isFinite(have) && have > 0
+      ? Math.max(VA.PREVIEW_HEIGHT.min, have - VA.PREVIEW_HEIGHT.keep)
+      : VA.PREVIEW_HEIGHT.max;
+    return Math.min(cap, VA.PREVIEW_HEIGHT.max, Math.max(VA.PREVIEW_HEIGHT.min, n));
+  };
+
+  VA.previewHeightAfterDrag = function (startHeight, dy, room) {
+    return VA.clampPreviewHeight(startHeight - dy, room);
+  };
+
+  VA.PREVIEW_HEIGHT_KEY = "tolstack.viewer.previewHeight";
+
+  VA.readStoredPreviewHeight = function (store) {
+    return readStoredWidth(store, VA.PREVIEW_HEIGHT_KEY, function (n) {
+      return VA.clampPreviewHeight(n, 0);
+    });
+  };
+
+  VA.writeStoredPreviewHeight = function (store, px) {
+    writeStoredWidth(store, VA.PREVIEW_HEIGHT_KEY, function (n) {
+      return VA.clampPreviewHeight(n, 0);
+    }, px);
+  };
+
+  // --- side by side · 3D · DAG (Jeff, 2026-11-12) ---------------------------
+  //
+  // "does it make sense to have the 2d and 3d canvas be either/or rather than
+  // displayed side by side? ... I'm not sure I want to get rid of the
+  // side-by-side just yet." One control, three states, while the 3D pane is
+  // open: both side by side (the default), the pane in the DAG's region too,
+  // or the DAG in the pane's. Remembered, and in the URL as `?view=`.
+  VA.PANE_VIEWS = {
+    both: { label: "Side by side", title: "The 3D pane and the DAG side by side" },
+    "3d": { label: "3D", title: "The 3D pane alone, in the DAG's room too" },
+    dag: { label: "DAG", title: "The DAG alone, in the 3D pane's room too" },
+  };
+  VA.PANE_VIEW_ORDER = ["both", "3d", "dag"];
+  VA.DEFAULT_PANE_VIEW = "both";
+  VA.PANE_VIEW_KEY = "tolstack.viewer.paneView";
+  // What the leaders control says when the view leaves it nothing to draw.
+  VA.LEADERS_UNAVAILABLE = "Leaders run between the DAG and the 3D pane, side by side";
+
+  VA.isPaneView = function (id) {
+    return Object.prototype.hasOwnProperty.call(VA.PANE_VIEWS, id);
+  };
+
+  // `?view=3d` / `?view=dag`; anything else, or nothing, is null.
+  VA.parsePaneViewParam = function (search) {
+    var m = /[?&]view=([^&]*)/.exec(String(search || ""));
+    var id = m ? decodeURIComponent(m[1]) : null;
+    return id && VA.isPaneView(id) ? id : null;
+  };
+
+  VA.readStoredPaneView = function (store) {
+    try {
+      var raw = store && store.getItem(VA.PANE_VIEW_KEY);
+      return raw && VA.isPaneView(raw) ? raw : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  VA.writeStoredPaneView = function (store, id) {
+    try {
+      if (store && VA.isPaneView(id)) store.setItem(VA.PANE_VIEW_KEY, id);
+    } catch (err) {
+      // A browser that refuses to store it still switches for this session.
+    }
+  };
+
+  // The URL's query with `view` set to `id` (dropped at the default), every
+  // other parameter kept in order.
+  VA.withPaneViewParam = function (search, id) {
+    var parts = String(search || "").replace(/^\?/, "").split("&").filter(function (p) {
+      return p && p.split("=")[0] !== "view";
+    });
+    if (id && id !== VA.DEFAULT_PANE_VIEW) parts.push("view=" + encodeURIComponent(id));
+    return parts.length ? "?" + parts.join("&") : "";
   };
 
   // --- the nav's width (handoff a_face_is_picked_the_way_cad_picks_it) ------
@@ -1748,7 +1775,7 @@
   // studies, it sits at the pane's left edge, and it is `position: sticky;
   // left: 0` so no scroll position can move it out from under anything. It is
   // the drawing that has to survive, so it is the drawing the caller measures.
-  VA.FLYOUT_WIDTH = { min: 400, max: 1200, reserve: 320 };
+  VA.FLYOUT_WIDTH = { min: 400, max: 2400, reserve: 320 };
 
   // `room` is the width the panel and the page's own content are dividing --
   // the viewport less what sits to the RIGHT of the graph (the preview pane and
@@ -1861,6 +1888,9 @@
   function tableWidth() {
     return COLUMNS.reduce(function (sum, c) { return sum + c.width; }, 0);
   }
+  // The grid's width at the columns' current widths: the page sizes the
+  // column it sits in to it (topology_app.js's applyPaneWidth).
+  VA.topoTableWidth = tableWidth;
 
   function colgroup() {
     var cg = VA.el("colgroup");
@@ -1872,25 +1902,21 @@
     return cg;
   }
 
-  // The column header. Padded left by exactly the SVG's width so a header cell
-  // sits over the column it names — the rails are a sibling of the rows, not a
-  // cell of them, so the offset has to be applied by hand and read from the same
-  // geometry the SVG was drawn from. Real <th> cells (deliverable 2): a screen
-  // reader and a copy-paste both get an actual header, not a styled div.
-  function header(leaderGeo, ctx, paneWidth) {
-    var railWidth = leaderGeo.width;
+  // The column header, at the top of the grid's own scroller. Real <th> cells
+  // (deliverable 2): a screen reader and a copy-paste both get an actual
+  // header, not a styled div.
+  function header(ctx, paneWidth) {
     var head = VA.el("div", "tv__head");
-    head.style.paddingLeft = railWidth + "px";
     var table = VA.el("table", "tvheadtable");
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
     var tr = VA.el("tr");
-    // The grid's left edge is the SVG's right edge, so a column's boundary in
-    // the SCROLLPORT'S own coordinates is the rail width plus every column
-    // before it. Accumulated here rather than measured off the DOM: the
-    // header is being built, there is nothing laid out to measure, and this
-    // is the same COLUMNS array the <col> widths come from.
-    var boundary = railWidth;
+    // A column's boundary in the grid scroller's own coordinates is every
+    // column before it, and its own width. Accumulated here rather than
+    // measured off the DOM: the header is being built, there is nothing laid
+    // out to measure, and this is the same COLUMNS array the <col> widths come
+    // from.
+    var boundary = 0;
     var lanes = [];
     var columnGrips = [];
     COLUMNS.forEach(function (c) {
@@ -1913,28 +1939,11 @@
     });
     table.appendChild(VA.el("thead", null, tr));
     head.appendChild(table);
-    // The jog zone's own grip, on the seam between the SVG and the grid --
-    // the boundary a reader would grab anyway. It takes no layout width (see
-    // `.tvgrip` / `.tv__griplane`, topology.css): a grip that took space would
-    // push itself in between a leader's last segment and the grid's first
-    // column, and that hand-off is the one place on this page with no seam to
-    // align.
-    //
-    // `naturalZone` rides along because the drag is measured in pixels and
-    // the preference is held as a multiple of it -- without it the app shell
-    // would have nothing to divide by.
-    var jogGrip = resizeGrip("jog",
-      "Drag to spread the leader lines out.", ctx,
-      { kind: "jog", naturalZone: leaderGeo.naturalZone });
-    // On the seam, which scrolls with the strip (VA.jogGripInset).
-    jogGrip.style.left = VA.jogGripInset(railWidth, paneWidth) + "px";
-    lanes.push(gripLane(jogGrip));
     lanes.forEach(function (lane) { head.appendChild(lane); });
-    // The column grips are the ones a SCROLL moves, so unlike the jog grip's
-    // sticky inset theirs is re-written as the pane scrolls. Hung on the node
-    // rather than wired here: the pane the scroll event comes from is built by
-    // renderTopoPane, one level up, and dies with the next render along with
-    // this closure.
+    // The column grips are the ones a SCROLL moves, so theirs is re-written as
+    // the grid scrolls. Hung on the node rather than wired here: the scroller
+    // the scroll event comes from is built by renderTopoPane, one level up,
+    // and dies with the next render along with this closure.
     head.placeColumnGrips = function (scrollLeft, visibleWidth) {
       columnGrips.forEach(function (entry) {
         entry.grip.style.left =
@@ -1953,25 +1962,11 @@
   // centred on a boundary is that boundary less `half`.
   VA.TOPO_GRIP = { width: 7, half: 3 };
 
-  // Where the jog grip sits: on the seam between the SVG and the grid, less
-  // the hairline's own offset, in the strip's content coordinates.
+  // Where a resizable column's grip sits, in the grid scroller's own
+  // coordinates -- `boundary` is that column's right edge.
   //
-  // It was a sticky inset clamped into the visible pane while the rails were
-  // `position: sticky` (2026-09-16): a seam held at the pane's left edge could
-  // sit off its right edge with no scroll able to bring it back. The rails
-  // scroll with the grid now (the_grid_fits_the_screen_and_its_brackets_say_
-  // what_nests_in_what), so the seam is reached the way the rest of the strip
-  // is, and a clamped grip would only stop naming it. `paneWidth` is kept for
-  // the callers' sake and no longer read.
-  VA.jogGripInset = function (railWidth) {
-    return railWidth - VA.TOPO_GRIP.half;
-  };
-
-  // Where a resizable column's grip sits, in the SCROLLPORT'S own coordinates
-  // -- `boundary` is that column's right edge, rails included.
-  //
-  // Not an inset, unlike the jog grip's: this boundary is a column edge and
-  // really does scroll, so the grip rides it while it is on screen (the value
+  // This boundary is a column edge and really does scroll, so the grip rides
+  // it while it is on screen (the value
   // is then just the boundary, and the browser scrolls the grip with the
   // content for free) and pins to the pane's right edge past that. The pin is
   // what a reader who has widened the preview pane or the ELEMENT column
@@ -1985,9 +1980,9 @@
   };
 
   // A grip's lane: an inert overlay spanning the header's whole scroll width,
-  // holding exactly one grip. Both grips carry an inline `left` -- a sticky
-  // inset for the jog one, a written scrollport coordinate for a column's --
-  // so the lane contributes nothing but the box those are measured in. One
+  // holding exactly one grip. Each grip carries an inline `left` -- a written
+  // scroller coordinate -- so the lane contributes nothing but the box it is
+  // measured in. One
   // lane per grip: see `.tv__griplane`, topology.css, for why they are not
   // shared.
   function gripLane(grip) {
