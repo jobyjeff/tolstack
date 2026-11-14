@@ -3349,8 +3349,19 @@ async function armedClick(pick, other) {
   const a = state.armed;
   const record = AA.findBindingRecord(identityFor(a.topology),
     AA.topologyEdgeKey(a.topologyId, a.edgeId));
-  const plan = AA.planArmedClick(pick, other, AA.endBindings(record, a.direction));
+  const standing = AA.endBindings(record, a.direction);
+  let plan = AA.planArmedClick(pick, other, standing);
   const acts = AA.ARMED_CLICK_ACTIONS;
+  // The face already held is a new answer when its surface brings faces the
+  // set does not hold yet (a split half bound alone before 2026-11-12): the
+  // re-pick takes them, and replaces the set.
+  if (plan.action === acts[2]) {
+    const more = await surfaceSiblingsOf(pick.sha256, pick.faceId);
+    const held = new Set(standing.map((b) => b.geometry_key && b.geometry_key.face_id));
+    if (more.swept.concat(more.offered).some((f) => !held.has(f))) {
+      plan = { action: acts[0], pick, supersedes: AA.answerSupersedes(standing) };
+    }
+  }
   if (plan.action === acts[3]) return plan;
   if (plan.action === acts[1]) {
     setArmedLine(AA.armedWords("notOn", { part: a.partWords }), true);
@@ -5226,6 +5237,20 @@ function identityWriteKey(topology, edgeId) {
   return AA.identityKey(t, edgeId, topologies);
 }
 
+// Every edge end of `topologyId` that reads a binding, as the pane's readers
+// see it (the end view): [{edge, end, face, feature}]. An inspection hook for
+// the browser checks and the hand-run probes, as __embedTree is.
+window.__endsBound = function (topologyId) {
+  const topologies = (state.topologyProjection && state.topologyProjection.topologies) || [];
+  const topology = topologies.find((t) => t.id === topologyId);
+  const view = AA.identityReadThrough(sessionIdentityProjection(), topology);
+  const out = [];
+  ((view && view.stack_keys) || []).forEach((row) => (row.bindings || []).forEach((b) => out.push({
+    edge: row.stack_key.edge_id, end: b.direction, face: b.geometry_key && b.geometry_key.face_id,
+    feature: b.feature_key ? b.feature_key.part + "@" + b.feature_key.node : null })));
+  return out;
+};
+
 // What the feature fold needs beside the events: every topology (an old
 // edge-end event is read through by its model) and the served log's
 // same-surface pairs.
@@ -6131,7 +6156,9 @@ async function publishIdentity(rewrite) {
         await state.storage.writeServedIdentityLog(AA.servedLogDoc(log.events, log.installed_meshes,
           Array.isArray(log.same_surface) ? log.same_surface : state.sameSurface));
         state.installedMeshes = Array.isArray(log.installed_meshes) ? log.installed_meshes : state.installedMeshes;
-        adoptIdentity(AA.foldEvents(log.events));
+        // The log as just read is what the feature fold folds from now.
+        state.identityEvents = log.events;
+        adoptIdentity(AA.foldEvents(log.events, foldOpts()));
       }
     } catch (err) {
       console.warn("the served log was not rewritten:", err);

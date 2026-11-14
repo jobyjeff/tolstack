@@ -577,13 +577,15 @@ body {
 }
 .an__toast--on { opacity: 1; }
 /* The group offer: like faces on the picked face's surface are lit, and this
-   asks once -- all of them, or the one clicked. Same place and chrome as the
-   toast, but it stays until answered. */
+   asks once -- all of them, or the one clicked. The toast's chrome, at the
+   TOP of the scene: embedded, the pane's frame runs below the page's fold,
+   and an answer the reader cannot see is no answer. It stays until answered
+   and wraps in a narrow pane. */
 .an__offer {
-  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-  max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 4px;
+  position: fixed; left: 50%; top: 8px; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 16px); padding: 6px 12px; border-radius: 4px;
   background: #24282e; border: 1px solid #33383f; color: #e8e8e8;
-  font-size: var(--t-meta); display: none; align-items: center; gap: 12px; z-index: 21;
+  font-size: var(--t-meta); display: none; flex-wrap: wrap; align-items: center; gap: 8px 12px; z-index: 21;
 }
 .an__offer--on { display: flex; }
 .an__offer-line { white-space: nowrap; }
