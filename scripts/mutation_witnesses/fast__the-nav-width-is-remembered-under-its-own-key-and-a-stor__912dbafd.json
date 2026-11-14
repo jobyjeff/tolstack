@@ -6,10 +6,10 @@
     {
       "contract": "The nav's width has a key of its own.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
-      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Sharing the pane's key would make one drag move both.",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). Sharing the pane's key would make one drag move both. Re-pointed 2026-11-14 (review of the_page_is_a_fixed_layout_and_nothing_scrolls_the_document): the pane's key became tolstack.viewer.sideWidth, so the old detailWidth collided with nothing.",
       "file": "apps/viewer/views/topology.js",
       "find": "  VA.NAV_WIDTH_KEY = \"tolstack.viewer.navWidth\";",
-      "replace": "  VA.NAV_WIDTH_KEY = \"tolstack.viewer.detailWidth\";"
+      "replace": "  VA.NAV_WIDTH_KEY = \"tolstack.viewer.sideWidth\";"
     }
   ]
 }

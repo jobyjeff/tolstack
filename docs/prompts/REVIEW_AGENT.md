@@ -5925,6 +5925,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       strategy`, rather than inventing a record for it. Also check that the
       feature reaches every surface that does exist (tree feature rows, the DAG,
       the grid) and that the lesson's table names the parts no surface reaches.
+- [ ] **A renamed storage key or constant VALUE decays a sibling's spec whose
+      `replace` collides with the OLD value.** New 2026-11-14
+      (`the_page_is_a_fixed_layout_and_nothing_scrolls_the_document`):
+      `PANE_WIDTH_KEY` went `detailWidth` → `sideWidth`, and the nav key's spec
+      still made `NAV_WIDTH_KEY` equal `detailWidth` — now colliding with
+      nothing, so its guard stayed green. The `--changed-since` gate caught
+      it; the author's `--only` runs could not (the spec was not theirs). On a
+      diff that changes a constant's value, `git grep -l '<old value>'
+      scripts/mutation_witnesses/` and re-point each hit.
 
 ## Architectural errors to check
 
