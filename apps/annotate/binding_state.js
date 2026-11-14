@@ -493,9 +493,14 @@
   };
 
   // The rail row's suggestion line: "suggested · high", naming the surest of
-  // the row's open proposals, or null when there is none.
+  // the row's open proposals at an end nothing is bound at, or null when there
+  // is none. Since 2026-11-12 a proposal follows its feature, so a feature
+  // bound through one edge still lists the proposals other edges' ends were
+  // read through to it; a bound end says bound, never suggested.
   AA.proposalChip = function (record) {
-    var best = AA.endProposals(record, null)[0];
+    var best = AA.endProposals(record, null).filter(function (p) {
+      return !((record && record.bindings) || []).some(function (b) { return b.direction === p.direction; });
+    })[0];
     if (!best) return null;
     return AA.SUGGESTION_ROW_WORDS.suggested.replace("{confidence}", best.confidence);
   };

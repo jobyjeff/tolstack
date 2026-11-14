@@ -12576,6 +12576,27 @@
         eq(two.lines[0].actions.map(function (a) { return a.command[0]; }), ["arm", "unbind"]);
       });
 
+    await test("a feature whose faces disagree says so, lists each face with Keep, and offers " +
+      "Pick a face for when neither is its face", function () {
+        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
+        var f1 = { source_step_sha256: "aa", face_id: 3460 }, f2 = { source_step_sha256: "bb", face_id: 144 };
+        var record = { state: VA.FEATURE_STATES[1], disagreement: [{ faces: [f1] }, { faces: [f2] }] };
+        var model = {
+          feature: function () { return { part: "hub" }; },
+          endsOf: function () { return [{ edgeId: "g1", end: "from" }, { edgeId: "g2", end: "to" }]; },
+          status: function () { return VA.FEATURE_STATUSES.suggested; },
+          featureRecord: function () { return record; },
+          part: function () { return { number: "214373-002" }; },
+        };
+        var plan = VA.featureBodyPlan(model, "hub@boss", "mini", [{ key: "k" }], null);
+        eq(plan.kind, K.disagree, "a disagreement is planned even where the pane lists rows");
+        eq(plan.lines.map(function (l) { return l.text; }), ["2 faces disagree", "face 3460", "face 144"]);
+        eq(plan.lines.slice(1).map(function (l) { return l.actions[0].command; }), [
+          ["keep", "g1", "from", "mini", "aa", "3460"], ["keep", "g1", "from", "mini", "bb", "144"]]);
+        eq(plan.actions.map(function (a) { return [a.text, a.command]; }),
+           [[W.pick, ["arm", "g1", "from", "mini", "hub"]]]);
+      });
+
     await test("a planned body renders its lines and actions: a bound line lights its face on " +
       "hover and lets go on leave, and each button posts its own verb", function () {
         var model = VA.buildModel(bodiedProj(), boundIdentity());

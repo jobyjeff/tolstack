@@ -1450,6 +1450,20 @@ check("Accept writes the proposed face, at the proposed end, as a `bound` event 
   assertEqual(AA.elementBindingState(row, null), AA.BINDING_STATES.BOUND);
 });
 
+check("a bound end's leftover proposal raises no suggestion chip; the open end's still does", () => {
+  // A proposal follows its feature (2026-11-12): a feature bound through one
+  // edge still lists proposals other edges' ends were read through to it.
+  const row = AA.addEventToRecord(emptyRow(), PROPOSAL);
+  AA.addEventToRecord(row, Object.assign({}, PROPOSAL, {
+    event_id: "proposal-0002-rod_len-to", direction: "to", confidence: "medium" }));
+  row.bindings.push({ event_id: "b1", verdict: "bound", direction: "from",
+    geometry_key: PROPOSAL.geometry_key });
+  assertEqual(AA.proposalChip(row), "suggested · medium");
+  row.bindings.push({ event_id: "b2", verdict: "bound", direction: "to",
+    geometry_key: PROPOSAL.geometry_key });
+  assertEqual(AA.proposalChip(row), null, "a bound end still read suggested");
+});
+
 check("an agent cannot accept or reject, and nothing but a proposal can be answered", () => {
   const agent = { eventId: "x", seq: 2, createdAt: "t", recordedBy: PROPOSAL.recorded_by };
   assertThrows(() => AA.buildAcceptEvent(PROPOSAL, agent));

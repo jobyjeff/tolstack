@@ -897,7 +897,8 @@
   //              feature holding a set says "bound · 3 faces of ..." and
   //              lists each face (hoverable) with Remove
   //   disagree   "2 faces disagree", each face hoverable with Keep: nothing
-  //              is bound until one is kept (the feature reads suggested)
+  //              is bound until one is kept (the feature reads suggested);
+  //              Pick a face, for when neither is the feature's face
   //   suggested  the pane's candidate rows, as before; with none (the run does
   //              not carry the feature) the suggestion's line and Pick a face
   //   neither    "not bound" and Pick a face, which arms the same pick
@@ -983,7 +984,7 @@
       return { kind: K.disagree, lines: [{ text: fill(W.disagree, { n: faces.length }) }].concat(faces.map(function (f) {
         return faceLine(f, fill(W.setFace, { face: f.face_id }),
           [{ text: W.keep, title: W.keepTitle, command: verb(V.keep, ends[0], f) }]);
-      })), actions: [] };
+      })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }] };
     }
     if (status === VA.FEATURE_STATUSES.bound && record && (record.faces || []).length > 1 && ends.length) {
       var end = model.bindingsOf(fid)[0] || ends[0];

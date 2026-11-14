@@ -5283,6 +5283,10 @@ function sessionIdentityProjection() {
   if (state.sessionEvents.length === 0) return state.identityProjection;
   const base = state.identityProjection ? JSON.parse(JSON.stringify(state.identityProjection)) : { stack_keys: [] };
   for (const event of state.sessionEvents) {
+    if (event.feature_key) {
+      placeAtFeatureEnds(base, event);
+      continue;
+    }
     let row = base.stack_keys.find((r) => AA.stackKeyEquals(r.stack_key, event.stack_key));
     if (!row) {
       row = { stack_key: event.stack_key, state: "owner_not_in_set", bindings: [], owner_not_in_set: [], history: [], superseded: [] };
@@ -5291,6 +5295,41 @@ function sessionIdentityProjection() {
     AA.addEventToRecord(row, event);
   }
   return base;
+}
+
+// A transport with no log (the in-memory one: mock mode, the browser tier's
+// fixtures) gives the pane a projection and nothing to refold, so a
+// feature-keyed event this session wrote is put where the end view would put
+// it: on every edge end that reads its feature, one copy per face, stamped
+// with that end (VA.endView's own shape). An answer copied to an end that
+// does not hold the proposal is a plain binding there -- the fold would read
+// it as a repeat otherwise.
+function placeAtFeatureEnds(base, event) {
+  const VA = window.ViewerApp;
+  const want = VA.featureToken(event.feature_key);
+  const faces = VA.eventFaces(event);
+  for (const topology of (state.topologyProjection && state.topologyProjection.topologies) || []) {
+    for (const edge of topology.edges || []) {
+      for (const direction of AA.DIRECTIONS) {
+        if (VA.featureToken(VA.endFeatureKey(topology, edge.id, direction)) !== want) continue;
+        const stackKey = { kind: "topology_edge", topology_id: topology.id, edge_id: edge.id };
+        let row = base.stack_keys.find((r) => AA.stackKeyEquals(r.stack_key, stackKey));
+        if (!row) {
+          row = VA.emptyIdentityRecord(stackKey);
+          base.stack_keys.push(row);
+        }
+        const answered = event.ratifies || event.rejects;
+        const holds = !answered || (row.proposals || []).some((p) => p.event_id === answered);
+        (faces.length ? faces : [undefined]).forEach((face, i) => {
+          const copy = Object.assign({}, event, { stack_key: stackKey, direction });
+          if (face) copy.geometry_key = face;
+          // The first copy answers the proposal; the rest bind their faces.
+          if (!holds || i > 0) { delete copy.ratifies; delete copy.rejects; }
+          AA.addEventToRecord(row, copy);
+        });
+      }
+    }
+  }
 }
 
 function precedenceNote(edge) {

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a bound end's leftover proposal raises no suggestion chip; the open end's still does",
+  "mutations": [
+    {
+      "contract": "A rail row's suggestion chip counts only the proposals at ends nothing is bound at.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_feature_is_bound_once_to_a_set_of_faces.md",
+      "note": "Declared with the guard by handoff a_feature_is_bound_once_to_a_set_of_faces (review round 2). A proposal follows its feature, so a feature bound through one edge still lists the proposals other edges' ends read through to it: on the real log nine edges read 'suggested' beside a bound end.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      return !((record && record.bindings) || []).some(function (b) { return b.direction === p.direction; });",
+      "replace": "      return true;"
+    }
+  ]
+}

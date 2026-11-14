@@ -7413,6 +7413,11 @@ async function installRealAnnotatorReads(page, seed) {
           });
           return doc;
         };
+        // The served log, as every real transport gives the pane (since
+        // 2026-11-12) and as the shell reads it -- through the same route, so
+        // `unaccept` reaches it there. The pane folds it with this session's
+        // writes; a projection alone, with its features, has nothing to refold.
+        P.readFeatureIdentityLog = async () => json("/projections/viewer/feature-identity/log.json");
         P.readContactSuggestions = async () => json("/projections/feature-identity/contact_suggestions.json");
         return true;
       }
@@ -9071,20 +9076,35 @@ async function testAnnotateArmedPick(browser, label) {
       (await scene()).armed && (await scene()).writes === before.writes);
 
     // --- the click binds -----------------------------------------------------
+    // The demo triangle's two faces lie in one plane and do not touch: like
+    // faces on one surface, interrupted, so the click offers them as a group
+    // and writes nothing until it is answered (2026-11-12). "Just this one"
+    // binds the face clicked.
     await page.mouse.move(face1.x, face1.y, { steps: 3 });
     await page.mouse.down();
     await page.mouse.up();
+    await page.waitForSelector("#an-offer.an__offer--on", { timeout: 5000 }).catch(() => {});
+    const offered = await page.evaluate(() => {
+      const n = document.querySelector("#an-offer.an__offer--on");
+      return { line: n ? (n.querySelector(".an__offer-line") || {}).textContent : null,
+        armed: !!window.__sweep.armed, writes: (window.__mockWrites || []).length };
+    });
+    push("a click on a face with an interrupted like face offers the two as a group, writing nothing, still armed",
+      offered.line === "2 like faces on this surface" && offered.armed && offered.writes === before.writes);
+    await page.locator('#an-offer [data-offer="one"]').click();
     await page.waitForFunction(() => !window.__sweep.armed, null, { timeout: 5000 }).catch(() => {});
     const bound = await scene();
     const written = await page.evaluate(() => {
       const w = window.__mockWrites[window.__mockWrites.length - 1];
-      const e = w && (w.event || w.content || w.data || w);
-      return e ? JSON.stringify(e) : "";
+      return (w && (w.event || w.content || w.data || w)) || {};
     });
     const toast = await page.evaluate(() => (document.getElementById("an-toast") || {}).textContent || "");
+    // The end's own feature: the dimension's part at the end's node (node a,
+    // demo_edge_traced's from end), one face, no direction (v1).
     push("a click binds face 1 at the end's own direction, into the mock's captured writes",
-      bound.writes === before.writes + 1 && written.indexOf('"face_id":1') !== -1 &&
-      written.indexOf('"direction":"from"') !== -1 && written.indexOf("demo_edge_traced") !== -1);
+      bound.writes === before.writes + 1 && written.verdict === "bound" &&
+      written.feature_key && written.feature_key.part === "demo_triangle" && written.feature_key.node === "a" &&
+      (written.geometry_keys || []).map((g) => g.face_id).join() === "1" && !("direction" in written));
     push("the row's state line reads bound, the toast names the write, and the pick disarms",
       bound.line === "bound · face 1" && !bound.filter &&
       /^Bound demo bolt-head bearing face to face 1 of /.test(toast));
@@ -9298,7 +9318,10 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       if (ends.length === 2 && to && from && to.edge === from.edge &&
         to.open && from.open && to.listed && from.listed) return { joint: j.dataset.joint, edge: to.edge, to, from };
     }
-    return { joint: null, seen: joints.map((j) => j.dataset.joint) };
+    return { joint: null, seen: joints.map((j) => j.dataset.joint + ": " +
+      Array.from(j.querySelectorAll("li.tree-row[data-edge][data-direction]")).map((li) =>
+        li.dataset.edge + "/" + li.dataset.direction + "=" + li.dataset.state +
+        (li.querySelector(":scope > .tree-cands .tree-cand[data-face]") ? "+listed" : "")).join(" ")) };
   };
   let UPPER = /^$^/, LOWER = /^$^/, TAKE_JOINT = /^$^/, TAKE_EDGE = null;
   try {
@@ -9649,7 +9672,9 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     // the bound colour.
     const takenFace = await inPane((w) => {
       const last = (w.__mockWrites || []).slice(-1)[0];
-      return last && last.event && last.event.geometry_key ? last.event.geometry_key.face_id : null;
+      // A feature-keyed event (2026-11-12) lists its faces; the face taken is the first.
+      const face = last && last.event && ((last.event.geometry_keys || [])[0] || last.event.geometry_key);
+      return face ? face.face_id : null;
     });
     if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
     await until((sel) => {
@@ -9827,15 +9852,22 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       armed.action && armed.action.text === "Cancel" && armed.action.pressed);
     await page.evaluate(() => window.__scene.onPick(
       { sha256: window.AnnotateApp.FIXTURES.demoSha, faceId: 1 }, null, null));
+    // The demo's two faces are like faces that do not touch: the click offers
+    // the group first, and "Just this one" binds the face clicked.
+    await page.waitForSelector("#an-offer.an__offer--on", { timeout: 5000 }).catch(() => {});
+    await page.locator('#an-offer [data-offer="one"]').click();
     await page.waitForFunction(() => (window.__mockWrites || []).length >= 2 && !window.__sweep.armed,
       null, { timeout: 5000 }).catch(() => {});
     const answered = await read(page);
     const [r, b] = answered.writes.map((w) => w.event);
+    // The bound event is the end's feature's (v1): node a on the demo
+    // triangle, the one face, no direction.
     push("the face then clicked writes `rejected` for the proposal and then `bound` for that face, " +
       "both as the reviewer, numbered in that order",
       answered.writes.length === 2 && r && b && r.verdict === "rejected" &&
       r.rejects === "proposal-0009-demo_edge_traced-from" && b.verdict === "bound" &&
-      b.geometry_key.face_id === 1 && b.direction === "from" && !b.ratifies &&
+      b.feature_key && b.feature_key.part === "demo_triangle" && b.feature_key.node === "a" &&
+      (b.geometry_keys || []).map((g) => g.face_id).join() === "1" && !("direction" in b) && !b.ratifies &&
       r.recorded_by === "annotate-app:jeff" && b.recorded_by === "annotate-app:jeff" &&
       b.seq === r.seq + 1 && /_rejected\.json$/.test(answered.writes[0].filename) &&
       answered.writes[0].filename < answered.writes[1].filename);
@@ -9905,8 +9937,10 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     const te = (taken.writes[0] || {}).event || {};
     push("Take writes one `bound` event for that face at that end, as the reviewer, and the row " +
       "reads bound · face N",
-      taken.writes.length === 1 && te.verdict === "bound" && te.direction === "from" &&
-      te.geometry_key.face_id === 0 && !te.ratifies && te.recorded_by === "annotate-app:jeff" &&
+      taken.writes.length === 1 && te.verdict === "bound" &&
+      te.feature_key && te.feature_key.part === "demo_triangle" && te.feature_key.node === "a" &&
+      (te.geometry_keys || []).map((g) => g.face_id).join() === "0" && !("direction" in te) &&
+      !te.ratifies && te.recorded_by === "annotate-app:jeff" &&
       taken.line === "bound · face 0");
   } catch (err) {
     await page.close();
@@ -10018,18 +10052,31 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
     server.close();
     return reportSuite(label, checks, errors);
   }
-  // Open proposals per (edge, end), straight off the projection on disk.
+  // Open proposals per (edge, end), straight off the projections on disk.
+  // Since 2026-11-12 a proposal follows its feature: an end reads the
+  // proposals of the feature it is (the dimension's part at the end node, or
+  // a gap edge's end node's first part, keyed by the model's `identity`), open
+  // where that feature has nothing bound.
   const open = {};
-  for (const row of identity.stack_keys || []) {
-    const k = row.stack_key || {};
-    if (k.kind !== "topology_edge" || k.topology_id !== topology.id) continue;
-    for (const p of row.proposals || []) {
-      const bound = (row.bindings || []).some((b) => b.direction === p.direction);
-      if (!bound) open[k.edge_id + "|" + p.direction] = (open[k.edge_id + "|" + p.direction] || 0) + 1;
+  const featureOf = {};
+  for (const f of (topology.model && topology.model.features) || []) featureOf[f.id] = f.identity;
+  const firstPart = {};
+  for (const n of topology.nodes || []) firstPart[n.id] = (n.parts || [])[0];
+  const token = (k) => k && [k.topology_id, k.part, k.node].join("|");
+  const recordOf = {};
+  for (const r of identity.features || []) recordOf[token(r.feature_key)] = r;
+  for (const edge of topology.edges || []) {
+    for (const dir of ["from", "to"]) {
+      const node = edge[dir];
+      const part = edge.kind === "structural" ? edge.part : firstPart[node];
+      const r = recordOf[token(featureOf[part + "@" + node] || { topology_id: topology.id, part, node })];
+      if (r && !(r.bindings || []).length && (r.proposals || []).length) {
+        open[edge.id + "|" + dir] = r.proposals.length;
+      }
     }
   }
   const openEdges = new Set(Object.keys(open).map((k) => k.split("|")[0]));
-  const openEnds = Object.values(open).reduce((a, n) => a + n, 0);
+  const openEnds = Object.keys(open).length;
   page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on("pageerror", (e) => errors.push(String(e)));
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
@@ -14786,6 +14833,10 @@ async function testAnnotateBindForm(browser, label) {
     await page.evaluate(() => window.AnnotateApp.exec(["select-face",
       window.AnnotateApp.FIXTURES.demoSha, "1"]));
     const second = await page.evaluate(() => window.__scene.bindLeader());
+    if (!second) console.log("    DIAG second leader: none; choices " + JSON.stringify(await choices()) +
+      "; ends bound " + JSON.stringify(await page.evaluate(() => window.__endsBound("demo_system"))) +
+      "; banner " + await page.evaluate(() => (document.querySelector("#banner") || {}).textContent) +
+      "; writes " + JSON.stringify(await page.evaluate(() => (window.__mockWrites || []).map((w) => w.event))).slice(0, 900));
     push("picking the second face draws the leader between the two, before " +
       "anything more is written",
       second && second.picked.faceId === 1 && second.bound.faceId === 0 &&
@@ -15344,7 +15395,11 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(600);
     };
-    // Let go of the selection the Escape checks left, and open the hub.
+    // Let go of the selection the Escape checks left, and open the hub. The
+    // pointer leaves the body it last clicked first: a disagreement's body
+    // (the hub's boss, until Jeff keeps a face) re-renders a face line under
+    // where its Pick a face was, and a face line hovered lights its part.
+    await page.mouse.move(4, 4);
     await page.locator("#flyout-title").focus().catch(() => {});
     await page.keyboard.press("Escape");
     await page.waitForTimeout(800);
@@ -15398,8 +15453,11 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const leftRest = await sameAsRest();
     const leftPage = await pageLit();
     if (!(leftDown && leftRest)) {
-      console.log(`      [${label}] DIAG after leaving the hub row: light down ${leftDown}, looks ` +
-        `${JSON.stringify(await sceneLooks())} vs rest ${restLooks}`);
+      const now = await sceneLooks();
+      const was = JSON.parse(restLooks);
+      console.log(`      [${label}] DIAG after leaving the hub row: light down ${leftDown}, looks differing from rest ` +
+        JSON.stringify(now.map((r, i) => [r, was[i]]).filter(([a, b]) => JSON.stringify(a) !== JSON.stringify(b))) +
+        ` (${now.length} now, ${was.length} at rest)`);
     }
     push("[real] ...and leaving the row takes every surface's light down, the scene back to rest",
       leftDown && leftRest && leftPage.rowsOwn.length === 0 && leftPage.treeOwn.length === 0);
@@ -15582,16 +15640,33 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const pilotEnds = (view.interfaces || []).find((i) => i.id === PILOT).ends;
     const dimsAtPilot = (view.dimensions || []).filter((d) =>
       pilotEnds.indexOf(d.from) !== -1 || pilotEnds.indexOf(d.to) !== -1).map((d) => d.id).sort();
+    // Does either end hold a bound face? Read off the feature-identity
+    // projection: since 2026-11-12 an end shows its FEATURE's binding, and a
+    // feature whose faces disagree (the hub's locating boss, until Jeff keeps
+    // one) has none -- so the overlay is asked for exactly when one is bound.
+    let pilotBound = false;
+    try {
+      const ident = JSON.parse(await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
+        "bindings.json"), "utf8"));
+      const token = (k) => k && [k.topology_id, k.part, k.node].join("|");
+      const boundTokens = new Set((ident.features || []).filter((r) => r.state === "bound")
+        .map((r) => token(r.feature_key)));
+      pilotBound = pilotEnds.some((fid) => {
+        const f = (view.features || []).find((x) => x.id === fid);
+        return f && boundTokens.has(token(f.identity));
+      });
+    } catch { pilotBound = true; }
     console.log(`      [${label}] pilot gap hovered from the grid: own rows ${JSON.stringify(gapHover.rowsOwn)}, touching ` +
       `${JSON.stringify(gapHover.rowsTouching.sort())} (dimensions at its ends: ${JSON.stringify(dimsAtPilot)}); dots ` +
       `${JSON.stringify(uniq(gapHover.dotsOwn))}; tree own ${JSON.stringify(uniq(gapHover.treeOwn))}; pane ` +
-      `${JSON.stringify(gapLight && gapLight.layers)}; opaque ${gapLooks.filter((r) => r.opacity >= 1).length}`);
+      `${JSON.stringify(gapLight && gapLight.layers)}; an end bound ${pilotBound}; opaque ${gapLooks.filter((r) => r.opacity >= 1).length}`);
     push("[real] a gap edge hovered from the grid lights its row, its bar and its two end dots as own, the dimensions " +
       "at its ends as touching, its row and its ends in the tree, overlays its bound face in the scene, and no part goes solid",
       gapHover.rowsOwn.join() === PILOT && gapHover.rowsTouching.slice().sort().join() === dimsAtPilot.join() &&
       uniq(gapHover.dotsOwn).join() === uniq(["hub_spindle_bore_axis", "tan_link_mount_pilot_bore"]).join() &&
       gapHover.treeOwn.indexOf(PILOT) !== -1 && gapHover.treeOwn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 &&
-      !!gapLayer && gapLayer.faceOverlays > 0 && gapLooks.length > 0 && gapLooks.every((r) => r.opacity < 1));
+      (pilotBound ? !!gapLayer && gapLayer.faceOverlays > 0 : !(gapLayer && gapLayer.faceOverlays > 0)) &&
+      gapLooks.length > 0 && gapLooks.every((r) => r.opacity < 1));
     await page.mouse.move(4, 4);
     await page.waitForTimeout(600);
 

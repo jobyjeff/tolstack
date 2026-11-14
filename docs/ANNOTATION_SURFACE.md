@@ -968,8 +968,9 @@ v1 edges; it is picked once and every one of those ends reads it.
   that are one surface (`feature_geometry.same_surface`, its thresholds
   measured over six meshes and stated there) stand as one set; anything else
   is a **disagreement** -- shown on the feature ("2 faces disagree", each face
-  hoverable, **Keep** on each), never chosen silently, and read as a
-  suggestion until a face is kept. An event whose model or edge is gone is an
+  hoverable, **Keep** on each, and **Pick a face** for when neither is
+  right), never chosen silently, and read as a suggestion until a face is
+  kept or picked; until then no end of it shows a bound face. An event whose model or edge is gone is an
   orphan, kept in history.
 - **A feature-keyed event replaces what was read through.** Once a v1 `bound`
   or `retracted` names the feature, its v1 events alone decide it; the old
@@ -1042,7 +1043,10 @@ does. The rail row is the surface, in both modes and in the shell's mirror:
   bound end reads as bound (bound wins, as the fold says), and a proposal at
   the *other* end of an edge is not a suggestion at this one. Its state is
   `proposed`, which raises no alert. Bind mode's element row (one row per
-  edge) carries the same line, naming the surest of the edge's proposals.
+  edge) carries the same line, naming the surest of the edge's proposals at
+  an end nothing is bound at. Since 2026-11-12 a proposal follows its
+  feature, so a feature bound through one edge still lists the proposals
+  other edges' ends were read through to it; those raise no line.
 - **Selecting the row lights the face** (`inspect feature <edge> <end>`): the
   proposed face is drawn **solid** in the suggestion colour on every
   occurrence of its part, the camera frames the occurrence the end's body
