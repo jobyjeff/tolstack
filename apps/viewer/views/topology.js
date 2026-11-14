@@ -1535,14 +1535,12 @@
   // Where the remembered width is kept, and the ONE key it is kept under.
   // Jeff asked for the width to persist and said localStorage is fine.
   //
-  // This is the first preference on this page that outlives the session, and
-  // it is deliberately the only one: the others (row density, edge length
-  // mode, leader style, jog zone scale) are ways of reading the DIAGRAM, and
-  // topology_app.js's own comment on `jogZoneScale` argues they are better
-  // reset — a stored pixel width for a jog zone crushes one topology's lanes
-  // and barely moves another's. A pane width has none of that coupling: it is
-  // a property of the window, it means the same thing on every topology and
-  // in both modes, and it is the one Jeff noticed was wrong.
+  // This was the first preference on this page to outlive the session. The
+  // ways of reading the DIAGRAM (row density, edge length mode, leader style)
+  // are reset instead; a region's size is not of that kind: it is a property
+  // of the window, it means the same thing on every topology and in both
+  // modes, and it is the one Jeff noticed was wrong. (Review, 2026-11-14: this
+  // cited a `jogZoneScale` comment the fixed shell deleted with the jog zone.)
   //
   // `store` is injected so both directions are testable without a browser,
   // and every access is wrapped: a file:// page's localStorage is per-path at
@@ -1553,9 +1551,10 @@
   // grid, a number that means something else now.
   VA.PANE_WIDTH_KEY = "tolstack.viewer.sideWidth";
 
-  // Both directions of a remembered width, over any key and any clamp. Two
-  // widths are remembered on this page now (the preview pane, the annotator
-  // flyout) and every wrapper below is one line, so the try/catch discipline
+  // Both directions of a remembered width, over any key and any clamp. Several
+  // sizes are remembered on this page (the column right of the DAG, the
+  // Preview's height, the nav, the annotator flyout) and every wrapper below
+  // is one line, so the try/catch discipline
   // and the "an unreadable value reads as no preference" rule live in exactly
   // one place rather than once per control.
   function readStoredWidth(store, key, clamp) {
