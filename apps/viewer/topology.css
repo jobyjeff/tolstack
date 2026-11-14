@@ -1459,7 +1459,7 @@ body.tv-resizing-row { cursor: row-resize; }
 .tv .detail {
   /* It gives way before the grid does on a short window: never more than
      half the column. */
-  flex: 0 1 auto; height: 40%; max-height: 50%; min-height: 120px; width: auto;
+  flex: 0 1 auto; height: 40%; max-height: calc(100% - 160px); min-height: 120px; width: auto;
   border-left: none; border-top: 1px solid var(--line);
   position: static; max-height: none; overflow-y: auto;
 }

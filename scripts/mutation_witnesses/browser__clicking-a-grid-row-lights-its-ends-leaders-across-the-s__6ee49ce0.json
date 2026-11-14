@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)",
-  "expect_red": "clicking a grid row lights its ends' leaders on both overlays in the accent and dims the rest",
+  "expect_red": "clicking a grid row lights its ends' leaders across the seam in the accent and dims the rest",
   "mutations": [
     {
       "contract": "With anything selected, every other DAG-grid leader steps back.",
       "issue": null,
-      "note": "Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Leaves them at full strength.",
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Declared with the guard by handoff leaders_follow_the_active_study_across_the_seam (2026-10-27). Leaves them at full strength.",
       "file": "apps/viewer/views/topology.js",
       "find": "      else if (ctx.selection) classes.push(\"rail__leader--dim\");\n",
       "replace": ""

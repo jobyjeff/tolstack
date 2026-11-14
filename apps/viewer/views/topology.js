@@ -1905,10 +1905,18 @@
     // the grid scrolls. Hung on the node rather than wired here: the scroller
     // the scroll event comes from is built by renderTopoPane, one level up,
     // and dies with the next render along with this closure.
+    // Every column has a grip (2026-11-14), so more than one boundary can be
+    // past the visible edge at once: only the first of them is pinned there,
+    // and the rest are not drawn -- two grips on one pixel would hand the
+    // drag to whichever is on top.
     head.placeColumnGrips = function (scrollLeft, visibleWidth) {
+      var pinned = false;
       columnGrips.forEach(function (entry) {
-        entry.grip.style.left =
-          VA.columnGripLeft(entry.boundary, scrollLeft, visibleWidth) + "px";
+        var left = VA.columnGripLeft(entry.boundary, scrollLeft, visibleWidth);
+        var off = left < entry.boundary - VA.TOPO_GRIP.width;
+        entry.grip.style.display = off && pinned ? "none" : "";
+        if (off) pinned = true;
+        entry.grip.style.left = left + "px";
       });
     };
     head.placeColumnGrips(0, paneWidth);

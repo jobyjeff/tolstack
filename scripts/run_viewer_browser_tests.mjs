@@ -1185,7 +1185,8 @@ async function clearPoint(page, selector, action) {
       }
       return null;
     };
-    const hscroll = node.closest(".tv__hscroll");
+    // The region's own scroller: the DAG's or, for a grid cell, the grid's.
+    const hscroll = node.closest(".tv__hscroll, .tv__gridscroll");
     const left = hscroll ? hscroll.scrollLeft : 0;
     node.scrollIntoView({ block: "center" });
     if (hscroll) hscroll.scrollLeft = left;
@@ -14164,6 +14165,11 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
         dagPastGrid: Math.max(...marks.map((b) => b.right - extentRight)),
       };
     }, where === undefined ? null : where);
+    // At a window narrow enough that the walk overflows the DAG's region
+    // sideways: since the grid took a column of its own (2026-11-14) the
+    // drawing alone fits the region at this suite's width.
+    const respineViewport = page.viewportSize();
+    await page.setViewportSize({ width: 1200, height: respineViewport.height });
     await pickModel(page, "vpa_pitch_linkage");
     await settled();
     const scrolledWalk = await paneBoxes("end");
@@ -14238,6 +14244,7 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       "moved to " + (afterScroll.scrollWidth - afterScroll.clientWidth) + ")");
     // Back to the walk for the blocks below, which measure a pane at
     // horizontal zero -- where the respine above has already left it.
+    await page.setViewportSize(respineViewport);
     await pickModel(page, "vpa_pitch_linkage");
     await settled();
 
@@ -15695,12 +15702,11 @@ async function testSeamLeaders(browser, label, topologies) {
       m = await measure();
     }
     const ends = first ? [first.from, first.to] : [];
-    push("clicking a grid row lights its ends' leaders on both overlays in the accent and dims the rest",
+    push("clicking a grid row lights its ends' leaders across the seam in the accent and dims the rest",
       clicked && ends.every((id) => stateOf(m, id).indexOf("seam__leader--" + S[0]) !== -1) &&
       m.paths.filter((p) => ends.indexOf(p.id) === -1)
         .every((p) => p.cls.indexOf("seam__leader--" + S[2]) !== -1) &&
-      Object.keys(m.grid).length > 0 && Object.entries(m.grid).every(([id, cls]) =>
-        ends.indexOf(id) !== -1 ? /rail__leader--selected/.test(cls) : /rail__leader--dim/.test(cls)));
+      Object.keys(m.grid).length === 0);
 
     // The scene's tree marks a row selected (a pick in the scene does that):
     // the page selects the element the row names -- the same state a click makes.
@@ -16071,17 +16077,17 @@ async function testSeamLeaders(browser, label, topologies) {
       for (const block of ["center", "start", "end"]) {
         // Vertically only: the rails scroll with the grid, and a sideways
         // scroll to a wide row takes the dots the leaders start from with it.
-        const strip = row.closest(".tv__hscroll");
+        // The grid's own region (the fixed shell, 2026-11-14).
+        const strip = row.closest(".tv__gridscroll");
         const keep = strip ? strip.scrollLeft : 0;
         row.scrollIntoView({ block, inline: "nearest" });
         if (strip) strip.scrollLeft = keep;
         await frame();
         const r = row.getBoundingClientRect();
-        const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails").getBoundingClientRect();
-        const pane = document.querySelector("#topopane").getBoundingClientRect();
+        const pane = strip.getBoundingClientRect();
         const y = r.top + r.height / 2;
-        if (!r.height || y < Math.max(pane.top, 0) || y > Math.min(pane.bottom, innerHeight)) continue;
-        const left = Math.max(r.left, rails.right) + 2, right = Math.min(r.right, pane.right, innerWidth) - 2;
+        if (!r.height || y < Math.max(pane.top + 26, 0) || y > Math.min(pane.bottom, innerHeight)) continue;
+        const left = Math.max(r.left, pane.left) + 2, right = Math.min(r.right, pane.right, innerWidth) - 2;
         for (let i = 0; i <= 16 && right > left; i++) {
           const x = left + (right - left) * i / 16;
           const hit = document.elementFromPoint(x, y);
@@ -16295,7 +16301,7 @@ async function testSeamLeaders(browser, label, topologies) {
         const row = document.querySelector(`#topogrid tr.tvrow[data-id="${E}"]`);
         if (!row) return;
         // Vertically only (the rails scroll with the grid; see above).
-        const strip = row.closest(".tv__hscroll");
+        const strip = row.closest(".tv__gridscroll");
         const keep = strip ? strip.scrollLeft : 0;
         row.scrollIntoView({ block: "center" });
         if (strip) strip.scrollLeft = keep;
@@ -16312,9 +16318,10 @@ async function testSeamLeaders(browser, label, topologies) {
         const row = document.querySelector(`#topogrid tr.tvrow[data-id="${E}"]`);
         if (!row) return null;
         const r = row.getBoundingClientRect();
-        const rails = document.querySelector("#topopane .tv__hscroll svg.tv__rails").getBoundingClientRect();
-        const pane = document.querySelector("#topopane").getBoundingClientRect();
-        const left = Math.max(r.left, rails.right);
+        // Inside the grid's own region, under its pinned header.
+        const pane = document.querySelector("#topogrid .tv__gridscroll").getBoundingClientRect();
+        if (r.top < pane.top + 26 || r.bottom > pane.bottom) return null;
+        const left = Math.max(r.left, pane.left) + 4;
         const right = Math.min(r.right, pane.right, innerWidth);
         return right > left ? [(left + right) / 2, r.top + r.height / 2] : null;
       }, E);
@@ -16372,7 +16379,7 @@ async function testSeamLeaders(browser, label, topologies) {
     push("[real] a re-lay of the DAG with a row selected leaves its leaders on its ends' dots and " +
       "their anchors, both ways",
       traceHolds(relaid, [e2.from, e2.to]) && traceHolds(relaidBack, [e2.from, e2.to]) &&
-      relaid.gridLit.length > 0);
+      relaid.seamLit.length > 0);
     await live.setViewportSize({ width: 1920, height: 1080 });
     const at1920 = await traceRound(order.slice(2));
     push("[real] ...and at 1920x1080, after the window grew under them",
@@ -16473,9 +16480,10 @@ async function testSeamLeaders(browser, label, topologies) {
     // A node selected on the DAG is selected in the scene's own layer.
     await liveSettle();
     lm = await liveMeasure();
-    const node = Object.keys(lm.grid).find((id) => lm.ids.indexOf(id) !== -1) || null;
+    // A node with a leader across the seam, selected by its own dot.
+    const node = lm.ids[0] || null;
     if (node) {
-      await live.locator(`#topopane .tv__hscroll path.rail__leaderhit[data-leader-id="${node}"]`)
+      await live.locator(`#topopane .tv__hscroll svg.tv__rails circle[data-row-kind="node"][data-id="${node}"]`)
         .first().dispatchEvent("click");
     }
     const sceneSelected = !!node && await liveUntil((id) => {
