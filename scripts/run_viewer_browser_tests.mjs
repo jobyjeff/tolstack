@@ -6676,8 +6676,9 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // accept unchanged; a width sitting at the clamp would round-trip even if
     // nothing were stored at all, which is a check that cannot fail.
     const remembered = await dragBy(-180);
+    const floorWidth = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.min);
     push("the remembered width is well inside the clamp, so the round-trip " +
-      "below is a real one", remembered < maxed - 100 && remembered > coarse);
+      "below is a real one", remembered < maxed - 100 && remembered > floorWidth + 10);
     const storedKey = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY);
     push("the width is written to localStorage under the flyout's own key",
       String(await page.evaluate((k) => window.localStorage.getItem(k), storedKey))
