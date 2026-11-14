@@ -7894,16 +7894,17 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
         return { x: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width) };
       };
       return { nav: box("#navtree"), scene: box("#annotate-flyout"),
-        dag: box("#topopane svg.tv__rails"), grid: box(".tv__main"),
+        dag: box("#topopane svg.tv__rails"), pane: box("#topopane"), grid: box(".tv__main"),
         detail: box("#detail"), chart: box("#detail figure.kmchart"),
         shown: getComputedStyle(document.querySelector("#detail")).display };
     });
-    push("[real] the kinematic page reads nav | scene | DAG | results, left to " +
-      "right, the chart in the results pane",
+    push("[real] the kinematic page reads tree | scene | DAG | grid and results, left to " +
+      "right, the chart in the results pane under the grid",
       layout.nav && layout.scene && layout.dag && layout.detail && layout.chart &&
-      layout.nav.x <= 1 && Math.abs(layout.scene.x - layout.nav.right) <= 1 &&
+      layout.nav.x <= 1 && Math.abs(layout.scene.x - layout.nav.right) <= 4 &&
       layout.dag.x >= layout.scene.right - 1 && layout.shown !== "none" &&
-      layout.detail.x >= layout.grid.right - 8 && layout.chart.w > 0);
+      layout.grid.x >= layout.pane.right - 8 && layout.detail.x >= layout.grid.x - 1 &&
+      layout.chart.w > 0);
     const embedded = await inPane((w) => {
       const rail = w.document.querySelector(".an__rail");
       const host = w.document.querySelector("#canvas-host").getBoundingClientRect();
@@ -8338,7 +8339,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     }
     const atFloor = await page.evaluate(() => ({
       scene: Math.round(document.querySelector("#annotate-flyout").getBoundingClientRect().width),
-      main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
+      // The DAG's region: the grid has a column of its own since 2026-11-14.
+      main: Math.round(document.querySelector("#topopane").getBoundingClientRect().width),
       floor: window.ViewerApp.FLYOUT_WIDTH.min,
       reserve: window.ViewerApp.FLYOUT_WIDTH.reserve,
       detail: getComputedStyle(document.querySelector("#detail")).display,
@@ -8347,7 +8349,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
       null, { timeout: 5000 }).catch(() => {});
     const noPane = await page.evaluate(() => ({
-      main: Math.round(document.querySelector(".tv__main").getBoundingClientRect().width),
+      main: Math.round(document.querySelector("#topopane").getBoundingClientRect().width),
       detail: getComputedStyle(document.querySelector("#detail")).display,
     }));
     console.log(`    [chain study at 1600] DAG + grid: ${atFloor.main}px with the scene at ` +
