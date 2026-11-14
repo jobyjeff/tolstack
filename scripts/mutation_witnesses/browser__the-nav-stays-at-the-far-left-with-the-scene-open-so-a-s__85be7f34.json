@@ -6,10 +6,10 @@
     {
       "contract": "With the scene open the nav keeps the far-left column.",
       "issue": "docs/sessions/active/HANDOFF_20261026_the_shell_seats_the_scene_beside_the_model.md",
-      "note": "Reordering the row so the nav follows the scene is the one-declaration way to lose it; only a measured box sees it.",
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Reordering the row so the nav follows the scene is the one-declaration way to lose it; only a measured box sees it.",
       "file": "apps/viewer/topology.css",
-      "find": "body.flyout-open .navtree { border-right: none; }",
-      "replace": "body.flyout-open .navtree { border-right: none; order: 2; }"
+      "find": "body.flyout-open .tv__left { border-right: none; }",
+      "replace": "body.flyout-open .tv__left { border-right: none; order: 2; }"
     }
   ]
 }

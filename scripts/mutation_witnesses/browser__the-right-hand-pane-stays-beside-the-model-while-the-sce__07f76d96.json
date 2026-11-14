@@ -6,10 +6,10 @@
     {
       "contract": "The right-hand pane is never hidden by the scene: it holds the page's results.",
       "issue": "docs/sessions/active/HANDOFF_20261028_the_kinematic_study_reads_like_every_other_study_and_its_plot_shows_both_tolerances.md",
-      "note": "Puts back the retired stand-down rule (flyout-replaces-detail, 2026-10-26 to 2026-10-28) under the class the open scene still sets.",
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Puts back the retired stand-down rule (flyout-replaces-detail, 2026-10-26 to 2026-10-28) under the class the open scene still sets.",
       "file": "apps/viewer/topology.css",
-      "find": "body.flyout-open .navtree { border-right: none; }\n",
-      "replace": "body.flyout-open .navtree { border-right: none; }\nbody.flyout-open #detail { display: none; }\n"
+      "find": "body.flyout-open .tv__left { border-right: none; }\n",
+      "replace": "body.flyout-open .tv__left { border-right: none; }\nbody.flyout-open #detail { display: none; }\n"
     }
   ]
 }

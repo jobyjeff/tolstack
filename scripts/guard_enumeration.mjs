@@ -657,7 +657,7 @@ export const DECLARED_GUARDS = {
   // "every row keeps its bar") and are declared without one --
   // ISSUE_20261114_reworded_browser_guards_of_the_fixed_shell_carry_no_spec.md
   // lists them.
-  browser: { declared: 850, enrollable: 819, names: "ed6ffc090702" },
+  browser: { declared: 850, enrollable: 819, names: "ec4310fc1299" },
 };
 
 

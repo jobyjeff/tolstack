@@ -6,10 +6,10 @@
     {
       "contract": "The header is on screen whenever any grid row is.",
       "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
-      "note": "Dropping the scroll pin leaves the header where it started, a screen above the rows.",
-      "file": "apps/viewer/views/topology.js",
-      "find": "    head.style.top = (natural + dy) + \"px\";",
-      "replace": "    head.style.top = natural + \"px\";"
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Dropping the scroll pin leaves the header where it started, a screen above the rows.",
+      "file": "apps/viewer/topology.css",
+      "find": ".tv__head {\n  display: flex; position: sticky; top: 0; z-index: 2;",
+      "replace": ".tv__head {\n  display: flex; position: relative; top: 0; z-index: 2;"
     }
   ]
 }
