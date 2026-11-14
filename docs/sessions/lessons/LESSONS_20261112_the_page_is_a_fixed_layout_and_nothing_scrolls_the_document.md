@@ -267,3 +267,21 @@ z-index bullet above).
 - **The scratch data root** (`data/scratch/fl1114`, the memory's recipe) must be
   built from a *committed* tree: a build that overlapped an edit stamps
   `dirty` and the `[real]` tier refuses it.
+- **The final record** (all in this worktree, data from the scratch root
+  `C:/workspace/tolstack/data/scratch/fl1114`, built from a committed tree):
+  - default `pytest -q`: `1 failed, 1977 passed, 1 skipped` in 478 s (ledger:
+    479 s, inside budget). The one failure is the worktree's
+    `test_viewer_js_suite` (no `data/projections/` here), the documented red;
+    the fast tier it wraps was run directly instead.
+  - `node apps/viewer/run_tests.cjs --repo <scratch root>`: 692/692.
+    `node apps/annotate/run_tests.cjs`: 316/316.
+  - browser runner, `--only` per changed suite: every suite this branch
+    changed passed on its last run. The ones re-run after the final fixes:
+    `topology http` 181/181 (twice), `topology file://` 135/135 with its
+    respine 44/44, `topology height budget` 16/16, `3D pane follows the
+    selection` 31/31. The rest are in the commits' runs, green.
+  - witness runner, `--only` per added or changed spec: fast 13/13 WITNESSED.
+    Browser 30/30 WITNESSED: 23 on the first batch, then the seven above after
+    their fixes (two re-pointed, five that were red before the mutation).
+  - not run: the whole browser tier and the `--changed-since` witness gate,
+    which are the review's after the merge.
