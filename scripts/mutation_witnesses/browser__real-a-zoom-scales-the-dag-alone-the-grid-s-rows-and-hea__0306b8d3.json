@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a zoom scales the DAG alone: the grid's rows and header keep their own size, and every row keeps its bar",
+  "mutations": [
+    {
+      "contract": "A zoom scales the drawing only, never the grid.",
+      "issue": null,
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Scales the grid's scroller with the DAG.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var gridScroll = VA.el(\"div\", \"tv__gridscroll\");\n",
+      "replace": "    var gridScroll = VA.el(\"div\", \"tv__gridscroll\");\n    gridScroll.style.zoom = String(zoom);\n"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "dragging the side divider LEFT widens the column, the DAG gives up the width, nothing overflows, and the width is written down",
+  "mutations": [
+    {
+      "contract": "The column is right of its divider: a drag left widens it.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The sign flipped.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampPaneWidth(startWidth - dx);",
+      "replace": "    return VA.clampPaneWidth(startWidth + dx);"
+    }
+  ]
+}

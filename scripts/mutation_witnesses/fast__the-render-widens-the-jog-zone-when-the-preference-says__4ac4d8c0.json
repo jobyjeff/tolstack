@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the RENDER widens the jog zone when the preference says so, and the grid's header, in its own scroller, takes none of it",
+  "mutations": [
+    {
+      "contract": "The grid's header is padded by nothing.",
+      "issue": null,
+      "note": "Declared with the guard's new name by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). Pads it again, as it was padded by the rails' width.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var head = VA.el(\"div\", \"tv__head\");",
+      "replace": "    var head = VA.el(\"div\", \"tv__head\");\n    head.style.paddingLeft = \"8px\";"
+    }
+  ]
+}

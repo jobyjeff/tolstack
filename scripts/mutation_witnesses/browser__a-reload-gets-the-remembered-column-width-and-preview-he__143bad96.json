@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "a reload gets the remembered column width and Preview height back",
+  "mutations": [
+    {
+      "contract": "The Preview's height is read back at boot.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The stored height is ignored at boot.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.previewHeight = VA.readStoredPreviewHeight(widthStore());",
+      "replace": "    state.previewHeight = null;"
+    }
+  ]
+}

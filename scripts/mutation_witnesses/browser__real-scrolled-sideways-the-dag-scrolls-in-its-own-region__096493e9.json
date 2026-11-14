@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] scrolled sideways, the DAG scrolls in its own region, and nothing of it is drawn past its own extent",
+  "mutations": [
+    {
+      "contract": "The DAG's region scrolls sideways by itself.",
+      "issue": null,
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The drawing's scroller stops being one, so a sideways scroll goes nowhere.",
+      "file": "apps/viewer/topology.css",
+      "find": ".tv__hscroll { position: absolute; inset: 0; overflow: auto; }",
+      "replace": ".tv__hscroll { position: absolute; inset: 0; overflow: visible; }"
+    }
+  ]
+}

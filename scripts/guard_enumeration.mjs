@@ -321,7 +321,14 @@ export const DECLARED_GUARDS = {
   // 2026-11-13 (a_feature_is_bound_once_to_a_set_of_faces, review round 2):
   // +1 -- a disagreement's body: each face with Keep, and Pick a face. It
   // carries a spec.
-  fast: { declared: 692, enrollable: 692, names: "23716d159cc8" },
+  // 2026-11-14 (the_page_is_a_fixed_layout_and_nothing_scrolls_the_
+  // document): 0 net -- three out with what they pinned (the JS header pin,
+  // the jog grip's inset, a grid row lighting DAG-to-grid leaders), three in
+  // (the Preview's height, the view in the URL, the settings bar's view
+  // control); nine renamed with the region model (DAG-to-grid leaders are no
+  // longer built). Every new and renamed name carries a spec; the retired
+  // three's are deleted.
+  fast: { declared: 692, enrollable: 692, names: "be388f351390" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -635,7 +642,21 @@ export const DECLARED_GUARDS = {
   // +1 -- the armed pick's click on a face with an interrupted like face
   // offers the group and writes nothing until it is answered. It carries a
   // spec.
-  browser: { declared: 887, enrollable: 854, names: "c995cd7bdf45" },
+  // 2026-11-14 (the_page_is_a_fixed_layout_and_nothing_scrolls_the_
+  // document): -37 net. Out: the DAG-to-grid leader matrix (styles, the jog
+  // zone's grip and drag, a row's leaders, their ink), the document-scroll
+  // contract testHeightBudget pinned, the header pinned by JS, the preview
+  // pane's width and the dot under the pinned header. In: the region
+  // contract and the two re-purposed seams. Twelve renamed specs follow
+  // their guards and eight are deleted with theirs; seven new names carry
+  // specs (the region contract's scroll independence, the carried scroll and
+  // the unshifted rows; the side and row dividers, the reload, the Preview's
+  // default). The rest of the new names are rewordings of guards that had no
+  // spec before ("every leader ..." read over zero leaders now, so it says
+  // "every row keeps its bar") and are declared without one --
+  // ISSUE_20261114_reworded_browser_guards_of_the_fixed_shell_carry_no_spec.md
+  // lists them.
+  browser: { declared: 850, enrollable: 819, names: "ed6ffc090702" },
 };
 
 

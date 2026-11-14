@@ -3441,6 +3441,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         realBands.provenanceLayers >= 20);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
 
+      // A switch needs a second real topology to switch to.
+      const otherReal = realProjection.topologies.find((t) => t.id !== "vpa_pitch_linkage");
+
       // ...and the three OLDER display preferences, whose precedent both docs
       // invoke when they say the leader style survives a switch "like density
       // does". Measured 2026-09-15, chasing the same question the leader-style

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "the Preview sits under the grid, the column's width, at its default share of the column's height",
+  "mutations": [
+    {
+      "contract": "The Preview's default height is its share of the column.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). A sliver of a Preview.",
+      "file": "apps/viewer/topology.css",
+      "find": "  flex: 0 1 auto; height: 40%; max-height: 50%; min-height: 120px; width: auto;",
+      "replace": "  flex: 0 1 auto; height: 10%; max-height: 50%; min-height: 0; width: auto;"
+    }
+  ]
+}

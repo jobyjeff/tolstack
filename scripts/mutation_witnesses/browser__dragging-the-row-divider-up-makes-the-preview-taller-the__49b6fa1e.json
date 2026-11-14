@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "dragging the row divider UP makes the Preview taller, the grid gives up the height, nothing overflows, and the height is written down",
+  "mutations": [
+    {
+      "contract": "A drag on the row divider sets the Preview's height.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The height is computed and never applied.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.detail.style.height = state.previewHeight + \"px\";",
+      "replace": "    void state.previewHeight;"
+    }
+  ]
+}

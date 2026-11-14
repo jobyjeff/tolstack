@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] scrolled down the kinematic page's grid, the header is held at the top of the grid's region whenever a grid row is in view",
+  "mutations": [
+    {
+      "contract": "The kinematic page's grid header stays at the top of the grid's region.",
+      "issue": null,
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The header loses its CSS pin and scrolls away with the rows.",
+      "file": "apps/viewer/topology.css",
+      "find": ".tv__head {\n  display: flex; position: sticky; top: 0; z-index: 2;",
+      "replace": ".tv__head {\n  display: flex; position: relative; top: 0; z-index: 2;"
+    }
+  ]
+}

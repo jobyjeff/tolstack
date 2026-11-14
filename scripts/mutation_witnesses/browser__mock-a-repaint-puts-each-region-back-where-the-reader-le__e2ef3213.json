@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology height budget",
+  "expect_red": "[mock] a repaint puts each region back where the reader left it",
+  "mutations": [
+    {
+      "contract": "A repaint carries the DAG's vertical scroll.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The drawing's scroll is dropped on repaint.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (carried.top) hscroll.scrollTop = carried.top;\n",
+      "replace": ""
+    }
+  ]
+}

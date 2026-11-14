@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology height budget",
+  "expect_red": "[mock] scrolling the DAG moves the DAG alone, and scrolling the grid the grid alone -- never the document",
+  "mutations": [
+    {
+      "contract": "The grid scrolls in its own region.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The grid's scroller stops being one.",
+      "file": "apps/viewer/topology.css",
+      "find": ".tv__gridscroll { flex: 0 1 auto; min-height: 0; overflow: auto; }",
+      "replace": ".tv__gridscroll { flex: 0 1 auto; min-height: 0; overflow: visible; }"
+    }
+  ]
+}

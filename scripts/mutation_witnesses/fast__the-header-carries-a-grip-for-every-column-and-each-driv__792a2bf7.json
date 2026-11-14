@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the header carries a grip for every column, and each drives the app's own handlers",
+  "mutations": [
+    {
+      "contract": "Every grid column is resizable.",
+      "issue": null,
+      "note": "Declared with the guard's new name by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). SOURCING loses its grip.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    { cls: \"sourcing\", label: \"\", title: \"sourcing\", width: 30, resizable: true },",
+      "replace": "    { cls: \"sourcing\", label: \"\", title: \"sourcing\", width: 30 },"
+    }
+  ]
+}

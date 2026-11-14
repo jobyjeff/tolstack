@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology height budget",
+  "expect_red": "[mock] the grid's rows start directly under their header in every length mode, wherever the store centres the drawing",
+  "mutations": [
+    {
+      "contract": "The grid's rows are not offset by the DAG's centring.",
+      "issue": null,
+      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The store's gridOffset pushes the table down again.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var rows = grid(plan, index, chain, marking, ctx, 0, fade, hot);",
+      "replace": "    var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset, fade, hot);"
+    }
+  ]
+}
