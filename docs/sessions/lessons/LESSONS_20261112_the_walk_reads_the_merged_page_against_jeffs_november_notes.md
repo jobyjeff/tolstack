@@ -85,4 +85,20 @@ into the running page took the lit chord from black to its body tint
 
 ## Test record
 
-See the report section appended below once the default tier finishes.
+All runs were in this worktree on the tree with the fix (`208d3c89`).
+
+- **Default tier.** `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`:
+  **1 failed, 1986 passed, 1 skipped, 2 deselected**, 462 s (single process;
+  ledger: inside budget). The one failure is the documented worktree red,
+  `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`: its node-fs
+  `[real]` tier found no projection in the worktree. That tier was run on its
+  own, below.
+- **Fast node tiers.** `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/walk1114`
+  passed **699/699**, `[real]` armed against projections built from this tree.
+  `node apps/annotate/run_tests.cjs` passed **316/316**.
+- **Doc scans after the docs commit** (the default run had started before it):
+  `pytest tests/test_claims_registry.py tests/test_sop_vocabulary.py tests/test_provenance.py`
+  passed 56/56.
+- **Not run:** the browser runner and the witness runner. No suite or spec was
+  added or changed. The two CSS lines sit near `.rail__bar` anchors, so the
+  review's `--changed-since` gate may select witnesses there.
