@@ -1210,6 +1210,15 @@ body { display: flex; flex-direction: column; }
   white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; }
 .tvbrace__label--part {
   color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+/* An assembly's fold in the grid (a_part_may_contain_parts): the one control
+   among the brackets, so it alone takes the pointer; quiet until hovered. */
+.tvasm__caret {
+  pointer-events: auto; border: 0; background: none; padding: 0; margin: 0;
+  font-size: var(--t-micro); line-height: 1; cursor: pointer;
+  color: var(--muted); display: inline-flex; align-items: center;
+}
+.tvasm__caret:hover, .tvasm__caret:focus-visible { color: var(--ink); }
+.tvcell--part .tvasm__caret { width: 12px; vertical-align: middle; }
 .tvrow--substack { font-size: var(--t-dense); }
 .tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
 .tvsub__title { font-weight: 600; }

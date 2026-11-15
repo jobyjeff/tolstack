@@ -12129,6 +12129,259 @@
       ] };
     }
 
+    // --- a part may contain parts (a_part_may_contain_parts, 2026-11-14) ------
+    //
+    // The mini model with p2 inside p1: both are in b1, so the contact n2 and
+    // the gap g2 between them are inside the assembly, and g1 (p2 to p3)
+    // leaves it.
+    function nestedProj() {
+      var proj = bodiedProj();
+      proj.parts = [{ id: "p1", name: "hub" }, { id: "p2", name: "mount", parent: "p1" },
+                    { id: "p3", name: "arm" }];
+      var parts = {};
+      proj.model.parts.forEach(function (p) { parts[p.id] = p; });
+      parts.p1.parent = null; parts.p1.children = ["p2"]; parts.p1.depth = 0;
+      parts.p2.parent = "p1"; parts.p2.children = []; parts.p2.depth = 1;
+      parts.p3.parent = null; parts.p3.children = []; parts.p3.depth = 0;
+      proj.model.bodies[0].parts = ["p1"];
+      proj.model.bodies[0].all_parts = ["p1", "p2"];
+      proj.model.bodies[1].all_parts = ["p3"];
+      proj.model.counts.assemblies = 1;
+      return proj;
+    }
+
+    await test("a part's place in the tree is the model's: its parent, its children, the " +
+      "part with everything inside it in one order, a body's every part, and the folds a " +
+      "nested part sits behind", function () {
+        var model = VA.buildModel(nestedProj(), null);
+        eq(model.childrenOf("p1"), ["p2"]);
+        eq(model.parentOf("p2"), "p1");
+        eq(model.parentOf("p1"), null);
+        ok(model.isAssembly("p1") && !model.isAssembly("p2"));
+        eq(model.subtreeOf("p1"), ["p1", "p2"]);
+        eq(model.subtreeOf("nobody"), []);
+        eq(model.allPartsOf("b1"), ["p1", "p2"]);
+        eq(model.body("b1").parts, ["p1"], "a body's parts are its top-level parts");
+        eq(VA.navRowPath(model, "part", "p2"), ["b:b1", "bp:b1", "p:p1"]);
+        eq(VA.navRowPath(model, "feature", "p2@n3"), ["b:b1", "bp:b1", "p:p1", "p:p2"]);
+        // A projection built before parts had parents reads every part as a leaf.
+        var flat = VA.buildModel(bodiedProj(), null);
+        eq(flat.childrenOf("p1"), []);
+        eq(flat.allPartsOf("b1"), ["p1", "p2"]);
+      });
+
+    await test("selecting an assembly lights it and its parts as its own, with the joints " +
+      "between them; only what leaves the assembly is touching", function () {
+        var model = VA.buildModel(nestedProj(), null);
+        var light = VA.focusLightOf(model, { kind: "part", id: "p1" });
+        var keys = function (list) {
+          return list.map(function (e) { return e.kind + ":" + e.id; }).sort();
+        };
+        eq(keys(light.own), ["dimension:d1", "dimension:d2", "feature:p1@n1", "feature:p1@n2",
+          "feature:p2@n2", "feature:p2@n3", "feature:p2@n5", "interface:g2", "interface:n2",
+          "joint:p1+p2", "part:p1", "part:p2"]);
+        eq(keys(light.touching), ["feature:p3@n4", "interface:g1", "joint:p2+p3"]);
+        // The same part in the flat model owns itself alone.
+        var flat = VA.focusLightOf(VA.buildModel(bodiedProj(), null), { kind: "part", id: "p1" });
+        eq(keys(flat.own), ["dimension:d1", "feature:p1@n1", "feature:p1@n2", "part:p1"]);
+      });
+
+    await test("the tree draws an assembly's parts inside it, one level in and before its " +
+      "own features, and counts a body's every part", function () {
+        var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
+                     looseStacks: [], kinematic: [] };
+        var state = { mode: "topology", topologyId: "mini",
+                      models: { mini: VA.buildModel(nestedProj(), null) },
+                      navOpen: { "p:p1": true }, focus: { selected: null, hovered: null },
+                      selection: null, hiddenParts: { p1: true } };
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree, state, { onVisibility: function () {} });
+        });
+        var rows = all(root, "div.navtree__row").map(function (r) {
+          return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id");
+        });
+        var at = function (key) { return rows.indexOf(key); };
+        ok(at("part:p1") < at("part:p2") && at("part:p2") < at("feature:p1@n1"),
+           "the assembly, then its part, then its own features: " + rows.join(", "));
+        eq(at("feature:p2@n3"), -1, "the part inside is drawn closed");
+        var p1 = all(root, "div.navtree__row--part").filter(function (r) {
+          return r.getAttribute("data-nav-id") === "p1";
+        })[0];
+        eq(p1.getAttribute("data-nav-assembly"), "true");
+        eq(p1.querySelector(".navtree__count").textContent,
+           "1" + VA.NAV_WORDS.partsCount + " · 2" + VA.NAV_WORDS.featuresCount);
+        // The assembly's box covers its meshed parts (p1 only: p2 has none).
+        eq(p1.querySelector("input.navtree__vis").checked, false);
+        var body = all(root, "div.navtree__row--body")[0];
+        eq(body.querySelector(".navtree__count").textContent, "2" + VA.NAV_WORDS.partsCount);
+      });
+
+    await test("on the DAG a part inside an assembly is the assembly's: its pins are the " +
+      "assembly's block's and its rows the assembly's field", function () {
+        var proj = { parts: [{ id: "a" }, { id: "b", parent: "a" }, { id: "c", parent: "b" }, { id: "z" }] };
+        eq(VA.topPartOf(proj), { a: "a", b: "a", c: "a", z: "z" });
+        // Two nodes on the inner part and one on the assembly: three pins of
+        // one block, where the flat reading made two parts of one pin or two.
+        var pins = VA.partPins({
+          parts: proj.parts,
+          nodes: [{ id: "n1", parts: ["a"] }, { id: "n2", parts: ["c"] }, { id: "n3", parts: ["c", "z"] }],
+          edges: [{ id: "e1", kind: "structural", part: "c", from: "n2", to: "n1" }],
+        });
+        eq(pins.owner, { n1: "a", n2: "a", n3: "a" });
+        eq(pins.chords, { e1: "a" });
+      });
+
+    // A link assembly and the bearing in it, then another part: one edge each.
+    function assemblyTopo() {
+      var edge = function (id, part, from, to) {
+        return { id: id, name: id + " size", kind: "structural", part: part, from: from, to: to,
+                 dimension: null, confidence: "traced", value_source: "inline", zero_width: false,
+                 crop_key: null, transform: { id: "identity", kind: "identity", ratio: 1 } };
+      };
+      return {
+        id: "asm", units: "mm",
+        parts: [{ id: "link", name: "link assembly", drawing: "200-001" },
+                { id: "brg", name: "bearing", parent: "link" },
+                { id: "arm", name: "arm", drawing: "300-001" }],
+        nodes: [
+          { id: "n0", name: "start", kind: "datum_feature", parts: ["link"], branch: false, degree: 1 },
+          { id: "n1", name: "bore", kind: "mating_surface", parts: ["link", "brg"], branch: false, degree: 2 },
+          { id: "n2", name: "ball", kind: "mating_surface", parts: ["brg", "arm"], branch: false, degree: 2 },
+          { id: "n3", name: "end", kind: "datum_feature", parts: ["arm"], branch: false, degree: 1 },
+        ],
+        edges: [edge("eA", "link", "n0", "n1"), edge("eB", "brg", "n1", "n2"), edge("eC", "arm", "n2", "n3")],
+        layout: {
+          columns: 1,
+          rows: [
+            { row: 0, kind: "node", id: "n0", column: 0, branch: false },
+            { row: 1, kind: "edge", id: "eA", column: 0, closes_row: null },
+            { row: 2, kind: "node", id: "n1", column: 0, branch: false },
+            { row: 3, kind: "edge", id: "eB", column: 0, closes_row: null },
+            { row: 4, kind: "node", id: "n2", column: 0, branch: false },
+            { row: 5, kind: "edge", id: "eC", column: 0, closes_row: null },
+            { row: 6, kind: "node", id: "n3", column: 0, branch: false },
+          ],
+          rails: [{ column: 0, start: 0, end: 6 }],
+          links: [],
+        },
+        studies: [],
+      };
+    }
+
+    // A chain over all three, with the assembly's share as the projection
+    // folds it (tolerance_stack.topology.assembly_rollups): eA + eB.
+    function assemblyStudy() {
+      var term = function (edge, from, to, nominal, min, max) {
+        return { edge: edge, name: edge + " size", edge_kind: "structural", from: from, to: to,
+                 sign: 1, ratio: 1, weight: 1, nominal: nominal, min: min, max: max, units: "mm" };
+      };
+      return {
+        id: "s", title: "S", status: "ok", from: "n0", to: "n3", checks: [], notes: [],
+        result: {
+          chain: [term("eA", "n0", "n1", 2, 1.9, 2.1), term("eB", "n1", "n2", 3, 2.95, 3.05),
+                  term("eC", "n2", "n3", 1, 0.9, 1.1)],
+          units: "mm", nominal: 6, worst_case_min: 5.75, worst_case_max: 6.25, worst_case_half: 0.25,
+          rss_center: 6, rss_half: 0.15, rss_min: 5.85, rss_max: 6.15,
+          assemblies: { link: { edges: ["eA", "eB"], units: "mm", nominal: 5, worst_case_min: 4.85,
+                                worst_case_max: 5.15, worst_case_half: 0.15, rss_center: 5,
+                                rss_half: 0.1118, rss_min: 4.8882, rss_max: 5.1118 } },
+        },
+      };
+    }
+
+    await test("a folded assembly is one grid row standing for its own rows and its parts', " +
+      "folded at the outermost folded assembly, and a kinematic stack folds nothing",
+      function () {
+        var topo = assemblyTopo();
+        var open = VA.gridPlan(topo.layout, topo);
+        eq(open.rows.map(function (r) { return r.id; }), ["eA", "eB", "eC"]);
+        eq(open.groups.map(function (g) { return g.part; }), ["link", "brg", "arm"]);
+        var folded = VA.gridPlan(topo.layout, topo, null, { link: true });
+        eq(folded.rows.map(function (r) { return r.id; }), ["eA", "eC"]);
+        eq(folded.rows[0].rollup, { part: "link", edges: ["eA", "eB"] });
+        eq(folded.groups.map(function (g) { return g.part + ":" + g.count; }), ["link:1", "arm:1"]);
+        // The leader at the bearing's far face binds to the next row kept.
+        eq(folded.leaders.filter(function (l) { return l.id === "n2"; })[0].beforeEdge, "eC");
+        // Folding the bearing alone leaves the link's own row as it is.
+        var inner = VA.gridPlan(topo.layout, topo, null, { brg: true });
+        eq(inner.rows.map(function (r) { return r.rollup ? r.rollup.part : r.id; }), ["eA", "brg", "eC"]);
+        // Both folded: the outermost one is the row.
+        eq(VA.gridPlan(topo.layout, topo, null, { link: true, brg: true }).rows[0].rollup,
+           { part: "link", edges: ["eA", "eB"] });
+        // A kinematic page's grid is its stack's.
+        var stacked = VA.gridPlan(topo.layout, topo, { stack: { entries: [] } }, { link: true });
+        ok(stacked.rows.every(function (r) { return !r.rollup; }));
+      });
+
+    await test("under a study the folded row prints the projection's own fold of the " +
+      "assembly in the totals' columns, the totals under the grid read the same folded or " +
+      "open, and its caret folds and opens it", function () {
+        var topo = assemblyTopo();
+        var study = assemblyStudy();
+        var toggled = [];
+        var paint = function (collapsed) {
+          return render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ topoProj: topo, study: study,
+              collapsedAssemblies: collapsed,
+              onToggleAssembly: function (id, open) { toggled.push(id + ":" + open); } }));
+          });
+        };
+        var openRoot = paint(null);
+        var foldedRoot = paint({ link: true });
+        var row = all(foldedRoot, "tr.tvrow--rollup");
+        eq(row.length, 1);
+        eq(row[0].getAttribute("data-assembly"), "link");
+        var cell = function (cls) { return row[0].querySelector("td.tvcell--" + cls).textContent; };
+        eq([cell("nominal"), cell("min"), cell("max"), cell("contribution")],
+           ["5", "4.85", "5.15", "± 0.15 mm"]);
+        eq(cell("name"), "2 dimensions");
+        eq(all(foldedRoot, "tr.tvrow--edge").map(function (r) { return r.getAttribute("data-id"); }), ["eC"]);
+        var foot = function (root) { return all(root, "tfoot")[0].textContent; };
+        eq(foot(foldedRoot), foot(openRoot), "the stack's total does not move when it folds");
+        has(foot(openRoot), "6.25");
+        // The caret: open on the open grid, folded on the folded one; a click
+        // reports which, and selects nothing.
+        var caret = function (root) { return all(root, "button.tvasm__caret")[0]; };
+        eq(caret(openRoot).getAttribute("aria-expanded"), "true");
+        eq(caret(foldedRoot).getAttribute("aria-expanded"), "false");
+        caret(openRoot).onclick({ stopPropagation: function () {} });
+        caret(foldedRoot).onclick({ stopPropagation: function () {} });
+        eq(toggled, ["link:true", "link:false"]);
+        // On the whole walk nothing is totalled, and nor is the folded row.
+        var walk = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ topoProj: topo, collapsedAssemblies: { link: true } }));
+        });
+        eq(all(walk, "tr.tvrow--rollup")[0].querySelector("td.tvcell--nominal").textContent, "");
+      });
+
+    await test("the folded assemblies are remembered per topology, and the toolbar offers " +
+      "the two shortcuts only where the model has an assembly", function () {
+        var data = {};
+        var store = { getItem: function (k) { return k in data ? data[k] : null; },
+                      setItem: function (k, v) { data[k] = String(v); } };
+        VA.writeCollapsedAssemblies(store, "t", { link: true });
+        VA.writeCollapsedBodies(store, "t", { base: true });
+        eq(VA.readCollapsedAssemblies(store, "t"), { link: true });
+        eq(VA.readCollapsedBodies(store, "t"), { base: true }, "the bodies' store is its own");
+        eq(VA.readCollapsedAssemblies({ getItem: function () { throw new Error("denied"); } }, "t"), {});
+        eq(VA.assemblyIds(assemblyTopo()), { link: true });
+        var asked = [];
+        var bar = function (assemblies) {
+          return render(function (r) {
+            VA.renderTopoToolbar(r, { rowDensity: "comfortable" }, assemblyTopo(), {
+              assemblies: assemblies, onAssemblies: function (fold) { asked.push(fold); } });
+          });
+        };
+        var byId = function (root, id) {
+          return all(root, "button").filter(function (b) { return b.getAttribute("id") === id; });
+        };
+        var root = bar(["link"]);
+        byId(root, "assemblies-collapse")[0].onclick();
+        byId(root, "assemblies-expand")[0].onclick();
+        eq(asked, [true, false]);
+        eq(byId(bar([]), "assemblies-collapse").length, 0, "no assembly, no shortcut");
+      });
+
     await test("the model object is built once from the projection's model block: its " +
       "lookups answer by id, and a feature's status folds the identity projection at " +
       "its own end", function () {

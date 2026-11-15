@@ -1077,8 +1077,9 @@
   function onNavVisibility(kind, id, shown) {
     var model = currentModel();
     if (!model) return;
-    var body = kind === "body" ? model.body(id) : null;
-    var parts = body ? body.parts : [id];
+    // A body's box covers every part it carries, an assembly's every part
+    // inside it (a_part_may_contain_parts).
+    var parts = kind === "body" ? model.allPartsOf(id) : model.subtreeOf(id);
     parts.forEach(function (partId) {
       if (!model.hasMesh(partId)) return;
       if (shown) delete state.hiddenParts[partId];
@@ -3758,6 +3759,17 @@
           VA.writeCollapsedBodies(widthStore(), topoProj.id, collapsed);
           render();
         },
+        // The grid's folded assemblies, remembered per topology like the
+        // bodies (a_part_may_contain_parts): each is one rolled-up row.
+        collapsedAssemblies: topoProj ? VA.readCollapsedAssemblies(widthStore(), topoProj.id) : null,
+        onToggleAssembly: function (partId, open) {
+          if (!topoProj) return;
+          var folded = VA.readCollapsedAssemblies(widthStore(), topoProj.id);
+          if (open) folded[partId] = true;
+          else delete folded[partId];
+          VA.writeCollapsedAssemblies(widthStore(), topoProj.id, folded);
+          render();
+        },
         subStacks: showKinematic ? VA.kinematicSubStacks(kinematicStudy,
           state.kinematic && state.kinematic.display_decimals) : null,
         // The kinematic page's grid: its stack at the chosen stop
@@ -3818,6 +3830,16 @@
       };
       var toolbarHandlers = {
         groupKinds: groupKinds,
+        // The two assembly shortcuts (a_part_may_contain_parts): fold every
+        // assembly to one row, or open them all. Only on a model that has an
+        // assembly; remembered as the fold set itself.
+        assemblies: topoProj ? Object.keys(VA.assemblyIds(topoProj)) : [],
+        onAssemblies: function (fold) {
+          var folded = {};
+          if (fold) Object.keys(VA.assemblyIds(topoProj)).forEach(function (id) { folded[id] = true; });
+          VA.writeCollapsedAssemblies(widthStore(), topoProj.id, folded);
+          render();
+        },
         // The length mode the pane draws, which is the page's default until
         // the reader picks one (VA.edgeLengthModeFor).
         edgeLengthMode: lengthMode,

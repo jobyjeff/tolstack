@@ -406,34 +406,57 @@
     return li;
   }
 
-  // Does this part hold a feature the selection lights? A selection made
-  // anywhere -- the scene, the DAG, the grid -- opens the part that holds it,
-  // so the tree never marks a row the reader cannot see; the reader's own
-  // fold of that part still wins.
+  // Does this part -- or, for an assembly, any part inside it -- hold a
+  // feature the selection lights? A selection made anywhere -- the scene,
+  // the DAG, the grid -- opens the part that holds it, so the tree never
+  // marks a row the reader cannot see; the reader's own fold of that part
+  // still wins.
   function holdsSelection(model, partId) {
-    return (model.part(partId) || { features: [] }).features.some(function (fid) {
-      return lit.on["feature:" + fid] === VA.FOCUS_TIERS.own;
+    return model.subtreeOf(partId).some(function (pid) {
+      return (model.part(pid) || { features: [] }).features.some(function (fid) {
+        return lit.on["feature:" + fid] === VA.FOCUS_TIERS.own;
+      });
     });
   }
 
+  // A part's show/hide box: over the part and, for an assembly, every part
+  // inside it that has a mesh -- ticked when all show, mixed when some do,
+  // as a body's is.
+  function meshedVisibility(kind, id, partIds, model, state, handlers) {
+    var meshed = partIds.filter(function (pid) { return model.hasMesh(pid); });
+    if (!meshed.length) return null;
+    var hiddenCount = meshed.filter(function (pid) {
+      return !!(state && state.hiddenParts && state.hiddenParts[pid]);
+    }).length;
+    return visibility(kind, id, hiddenCount < meshed.length,
+      hiddenCount > 0 && hiddenCount < meshed.length, handlers);
+  }
+
+  // A part's item. An assembly (a part with children, a_part_may_contain_
+  // parts) opens to its parts, each its own item one level in, and then its
+  // own features.
   function partItem(model, partId, state, handlers) {
     var part = model.part(partId);
     var key = "p:" + partId;
+    var children = model.childrenOf(partId);
     var open = isOpen(state, key, holdsSelection(model, partId));
     var li = VA.el("li", "navtree__item");
     var row = entityRow("navtree__row--part", "part", partId, key, open, handlers);
+    if (children.length) row.setAttribute("data-nav-assembly", "true");
     var name = label(part.label, null, null);
     name.setAttribute("title", part.label);
     row.appendChild(name);
-    row.appendChild(count(part.features.length + VA.NAV_WORDS.featuresCount));
-    if (model.hasMesh(partId)) {
-      var hidden = !!(state && state.hiddenParts && state.hiddenParts[partId]);
-      var box = visibility("part", partId, !hidden, false, handlers);
-      if (box) row.appendChild(box);
-    }
+    row.appendChild(count((children.length
+      ? model.subtreeOf(partId).length - 1 + VA.NAV_WORDS.partsCount + " · " : "") +
+      part.features.length + VA.NAV_WORDS.featuresCount));
+    var box = meshedVisibility("part", partId, model.subtreeOf(partId), model, state, handlers);
+    if (box) row.appendChild(box);
     li.appendChild(row);
     if (open) {
       var list = VA.el("ul", "navtree__children");
+      children.forEach(function (pid) {
+        list.appendChild(partItem(model, pid, state, handlers));
+      });
       part.features.forEach(function (fid) {
         list.appendChild(featureItem(model, fid, state, handlers, false));
       });
@@ -472,16 +495,11 @@
     var name = label(body.name, null, null);
     name.setAttribute("title", body.name);
     row.appendChild(name);
-    row.appendChild(count(body.parts.length + VA.NAV_WORDS.partsCount));
-    var meshed = body.parts.filter(function (pid) { return model.hasMesh(pid); });
-    if (meshed.length) {
-      var hiddenCount = meshed.filter(function (pid) {
-        return !!(state && state.hiddenParts && state.hiddenParts[pid]);
-      }).length;
-      var box = visibility("body", body.id, hiddenCount < meshed.length,
-        hiddenCount > 0 && hiddenCount < meshed.length, handlers);
-      if (box) row.appendChild(box);
-    }
+    // Every part the body carries, assemblies' parts among them.
+    var all = model.allPartsOf(body.id);
+    row.appendChild(count(all.length + VA.NAV_WORDS.partsCount));
+    var box = meshedVisibility("body", body.id, all, model, state, handlers);
+    if (box) row.appendChild(box);
     li.appendChild(row);
     if (open) {
       var list = VA.el("ul", "navtree__children");

@@ -155,6 +155,21 @@
       root.appendChild(unlit);
     }
 
+    // The grid's assemblies (a_part_may_contain_parts): fold each to its one
+    // rolled-up row, or open them all. Shown only where the model has one.
+    if (handlers.onAssemblies && (handlers.assemblies || []).length) {
+      [[true, "Collapse assemblies", "assemblies-collapse",
+        "Show each assembly as one row: its parts' total, so the stack's total is unchanged."],
+       [false, "Expand all", "assemblies-expand", "Show every part of every assembly."]]
+        .forEach(function (spec) {
+          var b = VA.el("button", "ghost tvpick__mode", spec[1]);
+          b.setAttribute("id", spec[2]);
+          b.setAttribute("title", spec[3]);
+          b.onclick = function () { handlers.onAssemblies(spec[0]); };
+          root.appendChild(b);
+        });
+    }
+
     // Which containers are drawn: one checkbox per kind (VA.GROUP_KINDS), in a
     // popover under one button. The page hands in the effective set as
     // `handlers.groupKinds` ({kind: bool}); a change is reported per kind and
@@ -427,8 +442,11 @@
     // context; the table holds the sum.
     // A kinematic page's grid is its stack at one stop (VA.kinematicStack):
     // the same plan, with the stack's sub-stack headers among the rows.
+    // ...with the assemblies the reader folded, each one row
+    // (a_part_may_contain_parts).
     var plan = VA.gridPlan(layout, topoProj,
-      lit && ctx.stack ? Object.assign({}, lit, { stack: ctx.stack }) : lit);
+      lit && ctx.stack ? Object.assign({}, lit, { stack: ctx.stack }) : lit,
+      ctx.collapsedAssemblies || null);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -3202,8 +3220,11 @@
         var indent = braceGeo.indent[group.start + i] || 4;
         var row = group.header
           ? subStackRow(planRow, ctx, hot, indent)
-          : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent,
-                    !!numbered[group.start + i]);
+          : planRow.rollup
+            ? assemblyRow(planRow, group, index, marking, ctx, hot, indent,
+                          !!numbered[group.start + i])
+            : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent,
+                      !!numbered[group.start + i]);
         tbody.appendChild(fade(row, "edge", planRow.id));
       }
     });
@@ -3231,8 +3252,11 @@
   // down its rows; a part's brace starts right of that strip and its number
   // fills a `part`-wide one. A row's first words start right of the
   // innermost label strip that holds it (`indent`).
+  // `nest` is how far a part inside an assembly is indented per level, and
+  // `caret` the width an assembly's fold takes at its label's head
+  // (a_part_may_contain_parts).
   VA.GRID_BRACE = { inset: 7, step: 3, text: 14, curlMax: 6, line: 13,
-                    body: BRACE_STRIPS.body, part: BRACE_STRIPS.part };
+                    body: BRACE_STRIPS.body, part: BRACE_STRIPS.part, nest: 10, caret: 12 };
 
   VA.braceGeometry = function (model, rowHeight, width) {
     var g = VA.GRID_BRACE;
@@ -3241,6 +3265,7 @@
     var bottoms = {};
     var caps = [];
     var labels = [];
+    var carets = [];
     var indent = {};
     var lefts = [];
     var rows = function (b) { return b.end - b.start + 1; };
@@ -3248,6 +3273,10 @@
       var right = 2 + b.level * g.inset;
       var x = b.kind === "part" && b.body ? lefts[model.braces.indexOf(b.body)] + g.body
         : 2 + b.level * g.inset;
+      // A part inside an assembly is indented `nest` a level: its bracket,
+      // and so its number (only the part column moves).
+      var nested = b.kind === "part" ? (b.depth || 0) * g.nest : 0;
+      x += nested;
       lefts.push(x);
       var w = Math.max(0, width - x - right);
       var t = tops[b.start] || 0;
@@ -3262,8 +3291,14 @@
       caps.push(Object.assign({ side: "bottom", top: y1 - curl }, cap));
       // Where a held row's words start: right of this brace's label strip
       // (a body's or a part's), or just inside its stub.
-      var strip = b.kind === "body" ? g.body : b.kind === "part" ? g.part : g.inset;
+      var strip = b.kind === "body" ? g.body : b.kind === "part" ? g.part - nested : g.inset;
       for (var r = b.start; r <= b.end; r++) indent[r] = Math.max(indent[r] || 4, x + strip);
+      // An assembly's fold sits at its label's head, on its first row.
+      var caret = b.kind === "part" && b.assembly ? g.caret : 0;
+      if (caret) {
+        carets.push({ part: b.part, open: b.assembly === "open", tint: b.tint,
+                      left: x + 3, top: b.start * rowHeight, width: caret, height: rowHeight });
+      }
       // A label starts on its brace's first row, on that row's text line;
       // a body's wraps down as many lines as its rows hold, a part's is one.
       if (b.label && (b.kind === "body" || b.kind === "part")) {
@@ -3271,12 +3306,12 @@
         var lines = b.kind === "body"
           ? Math.max(1, Math.floor((rows(b) * rowHeight - (rowHeight - line)) / g.line)) : 1;
         labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label,
-                      left: x + 5, width: strip - 8, line: line, lines: lines,
+                      left: x + 5 + caret, width: strip - 8 - caret, line: line, lines: lines,
                       top: b.start * rowHeight + (rowHeight - line) / 2,
                       height: lines === 1 ? line : lines * g.line });
       }
     });
-    return { caps: caps, labels: labels, indent: indent, curl: curl };
+    return { caps: caps, labels: labels, carets: carets, indent: indent, curl: curl };
   };
 
   // The gutter added to the PART column's own width (COLUMNS): a body's
@@ -3334,7 +3369,32 @@
       node.style.lineHeight = (label.lines > 1 ? VA.GRID_BRACE.line : label.line) + "px";
       place(node, label);
     });
+    // An assembly's fold (a_part_may_contain_parts): the one control in this
+    // layer, so it alone takes the pointer.
+    (geo.carets || []).forEach(function (c) {
+      var node = assemblyCaret(c.part, c.open, ctx);
+      if (!node) return;
+      node.className += " tvbrace__caret tv__fill--t" + c.tint;
+      place(node, c);
+    });
     return layer;
+  }
+
+  // An assembly's fold in the grid: ▾ open, ▸ folded into its one row. A
+  // click folds or opens it and selects nothing. Null where the page wires
+  // no fold.
+  function assemblyCaret(partId, open, ctx) {
+    if (!ctx.onToggleAssembly) return null;
+    var node = VA.el("button", "tvasm__caret", open ? "▾" : "▸");
+    node.setAttribute("type", "button");
+    node.setAttribute("data-assembly-fold", partId);
+    node.setAttribute("aria-expanded", open ? "true" : "false");
+    node.setAttribute("title", open ? "Fold into one row" : "Show its parts");
+    node.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+      ctx.onToggleAssembly(partId, open);
+    };
+    return node;
   }
 
   // The sourcing legend: every mark beside the words it means
@@ -3662,11 +3722,22 @@
   // bracket's label (`bracketed`), so the cell prints none. Whatever the
   // column clips is on hover, and the Preview of any of its rows has the
   // part's name, drawing and picture.
-  function partCells(el, group, first, indent, index, bracketed) {
+  function partCells(el, group, first, indent, index, bracketed, ctx, folded) {
     var words = first ? VA.partColumns(group.part === null ? null
       : (index.parts[group.part] || { id: group.part })) : null;
-    var number = VA.el("td", "tvcell tvcell--part", words && !bracketed ? words.number : "");
-    number.style.paddingLeft = indent + "px";
+    var number = VA.el("td", "tvcell tvcell--part");
+    // With no bracket to carry it, the number itself is indented a level per
+    // assembly it is in, and an assembly's fold leads it
+    // (a_part_may_contain_parts); a bracket carries both where it is drawn.
+    var depth = group.part === null ? 0 : VA.partDepth(index.parts, group.part);
+    number.style.paddingLeft = (indent + (bracketed ? 0 : depth * VA.GRID_BRACE.nest)) + "px";
+    if (words && !bracketed) {
+      if (ctx && VA.assemblyIds(ctx.topoProj)[group.part]) {
+        var caret = assemblyCaret(group.part, !folded, ctx);
+        if (caret) number.appendChild(caret);
+      }
+      number.appendChild(VA.el("span", null, words.number));
+    }
     var description = VA.el("td", "tvcell tvcell--description",
       words ? words.description : "");
     if (words && (group.title || group.label)) {
@@ -3707,7 +3778,7 @@
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
     else if (isTouched(ctx, "edge", planRow.id)) el.className += " tvrow--touched";
 
-    partCells(el, group, first, indent, index, bracketed);
+    partCells(el, group, first, indent, index, bracketed, ctx, false);
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -3854,6 +3925,65 @@
     });
     hotHover(hot, el, hotKey("edge", planRow.id));
     return nameRow(el, ctx, "edge", planRow.id, fullName);
+  }
+
+  // A folded assembly's one row (a_part_may_contain_parts, 2026-11-14): it
+  // is the assembly -- a click selects the part, a hover lights it -- and it
+  // stands for every row on the assembly and the parts inside it
+  // (`planRow.rollup.edges`). Under a study its numbers are the study's own
+  // fold of exactly those terms (the projection's `result.assemblies`, in
+  // the totals' columns: centre, worst-case min and max, ± half), so the
+  // stack's total reads the same folded or open; on the whole walk nothing
+  // is totalled, and nor is this. Its mark is the worst its rows wear.
+  function assemblyRow(planRow, group, index, marking, ctx, hot, indent, bracketed) {
+    var partId = planRow.rollup.part;
+    var edges = planRow.rollup.edges;
+    var el = baseRow("part", ctx, partId);
+    el.className += " tvrow--group-start tvrow--rollup";
+    el.setAttribute("data-assembly", partId);
+    if (ctx.colourBy === "body" && planRow.body !== null && planRow.body !== undefined) {
+      el.className += " tvrow--ink tv__fill--t" + VA.bodyTint(ctx.topoProj, planRow.body);
+    }
+    if (isSelected(ctx, "part", partId)) el.className += " tvrow--selected";
+    else if (isTouched(ctx, "part", partId)) el.className += " tvrow--touched";
+    partCells(el, group, true, indent, index, bracketed, ctx, true);
+    el.appendChild(VA.el("td", "tvcell tvcell--ord"));
+    var names = edges.map(function (id) { return index.edges[id] ? index.edges[id].name : id; });
+    var words = edges.length + (edges.length === 1 ? " dimension" : " dimensions");
+    var name = VA.el("td", "tvcell tvcell--name muted", words);
+    name.setAttribute("title", names.join("\n"));
+    el.appendChild(name);
+    var study = marking ? ctx.study : null;
+    var r = study && study.status === "ok" && study.result && study.result.assemblies
+      ? study.result.assemblies[partId] || null : null;
+    var num = function (cls, text) {
+      var cell = VA.el("td", "tvcell tvcell--" + cls + " num", text);
+      if (text) cell.setAttribute("title", text);
+      el.appendChild(cell);
+    };
+    num("nominal", r ? VA.fmt(r.nominal) : "");
+    num("min", r ? VA.fmt(r.worst_case_min) : "");
+    num("max", r ? VA.fmt(r.worst_case_max) : "");
+    num("sensitivity", "");
+    num("contribution", r ? "± " + VA.fmt(r.worst_case_half) + " " + r.units : "");
+    var worst = null;
+    edges.forEach(function (id) {
+      var edge = index.edges[id];
+      var mark = edge ? VA.rowSourcingMark(edge.confidence, edge, false) : null;
+      if (mark && (!worst || VA.SOURCING_MARKS.indexOf(mark.key) < VA.SOURCING_MARKS.indexOf(worst.key))) {
+        worst = mark;
+      }
+    });
+    el.appendChild(sourcingCell(worst));
+    hotRegister(hot, {
+      el: el, base: el.className,
+      leads: [hotKey("part", partId)].concat(edges.map(function (id) { return hotKey("edge", id); })),
+      self: [hotKey("part", partId)],
+      hot: "tvrow--hot", lead: "tvrow--lead",
+    });
+    hotHover(hot, el, hotKey("part", partId));
+    return nameRow(el, ctx, "part", partId,
+      (index.parts[partId] ? VA.componentLabel(index.parts[partId]) : partId) + " · " + words);
   }
 
   // Which tier of the page's selection a drawn thing is in (hover_and_select_

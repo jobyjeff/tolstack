@@ -156,8 +156,24 @@
 
     // Parts the model places in no body (a document with no `bodies`), in
     // authored order: a tree lists them where bodies would be.
-    var unbodied = (view.parts || []).filter(function (p) { return p.body === null || p.body === undefined; })
-      .map(function (p) { return p.id; });
+    var unbodied = (view.parts || []).filter(function (p) {
+      return (p.body === null || p.body === undefined) && !p.parent;
+    }).map(function (p) { return p.id; });
+
+    // The part tree (a_part_may_contain_parts, 2026-11-14): a part's
+    // children, and a part with its whole subtree in the one tree order --
+    // an assembly, then each child's subtree in authored order. A projection
+    // built before parts had parents reads every part as a leaf.
+    var childrenOf = function (partId) {
+      var p = parts[partId];
+      return (p && p.children) || [];
+    };
+    var subtreeOf = function (partId) {
+      if (!parts[partId]) return [];
+      var out = [partId];
+      childrenOf(partId).forEach(function (c) { out = out.concat(subtreeOf(c)); });
+      return out;
+    };
 
     var model = {
       id: view.id,
@@ -172,6 +188,18 @@
       interfaces: view.interfaces || [],
       joints: view.joints || [],
       unbodiedParts: unbodied,
+      // The part tree: a part's parent (null at the top), its children, the
+      // part and everything inside it (VA's one tree order), and every part
+      // a body carries in that order -- `body.parts` is its top-level parts.
+      parentOf: function (partId) { var p = parts[partId]; return (p && p.parent) || null; },
+      childrenOf: childrenOf,
+      subtreeOf: subtreeOf,
+      isAssembly: function (partId) { return childrenOf(partId).length > 0; },
+      allPartsOf: function (bodyId) {
+        var b = bodies[bodyId];
+        if (!b) return [];
+        return b.all_parts || b.parts || [];
+      },
       // Lookups.
       body: function (id) { return bodies[id] || null; },
       part: function (id) { return parts[id] || null; },
@@ -330,7 +358,8 @@
   //
   //   own       the entity and everything it CONTAINS. A body contains its
   //             parts and the joints inside it; a part its features and
-  //             dimensions; a dimension and an interface their two end
+  //             dimensions, and an assembly its parts and the joints between
+  //             them (a_part_may_contain_parts, 2026-11-14); a dimension and an interface their two end
   //             features; a joint its interfaces; a feature its bound faces
   //             (VA.focusFacesOf reads those off the same tiers).
   //   touching  what MEETS it without belonging to it. A part: the
@@ -388,12 +417,15 @@
         if (mine.indexOf(fid) === -1) tier.add(F.feature, fid);
       });
     };
+    // An assembly contains its parts (a_part_may_contain_parts): its own
+    // tier is the assembly's and every part's inside it.
     var ownPart = function (partId) {
       var part = model.part(partId);
       if (!part) return;
       own.add(F.part, partId);
       part.features.forEach(function (fid) { own.add(F.feature, fid); });
       part.dimensions.forEach(function (did) { own.add(F.dimension, did); });
+      model.childrenOf(partId).forEach(ownPart);
     };
     var ownInterface = function (iface) {
       own.add(F.interface, iface.id);
@@ -424,11 +456,19 @@
       own.add(F.body, body.id);
       body.parts.forEach(ownPart);
       model.jointsWithin(body.id).forEach(ownJoint);
-      touchParts(body.parts);
+      touchParts(model.allPartsOf(body.id));
     } else if (entity.kind === F.part) {
       if (!model.part(entity.id)) return { own: [], touching: [] };
       ownPart(entity.id);
-      touchParts([entity.id]);
+      // ...and the joints between two of its own parts, as a body owns the
+      // joints inside it.
+      var inside = model.subtreeOf(entity.id);
+      if (inside.length > 1) {
+        model.joints.forEach(function (j) {
+          if (j.parts.every(function (pid) { return inside.indexOf(pid) !== -1; })) ownJoint(j);
+        });
+      }
+      touchParts(inside);
     } else if (entity.kind === F.feature) {
       var f = model.feature(entity.id);
       if (!f) return { own: [], touching: [] };
@@ -560,7 +600,12 @@
     if (kind === F.body) return [];
     if (kind === F.part) {
       var part = model.part(id);
-      return part ? bodyPath(part.body, "bp") : [];
+      if (!part) return [];
+      // A part inside an assembly is behind each ancestor's fold, outermost
+      // first (a_part_may_contain_parts).
+      var ancestors = [];
+      for (var up = model.parentOf(id); up; up = model.parentOf(up)) ancestors.unshift("p:" + up);
+      return bodyPath(part.body, "bp").concat(ancestors);
     }
     if (kind === F.joint) return jointPath(model.joint(id));
     if (kind === F.interface) {

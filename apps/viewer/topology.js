@@ -3144,6 +3144,26 @@
     return out;
   };
 
+  // The top-level part each part is drawn as on the DAG ({partId: topId}),
+  // off the authored `parts[].parent` (a_part_may_contain_parts, 2026-11-14):
+  // an assembly's parts belong to the assembly's block and field, and the
+  // DAG draws no nested outline of its own yet -- the + on a group and the
+  // nested outline are the map's. A part with no parent is its own top.
+  VA.topPartOf = function (topoProj) {
+    var parent = {};
+    ((topoProj && topoProj.parts) || []).forEach(function (p) {
+      if (p && p.parent) parent[p.id] = p.parent;
+    });
+    var out = {};
+    ((topoProj && topoProj.parts) || []).forEach(function (p) {
+      var top = p.id;
+      var seen = {};
+      while (parent[top] && !seen[top]) { seen[top] = true; top = parent[top]; }
+      out[p.id] = top;
+    });
+    return out;
+  };
+
   // --- parts as groups ------------------------------------------------------
   //
   // The smallest group (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_
@@ -3158,15 +3178,17 @@
     var nodes = {};
     ((topoProj && topoProj.edges) || []).forEach(function (e) { edges[e.id] = e; });
     ((topoProj && topoProj.nodes) || []).forEach(function (n) { nodes[n.id] = n; });
+    var top = VA.topPartOf(topoProj);
+    var drawnAs = function (part) { return part ? top[part] || part : part; };
     var edgePart = function (row) {
       if (!row || row.kind !== "edge" || row.collapsed) return null;
       var e = edges[row.id];
-      return (e && e.part) || null;
+      return drawnAs((e && e.part) || null);
     };
     var partOf = rows.map(function (row, i) {
       if (row.collapsed) return null;
       if (row.kind === "edge") return edgePart(row);
-      var meets = (nodes[row.id] && nodes[row.id].parts) || [];
+      var meets = ((nodes[row.id] && nodes[row.id].parts) || []).map(drawnAs);
       var above = edgePart(rows[i - 1]);
       if (above && meets.indexOf(above) !== -1) return above;
       var below = edgePart(rows[i + 1]);
@@ -3227,14 +3249,25 @@
 
   VA.partPins = function (topoProj) {
     var nodes = (topoProj && topoProj.nodes) || [];
+    // A part inside an assembly is a pin of the assembly's block
+    // (VA.topPartOf): counted, and owning, as its top-level part.
+    var top = VA.topPartOf(topoProj);
+    var drawnParts = function (n) {
+      var out = [];
+      (n.parts || []).forEach(function (p) {
+        var t = top[p] || p;
+        if (out.indexOf(t) === -1) out.push(t);
+      });
+      return out;
+    };
     var count = {};
     nodes.forEach(function (n) {
-      (n.parts || []).forEach(function (p) { count[p] = (count[p] || 0) + 1; });
+      drawnParts(n).forEach(function (p) { count[p] = (count[p] || 0) + 1; });
     });
     var owner = {};
     nodes.forEach(function (n) {
       var best = null;
-      (n.parts || []).forEach(function (p) {
+      drawnParts(n).forEach(function (p) {
         if (best === null || count[p] > count[best]) best = p;
       });
       if (best !== null) owner[n.id] = best;
@@ -3250,7 +3283,7 @@
     var chords = {};
     var outside = {};
     ((topoProj && topoProj.edges) || []).forEach(function (e) {
-      var p = e.part;
+      var p = e.part ? top[e.part] || e.part : e.part;
       if (p && blocks[p] && owner[e.from] === p && owner[e.to] === p) {
         chords[e.id] = p;
         return;
@@ -3916,10 +3949,13 @@
   // `store` injected, every access wrapped, an unreadable value reads as
   // nothing collapsed). One key holding {topologyId: [bodyId, ...]}.
   VA.COLLAPSED_BODIES_KEY = "tolstack.viewer.collapsedBodies";
+  // The grid's folded assemblies, the same shape under their own key
+  // (a_part_may_contain_parts, 2026-11-14): {topologyId: [partId, ...]}.
+  VA.COLLAPSED_ASSEMBLIES_KEY = "tolstack.viewer.collapsedAssemblies";
 
-  function readCollapsedAll(store) {
+  function readCollapsedAll(store, key) {
     try {
-      var raw = store && store.getItem(VA.COLLAPSED_BODIES_KEY);
+      var raw = store && store.getItem(key || VA.COLLAPSED_BODIES_KEY);
       var all = raw ? JSON.parse(raw) : {};
       return all && typeof all === "object" && !Array.isArray(all) ? all : {};
     } catch (err) {
@@ -3927,26 +3963,42 @@
     }
   }
 
-  VA.readCollapsedBodies = function (store, topologyId) {
-    var ids = readCollapsedAll(store)[topologyId];
+  function readCollapsed(store, topologyId, key) {
+    var ids = readCollapsedAll(store, key)[topologyId];
     var out = {};
     (Array.isArray(ids) ? ids : []).forEach(function (id) {
       if (typeof id === "string") out[id] = true;
     });
     return out;
-  };
+  }
 
-  VA.writeCollapsedBodies = function (store, topologyId, collapsed) {
+  function writeCollapsed(store, topologyId, collapsed, key) {
     try {
       if (!store) return;
-      var all = readCollapsedAll(store);
+      var all = readCollapsedAll(store, key);
       var ids = Object.keys(collapsed || {}).filter(function (id) { return collapsed[id]; });
       if (ids.length) all[topologyId] = ids.sort();
       else delete all[topologyId];
-      store.setItem(VA.COLLAPSED_BODIES_KEY, JSON.stringify(all));
+      store.setItem(key, JSON.stringify(all));
     } catch (err) {
       // A browser that refuses to store it still collapses for this session.
     }
+  }
+
+  VA.readCollapsedBodies = function (store, topologyId) {
+    return readCollapsed(store, topologyId, VA.COLLAPSED_BODIES_KEY);
+  };
+
+  VA.writeCollapsedBodies = function (store, topologyId, collapsed) {
+    writeCollapsed(store, topologyId, collapsed, VA.COLLAPSED_BODIES_KEY);
+  };
+
+  VA.readCollapsedAssemblies = function (store, topologyId) {
+    return readCollapsed(store, topologyId, VA.COLLAPSED_ASSEMBLIES_KEY);
+  };
+
+  VA.writeCollapsedAssemblies = function (store, topologyId, collapsed) {
+    writeCollapsed(store, topologyId, collapsed, VA.COLLAPSED_ASSEMBLIES_KEY);
   };
 
   // The model the reader last opened, so a reload lands where they left it
@@ -4448,12 +4500,36 @@
   // WALK order (the sum's own order is the `#` column, VA.chainIndex's
   // ordinal), because a table re-ordered under a DAG that did not move would
   // cross every leader on the page. No focus is the whole walk, unchanged.
-  VA.gridPlan = function (layout, topoProj, focus) {
+  //
+  // `collapsed` ({partId: true}, a_part_may_contain_parts, 2026-11-14) is
+  // the assemblies the reader has folded. Every row on a folded assembly or
+  // on a part inside it becomes ONE row for the outermost folded assembly:
+  // `{rollup: {part, edges}}`, at the first of those rows, with `edges` every
+  // row it stands for, in walk order (a later run of the same assembly's rows
+  // adds to it and draws nothing). What it prints is the study's own fold of
+  // that assembly (the projection's `result.assemblies`), never a sum of the
+  // rows -- so the stack's total does not move when it folds. A dropped row's
+  // leaders bind to the next row the grid keeps, as a filtered one's do. A
+  // kinematic page's stack is its own sub-stacks, and folds nothing here.
+  VA.gridPlan = function (layout, topoProj, focus, collapsed) {
     var index = VA.topologyIndex(topoProj);
     var internal = VA.internalNodes(topoProj);
     var partsById = index.parts;
     var focusEdges = (focus && focus.edges) || null;
     var focusNodes = (focus && focus.nodes) || null;
+    // The outermost folded assembly a part is in (itself included), or null.
+    var folded = collapsed && !(focus && focus.stack) ? collapsed : null;
+    var foldedInto = function (part) {
+      if (!folded || part === null) return null;
+      var out = null;
+      var seen = {};
+      for (var at = part; at && !seen[at]; at = partsById[at] && partsById[at].parent) {
+        seen[at] = true;
+        if (folded[at]) out = at;
+      }
+      return out;
+    };
+    var rollupRow = {};
 
     var rows = [];
     var groups = [];
@@ -4535,6 +4611,13 @@
       }
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
+      var into = foldedInto(part);
+      if (into && rollupRow[into]) {
+        // Folded into a row already drawn: it stands for this one too.
+        rollupRow[into].rollup.edges.push(row.id);
+        return;
+      }
+      if (into) part = into;
       var breakHere = rows.length === 0 || part !== prevPart;
       if (breakHere) {
         var partRow = part === null ? null : partsById[part] || { id: part };
@@ -4548,14 +4631,19 @@
       }
       groups[groups.length - 1].count += 1;
       bindLeaders(row.id);
-      rows.push({
+      var planRow = {
         id: row.id,
         layoutRow: row.row,
         gridRow: rows.length,
         closes: row.closes_row !== null && row.closes_row !== undefined,
         body: row.body === undefined ? null : row.body,
         term: term,
-      });
+      };
+      if (into) {
+        planRow.rollup = { part: into, edges: [row.id] };
+        rollupRow[into] = planRow;
+      }
+      rows.push(planRow);
       prevPart = part;
       pendingBoundaryNode = null;
     });
@@ -4603,6 +4691,28 @@
   // holds print no number of their own (the_demo_path_reads_cleanly_on_a_
   // projector; it was printed in both, `214373-002 214373-002 propeller hub`).
   // A part with no number keeps the DAG container's label.
+  // A part's place in the part tree, off the authored `parts[].parent`
+  // (a_part_may_contain_parts): how many assemblies it is inside, and
+  // whether it is one. `partsById` is VA.topologyIndex's `parts`.
+  VA.partDepth = function (partsById, partId) {
+    var depth = 0;
+    var seen = {};
+    for (var at = partsById[partId] && partsById[partId].parent; at && !seen[at];
+         at = partsById[at] && partsById[at].parent) {
+      seen[at] = true;
+      depth++;
+    }
+    return depth;
+  };
+
+  VA.assemblyIds = function (topoProj) {
+    var out = {};
+    ((topoProj && topoProj.parts) || []).forEach(function (p) {
+      if (p && p.parent) out[p.parent] = true;
+    });
+    return out;
+  };
+
   VA.gridPartLabel = function (part) {
     if (!part) return "";
     return VA.partColumns(part).number || VA.partContainerLabel(part);
@@ -4674,6 +4784,7 @@
       i = j;
     }
     if (kinds.parts !== false) {
+      var assemblies = VA.assemblyIds(topo);
       groups.forEach(function (g) {
         if (g.header || g.part === null || g.part === undefined || !g.count) return;
         var at = bodyAt[g.start];
@@ -4685,7 +4796,13 @@
                       label: VA.gridPartLabel(record),
                       tint: VA.bodyTint(topo, own !== null && own !== undefined ? own
                                                 : bodyOfPart[g.part]),
-                      body: at || null });
+                      body: at || null,
+                      // Its place in the part tree: a nested part's number is
+                      // indented, and an assembly's bracket carries its fold
+                      // (open, or folded into one rolled-up row).
+                      depth: VA.partDepth(partsById, g.part),
+                      assembly: assemblies[g.part]
+                        ? (rows[g.start].rollup ? "closed" : "open") : null });
       });
     }
     braces.sort(function (a, b) { return a.level - b.level || a.start - b.start; });
