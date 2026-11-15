@@ -68,6 +68,9 @@ MODEL_V2_COUNTS = {
     "bodies": 5, "parts": 15, "features": 34, "dimensions": 22,
     "interfaces": 17, "contacts": 9, "gaps": 8,
     "between_bodies": 8, "within_bodies": 9, "joints": 15,
+    # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
+    # assembly holds its bearing, the 212956-005 assembly its two.
+    "assemblies": 2,
 }
 
 #: Interfaces inside one body, per body: ground 5, pitch plate 3, blade 1.
@@ -183,7 +186,10 @@ def test_every_membership_the_view_states_is_the_topologys_own(path):
 def test_the_view_lists_bodies_and_their_parts_in_authored_order(v2, v2_view):
     assert [b["id"] for b in v2_view["bodies"]] == [b.id for b in v2.bodies]
     for body, row in zip(v2.bodies, v2_view["bodies"]):
-        assert row["parts"] == list(body.parts)
+        # A body's parts are its top-level ones; every part it carries is
+        # `all_parts`, in the one tree order.
+        assert row["parts"] == [p for p in body.parts if v2.part(p).parent is None]
+        assert sorted(row["all_parts"]) == sorted(body.parts)
         assert row["name"] == body.name
     assert [p["id"] for p in v2_view["parts"]] == [p.id for p in v2.parts]
     # A part's features are its nodes in document order, and only its own.
@@ -191,6 +197,47 @@ def test_the_view_lists_bodies_and_their_parts_in_authored_order(v2, v2_view):
         expected = [feature_id(part["id"], n.id) for n in v2.nodes if part["id"] in n.parts]
         assert part["features"] == expected, part["id"]
         assert part["dimensions"] == [e.id for e in v2.edges_on_part(part["id"])], part["id"]
+
+
+# --- a part may contain parts (a_part_may_contain_parts, 2026-11-14) -----------
+
+def test_model_v2_puts_each_bearing_inside_its_link_assembly(v2_view):
+    parts = {p["id"]: p for p in v2_view["parts"]}
+    assert parts["pitch_link"]["children"] == ["spherical_bearing_pitch_link"]
+    assert parts["tan_link_212956_005"]["children"] == [
+        "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
+    assert parts["spherical_bearing_pitch_link"]["parent"] == "pitch_link"
+    assert parts["spherical_bearing_pitch_link"]["depth"] == 1
+    assert parts["pitch_link"]["parent"] is None and parts["pitch_link"]["depth"] == 0
+    # 215177 and 215175 stay single parts until their bushings are solids.
+    assert parts["pitch_plate_215177_001"]["children"] == []
+    assert parts["tan_link_mount_215175_002"]["children"] == []
+    bodies = {b["id"]: b for b in v2_view["bodies"]}
+    assert bodies["tan_link"]["parts"] == ["tan_link_212956_005"]
+    assert bodies["tan_link"]["all_parts"] == [
+        "tan_link_212956_005", "spherical_bearing_tan_link",
+        "spherical_bearing_tan_link_ms14103_3"]
+    assert bodies["pitch_link"]["all_parts"] == ["pitch_link", "spherical_bearing_pitch_link"]
+
+
+def test_the_tree_order_is_an_assembly_then_its_children_depth_first(tmp_path):
+    raw = json.loads(MODEL_V2.read_text(encoding="utf-8"))
+    by_id = {p["id"]: p for p in raw["parts"]}
+    # Nest one level deeper and list the deepest part first in the body, so
+    # the order the view states is the tree's and not the authored list's.
+    by_id["spherical_bearing_tan_link_ms14103_3"]["parent"] = "spherical_bearing_tan_link"
+    body = [b for b in raw["bodies"] if b["id"] == "tan_link"][0]
+    body["parts"] = ["spherical_bearing_tan_link_ms14103_3", "spherical_bearing_tan_link",
+                     "tan_link_212956_005"]
+    path = tmp_path / "topology_nested.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    view = model_view(load_topology(path, identity_path=None))
+    row = [b for b in view["bodies"] if b["id"] == "tan_link"][0]
+    assert row["parts"] == ["tan_link_212956_005"]
+    assert row["all_parts"] == ["tan_link_212956_005", "spherical_bearing_tan_link",
+                                "spherical_bearing_tan_link_ms14103_3"]
+    depth = {p["id"]: p["depth"] for p in view["parts"]}
+    assert depth["spherical_bearing_tan_link_ms14103_3"] == 2
 
 
 def test_the_identity_ids_are_the_models_own_and_the_one_it_reuses(v2_view, v1_view):

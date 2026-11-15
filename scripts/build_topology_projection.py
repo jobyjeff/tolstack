@@ -112,6 +112,7 @@ from tolerance_stack.topology import (  # noqa: E402
     Topology,
     TopologyError,
     VARIANT_AXIS,
+    assembly_rollups,
     check_study,
     forge_axes,
     in_model_order,
@@ -1525,6 +1526,14 @@ def project_study(topology: Topology, study: Study, path: Path,
     projected = result.as_dict()
     projected["chain"] = [project_contribution(c) for c in result.chain]
     projected.update(rounded(result.interval.as_dict()))
+    # Each assembly's share of the chain, folded on its own (`topology.
+    # assembly_rollups`): what the grid's one row for a collapsed assembly
+    # prints, so the browser adds nothing up.
+    projected["assemblies"] = {
+        part_id: {"edges": list(edges), "units": result.units,
+                  **rounded(interval.as_dict())}
+        for part_id, (edges, interval) in assembly_rollups(topology, result).items()
+    }
     row["result"] = projected
     row["layout"] = serialize_chain(chain).as_dict()
     row["checks"] = [project_study_check(topology, study, chain, spec)

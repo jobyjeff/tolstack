@@ -40,7 +40,7 @@
         "spherical_bearing_tan_link",
         "spherical_bearing_tan_link_ms14103_3"
       ],
-      "note": "The 212956-005 assembly and its two bearings. Both bearings are pressed into the 212956-005 assembly, so they move with it; linkage lists the assembly alone because its mesh already draws them -- the difference v1 declares."
+      "note": "The 212956-005 assembly and its two bearings. Both bearings are pressed into the 212956-005 assembly, so they move with it and name it as their `parent` (2026-11-14, a_part_may_contain_parts); linkage lists the assembly alone because its mesh already draws them -- the difference v1 declares."
     },
     {
       "id": "pitch_plate",
@@ -68,7 +68,7 @@
         "pitch_link",
         "spherical_bearing_pitch_link"
       ],
-      "note": "The 213862-002 assembly and its bearing."
+      "note": "The 213862-002 assembly and its bearing, which names it as its `parent` (2026-11-14, a_part_may_contain_parts): the bearing is in the link assembly and in the link's body, and its tolerances come from its datasheet (Jeff)."
     },
     {
       "id": "blade",
@@ -138,7 +138,8 @@
     },
     {
       "id": "spherical_bearing_pitch_link",
-      "name": "pitch-link spherical bearing"
+      "name": "pitch-link spherical bearing",
+      "parent": "pitch_link"
     },
     {
       "id": "tan_link_212956_005",
@@ -152,12 +153,14 @@
     {
       "id": "spherical_bearing_tan_link",
       "name": "tangential-link bearing, narrow end",
+      "parent": "tan_link_212956_005",
       "occurrence": "217755-001/prd-e-03478614.1/prd-e-03438709.1/MS14101-3.1",
       "note": "Drawn once, at the mount-end bearing of the tangential link chosen above. placement_world (row-major 3x4, read off `asm217755_MS14101_3_34f032f0`'s provenance.json): [-0.007896, 0.00519, -0.999955, 79.42809, 0.869274, 0.494311, -0.004298, 62.429907, 0.494267, -0.869269, -0.008414, 110.026857]."
     },
     {
       "id": "spherical_bearing_tan_link_ms14103_3",
       "name": "tangential-link bearing, wide end",
+      "parent": "tan_link_212956_005",
       "occurrence": "217755-001/prd-e-03478614.1/prd-e-03438709.1/prd-e-02198427.1",
       "note": "Drawn once, at the plate-end bearing of the tangential link chosen above. placement_world (row-major 3x4, read off `asm217755_MS14103_3`'s provenance.json): [-0.025581, 0.006047, -0.999654, 80.998253, 0.869066, 0.494321, -0.019249, 9.026642, 0.494034, -0.869258, -0.017901, 79.666133]."
     },

@@ -72,6 +72,7 @@ from tolerance_stack.topology import (
     TopologyError,
     Transform,
     UnitMismatch,
+    assembly_rollups,
     check_study,
     identity_topology_id,
     in_model_order,
@@ -2745,3 +2746,92 @@ def test_the_contact_builder_and_the_proposer_read_a_declared_face():
     assert (end["part"], end["asks"]) == ("pitch_plate_215177_001", "cylindrical")
     source = (REPO_ROOT / "scripts" / "propose_bindings.py").read_text(encoding="utf-8")
     assert "node.face_surface" in source and "node.face_part" in source
+
+
+# --- a part may contain parts (a_part_may_contain_parts, 2026-11-14) -----------
+#
+# A part may name a `parent` part: the parent is declared, in the same body,
+# and no part is its own ancestor. An assembly's share of a study is the one
+# fold over its subtree's terms (`assembly_rollups`), which is what the grid's
+# collapsed row prints.
+
+LINKAGE = REPO_ROOT / "docs" / "topologies" / "topology_vpa_pitch_linkage.json"
+
+
+def _with_parents(path: Path, parents: dict) -> dict:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    for part in raw["parts"]:
+        if part["id"] in parents:
+            part["parent"] = parents[part["id"]]
+    return raw
+
+
+def test_a_parent_the_document_does_not_declare_is_refused():
+    raw = _with_parents(MODEL_V2, {"spherical_bearing_pitch_link": "no_such_link"})
+    with pytest.raises(TopologyError, match="names parent 'no_such_link', which the document does not declare"):
+        _write_and_load(raw)
+
+
+def test_a_parent_in_another_body_is_refused():
+    # The pitch link's bearing inside the pitch arm: the arm is in the blade.
+    raw = _with_parents(MODEL_V2, {"spherical_bearing_pitch_link": "pitch_arm"})
+    with pytest.raises(TopologyError, match="its parent 'pitch_arm' in body 'blade'"):
+        _write_and_load(raw)
+
+
+def test_a_part_that_is_its_own_ancestor_is_refused():
+    raw = _with_parents(MODEL_V2, {"pitch_link": "spherical_bearing_pitch_link"})
+    with pytest.raises(TopologyError, match="its own ancestor"):
+        _write_and_load(raw)
+    with pytest.raises(TopologyError, match="another part's id"):
+        Part(id="pitch_link", name="pitch link", parent="pitch_link")
+
+
+def test_a_parent_is_checked_without_bodies_too():
+    raw = _with_parents(MODEL_V2, {"spherical_bearing_tan_link": "spherical_bearing_tan_link_ms14103_3",
+                                      "spherical_bearing_tan_link_ms14103_3": "spherical_bearing_tan_link"})
+    raw["bodies"] = []
+    with pytest.raises(TopologyError, match="its own ancestor"):
+        _write_and_load(raw)
+
+
+def test_children_and_the_tree_order_of_model_v2():
+    topology = load_topology(MODEL_V2)
+    assert topology.children_of("pitch_link") == ["spherical_bearing_pitch_link"]
+    assert topology.subtree("tan_link_212956_005") == [
+        "tan_link_212956_005", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
+    assert topology.tree_order(topology.body("tan_link").parts) == topology.subtree("tan_link_212956_005")
+    assert topology.children_of("pitch_plate_215177_001") == []
+
+
+def test_an_assemblys_roll_up_is_the_fold_of_its_subtrees_terms():
+    # v1's cotter-hole clearance with the plate's two bushings nested in the
+    # plate (in a copy: v1 is untouched). Pinned by id: the plate assembly's
+    # share is its flange and the two bushings' own contributions, and the
+    # rest of the chain plus that share is the study's total.
+    raw = _with_parents(LINKAGE, {"bushing_214820_002": "pitch_plate_215177_001",
+                                  "flanged_bushing_nas77a3_015a": "pitch_plate_215177_001"})
+    topology = _write_and_load(raw)
+    study = load_study(REPO_ROOT / "docs" / "topologies" / "study_pitch_link_cotter_hole_clearance.json")
+    result = summarize(topology, study)
+    rollups = assembly_rollups(topology, result)
+    assert list(rollups) == ["pitch_plate_215177_001"]
+    edges, interval = rollups["pitch_plate_215177_001"]
+    assert edges == ("pitch_plate_flange", "flange_bushing_flange_pitch_link", "bushing_214820")
+    mine = [c for c in result.chain if c.edge.id in edges]
+    assert interval.nominal == pytest.approx(sum(c.nominal for c in mine))
+    assert interval.min == pytest.approx(sum(c.min for c in mine))
+    assert interval.max == pytest.approx(sum(c.max for c in mine))
+    assert (round(interval.nominal, 4), round(interval.min, 4), round(interval.max, 4)) == (
+        -10.3948, -10.4948, -10.0378)
+    rest = fold(c.term for c in result.chain if c.edge.id not in edges)
+    assert rest.nominal + interval.nominal == pytest.approx(result.interval.nominal)
+    assert rest.min + interval.min == pytest.approx(result.interval.min)
+    assert rest.max + interval.max == pytest.approx(result.interval.max)
+
+
+def test_an_assembly_the_chain_does_not_reach_has_no_roll_up():
+    raw = _with_parents(LINKAGE, {"bushing_214820_002": "pitch_plate_215177_001"})
+    topology = _write_and_load(raw)
+    study = load_study(REPO_ROOT / "docs" / "topologies" / "study_rotor_fastener_grip_u2h.json")
+    assert assembly_rollups(topology, summarize(topology, study)) == {}

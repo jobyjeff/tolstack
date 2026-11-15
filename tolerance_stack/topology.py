@@ -386,6 +386,12 @@ class Part:
     #: keeps the every-occurrence rule. ``docs/ANNOTATION_SURFACE.md``, "Where
     #: a part is drawn".
     occurrence: Optional[str] = None
+    #: The id of the part this one is a part *of* -- a bearing pressed into a
+    #: link assembly names the assembly. A part with children is an
+    #: assembly. Checked against the other parts in :class:`Topology`: the
+    #: parent is declared, in the same body, and no part is its own ancestor.
+    #: Depth is not limited. ``docs/DAG_TOPOLOGY.md``, "Bodies".
+    parent: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.occurrence is not None and (
@@ -393,6 +399,11 @@ class Part:
             raise TopologyError(
                 f"part {self.id!r}: occurrence must be an instance path, got "
                 f"{self.occurrence!r}")
+        if self.parent is not None and (
+                not isinstance(self.parent, str) or not self.parent or self.parent == self.id):
+            raise TopologyError(
+                f"part {self.id!r}: parent names the assembly this part is in -- "
+                f"another part's id -- got {self.parent!r}")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Part":
@@ -1014,6 +1025,33 @@ class Topology:
                 f"topology {self.id!r} declares bodies but puts no body round "
                 f"part(s) {unplaced}. Every part is in exactly one body; a part "
                 f"the mechanism does not place is a body of its own.")
+        self._children: Dict[str, List[str]] = {p.id: [] for p in self.parts}
+        for part in self.parts:
+            if part.parent is None:
+                continue
+            if part.parent not in self._parts:
+                raise TopologyError(
+                    f"topology {self.id!r}: part {part.id!r} names parent "
+                    f"{part.parent!r}, which the document does not declare")
+            mine, theirs = self._body_of.get(part.id), self._body_of.get(part.parent)
+            if mine is not theirs:
+                raise TopologyError(
+                    f"topology {self.id!r}: part {part.id!r} is in body "
+                    f"{mine.id if mine else None!r} and its parent {part.parent!r} "
+                    f"in body {theirs.id if theirs else None!r}. An assembly's "
+                    f"parts move with it, so they are in its body.")
+            self._children[part.parent].append(part.id)
+        for part in self.parts:
+            seen = [part.id]
+            up = part.parent
+            while up is not None:
+                if up in seen:
+                    raise TopologyError(
+                        f"topology {self.id!r}: part {part.id!r} is its own "
+                        f"ancestor ({' -> '.join(seen + [up])}). A part is in "
+                        f"one assembly, and an assembly is not inside its parts.")
+                seen.append(up)
+                up = self._parts[up].parent
         if "identity" in self._transforms:
             raise TopologyError(
                 f"topology {self.id!r}: 'identity' is the reserved id of the "
@@ -1113,6 +1151,31 @@ class Topology:
         """The body ``part_id`` moves with; ``None`` when no body is declared."""
         self.part(part_id)
         return self._body_of.get(part_id)
+
+    def children_of(self, part_id: str) -> List[str]:
+        """The parts whose ``parent`` is ``part_id``, in authored order; a
+        part with any is an assembly."""
+        self.part(part_id)
+        return list(self._children[part_id])
+
+    def subtree(self, part_id: str) -> List[str]:
+        """``part_id`` and every part inside it, in the one tree order: an
+        assembly, then each child's subtree in authored order (depth first)."""
+        out = [part_id]
+        for child in self.children_of(part_id):
+            out.extend(self.subtree(child))
+        return out
+
+    def tree_order(self, part_ids: Iterable[str]) -> List[str]:
+        """``part_ids`` walked as a tree: each top-level one (no parent among
+        the topology's parts) in the given order, followed by its subtree.
+        A body's parts read through this are its parts in the one order every
+        surface walks them."""
+        out: List[str] = []
+        for part_id in part_ids:
+            if self.part(part_id).parent is None:
+                out.extend(self.subtree(part_id))
+        return out
 
     def node_bodies(self, node_id: str) -> Tuple[str, ...]:
         """The ids of the bodies a node's parts move with, in the node's part
@@ -1661,6 +1724,31 @@ def summarize(topology: Topology, study: Study) -> StudyResult:
         interval=fold(c.term for c in chain),
         units=units.pop() if units else topology.units,
     )
+
+
+def assembly_rollups(topology: Topology, result: StudyResult
+                     ) -> Dict[str, Tuple[Tuple[str, ...], Interval]]:
+    """Each assembly's share of a study: ``{part id: (edge ids, interval)}``.
+
+    For every part with children (:meth:`Topology.children_of`) whose subtree
+    has an edge in the chain, the one :func:`~tolerance_stack.stack.fold` over
+    those contributions' own terms -- the assembly's dimensions and every part
+    inside it, signed and weighted as the chain crossed them. It is a path over
+    a subset of the chain, never a sum of displayed numbers, which is what lets
+    the grid show an assembly as one row with the stack's total unchanged
+    (``docs/DAG_TOPOLOGY.md``, "Bodies"). An assembly the chain does not reach
+    has no entry.
+    """
+    out: Dict[str, Tuple[Tuple[str, ...], Interval]] = {}
+    for part in topology.parts:
+        if not topology.children_of(part.id):
+            continue
+        inside = set(topology.subtree(part.id))
+        mine = [c for c in result.chain if c.edge.part in inside]
+        if mine:
+            out[part.id] = (tuple(c.edge.id for c in mine),
+                            fold(c.term for c in mine))
+    return out
 
 
 def check_study(topology: Topology, study: Study, check_id: str) -> CheckResult:

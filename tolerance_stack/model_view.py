@@ -15,11 +15,16 @@ in the workspace; studies scope a subset of it.*
 
 The entities, and what each is:
 
-* **bodies** -- the authored rigid bodies, in authored order, each listing
-  its parts in authored order.
+* **bodies** -- the authored rigid bodies, in authored order. ``parts`` is
+  a body's top-level parts, in authored order; ``all_parts`` is every part it
+  carries in the one tree order (an assembly, then its children, depth first --
+  :meth:`~tolerance_stack.topology.Topology.tree_order`). Since 2026-11-14
+  (handoff ``a_part_may_contain_parts``) a part may name a ``parent``, and
+  everything that walks a body's parts walks ``all_parts``.
 * **parts** -- every authored part, with the body it moves with (``None`` when
   the document declares no bodies), its :func:`part_label`, its features and
-  its dimensions.
+  its dimensions, and its place in the tree: ``parent`` (``None`` at the top),
+  ``children`` in authored order and ``depth`` (0 at the top).
 * **features** -- a node *as seen on one part*. A node on two parts (a mating
   surface) is two features, one per part, so a part's features are its own and
   a face two parts share is a pin on each. A feature's id is
@@ -238,13 +243,17 @@ def model_view(topology: Topology,
             "dimensions": list(dimension_ids_of_part[part.id]),
             "occurrence": part.occurrence,
             "mesh": mesh_of(part.id) if mesh_of is not None else None,
+            "parent": part.parent,
+            "children": topology.children_of(part.id),
+            "depth": _depth(topology, part.id),
         })
 
     bodies_out = [{
         "id": body.id,
         "name": body.name,
         "kind": body.kind,
-        "parts": list(body.parts),
+        "parts": [p for p in body.parts if topology.part(p).parent is None],
+        "all_parts": topology.tree_order(body.parts),
     } for body in topology.bodies]
 
     # The topology ids a feature-identity record about this model may be
@@ -277,8 +286,17 @@ def model_view(topology: Topology,
             "between_bodies": sum(1 for i in interfaces if i["within"] is None),
             "within_bodies": sum(1 for i in interfaces if i["within"] is not None),
             "joints": len(joints),
+            "assemblies": sum(1 for p in parts if p["children"]),
         },
     }
+
+
+def _depth(topology: Topology, part_id: str) -> int:
+    """How many assemblies ``part_id`` is inside."""
+    depth, up = 0, topology.part(part_id).parent
+    while up is not None:
+        depth, up = depth + 1, topology.part(up).parent
+    return depth
 
 
 def _interface(ident: str, name: str, kind: str, source: str, ends: List[str],
