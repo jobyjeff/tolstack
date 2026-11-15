@@ -730,14 +730,14 @@ body { display: flex; flex-direction: column; }
    confidence is the grid's SOURCING chip and its band the grid's MIN/MAX.
    Hover and selection are the one exception, and they spend width. */
 .rail__bar { stroke: var(--edge-ink); stroke-width: var(--edge-lit-w);
-  stroke-linecap: butt; cursor: pointer; }
+  stroke-linecap: butt; cursor: pointer; fill: none; }
 /* The whole-edge hover/click target (deliverable 3, viewer_error_surface_and_
    layout, 2026-09-09): solid and wider than the visible bar, so a dashed
    gap stroke's own gaps (rail__bar--gap, below) never leave a real portion
    of the edge's length unresponsive. Invisible on purpose -- the visible bar
    above keeps its one ink, its weight and its dash unchanged; `pointer-events: stroke` is what makes a
    `stroke: transparent` line still hoverable/clickable. */
-.rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; fill: none; }
 /* A gap crosses between parts and has no lane of its own — dashed, because it
    is the one edge kind no rail belongs to. A derived gap is a gap, and draws as
    one: that it carries no value is the grid's to say. */
