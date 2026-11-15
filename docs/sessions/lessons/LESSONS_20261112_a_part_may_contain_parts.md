@@ -91,3 +91,22 @@ alias rows, and count pins.
   fast ones, on the part cell, the part-bracket loop and the body visibility box.
   `test_every_anchor_resolves_to_exactly_one_place` names only the first. A
   short script over every spec's `find` lists them all at once.
+
+## Test record (2026-11-14, this worktree)
+
+- `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`: **1986 passed,
+  1 failed, 1 skipped**, 467 s (recorded, inside budget). The one failure is
+  `tests/test_viewer_js_suite.py`, the documented worktree red: the `[real]`
+  node-fs tier has no projection here.
+- `node apps/viewer/run_tests.cjs`: 576/576. The node-fs `[real]` tier was
+  skipped in the worktree.
+- `node apps/annotate/run_tests.cjs`: 316/316.
+- Witnesses, `--only`: the 7 new fast specs all WITNESSED. The 3 re-anchored fast
+  specs WITNESSED. The 2 re-anchored browser specs WITNESSED with
+  `--repo C:/workspace/tolstack` and a `node_modules` junction.
+- Browser runner: no browser suite was added or changed, so none was run.
+- **Not run here:** the `[real]` tiers against a projection built from this tree.
+  The main checkout's projection predates the v2 `parent` fields and the builder
+  change, so the review rebuilds the projections before its post-merge tiers.
+  The click-around served this tree's topology projection from the scratch root
+  `data/scratch/apmcp/` beside the main checkout's other data.
