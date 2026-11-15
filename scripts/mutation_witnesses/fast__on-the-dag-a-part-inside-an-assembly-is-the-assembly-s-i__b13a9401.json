@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "on the DAG a part inside an assembly is the assembly's: its pins are the assembly's block's and its rows the assembly's field",
+  "mutations": [
+    {
+      "contract": "The DAG draws a part inside an assembly as its top-level assembly.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Every part is drawn as itself again.",
+      "file": "apps/viewer/topology.js",
+      "find": "      out[p.id] = top;\n",
+      "replace": "      out[p.id] = p.id;\n"
+    }
+  ]
+}

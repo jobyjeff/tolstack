@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a folded assembly is one grid row standing for its own rows and its parts', folded at the outermost folded assembly, and a kinematic stack folds nothing",
+  "mutations": [
+    {
+      "contract": "A row folds into the OUTERMOST folded assembly it is in.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). The innermost folded assembly wins.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (folded[at]) out = at;\n",
+      "replace": "        if (folded[at]) { out = at; break; }\n"
+    }
+  ]
+}

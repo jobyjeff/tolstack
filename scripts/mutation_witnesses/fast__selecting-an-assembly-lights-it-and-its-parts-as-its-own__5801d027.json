@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "selecting an assembly lights it and its parts as its own, with the joints between them; only what leaves the assembly is touching",
+  "mutations": [
+    {
+      "contract": "An assembly's own tier holds every part inside it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Stops the own tier at the assembly's own features.",
+      "file": "apps/viewer/model.js",
+      "find": "      model.childrenOf(partId).forEach(ownPart);\n",
+      "replace": ""
+    }
+  ]
+}

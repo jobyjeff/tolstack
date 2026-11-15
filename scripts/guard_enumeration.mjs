@@ -329,7 +329,11 @@ export const DECLARED_GUARDS = {
   // longer built), and the live-model render check reads seam rows. Every
   // new and renamed name carries a spec; the retired
   // three's are deleted.
-  fast: { declared: 692, enrollable: 692, names: "88e235704292" },
+  // 2026-11-14 (a_part_may_contain_parts): +7 -- the model's part tree, an
+  // assembly's own tier, the tree's nested parts, the DAG's top-level part,
+  // the grid's folded row in the plan and on the page, and the fold store
+  // with its two shortcuts. Every new name carries a spec.
+  fast: { declared: 699, enrollable: 699, names: "0adde613bb52" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

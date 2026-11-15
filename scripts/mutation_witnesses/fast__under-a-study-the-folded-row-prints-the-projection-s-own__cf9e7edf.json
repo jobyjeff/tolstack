@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "under a study the folded row prints the projection's own fold of the assembly in the totals' columns, the totals under the grid read the same folded or open, and its caret folds and opens it",
+  "mutations": [
+    {
+      "contract": "A folded row's min is the projection's worst-case min of the assembly's fold.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Prints the RSS bound in the worst-case column.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    num(\"min\", r ? VA.fmt(r.worst_case_min) : \"\");\n",
+      "replace": "    num(\"min\", r ? VA.fmt(r.rss_min) : \"\");\n"
+    }
+  ]
+}

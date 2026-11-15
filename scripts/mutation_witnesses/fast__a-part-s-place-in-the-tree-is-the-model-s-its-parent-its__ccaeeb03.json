@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's place in the tree is the model's: its parent, its children, the part with everything inside it in one order, a body's every part, and the folds a nested part sits behind",
+  "mutations": [
+    {
+      "contract": "A part inside an assembly is revealed behind each ancestor's fold.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Drops the ancestors from a nested part's reveal path.",
+      "file": "apps/viewer/model.js",
+      "find": "      for (var up = model.parentOf(id); up; up = model.parentOf(up)) ancestors.unshift(\"p:\" + up);\n",
+      "replace": ""
+    }
+  ]
+}

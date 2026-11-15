@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the tree draws an assembly's parts inside it, one level in and before its own features, and counts a body's every part",
+  "mutations": [
+    {
+      "contract": "An open assembly in the tree lists its parts, nested, before its features.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). The assembly opens to its features alone.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      children.forEach(function (pid) {\n        list.appendChild(partItem(model, pid, state, handlers));\n      });\n",
+      "replace": ""
+    }
+  ]
+}

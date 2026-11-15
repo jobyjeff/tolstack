@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the folded assemblies are remembered per topology, and the toolbar offers the two shortcuts only where the model has an assembly",
+  "mutations": [
+    {
+      "contract": "The folded assemblies are stored under their own key, apart from the folded bodies.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Writes the assemblies over the bodies' store.",
+      "file": "apps/viewer/topology.js",
+      "find": "    writeCollapsed(store, topologyId, collapsed, VA.COLLAPSED_ASSEMBLIES_KEY);\n",
+      "replace": "    writeCollapsed(store, topologyId, collapsed, VA.COLLAPSED_BODIES_KEY);\n"
+    }
+  ]
+}
