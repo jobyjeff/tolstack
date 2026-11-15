@@ -12209,7 +12209,7 @@
         })[0];
         eq(p1.getAttribute("data-nav-assembly"), "true");
         eq(p1.querySelector(".navtree__count").textContent,
-           "1" + VA.NAV_WORDS.partsCount + " · 2" + VA.NAV_WORDS.featuresCount);
+           "1" + VA.NAV_WORDS.partCount + " · 2" + VA.NAV_WORDS.featuresCount);
         // The assembly's box covers its meshed parts (p1 only: p2 has none).
         eq(p1.querySelector("input.navtree__vis").checked, false);
         var body = all(root, "div.navtree__row--body")[0];

@@ -246,6 +246,22 @@ linkage solver's sweeps already name and the DAG had no way to know:
   never a host (`AA.sweepRidingParts`). The 3D pane's Bodies list in sweep
   mode lists each body's declared parts in `bodies[]` order, links among them,
   as the DAG does (`AA.sweepModelTree`).
+- **A part may contain parts** (2026-11-14, `a_part_may_contain_parts`). A
+  part may name a `"parent": "<part id>"`; a part with children is an
+  assembly. The parent is declared, in the same body, and no part is its own
+  ancestor (`Topology` refuses each, naming the part); depth is not limited.
+  A body still lists every part it carries, children included. The model view
+  gives each part `parent`, `children` and `depth`, a body's `parts` its
+  top-level parts and `all_parts` every part in the one tree order — an
+  assembly, then each child's subtree in authored order
+  (`Topology.tree_order`). Selecting an assembly lights it and every part
+  inside it as its own. The grid folds an assembly to one row whose numbers
+  are the study's own fold of the assembly's and its parts' terms
+  (`topology.assembly_rollups`, carried as a study's `result.assemblies`), so
+  the total is the same folded or open; the DAG draws a part inside an
+  assembly as the assembly's. Model v2's pitch link and 212956-005 assemblies
+  hold their bearings; 215177 and 215175 stay single parts until their
+  bushings are separate solids; v1 declares no parent.
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 

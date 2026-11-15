@@ -14,10 +14,10 @@
     {
       "contract": "A body's show/hide box reports the body, so every part of it is shown or hidden together.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
-      "note": "Reports the body's first part instead of the body, which hides one part when the reader unticked a body.",
+      "note": "Reports the body's first part instead of the body, which hides one part when the reader unticked a body. Re-anchored 2026-11-14 (a_part_may_contain_parts). A body's box is built by the shared meshedVisibility now.",
       "file": "apps/viewer/views/nav.js",
-      "find": "      var box = visibility(\"body\", body.id, hiddenCount < meshed.length,\n",
-      "replace": "      var box = visibility(\"part\", body.parts[0], hiddenCount < meshed.length,\n"
+      "find": "    var box = meshedVisibility(\"body\", body.id, all, model, state, handlers);\n",
+      "replace": "    var box = meshedVisibility(\"part\", body.parts[0], all, model, state, handlers);\n"
     }
   ]
 }

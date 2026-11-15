@@ -6,10 +6,10 @@
     {
       "contract": "A row under its part's labelled bracket prints no number of its own.",
       "issue": "docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md",
-      "note": "Puts the second copy back: `214373-002 214373-002 propeller hub`.",
+      "note": "Puts the second copy back: `214373-002 214373-002 propeller hub`. Re-anchored 2026-11-14 (a_part_may_contain_parts). The cell is built empty and its number appended where no bracket says it.",
       "file": "apps/viewer/views/topology.js",
-      "find": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words && !bracketed ? words.number : \"\");",
-      "replace": "var number = VA.el(\"td\", \"tvcell tvcell--part\", words ? words.number : \"\");"
+      "find": "    if (words && !bracketed) {\n",
+      "replace": "    if (words) {\n"
     }
   ]
 }

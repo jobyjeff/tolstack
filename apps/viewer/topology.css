@@ -1219,6 +1219,7 @@ body { display: flex; flex-direction: column; }
 }
 .tvasm__caret:hover, .tvasm__caret:focus-visible { color: var(--ink); }
 .tvcell--part .tvasm__caret { width: 12px; vertical-align: middle; }
+.tvbrace__caret { position: absolute; box-sizing: border-box; justify-content: center; }
 .tvrow--substack { font-size: var(--t-dense); }
 .tvsub__caret { display: inline-block; width: 14px; color: var(--muted); }
 .tvsub__title { font-weight: 600; }

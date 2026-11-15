@@ -6,10 +6,10 @@
     {
       "contract": "A row's part cell takes the click and previews its row.",
       "issue": "docs/issues/ISSUE_20261104_at_1600_wide_the_product_graphs_rails_leave_the_grid_a_59px_slit.md",
-      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Gives the cell the click-swallowing handler the merged COMPONENT cell had.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Gives the cell the click-swallowing handler the merged COMPONENT cell had. Re-anchored 2026-11-14 (a_part_may_contain_parts): the cell is built empty and its number appended.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    var number = VA.el(\"td\", \"tvcell tvcell--part\", words && !bracketed ? words.number : \"\");",
-      "replace": "    var number = VA.el(\"td\", \"tvcell tvcell--part\", words && !bracketed ? words.number : \"\");\n    number.onclick = function (e) { if (e && e.stopPropagation) e.stopPropagation(); };"
+      "find": "    var number = VA.el(\"td\", \"tvcell tvcell--part\");\n",
+      "replace": "    var number = VA.el(\"td\", \"tvcell tvcell--part\");\n    number.onclick = function (e) { if (e && e.stopPropagation) e.stopPropagation(); };\n"
     }
   ]
 }

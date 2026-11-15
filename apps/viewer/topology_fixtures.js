@@ -36,6 +36,10 @@
 // builder writes the field on every part, null where the part declares none,
 // and no demo part declares one.
 //
+// Each part's `parent: null` -- and, in the model block, `children: []` and
+// `depth: 0` -- is the sixth (handoff a_part_may_contain_parts, 2026-11-14):
+// the builder writes them on every part, and no demo part is in an assembly.
+//
 // Each part's `mesh` block is the fourth thing patched in by hand (handoff
 // annotate_affordances_flyout_and_mesh_gating, 2026-09-14): the builder derives
 // it from the installed meshes under `data/`, which this demo mechanism has
@@ -386,6 +390,7 @@
               "number about it is invented, and nothing here is a claim about " +
               "any hardware.",
             "occurrence": null,
+            "parent": null,
             "mesh": { "installed": true, "part_id": "base" },
             "label": "215197 base plate",
             "drawing_runs": [
@@ -405,6 +410,7 @@
             "revision": null,
             "note": null,
             "occurrence": null,
+            "parent": null,
             "mesh": { "installed": false, "part_id": null },
             "label": "post",
             "drawing_runs": [],
@@ -417,6 +423,7 @@
             "revision": null,
             "note": null,
             "occurrence": null,
+            "parent": null,
             "mesh": { "installed": true, "part_id": "demo_arm_machined" },
             "label": "arm",
             "drawing_runs": [],
@@ -429,6 +436,7 @@
             "revision": null,
             "note": "identity not established",
             "occurrence": null,
+            "parent": null,
             "mesh": { "installed": false, "part_id": null },
             "label": "parallel strut",
             "drawing_runs": [],
@@ -894,6 +902,9 @@
                 "base_thickness"
               ],
               "occurrence": null,
+              "parent": null,
+              "children": [],
+              "depth": 0,
               "mesh": {
                 "installed": true,
                 "part_id": "base"
@@ -915,6 +926,9 @@
                 "post_bushing_offset"
               ],
               "occurrence": null,
+              "parent": null,
+              "children": [],
+              "depth": 0,
               "mesh": {
                 "installed": false,
                 "part_id": null
@@ -934,6 +948,9 @@
                 "arm_pin_to_tip"
               ],
               "occurrence": null,
+              "parent": null,
+              "children": [],
+              "depth": 0,
               "mesh": {
                 "installed": true,
                 "part_id": "demo_arm_machined"
@@ -953,6 +970,9 @@
                 "strut_length"
               ],
               "occurrence": null,
+              "parent": null,
+              "children": [],
+              "depth": 0,
               "mesh": {
                 "installed": false,
                 "part_id": null

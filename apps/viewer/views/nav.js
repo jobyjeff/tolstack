@@ -68,6 +68,7 @@
     sweep: "Play the newest sweep",
     sweepHint: "the mechanism moving through its newest published sweep, in the 3D scene",
     partsCount: " parts",
+    partCount: " part",
     constraintsCount: " constraints",
     featuresCount: " features",
     shown: "shown in 3D",
@@ -446,8 +447,9 @@
     var name = label(part.label, null, null);
     name.setAttribute("title", part.label);
     row.appendChild(name);
+    var inside = model.subtreeOf(partId).length - 1;
     row.appendChild(count((children.length
-      ? model.subtreeOf(partId).length - 1 + VA.NAV_WORDS.partsCount + " · " : "") +
+      ? inside + (inside === 1 ? VA.NAV_WORDS.partCount : VA.NAV_WORDS.partsCount) + " · " : "") +
       part.features.length + VA.NAV_WORDS.featuresCount));
     var box = meshedVisibility("part", partId, model.subtreeOf(partId), model, state, handlers);
     if (box) row.appendChild(box);
