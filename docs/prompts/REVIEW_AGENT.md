@@ -5934,6 +5934,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       it; the author's `--only` runs could not (the spec was not theirs). On a
       diff that changes a constant's value, `git grep -l '<old value>'
       scripts/mutation_witnesses/` and re-point each hit.
+- [ ] **A per-part aggregate keyed on `edge.part` silently leaves out gap
+      edges** (`part` is null on a gap by construction). New 2026-11-14
+      (`a_part_may_contain_parts`): `topology.assembly_rollups` and
+      `VA.gridPlan`'s fold both select a subtree's rows by `edge.part`, so a
+      clearance between two parts *of one assembly* would stay its own row
+      and split the folded block. The total is unaffected and no model has
+      such a gap yet. On any new "everything on this part / assembly / body"
+      selection, ask what it does with a gap whose two ends are both inside.
+- [ ] **A real-model DoD number the model cannot produce.** v2 is studyless
+      and carries no values, so `a_part_may_contain_parts`'s "same total open
+      and folded" could only be shown on a scratch copy of v1. That is the
+      honest answer, but check that the lesson says so, that the scratch
+      numbers are also pinned in pytest, and that the committed models are
+      untouched (`git diff integration -- docs/topologies/`).
 
 ## Architectural errors to check
 
