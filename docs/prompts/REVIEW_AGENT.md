@@ -671,6 +671,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the merged tree (`node tests/debug_integration_walk_20261108.mjs --phase
       demo --shots <scratch>`, about 2 min), then read your shot against theirs.
 
+- [ ] **An SVG `<path>` the diff draws, with no `fill` rule, fills black.**
+      SVG's default fill is black, and only a `<line>` cannot show it. The
+      DAG's chord bars are paths. Their body-tinted copies lacked the
+      `rail__bar--chord` class that carried `fill: none`, so a lit chord
+      painted a black blob. No tier saw it, because it shows only when lit.
+      Fixed 2026-11-14 with `fill: none` on the base `.rail__bar`/`.rail__barhit`
+      (`208d3c89`). For a new curve class, check that its base rule says
+      `fill: none`, not only a modifier class
+      (`the_walk_reads_the_merged_page_against_jeffs_november_notes`).
+
 - [ ] **A message the page acts on at load reaches the URL.** A pane/embed message
       handled on arrival (e.g. `annotate:pose`) that calls `setPose` writes
       `?kinematic=…&pose=…` with no reader action, sets `poseUrlWritten`, and a later
