@@ -16,6 +16,7 @@
 //   node scripts/run_mutation_witness_tests.mjs                     # main checkout only (npm run test:mutations adds --full)
 //   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack --only card-layout  # ...from a worktree
 //   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one guard
+//   node scripts/run_mutation_witness_tests.mjs --only a --only b    # several, one shadow + one clean run per suite
 //   node scripts/run_mutation_witness_tests.mjs --changed-since integration   # the entries this diff could have decayed (the merge gate)
 //   node scripts/run_mutation_witness_tests.mjs --changed-since integration --budget-min 20   # ...with a tighter wall-clock cap (default 30; 0 = none)
 //   node scripts/run_mutation_witness_tests.mjs --full               # every entry, no cap (the scheduled sweep, docs/prompts/WITNESS_SWEEP.md)
@@ -107,8 +108,9 @@ import { createRequire } from "node:module";
 import { dirname, join, normalize } from "node:path";
 import { census, censusReport, pinsMoved, specFileName, SPEC_DIR }
   from "./guard_enumeration.mjs";
-import { takeTheBrowserSlot } from "./browser_runner.mjs";
-import { DEFAULT_BUDGET_MIN, orderForBudget, runWithBudget, summaryLine, leftLine,
+import { takeTheBrowserSlot, appendLedgerRow, NO_LEDGER_ENV } from "./browser_runner.mjs";
+import { onlyValues, resolveOnly, selectOnly, unmatchedOnly, matchesOnly, resolveBudgetMin,
+  orderForBudget, runWithBudget, summaryLine, leftLine,
          formatWall, slowest, exitCodeFor } from "./witness_budget.mjs";
 
 const { projectionInputs } = createRequire(import.meta.url)("./projection_freshness.cjs");
@@ -226,7 +228,10 @@ const PYTHON = join(DATA_REPO, "venv-win", "Scripts", "python.exe");
 // tests/test_mutation_witnesses.py refuses it too; this is the half that does
 // not need a pytest run to say so.
 const SELF_PAIRING_SUITE = "tests/test_mutation_witnesses.py";
-const ONLY = argFlag("--only");
+// `--only` may repeat (or carry a comma list): every guard a session changed goes in
+// ONE invocation, which pays one shadow copy and one clean run per suite instead of
+// one of each per guard. The single-substring form selects exactly what it always did.
+const ONLY_VALUES = onlyValues(process.argv);
 // `--verbose` prints the mutated run's whole output even when the entry passes.
 // A miss prints it either way -- this is for reading the red a witness actually
 // produces, which is what a lesson or a review writes down.
@@ -250,8 +255,9 @@ const all = STATE.specs.flatMap((spec) =>
   })));
 // `--only` matches the derived id OR the guard's own name, because the name is
 // the half a reader has in front of them: it is what the tier printed.
-let chosen = ONLY === null
-  ? all : all.filter((m) => m.id.includes(ONLY) || m.expect_red.includes(ONLY));
+const ONLY_TERMS = resolveOnly(all, ONLY_VALUES);
+const ONLY = ONLY_VALUES.length ? ONLY_TERMS : null;
+let chosen = ONLY === null ? all : selectOnly(all, ONLY);
 
 if (process.argv.includes("--list")) {
   for (const m of all) {
@@ -690,7 +696,7 @@ if (CHANGED_SINCE !== null) {
   }
   const reached = reachedBy(diff.files, CHANGED_SINCE);
   const picked = reached.picked
-    .filter(({ m }) => ONLY === null || m.id.includes(ONLY) || m.expect_red.includes(ONLY));
+    .filter(({ m }) => ONLY === null || ONLY.some((t) => matchesOnly(m, t)));
   for (const { m, arm } of picked) console.log(`  ${m.id}  [${arm}]`);
   for (const note of reached.notes) console.log(note);
   chosen = picked.map(({ m }) => m);
@@ -718,7 +724,7 @@ const FULL = process.argv.includes("--full");
 // to the end -- its budget is dispatch's `sweep` tier -- and `--budget-min 0` is
 // the same shape for any other selection.
 const BUDGET_ARG = argFlag("--budget-min");
-const BUDGET_MIN = FULL ? 0 : BUDGET_ARG === null ? DEFAULT_BUDGET_MIN : Number(BUDGET_ARG);
+const BUDGET_MIN = resolveBudgetMin({ full: FULL, arg: BUDGET_ARG });
 if (!Number.isFinite(BUDGET_MIN) || BUDGET_MIN < 0) {
   console.log(`REFUSED: --budget-min takes a number of minutes (0 = no cap), not ${JSON.stringify(BUDGET_ARG)}.`);
   process.exit(2);
@@ -770,9 +776,8 @@ if (ONLY === null && !FULL && CHANGED_SINCE === null && !isMainCheckout(REPO)) {
       `${SPEC_DIR.join("/")}/ against integration, so it has none of its own to run.`);
   } else {
     console.log("  The specs this branch added or changed against integration:");
-    for (const id of touched.files) {
-      console.log(`    node scripts/run_mutation_witness_tests.mjs --only ${id}`);
-    }
+    console.log("    node scripts/run_mutation_witness_tests.mjs " +
+      touched.files.map((id) => `--only ${id}`).join(" "));
   }
   console.log("  Pass --full to run every entry anyway (the scheduled sweep does).");
   process.exit(2);
@@ -824,7 +829,9 @@ function runTier(mutation) {
   return new Promise((resolve) => {
     const { command, args } = tierCommand(mutation);
     const child = spawn(command, args,
-      { cwd: SHADOW, stdio: ["ignore", "pipe", "pipe"] });
+      { cwd: SHADOW, stdio: ["ignore", "pipe", "pipe"],
+        // The browser runner under test must not write a ledger row per mutation.
+        env: { ...process.env, [NO_LEDGER_ENV]: "1" } });
     let out = "";
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { out += d; });
@@ -1096,8 +1103,16 @@ function anchorHits(mutation) {
 // --- the run ---------------------------------------------------------------
 
 (async () => {
+  // A name that selects nothing is a typo, and a several-guard run would otherwise
+  // go green on the rest and never say one guard was not witnessed.
+  const unmatched = ONLY === null ? [] : unmatchedOnly(all, ONLY);
+  if (unmatched.length && chosen.length) {
+    console.log(`--only ${JSON.stringify(unmatched)} matches no entry; nothing was run.`);
+    process.exitCode = 1;
+    return;
+  }
   if (!chosen.length) {
-    console.log(`--only ${JSON.stringify(ONLY)} matches no entry. The entries are:` +
+    console.log(`--only ${JSON.stringify(ONLY_VALUES)} matches no entry. The entries are:` +
       all.map((m) => "\n  " + m.id).join(""));
     process.exitCode = 1;
     return;
@@ -1155,6 +1170,7 @@ function anchorHits(mutation) {
     return;
   }
 
+  const runStarted = performance.now();
   console.log(`building the shadow tree at ${SHADOW}`);
   buildShadow();
 
@@ -1259,6 +1275,21 @@ function anchorHits(mutation) {
     },
   });
   for (const entry of left) console.log(leftLine(entry));
+  // An `--only` run is a partial row, so a tactical session's loop is on the
+  // ledger without being mistaken for a whole run (dispatch's report ignores the
+  // tier); a whole-tier run is still recorded by whoever ran it.
+  if (ONLY !== null) {
+    try {
+      appendLedgerRow({
+        tier: "partial", seconds: (performance.now() - runStarted) / 1000,
+        command: `node scripts/run_mutation_witness_tests.mjs ${process.argv.slice(2).join(" ")}`,
+        extra: { scope: "witness", only: ONLY, specs: results.length,
+          suite_count: new Set(results.map((r) => `${r.entry.tier}|${r.entry.suite || ""}`)).size },
+      });
+    } catch (err) {
+      console.log(`(timing ledger not written: ${err.message})`);
+    }
+  }
 
   const witnessed = results.length - misses.length;
   console.log("\nslowest entries:");

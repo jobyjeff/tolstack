@@ -328,10 +328,17 @@ must be confirmed before the property is looked up.
   review owes comes **after** the merge, and the entry that owns it is *"…and the
   same thing in reverse: run the suite in BOTH checkouts"* under "Recurring bugs
   to check". Nothing in this overlay asks for a full suite before the merge.
-  The whole browser tier and the witness `--changed-since` gate run **once, here,
-  after the merge** — a tactical session runs them only with `--only` for what it
-  added or changed — and the batch merge re-runs them only when it merged more
-  than one handoff (`CLAUDE.md`'s test table).
+  The whole browser tier runs **once, here, after the merge**, unless the ledger
+  already holds a whole-tier (`merge`) green for the same `tree` hash
+  (`git rev-parse HEAD^{tree}`; read `C:/workspace/dispatch/data/suite_times.jsonl`)
+  — then cite that row's timestamp and seconds instead of running again. A
+  handoff whose `git diff --name-only integration...HEAD` touches nothing outside
+  `docs/` runs the two fast tiers and stops (a CSS or JS line is not docs). The
+  witness gate is `--changed-since <ref> --budget-min 10`. A tactical session runs
+  these only with `--only` for what it added or changed, and the batch merge runs
+  the default tier, the two fast tiers and the witness gate at the 30-minute cap
+  over the whole batch's diff, and the browser tier only when the trees differ
+  (`CLAUDE.md`'s test table).
 - **Green is not the whole verdict here — and that, not distrust of the author,
   is the repo-specific reason this needs its own sentence.** This suite is a
   **transcription** check rather than a self-consistency check, and it is one
@@ -500,7 +507,11 @@ problem as an unrecorded full suite one step later.
   that this guard cannot be witnessed, which is a claim you review. This tier
   also owes a **post-merge** run, for a reason the merge itself creates — see the
   "After you merge `integration` into your review branch, re-run" entry, which is
-  not covered by this pre-merge row.
+  not covered by this pre-merge row. **A change to
+  `scripts/run_mutation_witness_tests.mjs` or `scripts/witness_budget.mjs`** also
+  runs `pytest -q tests/test_mutation_witness_shadow_concurrency.py` — naming the
+  file runs all four of its tests, two of which carry the `sweep` marker and are
+  out of the default tier (2026-11-15), so nothing else runs them on a landing.
 - **Test tooling under `scripts/*.cjs` / `scripts/*.mjs` that a harness
   `require`s** (added 2026-09-30) → `pytest -q tests/test_projection_freshness.py
   tests/test_mutation_witnesses.py`, plus the fast tier through the `--repo` seam
@@ -1641,8 +1652,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       cheaper could (10-20, a witness defect with no product exposure, in a spec
       whose own file the branch never touched). That case is the sweep's job
       and the reason a decay found there is not a reason to put `--full` back on
-      the gate. `--only <guard>` re-checks one entry. **The run is capped at 30
-      minutes** (`--budget-min`, 2026-10-27): it runs fast, python, then browser
+      the gate. `--only <guard>` re-checks one entry. **The run is capped at 10
+      minutes at a review (`--budget-min 10`, 2026-11-15) and 30 at the batch
+      merge** (`--budget-min`, 2026-10-27): it runs fast, python, then browser
       entries, stops *launching* when the elapsed time plus that tier's mean per
       entry would cross the cap, and prints each unreached entry as `left to the
       sweep (budget)`. Your review table's witness row carries

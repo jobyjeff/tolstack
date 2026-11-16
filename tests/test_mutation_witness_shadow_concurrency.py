@@ -181,6 +181,7 @@ def test_two_concurrent_runs_against_one_repo_produce_a_named_refusal() -> None:
         assert _RUN_SUMMARY.search(clean_out), f"{context}:\n{clean_out}"
 
 
+@pytest.mark.sweep
 def test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale() -> None:
     """The specific conflation the review found, forced directly rather than
     hoped for by timing: a lock file that cannot be parsed at all -- the exact
@@ -249,6 +250,7 @@ def test_two_different_repo_roots_both_still_succeed(tmp_path: Path) -> None:
         assert _RUN_SUMMARY.search(out), out
 
 
+@pytest.mark.sweep
 def test_a_stale_lock_pid_dead_is_cleared_with_a_message() -> None:
     """A lock whose pid is no longer running must not wedge the tier forever."""
     dead_proc = subprocess.Popen(
