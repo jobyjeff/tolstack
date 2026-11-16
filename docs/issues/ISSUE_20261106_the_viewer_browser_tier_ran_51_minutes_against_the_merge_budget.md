@@ -197,3 +197,9 @@ page 80.7 s.
 > map 76.6 s, the model drawn alone and led 73.7 s, kinematic study page
 > 73.7 s. The previous whole-tier row (tree `3f5ae923`, 2026-11-16T12:01Z) was
 > 1737 s; the tier gained one suite and 92 s and crossed the line.
+
+> **Measurement, 2026-11-16, round 2 of the same review.** The whole tier on
+> the rework's merged tree `8bbef3ea`, same scratch root, 47 suites, 1120
+> checks: **1835 s wall, over the 1800 s budget by 35 s** (the runner's own
+> row). Two checks more than round 1 and six seconds slower; the shape of the
+> timing table is unchanged.
