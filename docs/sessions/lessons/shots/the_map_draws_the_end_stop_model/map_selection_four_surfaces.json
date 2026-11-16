@@ -2,7 +2,7 @@
  {
   "t": 0,
   "map": {
-   "lead": 9,
+   "lead": 10,
    "selected": 0,
    "touched": 0
   },
@@ -22,8 +22,8 @@
  {
   "t": 150,
   "map": {
-   "lead": 9,
-   "selected": 9,
+   "lead": 10,
+   "selected": 10,
    "touched": 8
   },
   "tree": {
@@ -44,8 +44,8 @@
  {
   "t": 300,
   "map": {
-   "lead": 9,
-   "selected": 9,
+   "lead": 10,
+   "selected": 10,
    "touched": 8
   },
   "tree": {
@@ -66,8 +66,8 @@
  {
   "t": 450,
   "map": {
-   "lead": 9,
-   "selected": 9,
+   "lead": 10,
+   "selected": 10,
    "touched": 8
   },
   "tree": {
@@ -88,8 +88,8 @@
  {
   "t": 600,
   "map": {
-   "lead": 9,
-   "selected": 9,
+   "lead": 10,
+   "selected": 10,
    "touched": 8
   },
   "tree": {
@@ -110,52 +110,8 @@
  {
   "t": 750,
   "map": {
-   "lead": 9,
-   "selected": 9,
-   "touched": 8
-  },
-  "tree": {
-   "hot": 9,
-   "on": 9
-  },
-  "grid": {
-   "lead": 3,
-   "selected": 3
-  },
-  "scene": [
-   "hover:own:1p6f",
-   "hover:touching:0p2f",
-   "select:own:1p6f",
-   "select:touching:0p2f"
-  ]
- },
- {
-  "t": 900,
-  "map": {
-   "lead": 9,
-   "selected": 9,
-   "touched": 8
-  },
-  "tree": {
-   "hot": 9,
-   "on": 9
-  },
-  "grid": {
-   "lead": 3,
-   "selected": 3
-  },
-  "scene": [
-   "hover:own:1p6f",
-   "hover:touching:0p2f",
-   "select:own:1p6f",
-   "select:touching:0p2f"
-  ]
- },
- {
-  "t": 1050,
-  "map": {
-   "lead": 9,
-   "selected": 9,
+   "lead": 10,
+   "selected": 10,
    "touched": 8
   },
   "tree": {

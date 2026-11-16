@@ -366,11 +366,15 @@
     // Pins: one per feature that ends an interface, on its part's
     // perimeter, with its short label beside it -- shown on hover and when
     // lit (map.css). An inner mark for a feature that ends none.
+    // A pin's label sits just inside its box -- clear of the routes -- except
+    // a top pin's, which sits above the box: inside, it landed on the part's
+    // own name (the 11-16 click-around found "mount end bearing centre"
+    // written over "212956-005").
     var labelAt = function (pin, side) {
       var o = 12;
       if (side === "left") return { x: pin.x + o, y: pin.y + M.font.pin * 0.36, anchor: "start" };
       if (side === "right") return { x: pin.x - o, y: pin.y + M.font.pin * 0.36, anchor: "end" };
-      if (side === "top") return { x: pin.x, y: pin.y + o + M.font.pin * 0.8, anchor: "middle" };
+      if (side === "top") return { x: pin.x, y: pin.y - o, anchor: "middle" };
       return { x: pin.x, y: pin.y - o, anchor: "middle" };
     };
     geo.pins.forEach(function (pin) {
