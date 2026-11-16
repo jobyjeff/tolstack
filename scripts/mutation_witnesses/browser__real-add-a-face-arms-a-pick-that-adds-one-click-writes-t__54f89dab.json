@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)",
+  "expect_red": "[real] Add a face arms a pick that adds: one click writes the set with the face added and ends the pick",
+  "mutations": [
+    {
+      "contract": "An Add-a-face arm adds the clicked face to the set.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Only Shift adds, so Add a face's click replaces the set with the clicked face.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (pick && (shift || a.adding)) return addArmedFace(pick, !!shift);",
+      "replace": "  if (pick && shift) return addArmedFace(pick, !!shift);",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    }
+  ]
+}

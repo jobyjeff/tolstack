@@ -6,9 +6,9 @@
     {
       "contract": "Like faces on the picked face's surface that do not touch it are offered as a group, and nothing is written until the offer is answered.",
       "issue": "docs/sessions/lessons/LESSONS_20261112_a_feature_is_bound_once_to_a_set_of_faces.md",
-      "note": "Declared with the guard by handoff a_feature_is_bound_once_to_a_set_of_faces (review round 2). The mutation binds the clicked face alone and never asks -- the interrupted seats of one bore would be bound one at a time as separate answers.",
+      "note": "Declared with the guard by handoff a_feature_is_bound_once_to_a_set_of_faces (review round 2). The mutation binds the clicked face alone and never asks -- the interrupted seats of one bore would be bound one at a time as separate answers. Re-pointed 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): the offer's condition now also names a pattern.",
       "file": "apps/annotate/app.js",
-      "find": "  if (siblings.offered.length) {",
+      "find": "  if (siblings.offered.length || siblings.pattern.length) {",
       "replace": "  if (false) {"
     }
   ]

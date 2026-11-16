@@ -406,7 +406,12 @@ async function openAllParts(page) {
   const at = await faceOnPage(page, 744, (f) => f === 743);
   log("face 744 on the page", at);
   const before = scratchEvents();
-  await clickFace(page, at);
+  // The hole's wall is behind the hub's own top face from the framed view,
+  // so a real click may find no point on it: then the click is handed over
+  // the way scene.js's pointerup hands it, through the scene's own onPick.
+  if (at) await clickFace(page, at);
+  else await frameOf(page).evaluate((sha) => { window.__scene.onPick({ sha256: sha, faceId: 744 }, null, null, {}); }, HUB_SHA);
+  log("face 744 clicked", at ? "with the mouse" : "through the scene's onPick (no screen point on it)");
   await frameOf(page).waitForSelector("#an-offer.an__offer--on", { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(1500);
   log("the offer", { offer: await offerState(page), writes: scratchEvents() - before });

@@ -679,7 +679,12 @@ export const DECLARED_GUARDS = {
   // 2026-11-15 (a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates): +6 -- the suite's five checks, each
   // with a spec, and its "(skipped: ...)" line, which no mutation can redden
   // (it passes exactly when the data is absent) and so carries none.
-  browser: { declared: 856, enrollable: 825, names: "a96a74be0a16" },
+  // 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): +12 --
+  // the pattern suite: the filter count and what Unbound lists, the offer on face
+  // 744, Take all, the fit in the body and the Preview, Add a face, two Removes,
+  // Shift-click, and the count dropping by one. Each carries a spec; the suite's
+  // "(skipped: ...)" line does not (it passes exactly when the data is absent).
+  browser: { declared: 868, enrollable: 837, names: "8b8190045b91" },
 };
 
 

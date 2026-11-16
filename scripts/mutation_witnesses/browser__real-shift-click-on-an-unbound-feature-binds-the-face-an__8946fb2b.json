@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)",
+  "expect_red": "[real] Shift-click on an unbound feature binds the face and keeps the pick; a second adds to the set, still armed",
+  "mutations": [
+    {
+      "contract": "A Shift-click that adds keeps the pick armed.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Ends the pick after an add.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (keep) setArmedLine(AA.armedWords(\"added\", { face: full.faceId, n: faces.length }), true);\n    else disarmPick(\"bound\");",
+      "replace": "    disarmPick(\"bound\");",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    }
+  ]
+}

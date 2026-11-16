@@ -3689,7 +3689,9 @@ async function addArmedFace(pick, keep) {
     return bindArmedFaces(full, more, { action: AA.ARMED_CLICK_ACTIONS[0], pick: full }, { keep });
   }
   if (held.some((f) => f.source_step_sha256 !== full.sha256)) {
-    setArmedLine(AA.armedWords("notOn", { part: a.partWords }), true);
+    // The set is on another mesh: an event holds faces of one.
+    const elsewhere = AA.armedWords("notOn", { part: a.partWords });
+    setArmedLine(elsewhere, true);
     return { action: AA.ARMED_CLICK_ACTIONS[1] };
   }
   const have = new Set(held.map((f) => f.face_id));
