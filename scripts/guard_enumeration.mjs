@@ -333,7 +333,10 @@ export const DECLARED_GUARDS = {
   // assembly's own tier, the tree's nested parts, the DAG's top-level part,
   // the grid's folded row in the plan and on the page, and the fold store
   // with its two shortcuts. Every new name carries a spec.
-  fast: { declared: 699, enrollable: 699, names: "0adde613bb52" },
+  // 2026-11-15 (the_hub_is_one_part_in_the_grid_and_the_dag): +2 -- a block
+  // part's other edges gathered with it, and a part held back until every
+  // edge can move up. Both carry a spec.
+  fast: { declared: 701, enrollable: 701, names: "4d4ba4c92501" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
