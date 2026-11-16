@@ -323,14 +323,16 @@ async function faceOnPage(page, want, ok) {
     const ok = okSrc ? new Function("f", "return (" + okSrc + ")(f)") : null;
     const c = document.querySelector("#canvas-host canvas").getBoundingClientRect();
     let any = null;
-    for (let step of [0.05, 0.02, 0.01]) {
-      for (let gy = -0.9; gy <= 0.9; gy += step) for (let gx = -0.9; gx <= 0.9; gx += step) {
-        const h = window.__scene.pick(gx, gy);
-        if (!h) continue;
-        const at = { x: c.left + c.width * (gx + 1) / 2, y: c.top + c.height * (1 - gy) / 2, faceId: h.faceId };
-        if (want !== null && h.faceId === want) return at;
-        if (!any && ok && ok(h.faceId)) any = at;
-      }
+    // A wanted face was framed by `camera face`, so it is near the centre: a
+    // fine scan there. Any face: a coarse scan of the whole canvas. (A fine
+    // full-canvas scan is ~30k raycasts on the hub -- minutes.)
+    const span = want !== null ? 0.25 : 0.8, step = want !== null ? 0.01 : 0.08;
+    for (let gy = -span; gy <= span; gy += step) for (let gx = -span; gx <= span; gx += step) {
+      const h = window.__scene.pick(gx, gy);
+      if (!h) continue;
+      const at = { x: c.left + c.width * (gx + 1) / 2, y: c.top + c.height * (1 - gy) / 2, faceId: h.faceId };
+      if (want !== null && h.faceId === want) return at;
+      if (!any && ok && ok(h.faceId)) any = at;
       if (want === null && any) return any;
     }
     return any;

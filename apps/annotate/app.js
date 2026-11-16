@@ -3795,8 +3795,10 @@ let groupOffer = null;
 function offerGroup(full, siblings, bind) {
   groupOffer = { full, swept: siblings.swept, offered: siblings.offered, pattern: siblings.pattern || [],
     holes: siblings.holes || 0, bind };
-  state.scene.highlightFaces([full.faceId].concat(siblings.swept, siblings.offered, groupOffer.pattern)
-    .map((faceId) => ({ sha256: full.sha256, faceId })));
+  const lit = [full.faceId].concat(siblings.swept, siblings.offered, groupOffer.pattern);
+  const tinted = state.scene.highlightFaces(lit.map((faceId) => ({ sha256: full.sha256, faceId })));
+  // What a harness reads: the faces on offer, and how many the scene tinted.
+  window.__groupOffer = { faces: lit, tinted };
   showGroupOffer(groupOffer);
 }
 
@@ -3836,6 +3838,7 @@ function hideGroupOffer() {
   const node = document.getElementById("an-offer");
   if (node) node.classList.remove("an__offer--on");
   groupOffer = null;
+  window.__groupOffer = null;
 }
 
 // group <all|one> -- answer the group offer an armed click or a Take made:

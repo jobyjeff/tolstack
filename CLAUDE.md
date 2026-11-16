@@ -94,7 +94,10 @@ traced ratio" — never restate the rule elsewhere).
   once one side of an interface is bound the other side's faces are ranked
   by how they mate with it where the model places both parts
   (`AA.rankMatingFaces`; same document, "Taking a suggested face") -- display
-  and ranking only, never a value.
+  and ranking only, never a value. Since 2026-11-16 a hole of a pattern
+  offers the whole pattern, a set of holes fits as a pattern (never one
+  cylinder), and **Add a face** or a Shift-click grows a set (same document,
+  "A hole pattern", and the gesture table).
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

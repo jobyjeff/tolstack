@@ -11862,6 +11862,241 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   return reportSuite(label, checks, errors);
 }
 
+// A pattern is bound as its like faces, and a face can be added (handoff
+// a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added, 2026-11-15),
+// on model v2 with the real served log and the real meshes -- writes go to
+// the pane's in-memory store, never to the folder. Correct on the hub's
+// fastener clocking and a click on face 744 offers the ten holes of the bolt
+// circle, lit; Take all writes them as one event and the body and the Preview
+// read the fit back. Add a face grows the pilot's set by one click and ends
+// the pick; Shift-click builds a set on an unbound feature and keeps it;
+// Remove takes a face back out. The Parts filter's count is the model's
+// unbound features and drops by one when one is bound.
+async function testPatternAndAddAFace(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V2 = "vpa_end_stop_v2";
+  const HUB = "e28285d1e6c934504d7c1dd0b86814cda6e256c3a18b2bbc4b6ee26cf6ceab6b";
+  const CLOCKING = "hub@tan_link_mount_fastener_clocking";
+  const PILOT = "hub@hub_boss_in_tan_link_mount_pilot";
+  const LONE = "piston_cover_214958_002@piston_cover_end_stop_shoulder";
+  const servedLog = await readProjection("feature-identity/log.json");
+  const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
+  const events = (servedLog && servedLog.events) || [];
+  const boundAt = (part, node) => events.filter((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === part && e.feature_key.node === node).pop();
+  const clocking = boundAt("hub", "tan_link_mount_fastener_clocking");
+  const pilot = boundAt("hub", "hub_boss_in_tan_link_mount_pilot");
+  if (!v2 || !clocking || !pilot || !existsSync(join(DATA_REPO, "data", "meshes", HUB, "manifest.json"))) {
+    push("[real] a pattern is bound as its like faces and a face can be added (skipped: model v2, the hub " +
+      "mesh, or the clocking and the pilot bound in the served log, is not on disk -- build them, or pass " +
+      "--repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const row = (fid) => `#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`;
+  const openBody = async (fid) => {
+    const part = fid.split("@")[0];
+    if (!(await page.locator(row(fid)).count())) {
+      await page.locator(`#navtree [data-nav-twisty="p:${part}"]`).first().click({ timeout: 5000 }).catch(() => {});
+    }
+    const twisty = page.locator(`#navtree [data-nav-twisty="f:${fid}"]`).first();
+    if (await twisty.count() && (await twisty.getAttribute("aria-expanded")) !== "true") {
+      await twisty.click({ timeout: 5000 }).catch(() => {});
+    }
+  };
+  const slotOf = (fid) => page.locator(row(fid)).locator("xpath=..").locator(".navtree__scene").first();
+  const lines = (fid) => slotOf(fid).locator(".navtree__featurestate").evaluateAll((rows) => rows.map((r) =>
+    ((r.querySelector(".navtree__featurewords") || {}).textContent || "") +
+    (r.getAttribute("data-fit") ? " [fit]" : ""))).catch(() => []);
+  const writes = () => inPane((w) => (w.__mockWrites || []).length);
+  const writtenSince = (n) => inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({
+    verdict: x.event.verdict, supersedes: x.event.supersedes || null,
+    faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id) })), n);
+  // A click in the scene on a face of the armed part, as the scene hands it
+  // over after the filtered ray (scene.js's pointerup) -- Shift with it.
+  const clickFace = (sha, faceId, shift) => inPane((w, a) => {
+    w.__scene.onPick({ sha256: a.sha, faceId: a.faceId }, null, null, { shift: a.shift });
+    return true;
+  }, { sha, faceId, shift: !!shift });
+  const armedSha = () => inPane((w) => (w.__scene.pickFilter() || [])[0] || null);
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V2, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    await until((w) => !!w.__embedTree, null, 120000);
+
+    // --- the Parts filter, before anything is written ------------------------
+    const filterCount = () => page.locator("#navtree [data-nav-filter-count]").first().textContent()
+      .then(Number).catch(() => NaN);
+    // The fold's answer, read off every feature row's mark with every part open.
+    const openAll = async () => {
+      for (let i = 0; i < 4; i++) {
+        const closed = page.locator('#navtree [data-nav-twisty^="p:"][aria-expanded="false"]');
+        const n = await closed.count();
+        if (!n) return;
+        for (let k = n - 1; k >= 0; k--) await closed.nth(k).click({ timeout: 2000 }).catch(() => {});
+      }
+    };
+    const rowsNotBound = () => page.evaluate(() => Array.from(document.querySelectorAll('#navtree [data-nav-kind="feature"]'))
+      .filter((r) => r.querySelector(".navtree__mark").getAttribute("data-status") !== "bound")
+      .map((r) => r.getAttribute("data-nav-id")));
+    await openAll();
+    const unbound0 = new Set(await rowsNotBound());
+    const count0 = await filterCount();
+    console.log(`    filter count ${count0}; feature rows not bound under Parts ${unbound0.size}`);
+    push("[real] the Parts filter's count is the number of the model's features not bound",
+      Number.isFinite(count0) && count0 === unbound0.size && count0 > 0);
+    await page.locator('#navtree [data-nav-filter="unbound"]').first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(500);
+    const shown = await page.evaluate(() => Array.from(document.querySelectorAll('#navtree .navtree__section--bodies [data-nav-kind="feature"], #navtree .navtree__section--parts [data-nav-kind="feature"]'))
+      .map((r) => ({ id: r.getAttribute("data-nav-id"), status: r.querySelector(".navtree__mark").getAttribute("data-status") })));
+    push("[real] Unbound lists no bound feature under Parts, and nothing else on the page moved",
+      shown.length > 0 && shown.every((s) => s.status !== "bound") &&
+      await page.locator(".detail__preview").getAttribute("data-preview-state").catch(() => null) === "empty");
+    await page.locator('#navtree [data-nav-filter="all"]').first().click({ timeout: 5000 }).catch(() => {});
+
+    // --- the pattern ---------------------------------------------------------
+    await openBody(CLOCKING);
+    await slotOf(CLOCKING).locator("button", { hasText: "Correct" }).first().click({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__embedTree && w.__embedTree.armed && w.__scene.pickFilter(), null, 60000);
+    await until((w, s) => !!w.__scene.faceRecord(s, 744), HUB, 60000);
+    let before = await writes();
+    await clickFace(HUB, 744, false);
+    await until((w) => !!w.document.querySelector("#an-offer.an__offer--on"), null, 120000);
+    const offer = await inPane((w) => {
+      const n = w.document.querySelector("#an-offer.an__offer--on");
+      return n ? { line: n.querySelector(".an__offer-line").textContent,
+        buttons: Array.from(n.querySelectorAll("button")).map((b) => b.textContent),
+        lit: w.__groupOffer ? w.__groupOffer.faces.length : null,
+        tinted: w.__groupOffer ? w.__groupOffer.tinted : null,
+        armed: !!w.__embedTree.armed } : null;
+    });
+    console.log(`    clicking face 744: ${JSON.stringify(offer)}`);
+    push("[real] a click on face 744 offers the bolt circle's ten holes, every face of them lit, writing nothing",
+      !!offer && offer.line === "10 like holes on one plane" && offer.buttons[0] === "Take all 10 holes" &&
+      offer.lit === 20 && offer.tinted === 20 && offer.armed && (await writes()) === before);
+    await page.frameLocator("#annotate-flyout iframe").locator('#an-offer [data-offer="all"]').click({ timeout: 5000 }).catch(() => {});
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const took = await writtenSince(before);
+    console.log(`    Take all wrote ${JSON.stringify(took)}`);
+    push("[real] Take all writes one binding holding all twenty faces, superseding the one-hole binding",
+      took.length === 1 && took[0].verdict === "bound" && took[0].faces.length === 20 &&
+      took[0].faces.indexOf(744) !== -1 && took[0].supersedes === clocking.event_id);
+    await page.waitForFunction((sel) => Array.from(document.querySelectorAll(sel)).some((n) => n.getAttribute("data-fit")),
+      row(CLOCKING) + " ~ .navtree__scene .navtree__featurestate", { timeout: 120000 }).catch(() => {});
+    const body = await lines(CLOCKING);
+    console.log(`    the clocking's body: ${JSON.stringify(body.slice(0, 3))} ...`);
+    push("[real] the body reads the set and its fit in one line: \"10 holes Ø5.5 on a Ø240 circle\"",
+      /^bound · 20 faces of /.test(body[0] || "") && body[1] === "10 holes Ø5.5 on a Ø240 circle [fit]");
+    await page.locator(row(CLOCKING)).first().click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    const preview = await page.locator(".detail__preview [data-fit]").allTextContents().catch(() => []);
+    push("[real] ...and so does the Preview, with the feature selected",
+      preview.length === 1 && preview[0] === "10 holes Ø5.5 on a Ø240 circle");
+
+    // --- Add a face ------------------------------------------------------------
+    await openBody(PILOT);
+    const held = (pilot.geometry_keys || []).map((k) => k.face_id);
+    await slotOf(PILOT).locator("button", { hasText: "Add a face" }).first().click({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__embedTree && w.__embedTree.armed, null, 60000);
+    const addLine = await inPane((w) => w.__embedTree.armedLine);
+    const extra = held.indexOf(0) === -1 ? 0 : 1;
+    before = await writes();
+    await clickFace(HUB, extra, false);
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const added = await writtenSince(before);
+    const addedArmed = await inPane((w) => !!w.__embedTree.armed);
+    console.log(`    Add a face (line ${JSON.stringify(addLine)}) wrote ${JSON.stringify(added)}; armed after: ${addedArmed}`);
+    push("[real] Add a face arms a pick that adds: one click writes the set with the face added and ends the pick",
+      addLine === "adding a face to the feature" && added.length === 1 && added[0].verdict === "bound" &&
+      held.every((f) => added[0].faces.indexOf(f) !== -1) && added[0].faces.indexOf(extra) !== -1 &&
+      added[0].supersedes === pilot.event_id && !addedArmed);
+    await page.waitForFunction((sel) => /faces of/.test((document.querySelector(sel) || {}).textContent || ""),
+      row(PILOT) + " ~ .navtree__scene .navtree__featurewords", { timeout: 60000 }).catch(() => {});
+    before = await writes();
+    await slotOf(PILOT).locator(`.navtree__featurestate[data-face="${extra}"] button`, { hasText: "Remove" })
+      .first().click({ timeout: 10000 }).catch(() => {});
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const removed = await writtenSince(before);
+    push("[real] ...and Remove on that face writes the set without it",
+      removed.length === 1 && removed[0].faces.indexOf(extra) === -1 &&
+      held.every((f) => removed[0].faces.indexOf(f) !== -1));
+
+    // --- Shift-click on an unbound feature, and the filter's count ------------
+    await openBody(LONE);
+    await slotOf(LONE).locator('button[data-body-act="arm"]').first().click({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__embedTree && w.__embedTree.armed && w.__scene.pickFilter(), null, 60000);
+    const cover = await armedSha();
+    before = await writes();
+    await clickFace(cover, 0, true);
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const first = await writtenSince(before);
+    const afterOne = await inPane((w) => ({ armed: !!w.__embedTree.armed, line: w.__embedTree.armedLine }));
+    const firstFaces = first.length ? first[first.length - 1].faces : [];
+    let other = 1;
+    while (firstFaces.indexOf(other) !== -1) other += 1;
+    before = await writes();
+    await clickFace(cover, other, true);
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const second = await writtenSince(before);
+    const afterTwo = await inPane((w) => ({ armed: !!w.__embedTree.armed, line: w.__embedTree.armedLine }));
+    console.log(`    Shift-click 0: ${JSON.stringify(first)} ${JSON.stringify(afterOne)}; ` +
+      `Shift-click ${other}: ${JSON.stringify(second)} ${JSON.stringify(afterTwo)}`);
+    push("[real] Shift-click on an unbound feature binds the face and keeps the pick; a second adds to the set, still armed",
+      first.length >= 1 && first[first.length - 1].verdict === "bound" && firstFaces.indexOf(0) !== -1 &&
+      afterOne.armed && /^added face 0 · /.test(afterOne.line || "") &&
+      second.length === 1 && second[0].faces.indexOf(other) !== -1 &&
+      firstFaces.every((f) => second[0].faces.indexOf(f) !== -1) &&
+      afterTwo.armed && afterTwo.line === `added face ${other} · ${second[0].faces.length} faces`);
+    await page.keyboard.press("Escape");
+    await until((w) => !w.__embedTree.armed, null, 15000);
+    await page.waitForFunction((sel) => /faces of/.test((document.querySelector(sel) || {}).textContent || ""),
+      row(LONE) + " ~ .navtree__scene .navtree__featurewords", { timeout: 60000 }).catch(() => {});
+    const count1 = await filterCount();
+    console.log(`    filter count after binding the shoulder: ${count1} (was ${count0})`);
+    push("[real] binding one feature drops the filter's count by one",
+      unbound0.has(LONE) && count1 === count0 - 1);
+    before = await writes();
+    await slotOf(LONE).locator(`.navtree__featurestate[data-face="${other}"] button`, { hasText: "Remove" })
+      .first().click({ timeout: 10000 }).catch(() => {});
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const dropped = await writtenSince(before);
+    push("[real] ...and Remove takes the Shift-clicked face back out of that set",
+      dropped.length === 1 && dropped[0].faces.indexOf(other) === -1 && dropped[0].faces.indexOf(0) !== -1);
+  } catch (err) {
+    errors.push(String(err));
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 function startDrawingCheckerMountServer() {
   const mounts = [
     ["/tolstack/viewer/", join(REPO, "apps", "viewer")],
@@ -16974,6 +17209,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testModelDrawnAloneAndLed(browser, label, topologies)],
       ["a suggestion names its face and the mate ranks the other side (hover, Take, armed mates, nothing opposite)",
         (label) => testSuggestionNamesItsFace(browser, label, topologies)],
+      ["a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)",
+        (label) => testPatternAndAddAFace(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
