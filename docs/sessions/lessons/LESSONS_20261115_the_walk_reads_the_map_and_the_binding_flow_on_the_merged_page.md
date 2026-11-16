@@ -69,3 +69,13 @@ All runs were in this worktree on the committed tree. No code was changed, so
 only the default tier and the doc scans apply:
 
 (filled in below after the run)
+
+> **Correction, 2026-11-16 (review).** Nothing was filled in: the branch was
+> handed back with the placeholder above and no run recorded. The review ran
+> the tiers itself on the merged tree (code identical to `integration`
+> `61f78e19`): default `pytest -q` in the review worktree `1 failed, 2027
+> passed, 1 skipped` in 448 s, the one red the worktree-only
+> `test_viewer_js_suite_is_green`; `node apps/viewer/run_tests.cjs --repo
+> data/scratch/walk1116` (this walk's root, built from `61f78e19`, with a copy
+> of `docs/`) `715/715`; `node apps/annotate/run_tests.cjs` `323/323`. See
+> `docs/sessions/reviews/REVIEW_20261116_the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page.md`.

@@ -6019,6 +6019,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       tree has uncommitted changes") makes every fast entry `NOT WITNESSED
       (the tier was red before the mutation)` with `projection NOT paired with
       this tree` -- commit, then build, then run.
+- [ ] **A lesson's test record handed back as a placeholder.** Second sighting
+      2026-11-16 (`the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page`:
+      "(filled in below after the run)" and nothing after it; the entry above
+      was `RECORD_PENDING`). `tail` the lesson before you read anything else:
+      a placeholder is "no full-suite run recorded", so the benefit of the
+      doubt is void and the review runs the default tier itself and says so.
 - [ ] **A word the handoff names for a new control is banned elsewhere on the
       page by a text-matching guard.** New 2026-11-16 (same handoff): the
       handoff's "Map · Classic" switch put the word *Classic* on every topology
