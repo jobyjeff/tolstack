@@ -298,9 +298,11 @@ export class AnnotateScene {
       // model dot, not a bead -- and what an unfiltered ray would have hit
       // instead goes along as the third argument, so a click on another part
       // can say which part it was on.
+      // Shift goes along (handoff a_pattern_is_bound_as_its_like_faces_and_
+      // a_face_can_be_added): a Shift-click adds the face and keeps the pick.
       if (this._pickFilter) {
         const hit = this.pick(ndcX, ndcY);
-        this.onPick(hit, null, hit ? null : this.pick(ndcX, ndcY, { all: true }));
+        this.onPick(hit, null, hit ? null : this.pick(ndcX, ndcY, { all: true }), { shift: !!ev.shiftKey });
         return;
       }
       // A model dot under the pointer is a node selected, and nothing else:

@@ -1412,6 +1412,7 @@
     flipped: "moved to {end}",
     kept: "kept face {face}",
     dropped: "removed face {face}",
+    added: "added face {face}",
   });
 
   // --- embedded in the viewer's 3D pane (handoff the_3d_pane_opens_in_the_

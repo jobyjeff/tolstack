@@ -2375,7 +2375,20 @@
     switchTitle: "the face is on the other part of this joint",
     others: { ghost: "ghost others", hide: "hide others" },
     othersTitle: "how the parts you are not picking on are drawn",
+    //: An arm that adds to the feature's set (the body's Add a face), and
+    //: what a Shift-click or an adding click says once written.
+    adding: "adding a face to the feature",
+    added: "added face {face} · {n} faces",
+    alreadyHeld: "face {face} is already in the feature",
+    disagree: "the feature's faces disagree -- keep one first",
   });
+
+  //: The modes an arm can be asked for beside a plain pick (`arm <edge> <end>
+  //: <topology> <part> <mode>`): `add` -- a click adds the face to the
+  //: feature's set rather than replacing it. The shell's body sends it
+  //: (VA.ARM_ADD, apps/viewer/views/nav.js; tests/test_hole_pattern.py pairs
+  //: the two).
+  AA.ARM_PICK_MODES = Object.freeze(["add"]);
 
   //: How the parts an armed pick is NOT on are drawn: ghosted (very low
   //: opacity, no depth write) or hidden. Ghost first: it is the default.

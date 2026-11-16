@@ -253,3 +253,17 @@ def test_real_the_hub_fastener_hole_offers_ten_holes_and_both_readers_agree(tmp_
     assert 2 * fit.geometry["radius"] == pytest.approx(5.5, abs=1e-3)
     assert fit.geometry["on_circle"] and 2 * fit.geometry["circle_radius"] == pytest.approx(240.0, abs=1e-2)
     assert js["words"] == "10 holes \u00d85.5 on a \u00d8240 circle"
+
+
+# --- Add a face: the shell asks for the arm mode the pane knows ----------------
+
+
+def test_the_add_a_face_mode_is_the_panes():
+    """The body's Add a face posts ``arm ... add`` (``VA.ARM_ADD``); the pane
+    takes exactly the modes in ``AA.ARM_PICK_MODES`` and refuses any other."""
+    nav = (REPO / "apps" / "viewer" / "views" / "nav.js").read_text(encoding="utf-8")
+    sweep = (REPO / "apps" / "annotate" / "sweep.js").read_text(encoding="utf-8")
+    shell = re.search(r'VA\.ARM_ADD = "([a-z]+)";', nav)
+    pane = re.search(r"AA\.ARM_PICK_MODES = Object\.freeze\(\[([^\]]*)\]\);", sweep)
+    assert shell and pane
+    assert [w.strip().strip('"') for w in pane.group(1).split(",")] == [shell.group(1)]

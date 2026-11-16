@@ -1519,12 +1519,31 @@
       record: key ? (preview.records[key] || null) : undefined,
     }));
     preview.body.className = "detail__previewbody";
+    previewFitLines(key).forEach(function (text) {
+      var line = VA.el("div", "detail__where", text);
+      line.setAttribute("data-fit", "true");
+      line.setAttribute("title", text);
+      preview.body.appendChild(line);
+    });
     // What a reader -- and the browser tier -- can ask of the section without
     // reading its prose: which element it shows, and why.
     preview.box.setAttribute("data-preview-key", key || "");
     preview.box.setAttribute("data-preview-state",
       !key ? "empty" : key === frozen ? "frozen" : "hover");
     fetchPreviewImages(key);
+  }
+
+  // What the pane read a previewed feature's bound set as, when it is a hole
+  // pattern (the tree's `fits`, apps/annotate/app.js's setFitWords): one line
+  // per feature at the previewed node -- the line the feature's body shows.
+  function previewFitLines(key) {
+    var el = key ? VA.parseElementKey(key) : null;
+    var model = currentModel();
+    var fits = sceneTree && sceneTree.fits;
+    if (!el || el.kind !== "node" || !model || !fits) return [];
+    return (model.features || []).filter(function (f) {
+      return f.node === el.id && fits[f.id];
+    }).map(function (f) { return fits[f.id]; });
   }
 
   // "Preview", and while something is frozen, a pin and the frozen element's

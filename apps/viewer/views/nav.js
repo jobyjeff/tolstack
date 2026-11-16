@@ -912,9 +912,12 @@
   //
   //   bound      "bound · face 12 of 214373-002" -- hovering it lights the
   //              face; Correct (arm the pick on the feature's part; the new
-  //              set supersedes), Unbind (a retraction), and Flip where the
+  //              set supersedes), Add a face (arm a pick that adds to the
+  //              set, 2026-11-15), Unbind (a retraction), and Flip where the
   //              feature is a dimension's end whose other end is free. A
-  //              feature holding a set says "bound · 3 faces of ..." and
+  //              feature holding a set says "bound · 3 faces of ...", then
+  //              what the pane read the set as when it is a hole pattern
+  //              ("10 holes Ø5.5 on a Ø240 circle", the tree's `fits`), and
   //              lists each face (hoverable) with Remove
   //   disagree   "2 faces disagree", each face hoverable with Keep: nothing
   //              is bound until one is kept (the feature reads suggested);
@@ -948,6 +951,8 @@
     pickTitle: "pick this feature's face on its own part",
     correct: "Correct",
     correctTitle: "pick the right face on this part; it replaces this one",
+    addFace: "Add a face",
+    addFaceTitle: "pick another face of this feature; it joins the set (Shift-click keeps picking)",
     unbind: "Unbind",
     unbindTitle: "take this binding back; the record keeps it",
     flip: "Flip",
@@ -964,6 +969,10 @@
   // <topology>` except `arm off` (apps/annotate/app.js registers them).
   VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip", keep: "keep",
     dropFace: "drop-face", accept: "accept", take: "take", camera: "camera" });
+
+  // The arm mode Add a face asks for (`arm <edge> <end> <topology> <part>
+  // add`): the pane's AA.ARM_PICK_MODES[0], paired by tests/test_hole_pattern.py.
+  VA.ARM_ADD = "add";
 
   // The kinds of body VA.featureBodyPlan returns (null: draw the pane's rows).
   VA.FEATURE_BODY_KINDS = Object.freeze({ bound: "bound", none: "none", armed: "armed",
@@ -1028,13 +1037,20 @@
           [{ text: W.keep, title: W.keepTitle, command: verb(V.keep, ends[0], f) }]);
       })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }] };
     }
+    // Add a face: the same arm as Correct, in the mode that adds.
+    var addFace = function (e) {
+      return { text: W.addFace, title: W.addFaceTitle, command: verb(V.arm, e).concat([VA.ARM_ADD]) };
+    };
     if (status === VA.FEATURE_STATUSES.bound && record && (record.faces || []).length > 1 && ends.length) {
       var end = model.bindingsOf(fid)[0] || ends[0];
+      // What the pane read the set as, when it is a pattern: one line, no verb.
+      var fit = tree && tree.fits && tree.fits[fid];
       return { kind: K.bound, lines: [{ text: fill(W.boundSet, { n: record.faces.length, part: partWords }),
         actions: [
           { text: W.correct, title: W.correctTitle, command: verb(V.arm, end) },
+          addFace(end),
           { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, end) },
-        ] }].concat(record.faces.map(function (f) {
+        ] }].concat(fit ? [{ text: fit, fit: true }] : []).concat(record.faces.map(function (f) {
         return faceLine(f, fill(W.setFace, { face: f.face_id }),
           [{ text: W.remove, title: W.removeTitle, command: verb(V.dropFace, end, f) }]);
       })), actions: [] };
@@ -1053,6 +1069,7 @@
         var key = b.event.geometry_key || {};
         var actions = [
           { text: W.correct, title: W.correctTitle, command: verb(V.arm, b) },
+          addFace(b),
           { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, b) },
         ];
         // Flip where a direction applies: the binding is on a dimension (both
@@ -1159,6 +1176,7 @@
         row.appendChild(words);
       }
       if (line.suggestion) row.setAttribute("data-suggestion", "true");
+      if (line.fit) row.setAttribute("data-fit", "true");
       if (line.face) {
         row.setAttribute("data-face", String(line.face.faceId));
         row.onmouseenter = function () { hoverFace(line.face); };

@@ -3776,10 +3776,61 @@ check("a picked face sweeps in the like faces it touches and offers the like fac
   const classes = [cyl(20), cyl(20), cyl(20), cyl(9)];
   const touch = (a, b) => AA.facesTouch(positions, ranges, a, b);
   if (!touch(0, 1) || touch(0, 2)) throw new Error("touch: 0-1 share a node, 0-2 do not");
-  assertEqual({ swept: [1], offered: [2] }, AA.surfaceSiblings(classes, 0, touch),
+  assertEqual({ swept: [1], offered: [2], pattern: [], holes: 0 }, AA.surfaceSiblings(classes, 0, touch),
     "the split half is swept and the other seat offered");
-  assertEqual({ swept: [], offered: [] }, AA.surfaceSiblings(classes, 3, touch),
+  assertEqual({ swept: [], offered: [], pattern: [], holes: 0 }, AA.surfaceSiblings(classes, 3, touch),
     "a face alone on its surface brings nothing, whatever it touches");
+});
+
+// --- a hole pattern (handoff a_pattern_is_bound_as_its_like_faces_and_a_
+// face_can_be_added): the faces tests/test_hole_pattern.py answers on --------
+const HOLE_CASES = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "tests", "fixtures",
+  "hole_pattern_cases.json"), "utf8"));
+// The fixture is feature_geometry.surface_record's shape; the classifier's
+// own field names, by face id.
+const HOLE_CLASSES = (() => {
+  const out = {};
+  Object.keys(HOLE_CASES.records).forEach((id) => {
+    const r = HOLE_CASES.records[id];
+    out[id] = r.surface === "cylindrical"
+      ? { surface: r.surface, axis: r.axis, axisPoint: r.axis_point, radius: r.radius, arcDeg: r.arc_deg }
+      : { surface: r.surface, normal: r.normal, point: r.point, extent: r.extent };
+  });
+  return out;
+})();
+
+check("a picked hole offers its pattern -- the other holes of one size on one plane, each " +
+  "whole -- the same faces feature_geometry.pattern_siblings offers", () => {
+  // Each hole's two halves share no node here: touch says nothing joins, so
+  // the pick's other half is `offered` and the pattern is the rest.
+  const touch = () => false;
+  HOLE_CASES.siblings.forEach((c) => {
+    const s = AA.surfaceSiblings(HOLE_CLASSES, c.pick, touch);
+    assertEqual({ faces: c.faces, holes: c.holes }, { faces: s.pattern, holes: s.holes },
+      "pick " + c.pick + ": " + c.why);
+  });
+});
+
+check("a set of holes fits as a pattern -- count, size, axis and the circle the centres are on " +
+  "-- and says it in one line; a set that is no pattern is null (feature_geometry.hole_pattern)", () => {
+  HOLE_CASES.patterns.forEach((c) => {
+    const got = AA.holePattern(c.faces.map((f) => HOLE_CLASSES[f]));
+    const e = c.expect;
+    if (e === null) {
+      if (got !== null) throw new Error("faces " + c.faces + ": " + c.why + ", got " + JSON.stringify(got));
+      return;
+    }
+    const near = (a, b, tol) => Math.abs(a - b) <= tol;
+    if (got.holes !== e.holes || !near(got.radius, e.radius, 1e-12) || got.onCircle !== e.on_circle ||
+        got.centres.length !== e.holes || !got.axis.every((v, i) => near(Math.abs(v), e.axis[i], 1e-12))) {
+      throw new Error("faces " + c.faces + ": " + JSON.stringify(got));
+    }
+    if (e.on_circle && (!near(got.circleRadius, e.circle_radius, 1e-9) ||
+        !got.circleCentre.every((v, i) => near(v, e.circle_centre[i], 1e-9)))) {
+      throw new Error("faces " + c.faces + ": circle " + JSON.stringify(got));
+    }
+    assertEqual(c.words, AA.patternWords(got), "the line for faces " + c.faces);
+  });
 });
 
 // --- the rule table (suggestions.js) ----------------------------------------

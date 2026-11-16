@@ -1371,9 +1371,15 @@ async function refreshMates() {
   const VA = window.ViewerApp;
   const byFeature = {};
   const byEnd = {};
+  const fits = {};
   for (const f of (topology.model && topology.model.features) || []) {
     const record = f.identity && fold && fold.features ? VA.featureRecordOf(fold, f.identity) : null;
-    if (record && record.state === VA.FEATURE_STATES[0]) continue;
+    if (record && record.state === VA.FEATURE_STATES[0]) {
+      const words = await setFitWords(record);
+      if (matesKey !== key) return;
+      if (words) fits[f.id] = words;
+      continue;
+    }
     const ends = featureEnds(topology, f);
     const rows = await rankMatesAt(topology, ends, f.part, view, placements);
     if (matesKey !== key) return;
@@ -1381,10 +1387,24 @@ async function refreshMates() {
     byFeature[f.id] = { edgeId: ends[0].edgeId, direction: ends[0].direction, rows };
     ends.forEach((e) => { byEnd[e.edgeId + "|" + e.direction] = rows; });
   }
-  state.mates = { topologyId: topology.id, byFeature, byEnd };
+  state.mates = { topologyId: topology.id, byFeature, byEnd, fits };
   window.__mates = state.mates;
   if (state.sweep) renderSweepRail(); else renderElementList();
   postEmbedTree(false);
+}
+
+// What a bound feature holding several faces IS, in one line, when it is a
+// hole pattern (AA.holePattern, AA.patternWords: "10 holes Ø5.5 on a Ø240
+// circle") -- else null. Read off the part's own classes, as the pick reads
+// them; a measurement of a mesh, never a tolerance.
+async function setFitWords(record) {
+  const faces = record.faces || [];
+  if (faces.length < 2) return null;
+  const sha = faces[0].source_step_sha256;
+  if (faces.some((f) => f.source_step_sha256 !== sha)) return null;
+  const classes = await ensureFaceClasses(sha).catch(() => null);
+  if (!classes) return null;
+  return AA.patternWords(AA.holePattern(faces.map((f) => classes[f.face_id])));
 }
 
 function scheduleMates() {
@@ -3150,7 +3170,10 @@ function occurrencesShown(list) {
 // the edge is on (the run's, by default) and `<part>` the feature's own part,
 // armed first. A click on a face supersedes the end's one standing binding,
 // which is what Correct is.
-async function cmdArm(what, direction, topologyId, partId) {
+//
+// `<mode>` `add` (AA.ARM_PICK_MODES, the body's Add a face): a click adds the
+// face to the feature's set instead of replacing it (addArmedFace).
+async function cmdArm(what, direction, topologyId, partId, mode) {
   // `off` is safe anywhere: the shell posts it on any Esc while it shows a
   // pressed row, and a sweep may have ended in between.
   if (what === "off") return disarmPick("cancel");
@@ -3174,6 +3197,9 @@ async function cmdArm(what, direction, topologyId, partId) {
       renderSweepRail();
     }
     return direction;
+  }
+  if (mode != null && AA.ARM_PICK_MODES.indexOf(mode) === -1) {
+    throw new Error("arm takes a mode, " + AA.ARM_PICK_MODES.join(" or ") + ", got " + JSON.stringify(mode));
   }
   const topology = topologyId ? topologyNamed(topologyId) : (sweep ? sweepTopology() : state.currentTopology);
   if (!topology) throw new Error(sweep ? "this run names no topology, so it has no ends to pick"
@@ -3249,6 +3275,7 @@ async function cmdArm(what, direction, topologyId, partId) {
     near,
     partWords: AA.partRowWords(targets[0].mesh, state.partNames).text,
     others: AA.readArmOthers(prefStore()),
+    adding: mode === AA.ARM_PICK_MODES[0],
     line: "",
     flash: false,
     restore,
@@ -3392,18 +3419,31 @@ async function cmdDropFace(edgeId, direction, topologyId, sha256, faceText) {
   if (rest.length === held.length) throw new Error("face " + t.faceId + " is not in this feature's set");
   if (!rest.length) throw new Error("that is the feature's only face -- unbind it instead");
   if (state.armed) disarmPick("cancel");
-  const seq = await nextEventSeq();
-  const faces = rest.map((f) => ({ sourceStepSha256: f.source_step_sha256, faceId: f.face_id,
-    areaNative2: f.area_native2, centroidNative: f.centroid_native }));
-  const fields = { eventId: "annotate-" + Date.now() + "-" + slugify(t.key.node) + "-drop", seq,
-    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer), featureKey: t.key, geometryKeys: faces };
-  const own = (t.record.bindings || []).filter((b) => b.feature_key);
-  const event = own.length === 1 ? AA.buildCorrectionEvent(own[0], fields) : AA.buildBoundEvent(fields);
   const toast = AA.BODY_VERB_WORDS.dropped.replace("{face}", String(t.faceId));
-  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.key.node) + "_face_removed"), event, toast);
+  const event = await writeFeatureSet(t.key, t.record, rest.map(heldFaceFields), "drop", "_face_removed", toast);
   showToast(toast);
   renderSweepRail();
   return { faces: rest.map((f) => f.face_id), event: event.event_id };
+}
+
+// A face a feature record holds, as an event's geometry key fields.
+function heldFaceFields(f) {
+  return { sourceStepSha256: f.source_step_sha256, faceId: f.face_id,
+    areaNative2: f.area_native2, centroidNative: f.centroid_native };
+}
+
+// THE ONE SHAPE a changed set is written in (Remove, Add a face, a
+// Shift-click): one event carrying the whole new set -- a correction of the
+// feature's one feature-keyed binding, or a fresh binding over faces read
+// through to it.
+async function writeFeatureSet(key, record, faces, idWord, fileWord, toast) {
+  const seq = await nextEventSeq();
+  const fields = { eventId: "annotate-" + Date.now() + "-" + slugify(key.node) + "-" + idWord, seq,
+    createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer), featureKey: key, geometryKeys: faces };
+  const own = ((record && record.bindings) || []).filter((b) => b.feature_key);
+  const event = own.length === 1 ? AA.buildCorrectionEvent(own[0], fields) : AA.buildBoundEvent(fields);
+  await writeIdentityEvent(AA.eventFilename(seq, slugify(key.node) + fileWord), event, toast);
+  return event;
 }
 
 // flip <edge> <from|to> [<topology>] -- the end's one standing binding is the
@@ -3446,6 +3486,7 @@ async function cmdFlip(edgeId, direction, topologyId) {
 // What the armed row says at rest: the generic line, or -- when the end has
 // two parts to pick on -- which one is armed.
 function armedIdleLine(a) {
+  if (a.adding) return AA.ARMED_PICK_WORDS.adding;
   return a.parts.length > 1 ? AA.armedWords("onPart", { part: a.partWords }) : AA.ARMED_PICK_WORDS.armed;
 }
 
@@ -3579,8 +3620,12 @@ function onPreselect(face) {
 }
 
 // One click while armed (AA.planArmedClick decides; this does).
-async function armedClick(pick, other) {
+async function armedClick(pick, other, shift) {
   const a = state.armed;
+  // Adding (the body's Add a face, or Shift on any armed pick): the face
+  // joins the feature's set. Shift keeps the pick armed; an adding plain
+  // click ends it, as every plain click does.
+  if (pick && (shift || a.adding)) return addArmedFace(pick, !!shift);
   const record = AA.findBindingRecord(identityFor(a.topology),
     AA.topologyEdgeKey(a.topologyId, a.edgeId));
   const standing = AA.endBindings(record, a.direction);
@@ -3607,24 +3652,75 @@ async function armedClick(pick, other) {
   }
   const full = plan.pick.record ? plan.pick
     : Object.assign({}, plan.pick, { record: state.scene.faceRecord(plan.pick.sha256, plan.pick.faceId) });
-  // Jeff's three cases (the handoff's table): a surface the STEP split is
-  // swept in with the pick, never a question; like faces on the same surface
-  // that do not touch it are offered as a group, and the bind waits for his
-  // word (`group all` / `group one`).
+  // Jeff's cases (the handoffs' tables): a surface the STEP split is swept in
+  // with the pick, never a question; like faces on the same surface that do
+  // not touch it, and the other holes of a pattern (2026-11-15), are offered
+  // as a group, lit, and the bind waits for his word (`group all` / `group
+  // one`).
   const siblings = await surfaceSiblingsOf(full.sha256, full.faceId);
-  if (siblings.offered.length) {
-    a.offer = { full, swept: siblings.swept, offered: siblings.offered, plan };
-    state.scene.highlightFaces([full.faceId].concat(siblings.swept, siblings.offered)
-      .map((faceId) => ({ sha256: full.sha256, faceId })));
-    showGroupOffer(a.offer);
-    return { action: "offered", faceId: full.faceId, swept: siblings.swept, offered: siblings.offered };
+  if (siblings.offered.length || siblings.pattern.length) {
+    offerGroup(full, siblings, (more) => bindArmedFaces(full, more, plan));
+    return { action: "offered", faceId: full.faceId, swept: siblings.swept, offered: siblings.offered,
+      pattern: siblings.pattern, holes: siblings.holes };
   }
   return bindArmedFaces(full, siblings.swept, plan);
 }
 
+// An armed click that ADDS: the face and its same-surface siblings join the
+// feature's set, written as one event carrying the whole new set
+// (writeFeatureSet, Remove's shape). A feature with nothing bound yet is a
+// plain bind (bindArmedFaces), so an open proposal there is answered the
+// same way. `keep`: the pick stays armed (a Shift-click).
+async function addArmedFace(pick, keep) {
+  const a = state.armed;
+  const VA = window.ViewerApp;
+  const full = pick.record ? pick
+    : Object.assign({}, pick, { record: state.scene.faceRecord(pick.sha256, pick.faceId) });
+  const key = endFeature(a.topology, a.edgeId, a.direction);
+  const record = key ? VA.featureRecordOf(sessionIdentityProjection(), key) : null;
+  if (record && record.state === VA.FEATURE_STATES[1]) {
+    setArmedLine(AA.ARMED_PICK_WORDS.disagree, true);
+    return { action: "refused", reason: "disagreement" };
+  }
+  const siblings = await surfaceSiblingsOf(full.sha256, full.faceId);
+  const more = siblings.swept.concat(siblings.offered);
+  const held = (record && record.faces) || [];
+  if (!held.length) {
+    return bindArmedFaces(full, more, { action: AA.ARMED_CLICK_ACTIONS[0], pick: full }, { keep });
+  }
+  if (held.some((f) => f.source_step_sha256 !== full.sha256)) {
+    setArmedLine(AA.armedWords("notOn", { part: a.partWords }), true);
+    return { action: AA.ARMED_CLICK_ACTIONS[1] };
+  }
+  const have = new Set(held.map((f) => f.face_id));
+  const fresh = [full.faceId].concat(more).filter((f) => !have.has(f));
+  if (!fresh.length) {
+    setArmedLine(AA.armedWords("alreadyHeld", { face: full.faceId }), true);
+    return { action: AA.ARMED_CLICK_ACTIONS[2], faceId: full.faceId };
+  }
+  const faces = held.map(heldFaceFields).concat(fresh.map((f) => faceGeometryKey(full.sha256, f)));
+  const toast = AA.BODY_VERB_WORDS.added.replace("{face}", String(full.faceId));
+  try {
+    const event = await writeFeatureSet(key, record, faces, "add", "_face_added", toast);
+    if (keep) setArmedLine(AA.armedWords("added", { face: full.faceId, n: faces.length }), true);
+    else disarmPick("bound");
+    showToast(toast);
+    renderSweepRail();
+    postEmbedTree(false);
+    return { action: "added", faceId: full.faceId, faces: faces.map((f) => f.faceId), event: event.event_id,
+      armed: !!state.armed };
+  } catch (err) {
+    console.error("adding a face failed:", err);
+    setArmedLine(AA.bindFailureWords(err), true);
+    setArmedHover(err.message);
+    return { action: "failed", error: err.message, failure: AA.classifyBindFailure(err) };
+  }
+}
+
 // The armed pick's bind, once its faces are settled: `full` the picked face,
-// `more` the other faces of its set (swept, or a group taken).
-async function bindArmedFaces(full, more, plan) {
+// `more` the other faces of its set (swept, or a group taken). `opts.keep`
+// (a Shift-click on a feature with nothing bound): the pick stays armed.
+async function bindArmedFaces(full, more, plan, opts) {
   const a = state.armed;
   hideGroupOffer();
   const record = AA.findBindingRecord(identityFor(a.topology),
@@ -3647,6 +3743,13 @@ async function bindArmedFaces(full, more, plan) {
     const toast = AA.armedWords("toast", { end: a.endName, face: full.faceId,
       part: mesh ? AA.partRowWords(mesh, state.partNames).text : a.partWords });
     const events = await writeAnswer(answer, a.edgeId, toast);
+    if (opts && opts.keep) {
+      setArmedLine(AA.armedWords("added", { face: full.faceId, n: 1 + more.length }), true);
+      showToast(toast);
+      renderSweepRail();
+      postEmbedTree(false);
+      return { action: "added", faceId: full.faceId, faces: [full.faceId].concat(more), armed: true };
+    }
     disarmPick("bound");
     // What follows is the rail Take's own (answeredAtEnd): the bound tint, the
     // row's line, the toast, and the edge's other end opened next.
@@ -3676,7 +3779,26 @@ AA.GROUP_OFFER_WORDS = Object.freeze({
   allTitle: "bind every lit face as this one feature",
   one: "Just this one",
   oneTitle: "bind only the face you clicked",
+  // A hole pattern (2026-11-15): the holes are counted, not their faces.
+  patternLine: "{n} like holes on one plane",
+  patternAll: "Take all {n} holes",
+  patternAllTitle: "bind every lit hole as this one feature",
+  patternOneTitle: "bind only the hole you clicked",
 });
+
+// The group on offer, or null: {full, swept, offered, pattern, holes, bind}
+// -- `bind(more)` writes the clicked face with `more` (an armed click's
+// bindArmedFaces, or a Take's own write).
+let groupOffer = null;
+
+// Light the clicked face and every face on offer, and show the bar.
+function offerGroup(full, siblings, bind) {
+  groupOffer = { full, swept: siblings.swept, offered: siblings.offered, pattern: siblings.pattern || [],
+    holes: siblings.holes || 0, bind };
+  state.scene.highlightFaces([full.faceId].concat(siblings.swept, siblings.offered, groupOffer.pattern)
+    .map((faceId) => ({ sha256: full.sha256, faceId })));
+  showGroupOffer(groupOffer);
+}
 
 function showGroupOffer(offer) {
   let node = document.getElementById("an-offer");
@@ -3689,13 +3811,15 @@ function showGroupOffer(offer) {
   }
   node.textContent = "";
   const W = AA.GROUP_OFFER_WORDS;
-  const total = 1 + offer.swept.length + offer.offered.length;
+  const total = 1 + offer.swept.length + offer.offered.length + offer.pattern.length;
+  const holes = offer.pattern.length ? offer.holes : 0;
   const line = document.createElement("span");
   line.className = "an__offer-line";
-  line.textContent = W.line.replace("{n}", String(total));
+  line.textContent = holes ? W.patternLine.replace("{n}", String(holes)) : W.line.replace("{n}", String(total));
   node.appendChild(line);
-  [["all", W.all.replace("{total}", String(total)), W.allTitle],
-    ["one", W.one, W.oneTitle]].forEach(([which, text, title]) => {
+  [["all", holes ? W.patternAll.replace("{n}", String(holes)) : W.all.replace("{total}", String(total)),
+    holes ? W.patternAllTitle : W.allTitle],
+    ["one", W.one, holes ? W.patternOneTitle : W.oneTitle]].forEach(([which, text, title]) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "an__offer-btn";
@@ -3711,17 +3835,18 @@ function showGroupOffer(offer) {
 function hideGroupOffer() {
   const node = document.getElementById("an-offer");
   if (node) node.classList.remove("an__offer--on");
-  if (state.armed) state.armed.offer = null;
+  groupOffer = null;
 }
 
-// group <all|one> -- answer the group offer an armed click made: bind the
-// clicked face with its swept siblings and, for `all`, every offered one.
+// group <all|one> -- answer the group offer an armed click or a Take made:
+// bind the clicked face with its swept siblings and, for `all`, every
+// offered face and every hole of the pattern.
 async function cmdGroup(which) {
-  const offer = state.armed && state.armed.offer;
+  const offer = groupOffer;
   if (!offer) throw new Error("no group is on offer -- click a face while a pick is armed");
   if (which !== "all" && which !== "one") throw new Error("group takes all or one, got " + JSON.stringify(which));
-  const more = offer.swept.concat(which === "all" ? offer.offered : []);
-  return bindArmedFaces(offer.full, more, offer.plan);
+  const more = offer.swept.concat(which === "all" ? offer.offered.concat(offer.pattern) : []);
+  return offer.bind(more);
 }
 
 // A brief line over the scene naming what was just written.
@@ -4829,22 +4954,33 @@ async function cmdTake(edgeId, direction, meshId, faceText, topologyId) {
   const plan = AA.planArmedClick(pick, null, standing);
   if (plan.action === AA.ARMED_CLICK_ACTIONS[2]) return { action: plan.action, faceId };
   if (state.armed) disarmPick("taken");
-  // A named face takes the faces its surface was split into with it.
-  const swept = (await surfaceSiblingsOf(mesh.sha256, faceId)).swept;
-  const geometryKey = AA.geometryKeyOfPick(pick);
-  const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
-    pick: { geometryKey, direction, stackKey, featureKey: endFeature(topology, edge.id, direction),
-      geometryKeys: [geometryKey].concat(swept.map((f) => faceGeometryKey(mesh.sha256, f))) },
-    open: AA.endProposals(record, direction),
-    standing,
-  });
-  const toast = AA.armedWords("toast", { end: AA.edgeEndNames(topology, edge)[direction] || direction,
-    face: faceId, part: AA.partRowWords(mesh, state.partNames).text });
-  const events = await writeAnswer(answer, edge.id, toast);
-  await answeredAtEnd(topology, edge, direction, { sha256: mesh.sha256, faceId }, events, toast);
-  return { action: plan.action, faceId, supersedes: answer.supersedes,
-    ratifies: answer.accept ? answer.accept.event_id : null,
-    rejects: answer.reject.map((p) => p.event_id), events: events.map((e) => e.event_id) };
+  // A named face takes the faces its surface was split into with it; a hole
+  // of a pattern (the mate of a bound pattern, 2026-11-15) offers the whole
+  // pattern first, as an armed click does.
+  const siblings = await surfaceSiblingsOf(mesh.sha256, faceId);
+  const take = async (more) => {
+    hideGroupOffer();
+    const geometryKey = AA.geometryKeyOfPick(pick);
+    const answer = AA.planAnswer(AA.ANSWER_VERBS[2], {
+      pick: { geometryKey, direction, stackKey, featureKey: endFeature(topology, edge.id, direction),
+        geometryKeys: [geometryKey].concat(more.map((f) => faceGeometryKey(mesh.sha256, f))) },
+      open: AA.endProposals(record, direction),
+      standing,
+    });
+    const toast = AA.armedWords("toast", { end: AA.edgeEndNames(topology, edge)[direction] || direction,
+      face: faceId, part: AA.partRowWords(mesh, state.partNames).text });
+    const events = await writeAnswer(answer, edge.id, toast);
+    await answeredAtEnd(topology, edge, direction, { sha256: mesh.sha256, faceId }, events, toast);
+    return { action: plan.action, faceId, faces: [faceId].concat(more), supersedes: answer.supersedes,
+      ratifies: answer.accept ? answer.accept.event_id : null,
+      rejects: answer.reject.map((p) => p.event_id), events: events.map((e) => e.event_id) };
+  };
+  if (siblings.pattern.length) {
+    offerGroup(pick, siblings, take);
+    return { action: "offered", faceId, swept: siblings.swept, offered: siblings.offered,
+      pattern: siblings.pattern, holes: siblings.holes };
+  }
+  return take(siblings.swept);
 }
 
 // THE ONE WRITE PATH FOR AN ANSWER (handoff a_rail_row_with_a_proposal_says_
@@ -7242,6 +7378,8 @@ function embedTree() {
       direction: state.armed.direction } : null,
     armedLine: state.armed ? state.armed.line : null,
     mates: treeMates(),
+    // Per model feature id, the one line a bound set's fit reads (setFitWords).
+    fits: (state.mates && state.mates.fits) || {},
     chips: state.sweep ? railChips() : [], legend: rows.length ? AA.railLegend() : [], rows };
   // A pick armed outside sweep mode (the shell's feature body) is armed too.
   if (!state.sweep && state.armed) tree.armed = true;
@@ -7623,11 +7761,13 @@ async function main() {
   // Before this, a miss set `state.currentPick = null` and left the orange
   // tint exactly where it was, and a re-click re-highlighted the same face --
   // so there were three ways to pick a face and none to unpick one.
-  state.scene.onPick = (pick, bead, other) => {
+  state.scene.onPick = (pick, bead, other, mods) => {
     // An ARMED pick owns the click: the scene has already filtered the ray
-    // to the armed part (AA.planArmedClick says what the click does).
+    // to the armed part (AA.planArmedClick says what the click does). A
+    // Shift-click adds the face to the feature and keeps the pick armed.
     if (state.armed) {
-      return armedClick(pick, other || null).catch((err) => setBanner(err.message, "error"));
+      return armedClick(pick, other || null, !!(mods && mods.shift))
+        .catch((err) => setBanner(err.message, "error"));
     }
     // IN SWEEP MODE A CLICK SELECTS IN THE RAIL, at any frame (handoff
     // the_rail_and_the_scene_point_at_each_other): a bead selects its joint,

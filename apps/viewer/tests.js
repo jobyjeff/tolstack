@@ -12746,7 +12746,7 @@
     }
 
     await test("a feature's body says what it is: bound with its face, part number, Correct, " +
-      "Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane " +
+      "Add a face, Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane " +
       "lists is the pane's rows; an armed end is its line and Cancel", function () {
         var model = VA.buildModel(bodiedProj(), boundIdentity());
         var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
@@ -12755,8 +12755,10 @@
         eq(bound.lines.map(function (l) { return l.text; }), ["bound · face 12 of 100-001"]);
         eq(bound.lines[0].face, { sha256: "aa", faceId: 12 });
         eq(bound.lines[0].actions.map(function (a) { return a.command; }), [
-          ["arm", "d1", "to", "mini", "p1"], ["unbind", "d1", "to", "mini"], ["flip", "d1", "to", "mini"]],
-          "Correct arms the pick on the feature's own part; Flip because d1's other end is free");
+          ["arm", "d1", "to", "mini", "p1"], ["arm", "d1", "to", "mini", "p1", VA.ARM_ADD],
+          ["unbind", "d1", "to", "mini"], ["flip", "d1", "to", "mini"]],
+          "Correct arms the pick on the feature's own part; Add a face the same arm, adding; " +
+          "Flip because d1's other end is free");
         // p2's side of the shared node: nothing bound, and p2 has no mesh.
         var noMesh = VA.featureBodyPlan(model, "p2@n2", "mini", [], null);
         eq([noMesh.kind, noMesh.lines[0].text, noMesh.actions.length], [K.none, W.noMesh, 0]);
@@ -12787,7 +12789,7 @@
         both.stack_keys[0].bindings.push({ event_id: "e9", direction: "from", verdict: "bound",
           geometry_key: { source_step_sha256: "aa", face_id: 3 } });
         var two = VA.featureBodyPlan(VA.buildModel(bodiedProj(), both), "p1@n2", "mini", [], null);
-        eq(two.lines[0].actions.map(function (a) { return a.command[0]; }), ["arm", "unbind"]);
+        eq(two.lines[0].actions.map(function (a) { return a.command[0]; }), ["arm", "arm", "unbind"]);
       });
 
     // --- a suggestion names its face; the mate ranks the other side (handoff
@@ -12882,6 +12884,39 @@
            [[W.pick, ["arm", "g1", "from", "mini", "hub"]]]);
       });
 
+    await test("a feature holding a set says how many faces, Correct, Add a face and Unbind; " +
+      "what the pane read it as when it is a hole pattern, in one line; and each face with Remove", function () {
+        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
+        var faces = [743, 744, 500].map(function (id) { return { source_step_sha256: "aa", face_id: id }; });
+        var record = { state: VA.FEATURE_STATES[0], faces: faces };
+        var model = {
+          feature: function () { return { part: "hub" }; },
+          endsOf: function () { return [{ edgeId: "g1", end: "from" }]; },
+          bindingsOf: function () { return [{ edgeId: "g1", end: "from" }]; },
+          status: function () { return VA.FEATURE_STATUSES.bound; },
+          featureRecord: function () { return record; },
+          part: function () { return { number: "214373-002" }; },
+        };
+        var tree = { fits: { "hub@clocking": "2 holes Ø5.5 not on a circle" } };
+        var plan = VA.featureBodyPlan(model, "hub@clocking", "v2", [], tree);
+        eq(plan.kind, K.bound);
+        eq(plan.lines.map(function (l) { return l.text; }), ["bound · 3 faces of 214373-002",
+          "2 holes Ø5.5 not on a circle", "face 743", "face 744", "face 500"]);
+        eq(plan.lines[0].actions.map(function (a) { return [a.text, a.command]; }), [
+          [W.correct, ["arm", "g1", "from", "v2", "hub"]],
+          [W.addFace, ["arm", "g1", "from", "v2", "hub", VA.ARM_ADD]],
+          [W.unbind, ["unbind", "g1", "from", "v2"]]]);
+        eq([plan.lines[1].fit, plan.lines[1].actions], [true, undefined], "the fit line is words, no verb");
+        eq(plan.lines[4].actions[0].command, ["drop-face", "g1", "from", "v2", "aa", "500"]);
+        var slot = document.createElement("div");
+        VA.renderFeatureBody(slot, [], { plan: plan, command: function () {}, hoverFace: function () {} });
+        var rows = Array.prototype.slice.call(slot.querySelectorAll(".navtree__featurestate"));
+        eq(rows.map(function (r) { return r.getAttribute("data-fit"); }), [null, "true", null, null, null]);
+        // No fit from the pane (a set that is no pattern, or no pane): no line.
+        var bare = VA.featureBodyPlan(model, "hub@clocking", "v2", [], null);
+        eq(bare.lines.length, 4);
+      });
+
     await test("a planned body renders its lines and actions: a bound line lights its face on " +
       "hover and lets go on leave, and each button posts its own verb", function () {
         var model = VA.buildModel(bodiedProj(), boundIdentity());
@@ -12897,9 +12932,9 @@
         line.onmouseleave();
         eq(hovered, [{ sha256: "aa", faceId: 12 }, null]);
         var buttons = Array.prototype.slice.call(slot.querySelectorAll("button"));
-        eq(buttons.map(function (b) { return b.textContent; }), ["Correct", "Unbind", "Flip"]);
+        eq(buttons.map(function (b) { return b.textContent; }), ["Correct", "Add a face", "Unbind", "Flip"]);
         buttons.forEach(function (b) { b.click(); });
-        eq(posted, ["arm d1 to mini p1", "unbind d1 to mini", "flip d1 to mini"]);
+        eq(posted, ["arm d1 to mini p1", "arm d1 to mini p1 add", "unbind d1 to mini", "flip d1 to mini"]);
       });
 
     await test("a binding that names an interface no model has, or a mesh not installed, is " +
