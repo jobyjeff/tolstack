@@ -90,3 +90,7 @@ the default tier not wait on the slot at all -- skip or mark `slow` the Chrome-l
 `test_browser_runner.py` cases outside the main checkout, or give them a bounded wait -- and keep
 that one test in the merge tier. Second: the venv has no `pytest-xdist`, so the documented
 `-n 16 --dist loadfile` spelling does not run here.
+
+## Addendum 2026-11-16 (a_window_resize_reclamps_the_pane_and_the_map)
+
+Default tier, worktree, bare `venv-win` pytest `-q` (no `-n`; this pytest.ini rejects it): 14m36s (875 s), 2027 passed, 1 skipped, 1 failed (the known worktree-only `test_viewer_js_suite_is_green`, no `data/projections`). Over the 10-minute budget.

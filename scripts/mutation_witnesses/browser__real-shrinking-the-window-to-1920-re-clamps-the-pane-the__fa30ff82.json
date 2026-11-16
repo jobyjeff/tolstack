@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a window resize re-clamps the pane and the map (5120 to 1920, no reload)",
+  "expect_red": "[real] shrinking the window to 1920 re-clamps the pane: the region equals a fresh load's (+-2px) and the map is drawn",
+  "mutations": [
+    {
+      "contract": "A window that shrinks with the 3D view open re-clamps the pane as a load does, so the map's region never drops to 0 wide.",
+      "issue": "docs/issues/ISSUE_20261116_shrinking_the_window_with_the_pane_open_leaves_the_map_region_zero_wide.md",
+      "note": "The resize handler no longer refits the 3D view.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "          if (nodes.flyout && nodes.flyout.open) refitPane();\n",
+      "replace": "          /* mutated */\n"
+    }
+  ]
+}
