@@ -1216,7 +1216,6 @@ export class AnnotateScene {
     this.requestRender();
   }
 
-  // One part's drawn occurrences, as one box in the assembly frame.
   // Frames some faces of one part on every drawn occurrence of it -- a
   // suggestion line's click in the shell (`camera face`). False when none of
   // them is on an open part.
@@ -1242,6 +1241,7 @@ export class AnnotateScene {
     return true;
   }
 
+  // One part's drawn occurrences, as one box in the assembly frame.
   _assemblyBox(sha256) {
     const mesh = this.parts.get(sha256);
     const box = new THREE.Box3();

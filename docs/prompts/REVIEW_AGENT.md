@@ -489,6 +489,11 @@ problem as an unrecorded full suite one step later.
   wiring: on 2026-10-14, nulling `placementsFor` stayed green in the fast and
   browser tiers and went red only there
   (`ISSUE_20261014_the_annotators_placement_wiring_can_be_deleted_green_in_every_gated_tier.md`).
+  **Read that run to its last line, and compare it with a `git archive integration`
+  export, not with the known reds.** Since at least 2026-11-15 it throws in
+  `correctionPass`, so the proposal, reduced-motion and `--real` passes never
+  run. It still exits 1 beside five filed reds, so it looks like the usual red
+  (`ISSUE_20261115_the_annotate_browser_checks_correction_pass_throws_and_the_passes_after_it_never_run.md`).
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
