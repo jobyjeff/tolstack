@@ -209,3 +209,19 @@ page 80.7 s.
 > (the runner's own row). Three whole-tier runs on this handoff's trees in one
 > day: 1829 → 1835 → 1853 s, the drift being slot-free wall time on a shared
 > box rather than new checks (two were added between the first and second).
+
+## Measurement 2026-11-16, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261116_triage_sweep.md)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs`, main checkout |
+| Tree | master `4ad98772` (fast-forwarded from `a0e1ac5a`, 72 commits), right after a fresh `scripts/rebuild_projections.ps1` |
+| Result | **46/47** suites (1120 checks), exit 1 — the one red is the known `the model drawn alone and led` 22/23 (`ISSUE_20261115_the_model_drawn_alone_and_led_two_hover_lighting_checks_red_on_integration.md`) |
+| Wall time | **1822 s** (runner's own TOTAL 1819.0 s), against the 30-minute merge budget: `suite-time record` printed **OVER BUDGET by 0m22s** (the runner's self-recorded row also reads `over: true`) |
+| Slot | uncontended (`slot_wait_s: 0`); the default tier had finished on the candidate before it started |
+
+Runner's per-suite table, top 8 of 47: the DAG zoom, Fit and the grid header
+154.6 s, topology http 153.3 s, topology file:// 100.6 s, annotate rail holds
+still 94.8 s, 3D pane follows the selection 94.2 s, no nav click wedges the
+page 90.7 s, a suggestion names its face and the mate ranks the other side
+89.2 s, topology file:// respine 81.3 s. Three suites more than 11-11 (44 → 47).

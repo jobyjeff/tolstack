@@ -146,3 +146,15 @@ five of the 40 were browser entries; the other 35 were fast and annotate.
       42s  annotate__recordwithout-opens-the-end-the-corrected-binding-held__1ba81237
       41s  annotate__a-session-correction-leaves-one-standing-binding-the-cor__b59e6374
 ```
+
+## Measurement 2026-11-16, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261116_triage_sweep.md)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since a0e1ac5a69ac5ee397cda7ce6a0fb2690421488e`, main checkout at master `4ad98772` (fast-forwarded from `a0e1ac5a`, 72 commits), run alone right after the browser tier: **58/58 witnessed, 58/159 reached in 29m48s; 101 left to the sweep (budget)**, exit 0. Wall **1838 s**, `suite-time record` printed **OVER BUDGET by 0m38s** — the same cap-plus-last-entry overshoot this issue names. Slowest entries:
+
+```
+    1m09s  annotate__a-feature-row-s-suggestion-an-open-proposal-at-its-end-e__d21f3471
+      58s  fast__a-block-part-whose-other-edges-end-on-another-block-s-pi__8f0dd948
+      39s  annotate__describesuggestions-says-which-face-the-narrowing-compar__c522c8af
+      38s  annotate__a-picked-hole-offers-its-pattern-the-other-holes-of-one__5731da88#2
+      38s  annotate__the-mate-a-flat-bound-opposite-ranks-the-flats-that-face__820d4a66
+```
