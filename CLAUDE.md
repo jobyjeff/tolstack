@@ -164,14 +164,15 @@ Know these before you write code; each has a test standing on it.
   `node scripts/run_mutation_witness_tests.mjs --changed-since master`, run
   **in the main checkout**, and **who runs which is this table** (dispatch's
   rule — a tactical branch runs a merge-only tier only for what it added or
-  changed — applied to this repo; the browser runner prints a per-suite timing
-  table and records a full run in dispatch's suite-time ledger itself):
+  changed — applied to this repo; both runners print a timing table and write
+  their own suite-time ledger row, each carrying the `sha` and `tree` it ran on,
+  and an `--only` run's row is tier `partial`):
 
   | Who | Runs |
   |---|---|
-  | tactical session | default pytest once; the two fast node tiers; the browser runner with `--only "<suite>"` for each suite it added or changed; the witness runner with `--only "<guard>"` for each spec it added or changed |
-  | review, after the merge | the whole browser tier and the witness `--changed-since` gate, once |
-  | batch merge | the same two again, only when it merged more than one handoff |
+  | tactical session | default pytest once; the two fast node tiers; the browser runner with `--only "<suite>"` for each suite it added or changed; the witness runner **once**, with a repeated `--only "<guard>"` for every spec it added or changed |
+  | review, after the merge | the whole browser tier once, unless a whole-tier green for the same `tree` is already on the ledger (cite it); the witness gate `--changed-since <ref> --budget-min 10`; a diff that touches nothing outside `docs/` runs the two fast tiers only |
+  | batch merge | the default tier, the two fast tiers and the witness gate at the 30-minute cap over the whole batch's diff; the whole browser tier only when `git diff --quiet <tree the last review tested> <merged tree> -- . ":(exclude)docs/sessions" ":(exclude)docs/issues"` says the trees differ, otherwise it cites the review's ledger row (timestamp and seconds) |
 
   **Rebuild the projections BEFORE those four, never after**
   (`scripts/rebuild_projections.ps1`): the `[real]` checks read
@@ -229,7 +230,7 @@ Know these before you write code; each has a test standing on it.
   not have selected `237dba65` on 2026-10-20, a layout shift the spec's own file
   never recorded. Do not put `--full` back on the gate over a decay like that.
   Outside the main checkout the runner refuses a bare run and prints the
-  `--changed-since integration` line. **That run is capped at 30 minutes**
+  `--changed-since integration` line. **That run is capped at 30 minutes at the batch merge and 10 at a review**
   (`--budget-min`, 2026-10-27): fast and python entries first, browser entries
   after, and what the cap did not reach prints as `left to the sweep (budget)` —
   a capped run whose reached entries are all witnessed is a pass (exit 0), and

@@ -102,3 +102,54 @@ export function slowest(results, n = 15) {
 export function exitCodeFor({ misses }) {
   return misses > 0 ? 1 : 0;
 }
+
+/**
+ * Every value of every `--only` in `argv`, in order. The flag may repeat; a value
+ * is never split here -- see `resolveOnly`, which knows what the entries are.
+ */
+export function onlyValues(argv) {
+  const out = [];
+  argv.forEach((arg, i) => {
+    if (arg === "--only" && i + 1 < argv.length) out.push(argv[i + 1]);
+  });
+  return out;
+}
+
+/** Does `entry` answer to `term`: its derived id, or the guard's own name. */
+export function matchesOnly(entry, term) {
+  return entry.id.includes(term) || entry.expect_red.includes(term);
+}
+
+/**
+ * The `--only` terms to select by: each value as written when it matches anything
+ * (so the single-substring form, and a guard name that itself contains a comma,
+ * are unchanged), and otherwise split on commas, so `--only a,b` names two. A
+ * term that matches nothing stays a term, and the caller reports it.
+ */
+export function resolveOnly(entries, values) {
+  const terms = [];
+  for (const value of values) {
+    const pieces = entries.some((e) => matchesOnly(e, value))
+      ? [value] : value.split(",").map((p) => p.trim()).filter(Boolean);
+    terms.push(...(pieces.length ? pieces : [value]));
+  }
+  return terms;
+}
+
+/** The entries any term selects, in registry order. */
+export function selectOnly(entries, terms) {
+  return entries.filter((e) => terms.some((t) => matchesOnly(e, t)));
+}
+
+/** The terms that select nothing: a typo a several-guard run must not swallow. */
+export function unmatchedOnly(entries, terms) {
+  return terms.filter((t) => !entries.some((e) => matchesOnly(e, t)));
+}
+
+/**
+ * The run's cap in minutes: none for `--full`, the flag's number when given, else
+ * the default. NaN or negative comes back as-is for the caller to refuse.
+ */
+export function resolveBudgetMin({ full, arg }) {
+  return full ? 0 : arg === null || arg === undefined ? DEFAULT_BUDGET_MIN : Number(arg);
+}

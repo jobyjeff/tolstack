@@ -46,11 +46,11 @@
 // THIS tree.
 import { chromium } from "playwright-core";
 import { createServer } from "node:http";
-import { readFile, readdir, writeFile, appendFile, mkdir } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, extname, normalize, sep } from "node:path";
-import { takeTheBrowserSlot, launchBrowser, slotWaitMs } from "./browser_runner.mjs";
+import { takeTheBrowserSlot, launchBrowser, slotWaitMs, appendLedgerRow } from "./browser_runner.mjs";
 import { CLOCK } from "./virtual_clock.mjs";
 import { ranNotDeclared } from "./guard_enumeration.mjs";
 
@@ -334,11 +334,10 @@ const RAN_NAMES = [];
 // for the whole process, so the wait is one number before the first suite, not
 // a per-suite column. A FULL run also appends one row to dispatch's suite-time
 // ledger (the file `dispatch suite-time report` reads), carrying the same rows
-// under `suites`; a filtered run writes nothing, so a witness `--only` per
-// mutation never touches it. That row IS the record of the run -- do not also
-// `suite-time record` this command.
-const LEDGER = process.env.DISPATCH_SUITE_TIMES || "C:/workspace/dispatch/data/suite_times.jsonl";
-const LEDGER_FALLBACK_BUDGET_S = 1800;
+// under `suites`; a filtered run appends a `partial` row (browser_runner.mjs's
+// appendLedgerRow), except under the witness runner, which sets
+// TOLSTACK_NO_LEDGER so a mutation per `--only` never touches it. That row IS
+// the record of the run -- do not also `suite-time record` this command.
 
 async function reportTimings(timings, runSeconds) {
   const rows = [...timings].sort((a, b) => b.seconds - a.seconds);
@@ -349,26 +348,17 @@ async function reportTimings(timings, runSeconds) {
     console.log(`  ${r.seconds.toFixed(1).padStart(7)}s ${String(r.checks).padStart(4)} checks  ${r.suite}`);
   }
   console.log(`  ${runSeconds.toFixed(1).padStart(7)}s ${String(checks).padStart(4)} checks  TOTAL running`);
-  if (ONLY !== null) return;
   try {
-    let budget = LEDGER_FALLBACK_BUDGET_S;
-    try {
-      const last = (await readFile(LEDGER, "utf8")).split(/\r?\n/).filter(Boolean)
-        .map((l) => { try { return JSON.parse(l); } catch { return null; } })
-        .filter((r) => r && r.repo === "tolstack" && r.tier === "merge" && r.budget_s).pop();
-      if (last) budget = last.budget_s;
-    } catch { /* no ledger yet */ }
-    const seconds = Math.round(runSeconds + SLOT_WAIT_S);
-    const row = {
-      ts: new Date().toISOString().replace(/\.\d+Z$/, "Z"), repo: "tolstack",
-      tier: "merge", seconds, budget_s: budget, over: seconds > budget,
-      command: "node scripts/run_viewer_browser_tests.mjs", handoff: null, role: null,
-      slot_wait_s: Math.round(SLOT_WAIT_S), checks,
-      suites: rows.map((r) => ({ suite: r.suite, checks: r.checks,
-        seconds: Math.round(r.seconds * 10) / 10 })),
-    };
-    await mkdir(dirname(LEDGER), { recursive: true });
-    await appendFile(LEDGER, JSON.stringify(row) + "\n", "utf8");
+    const seconds = runSeconds + SLOT_WAIT_S;
+    const base = { slot_wait_s: Math.round(SLOT_WAIT_S), checks };
+    // A filtered run is a partial row, its own tier name so dispatch's report
+    // (which reads default|merge|sweep) never counts it as a whole run.
+    appendLedgerRow(ONLY !== null
+      ? { tier: "partial", seconds, command: `node scripts/run_viewer_browser_tests.mjs --only ${JSON.stringify(ONLY)}`,
+          extra: { ...base, scope: "browser", only: ONLY, suite_count: rows.length } }
+      : { tier: "merge", seconds, command: "node scripts/run_viewer_browser_tests.mjs",
+          extra: { ...base, suites: rows.map((r) => ({ suite: r.suite, checks: r.checks,
+            seconds: Math.round(r.seconds * 10) / 10 })) } });
   } catch (err) {
     console.log(`(timing ledger not written: ${err.message})`);
   }

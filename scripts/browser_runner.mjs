@@ -21,7 +21,7 @@
 // somebody has to have read: a human at a terminal gets the same queue and the
 // same bound as an agent.
 import childProcess, { spawnSync } from "node:child_process";
-import { existsSync, writeSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -360,4 +360,66 @@ function installHandlers() {
   // process.exit() and an uncaught throw skip every `finally` and every await:
   // only synchronous work runs here, so what is still open is killed outright.
   process.on("exit", (code) => { trace("exit", { code }); killWhatIsLeft("exit"); });
+}
+
+// --- the suite-time ledger row ---------------------------------------------
+//
+// One row shape for both runners (handoff the_suite_stops_paying_for_the_same_
+// tree_twice): the commit sha and the tree hash the run was measured on, so a
+// review can cite a same-tree green instead of repeating it, and the handoff
+// slug and role. dispatch gives a session only DISPATCH_SESSION_LABEL, so the
+// slug and role come from the branch the checkout is on (`handoff/<slug>` is a
+// tactical run, `review/<slug>` a review's); on any other branch both are null.
+//
+// `TOLSTACK_NO_LEDGER` is the witness runner's: it runs a browser runner once per
+// mutation with `--only`, and a row per mutation would bury the ledger.
+export const NO_LEDGER_ENV = "TOLSTACK_NO_LEDGER";
+export const LEDGER_PATH = process.env.DISPATCH_SUITE_TIMES ||
+  "C:/workspace/dispatch/data/suite_times.jsonl";
+const LEDGER_FALLBACK_BUDGET_S = { default: 600, merge: 1800, sweep: 10800 };
+
+function gitOut(root, args) {
+  const run = spawnSync("git", ["-C", root, ...args],
+    { encoding: "utf-8", windowsHide: true });
+  return run.status === 0 ? run.stdout.trim() : null;
+}
+
+/** `{ sha, tree, handoff, role }` of the checkout at `root`; each null when git cannot say. */
+export function treeIdentity(root = REPO) {
+  const branch = gitOut(root, ["branch", "--show-current"]) || "";
+  const m = branch.match(/^(handoff|review)\/(.+)$/);
+  return {
+    sha: gitOut(root, ["rev-parse", "HEAD"]),
+    tree: gitOut(root, ["rev-parse", "HEAD^{tree}"]),
+    handoff: m ? m[2] : null,
+    role: m ? (m[1] === "review" ? "review" : "tactical") : null,
+  };
+}
+
+/**
+ * Appends one row to dispatch's suite-time ledger and returns it (null when
+ * `TOLSTACK_NO_LEDGER` is set). `tier` is dispatch's (`default|merge|sweep`) for a
+ * whole run and `partial` for an `--only` run, which dispatch's report ignores;
+ * `extra` carries what only the caller knows (suites, scope, counts). The budget
+ * is the last row's for that tier, so a budget change in dispatch is followed.
+ */
+export function appendLedgerRow({ tier, seconds, command, extra = {}, root = REPO,
+                                  ledger = LEDGER_PATH, env = process.env }) {
+  if (env[NO_LEDGER_ENV]) return null;
+  let budget = LEDGER_FALLBACK_BUDGET_S[tier] || 0;
+  try {
+    const last = readFileSync(ledger, "utf8").split(/\r?\n/).filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter((r) => r && r.repo === "tolstack" && r.tier === tier && r.budget_s).pop();
+    if (last) budget = last.budget_s;
+  } catch { /* no ledger yet */ }
+  const rounded = Math.round(seconds);
+  const row = {
+    ts: new Date().toISOString().replace(/\.\d+Z$/, "Z"), repo: "tolstack", tier,
+    seconds: rounded, budget_s: budget, over: budget > 0 && rounded > budget, command,
+    ...treeIdentity(root), ...extra,
+  };
+  mkdirSync(dirname(ledger), { recursive: true });
+  appendFileSync(ledger, JSON.stringify(row) + "\n", "utf8");
+  return row;
 }
