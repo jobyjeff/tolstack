@@ -1,0 +1,141 @@
+/* The map (apps/viewer/views/map.js; the_map_draws_the_end_stop_model,
+   2026-11-15): the DAG region's second drawing of the one model. Sizes of
+   the drawing itself are world units set as SVG attributes by map.js's
+   VA.MAP (a picture's sizes are pixel constants, docs/DESIGN_TYPE_AND_
+   COLOUR.md); this sheet carries only colour, weight and state. Every ink
+   is the body's own (`--fill-ink`, set by topology.css's .tv__fill--t*) or
+   a page token; the accent is the selection's alone.
+
+   The two strengths, as on every surface (hover_and_select_light_the_same_
+   things_on_all_four_surfaces_and_nothing_goes_opaque): `--lead` is the own
+   tier of the hover and `--hot` the touching tier -- weight and brightness,
+   never a hue; `--selected` is the selection's own tier in the accent, and
+   `--touched` its touching tier, the accent at part strength. Nothing goes
+   opaque: no element is filled over another on any state. */
+
+.tv__hscroll--map { overflow: hidden; }
+.tv__map { display: block; width: 100%; height: 100%; cursor: grab; }
+.tv__scroll--zoomgrab .tv__map { cursor: grabbing; }
+.tv__map path, .tv__map polyline { fill: none; }
+.tv__map text { font-family: inherit; }
+
+/* A body's district: a dashed field in the body's ink, barely tinted, named
+   once at its corner. Its interior is the drawing's empty space (pan). */
+.map__district {
+  fill: color-mix(in srgb, var(--fill-ink, var(--group-body)) 5%, transparent);
+  stroke: var(--fill-ink, var(--group-body)); stroke-opacity: .7; stroke-width: 2;
+  stroke-dasharray: 12 8; pointer-events: stroke; cursor: pointer;
+}
+.map__bodyname { fill: var(--fill-ink, var(--muted)); font-weight: 600; cursor: pointer; }
+
+/* An assembly's outline round its own box and its children's: dotted,
+   lighter than a box, never a control (the assembly is its part's box). */
+.map__assembly {
+  fill: none; stroke: var(--fill-ink, var(--group-part)); stroke-opacity: .5;
+  stroke-width: 1.5; stroke-dasharray: 2 7; stroke-linecap: round; pointer-events: none;
+}
+
+/* A part's box: an outline in a lighter cut of the body's ink; a bearing's
+   (a child's) thinner. The interior is pan space; the border and the name
+   are the part's controls, as on the present DAG. */
+.map__box {
+  fill: none; stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
+  stroke-width: 2; pointer-events: stroke; cursor: pointer;
+}
+.map__box--child { stroke-width: 1.5; stroke-opacity: .7; }
+.map__partnumber-text { fill: var(--ink); font-weight: 600; }
+.map__partname-text { fill: var(--muted); }
+.map__partname { cursor: pointer; }
+.map__box--child + .map__partname .map__partname-text { fill: var(--muted); }
+
+/* A jumper: a dimension inside its part, between two of its pins. Thin and
+   muted; it is the part's own business until it is lit. */
+.map__jumperline { stroke: var(--muted); stroke-opacity: .55; stroke-width: 2.5; stroke-linecap: round; }
+.map__jumperhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+
+/* A connector: an interface between two pins, the route in the page's ink
+   and heavier where it crosses between two bodies. Its symbol breaks the
+   route (the mask is the page's background). */
+.map__connectorline { stroke: var(--ink); stroke-opacity: .55; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.map__connector--between .map__connectorline { stroke-opacity: .85; stroke-width: 4; }
+.map__connectorhit { stroke: transparent; stroke-width: 18; pointer-events: stroke; cursor: pointer; }
+.map__symbolmask { fill: var(--bg); stroke: none; }
+.map__symbol { cursor: pointer; }
+.map__sym-ring { fill: none; stroke: var(--ink); stroke-width: 3; }
+.map__sym-line { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.map__sym-plate { stroke-width: 4; }
+.map__sym-stop { stroke-width: 4; }
+.map__sym-cup { stroke-width: 3.5; }
+.map__sym-solid { fill: var(--ink); stroke: none; }
+.map__sym-faint { stroke-opacity: .35; stroke-width: 1.5; }
+
+/* A pin: a feature on its part's perimeter, in the body's ink, ringed in the
+   page's background so it reads over the box's border. Its label is beside
+   it and shows only on hover or when lit. An inner mark is a feature that
+   ends no interface -- a dimension's end on the part alone. */
+.map__pindot { fill: var(--fill-ink, var(--group-part)); stroke: var(--bg); stroke-width: 2; }
+.map__pinmark { fill: var(--muted); stroke: var(--bg); stroke-width: 2; }
+.map__pinhit { fill: transparent; stroke: none; cursor: pointer; }
+.map__pin { cursor: pointer; }
+.map__pinlabel {
+  fill: var(--ink); opacity: 0; pointer-events: none;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round;
+  transition: opacity .12s;
+}
+
+/* --- the two strengths ---------------------------------------------------- */
+/* Hover, own tier. */
+.map__district--lead { stroke-opacity: 1; stroke-width: 3; stroke-dasharray: none; }
+.map__bodyname--lead { fill: var(--ink); }
+.map__box--lead { stroke-width: 3.5; stroke: var(--fill-ink, var(--group-part)); }
+.map__partname--lead .map__partname-text, .map__partname--lead .map__partnumber-text { fill: var(--ink); }
+.map__jumper--lead .map__jumperline { stroke: var(--ink); stroke-opacity: 1; stroke-width: 4; }
+.map__connector--lead .map__connectorline { stroke-opacity: 1; stroke-width: 5.5; }
+.map__pin--lead .map__pindot { stroke: var(--ink); stroke-width: 3; }
+.map__pin--lead .map__pinmark { fill: var(--ink); }
+.map__pin--lead .map__pinlabel { opacity: 1; }
+/* Hover, touching tier. */
+.map__district--hot { stroke-opacity: .9; stroke-width: 2.5; }
+.map__box--hot { stroke-width: 2.5; stroke: var(--fill-ink, var(--group-part)); }
+.map__partname--hot .map__partname-text { fill: var(--ink); }
+.map__jumper--hot .map__jumperline { stroke-opacity: .9; stroke-width: 3.5; }
+.map__connector--hot .map__connectorline { stroke-opacity: .85; stroke-width: 4.5; }
+.map__pin--hot .map__pindot { stroke: var(--muted); stroke-width: 3; }
+.map__pin--hot .map__pinlabel { opacity: 1; }
+/* The selection, own tier: the accent. */
+.map__district--selected { stroke: var(--accent); stroke-opacity: 1; stroke-width: 3; stroke-dasharray: none; }
+.map__bodyname--selected { fill: var(--accent); }
+.map__box--selected { stroke: var(--accent); stroke-width: 3.5; }
+.map__partname--selected .map__partname-text, .map__partname--selected .map__partnumber-text { fill: var(--accent); }
+.map__jumper--selected .map__jumperline { stroke: var(--accent); stroke-opacity: 1; stroke-width: 4; }
+.map__connector--selected .map__connectorline { stroke: var(--accent); stroke-opacity: 1; stroke-width: 5.5; }
+.map__connector--selected .map__sym-ring, .map__connector--selected .map__sym-line { stroke: var(--accent); }
+.map__connector--selected .map__sym-solid { fill: var(--accent); }
+.map__pin--selected .map__pindot { fill: var(--accent); stroke: var(--ink); stroke-width: 2.5; }
+.map__pin--selected .map__pinmark { fill: var(--accent); }
+.map__pin--selected .map__pinlabel { opacity: 1; fill: var(--accent); }
+/* The selection, touching tier: the accent at part strength. */
+.map__district--touched { stroke: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke-width: 2.5; }
+.map__bodyname--touched { fill: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
+.map__box--touched { stroke: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke-width: 2.5; }
+.map__partname--touched .map__partname-text { fill: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
+.map__jumper--touched .map__jumperline { stroke: color-mix(in srgb, var(--accent) 55%, var(--muted)); stroke-opacity: 1; stroke-width: 3.5; }
+.map__connector--touched .map__connectorline { stroke: color-mix(in srgb, var(--accent) 55%, var(--ink)); stroke-opacity: 1; stroke-width: 4.5; }
+.map__pin--touched .map__pindot { fill: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke: var(--ink); stroke-width: 2; }
+.map__pin--touched .map__pinlabel { opacity: 1; }
+
+/* --- the region's header: Map . Classic ---------------------------------- */
+/* One two-way control at the region's top-right, quiet until hovered, over
+   whichever drawing the region shows. The pressed state is the settings
+   bar's (.tvview). */
+.tv__daghead {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+}
+.tv__daghead button.ghost { border-radius: 0; border: none; background: transparent; color: var(--muted); }
+.tv__daghead button.ghost:hover { color: var(--ink); }
+.tv__daghead button.ghost[aria-pressed="true"] { color: var(--ink); background: #363b45; }
+.tv__daghead button.ghost[disabled] { color: var(--muted); opacity: .6; cursor: default; }
+.tv__daghead button.ghost:first-child { border-radius: 5px 0 0 5px; }
+.tv__daghead button.ghost:last-child { border-radius: 0 5px 5px 0; }

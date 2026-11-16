@@ -17081,6 +17081,14 @@ async function testAnnotateRenderOnDemand(browser, label) {
             view.partDrawing = window.__partDrawing || "rails";
             localStorage.setItem(key, JSON.stringify(view));
           }
+          // ...and on the Classic drawing (the_map_draws_the_end_stop_model,
+          // 2026-11-16): the app's default is the Map wherever the model has a
+          // layout, which re-draws the whole region; every suite here reads
+          // the rails, and the map has a suite of its own, which picks it.
+          const drawingKey = "tolstack.viewer.dagDrawing"; // VA.DAG_DRAWING_KEY
+          if (!localStorage.getItem(drawingKey)) {
+            localStorage.setItem(drawingKey, window.__dagDrawing || "classic");
+          }
         } catch (e) { /* a page with no storage draws the app's default */ }
       });
       // The bottom of everything the page pins at its top -- the page bar and

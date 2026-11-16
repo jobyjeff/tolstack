@@ -1237,6 +1237,23 @@
             "joints": 4
           }
         },
+        // The map's authored layout (the_map_draws_the_end_stop_model,
+        // 2026-11-16): a part's place on the map's coarse grid, the same
+        // shape docs/topologies/map_<model id>.json carries and the builder
+        // ships verbatim (`load_topology_map`). No bodies, so the map draws
+        // no district; its one gap edge states no contact kind, so that
+        // connector is drawn bare. A model with no layout carries `null`.
+        "map": {
+          "schema": "joby.tolerance_stack/topology_map/v0",
+          "topology": "demo_mechanism",
+          "places": {
+            "base": [0, 1],
+            "post": [1, 1],
+            "arm": [1, 0],
+            "strut": [2, 0]
+          },
+          "symbols": {}
+        },
         "branch_nodes": [
           "base_post_seat"
         ],

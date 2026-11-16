@@ -1246,6 +1246,62 @@ def load_mesh_aliases(topologies_dir: Path) -> List[Dict[str, str]]:
     return list(raw.get("aliases") or [])
 
 
+#: The map's layout file beside a model: ``map_<topology id>.json``
+#: (the_map_draws_the_end_stop_model, 2026-11-16). A part's place on a coarse
+#: grid, one entry per top-level part; everything else the map draws is
+#: computed in the browser (``apps/viewer/map.js``; docs/DAG_TOPOLOGY.md,
+#: "The map"). Not ``topology_<id>.map.json``: every reader of the directory
+#: globs ``topology_*.json`` for the models themselves.
+MAP_NAME = "map_{topology_id}.json"
+SCHEMA_MAP = "joby.tolerance_stack/topology_map/v0"
+
+
+def map_path(topologies_dir: Path, topology_id: str) -> Path:
+    return topologies_dir / MAP_NAME.format(topology_id=topology_id)
+
+
+def load_topology_map(topologies_dir: Path, topology: Topology) -> Optional[Dict[str, Any]]:
+    """The model's authored map layout, verbatim, or ``None`` for a model with
+    none (v1 today): the page then draws Classic and its switch says "No
+    map". That is data, not a branch on a model's shape.
+
+    Present-but-wrong is refused, as :func:`load_hardware` refuses a register
+    it cannot read: a layout that places a part the model has no part for, or
+    leaves a top-level part unplaced, would draw a map with a part missing --
+    and the map's whole claim is that nothing in the model is left undrawn.
+    A child part (one with a ``parent``) may be unplaced: it sits in its
+    parent's cell.
+    """
+    path = map_path(topologies_dir, topology.id)
+    if not path.is_file():
+        return None
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if raw.get("schema") != SCHEMA_MAP:
+        raise ValueError(f"{path}: schema is {raw.get('schema')!r}, expected {SCHEMA_MAP!r}")
+    if raw.get("topology") != topology.id:
+        raise ValueError(f"{path}: names topology {raw.get('topology')!r}, not {topology.id!r}")
+    places = raw.get("places")
+    if not isinstance(places, dict) or not places:
+        raise ValueError(f"{path}: carries no places")
+    part_ids = {p.id for p in topology.parts}
+    unknown = sorted(set(places) - part_ids)
+    if unknown:
+        raise ValueError(f"{path}: places parts the model has not: {unknown}")
+    unplaced = sorted(p.id for p in topology.parts if p.parent is None and p.id not in places)
+    if unplaced:
+        raise ValueError(f"{path}: leaves top-level parts unplaced: {unplaced}")
+    for part_id, place in places.items():
+        if not (isinstance(place, list) and len(place) == 2
+                and all(isinstance(v, int) and v >= 0 for v in place)):
+            raise ValueError(f"{path}: {part_id}'s place must be [column, row], got {place!r}")
+    interface_ids = {n.id for n in topology.nodes if len(n.parts) > 1} | {
+        e.id for e in topology.edges if e.kind == "gap"}
+    for iface_id in raw.get("symbols") or {}:
+        if iface_id not in interface_ids:
+            raise ValueError(f"{path}: names a symbol for {iface_id!r}, which is no interface of the model")
+    return raw
+
+
 def load_hardware(path: Path) -> Dict[str, Any]:
     """The hardware register, or an empty one where there is no file.
 
@@ -1815,6 +1871,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # `models` (every topology by id) keys a feature this model shares
         # with the one it reuses ids from under that one (`identity`).
         "model": model_view(topology, lambda part_id: mesh_fact(part_id, meshes, aliases), models),
+        # The map's authored layout beside the model, verbatim, or None for a
+        # model with none (load_topology_map): the region then draws Classic.
+        "map": load_topology_map(path.parent, topology),
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,

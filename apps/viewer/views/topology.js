@@ -690,6 +690,14 @@
           ? hscroll.scrollTop : carried.top;
       }
     }
+    // The map (views/map.js, the_map_draws_the_end_stop_model): the page asked
+    // for the region's second drawing of the same model. The walk and the
+    // grid above are built as ever -- the grid is the plan's -- and the
+    // region alone is handed over; the map paints the region's header and
+    // calls onPainted itself.
+    if (ctx.dagDrawing === "map" && VA.renderTopoMap) return VA.renderTopoMap(root, ctx);
+    // The region's own header (the Map . Classic switch), over the drawing.
+    if (ctx.regionHead) root.appendChild(ctx.regionHead());
     // The page's overlay reads VA.lastTopoRender.seam and this pane's rect.
     if (ctx.onPainted) ctx.onPainted();
     return root;

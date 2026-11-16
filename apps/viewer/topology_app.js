@@ -118,6 +118,11 @@
     // store entry, read at boot. Display preferences: selectTopology() never
     // resets them.
     dagView: Object.assign({}, VA.DAG_VIEW_DEFAULTS),
+    // Map . Classic (VA.DAG_DRAWINGS): which drawing the DAG's region shows
+    // for a model that has a map. Remembered like the pane view; read at
+    // boot. The region draws Classic for a model with no layout whatever
+    // this says (VA.dagDrawingFor).
+    dagDrawing: VA.DEFAULT_DAG_DRAWING,
     // How wide the column right of the DAG is -- the settings bar, the grid
     // and the Preview under it -- in px, or null for "as wide as the grid"
     // (Jeff, 2026-09-15: "the right preview pane is resizable. It's too
@@ -277,6 +282,7 @@
     state.paneView = (typeof window !== "undefined" && window.location &&
         VA.parsePaneViewParam(window.location.search)) ||
       VA.readStoredPaneView(widthStore()) || VA.DEFAULT_PANE_VIEW;
+    state.dagDrawing = VA.readStoredDagDrawing(widthStore()) || VA.DEFAULT_DAG_DRAWING;
     state.navWidth = VA.readStoredNavWidth(widthStore());
     applyNavWidth();
     wireDivider(nodes.navDivider, { kind: "nav" });
@@ -800,6 +806,12 @@
       var kind = row.getAttribute("data-nav-kind");
       return VA.FOCUS_KINDS[kind] ? { kind: kind, id: row.getAttribute("data-nav-id") } : null;
     }
+    // A map element is the entity it is drawn as (views/map.js).
+    var mapEl = node.closest("[data-map-kind][data-map-id]");
+    if (mapEl) {
+      var mapKind = mapEl.getAttribute("data-map-kind");
+      return VA.FOCUS_KINDS[mapKind] ? { kind: mapKind, id: mapEl.getAttribute("data-map-id") } : null;
+    }
     // A leader's hit path is wired bare (no row kind): it is its node's.
     var leader = node.closest("[data-leader-id]");
     if (leader) return VA.focusEntityOf(currentModel(), "node", leader.getAttribute("data-leader-id"));
@@ -829,6 +841,8 @@
     // terms: element and container keys for the DAG and the grid, row keys
     // for the tree, ids for the scene (syncPaneHover's `light`).
     if (VA.lightTopoKeys) VA.lightTopoKeys(VA.focusElementKeysOf(model, state.focus.hovered));
+    // ...and the map, by entity (views/map.js): a no-op while Classic is drawn.
+    if (VA.lightMap) VA.lightMap(model, state.focus.hovered);
     if (VA.lightNavTree && nodes.navtree) VA.lightNavTree(nodes.navtree, model, state.focus.hovered);
     followHoverInPreview();
     syncPaneHover();
@@ -2844,7 +2858,22 @@
   // and the key also go back to the drawing's left edge; the framing a study
   // arrival does (`keepSideways`) leaves the reader's sideways scroll where
   // it was, as every other re-paint of this pane does.
-  function fitDag() { settleTween(); fitDagTo(false, false); }
+  function fitDag() {
+    settleTween();
+    // The map fits itself (views/map.js's mapFit) when it is the drawing.
+    if (nodes.pane && typeof nodes.pane.mapFit === "function") { nodes.pane.mapFit(); return; }
+    fitDagTo(false, false);
+  }
+
+  // Map . Classic (VA.DAG_DRAWINGS): the region's own switch. Remembered,
+  // and the page repaints -- the grid is unchanged, the region's drawing is
+  // the other one.
+  function setDagDrawing(id) {
+    if (!VA.isDagDrawing(id) || id === state.dagDrawing) return;
+    state.dagDrawing = id;
+    VA.writeStoredDagDrawing(widthStore(), id);
+    render();
+  }
 
   // The reader's own hand on the drawing (a wheel, Fit) takes over from a
   // transition in flight: it lands where it was going first, and the reader's
@@ -3845,6 +3874,18 @@
           // group's key is no entity and reads as the pointer on nothing.
           setHovered(VA.focusKeyEntity(currentModel(), key), "dag");
         },
+        // The map (views/map.js, the_map_draws_the_end_stop_model): which
+        // drawing the region shows, the model it lights from, the selection
+        // as the entity it is, and its own pointer's entity -- the map draws
+        // every entity once, so it hovers and selects by entity rather than
+        // by element key. The switch is the region's own header, drawn by
+        // either drawing.
+        dagDrawing: VA.dagDrawingFor(state.dagDrawing, topoProj),
+        model: currentModel(),
+        selectedEntity: state.focus.selected,
+        onHotEntity: function (entity) { setHovered(entity, "dag"); },
+        onSelectEntity: selectEntity,
+        regionHead: function () { return VA.renderDagSwitch(state, topoProj, setDagDrawing); },
         // A paint (a transition's frames included) rebuilt the marks: lit
         // again from the one state, and the leaders re-drawn.
         onPainted: function () { scheduleSeamDraw(); applyFocus(); },
@@ -3966,7 +4007,9 @@
       };
       if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj, study);
       paneCtx = ctx;
-      if (respineStart && respineStart.topologyId === topoProj.id) {
+      // The map does not respine: it is not laid out from the walk, so a
+      // study arrival is one paint there.
+      if (respineStart && respineStart.topologyId === topoProj.id && ctx.dagDrawing !== "map") {
         // `onError` puts an animation frame's throw on the SAME seam every
         // other render on this page uses: a frame runs off a rAF callback,
         // outside render()'s try/catch, so without this it would be an
