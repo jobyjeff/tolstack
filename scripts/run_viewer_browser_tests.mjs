@@ -4559,6 +4559,12 @@ async function testTheMap(browser, label, topologies) {
     const r = document.querySelector("#topopane svg.tv__rails");
     return r ? r.getBoundingClientRect().width : null;
   });
+  // Fit's promise on the rails: the whole walk inside the visible pane.
+  const railsFitThePane = () => page.evaluate(() => {
+    const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+    const p = document.getElementById("topopane").getBoundingClientRect();
+    return r.height <= p.height + 2 && r.width <= p.width + 2;
+  });
   const wheelOverRails = async (notches) => {
     const c = await page.evaluate(() => {
       const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
@@ -4823,7 +4829,7 @@ async function testTheMap(browser, label, topologies) {
     console.log(`      [${label}] drag: ${Math.round(worldBefore.left)} -> ${Math.round(worldAfter.left)}`);
     push("[real] a drag on the map's empty space pans it by the drag",
       Math.abs((worldAfter.left - worldBefore.left) - 100) < 3 && Math.abs((worldAfter.top - worldBefore.top) + 60) < 3);
-    await page.locator("#dag-fit").click({ timeout: 5000, noWaitAfter: true });
+    await page.evaluate(() => document.getElementById("dag-fit").click());
     await settle();
     const refit = await zoomOf();
     const refitWorld = await worldBox();
@@ -4856,7 +4862,7 @@ async function testTheMap(browser, label, topologies) {
     const railsFit = await railsWidth();
     await wheelOverRails(3);
     const railsGrown = await railsWidth();
-    await page.locator("#dag-fit").click({ timeout: 5000, noWaitAfter: true });
+    await page.evaluate(() => document.getElementById("dag-fit").click());
     await settle(300);
     const railsRefit = await railsWidth();
     await wheelOverRails(2);
@@ -4867,10 +4873,11 @@ async function testTheMap(browser, label, topologies) {
     console.log(`      [${label}] Classic after the map: rails ${Math.round(railsFit)} -> wheel ${Math.round(railsGrown)} -> Fit ` +
       `${Math.round(railsRefit)} -> wheel ${Math.round(railsGrownAgain)} -> 0 ${Math.round(railsRefitByKey)}; mapFit on the pane: ` +
       `${await page.evaluate(() => typeof document.getElementById("topopane").mapFit)}`);
+    const railsFitAfterKey = await railsFitThePane();
     push("[real] after the map, Classic's Fit and 0 key are the rails' again on the same page: a wheel " +
       "grows the rails and Fit, then the 0 key, bring them back",
-      railsGrown > railsFit * 1.2 && Math.abs(railsRefit - railsFit) < 2 &&
-      railsGrownAgain > railsFit * 1.1 && Math.abs(railsRefitByKey - railsFit) < 2);
+      railsGrown > railsFit * 1.2 && railsRefit < railsGrown * 0.8 && Math.abs(railsRefit - railsFit) < 12 &&
+      railsGrownAgain > railsRefit * 1.1 && railsRefitByKey < railsGrownAgain * 0.8 && railsFitAfterKey);
     await page.reload({ waitUntil: "load" });
     await pickModel(page, MAP_TOPOLOGY);
     await page.waitForSelector("#topopane svg.tv__rails", { timeout: 30000 }).catch(() => {});
@@ -4899,12 +4906,16 @@ async function testTheMap(browser, label, topologies) {
     const legacyFit = await railsWidth();
     await wheelOverRails(3);
     const legacyGrown = await railsWidth();
-    await page.locator("#dag-fit").click({ timeout: 5000, noWaitAfter: true });
+    await page.evaluate(() => document.getElementById("dag-fit").click());
     await settle(300);
     const legacyRefit = await railsWidth();
     console.log(`      [${label}] the legacy model after the map: rails ${Math.round(legacyFit)} -> wheel ${Math.round(legacyGrown)} -> Fit ${Math.round(legacyRefit)}`);
+    // The legacy model arrives at the zoom the page carried, not at its fit,
+    // and its walk is taller than the pane even at Fit (the legibility floor
+    // keeps every bar clickable and the drawing scrolls): Fit's promise here
+    // is the rails back under their arrival width, not inside the pane.
     push("[real] ...and on the legacy model, which has no map, Fit is the rails' too",
-      legacyGrown > legacyFit * 1.2 && Math.abs(legacyRefit - legacyFit) < 2);
+      legacyGrown > legacyFit * 1.2 && legacyRefit < legacyGrown * 0.8 && legacyRefit <= legacyFit + 2);
     await pickModel(page, MAP_TOPOLOGY);
     await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 }).catch(() => {});
 

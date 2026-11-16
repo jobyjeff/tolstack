@@ -5,47 +5,54 @@
   shot click_02_hover_the_hub_s_locating_boss_pin.png
 3. hover the slide connector: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 0, touched 0; tree hot 1 on 0; grid lead 1 selected 0; doc scroll 0
   shot click_03_hover_the_slide_connector.png
-4. hover a jumper: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 0, touched 0; tree hot 0 on 0; grid lead 1 selected 0; doc scroll 0
-  shot click_04_hover_a_jumper.png
-5. hover the ground district's name: zoom 1.126 -> 1.126; map lead 41, hot 10, selected 0, touched 0; tree hot 5 on 0; grid lead 12 selected 0; doc scroll 0
-  shot click_05_hover_the_ground_district_s_name.png
-6. hover a bearing's box: zoom 1.126 -> 1.126; map lead 2, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
-  shot click_06_hover_a_bearing_s_box.png
-7. click the tangential link's name: zoom 1.126 -> 1.126; map lead 9, hot 4, selected 9, touched 4; tree hot 7 on 7; grid lead 1 selected 1; doc scroll 0
-  shot click_07_click_the_tangential_link_s_name.png
-8. click the pitch plate district's border: zoom 1.126 -> 1.126; map lead 0, hot 0, selected 9, touched 4; tree hot 0 on 7; grid lead 0 selected 1; doc scroll 0; under the pointer: svg.tv__map
-  shot click_08_click_the_pitch_plate_district_s_border.png
-9. click the clearance connector: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 3, touched 2; tree hot 5 on 5; grid lead 1 selected 1; doc scroll 0
-  shot click_09_click_the_clearance_connector.png
-10. click a pin: zoom 1.126 -> 1.126; map lead 1, hot 3, selected 1, touched 3; tree hot 2 on 2; grid lead 0 selected 0; doc scroll 0
-  shot click_10_click_a_pin.png
-11. Escape: zoom 1.126 -> 1.126; map lead 1, hot 3, selected 0, touched 0; tree hot 2 on 0; grid lead 0 selected 0; doc scroll 0
-  shot click_11_escape.png
-12. wheel in over the hub, three notches: zoom 1.126 -> 1.712; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
-  shot click_12_wheel_in_over_the_hub_three_notches.png
-13. drag the empty space: zoom 1.712 -> 1.712; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
-  shot click_13_drag_the_empty_space.png
-14. select the upper piston head in the tree while zoomed: zoom 1.712 -> 1.712; map lead 5, hot 4, selected 5, touched 4; tree hot 5 on 5; grid lead 1 selected 1; doc scroll 0; box 2201,1625,2662,1803 in pane 302,0,2691,2160
-  shot click_14_select_the_upper_piston_head_in_the_tree_while_zoomed.png
-15. Fit: zoom 1.712 -> 1.126; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
-  shot click_15_fit.png
-16. the 3D pane opened beside it: zoom 1.126 -> 0.566; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
-  shot click_16_the_3d_pane_opened_beside_it.png
-17. hover the hub's row in the tree with the pane open: zoom 0.566 -> 0.566; map lead 9, hot 8, selected 5, touched 4; tree hot 1 on 5; grid lead 3 selected 1; doc scroll 0
-  shot click_17_hover_the_hub_s_row_in_the_tree_with_the_pane_open.png
-18. DAG view: zoom 0.566 -> 1.126; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
-  shot click_18_dag_view.png
-19. 3D view: zoom 1.126 -> 1; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; region display none
-  shot click_19_3d_view.png
-20. Side by side: zoom 1 -> 0.566; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
-  shot click_20_side_by_side.png
-21. Classic: zoom 0.566 -> undefined; map lead 0, hot 0, selected 5, touched 3; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
-  shot click_21_classic.png
-22. Map again: zoom undefined -> 0.566; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
-  shot click_22_map_again.png
-23. the legacy model: zoom 0.566 -> undefined; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0; No map(disabled) / Classic
-  shot click_23_the_legacy_model.png
-24. back to the end-stop model: zoom undefined -> 0.566; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
-  shot click_24_back_to_the_end_stop_model.png
-25. a study opened: zoom 0.566 -> 0.566; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0; no study on this model
-  shot click_25_a_study_opened.png
+4. hover the piston cover's flange pin (a flank pin's label beside a name): zoom 1.126 -> 1.126; map lead 1, hot 3, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_04_hover_the_piston_cover_s_flange_pin_a_flank_pin_s_label_beside_a_name_.png
+5. hover the hub's middle right pin (three flank pins): zoom 1.126 -> 1.126; map lead 1, hot 3, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_05_hover_the_hub_s_middle_right_pin_three_flank_pins_.png
+6. hover a jumper: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 0, touched 0; tree hot 0 on 0; grid lead 1 selected 0; doc scroll 0
+  shot click_06_hover_a_jumper.png
+7. hover the ground district's name: zoom 1.126 -> 1.126; map lead 46, hot 10, selected 0, touched 0; tree hot 5 on 0; grid lead 12 selected 0; doc scroll 0
+  shot click_07_hover_the_ground_district_s_name.png
+8. hover a bearing's box: zoom 1.126 -> 1.126; map lead 3, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_08_hover_a_bearing_s_box.png
+9. click the tangential link's name: zoom 1.126 -> 1.126; map lead 12, hot 4, selected 12, touched 4; tree hot 7 on 7; grid lead 1 selected 1; doc scroll 0
+  shot click_09_click_the_tangential_link_s_name.png
+10. click the pitch plate district's border: zoom 1.126 -> 1.126; map lead 36, hot 10, selected 36, touched 10; tree hot 24 on 24; grid lead 8 selected 8; doc scroll 0; under the pointer: rect.map__districthit
+  shot click_10_click_the_pitch_plate_district_s_border.png
+11. click the clearance connector: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 3, touched 2; tree hot 5 on 5; grid lead 1 selected 1; doc scroll 0
+  shot click_11_click_the_clearance_connector.png
+12. click a pin: zoom 1.126 -> 1.126; map lead 1, hot 3, selected 1, touched 3; tree hot 2 on 2; grid lead 0 selected 0; doc scroll 0
+  shot click_12_click_a_pin.png
+13. Escape: zoom 1.126 -> 1.126; map lead 1, hot 3, selected 0, touched 0; tree hot 2 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_13_escape.png
+14. wheel in over the hub, three notches: zoom 1.126 -> 1.712; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_14_wheel_in_over_the_hub_three_notches.png
+15. drag the empty space: zoom 1.712 -> 1.712; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_15_drag_the_empty_space.png
+16. select the upper piston head in the tree while zoomed: zoom 1.712 -> 1.712; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; box 2201,1625,2662,1803 in pane 302,0,2691,2160
+  shot click_16_select_the_upper_piston_head_in_the_tree_while_zoomed.png
+17. Fit: zoom 1.712 -> 1.126; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+  shot click_17_fit.png
+18. the 3D pane opened beside it: zoom 1.126 -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+  shot click_18_the_3d_pane_opened_beside_it.png
+19. hover the hub's row in the tree with the pane open: zoom 0.566 -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; THREW locator.hover: Timeout 5000ms exceeded.
+Call log:
+[2m  - waiting for locator('#navtree [data-nav-kind="part"][data-nav-id="hub"]').first()[22m
+[2m    - locator resolved to <div tabindex="0" role="b
+  shot click_19_hover_the_hub_s_row_in_the_tree_with_the_pane_open.png
+20. DAG view: zoom 0.566 -> 1.126; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+  shot click_20_dag_view.png
+21. 3D view: zoom 1.126 -> 1; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; region display none
+  shot click_21_3d_view.png
+22. Side by side: zoom 1 -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+  shot click_22_side_by_side.png
+23. Classic: zoom 0.566 -> undefined; map lead 0, hot 0, selected 5, touched 3; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+  shot click_23_classic.png
+24. Map again: zoom undefined -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+  shot click_24_map_again.png
+25. the legacy model: zoom 0.566 -> undefined; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0; No map(disabled) / Classic
+  shot click_25_the_legacy_model.png
+26. back to the end-stop model: zoom undefined -> 0.566; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+  shot click_26_back_to_the_end_stop_model.png
+27. a study opened: zoom 0.566 -> 0.566; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0; no study on this model
+  shot click_27_a_study_opened.png
