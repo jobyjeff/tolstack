@@ -344,7 +344,9 @@ export const DECLARED_GUARDS = {
   // Every new and renamed name carries a spec.
   // 2026-11-16 (the_map_draws_the_end_stop_model): +9, the map's layout,
   // its drawing, its lighting, its view and its switch. Every one carries a spec.
-  fast: { declared: 714, enrollable: 714, names: "85cce71510eb" },
+  // 2026-11-16, round 2 of the same handoff: +1, a Classic paint releases the
+  // map's Fit (the review's B1). It carries a spec.
+  fast: { declared: 715, enrollable: 715, names: "045023c711fc" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -691,7 +693,12 @@ export const DECLARED_GUARDS = {
   // against the tree, the grid and the scene both ways, the view. 26 carry a
   // spec; the suite's skip arm and its "nothing threw" absence cannot be
   // witnessed, so the pin is raised for those two.
-  browser: { declared: 896, enrollable: 865, names: "2cad14226dfb" },
+  // 2026-11-16, round 2: +2, Fit and the 0 key are the rails' again after the
+  // map, on the same page and on the legacy model (the review's B1), each
+  // with a spec; and one renamed -- the app suites' "says nothing about a
+  // classic view" now counts the word everywhere but the DAG region's own
+  // switch (the review's B2), still without a spec.
+  browser: { declared: 898, enrollable: 867, names: "e825c95d4bb4" },
 };
 
 

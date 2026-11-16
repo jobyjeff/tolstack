@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] ...and on the legacy model, which has no map, Fit is the rails' too",
+  "mutations": [
+    {
+      "contract": "A Classic paint on a region the map painted releases the map's Fit, view and light (renderTopoPane calls VA.releaseMap after it clears the root), so Fit and the 0 key are the rails' again on the same page.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Drops the release hook: the map's mapFit expando outlives its drawing on the root, fitDag keeps calling it, and Classic's Fit is dead until a reload -- the review of 2026-11-16's B1, measured on the real projection.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (VA.releaseMap) VA.releaseMap(root);",
+      "replace": "    /* mutated: the map's Fit outlives its drawing */"
+    }
+  ]
+}

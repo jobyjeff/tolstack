@@ -6,7 +6,7 @@ area: viewer/dag
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261112_a_part_may_contain_parts.md
-resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
+resolution: resolved 2026-11-16 by handoff the_map_draws_the_end_stop_model -- the map draws the static nested outline (an assembly's outline round its own box and its children's); the fold control stays open in ISSUE_20261114_assembly_folding_left_out_of_three_surfaces. Was deferred 2026-11-15 by triage (med beyond budget) until the map handoff.
 class: merged_page_walk_20261112
 ---
 

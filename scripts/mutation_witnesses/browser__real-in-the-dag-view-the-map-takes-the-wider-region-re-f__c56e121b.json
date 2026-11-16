@@ -4,12 +4,12 @@
   "expect_red": "[real] in the DAG view the map takes the wider region, re-fitted, with its header still in the region",
   "mutations": [
     {
-      "contract": "A region that changes size under a fitted view re-fits it (the resize observer).",
+      "contract": "A region that changes size under a fitted view is fitted again to its own width and height, up to the cap; the DAG view's wider region fits larger than Side by side's.",
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
-      "note": "Stops watching the region's size.",
-      "file": "apps/viewer/views/map.js",
-      "find": "    observer.observe(root);",
-      "replace": "    /* mutated: the region's size is not watched */"
+      "note": "Caps every fit at 0.3: Side by side at the suite's 1700-wide window fits under that anyway (about 0.2), so every earlier check passes, and the DAG view's wider region can no longer fit larger -- the check compares the drawn zoom with the fit the region's own numbers ask for. Two earlier cuts (the resize observer alone; the fit to the height both ways) were NOT WITNESSED: the view switch repaints, and an overflowing first paint aborted the suite at a hover.",
+      "file": "apps/viewer/map.js",
+      "find": "    var k = Math.min(width / bounds.w, height / bounds.h, VA.MAP_ZOOM.fitMax);",
+      "replace": "    var k = Math.min(width / bounds.w, height / bounds.h, 0.3); /* mutated: capped under the DAG view's fit */"
     }
   ]
 }

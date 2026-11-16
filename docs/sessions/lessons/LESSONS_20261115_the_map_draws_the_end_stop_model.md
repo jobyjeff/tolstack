@@ -134,7 +134,7 @@ Read off the real page by the suite and the click-around (`click_NN_*.png`,
 | entity (how) | map | tree | grid | 3D |
 | --- | --- | --- | --- | --- |
 | body `ground` (H on its name) | district and name `--lead`, its 4 boxes, names, 15 pins and 11 jumpers lead; the 5 connectors to other bodies and their far pins hot | 5 rows hot (the body, its parts), folds marked | 12 rows lead | the 4 parts' overlays, own |
-| part `hub` (H from tree) | box, name and 4 pins lead; the 4 interfaces to the blade root and the mount and their far pins hot; the mount's box not lit | -- | 3 rows lead, 1 hot | 1 part overlay, 3 faces |
+| part `hub` (H from tree) | box, name, 4 pins and its 3 jumpers lead; the 4 interfaces to the blade root and the mount and their far pins hot; the mount's box not lit | -- | 3 rows lead, 1 hot | 1 part overlay, 3 faces |
 | part `215175-002` (S on its name on the map) | box, name, 5 pins, 4 jumpers selected; 4 interfaces and far pins touched | 7 rows on | 4 rows selected | select layer: 1 part, 5 touching faces |
 | feature `locating boss` (H on its pin) | pin lead with its label shown; its connector (the pilot) and 3 jumpers hot | the hub's closed fold marked `--holds` | 4 rows hot (the pilot gap and 3 dimensions) | hover layer: 1 face (face 144) |
 | feature `locating boss` (S from the tree; S by its anchor picked in the scene) | pin selected, the pilot connector touched | -- | -- | -- |
@@ -243,4 +243,77 @@ checkout's projections copied in and every Python builder re-run from this
 tree with `--data-root`; the main checkout's own projection predates the
 `map` block and is untouched.)
 
-RECORD_PENDING
+The scratch root's three viewer projections carry two build stamps -- the
+topology, results and kinematic builders ran at `f6b25950`, the crops builder
+at `4064ecc2` after the first crops copy (trunk's) was refused for an input
+that differs on integration -- so the page's banner in every `region_*` and
+`click_*` shot says the data is older than the code. That is a true statement
+about the scratch root's stamps disagreeing, not about the map; the fast
+tier's own freshness pairing accepted the root (below).
+
+**Fast tiers**, in this worktree:
+
+| command | result |
+| --- | --- |
+| `node apps/viewer/run_tests.cjs` | 591/591 (the node-fs tier skipped: no projection in a worktree) |
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/map_20261116` | **714/714**, the `[real]` checks armed (the scratch root needed a `docs` junction to this worktree for the worksheet reads, and a crops projection built from this tree) |
+| `node apps/annotate/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/map_20261116` | 323/323 |
+
+**Browser runner**, the one suite this handoff added (`node
+scripts/run_viewer_browser_tests.mjs --repo <scratch root> --only "the map
+(Map"`): **27/27**, five runs over the session, the last on the suite's final
+text (70.8 s). No existing suite was edited or re-worded; the runner's
+`newPage` wrapper gained the one shared line that seeds Classic.
+
+**Witness runner** (`node scripts/run_mutation_witness_tests.mjs --repo
+<scratch root> --only __<digest> ...`, one invocation per batch, the specs
+passed together): every one of the 35 specs WITNESSED -- 15 fast mutations
+over 9 fast specs, 26 browser specs. It took four batches to get there, each
+for a reason worth knowing:
+
+| batch | what it found |
+| --- | --- |
+| 1 (all 35) | 16 browser WITNESSED. Six browser specs "never reached": under their mutation a `waitForFunction` / `waitForSelector` in the suite threw and ABORTED it before the named check; every wait in the suite now swallows its timeout, so a mutated page fails the check instead. One "cannot see the difference": the DAG-view re-fit happens by two paths (the view switch repaints, and the resize observer re-fits), so mutating the observer alone changed nothing; the first paint, the resize and Fit now share one `fitTo`. Every fast spec "red before the mutation": the scratch projections were built from the previous commit and the working tree had moved on, so the fast tier's `[real]` freshness refused before any mutation. |
+| 2 (all 35, after a rebuild) | 19 browser WITNESSED; three not: the anchor-pick spec's mutation (pins keyed by node) broke the suite's own selectors before its check, re-pointed at the page's scene-pick path; the DAG-view spec's second mutation (fit to the height both ways) overflowed the first paint and aborted a hover, re-pointed at a cap under the DAG view's fit with the check computing the expected fit by the rule itself; the 3D-view spec aborted on a `locator.click` stability wait during a repaint, so the switch's clicks are dispatched in-page like the pane-view buttons'. Four browser specs were never run: the runner's default 30-minute cap. The fast specs red again: the crops projection copied from trunk had an input that differs on integration (`tolerance_stack/feature_geometry.py`). |
+| 3 (the three re-pointed) | all three WITNESSED. The fast specs red a third time: the crops rebuild had been stamped `dirty` by an edit that landed while it ran. |
+| 4 (9 fast + the 4 never run, `--budget-min 0`) | 15 fast mutations and 3 browser WITNESSED; one browser spec ("with the 3D pane open the region still draws the map") NOT -- opening the pane does not repaint the region, so a mutation that forces Classic with the pane open showed only at a later check; the check now repaints the page (the density toggle, twice) before it reads, and the spec WITNESSED on its own run (1m42s). |
+
+Two browser guards carry no spec by design (the suite's skip arm and
+"nothing threw on the map's page"), and the pins say so.
+
+**Default tier**, once, in this worktree, at the end:
+
+```
+C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider
+1 failed, 2027 passed, 1 skipped, 4 deselected in 463.83s (0:07:43)
+```
+
+The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+the documented worktree red (no `data/projections/` here, so the wrapper
+refuses to call a skipped tier green); the same tier ran 714/714 against the
+scratch root above. The skip is the pitch-link bearing re-extraction
+(`test_fit_bound_features.py`). Recorded with `suite-time record tolstack
+--tier default --seconds 464`: inside budget.
+
+**Not run**, the review's after the merge: the whole browser tier and the
+`--changed-since` witness gate.
+
+**Scratch left behind**: the scratch data root
+`C:/workspace/tolstack/data/scratch/map_20261116` (junctions to the main
+checkout's `data/inbox` and `data/meshes` and to this worktree's `docs`; the
+projections built from this tree; the runs' logs) is left for the reviewer,
+who needs a root with the `map` block until the main checkout is rebuilt from
+a tree that has it. The worktree's `node_modules` junction stays for the same
+reason. The main checkout's `data/` was not written.
+
+## Found on arrival
+
+Nothing: a worktree session, no main-checkout dirt to disposition.
+
+## Blocked actions
+
+One. Stopping a running witness batch (`taskkill /T` on the runner and its
+Chrome) was denied by the auto-mode classifier as destructive, so a batch
+started on a suite whose waits still threw ran to its 30-minute cap before the
+fixed suite could be witnessed. Nothing was lost but time; the rule is in the
+session memory: start a batch only on a suite whose every wait is caught.

@@ -16119,6 +16119,26 @@
         eq(far.mapView().selectedKey, "part:strut");
       });
 
+    await test("a Classic paint on a region the map painted releases the map's Fit, its view and " +
+      "its light, so Fit is the rails' again; a map paint takes them back", function () {
+        VA.forgetMapViews();
+        var root = mapRoot();
+        ok(typeof root.mapFit === "function", "the map paint sets Fit");
+        ok(VA.lastMapLight && VA.lastMapLight.topologyId === TOPO.id, "...and the light");
+        VA.renderTopoPane(root, topoCtx());
+        eq(root.mapFit, null, "a Classic paint on the same root releases Fit");
+        eq(root.mapView, null);
+        eq(VA.lastMapLight, null, "...and the map's light, so nothing detached is lit");
+        eq(all(root, "svg.tv__map").length, 0);
+        ok(all(root, "svg.tv__rails").length === 1, "the rails are drawn");
+        VA.renderTopoPane(root, topoCtx({ dagDrawing: "map", model: VA.buildModel(TOPO, null),
+          mapRegion: { width: 2390, height: 2160 } }));
+        ok(typeof root.mapFit === "function", "a map paint through the pane sets Fit again");
+        eq(all(root, "svg.tv__rails").length, 0);
+        eq(all(root, "svg.tv__map").length, 1);
+        VA.releaseMap(null);
+      });
+
     await test("the map's hover and click tell the page the entity they are on, and a model " +
       "with no layout renders no map", function () {
         VA.forgetMapViews();

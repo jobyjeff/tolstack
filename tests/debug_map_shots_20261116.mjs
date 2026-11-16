@@ -164,6 +164,8 @@ if (!ONLY || ONLY === "click") {
   await at("landing", async () => "");
   await at("hover the hub's locating boss pin", () => hoverMap('#topopane g.map__pin[data-map-id="hub@hub_spindle_bore_axis"] circle.map__pinhit'));
   await at("hover the slide connector", () => hoverLine('#topopane g.map__connector[data-map-id="pitch_plate_slide_bushings_to_piston_body"] path.map__connectorline'));
+  await at("hover the piston cover's flange pin (a flank pin's label beside a name)", () => hoverMap('#topopane g.map__pin[data-map-id="piston_cover_214958_002@piston_cover_mount_flange_seat"] circle.map__pinhit'));
+  await at("hover the hub's middle right pin (three flank pins)", () => hoverMap('#topopane g.map__pin[data-map-id="hub@tan_link_mount_fastener_clocking"] circle.map__pinhit'));
   await at("hover a jumper", () => hoverMap('#topopane g.map__jumper[data-map-id="tan_link_mount_height"] path.map__jumperhit'));
   await at("hover the ground district's name", () => hoverMap('#topopane .map__bodyname[data-map-id="base"]'));
   await at("hover a bearing's box", () => hoverMap('#topopane g.map__partname[data-map-id="spherical_bearing_tan_link"] text'));
