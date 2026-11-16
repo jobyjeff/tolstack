@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: In the binding pane, press Keep on the hub's locating boss -- face 3460 (the 95 mm bore) or face 144 (the 215.9 mm boss)
 found_by: docs/sessions/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
+todo: 20261115T182758_vx7y2v
 ---
 
 # The hub's locating boss has two bound faces, and only Jeff can keep one

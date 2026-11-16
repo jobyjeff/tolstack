@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: Export the drawings for 214373-002, 215175-002, 215071-001, 215177-001 and 216332-001 to drawing-checker
 found_by: docs/sessions/HANDOFF_20261112_a_part_links_to_its_drawing_before_it_has_a_tolerance.md
+todo: 20261115T182758_2ay4en
 ---
 
 # Five end-stop parts have no drawing-checker run of their own
