@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
+resolution: "the failing conjunct was lookOf(hubLooks, bladeSha).look === 'faint' -- the blade is now bound at the hub's bearing bore, so it ghosts behind its touching face as AA.planLightLooks designs; the guard was stale and now derives each bound partner's ghost look from the bindings projection (handoff the_model_drawn_alone_and_led_hub_hover_check_goes_green)"
 area: tests/browser-tier
 reporter: agent
 class: flaky_check
@@ -53,3 +54,15 @@ touching layer now carries 2 faces — the served feature-identity log binds
 that binding). Suspect, not proven: the blade now lights as the hub's
 interface partner rather than staying faint, and the guard predates that
 binding. Routed: `docs/sessions/HANDOFF_20261116_the_model_drawn_alone_and_led_hub_hover_check_goes_green.md`.
+
+## Resolution 2026-11-16 (handoff the_model_drawn_alone_and_led_hub_hover_check_goes_green)
+
+With the blade's look and the expected lists added to the log line, the run
+printed every conjunct as expected except **blade `ghost` (0.22), expected
+`faint`**. The touching layer's 2 faces are the blade's bound bearing-bore
+faces; `AA.planLightLooks` puts a touching face's part in `near`, which ghosts
+it. That is the documented design, so the guard was stale, not the app. The
+check now derives which interface partners ghost from the bindings projection
+and checks every drawn part's look against that rule. The body-selected check
+had the same hard-coded `faint` and was fixed the same way. 23/23, and all 4
+witness entries are WITNESSED.
