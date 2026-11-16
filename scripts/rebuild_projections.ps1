@@ -11,8 +11,9 @@
       3. venv-win\Scripts\python.exe scripts\build_part_names_projection.py
       4. <drawing-checker's venv> scripts\build_viewer_crops.py
       5. venv-win\Scripts\python.exe scripts\build_feature_identity_projection.py
-      6. venv-win\Scripts\python.exe scripts\build_contact_suggestions.py
-      7. venv-win\Scripts\python.exe scripts\build_kinematic_projection.py
+      6. venv-win\Scripts\python.exe scripts\fit_bound_features.py
+      7. venv-win\Scripts\python.exe scripts\build_contact_suggestions.py
+      8. venv-win\Scripts\python.exe scripts\build_kinematic_projection.py
     (PyMuPDF lives only in drawing-checker's venv -- build_viewer_crops.py's own
     docstring says so, and that fallback stays intact here.)
 
@@ -25,13 +26,22 @@
     gone on reload with nothing red; a refused log now stops the rebuild here.
     What it resolves rather than refuses prints as `note:` lines.
 
-    Step 6 is the contact suggestions
+    Step 6 is the feature fits (data\projections\feature-geometry\fits.json):
+    every standing binding fitted to a nominal, in the part's frame and per
+    assembly occurrence. Read by linkage (linkage/vpa.py CAD_FITS_PATH), which
+    had no rail rebuild it and read whatever was last run by hand (handoff
+    the_rebuild_rail_runs_the_fit). AFTER feature identity, whose log it folds.
+    It reads only gitignored inputs already declared under [tests]
+    candidate_inputs. An empty build over a non-empty log prints a `warning:`
+    line (exit stays 0).
+
+    Step 7 is the contact suggestions
     (data\projections\feature-identity\contact_suggestions.json): which faces
     could be each gap edge's interface, read off the installed meshes. BEFORE
     the kinematic step, because that step copies it into the annotator's served
     read set, as it does the part names.
 
-    Step 7 is the kinematic studies' projection
+    Step 8 is the kinematic studies' projection
     (data\projections\viewer\kinematic\, read by apps/viewer/views/kinematic.js
     since 2026-10-20). LAST because it is the one leg that reads a gitignored
     input the others do not -- the linkage sweeps under
@@ -172,6 +182,11 @@ Invoke-Step -Name "feature identity bindings" -Exe $TolstackPython -Arguments @(
     (Join-Path $ScriptsDir "build_feature_identity_projection.py")
 )
 
+Invoke-Step -Name "feature fits" -Exe $TolstackPython -Arguments @(
+    (Join-Path $ScriptsDir "fit_bound_features.py"),
+    "--data-root", (Join-Path $RepoRoot "data")
+)
+
 Invoke-Step -Name "contact suggestions" -Exe $TolstackPython -Arguments @(
     (Join-Path $ScriptsDir "build_contact_suggestions.py")
 )
@@ -184,7 +199,8 @@ Invoke-Step -Name "kinematic projection" -Exe $TolstackPython -Arguments @(
 
 $ProjDir = Join-Path $RepoRoot "data\projections\viewer"
 $Projections = @("topologies.json", "results.json", "crops.json",
-    "kinematic\kinematic_studies.json", "..\feature-identity\bindings.json")
+    "kinematic\kinematic_studies.json", "..\feature-identity\bindings.json",
+    "..\feature-geometry\fits.json")
 
 Write-Host ""
 Write-Host "==> provenance stamps"

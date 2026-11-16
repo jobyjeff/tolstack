@@ -93,7 +93,9 @@ traced ratio" — never restate the rule elsewhere).
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's
-  own frame and per assembly occurrence, for a solver in another repo. It is
+  own frame and per assembly occurrence, for a solver in another repo. Since
+  2026-11-15 `scripts/rebuild_projections.ps1` runs it (step "feature fits"),
+  so `fits.json` is never a hand-run leftover. It is
   the one place a placement matrix is applied to *produce a value*. Since
   2026-10-14 the annotator applies the same placements to *draw*: every
   opened part sits at every occurrence the assembly records, in and out of

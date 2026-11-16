@@ -500,3 +500,12 @@ def test_a_superseded_binding_produces_no_fit(tmp_path):
     assert [r["direction"] for r in data["fits"]] == ["to"]
     assert rows_for(data, edge, "from") == []
     assert data["summary"]["bindings"] == 1
+
+
+def test_an_empty_fit_over_a_standing_log_is_a_warning_naming_both_counts():
+    """The 2026-11-13 miss: ``fits.json`` held no row while the log held eleven
+    bindings, and nothing said so. A warning line, never a failure."""
+    line = fbf.empty_build_warning({"fitted": 0, "log_bindings": 11})
+    assert line and line.startswith("warning:") and "0 fitted" in line and "11" in line
+    assert fbf.empty_build_warning({"fitted": 0, "log_bindings": 0}) is None
+    assert fbf.empty_build_warning({"fitted": 3, "log_bindings": 11}) is None

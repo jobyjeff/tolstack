@@ -469,6 +469,11 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
     fits: List[Dict[str, Any]] = []
     unresolved: List[Dict[str, Any]] = []
     standing = [r for _key, r in sorted(projection.by_feature.items()) if r.bindings]
+    # Counted from the per-key records, not from the feature fold the fit reads,
+    # so a fold that came up empty over a log that is not is still visible.
+    log_bindings = sum(len(r.bindings) for r in
+                       list(projection.by_stack_key.values())
+                       + list(projection.by_feature_subject.values()))
     for record in standing:
         row, missing = fit_one_feature(record, Path(meshes_dir), Path(rotorkit_root), cache)
         (fits if row is not None else unresolved).append(row or missing)
@@ -480,6 +485,7 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
         "meshes_dir": str(Path(meshes_dir)),
         "summary": {
             "bindings": sum(len(r.bindings) for r in standing),
+            "log_bindings": log_bindings,
             "features": len(standing),
             "fitted": len(fits),
             "unresolved": len(unresolved),
@@ -495,6 +501,19 @@ def build(events_dir: Path, meshes_dir: Path, out_dir: Path, *,
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return out_path, data
+
+
+def empty_build_warning(summary: Dict[str, Any]) -> Optional[str]:
+    """The line to print when the log holds standing bindings and the fit wrote
+    no row, else ``None``. A warning and never a failure: the payer of a
+    misfire would be the operator (``rebuild_projections.ps1`` step "feature
+    fits"). The 2026-11-13 miss was an empty ``fits.json`` read by linkage while
+    the log held 11 bindings, with nothing on any surface to say so."""
+    if summary["log_bindings"] > 0 and summary["fitted"] == 0:
+        return (f"warning: fits.json has 0 fitted row(s) but the binding log holds "
+                f"{summary['log_bindings']} standing binding(s) -- linkage will read "
+                f"an empty fit; is data/meshes present in this tree?")
+    return None
 
 
 def _count(rows: List[Dict[str, Any]], of) -> Dict[str, int]:
@@ -538,6 +557,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"wrote {out}")
     print(f"  {summary['fitted']} fitted, {summary['unresolved']} unresolved, "
           f"from {summary['features']} bound feature(s) ({summary['bindings']} binding(s))")
+    warning = empty_build_warning(summary)
+    if warning:
+        print(warning)
     for word, count in summary["by_surface"].items():
         print(f"    {count:>4}  {word}")
     for reason, count in summary["by_reason"].items():
