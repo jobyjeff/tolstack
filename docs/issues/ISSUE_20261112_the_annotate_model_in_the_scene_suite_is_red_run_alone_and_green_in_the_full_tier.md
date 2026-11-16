@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: tests/browser-tier
 reporter: agent
 class: flaky_check
 found_by: docs/sessions/active/HANDOFF_20261111_the_pane_follows_the_one_selection_both_ways.md
 handoff: docs/sessions/HANDOFF_20261115_the_scene_suite_opens_its_own_pane.md
-resolution: triaged 2026-11-15 -- staged (high)
+resolution: the suite and two siblings open the pane through one idempotent openPaneByHandle that throws if the pane never opens; the red did not reproduce on 2026-11-15, so the cause stays unconfirmed (see lesson).
 ---
 
 # The "annotate model in the scene" suite is red when run alone and green in the full tier, so the witness gate can prove none of its entries
