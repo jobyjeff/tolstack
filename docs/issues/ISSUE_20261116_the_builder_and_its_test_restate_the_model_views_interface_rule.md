@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
+resolution: resolved 2026-11-16 by round 2 of handoff the_map_draws_the_end_stop_model (80e5d950) -- load_topology_map and test_topology_map.py read model_view(...)["interfaces"]; the two comprehensions are gone
 area: scripts/build_topology_projection
 reporter: agent
 class: two_vocabularies_for_one_fact
@@ -38,3 +39,9 @@ comprehensions.
 
 Found in the review of the handoff above (REQUEST CHANGES, round 1); the
 rework round may close this in passing, in which case mark it resolved there.
+
+> **Resolved in the same review (round 2, 2026-11-16).** The rework's
+> `80e5d950` replaced both comprehensions with
+> `{i["id"] for i in model_view(topology)["interfaces"]}` in the builder and
+> the test; verified in the round-2 diff and by `tests/test_topology_map.py`
+> in the full run.
