@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20261116_a_window_resize_reclamps_the_pane_and_the_map.md
 area: viewer/layout
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261115_the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page.md
+resolution: handoff completed 2026-11-16 -- closed automatically by dispatch when handoff `a_window_resize_reclamps_the_pane_and_the_map` moved to completed/; not independently verified.
 ---
 
 # Shrinking the window with the 3D pane open leaves the map's region 0 px wide
