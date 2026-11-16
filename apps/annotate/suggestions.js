@@ -40,6 +40,11 @@
 // it cannot support. A gap edge's two parts ARE compared in the assembly frame
 // since 2026-10-28 -- by scripts/build_contact_suggestions.py, in Python, and
 // listed by the "contact suggestions" half at the bottom of this file.
+//
+// Since 2026-11-15 there is one cross-part stage after all, and it runs
+// FIRST: the mate (AA.rankMatingFaces, below), which puts both parts' face
+// records where the open model draws them. It needs a placement for both
+// parts; without one, the paragraph above is still the whole story.
 (function (AA, VOCAB) {
   "use strict";
 
@@ -178,6 +183,14 @@
       says: "the faces whose size matches the one bound on the other part",
       needs: "a face on a DIFFERENT part is already bound at this interface",
     }),
+    // Last in the table and FIRST in the planner (planEnd): the mate, read
+    // where the assembly puts both parts (AA.rankMatingFaces, 2026-11-15).
+    Object.freeze({
+      key: "mating_pose",
+      says: "the faces that mate with the one bound on the other part, where the assembly puts them",
+      needs: "a face on a DIFFERENT part is bound at this interface, and both parts have a place " +
+        "in the assembly",
+    }),
   ]);
   AA.NARROWING_STAGE_KEYS = Object.freeze(
     AA.NARROWING_STAGES.map(function (s) { return s.key; }));
@@ -292,6 +305,8 @@
   //   opts.directions          which ends still need a face; defaults to the
   //                            ones AA.bindingDirectionsNeeded reports
   //   opts.tolerances          overrides for AA.FACE_RELATION_TOLERANCES
+  //   opts.placements          { sha256: [placement] }, where the assembly
+  //                            puts each part (nullable: no mate stage)
   AA.planFaceSuggestions = function (opts) {
     var o = opts || {};
     var topology = o.topology;
@@ -331,7 +346,7 @@
       return planEnd(edge, direction, nodesById[edge[direction]], mesh, classes,
         o.faceClasses || {},
         AA.gatherFaceReferences(topology, edge.id, direction, o.identityProjection),
-        alreadyBound, o.tolerances);
+        alreadyBound, o.tolerances, o.placements || null);
     });
 
     // The flat paint list, de-duplicated: one face suggested for both ends of
@@ -355,7 +370,7 @@
   };
 
   function planEnd(edge, direction, node, mesh, classes, faceClasses, references,
-      alreadyBound, tolerances) {
+      alreadyBound, tolerances, placements) {
     var end = {
       direction: direction,
       interface: node ? node.id : null,
@@ -409,6 +424,30 @@
     };
     var nearby = comparable(end.references.filter(function (r) { return r.sameMesh; }));
     var adjacent = comparable(end.references.filter(function (r) { return !r.sameMesh; }));
+
+    // The mate first (2026-11-15): a face bound on the OTHER part, read where
+    // the assembly puts both parts, outranks anything this part says about
+    // itself -- Jeff's unbound hub bore, with the blade's seat bound, wanted
+    // the hub's bores on that seat's axis, and a same-part relation cannot say
+    // which of five blade bores that is. With no placement for either part,
+    // or nothing that mates, the stages below answer as they always have.
+    if (placements && adjacent.length) {
+      var mates = AA.rankMatingFaces({
+        sha256: mesh.sha256, classes: pool, placements: placements[mesh.sha256],
+        references: end.references.filter(function (r) { return !r.sameMesh; }).map(function (r) {
+          var forMesh = faceClasses[r.sha256];
+          return { sha256: r.sha256, faceId: r.faceId, record: forMesh ? forMesh[r.faceId] : null,
+            placements: placements[r.sha256] };
+        }),
+      });
+      if (mates.length) {
+        end.stage = "mating_pose";
+        end.relation = mates[0].relation;
+        end.candidates = mates.map(function (m) { return m.faceId; });
+        end.mates = mates;
+        return end;
+      }
+    }
     // Same mesh first: it is the only frame in which a relation can be asked
     // at all. A reference whose own mesh has not been read carries no
     // classification and drops out here, and stage 1's answer STANDS rather
@@ -529,6 +568,196 @@
     var name = ref.source === "other_end" ? names[ref.direction] : end.interfaceName;
     return " (face " + ref.faceId + (name ? ", bound as " + name : "") + ")";
   }
+
+  // --- the mate, where the assembly puts both parts (2026-11-15) -------------
+  //
+  // Handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_
+  // candidates. Jeff unbound the hub's blade-1 bore, bound the blade's own
+  // seat, and "was hoping the hub would then recommend cylindrical surfaces
+  // that are coaxial with the blade's selected cylindrical seat". A radius
+  // cannot do that -- every blade bore on the hub is Ø82.55 -- and an axis can,
+  // once both parts' face records are put where the assembly puts them. So
+  // this reads each part's `placement_world` (sweep.js's one layout,
+  // AA.applyPlacement) to RANK and to colour, as the scene reads it to draw.
+  // The same fence as the rest of this file: it writes nothing and produces no
+  // value -- scripts/fit_bound_features.py stays the one place a placement
+  // makes a number.
+  //
+  // A part placed several times (the five blades) is compared at every pair
+  // of occurrences the open model draws: a model that declares the part's one
+  // occurrence (v2 declares blade 1's) leaves one pair, and that is how blade
+  // 1's bore is told from blade 2's.
+
+  // Measured over v2's bound pairs on 2026-11-15, the true mate against the
+  // nearest face that fails the relation (the lesson has the table):
+  //   axisDeg       true 0.0033 deg; nearest wrong 0.50 deg (blade side)
+  //   axisOffsetMm  true 0.000 mm; nearest wrong 0.53 mm, then 3.99 mm
+  //   planeDeg      true 0 deg; nearest wrong 45 deg
+  //   planeGapMm    true 0.05 mm; nearest wrong 7.1 mm
+  // A flat face must also be within REACH of the bound one: the distance
+  // between their centres along the plane no more than the two faces' sizes
+  // together (true 0.4 mm of 295; a coplanar pad elsewhere on the hub 178 of
+  // 149).
+  AA.MATE_TOLERANCES = Object.freeze({
+    axisDeg: 0.25,
+    axisOffsetMm: 0.25,
+    planeDeg: 0.25,
+    planeGapMm: 1.0,
+  });
+
+  // What a bound face of each class asks of the face that mates with it. A
+  // round face: on its axis. A flat one: against it, facing it. A ball and a
+  // face the classifier could not read ask nothing, and say nothing.
+  AA.MATE_RELATIONS = VOCAB.table("SURFACE_CLASSES", {
+    planar: "coincident", cylindrical: "coaxial", spherical: null, other: null });
+
+  // Why a ranked face is there, in a reader's words. {mate} is the bound
+  // face's part; the diameters are the candidate's, then the bound one's.
+  AA.MATE_REASON_WORDS = Object.freeze({
+    coaxial: "coaxial with {mate}, Ø{mine} vs Ø{theirs}",
+    coincident: "against {mate}, {gap} apart",
+  });
+
+  function rotate(m, v) {
+    return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[4] * v[0] + m[5] * v[1] + m[6] * v[2],
+      m[8] * v[0] + m[9] * v[1] + m[10] * v[2]];
+  }
+  function vsub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function vdot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function vlen(a) { return Math.sqrt(vdot(a, a)); }
+  function vunit(a) { var n = vlen(a); return n > 0 ? [a[0] / n, a[1] / n, a[2] / n] : a; }
+  function angleDeg(a, b) {
+    var c = vdot(vunit(a), vunit(b));
+    return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI;
+  }
+
+  // One face record (face_geometry.js's) at one placement, in the assembly
+  // frame: the same fields, moved. Null for a class with nothing to move.
+  AA.placeFaceRecord = function (record, placement) {
+    if (!record || !placement || placement.length !== 12) return null;
+    if (record.surface === "cylindrical") {
+      return { surface: record.surface, faceId: record.faceId, axis: vunit(rotate(placement, record.axis)),
+        axisPoint: AA.applyPlacement(placement, record.axisPoint), radius: record.radius };
+    }
+    if (record.surface === "planar") {
+      return { surface: record.surface, faceId: record.faceId, normal: vunit(rotate(placement, record.normal)),
+        point: AA.applyPlacement(placement, record.point), extent: record.extent || 0 };
+    }
+    return null;
+  };
+
+  // How far two placed faces are from mating under `relation`: an angle, an
+  // offset (the axis lines' distance, or the gap between the planes), the
+  // radius difference and the reach along the plane.
+  function mateMeasure(relation, a, b) {
+    if (relation === "coaxial") {
+      var d = vsub(a.axisPoint, b.axisPoint);
+      var along = vdot(d, b.axis);
+      var off = vlen([d[0] - b.axis[0] * along, d[1] - b.axis[1] * along, d[2] - b.axis[2] * along]);
+      var tilt = angleDeg(a.axis, b.axis);
+      return { angleDeg: Math.min(tilt, 180 - tilt), offsetMm: off,
+        radiusDiffMm: Math.abs(a.radius - b.radius), reachMm: 0 };
+    }
+    var gapVec = vsub(a.point, b.point);
+    var gap = vdot(gapVec, b.normal);
+    var inPlane = vlen([gapVec[0] - b.normal[0] * gap, gapVec[1] - b.normal[1] * gap,
+      gapVec[2] - b.normal[2] * gap]);
+    // Opposed: two faces that meet face each other.
+    return { angleDeg: 180 - angleDeg(a.normal, b.normal), offsetMm: Math.abs(gap), radiusDiffMm: 0,
+      reachMm: inPlane };
+  }
+
+  function mateHolds(relation, m, a, b, tol) {
+    if (relation === "coaxial") return m.angleDeg <= tol.axisDeg && m.offsetMm <= tol.axisOffsetMm;
+    return m.angleDeg <= tol.planeDeg && m.offsetMm <= tol.planeGapMm &&
+      m.reachMm <= (a.extent || 0) + (b.extent || 0);
+  }
+
+  // THE ONE RANKING of a part's faces by the mate (called by planEnd's mate
+  // stage, by the armed pick and by the list a feature's tree row opens to):
+  //
+  //   opts.sha256      the part being picked
+  //   opts.classes     its face records (face_geometry.js), any order, nulls
+  //                    skipped
+  //   opts.placements  [placement] -- where the open model draws it
+  //   opts.references  [{sha256, faceId, record, placements}] -- the faces
+  //                    bound on the other side, each with its part's places
+  //   opts.tolerances  overrides for AA.MATE_TOLERANCES
+  //
+  // Returns the faces that mate with any reference in any pair of
+  // occurrences, each once at its best pair, ranked: on one axis, the nearest
+  // radius first; against a flat, the smallest gap first. Each row:
+  // {sha256, faceId, surface, relation, radius, mateRadius, mateSha256,
+  //  mateFaceId, angleDeg, offsetMm, radiusDiffMm, reachMm}.
+  AA.rankMatingFaces = function (opts) {
+    var o = opts || {};
+    var tol = Object.assign({}, AA.MATE_TOLERANCES, o.tolerances || {});
+    var own = (o.placements || []).filter(function (p) { return p && p.length === 12; });
+    if (!own.length) return [];
+    var refs = [];
+    (o.references || []).forEach(function (r) {
+      var relation = r && r.record ? AA.MATE_RELATIONS[r.record.surface] : null;
+      if (!relation) return;
+      (r.placements || []).forEach(function (p) {
+        var placed = AA.placeFaceRecord(r.record, p);
+        if (placed) refs.push({ ref: r, placed: placed, relation: relation });
+      });
+    });
+    if (!refs.length) return [];
+    var best = {};
+    (o.classes || []).forEach(function (record) {
+      if (!record || !AA.MATE_RELATIONS[record.surface]) return;
+      own.forEach(function (p) {
+        var placed = AA.placeFaceRecord(record, p);
+        if (!placed) return;
+        refs.forEach(function (r) {
+          if (r.placed.surface !== placed.surface) return;
+          var m = mateMeasure(r.relation, placed, r.placed);
+          if (!mateHolds(r.relation, m, placed, r.placed, tol)) return;
+          var row = { sha256: o.sha256, faceId: record.faceId, surface: record.surface,
+            relation: r.relation, radius: record.radius || null,
+            mateRadius: r.ref.record.radius || null, mateSha256: r.ref.sha256, mateFaceId: r.ref.faceId,
+            angleDeg: m.angleDeg, offsetMm: m.offsetMm, radiusDiffMm: m.radiusDiffMm, reachMm: m.reachMm };
+          var was = best[record.faceId];
+          if (!was || mateOrder(row, was) < 0) best[record.faceId] = row;
+        });
+      });
+    });
+    return Object.keys(best).map(function (k) { return best[k]; }).sort(mateOrder);
+  };
+
+  function mateOrder(a, b) {
+    if (a.relation === "coaxial" && b.relation === "coaxial") {
+      return (a.radiusDiffMm - b.radiusDiffMm) || (a.offsetMm - b.offsetMm) || (a.faceId - b.faceId);
+    }
+    return (a.offsetMm - b.offsetMm) || (a.reachMm - b.reachMm) || (a.faceId - b.faceId);
+  }
+
+  function diameter(radius) { return (2 * radius).toFixed(2); }
+
+  // One ranked face's reason: "coaxial with blade bonded assembly, Ø82.55 vs
+  // Ø82.51". Evidence for a rank, rounded for reading -- never a value.
+  AA.mateReason = function (row, mateName) {
+    if (!row) return null;
+    var template = AA.MATE_REASON_WORDS[row.relation];
+    if (!template) return null;
+    return template.replace("{mate}", mateName || "the bound face")
+      .replace("{mine}", row.radius ? diameter(row.radius) : "")
+      .replace("{theirs}", row.mateRadius ? diameter(row.mateRadius) : "")
+      .replace("{gap}", mm(row.offsetMm));
+  };
+
+  // The evidence behind the rank, for a row's hover: how far off the axis or
+  // the plane it is, in a reader's words.
+  AA.MATE_DETAIL_WORDS = Object.freeze({
+    coaxial: "axes {angle}° and {offset} apart",
+    coincident: "faces {offset} apart, centres {reach} apart along them",
+  });
+  AA.mateDetail = function (row) {
+    if (!row || !AA.MATE_DETAIL_WORDS[row.relation]) return null;
+    return AA.MATE_DETAIL_WORDS[row.relation].replace("{angle}", row.angleDeg.toFixed(3))
+      .replace("{offset}", mm(row.offsetMm)).replace("{reach}", mm(row.reachMm));
+  };
 
   // --- contact suggestions: the faces of two parts that touch ----------------
   //

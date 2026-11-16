@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the mate stage runs before anything the part says about itself, and with no placements the planner answers as it always has",
+  "mutations": [
+    {
+      "contract": "With placements and a face bound on the other part, the mate stage answers first.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Skips the mate stage.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    if (placements && adjacent.length) {",
+      "replace": "    if (false && placements && adjacent.length) {"
+    }
+  ]
+}

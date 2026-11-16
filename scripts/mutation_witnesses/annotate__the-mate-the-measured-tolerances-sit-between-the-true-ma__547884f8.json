@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the mate: the measured tolerances sit between the true mate and the nearest wrong face",
+  "mutations": [
+    {
+      "contract": "The coaxial angle tolerance sits below the nearest wrong face's 0.50 deg.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Loosens it past the nearest wrong face.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    axisDeg: 0.25,",
+      "replace": "    axisDeg: 1.0,"
+    }
+  ]
+}

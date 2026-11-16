@@ -336,7 +336,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-15 (the_hub_is_one_part_in_the_grid_and_the_dag): +2 -- a block
   // part's other edges gathered with it, and a part held back until every
   // edge can move up. Both carry a spec.
-  fast: { declared: 701, enrollable: 701, names: "4d4ba4c92501" },
+  // 2026-11-15 (a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates): +2 -- a suggestion line names the
+  // surest proposal's face, and the ranked mates under a feature. Both carry a spec.
+  fast: { declared: 703, enrollable: 703, names: "d81c923fdc87" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -421,7 +423,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-13 (a_feature_is_bound_once_to_a_set_of_faces, review round 2):
   // +1 -- a rail row's suggestion chip counts only proposals at unbound ends
   // (a proposal follows its feature). It carries a spec.
-  annotate: { declared: 316, enrollable: 316, names: "0161fd91c13e" },
+  // 2026-11-15 (a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates): +5 -- the mate ranking by value on
+  // the blade bore, the occurrence pairs, the measured tolerances, flats, and
+  // the planner's stage order. Each carries a spec.
+  annotate: { declared: 321, enrollable: 321, names: "a37bb3e54d78" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -664,7 +669,10 @@ export const DECLARED_GUARDS = {
   // "every row keeps its bar") and are declared without one --
   // ISSUE_20261114_reworded_browser_guards_of_the_fixed_shell_carry_no_spec.md
   // lists them.
-  browser: { declared: 850, enrollable: 819, names: "ec4310fc1299" },
+  // 2026-11-15 (a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates): +6 -- the suite's five checks, each
+  // with a spec, and its "(skipped: ...)" line, which no mutation can redden
+  // (it passes exactly when the data is absent) and so carries none.
+  browser: { declared: 856, enrollable: 825, names: "a96a74be0a16" },
 };
 
 

@@ -4163,6 +4163,132 @@ check("stage 3: a FLAT face bound on the adjacent part narrows nothing, says " +
   assertEqual(end.candidates, [0, 1, 2], "the candidate list was narrowed anyway");
 });
 
+// --- the mate, where the assembly puts both parts (handoff a_suggestion_
+// names_its_face_and_the_mating_side_ranks_the_candidates, 2026-11-15) ------
+//
+// The numbers are the real meshes' (face_geometry.js's fits of the hub
+// 214373-002 and the blade bonded assembly, and their placement_world as model
+// v2 draws them), rounded to 6 places: Jeff's case, by value.
+const MATE_HUB = "e".repeat(64);
+const MATE_BLADE = "f".repeat(64);
+const MATE_HUB_AT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+const MATE_BLADE_1 = [1, 0, 0, 0, 0, 0.309017, -0.951057, 0, 0, 0.951057, 0.309017, 0];
+function mateHubFaces() {
+  return [
+    { faceId: 2356, surface: "cylindrical", axis: [1, -0.000036, 0.000045], axisPoint: [176.203589, 0.000012, 0], radius: 41.275036 },
+    { faceId: 2358, surface: "cylindrical", axis: [1, 0.000036, -0.000045], axisPoint: [176.203589, -0.000012, 0], radius: 41.275036 },
+    // Another blade's root bore: the face Jeff had wrongly bound. Same radius.
+    { faceId: 2564, surface: "cylindrical", axis: [-0.286475, 0.958088, 0.000045], axisPoint: [50.471911, -168.820295, 0], radius: 41.275036 },
+    // On blade 1's axis, one size up: coaxial, ranked below.
+    { faceId: 2427, surface: "cylindrical", axis: [1, 0, 0], axisPoint: [101.482651, -0.000006, 0.000017], radius: 42.085982 },
+    // Parallel to it, 3.99 mm off: the nearest face that is not on the axis.
+    { faceId: 1985, surface: "cylindrical", axis: [1, 0.000003, -0.000007], axisPoint: [-114.964528, -0.000001, -3.993366], radius: 1.759996 },
+  ];
+}
+function mateBladeSeat(placements) {
+  const seat = (faceId) => ({ sha256: MATE_BLADE, faceId, placements,
+    record: { faceId, surface: "cylindrical", axis: [1, 0, 0], axisPoint: [176.317253, 0, 0], radius: 41.257301 } });
+  return [seat(4034), seat(4033)];
+}
+// Blade 1's placement turned about the rotor axis onto the bore 2564 is on.
+function mateBladeTurnedOnto2564() {
+  const t = Math.atan2(-0.958088, 0.286475);
+  const c = Math.cos(t), s = Math.sin(t);
+  const m = MATE_BLADE_1;
+  const row = (r0, r1) => [r0 * m[0] + r1 * m[4], r0 * m[1] + r1 * m[5], r0 * m[2] + r1 * m[6], 0];
+  return [].concat(row(c, -s), row(s, c), [m[8], m[9], m[10], 0]);
+}
+
+check("the mate: with the blade's seat bound, the hub's faces coaxial with it are ranked " +
+  "nearest radius first -- 2356 and 2358 head the list, and 2564 is not on it", () => {
+  const rows = AA.rankMatingFaces({ sha256: MATE_HUB, classes: mateHubFaces(), placements: [MATE_HUB_AT],
+    references: mateBladeSeat([MATE_BLADE_1]) });
+  assertEqual(rows.map((r) => r.faceId), [2356, 2358, 2427],
+    "the hub's bores coaxial with the blade's seat, nearest radius first");
+  assertEqual(rows.map((r) => r.relation), ["coaxial", "coaxial", "coaxial"], "the relation");
+  assertEqual(rows[0].radiusDiffMm.toFixed(4), "0.0177", "the radius difference read off the fits");
+  assertEqual(rows[0].offsetMm < 0.01 && rows[0].angleDeg < 0.01, true, "the true mate's axis is the seat's");
+  assertEqual(AA.mateReason(rows[0], "blade bonded assembly"),
+    "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", "the reason a reader sees");
+  assertEqual(AA.mateDetail(rows[0]), "axes 0.003° and 0.000 mm apart", "the evidence on hover");
+});
+
+check("the mate: every pair of occurrences is asked, so a blade drawn at two places makes " +
+  "both bores mate -- the model's one declared occurrence is what tells blade 1's from blade 2's", () => {
+  const both = AA.rankMatingFaces({ sha256: MATE_HUB, classes: mateHubFaces(), placements: [MATE_HUB_AT],
+    references: mateBladeSeat([MATE_BLADE_1, mateBladeTurnedOnto2564()]) });
+  assertEqual(both.map((r) => r.faceId).sort(), [2356, 2358, 2427, 2564],
+    "with the blade at both places, the other blade's bore mates too");
+  const one = AA.rankMatingFaces({ sha256: MATE_HUB, classes: mateHubFaces(), placements: [MATE_HUB_AT],
+    references: mateBladeSeat([MATE_BLADE_1]) });
+  assertEqual(one.some((r) => r.faceId === 2564), false, "at blade 1's place alone, 2564 does not mate");
+  // No place for either part: nothing is ranked, rather than a guess at one.
+  assertEqual(AA.rankMatingFaces({ sha256: MATE_HUB, classes: mateHubFaces(), placements: [],
+    references: mateBladeSeat([MATE_BLADE_1]) }), [], "a part with no place ranked anyway");
+});
+
+check("the mate: the measured tolerances sit between the true mate and the nearest wrong face", () => {
+  const T = AA.MATE_TOLERANCES;
+  // v2's bound pairs, 2026-11-15: true 0.0033 deg / 0.000 mm; nearest wrong
+  // 0.50 deg and 0.53 mm (the blade side), 3.99 mm (face 1985 above).
+  assertEqual(T.axisDeg > 0.0033 && T.axisDeg < 0.50, true, "axisDeg is outside the measured gap");
+  assertEqual(T.axisOffsetMm > 0.001 && T.axisOffsetMm < 0.53, true, "axisOffsetMm is outside the measured gap");
+  // The flats: true gap 0.05 mm, nearest wrong 7.1 mm; true tilt 0, nearest wrong 45 deg.
+  assertEqual(T.planeGapMm > 0.05 && T.planeGapMm < 7.1, true, "planeGapMm is outside the measured gap");
+  assertEqual(T.planeDeg > 0 && T.planeDeg < 45, true, "planeDeg is outside the measured gap");
+});
+
+check("the mate: a flat bound opposite ranks the flats that face it, within reach, smallest gap first", () => {
+  const P = "9".repeat(64);
+  const at = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+  const up = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 10];
+  const faces = [
+    // Facing down at z 10.05 once placed: against the bound face (up at z 10), 0.05 apart.
+    { faceId: 1, surface: "planar", normal: [0, 0, -1], point: [0, 0, 0.05], extent: 50 },
+    // Same plane, facing up: it does not face the bound one.
+    { faceId: 2, surface: "planar", normal: [0, 0, 1], point: [0, 0, 0.05], extent: 50 },
+    // Facing it, 7.1 mm off.
+    { faceId: 3, surface: "planar", normal: [0, 0, -1], point: [0, 0, 7.1], extent: 50 },
+    // Facing it, in the plane, but 178 mm along it: out of reach.
+    { faceId: 4, surface: "planar", normal: [0, 0, -1], point: [178, 0, 0], extent: 20 },
+    // Facing it exactly in the plane, nearer than face 1.
+    { faceId: 5, surface: "planar", normal: [0, 0, -1], point: [10, 0, 0], extent: 20 },
+  ];
+  const rows = AA.rankMatingFaces({ sha256: P, classes: faces, placements: [up],
+    references: [{ sha256: "8".repeat(64), faceId: 9, placements: [at],
+      record: { faceId: 9, surface: "planar", normal: [0, 0, 1], point: [0, 0, 10], extent: 120 } }] });
+  assertEqual(rows.map((r) => r.faceId), [5, 1], "the flats against the bound one, smallest gap first");
+  assertEqual(AA.mateReason(rows[1], "the hub"), "against the hub, 0.050 mm apart", "the reason a reader sees");
+});
+
+check("the mate stage runs before anything the part says about itself, and with no placements " +
+  "the planner answers as it always has", () => {
+  // The bolt's shank is bound at the plate's bolt hole; placed, it runs along
+  // the plate's z axis through the origin -- bore 3's axis, not bore 4's.
+  const classes = fixtureClasses();
+  classes[SUGGEST_MESHES[0].sha256][5] = { faceId: 5, surface: "cylindrical", axis: [0, 0, 1],
+    axisPoint: [0, 0, 9], radius: 6, arcDeg: 360 };
+  const placements = {};
+  placements[SUGGEST_MESHES[0].sha256] = [[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]];
+  placements[SUGGEST_MESHES[1].sha256] = [[0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0]];
+  const mated = AA.planFaceSuggestions({
+    topology: SUGGEST_TOPOLOGY, edgeId: "hole_depth",
+    identityProjection: boundAt("bolt_grip", "from", SUGGEST_MESHES[1].sha256, 0),
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: classes, placements,
+  });
+  const end = mated.ends.filter((e) => e.direction === "from")[0];
+  assertEqual(end.stage, "mating_pose", "the mate stage did not run first");
+  assertEqual(end.relation, "coaxial", "the relation");
+  assertEqual(end.candidates, [3, 5], "the bores on the shank's axis, nearest radius first");
+  const unplaced = AA.planFaceSuggestions({
+    topology: SUGGEST_TOPOLOGY, edgeId: "hole_depth",
+    identityProjection: boundAt("bolt_grip", "from", SUGGEST_MESHES[1].sha256, 0),
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: classes,
+  });
+  assertEqual(unplaced.ends.filter((e) => e.direction === "from")[0].stage, "mating_fit",
+    "without placements the radius stage did not answer");
+});
+
 check("a joint centre suggests only the BALL faces, and a second centre on " +
   "the same part narrows nothing and says why", () => {
   const sha = SUGGEST_MESHES[0].sha256;

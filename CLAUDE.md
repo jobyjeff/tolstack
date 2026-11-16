@@ -90,6 +90,11 @@ traced ratio" — never restate the rule elsewhere).
   or unbound (a `retracted` event) from the feature's own body in the tree,
   and a feature reads only its own part's edge ends
   (`docs/ANNOTATION_SURFACE.md`, "A binding shows where it is made").
+  Since 2026-11-15 a suggestion line names, lights and takes its face, and
+  once one side of an interface is bound the other side's faces are ranked
+  by how they mate with it where the model places both parts
+  (`AA.rankMatingFaces`; same document, "Taking a suggested face") -- display
+  and ranking only, never a value.
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

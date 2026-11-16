@@ -1217,6 +1217,31 @@ export class AnnotateScene {
   }
 
   // One part's drawn occurrences, as one box in the assembly frame.
+  // Frames some faces of one part on every drawn occurrence of it -- a
+  // suggestion line's click in the shell (`camera face`). False when none of
+  // them is on an open part.
+  frameFaces(sha256, faceIds) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return false;
+    const local = new THREE.Box3();
+    const pos = mesh.geometry.attributes.position.array;
+    for (const faceId of faceIds || []) {
+      const range = mesh.userData.faceRanges[faceId];
+      if (!range) continue;
+      for (let i = range.start; i < range.start + range.count; i++) {
+        local.expandByPoint(new THREE.Vector3(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]));
+      }
+    }
+    if (local.isEmpty()) return false;
+    const overall = new THREE.Box3();
+    for (const node of this._occurrenceNodes(sha256)) {
+      if (node.visible) overall.union(local.clone().applyMatrix4(node.matrix));
+    }
+    this._frameBox(overall.isEmpty() ? local : overall);
+    this.requestRender();
+    return true;
+  }
+
   _assemblyBox(sha256) {
     const mesh = this.parts.get(sha256);
     const box = new THREE.Box3();

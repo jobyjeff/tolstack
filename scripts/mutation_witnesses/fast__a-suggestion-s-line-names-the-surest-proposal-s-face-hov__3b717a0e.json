@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a suggestion's line names the surest proposal's face: hovering lights it, a click turns the pane to it, and Take accepts that proposal at its end, on the model",
+  "mutations": [
+    {
+      "contract": "The suggestion line, its face and its Take read the surest proposal.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Reads the first listed proposal instead.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    var best = VA.surestProposal(model.proposalsOf(fid));",
+      "replace": "    var best = model.proposalsOf(fid)[0] || null;"
+    }
+  ]
+}

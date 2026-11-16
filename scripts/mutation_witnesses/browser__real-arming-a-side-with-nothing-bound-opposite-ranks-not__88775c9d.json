@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a suggestion names its face and the mate ranks the other side (hover, Take, armed mates, nothing opposite)",
+  "expect_red": "[real] arming a side with nothing bound opposite ranks nothing, lights nothing and lists only the pick's line",
+  "mutations": [
+    {
+      "contract": "An armed feature with nothing ranked lists the pick's line alone.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Adds a line under it.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "[{ text: String(tree.armedLine || \"\") }].concat(mateLines)",
+      "replace": "[{ text: String(tree.armedLine || \"\") }, { text: W.none }].concat(mateLines)"
+    }
+  ]
+}

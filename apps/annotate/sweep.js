@@ -1922,8 +1922,11 @@
     return AA.describeContact(pairing, candidate);
   }
 
-  //: The two kinds of row on an end's candidate list, in list order.
-  AA.CANDIDATE_ROW_KINDS = Object.freeze(["proposed", "contact"]);
+  //: The kinds of row on an end's candidate list: an agent's proposal, the
+  //: contact engine's face, and (2026-11-15, app.js's rankMatesAt) a face
+  //: that mates with the one bound on the other side. Listed proposals
+  //: first, then mates, then contact.
+  AA.CANDIDATE_ROW_KINDS = Object.freeze(["proposed", "contact", "mate"]);
 
   // An end's candidate list (handoff a_joint_end_lists_its_candidate_faces_
   // and_says_why_each_is_there): the agent's open proposals at the end,

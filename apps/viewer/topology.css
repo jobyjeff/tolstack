@@ -330,6 +330,12 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 /* A bound line lights its face in the scene while the pointer rests on it
    (VA.featureBodyPlan), so it wears the same wash a resting row does. */
 .navtree__featurestate[data-face]:hover { background: #20242c; }
+/* A suggested face's line turns the 3D view to it on a click; a ranked
+   mate's line is the face over why it is listed (2026-11-15). */
+.navtree__featurestate[data-look] { cursor: pointer; }
+.navtree__featuretext { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.navtree__featuretext .navtree__featurewords { color: var(--ink); }
+.navtree__featuresub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The tree's foot: bindings that name something gone (VA.orphanBindings).
    One muted line with the shared warning mark, opening to the list. */
 .navtree__orphans { margin: 12px 0 4px; color: var(--muted); font-size: var(--t-micro); }
