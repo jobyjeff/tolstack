@@ -90,7 +90,22 @@ shared helper, keeping its "unreadable → ask for the overlay" arm.
   was inside budget.
 - Prose subset after my overlay edit (`test_tolerance_stack`, `test_provenance`,
   `test_thermal_exception_list`, `test_claims_registry`): 222 passed.
-- Whole browser tier: see the post-merge section below.
+- Whole browser tier (`node scripts/run_viewer_browser_tests.mjs --repo
+  C:/workspace/tolstack`, after the merge; no whole-tier row for this tree was
+  on the ledger): **46/47 suites, 1120 checks, 1867 s**. The runner recorded
+  its own row (`merge`, `over: true`, sha `caeb4a2c`). The one red is
+  `3D pane follows the selection` 30/31 (`[real] ...and leaving it takes the
+  light down`). Run alone immediately afterwards on the same tree it was
+  **31/31**. The diff changes no app code, and the edited script lines are
+  inside `testModelDrawnAloneAndLed` only. So this is the deferred load-flake
+  class (`ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`),
+  not this diff. `the model drawn alone and led` is 23/23 in the whole run. The
+  1m07s overrun was appended as a dated measurement to the open-but-deferred
+  `ISSUE_20261106_the_viewer_browser_tier_ran_51_minutes_against_the_merge_budget.md`,
+  not filed as a twin.
+- No `data/` writes: the diff writes nothing, and the runs read the main
+  checkout's projections. The main checkout's `git status` was clean before and
+  after.
 
 ## Findings
 

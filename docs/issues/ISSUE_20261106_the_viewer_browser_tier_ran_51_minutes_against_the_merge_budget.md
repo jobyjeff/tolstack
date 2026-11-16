@@ -225,3 +225,19 @@ Runner's per-suite table, top 8 of 47: the DAG zoom, Fit and the grid header
 still 94.8 s, 3D pane follows the selection 94.2 s, no nav click wedges the
 page 90.7 s, a suggestion names its face and the mate ranks the other side
 89.2 s, topology file:// respine 81.3 s. Three suites more than 11-11 (44 → 47).
+
+## Measurement 2026-11-16, review of the_model_drawn_alone_and_led_hub_hover_check_goes_green (found_by: docs/sessions/active/HANDOFF_20261116_the_model_drawn_alone_and_led_hub_hover_check_goes_green.md)
+
+| | |
+| --- | --- |
+| Command | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, review worktree (merged tree; runner's row sha `caeb4a2c`) |
+| Result | **46/47** suites (1120 checks), exit 1. The one red is `3D pane follows the selection` 30/31 (`...and leaving it takes the light down`), 31/31 alone right after it, so it is the deferred load flake (`ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`). `the model drawn alone and led` is now 23/23 |
+| Wall time | **1867 s** (runner TOTAL 1866.7 s), so the runner's self-recorded row reads `over: true`, **over by 1m07s** |
+| Slot | `slot_wait_s: 0`. The default pytest tier was running beside it for its first ~5 minutes |
+
+Top 8 of 47: topology http 159.1 s, the DAG zoom, Fit and the grid header 149.3 s,
+topology file:// 102.9 s, 3D pane follows the selection 102.6 s, no nav click
+wedges the page 95.5 s, annotate rail holds still 91.8 s, leaders across the
+seam 84.0 s, a suggestion names its face 82.2 s. This is the fourth over-budget
+merge row today (1853 s, 1819 s, 1822 s, 1867 s), so the overrun is steady and
+not a one-off.
