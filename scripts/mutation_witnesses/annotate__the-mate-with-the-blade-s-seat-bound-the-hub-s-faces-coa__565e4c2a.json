@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the mate: with the blade's seat bound, the hub's faces coaxial with it are ranked nearest radius first -- 2356 and 2358 head the list, and 2564 is not on it",
+  "mutations": [
+    {
+      "contract": "Faces on one axis with the bound one are ranked nearest radius first.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Ranks the farthest radius first.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "      return (a.radiusDiffMm - b.radiusDiffMm) || (a.offsetMm - b.offsetMm) || (a.faceId - b.faceId);",
+      "replace": "      return (b.radiusDiffMm - a.radiusDiffMm) || (a.offsetMm - b.offsetMm) || (a.faceId - b.faceId);"
+    }
+  ]
+}

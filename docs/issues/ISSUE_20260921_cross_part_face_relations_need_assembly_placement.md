@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: resolved
 area: apps/annotate
 reporter: agent
 audience: strategy
@@ -9,7 +9,7 @@ found_by: docs/sessions/HANDOFF_20260921_annotate_face_suggestions.md
 class: missing_capability
 defer_until: 2026-11-20
 needs: agent
-resolution: class trigger `class:missing_capability` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
+resolution: fixed by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15) -- AA.rankMatingFaces places both parts with placement_world and asks coaxial and coincident-and-opposed across parts
 ---
 
 # Face suggestions cannot narrow a flat face across two parts, because no assembly placement is applied
@@ -125,3 +125,15 @@ declared nulls (`AA.NO_MATING_PLANE_RELATION`,
 `AA.NO_SAME_PART_SPHERE_RELATION`) still stand. Whether that stage should now
 read the contact projection, or stay as the shape-only narrowing it is, is the
 design question left for triage.
+
+
+## 2026-11-15 — resolved
+
+Handoff `a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates`
+added the mate stage (`AA.rankMatingFaces`, `apps/annotate/suggestions.js`):
+both parts' face records are put at the occurrences the open model draws, and
+the other side's faces are ranked coaxial (round) or coincident and facing
+(flat). It runs first in `planFaceSuggestions` and feeds the armed pick and the
+candidate lists. Tolerances and their measurement are in that handoff's lesson.
+Spheres are still not related across parts (a ball's centre on a bore's axis
+is the contact engine's, `ball_in_seat`).

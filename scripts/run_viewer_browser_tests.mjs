@@ -11710,6 +11710,155 @@ async function testAnnotateTopBar(browser, label) {
 // dir and nothing else. No ?mock=1, no patched reads, no folder grant: the
 // annotator in the pane reads what this origin serves, exactly as Jeff opens
 // it on 127.0.0.1:8000.
+// A suggestion names its face, and the mate ranks the other side (handoff
+// a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates,
+// 2026-11-15), on model v2 with the real served log and the real meshes --
+// writes go to the pane's in-memory store, never to the folder. The
+// tangential link mount's base face carries an open proposal: its line names
+// the face, hovering lights it, Take writes one accept for the surest. The
+// hub's blade-1 bore, armed, ranks its faces against the blade's bound seat:
+// the hub's own two faces of that bore head the list and are pre-lit. A
+// feature with nothing bound opposite arms as it always has.
+async function testSuggestionNamesItsFace(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V2 = "vpa_end_stop_v2";
+  const MOUNT_FACE = "tan_link_mount_215175_002@tan_link_mount_hub_face";
+  const HUB_BORE = "hub@hub_blade1_root_bearing_bore";
+  const LONE = "piston_cover_214958_002@piston_cover_end_stop_shoulder";
+  const servedLog = await readProjection("feature-identity/log.json");
+  const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
+  const events = (servedLog && servedLog.events) || [];
+  const faceKeys = (e) => (e.geometry_keys || (e.geometry_key ? [e.geometry_key] : []));
+  // The hub bore's standing faces in the log: the ranking's expected head.
+  const hubBound = events.filter((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === "hub" && e.feature_key.node === "hub_blade1_root_bearing_bore").pop();
+  const bladeBound = events.some((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === "blade_root" && e.feature_key.node === "hub_blade1_root_bearing_bore");
+  if (!v2 || !hubBound || !bladeBound) {
+    push("[real] a suggestion names its face and the mate ranks the other side (skipped: model v2, " +
+      "or the blade-1 bore bound on both sides in the served log, is not on disk -- build them, or " +
+      "pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const openBody = async (fid) => {
+    const part = fid.split("@")[0];
+    const row = `#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`;
+    if (!(await page.locator(row).count())) {
+      await page.locator(`#navtree [data-nav-twisty="p:${part}"]`).first().click({ timeout: 5000 }).catch(() => {});
+    }
+    const twisty = page.locator(`#navtree [data-nav-twisty="f:${fid}"]`).first();
+    if (await twisty.count() && (await twisty.getAttribute("aria-expanded")) !== "true") {
+      await twisty.click({ timeout: 5000 }).catch(() => {});
+    }
+  };
+  const slotOf = (fid) => page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`)
+    .locator("xpath=..").locator(".navtree__scene").first();
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V2, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    await until((w) => !!w.__embedTree, null, 120000);
+
+    // 1. The mount's base face: its line names the surest proposal's face.
+    await openBody(MOUNT_FACE);
+    const line = slotOf(MOUNT_FACE).locator(".navtree__featurestate[data-look]").first();
+    await line.waitFor({ timeout: 60000 }).catch(() => {});
+    const face = Number(await line.getAttribute("data-face").catch(() => NaN));
+    const surest = events.filter((e) => e.verdict === "proposed" &&
+      faceKeys(e).some((k) => k.face_id === face)).find((e) => e.confidence === "high");
+    console.log(`    the mount's suggestion line names face ${face}; surest proposal ${surest && surest.event_id}`);
+    await line.hover({ timeout: 5000 }).catch(() => {});
+    push("[real] hovering a suggestion line in the tree lights its face in the pane",
+      Number.isFinite(face) && !!surest &&
+      await until((w, f) => w.__lastWash && w.__lastWash.faceId === f, face, 15000));
+    const before = await inPane((w) => (w.__mockWrites || []).length);
+    await slotOf(MOUNT_FACE).locator("button", { hasText: "Take" }).first().click({ timeout: 5000 }).catch(() => {});
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 30000);
+    await page.waitForTimeout(500);
+    const written = (await inPane((w, n) => (w.__mockWrites || []).slice(n)
+      .map((x) => ({ verdict: x.event.verdict, ratifies: x.event.ratifies || null,
+        faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id) })), before)) || [];
+    console.log(`    Take wrote ${JSON.stringify(written)}`);
+    push("[real] Take on a suggestion line writes one accept event, for the surest proposal and its face",
+      written.length === 1 && written[0].verdict === "bound" && !!surest &&
+      written[0].ratifies === surest.event_id && written[0].faces[0] === face);
+
+    // 2. The hub's blade-1 bore, armed: ranked against the blade's bound seat.
+    await openBody(HUB_BORE);
+    await slotOf(HUB_BORE).locator('button[data-body-act="arm"]').first().click({ timeout: 10000 }).catch(() => {});
+    const want = faceKeys(hubBound).map((k) => k.face_id).sort((a, b) => a - b);
+    const ranked = await until((w) => w.__armedMates && w.__armedMates.length, null, 120000)
+      ? await inPane((w) => ({ head: w.__armedMates.slice(0, 2).map((f) => f.faceId).sort((a, b) => a - b),
+        all: w.__armedMates.map((f) => f.faceId),
+        lit: w.__scene.listMarks("suggested").map((m) => m.faceId) })) : null;
+    await page.waitForFunction((sel) => document.querySelectorAll(sel).length > 1,
+      `#navtree [data-nav-id="${HUB_BORE}"] ~ .navtree__scene .navtree__featurebody[data-body-kind="armed"] .navtree__featurestate`,
+      { timeout: 15000 }).catch(() => {});
+    const listed = await slotOf(HUB_BORE).locator(".navtree__featurestate[data-face]").evaluateAll((rows) =>
+      rows.map((r) => ({ face: Number(r.getAttribute("data-face")),
+        why: (r.querySelector(".navtree__featuresub") || {}).textContent || "" }))).catch(() => []);
+    console.log(`    armed hub bore: ranked ${JSON.stringify(ranked && ranked.all.slice(0, 8))}; ` +
+      `listed ${JSON.stringify(listed.slice(0, 3))}`);
+    push("[real] arming a side whose counterpart is bound pre-lights the faces that mate with it, " +
+      "headed by the true mate, and lists them under the feature with why each is there",
+      !!ranked && JSON.stringify(ranked.head) === JSON.stringify(want) &&
+      want.every((f) => ranked.lit.indexOf(f) !== -1) && ranked.all.indexOf(2564) === -1 &&
+      listed.length >= 2 && want.indexOf(listed[0].face) !== -1 && /^coaxial with /.test(listed[0].why));
+    await page.keyboard.press("Escape");
+    push("[real] ...and ending the pick takes the pre-lit faces down",
+      await until((w) => !w.__embedTree.armed && w.__scene.listMarks("suggested").length === 0, null, 15000));
+
+    // 3. Nothing bound opposite: the arm is what it always was.
+    await openBody(LONE);
+    await slotOf(LONE).locator('button[data-body-act="arm"]').first().click({ timeout: 10000 }).catch(() => {});
+    const armedLone = await until((w) => w.__embedTree && w.__embedTree.armed, null, 60000);
+    await page.waitForTimeout(3000);
+    const lone = await inPane((w) => ({ mates: (w.__armedMates || []).length,
+      lit: w.__scene.listMarks("suggested").length,
+      inTree: Object.keys((w.__embedTree && w.__embedTree.mates) || {}) }));
+    await slotOf(LONE).locator('.navtree__featurebody[data-body-kind="armed"]').first()
+      .waitFor({ timeout: 15000 }).catch(() => {});
+    const loneLines = await slotOf(LONE).locator(".navtree__featurestate").count().catch(() => -1);
+    console.log(`    armed with nothing bound opposite: ${JSON.stringify(lone)}, ${loneLines} line(s)`);
+    if (loneLines !== 1) console.log("      DIAG " + await page.evaluate((id) => { const r = document.querySelector(`#navtree [data-nav-id="${id}"]`); return r ? (r.parentElement.outerHTML || "").slice(0, 900) : "no row"; }, LONE));
+    push("[real] arming a side with nothing bound opposite ranks nothing, lights nothing and lists only the pick's line",
+      armedLone && !!lone && lone.mates === 0 && lone.lit === 0 && lone.inTree.indexOf(LONE) === -1 && loneLines === 1);
+    await page.keyboard.press("Escape");
+  } catch (err) {
+    errors.push(String(err));
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 function startDrawingCheckerMountServer() {
   const mounts = [
     ["/tolstack/viewer/", join(REPO, "apps", "viewer")],
@@ -16820,6 +16969,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testSeamLeaders(browser, label, topologies)],
       ["the model drawn alone and led (the end-stop model's parts only, a leader per placed node)", (label) =>
         testModelDrawnAloneAndLed(browser, label, topologies)],
+      ["a suggestion names its face and the mate ranks the other side (hover, Take, armed mates, nothing opposite)",
+        (label) => testSuggestionNamesItsFace(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

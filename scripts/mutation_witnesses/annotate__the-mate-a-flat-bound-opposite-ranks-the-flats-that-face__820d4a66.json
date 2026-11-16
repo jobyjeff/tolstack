@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the mate: a flat bound opposite ranks the flats that face it, within reach, smallest gap first",
+  "mutations": [
+    {
+      "contract": "A coplanar flat out of reach of the bound face does not mate.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Drops the reach test.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    return m.angleDeg <= tol.planeDeg && m.offsetMm <= tol.planeGapMm &&\n      m.reachMm <= (a.extent || 0) + (b.extent || 0);",
+      "replace": "    return m.angleDeg <= tol.planeDeg && m.offsetMm <= tol.planeGapMm;"
+    }
+  ]
+}

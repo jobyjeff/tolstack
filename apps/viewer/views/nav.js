@@ -1084,6 +1084,16 @@
       }
     }
     // Picked at the end a proposal sits at, else the feature's first own end.
+    // A ranked mate that IS the proposal's face is one face, listed once: on
+    // the proposal's line, its reason under it.
+    if (head.face) {
+      mateLines = mateLines.filter(function (l) {
+        if (l.face.sha256 !== head.face.sha256 || l.face.faceId !== head.face.faceId) return true;
+        head.sub = l.sub;
+        head.title = head.title + "\n" + l.sub;
+        return false;
+      });
+    }
     var at = best || ends[0];
     return { kind: K.none, lines: [head].concat(mateLines),
       actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, at) }] };
@@ -1159,7 +1169,10 @@
         };
       }
       body.appendChild(row);
-      if (line.actions && line.actions.length) body.appendChild(actsOf(line.actions));
+      // A listed face (it has a reason under it) takes its Take at its right,
+      // on its own line, as the pane's candidate rows do; other lines' actions
+      // are a line of their own under them.
+      if (line.actions && line.actions.length) (line.sub ? row : body).appendChild(actsOf(line.actions));
     });
     if (plan.actions.length) body.appendChild(actsOf(plan.actions));
     slot.appendChild(body);

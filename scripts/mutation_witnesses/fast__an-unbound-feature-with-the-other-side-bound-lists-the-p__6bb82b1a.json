@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an unbound feature with the other side bound lists the pane's ranked mates, each with its reason and Take; armed, they are listed under the pick's line",
+  "mutations": [
+    {
+      "contract": "A ranked face's Take sits on its own line.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Puts Take on a line of its own under it.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "(line.sub ? row : body).appendChild(actsOf(line.actions));",
+      "replace": "body.appendChild(actsOf(line.actions));"
+    }
+  ]
+}

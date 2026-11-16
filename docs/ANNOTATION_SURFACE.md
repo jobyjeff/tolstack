@@ -266,13 +266,12 @@ geometry and material, so it costs a draw call and a matrix, not a copy.
   raycaster ignores `.visible`, so the app filters on it, which matters now
   that a hidden part sits exactly where the visible one behind it is.
 
-**What this does not change: the face suggestions.** The suggestion engine
-still reads each part in its own frame, so two flat faces on two parts are
-still not compared by it. Across two parts, a gap edge's touching faces are
-now read in the assembly frame by "Contact suggestions", below. What is still
-open is the engine's own narrowing stage against a face bound on the adjacent
-part, which still compares radii only —
-`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
+**What this did not change, until 2026-11-15: the face suggestions.** The
+suggestion engine read each part in its own frame, so two faces on two parts
+were compared by radius alone. Across two parts, a gap edge's touching faces
+are read in the assembly frame by "Contact suggestions", below. Since
+2026-11-15 the engine has one stage that reads these placements too, the
+mate: "Taking a suggested face", below.
 
 Every scene/navigation operation is a named, text-addressable verb behind one
 dispatch point (`commands.js`'s `AA.CommandLayer` — handoff
@@ -416,7 +415,10 @@ The rules are two declared tables in `apps/annotate/suggestions.js`: which kind
 of surface an element's own words ask for, and how much further a face already
 bound nearby narrows it (every flat face on the part → the ones parallel to a
 face bound on that same part → for round faces only, the ones whose radius
-matches a face bound on the *adjacent* part).
+matches a face bound on the *adjacent* part). Since 2026-11-15 a face bound on
+the adjacent part is asked first where the open model gives both parts a
+place: the faces that mate with it there (the mate, "Taking a suggested
+face", below). Without a place for both, the stages above answer as before.
 
 **The narrowing this surface cannot do, and why it matters here.** Two flat
 faces on *different* parts are not compared, because the suggestion engine
@@ -429,8 +431,8 @@ belongs to one face rather than to a pair of frames. The table declares the gap
 with its reason rather than computing a coplanarity it cannot support, and the
 surface says so in plain words. A gap edge's two parts ARE compared in the
 assembly frame since 2026-10-28, by a different path ("Contact suggestions",
-below); reading the placements into this engine's own stages is what stays
-open in
+below); and since 2026-11-15 this engine reads the placements too, in its
+mate stage ("Taking a suggested face", below), which closed
 `docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
 
 Full detail — the thresholds, the measured hit rates over the installed meshes,
@@ -796,9 +798,49 @@ each under its name) and in the shell's mirror of either.
 | hover a candidate row | washes that face in the pre-selection's yellow wash and outline on every drawn occurrence of its part (`hover face`); the camera stays. Leaving clears it. The pane debounces it as the shell's pane hover does |
 | **Take** on a candidate row | binds that face at that end (`take`; the surest proposal's own row runs `accept`): a face an open proposal names ratifies it, any other face writes `rejected` for each open proposal at the end, then `bound`, superseding the end's one standing binding. A toast names the write and the row reads "bound · face N" |
 | **Pick another face…** (last row) | arms the pick on that end, as **Pick** does. In bind mode it selects the element: the pick there is a click in the scene, and the bar asks which end |
+| a feature's **suggestion line** in the shell's tree ("suggested · high") | names the surest proposal's face: hovering lights it in the pane (`hover face`), a click turns the pane to it (`camera face`, framed, the pick tint on it), and **Take** beside it accepts that proposal (`accept <edge> <end> <model>`). **Pick a face** stays under it |
+| a feature whose **other side is bound** | lists the faces that mate with that side, best first, each "face N · <class> · r X mm" over why it is there: "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", "against propeller hub, 0.050 mm apart". It opens to the list without being armed; each line lights its face on hover and turns the pane to it on a click, and **Take** binds it (`take <edge> <end> <mesh> <face> <model>`) |
+| **Pick** on a side whose other side is bound | arms the pick as always and pre-lights the listed faces in the suggestion colour; the click still takes any face of the part. Ending the pick takes the colour down |
 
 The engine states only the relations above: it has no "parallel" relation, so
 no row says one. Every candidate row on the real projection has a reason.
+
+**A suggestion is shown where it is announced (2026-11-15).** Handoff
+`a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates`, from
+Jeff's walk: a feature's line said "suggested · high" with only Pick a face
+under it and no sign of which face. That is the line a feature gets when the
+pane lists no row for it: in sweep mode the run's joints, in bind mode the
+open study's elements. A line that says a face is suggested now names it,
+lights it and takes it, from the surest proposal (the one its words name).
+
+**The mate ranks the other side (2026-11-15).** Jeff unbound the hub's
+blade-1 bore, bound the blade's own seat, and expected the hub to offer the
+bores on that seat's axis. A radius cannot do that, because every blade bore
+on the hub is the same size. An axis can, once both parts are where the
+assembly puts them. So when one side of an interface is bound (the other
+part's feature at a node two parts share, or the other end of a gap edge),
+both parts' face records are put at the occurrences the open model draws
+(`placement_world`, as the scene draws them) and the unbound side's faces are
+ranked by `AA.rankMatingFaces`:
+
+- **A round face is on the bound one's axis**, nearest radius first. **A flat
+  face is against the bound one**, facing it, within reach of it along the
+  plane, smallest gap first. A ball, or a face the classifier calls `other`,
+  asks nothing and nothing is ranked.
+- **The tolerances are measured** (`AA.MATE_TOLERANCES`, with the population
+  in their comment): over v2's bound pairs, the true mate against the nearest
+  face that fails the relation.
+- **Every pair of drawn occurrences is asked.** A part placed several times
+  mates in any of them, so a model that declares a part's one occurrence
+  narrows it to that one. Model v2 declares blade 1's, which is how the hub's
+  blade-1 bore is told from the other four; on v1, which declares none, all
+  five bores mate equally.
+- **One ranking, three readers:** the armed pick's pre-lit faces, a joint
+  end's or an element's candidate list (after the proposals, before the
+  contact engine's faces), and bind mode's colouring, where it runs before
+  any relation the part has to itself. It ranks and colours, and writes nothing.
+  `scripts/fit_bound_features.py` stays the one place a placement makes a
+  number.
 
 - **Which part.** The end node's first-named part with an installed 3D model
   (`AA.pickEndPartIds`), else the edge's. Two-part interfaces named

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the mate: every pair of occurrences is asked, so a blade drawn at two places makes both bores mate -- the model's one declared occurrence is what tells blade 1's from blade 2's",
+  "mutations": [
+    {
+      "contract": "A candidate mates if it mates in any pair of drawn occurrences.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Reads only the bound part's first occurrence.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "      (r.placements || []).forEach(function (p) {",
+      "replace": "      (r.placements || []).slice(0, 1).forEach(function (p) {"
+    }
+  ]
+}

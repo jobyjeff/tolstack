@@ -12790,6 +12790,68 @@
         eq(two.lines[0].actions.map(function (a) { return a.command[0]; }), ["arm", "unbind"]);
       });
 
+    // --- a suggestion names its face; the mate ranks the other side (handoff
+    // a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates).
+    await test("a suggestion's line names the surest proposal's face: hovering lights it, a click " +
+      "turns the pane to it, and Take accepts that proposal at its end, on the model", function () {
+        var meshed = bodiedProj();
+        meshed.model.parts[1].mesh = { installed: true, part_id: "p2" };
+        var identity = { stack_keys: [{ stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "g1" },
+          bindings: [], proposals: [
+            { event_id: "e2", direction: "from", confidence: "medium",
+              geometry_key: { source_step_sha256: "bb", face_id: 7 } },
+            { event_id: "e5", direction: "from", confidence: "high",
+              geometry_keys: [{ source_step_sha256: "bb", face_id: 134 }, { source_step_sha256: "bb", face_id: 135 }] }] }] };
+        var plan = VA.featureBodyPlan(VA.buildModel(meshed, identity), "p2@n3", "mini", [], null);
+        var head = plan.lines[0];
+        eq(head.text, "suggested · high", "the line names the surest confidence");
+        eq(head.face, { sha256: "bb", faceId: 134 }, "...and the surest proposal's face, not the first listed");
+        eq(head.look, ["camera", "face", "bb", "134", "135"], "a click turns the pane to all its faces");
+        eq(head.actions.map(function (a) { return [a.text, a.command]; }),
+           [["Take", ["accept", "g1", "from", "mini"]]], "Take accepts the surest proposal at its end");
+        eq(plan.actions.map(function (a) { return a.text; }), ["Pick a face"], "Pick a face stays beside Take");
+        // Drawn: the line carries its face, hover posts it, a click posts the look.
+        var slot = document.createElement("div");
+        var hovered = [], posted = [];
+        VA.renderFeatureBody(slot, [], { plan: plan, command: function (c) { posted.push(c); },
+          hoverFace: function (f) { hovered.push(f); } });
+        var line = slot.querySelectorAll(".navtree__featurestate")[0];
+        eq(line.getAttribute("data-face"), "134");
+        line.onmouseenter();
+        line.onclick({ stopPropagation: function () {} });
+        eq(hovered, [{ sha256: "bb", faceId: 134 }], "hovering the line lights its face");
+        eq(posted, [["camera", "face", "bb", "134", "135"]], "clicking the line turns the pane to it");
+      });
+
+    await test("an unbound feature with the other side bound lists the pane's ranked mates, each " +
+      "with its reason and Take; armed, they are listed under the pick's line", function () {
+        var model = VA.buildModel(bodiedProj(), boundIdentity());
+        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
+          { sha256: "aa", faceId: 2356, text: "face 2356 · round · r 41.2750 mm",
+            reason: "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", detail: "axes 0.003° and 0.000 mm apart" },
+          { sha256: "aa", faceId: 2427, text: "face 2427 · round · r 42.0860 mm",
+            reason: "coaxial with blade bonded assembly, Ø84.17 vs Ø82.51", detail: null }] } } };
+        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
+        eq(plan.lines.map(function (l) { return l.text; }),
+           ["not bound", "face 2356 · round · r 41.2750 mm", "face 2427 · round · r 42.0860 mm"]);
+        eq(plan.lines[1].sub, "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", "each says why it is there");
+        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "2356", "mini"],
+           "Take binds that face at the feature's end, on the model");
+        eq(plan.actions[0].command, ["arm", "d1", "from", "mini", "p1"], "Pick a face is still there");
+        var armed = VA.featureBodyPlan(model, "p1@n1", "mini", [], Object.assign({
+          armedEnd: { topologyId: "mini", edgeId: "d1", direction: "from" }, armedLine: "click a face" }, tree));
+        eq(armed.lines.map(function (l) { return l.text; }).slice(0, 2),
+           ["click a face", "face 2356 · round · r 41.2750 mm"], "armed: the line, then the ranked faces");
+        // With nothing ranked (the other side unbound) the body is what it was.
+        eq(VA.featureBodyPlan(model, "p1@n1", "mini", [], { mates: {} }).lines.length, 1);
+        // Drawn: a ranked face's Take is on its own line.
+        var slot = document.createElement("div");
+        VA.renderFeatureBody(slot, [], { plan: plan, command: function () {}, hoverFace: function () {} });
+        var rows = slot.querySelectorAll(".navtree__featurestate");
+        eq(rows[1].querySelector(".navtree__featuresub").textContent, plan.lines[1].sub);
+        eq(rows[1].querySelectorAll("button").length, 1, "Take sits on the ranked face's line");
+      });
+
     await test("a feature whose faces disagree says so, lists each face with Keep, and offers " +
       "Pick a face for when neither is its face", function () {
         var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
