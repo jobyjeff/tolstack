@@ -3632,12 +3632,13 @@ async function armedClick(pick, other, shift) {
   let plan = AA.planArmedClick(pick, other, standing);
   const acts = AA.ARMED_CLICK_ACTIONS;
   // The face already held is a new answer when its surface brings faces the
-  // set does not hold yet (a split half bound alone before 2026-11-12): the
-  // re-pick takes them, and replaces the set.
+  // set does not hold yet (a split half bound alone before 2026-11-12), or
+  // when it is a hole of a pattern the set does not hold (Jeff's one bound
+  // hole, 2026-11-15): the re-pick takes them, and replaces the set.
   if (plan.action === acts[2]) {
     const more = await surfaceSiblingsOf(pick.sha256, pick.faceId);
     const held = new Set(standing.map((b) => b.geometry_key && b.geometry_key.face_id));
-    if (more.swept.concat(more.offered).some((f) => !held.has(f))) {
+    if (more.swept.concat(more.offered, more.pattern).some((f) => !held.has(f))) {
       plan = { action: acts[0], pick, supersedes: AA.answerSupersedes(standing) };
     }
   }
