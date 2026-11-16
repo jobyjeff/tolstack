@@ -1,7 +1,7 @@
 {
   "tier": "fast",
   "suite": null,
-  "expect_red": "a feature's body says what it is: bound with its face, part number, Correct, Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane lists is the pane's rows; an armed end is its line and Cancel",
+  "expect_red": "a feature's body says what it is: bound with its face, part number, Correct, Add a face, Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane lists is the pane's rows; an armed end is its line and Cancel",
   "mutations": [
     {
       "contract": "Pick and Correct arm the pick on the feature's OWN part.",
@@ -18,6 +18,14 @@
       "find": "        if (model.dimension(b.edgeId) && !model.bindingsAt(b.edgeId, other).length) {",
       "replace": "        if (model.dimension(b.edgeId)) {",
       "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
+    },
+    {
+      "contract": "Add a face arms the same pick as Correct, in the mode that adds.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the mode, so Add a face is a second Correct and replaces the set it was meant to grow.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      return { text: W.addFace, title: W.addFaceTitle, command: verb(V.arm, e).concat([VA.ARM_ADD]) };",
+      "replace": "      return { text: W.addFace, title: W.addFaceTitle, command: verb(V.arm, e) };",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
     }
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a set of holes fits as a pattern -- count, size, axis and the circle the centres are on -- and says it in one line; a set that is no pattern is null (feature_geometry.hole_pattern)",
+  "mutations": [
+    {
+      "contract": "Every hole of a pattern is like the first: two sizes are no pattern.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the check, so a set of two sizes fits as a pattern of the first size.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "      if (!linked) return null;\n",
+      "replace": "",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "The hole radius is the faces' mean, not the first face's.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Reads the first face's radius.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    var radius = records.reduce(function (s, r) { return s + r.radius; }, 0) / records.length;",
+      "replace": "    var radius = records[0].radius;",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "On a circle only when every centre is on it.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the residual test: any fitted circle is reported.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    if (residual > tol.circleFraction * fit.r || fit.r > tol.circleMaxSpread * spread) return out;",
+      "replace": "    if (fit.r > tol.circleMaxSpread * spread) return out;",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a picked hole offers its pattern -- the other holes of one size on one plane, each whole -- the same faces feature_geometry.pattern_siblings offers",
+  "mutations": [
+    {
+      "contract": "Only a whole hole has a pattern: a fillet arc of the same size offers nothing.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the picked hole's wholeness check: the fixture's fillet (face 18) then offers the six holes.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    if (!whole(mine)) return none;\n",
+      "replace": "",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "Two holes of a pattern do not overlap.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the overlap rule: the cylinder 1.0 off hole 0 joins hole 0's pattern (the hub's offset 80 mm bores, on the real mesh).",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    return norm(sub(delta, scale(mean, along))) > 2 * radius;",
+      "replace": "    return true;",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "A hole on another plane is not of the pattern.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the axial-offset test.",
+      "file": "apps/annotate/face_geometry.js",
+      "find": "    if (Math.abs(along) > tol.axialOffsetFraction * radius) return false;\n",
+      "replace": "",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    }
+  ]
+}

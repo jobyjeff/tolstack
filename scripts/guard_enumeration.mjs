@@ -338,7 +338,11 @@ export const DECLARED_GUARDS = {
   // edge can move up. Both carry a spec.
   // 2026-11-15 (a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates): +2 -- a suggestion line names the
   // surest proposal's face, and the ranked mates under a feature. Both carry a spec.
-  fast: { declared: 703, enrollable: 703, names: "d81c923fdc87" },
+  // 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): +2 --
+  // a bound set's body (Add a face, the pattern's fit line, Remove per face) and
+  // the Parts filter; the feature body's guard renamed (it now names Add a face).
+  // Every new and renamed name carries a spec.
+  fast: { declared: 705, enrollable: 705, names: "70b5ba23c684" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -426,7 +430,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-15 (a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates): +5 -- the mate ranking by value on
   // the blade bore, the occurrence pairs, the measured tolerances, flats, and
   // the planner's stage order. Each carries a spec.
-  annotate: { declared: 321, enrollable: 321, names: "a37bb3e54d78" },
+  // 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): +2 --
+  // a picked hole's pattern and a set of holes' fit, on the faces
+  // tests/test_hole_pattern.py answers on. Both carry a spec.
+  annotate: { declared: 323, enrollable: 323, names: "3aaff7c3e5c2" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

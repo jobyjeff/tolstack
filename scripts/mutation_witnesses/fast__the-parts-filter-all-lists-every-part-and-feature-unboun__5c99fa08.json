@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the Parts filter: All lists every part and feature; Unbound hides the bound features and every part, and body, whose features are all bound; the count beside it is the model's unbound features; a click asks the page, and nothing else is touched",
+  "mutations": [
+    {
+      "contract": "Unbound hides a bound feature.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Keeps every feature under the filter, so Unbound lists what is already bound.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    return !filtering(state) || unbound(model, fid);",
+      "replace": "    return true;",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "The count beside the filter is the model's unbound features.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Counts every feature, bound or not.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    return ((model && model.features) || []).filter(function (f) { return unbound(model, f.id); }).length;",
+      "replace": "    return ((model && model.features) || []).length;",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "A part whose features are all bound goes under the filter.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Keeps every part, so a part with nothing left to bind still sits in the tree, empty.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (!filtering(state)) return true;\n    return model.subtreeOf(partId).some(",
+      "replace": "    if (true) return true;\n    return model.subtreeOf(partId).some(",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    }
+  ]
+}

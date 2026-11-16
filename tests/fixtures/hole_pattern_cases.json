@@ -446,6 +446,134 @@
    "radius": 2.75,
    "arc_deg": 180.0,
    "extent": 4.0
+  },
+  "28": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    300.0,
+    0.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "29": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    300.0,
+    0.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "30": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    330.0,
+    0.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "31": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    330.0,
+    0.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "32": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    300.0,
+    30.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "33": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    300.0,
+    30.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "34": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    340.0,
+    40.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "35": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    340.0,
+    40.0,
+    107.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
   }
  },
  "siblings": [
@@ -611,6 +739,29 @@
     "on_circle": false
    },
    "words": "3 holes Ø5.5 not on a circle"
+  },
+  {
+   "faces": [
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35
+   ],
+   "expect": {
+    "holes": 4,
+    "radius": 2.75,
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "on_circle": false
+   },
+   "words": "4 holes Ø5.5 not on a circle"
   },
   {
    "faces": [

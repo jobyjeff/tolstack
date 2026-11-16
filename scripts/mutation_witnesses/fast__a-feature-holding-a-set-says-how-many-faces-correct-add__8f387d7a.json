@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a feature holding a set says how many faces, Correct, Add a face and Unbind; what the pane read it as when it is a hole pattern, in one line; and each face with Remove",
+  "mutations": [
+    {
+      "contract": "A bound set that the pane read as a pattern says so in one line.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops the fit line from the body.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        ] }].concat(fit ? [{ text: fit, fit: true }] : []).concat(record.faces.map(function (f) {",
+      "replace": "        ] }].concat(record.faces.map(function (f) {",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    },
+    {
+      "contract": "A set's body offers Add a face beside Correct.",
+      "note": "Declared with the guard by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added (2026-11-15). Drops Add a face from a set's body.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "          { text: W.correct, title: W.correctTitle, command: verb(V.arm, end) },\n          addFace(end),",
+      "replace": "          { text: W.correct, title: W.correctTitle, command: verb(V.arm, end) },",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md"
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: resolved
 area: feature-identity/fit
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
-defer_until: 2026-11-29
-resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
+handoff: docs/sessions/HANDOFF_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md
+resolution: resolved 2026-11-16 by handoff a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added -- the pick offers a hole's pattern (AA.surfaceSiblings' pattern tier, feature_geometry.pattern_siblings), fit_face_set returns a hole_pattern fit (count, radius, axis, centres, circle) and refuses any other mix of surfaces, and the feature body and the Preview print it in one line. (Was deferred 2026-11-15 by triage to 2026-11-29.)
 class: feature_model_gap
 ---
 
