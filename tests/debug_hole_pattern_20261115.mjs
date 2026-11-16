@@ -276,7 +276,7 @@ async function pickInScene(page, fid, before) {
 const HUB_SHA = "e28285d1e6c934504d7c1dd0b86814cda6e256c3a18b2bbc4b6ee26cf6ceab6b";
 const CLOCKING = "hub@tan_link_mount_fastener_clocking";
 const PILOT = "hub@hub_spindle_bore_axis";
-const MOUNT_FACE = "tan_link_mount_215175_002@tan_link_mount_hub_face";
+const MOUNT_FACE = "piston_cover_214958_002@piston_cover_end_stop_shoulder";
 const realEvents = () => readdirSync(join(MAIN, "data", "inbox", "feature-identity")).filter((n) => n.endsWith(".json")).length;
 log("real log events, before", realEvents());
 
@@ -316,10 +316,10 @@ async function waitBody(page, fid, pred, ms) {
 // Where on the page a face of the armed part is under the pointer: the
 // pane's own filtered ray, scanned over the canvas. `want` (a face id) first,
 // else any face for which `ok(faceId)` holds.
-async function faceOnPage(page, want, ok) {
+async function faceOnPage(page, want, ok, avoid) {
   const frameEl = await page.locator("#annotate-flyout iframe").elementHandle();
   const box = await frameEl.boundingBox();
-  const found = await frameOf(page).evaluate(([want, okSrc]) => {
+  const found = await frameOf(page).evaluate(([want, okSrc, avoid]) => {
     const ok = okSrc ? new Function("f", "return (" + okSrc + ")(f)") : null;
     const c = document.querySelector("#canvas-host canvas").getBoundingClientRect();
     let any = null;
@@ -332,11 +332,11 @@ async function faceOnPage(page, want, ok) {
       if (!h) continue;
       const at = { x: c.left + c.width * (gx + 1) / 2, y: c.top + c.height * (1 - gy) / 2, faceId: h.faceId };
       if (want !== null && h.faceId === want) return at;
-      if (!any && ok && ok(h.faceId)) any = at;
+      if (!any && ok && ok(h.faceId) && avoid.indexOf(h.faceId) === -1) any = at;
       if (want === null && any) return any;
     }
     return any;
-  }, [want === undefined ? null : want, ok ? ok.toString() : null]);
+  }, [want === undefined ? null : want, ok ? ok.toString() : null, avoid || []]);
   return found ? { x: box.x + found.x, y: box.y + found.y, faceId: found.faceId } : null;
 }
 async function clickFace(page, at, shift) {
@@ -415,6 +415,9 @@ async function openAllParts(page) {
   await frameOf(page).waitForSelector("#an-offer.an__offer--on", { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(1500);
   log("the offer", { offer: await offerState(page), writes: scratchEvents() - before });
+  // The whole hub in view, so the lit holes show (camera face zoomed onto 744).
+  await frameOf(page).evaluate((sha) => window.AnnotateApp.exec(["camera", "frame", sha]), HUB_SHA);
+  await page.waitForTimeout(2500);
   await shot(page, "02_pattern_offered_all_holes_lit", CLOCKING);
   await frameOf(page).locator('#an-offer [data-offer="all"]').click();
   log("Take all -> written ms", await waitWrite(page, before));
@@ -487,7 +490,7 @@ async function openAllParts(page) {
     armed: await frameOf(page).evaluate(() => !!(window.__embedTree || {}).armed), event: newestEvent().name });
   const firstFaces = (newestEvent().event.geometry_keys || []).map((g) => g.face_id);
   await page.waitForTimeout(4000);
-  const b = await faceOnPage(page, null, (f) => firstFaces.indexOf(f) === -1);
+  const b = await faceOnPage(page, null, () => true, firstFaces);
   before = scratchEvents();
   await clickFace(page, b, true);
   log("Shift-click 2 -> written ms", await waitWrite(page, before));

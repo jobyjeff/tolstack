@@ -12046,7 +12046,7 @@ async function testPatternAndAddAFace(browser, label, topologies) {
     await page.waitForFunction((sel) => /faces of/.test((document.querySelector(sel) || {}).textContent || ""),
       row(PILOT) + " ~ .navtree__scene .navtree__featurewords", { timeout: 60000 }).catch(() => {});
     before = await writes();
-    await slotOf(PILOT).locator(`.navtree__featurestate[data-face="${extra}"] button`, { hasText: "Remove" })
+    await slotOf(PILOT).locator(`.navtree__featurestate[data-face="${extra}"] + .navtree__featureacts button`, { hasText: "Remove" })
       .first().click({ timeout: 10000 }).catch(() => {});
     await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
     const removed = await writtenSince(before);
@@ -12089,7 +12089,7 @@ async function testPatternAndAddAFace(browser, label, topologies) {
     push("[real] binding one feature drops the filter's count by one",
       unbound0.has(LONE) && count1 === count0 - 1);
     before = await writes();
-    await slotOf(LONE).locator(`.navtree__featurestate[data-face="${other}"] button`, { hasText: "Remove" })
+    await slotOf(LONE).locator(`.navtree__featurestate[data-face="${other}"] + .navtree__featureacts button`, { hasText: "Remove" })
       .first().click({ timeout: 10000 }).catch(() => {});
     await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
     const dropped = await writtenSince(before);
