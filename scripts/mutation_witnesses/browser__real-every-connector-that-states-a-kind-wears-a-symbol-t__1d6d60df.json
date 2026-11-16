@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] every connector that states a kind wears a symbol, the clocking its ring of dots, the pilot its circle and dot, the ball joints their cup and ball",
+  "mutations": [
+    {
+      "contract": "The layout file's symbol word for a constraint is honoured: the clocking is drawn as the ring of dots.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Ignores the layout file's word, so the clocking has no symbol.",
+      "file": "apps/viewer/map.js",
+      "find": "    if (named) return VA.MAP_SYMBOLS[named] ? named : null;",
+      "replace": "    if (named) return null; /* mutated: the layout's word is ignored */"
+    }
+  ]
+}

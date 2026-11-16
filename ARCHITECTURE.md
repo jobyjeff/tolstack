@@ -251,7 +251,10 @@ scripts/
 apps/
   viewer/           the static stack/check review surface (see its README);
                     since 2026-10-20 also a kinematic study's own page
-                    (views/kinematic.js)
+                    (views/kinematic.js); since 2026-11-16 the DAG region's
+                    map -- map.js lays the model out from the model view and
+                    the authored places, views/map.js draws it, map.css
+                    styles it (docs/DAG_TOPOLOGY.md, "The map")
   annotate/         the shell's embedded pane; no standalone entry. Select a mesh
                     face, tag it with a stack element's identity (see its
                     README). Added 2026-09-06.

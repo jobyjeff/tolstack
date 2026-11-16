@@ -591,6 +591,92 @@ stripped so the number is said once (Jeff, 2026-10-20: a label carries the
 everyday name beside its number, because numbers get renumbered and nobody
 memorises them).
 
+### The map — a second drawing of the same model (2026-11-16)
+
+Since handoff `the_map_draws_the_end_stop_model` (Jeff, 2026-11-10: *"Yes I
+like your tube map"*, with his own sketch) the DAG's region has two drawings
+of the one model and a **Map · Classic** switch in its own header. **The map
+is a second drawing of the same model and never a second model**: it reads
+the model view above (`model`) and one authored layout file beside the model,
+`docs/topologies/map_<model id>.json`, and nothing from the present DAG's
+`layout {columns, rows, rails}`. The present DAG is unchanged underneath
+("Classic") and retires in a later handoff, on Jeff's yes.
+
+**What is authored** is one thing: a part's place on a coarse grid —
+`places: {<part>: [column, row]}`, one entry per top-level part. A child part
+(a bearing in its link) may have no entry and sits in its parent's cell. The
+file may also name a `symbols: {<interface>: <word>}` override, today only to
+say that the tangential-link mount's clocking is a fastener pattern, which the
+model has no interface word for yet. The builder ships the file verbatim as
+the topology's `map` and refuses one that leaves a top-level part unplaced or
+places a part the model has not (`build_topology_projection.load_topology_map`):
+the map's whole claim is that nothing in the model is left undrawn. A model
+with no file (v1) has no map; its region draws Classic and the switch says
+*No map*. The file is not named `topology_<id>.map.json` because every reader
+of the directory globs `topology_*.json` for the models.
+
+**What is computed** (`apps/viewer/map.js`, pure; drawn by
+`apps/viewer/views/map.js`):
+
+- **A box per part**, centred in its cell, sized by its pins: as wide as the
+  pins on its top or bottom need, as tall as those on its left or right, never
+  under a minimum; its number and everyday name inside, the name wrapped and
+  cut with the whole label as its tooltip.
+- **A pin per feature that ends an interface**, on the side of the box that
+  faces the counterpart's cell; the pins of one side centred and evenly
+  spaced, ordered by the counterpart's position and then by the constraint's
+  place in its joint, so a joint's constraints leave **parallel pins in the
+  same order at both ends** — that is the bundle. A feature that ends no
+  interface (a dimension's end on the part alone) is an inner mark. A pin's
+  short label shows on hover and when lit.
+- **A jumper per dimension**, inside the box between the two ends it
+  measures; two ends on one side bow into the box.
+- **A connector per interface**, routed from pin to pin: out of each pin
+  square to its side, then a 45° leg for the shorter axis and a straight leg
+  for the rest, with the **joint's symbol drawn large** where the route passes
+  nearest the midpoint between its pins — the gap between two districts, never
+  a border. Heavier between two bodies than inside one.
+- **A district per body**: the body's parts' boxes, padded, held inside the
+  union of its cells inset — so two adjacent bodies' districts never touch and
+  a body with one small part has a small district; named at its corner. **An
+  assembly's outline** round its own box and its children's small boxes
+  (three nested outlines: body, assembly, part).
+- **The view**: fitted to the region on the first paint, never past a cap,
+  then the reader's wheel zooms about the pointer, a drag on empty space pans,
+  Fit and the `0` key re-fit; a selection made elsewhere is panned into view
+  when it is off the region. The view outlives a repaint, not the page.
+
+**The symbol table** (`VA.MAP_SYMBOLS`; the six `INTERFACE_KINDS` through the
+generated vocabulary, plus the view's `contact` and the map's `pattern`):
+
+| word | drawn as |
+| --- | --- |
+| `contact` (a node two parts share) and `planar` | the capacitor mark — two plates across the route, the route broken between them |
+| `pin_in_bore` | a closed circle and a dot: a boss in a hole |
+| `spherical` | a cup and a ball, the cup open toward the far end |
+| `pattern` (named by the layout file) | a ring of dots |
+| `cylindrical_slide` | the present design's hollow bar with the double arrow, large |
+| `clearance` | two stops with the travel arrow between them |
+| `thread` | the present design's block crossed by the flanks, large |
+
+A gap edge that states no interface word is drawn as a bare connector; the
+gap list names it, as before.
+
+**Every entity once, keyed by the model's ids.** Each drawn thing carries its
+entity's kind and id (`data-map-kind`, `data-map-id`), and the browser tier
+counts districts, boxes, pins, jumpers and connectors against `model.counts`
+on the real model and on the fixture. Hover and select go through the page's
+one store and the one resolver (`VA.focusLightOf`, read by `VA.mapLightKeys`),
+by entity rather than by element key — a node two parts share is two pins,
+one per feature — in the two strengths every surface wears, and nothing goes
+opaque. Every curve takes `fill: none` in the markup and in the stylesheet.
+
+**Not drawn yet**, each a later handoff: a fold control on an assembly's
+outline (`ISSUE_20261114_assembly_folding_left_out_of_three_surfaces`); a
+study lit as a route; a layout for v1; the compound joints the model does not
+author yet (the map draws each as it is authored); and the retirement of
+Classic with its suites rewritten once.
+
 ### Naming a feature (2026-11-10)
 
 Model v2's names were rewritten under one rule when the left column became

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a part selected in the tree while its box is off the map's region is panned into view, at the reader's zoom",
+  "mutations": [
+    {
+      "contract": "A selection made elsewhere is panned into view when it is off the region.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Leaves the view where it was.",
+      "file": "apps/viewer/views/map.js",
+      "find": "        var moved = VA.mapBringIntoView(view, target, size.width, size.height, 24);",
+      "replace": "        var moved = view; /* mutated: a selection elsewhere is not brought into view */"
+    }
+  ]
+}

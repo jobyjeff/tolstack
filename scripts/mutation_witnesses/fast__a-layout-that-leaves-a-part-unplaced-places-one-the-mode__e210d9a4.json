@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a layout that leaves a part unplaced, places one the model has not, or routes through a box says so in its notes rather than drawing something else",
+  "mutations": [
+    {
+      "contract": "An unplaced top-level part is a layout defect reported in notes, never drawn at an invented place.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Places an unplaced part at the origin cell and says nothing, so the part is drawn and the note is missing.",
+      "file": "apps/viewer/map.js",
+      "find": "      else notes.push(\"part \" + p.id + \" has no place in the layout\");",
+      "replace": "      else placeOf[p.id] = [0, 0]; /* mutated: an unplaced part is drawn at the origin cell */"
+    }
+  ]
+}

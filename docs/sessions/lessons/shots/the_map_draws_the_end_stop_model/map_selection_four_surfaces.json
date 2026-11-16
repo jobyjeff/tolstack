@@ -1,0 +1,176 @@
+[
+ {
+  "t": 0,
+  "map": {
+   "lead": 9,
+   "selected": 0,
+   "touched": 0
+  },
+  "tree": {
+   "hot": 1,
+   "on": 0
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 0
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f"
+  ]
+ },
+ {
+  "t": 150,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ },
+ {
+  "t": 300,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ },
+ {
+  "t": 450,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ },
+ {
+  "t": 600,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ },
+ {
+  "t": 750,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ },
+ {
+  "t": 900,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ },
+ {
+  "t": 1050,
+  "map": {
+   "lead": 9,
+   "selected": 9,
+   "touched": 8
+  },
+  "tree": {
+   "hot": 9,
+   "on": 9
+  },
+  "grid": {
+   "lead": 3,
+   "selected": 3
+  },
+  "scene": [
+   "hover:own:1p6f",
+   "hover:touching:0p2f",
+   "select:own:1p6f",
+   "select:touching:0p2f"
+  ]
+ }
+]

@@ -342,7 +342,9 @@ export const DECLARED_GUARDS = {
   // a bound set's body (Add a face, the pattern's fit line, Remove per face) and
   // the Parts filter; the feature body's guard renamed (it now names Add a face).
   // Every new and renamed name carries a spec.
-  fast: { declared: 705, enrollable: 705, names: "70b5ba23c684" },
+  // 2026-11-16 (the_map_draws_the_end_stop_model): +9, the map's layout,
+  // its drawing, its lighting, its view and its switch. Every one carries a spec.
+  fast: { declared: 714, enrollable: 714, names: "85cce71510eb" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -684,7 +686,12 @@ export const DECLARED_GUARDS = {
   // 744, Take all, the fit in the body and the Preview, Add a face, two Removes,
   // Shift-click, and the count dropping by one. Each carries a spec; the suite's
   // "(skipped: ...)" line does not (it passes exactly when the data is absent).
-  browser: { declared: 868, enrollable: 837, names: "8b8190045b91" },
+  // 2026-11-16 (the_map_draws_the_end_stop_model): +28, the map suite -- the
+  // default and the switch, the counts, the fit, the one selection and hover
+  // against the tree, the grid and the scene both ways, the view. 26 carry a
+  // spec; the suite's skip arm and its "nothing threw" absence cannot be
+  // witnessed, so the pin is raised for those two.
+  browser: { declared: 896, enrollable: 865, names: "2cad14226dfb" },
 };
 
 

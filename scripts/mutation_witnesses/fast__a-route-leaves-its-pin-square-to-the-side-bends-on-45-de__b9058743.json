@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a route leaves its pin square to the side, bends on 45 degrees and runs straight, and its symbol sits in the gap between the two parts, never on a district's border",
+  "mutations": [
+    {
+      "contract": "A route leaves its pin square to the side by the stub length before it turns.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Removes the stub at the from end: the route's first leg is zero length and the stub check fails.",
+      "file": "apps/viewer/map.js",
+      "find": "    var p1 = { x: a.x + na[0] * M.stub, y: a.y + na[1] * M.stub };",
+      "replace": "    var p1 = { x: a.x, y: a.y }; /* mutated: no stub */"
+    },
+    {
+      "contract": "Two unaligned stub ends are joined by a 45-degree leg for the shorter axis and a straight leg for the rest.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Routes an axis-aligned L instead, so the ball joint's route has no 45-degree leg.",
+      "file": "apps/viewer/map.js",
+      "find": "    var sx = Math.sign(dx) * d, sy = Math.sign(dy) * d;",
+      "replace": "    var sx = dx, sy = 0; /* mutated: an L, not a 45-degree leg */"
+    }
+  ]
+}

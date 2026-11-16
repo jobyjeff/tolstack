@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a pin sits on the side of its box that faces its counterpart's cell, a joint's constraints leave parallel pins in one order at both ends, a box grows with its pins and a body's district hugs its parts inside its cells",
+  "mutations": [
+    {
+      "contract": "A pin's side is the side of its cell that faces its counterpart's cell; a tie goes to top or bottom.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Breaks the vertical case of the side rule: a counterpart straight below puts the pin on a flank, and the B-to-C ball joint's pins come out on the wrong sides.",
+      "file": "apps/viewer/map.js",
+      "find": "    return dy > 0 ? \"bottom\" : \"top\";",
+      "replace": "    return dx >= 0 ? \"right\" : \"left\"; /* mutated */"
+    },
+    {
+      "contract": "A box is as tall as the pins on its left or right need, never under the minimum.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Holds every box at the minimum height, so two pins on one side no longer size it.",
+      "file": "apps/viewer/map.js",
+      "find": "      var h = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);",
+      "replace": "      var h = M.box.minH; /* mutated: pins no longer size the box */"
+    }
+  ]
+}

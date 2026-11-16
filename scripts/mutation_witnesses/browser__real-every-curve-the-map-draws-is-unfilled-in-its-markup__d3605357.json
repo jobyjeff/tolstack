@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] every curve the map draws is unfilled, in its markup and as the page computes it",
+  "mutations": [
+    {
+      "contract": "A connector's route carries fill none in its markup (the 11-14 walk found SVG's default black fill under a hover).",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Drops the attribute from the connector's line; the stylesheet still computes none, the markup no longer says it.",
+      "file": "apps/viewer/views/map.js",
+      "find": "      var line = VA.svg(\"path\", \"map__connectorline\", { d: c.d, fill: \"none\" });",
+      "replace": "      var line = VA.svg(\"path\", \"map__connectorline\", { d: c.d }); /* mutated */"
+    }
+  ]
+}

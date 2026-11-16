@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a model with a layout opens on the map: the region draws the map and no rails, its own header presses Map, and the grid beside it is drawn as ever",
+  "mutations": [
+    {
+      "contract": "The page hands the region the drawing the reader chose, the map by default where the model has a layout.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Always asks for Classic.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        dagDrawing: VA.dagDrawingFor(state.dagDrawing, topoProj),",
+      "replace": "        dagDrawing: \"classic\", /* mutated */"
+    }
+  ]
+}

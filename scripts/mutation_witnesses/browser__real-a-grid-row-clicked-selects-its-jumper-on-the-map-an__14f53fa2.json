@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a grid row clicked selects its jumper on the map and the two pins it measures between",
+  "mutations": [
+    {
+      "contract": "The page hands the map the one selection as the entity it is.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Hands the map no selection.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        selectedEntity: state.focus.selected,",
+      "replace": "        selectedEntity: null, /* mutated: the map is told no selection */"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map's view fits the drawing to its region never past the cap, zooms about the pointer, pans by the least that brings a rect in, and is kept across a repaint",
+  "mutations": [
+    {
+      "contract": "A fit never passes the zoom cap, however large the region.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Drops the cap from the fit.",
+      "file": "apps/viewer/map.js",
+      "find": "    var k = Math.min(width / bounds.w, height / bounds.h, VA.MAP_ZOOM.fitMax);",
+      "replace": "    var k = Math.min(width / bounds.w, height / bounds.h); /* mutated: no cap */"
+    },
+    {
+      "contract": "A wheel zooms about the pointer: the world point under it stays under it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Zooms about the origin instead.",
+      "file": "apps/viewer/map.js",
+      "find": "    return { k: k, tx: px - wx * k, ty: py - wy * k };",
+      "replace": "    return { k: k, tx: view.tx, ty: view.ty }; /* mutated: zooms about the origin */"
+    }
+  ]
+}

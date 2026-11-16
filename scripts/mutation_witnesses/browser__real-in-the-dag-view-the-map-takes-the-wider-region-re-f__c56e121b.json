@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] in the DAG view the map takes the wider region, re-fitted, with its header still in the region",
+  "mutations": [
+    {
+      "contract": "A region that changes size under a fitted view re-fits it (the resize observer).",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Stops watching the region's size.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    observer.observe(root);",
+      "replace": "    /* mutated: the region's size is not watched */"
+    }
+  ]
+}

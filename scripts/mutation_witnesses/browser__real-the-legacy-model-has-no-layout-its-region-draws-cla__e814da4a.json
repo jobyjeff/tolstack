@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] the legacy model has no layout: its region draws Classic and the switch says No map, in two words, and takes no click",
+  "mutations": [
+    {
+      "contract": "For a model with no layout the Map button says No map.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Says Map regardless.",
+      "file": "apps/viewer/views/map.js",
+      "find": "      var b = VA.el(\"button\", \"ghost tvpick__mode\", unavailable ? VA.NO_MAP_LABEL : spec.label);",
+      "replace": "      var b = VA.el(\"button\", \"ghost tvpick__mode\", spec.label); /* mutated: never says No map */"
+    }
+  ]
+}

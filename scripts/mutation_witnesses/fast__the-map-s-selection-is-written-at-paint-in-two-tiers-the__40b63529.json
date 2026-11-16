@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map's selection is written at paint in two tiers, the hover is rewritten over it in two strengths from the one resolver, and no entity lights nothing",
+  "mutations": [
+    {
+      "contract": "The hover lights the touching tier fainter (--hot) as well as the own tier.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Lights the own tier only.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    (keys.touching || []).forEach(function (k) { light(k, \"hot\"); });",
+      "replace": "    /* mutated: the touching tier is not lit */"
+    },
+    {
+      "contract": "The selection writes its touching tier (--touched) at paint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Writes the own tier only.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    (keys.touching || []).forEach(function (k) { set(k, \"touched\"); });",
+      "replace": "    /* mutated: the selection's touching tier is not written */"
+    }
+  ]
+}

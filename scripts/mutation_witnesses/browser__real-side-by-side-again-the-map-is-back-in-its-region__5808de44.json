@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] side by side again, the map is back in its region",
+  "mutations": [
+    {
+      "contract": "Choosing Side by side from the 3D view shows the region again.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Side by side lands on the 3D view.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (!VA.isPaneView(id) || id === state.paneView) return;\n    state.paneView = id;",
+      "replace": "    if (!VA.isPaneView(id) || id === state.paneView) return;\n    state.paneView = id === \"both\" ? \"3d\" : id; /* mutated */"
+    }
+  ]
+}

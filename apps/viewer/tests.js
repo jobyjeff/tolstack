@@ -15754,6 +15754,400 @@
       bannedIn(viewerAuthoredText(root), "kinematic page");
     });
 
+    // --- the map (the_map_draws_the_end_stop_model, 2026-11-15) ---------------
+    //
+    // The DAG region's second drawing of the same model: apps/viewer/map.js
+    // lays it out from the model view and the authored places; views/map.js
+    // draws it and lights it from the one resolver. The fixture's demo
+    // mechanism carries a layout (topology_fixtures.js, `map`); the real
+    // model's is pinned in the browser tier against `model.counts`.
+
+    // A small model in the view's own shape: two parts A and B in one body,
+    // joined by a two-constraint joint (a seat and a pilot), A's third
+    // feature a dimension end on A alone; a third part C in a second body
+    // below B, meeting it through a ball joint.
+    function mapModel() {
+      var f = function (part, nodeId, name, shared) {
+        return { id: part + "@" + nodeId, part: part, node: nodeId, name: name,
+                 kind: shared ? "mating_surface" : "datum_feature", shared: !!shared, body: part === "C" ? "two" : "one" };
+      };
+      var iface = function (id, kind, source, ends, parts, within, joint) {
+        return { id: id, name: id, kind: kind, source: source, ends: ends, parts: parts,
+                 bodies: within ? [within] : ["one", "two"], within: within, joint: joint };
+      };
+      return {
+        id: "m", title: "m", identity_ids: ["m"],
+        bodies: [{ id: "one", name: "one", kind: "body", parts: ["A", "B"], all_parts: ["A", "B"] },
+                 { id: "two", name: "two", kind: "link", parts: ["C"], all_parts: ["C"] }],
+        parts: [{ id: "A", label: "1 a", number: "1", name: "a", body: "one", features: ["A@seat", "A@boss", "A@datum"],
+                  dimensions: ["dA"], parent: null, children: [], depth: 0 },
+                { id: "B", label: "2 b", number: "2", name: "b", body: "one", features: ["B@seat", "B@bore", "B@ball"],
+                  dimensions: ["dB"], parent: null, children: [], depth: 0 },
+                { id: "C", label: "c", number: null, name: "c", body: "two", features: ["C@ball"],
+                  dimensions: [], parent: null, children: [], depth: 0 }],
+        features: [f("A", "seat", "seat", true), f("B", "seat", "seat", true), f("A", "boss", "boss"),
+                   f("B", "bore", "bore"), f("A", "datum", "datum"), f("B", "ball", "ball"), f("C", "ball", "ball")],
+        dimensions: [{ id: "dA", part: "A", name: "boss to datum", from: "A@boss", to: "A@datum", body: "one" },
+                     { id: "dB", part: "B", name: "seat to ball", from: "B@seat", to: "B@ball", body: "one" }],
+        interfaces: [iface("seat", "contact", "node", ["A@seat", "B@seat"], ["A", "B"], "one", "A+B"),
+                     iface("pilot", "pin_in_bore", "edge", ["A@boss", "B@bore"], ["A", "B"], "one", "A+B"),
+                     iface("ball", "spherical", "edge", ["B@ball", "C@ball"], ["B", "C"], null, "B+C")],
+        joints: [{ id: "A+B", parts: ["A", "B"], bodies: ["one"], within: "one", constraints: ["seat", "pilot"] },
+                 { id: "B+C", parts: ["B", "C"], bodies: ["one", "two"], within: null, constraints: ["ball"] }],
+        counts: { bodies: 2, parts: 3, features: 7, dimensions: 2, interfaces: 3, contacts: 1, gaps: 2,
+                  between_bodies: 1, within_bodies: 2, joints: 2, assemblies: 0 },
+      };
+    }
+    function mapDoc(places, symbols) {
+      return { schema: "joby.tolerance_stack/topology_map/v0", topology: "m",
+               places: places || { A: [0, 0], B: [1, 0], C: [1, 1] }, symbols: symbols || {} };
+    }
+    function angleOf(p, q) {
+      return Math.round(Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI);
+    }
+    function inRect(p, r) {
+      return p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h;
+    }
+    function mapRoot(over) {
+      var r = document.createElement("div");
+      var ctx = Object.assign({ topoProj: TOPO, model: VA.buildModel(TOPO, null),
+        mapRegion: { width: 2390, height: 2160 } }, over || {});
+      VA.renderTopoMap(r, ctx);
+      return r;
+    }
+
+    await test("the map's layout draws the model's counts: a district per body, a box per part, " +
+      "a pin per feature that ends an interface and a mark for one that does not, a jumper per " +
+      "dimension and a connector per interface, with nothing left undrawn", function () {
+        var geo = VA.mapLayout(TOPO.model, TOPO.map);
+        eq(geo.notes, [], "the fixture's layout has no defect");
+        eq(VA.mapCounts(geo), VA.mapExpectedCounts(TOPO.model));
+        eq(geo.marks.map(function (m) { return m.id; }), ["base@base_datum"],
+           "the one feature that ends no interface is an inner mark");
+        eq(geo.pins.length, TOPO.model.features.length - 1);
+        var geo2 = VA.mapLayout(mapModel(), mapDoc());
+        eq(geo2.notes, []);
+        eq(VA.mapCounts(geo2), VA.mapExpectedCounts(mapModel()));
+      });
+
+    await test("a pin sits on the side of its box that faces its counterpart's cell, a joint's " +
+      "constraints leave parallel pins in one order at both ends, a box grows with its pins and " +
+      "a body's district hugs its parts inside its cells", function () {
+        var M = VA.MAP;
+        var geo = VA.mapLayout(mapModel(), mapDoc());
+        var pin = function (id) { return geo.pins.filter(function (p) { return p.id === id; })[0]; };
+        eq([pin("A@seat").side, pin("A@boss").side, pin("B@seat").side, pin("B@bore").side],
+           ["right", "right", "left", "left"], "A faces B to its right, B faces A to its left");
+        eq(pin("B@ball").side, "bottom", "C is below B");
+        eq(pin("C@ball").side, "top");
+        // The bundle: seat then pilot, top to bottom, at both ends -- so each
+        // route is one straight line.
+        ok(pin("A@seat").y < pin("A@boss").y && pin("B@seat").y < pin("B@bore").y, "the same order at both ends");
+        eq(pin("A@seat").y, pin("B@seat").y, "parallel pins, level");
+        eq(pin("A@boss").y, pin("B@bore").y);
+        eq(pin("A@boss").y - pin("A@seat").y, M.pinPitch, "a bundle's gap is the pin pitch");
+        geo.connectors.filter(function (c) { return c.joint === "A+B"; }).forEach(function (c) {
+          ok(c.bundled, c.id + " is bundled");
+          ok(c.points.every(function (p) { return p.y === c.points[0].y; }), c.id + " runs straight");
+        });
+        // A's box: two pins on its right, one mark inside -- the minimum
+        // box; a box with three pins on one side is taller than that.
+        var box = function (id) { return geo.boxes.filter(function (b) { return b.id === id; })[0]; };
+        eq([box("A").w, box("A").h], [M.box.minW, 2 * M.pinPitch + 2 * M.box.pad], "two pins on one side set the height");
+        eq([box("C").w, box("C").h], [M.box.minW, M.box.minH], "one pin: the minimum box");
+        var tall = mapModel();
+        tall.parts[0].features.push("A@x");
+        tall.features.push({ id: "A@x", part: "A", node: "x", name: "x", kind: "datum_feature", shared: false, body: "one" });
+        tall.parts[1].features.push("B@x");
+        tall.features.push({ id: "B@x", part: "B", node: "x", name: "x", kind: "datum_feature", shared: false, body: "one" });
+        tall.interfaces.push({ id: "third", name: "third", kind: "planar", source: "edge", ends: ["A@x", "B@x"],
+          parts: ["A", "B"], bodies: ["one"], within: "one", joint: "A+B" });
+        tall.joints[0].constraints.push("third");
+        tall.counts.features += 2; tall.counts.interfaces += 1;
+        var geoTall = VA.mapLayout(tall, mapDoc());
+        eq(geoTall.boxes[0].h, 3 * M.pinPitch + 2 * M.box.pad, "three pins on one side set the height");
+        // Districts: each inside its cells' union inset, round its boxes,
+        // and the two never overlap.
+        geo.bodies.forEach(function (b) {
+          geo.boxes.filter(function (x) { return x.body === b.id; }).forEach(function (x) {
+            ok(x.x >= b.x && x.y >= b.y && x.x + x.w <= b.x + b.w && x.y + x.h <= b.y + b.h, x.id + " inside " + b.id);
+          });
+        });
+        var one = geo.bodies[0], two = geo.bodies[1];
+        ok(one.y + one.h <= two.y, "the two districts do not overlap");
+        ok(one.h <= M.cell.h - 2 * M.district.inset, "a district stays inside its cells");
+      });
+
+    await test("a route leaves its pin square to the side, bends on 45 degrees and runs straight, " +
+      "and its symbol sits in the gap between the two parts, never on a district's border", function () {
+        var geo = VA.mapLayout(mapModel(), mapDoc({ A: [0, 0], B: [1, 0], C: [0, 2] }));
+        eq(geo.notes, []);
+        geo.connectors.forEach(function (c) {
+          for (var i = 1; i < c.points.length; i++) {
+            var a = Math.abs(angleOf(c.points[i - 1], c.points[i])) % 180;
+            ok(a === 0 || a === 45 || a === 90 || a === 135, c.id + " segment at " + a + " degrees");
+          }
+          geo.boxes.forEach(function (b) { ok(!inRect(c.mid, b), c.id + "'s symbol is not inside " + b.id); });
+          if (c.within === null) {
+            geo.bodies.forEach(function (b) { ok(!inRect(c.mid, b), c.id + "'s symbol is not inside district " + b.id); });
+          }
+        });
+        // Every route's first and last legs are the stubs: square to the pin's
+        // side, VA.MAP.stub long.
+        var pinOf = function (id) { return geo.pins.filter(function (p) { return p.id === id; })[0]; };
+        var normal = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
+        geo.connectors.forEach(function (c) {
+          var a = pinOf(c.ends[0]), b = pinOf(c.ends[1]);
+          var first = c.points[1], last = c.points[c.points.length - 2];
+          eq([first.x - a.x, first.y - a.y], [normal[a.side][0] * VA.MAP.stub, normal[a.side][1] * VA.MAP.stub], c.id + " leaves its pin square to the side");
+          eq([last.x - b.x, last.y - b.y], [normal[b.side][0] * VA.MAP.stub, normal[b.side][1] * VA.MAP.stub], c.id + " arrives square to the side");
+        });
+        var ball = geo.connectors.filter(function (c) { return c.id === "ball"; })[0];
+        ok(ball.points.length >= 4, "B above-right of C: a stub, a bend, a stub");
+        var diagonal = false;
+        for (var k = 1; k < ball.points.length; k++) {
+          var ang = Math.abs(angleOf(ball.points[k - 1], ball.points[k])) % 180;
+          if (ang === 45 || ang === 135) diagonal = true;
+        }
+        ok(diagonal, "the bend between two unaligned stubs is a 45-degree leg");
+        eq(ball.symbol, "spherical");
+        var seat = geo.connectors.filter(function (c) { return c.id === "seat"; })[0];
+        eq(seat.symbol, "contact");
+        eq(VA.mapSymbolOf({ id: "seat", kind: "contact" }, mapDoc(null, { seat: "pattern" })), "pattern",
+           "the layout file may name a constraint a pattern");
+        eq(VA.mapSymbolOf({ id: "seat", kind: "contact" }, mapDoc(null, { seat: "nonsense" })), null,
+           "a word with no picture is no symbol");
+        // The fixture's one gap edge states no contact kind: drawn bare, and
+        // no defect is reported for it.
+        var demo = VA.mapLayout(TOPO.model, TOPO.map);
+        var bare = demo.connectors.filter(function (c) { return c.id === "tip_to_strut_end"; })[0];
+        eq(bare.symbol, null);
+        eq(demo.notes, []);
+      });
+
+    await test("a layout that leaves a part unplaced, places one the model has not, or routes " +
+      "through a box says so in its notes rather than drawing something else", function () {
+        var geo = VA.mapLayout(mapModel(), mapDoc({ A: [0, 0], B: [1, 0] }));
+        ok(geo.notes.some(function (n) { return /part C has no place/.test(n); }), geo.notes.join("; "));
+        eq(geo.boxes.length, 2, "an unplaced part is not drawn somewhere invented");
+        var extra = VA.mapLayout(mapModel(), mapDoc({ A: [0, 0], B: [1, 0], C: [1, 1], Z: [3, 3] }));
+        ok(extra.notes.some(function (n) { return /places Z/.test(n); }), extra.notes.join("; "));
+        // A child with no place sits in its parent's cell, under it.
+        var kid = mapModel();
+        kid.parts.push({ id: "K", label: "k", number: null, name: "bearing", body: "two", features: [],
+          dimensions: [], parent: "C", children: [], depth: 1 });
+        kid.parts[2].children = ["K"];
+        kid.bodies[1].all_parts = ["C", "K"];
+        kid.counts.parts += 1; kid.counts.assemblies = 1;
+        var nested = VA.mapLayout(kid, mapDoc());
+        eq(nested.notes, []);
+        var c = nested.boxes.filter(function (b) { return b.id === "C"; })[0];
+        var k = nested.boxes.filter(function (b) { return b.id === "K"; })[0];
+        ok(k.child && k.y >= c.y + c.h && k.cell === c.cell, "the bearing is a small box under its link");
+        eq(nested.assemblies.length, 1);
+        var a = nested.assemblies[0];
+        ok(a.x <= c.x && a.x <= k.x && a.y + a.h >= k.y + k.h, "the assembly's outline rounds both");
+        eq(VA.mapCounts(nested).parts, 4);
+        eq(VA.mapLayout(null, mapDoc()), null);
+        eq(VA.mapLayout(mapModel(), null), null);
+      });
+
+    await test("the map is the default drawing for a model with a layout, Classic for one " +
+      "without, the choice is remembered under its own key, and the region's switch presses " +
+      "the drawing shown or says No map", function () {
+        eq(VA.DEFAULT_DAG_DRAWING, "map");
+        eq(VA.dagDrawingFor(undefined, TOPO), "map");
+        eq(VA.dagDrawingFor("classic", TOPO), "classic");
+        eq(VA.dagDrawingFor("nonsense", TOPO), "map");
+        var bare = Object.assign({}, TOPO, { map: null });
+        eq(VA.dagDrawingFor("map", bare), "classic", "no layout, no map");
+        eq(VA.topologyHasMap(bare), false);
+        eq(VA.topologyHasMap(null), false);
+        var store = {
+          data: {},
+          getItem: function (k) { return Object.prototype.hasOwnProperty.call(this.data, k) ? this.data[k] : null; },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        eq(VA.readStoredDagDrawing(store), null);
+        VA.writeStoredDagDrawing(store, "classic");
+        eq(VA.readStoredDagDrawing(store), "classic");
+        eq(Object.keys(store.data), [VA.DAG_DRAWING_KEY]);
+        VA.writeStoredDagDrawing(store, "nonsense");
+        eq(VA.readStoredDagDrawing(store), "classic");
+        ok(VA.DAG_DRAWING_KEY !== VA.PANE_VIEW_KEY && VA.DAG_DRAWING_KEY !== VA.DAG_VIEW_KEY, "its own key");
+        var chosen = null;
+        var head = VA.renderDagSwitch({ dagDrawing: "classic" }, TOPO, function (id) { chosen = id; });
+        var buttons = all(head, "button");
+        eq(buttons.map(function (b) { return b.textContent; }), ["Map", "Classic"]);
+        eq(buttons.map(function (b) { return b.getAttribute("aria-pressed"); }), ["false", "true"]);
+        buttons[0].click();
+        eq(chosen, "map");
+        var none = VA.renderDagSwitch({ dagDrawing: "map" }, bare, function (id) { chosen = "never " + id; });
+        var noneButtons = all(none, "button");
+        eq(noneButtons.map(function (b) { return b.textContent; }), [VA.NO_MAP_LABEL, "Classic"]);
+        eq(noneButtons.map(function (b) { return b.getAttribute("aria-pressed"); }), ["false", "true"]);
+        ok(noneButtons[0].getAttribute("disabled") !== null, "No map takes no click");
+        noneButtons[0].click();
+        eq(chosen, "map", "the disabled button chose nothing");
+        eq(VA.NO_MAP_LABEL.split(" ").length, 2, "two words");
+      });
+
+    await test("the map draws every entity once, keyed by the model's kind and id, its drawn " +
+      "counts equal the model's, every curve takes fill none, and its words carry no banned string", function () {
+        VA.forgetMapViews();
+        var root = mapRoot();
+        var svg = all(root, "svg.tv__map")[0];
+        ok(svg, "the map's SVG");
+        var m = TOPO.model;
+        var idsOf = function (cls) {
+          return all(svg, cls).map(function (el) { return el.getAttribute("data-map-id"); });
+        };
+        var unique = function (list) { return list.filter(function (x, i) { return list.indexOf(x) === i; }); };
+        var boxes = idsOf("rect.map__box"), pins = idsOf("g.map__pin"), jumpers = idsOf("g.map__jumper"),
+          connectors = idsOf("g.map__connector"), districts = idsOf("rect.map__district");
+        eq([districts.length, boxes.length, pins.length, jumpers.length, connectors.length],
+           [m.counts.bodies, m.counts.parts, m.counts.features, m.counts.dimensions, m.counts.interfaces]);
+        [boxes, pins, jumpers, connectors].forEach(function (list) { eq(unique(list).length, list.length, "once each"); });
+        eq(boxes.sort(), m.parts.map(function (p) { return p.id; }).sort());
+        eq(pins.sort(), m.features.map(function (f) { return f.id; }).sort());
+        eq(jumpers.sort(), m.dimensions.map(function (d) { return d.id; }).sort());
+        eq(connectors.sort(), m.interfaces.map(function (i) { return i.id; }).sort());
+        all(svg, "g.map__pin").forEach(function (g) { eq(g.getAttribute("data-map-kind"), VA.FOCUS_KINDS.feature); });
+        all(svg, "g.map__connector").forEach(function (g) { eq(g.getAttribute("data-map-kind"), VA.FOCUS_KINDS.interface); });
+        all(svg, "g.map__jumper").forEach(function (g) { eq(g.getAttribute("data-map-kind"), VA.FOCUS_KINDS.dimension); });
+        all(svg, "rect.map__box").forEach(function (g) { eq(g.getAttribute("data-map-kind"), VA.FOCUS_KINDS.part); });
+        var curves = all(svg, "path").concat(all(svg, "line"), all(svg, "polyline"));
+        ok(curves.length > 0);
+        curves.forEach(function (c) { eq(c.getAttribute("fill"), "none", (c.getAttribute("class") || c.tagName) + " takes fill none"); });
+        // One symbol per connector that has a word, from the table.
+        var symbols = all(svg, "g.map__symbol");
+        eq(symbols.length, m.interfaces.filter(function (i) { return i.kind && VA.MAP_SYMBOLS[i.kind]; }).length);
+        symbols.forEach(function (s) { ok(VA.MAP_SYMBOLS[s.getAttribute("data-symbol")], "a word of the table"); });
+        var uses = all(svg, "use");
+        eq(uses.length, symbols.length);
+        // The switch is the region's header, after the drawing.
+        eq(all(root, "#dag-drawing").length === 0, true, "no header unless the page gives one");
+        var withHead = mapRoot({ regionHead: function () { return VA.renderDagSwitch({ dagDrawing: "map" }, TOPO, null); } });
+        eq(all(withHead, ".tv__daghead").length, 1);
+        bannedIn(viewerAuthoredText(root), "the map");
+        // The symbol table: every interface word, the seat, the pattern.
+        eq(Object.keys(VA.MAP_SYMBOLS).sort(),
+           Object.keys(VA.INTERFACE_GLYPHS).concat(["contact", "pattern"]).sort());
+        Object.keys(VA.MAP_SYMBOLS).forEach(function (w) {
+          ok(VA.MAP_SYMBOLS[w].label && VA.MAP_SYMBOLS[w].shapes.length, w + " has a label and a picture");
+        });
+      });
+
+    await test("the map's selection is written at paint in two tiers, the hover is rewritten over " +
+      "it in two strengths from the one resolver, and no entity lights nothing", function () {
+        VA.forgetMapViews();
+        var model = VA.buildModel(TOPO, null);
+        var F = VA.FOCUS_KINDS;
+        var root = mapRoot({ model: model, selectedEntity: { kind: F.part, id: "post" } });
+        var cls = function (sel) { return all(root, sel)[0].getAttribute("class"); };
+        var byId = function (sel, id) {
+          return all(root, sel).filter(function (el) { return el.getAttribute("data-map-id") === id; })[0];
+        };
+        has(byId("rect.map__box", "post").getAttribute("class"), "map__box--selected");
+        has(byId("g.map__pin", "post@post_arm_pin").getAttribute("class"), "map__pin--selected", "its features are own");
+        has(byId("g.map__connector", "post_arm_pin").getAttribute("class"), "map__connector--touched",
+            "the interface to its neighbour is touching");
+        has(byId("g.map__pin", "arm@post_arm_pin").getAttribute("class"), "map__pin--touched", "the far feature too");
+        ok(byId("rect.map__box", "arm").getAttribute("class").indexOf("--") === -1, "a neighbour's box is not lit");
+        // The hover, over the selection: the arm's pin hovered lights its own
+        // pin --lead and the interface and the dimension at it --hot, and the
+        // selection's classes stay.
+        var lit = VA.lightMap(model, { kind: F.feature, id: "arm@arm_tip" });
+        ok(lit > 0);
+        has(byId("g.map__pin", "arm@arm_tip").getAttribute("class"), "map__pin--lead");
+        has(byId("g.map__connector", "tip_to_strut_end").getAttribute("class"), "map__connector--hot");
+        has(byId("g.map__jumper", "arm_pin_to_tip").getAttribute("class"), "map__jumper--hot");
+        has(byId("rect.map__box", "post").getAttribute("class"), "map__box--selected", "the selection stays under the hover");
+        eq(VA.lightMap(model, null), 0);
+        ok(byId("g.map__pin", "arm@arm_tip").getAttribute("class").indexOf("--lead") === -1, "the hover is let go");
+        has(byId("rect.map__box", "post").getAttribute("class"), "map__box--selected");
+        // A body hovered lights its district and its parts; a dimension its
+        // jumper and its two pins.
+        VA.lightMap(model, { kind: F.dimension, id: "post_height" });
+        has(byId("g.map__jumper", "post_height").getAttribute("class"), "map__jumper--lead");
+        has(byId("g.map__pin", "post@base_post_seat").getAttribute("class"), "map__pin--lead");
+        has(byId("g.map__pin", "post@post_arm_pin").getAttribute("class"), "map__pin--lead");
+        eq(VA.mapLightKeys(model, null), { own: [], touching: [] });
+        eq(VA.mapLightKeys(null, { kind: F.part, id: "post" }), { own: ["part:post"], touching: [] });
+        void cls;
+      });
+
+    await test("the map's view fits the drawing to its region never past the cap, zooms about " +
+      "the pointer, pans by the least that brings a rect in, and is kept across a repaint", function () {
+        var bounds = { x: 0, y: 0, w: 2000, h: 1000 };
+        var fit = VA.mapFitView(bounds, 1000, 1000);
+        eq(fit.k, 0.5);
+        eq([fit.tx, fit.ty], [0, 250], "centred");
+        eq(VA.mapFitView(bounds, 100000, 100000).k, VA.MAP_ZOOM.fitMax, "never past the cap");
+        eq(VA.mapFitView(bounds, 0, 0), { k: 1, tx: 0, ty: 0 });
+        var zoomed = VA.mapZoomAt(fit, -100, 300, 400);
+        ok(zoomed.k > fit.k, "a wheel up zooms in");
+        var under = function (v, px, py) { return [(px - v.tx) / v.k, (py - v.ty) / v.k]; };
+        eq(under(zoomed, 300, 400).map(Math.round), under(fit, 300, 400).map(Math.round), "the point under the pointer stays");
+        eq(VA.mapZoomAt({ k: VA.MAP_ZOOM.max, tx: 0, ty: 0 }, -100, 0, 0).k, VA.MAP_ZOOM.max);
+        eq(VA.mapPan(fit, 10, -5), { k: 0.5, tx: 10, ty: 245 });
+        var view = { k: 1, tx: 0, ty: 0 };
+        eq(VA.mapBringIntoView(view, { x: 10, y: 10, w: 50, h: 50 }, 500, 500, 0), view, "already in: unchanged");
+        eq(VA.mapBringIntoView(view, { x: 600, y: 10, w: 50, h: 50 }, 500, 500, 0), { k: 1, tx: -150, ty: 0 });
+        eq(VA.mapBringIntoView(view, { x: -100, y: -100, w: 50, h: 50 }, 500, 500, 10), { k: 1, tx: 110, ty: 110 });
+        VA.forgetMapViews();
+        var root = mapRoot();
+        var first = root.mapView();
+        eq(first.auto, true);
+        root.mapFit();
+        eq(root.mapView().k, first.k);
+        // A repaint keeps the view the reader has; a bigger region re-fits
+        // a view the page made.
+        VA.renderTopoMap(root, { topoProj: TOPO, model: VA.buildModel(TOPO, null), mapRegion: { width: 2390, height: 2160 } });
+        eq(root.mapView(), first);
+        VA.renderTopoMap(root, { topoProj: TOPO, model: VA.buildModel(TOPO, null), mapRegion: { width: 1200, height: 2160 } });
+        ok(root.mapView().k < first.k, "a narrower region, a smaller fit");
+        eq(VA.mapViewOf(TOPO.id).k, root.mapView().k);
+        // A selection made elsewhere brings its element into view once.
+        VA.forgetMapViews();
+        var far = mapRoot({ mapRegion: { width: 300, height: 300 } });
+        var before = far.mapView();
+        VA.renderTopoMap(far, { topoProj: TOPO, model: VA.buildModel(TOPO, null), mapRegion: { width: 300, height: 300 },
+          selectedEntity: { kind: VA.FOCUS_KINDS.part, id: "strut" } });
+        ok(far.mapView().tx !== before.tx || far.mapView().ty !== before.ty || before.k === far.mapView().k,
+           "the strut is brought in, or was already in");
+        eq(far.mapView().selectedKey, "part:strut");
+      });
+
+    await test("the map's hover and click tell the page the entity they are on, and a model " +
+      "with no layout renders no map", function () {
+        VA.forgetMapViews();
+        var hovered = [], selected = [];
+        var root = mapRoot({
+          onHotEntity: function (e) { hovered.push(e); },
+          onSelectEntity: function (e) { selected.push(e); },
+        });
+        var byId = function (sel, id) {
+          return all(root, sel).filter(function (el) { return el.getAttribute("data-map-id") === id; })[0];
+        };
+        byId("g.map__pin", "post@post_arm_pin").onmouseenter();
+        eq(hovered, [{ kind: VA.FOCUS_KINDS.feature, id: "post@post_arm_pin" }]);
+        byId("g.map__pin", "post@post_arm_pin").onmouseleave();
+        eq(hovered[1], null);
+        byId("rect.map__boxhit", "arm").onclick({ stopPropagation: function () {} });
+        eq(selected, [{ kind: VA.FOCUS_KINDS.part, id: "arm" }]);
+        byId("g.map__connector", "tip_to_strut_end").onclick({ stopPropagation: function () {} });
+        eq(selected[1], { kind: VA.FOCUS_KINDS.interface, id: "tip_to_strut_end" });
+        byId("g.map__jumper", "strut_length").onkeydown({ key: "Enter", preventDefault: function () {} });
+        eq(selected[2], { kind: VA.FOCUS_KINDS.dimension, id: "strut_length" });
+        var bare = document.createElement("div");
+        VA.renderTopoMap(bare, { topoProj: Object.assign({}, TOPO, { map: null }), model: null,
+          regionHead: function () { return VA.renderDagSwitch({ dagDrawing: "map" }, Object.assign({}, TOPO, { map: null }), null); } });
+        eq(all(bare, "svg.tv__map").length, 0);
+        eq(all(bare, "button")[0].textContent, VA.NO_MAP_LABEL);
+        ok(bare.mapFit === null, "nothing to fit");
+      });
+
     // --- node-fs tier: the REAL projection ----------------------------------
 
     // --- the point export (a_point_exports_its_xyz_against_angle) -----------

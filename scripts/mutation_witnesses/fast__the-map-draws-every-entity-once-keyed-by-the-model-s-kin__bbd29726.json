@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map draws every entity once, keyed by the model's kind and id, its drawn counts equal the model's, every curve takes fill none, and its words carry no banned string",
+  "mutations": [
+    {
+      "contract": "Every drawn entity carries its model id, so the suite can count and match what is drawn.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Drops the id attribute from every registered element.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    el.setAttribute(\"data-map-id\", id);",
+      "replace": "    /* mutated: no id on the element */"
+    },
+    {
+      "contract": "Every curve the map draws takes fill none in its markup, the symbols' included.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Lets a symbol's curve take SVG's default black fill.",
+      "file": "apps/viewer/views/map.js",
+      "find": "        if (shape[0] !== \"circle\" && shape[0] !== \"rect\" && attrs.fill === undefined) attrs.fill = \"none\";",
+      "replace": "        /* mutated: a symbol's curve takes SVG's default fill */"
+    }
+  ]
+}

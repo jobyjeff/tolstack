@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] ...and the pointer leaving the map lets the hover go on every surface",
+  "mutations": [
+    {
+      "contract": "Leaving a map element tells the page the pointer is on nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Leaving tells the page nothing, so the hover stands on every surface.",
+      "file": "apps/viewer/views/map.js",
+      "find": "      if (ctx.onHotEntity) ctx.onHotEntity(null);\n      else VA.lightMap(ctx.model || null, null);",
+      "replace": "      /* mutated: leaving tells the page nothing */"
+    }
+  ]
+}

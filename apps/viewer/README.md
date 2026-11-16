@@ -689,6 +689,24 @@ venv-win/Scripts/python.exe scripts\build_topology_projection.py
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
 disk access, exactly like the stack view's own demo.)
 
+### The map: the region's second drawing (2026-11-16)
+
+Since handoff `the_map_draws_the_end_stop_model` the DAG's region has two
+drawings of the one model and a **Map · Classic** switch in its own header
+(top-right of the region, in every view that shows it). The map draws bodies
+as districts, a box round every part, pins on a box's perimeter where parts
+meet, jumpers inside a box for its dimensions, and a connector per interface
+with the joint's symbol drawn large on it; a joint with several constraints
+runs as a bundle. It is laid out from the model view and one authored layout
+file beside the model (`docs/topologies/map_<model id>.json` -- a part's place
+on a coarse grid, nothing else), fitted to its region, and zoomed and panned
+by the reader as the rails are. A model with no layout file draws Classic and
+the switch says *No map*. The one selection and the one hover light it by
+entity, in the two strengths every surface wears. `docs/DAG_TOPOLOGY.md`,
+"The map", is the rule; `apps/viewer/map.js` the layout, `views/map.js` the
+drawing, `map.css` the look. Everything below this line about the rails is
+Classic's, unchanged.
+
 ### The row model: edge rows, merged components, and leader lines
 
 **A dot is an interface; a bar is the dimension between two of them; a grid row

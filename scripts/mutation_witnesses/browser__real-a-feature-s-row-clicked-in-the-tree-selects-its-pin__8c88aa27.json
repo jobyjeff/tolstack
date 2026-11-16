@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a feature's row clicked in the tree selects its pin on the map, with the connector it ends touched",
+  "mutations": [
+    {
+      "contract": "The selection's own tier is written on the map at paint.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Writes the touching tier only.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    (keys.own || []).forEach(function (k) { set(k, \"selected\"); });",
+      "replace": "    /* mutated: the selection's own tier is not written */"
+    }
+  ]
+}

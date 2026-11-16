@@ -34,3 +34,13 @@ these.
 **Recommendation:** the map handoff, which redraws the DAG anyway, removes all
 three with the layout it replaces, rather than a cleanup ahead of it that the
 map would rewrite again.
+
+> **Answered by the map, closes when Classic retires (2026-11-16, handoff
+> `the_map_draws_the_end_stop_model`).** The map (`apps/viewer/map.js`,
+> `views/map.js`) is laid out from the model view and its own layout file and
+> reads none of the three pieces above -- no leaders to the grid, no jog zone,
+> no centring against the grid -- and fits itself to its region. The three
+> pieces stay in the present DAG, which the map handoff left unchanged beside
+> it (Map . Classic). They go when Classic retires, which is step 6 of the
+> strategy draft's chain (`ISSUE_20261116_what_the_map_does_not_draw_yet`,
+> "Retiring Classic"); this issue resolves with that handoff, not before.

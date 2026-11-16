@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] the map draws the model's counts: a district per body, a box per part, a pin per feature, a jumper per dimension and a connector per interface, each once, and the layout reports no defect",
+  "mutations": [
+    {
+      "contract": "Every interface is a connector, a bundle's constraints included.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Leaves a joint's bundled constraints undrawn, so three of v2's interfaces are missing.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    geo.connectors.forEach(function (c) {\n      var between = c.within === null || c.within === undefined;",
+      "replace": "    geo.connectors.filter(function (c) { return !c.bundled; }).forEach(function (c) { /* mutated: a bundle is not drawn */\n      var between = c.within === null || c.within === undefined;"
+    }
+  ]
+}

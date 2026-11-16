@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a part's row hovered in the tree lights its box, its name and its pins on the map as own, and the interfaces to its neighbours as touching",
+  "mutations": [
+    {
+      "contract": "The map lights the resolver's touching tier too.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Drops the touching tier from the map's keys.",
+      "file": "apps/viewer/map.js",
+      "find": "    return { own: light.own.map(key), touching: light.touching.map(key) };",
+      "replace": "    return { own: light.own.map(key), touching: [] }; /* mutated */"
+    }
+  ]
+}

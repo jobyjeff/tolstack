@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] Fit brings the whole map back into the region at the fit's zoom",
+  "mutations": [
+    {
+      "contract": "The toolbar's Fit fits the map when the map is the drawing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Fit is the rails' alone, and does nothing to the map.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (nodes.pane && typeof nodes.pane.mapFit === \"function\") { nodes.pane.mapFit(); return; }",
+      "replace": "    /* mutated: Fit is the rails' alone */"
+    }
+  ]
+}

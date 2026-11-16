@@ -24,9 +24,14 @@
 .map__district {
   fill: color-mix(in srgb, var(--fill-ink, var(--group-body)) 5%, transparent);
   stroke: var(--fill-ink, var(--group-body)); stroke-opacity: .7; stroke-width: 2;
-  stroke-dasharray: 12 8; pointer-events: stroke; cursor: pointer;
+  stroke-dasharray: 12 8;
 }
 .map__bodyname { fill: var(--fill-ink, var(--muted)); font-weight: 600; cursor: pointer; }
+/* The border's wide transparent twin, the one the pointer meets (the drawn
+   border is dashed and thin; a click in a dash gap must still be the body's).
+   The drawn border itself takes no pointer, so it never shadows the twin. */
+.map__districthit, .map__boxhit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+.map__district { pointer-events: none; }
 
 /* An assembly's outline round its own box and its children's: dotted,
    lighter than a box, never a control (the assembly is its part's box). */
@@ -40,7 +45,7 @@
    are the part's controls, as on the present DAG. */
 .map__box {
   fill: none; stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
-  stroke-width: 2; pointer-events: stroke; cursor: pointer;
+  stroke-width: 2; pointer-events: none;
 }
 .map__box--child { stroke-width: 1.5; stroke-opacity: .7; }
 .map__partnumber-text { fill: var(--ink); font-weight: 600; }

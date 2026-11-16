@@ -1,12 +1,11 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: resolved
 area: viewer/dag
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261112_a_part_may_contain_parts.md
-defer_until: 2026-11-29
 resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
 class: merged_page_walk_20261112
 ---
@@ -38,3 +37,14 @@ What the map must draw for a nested part (Jeff's note `20261112T114449_f3anmp`):
 Recommendation: draw it with the map, off the model view's `parent` / `children`
 / `depth`. It needs a design session for the open-block layout, because a child outline
 inside a block changes the block's aspect rule (`VA.BLOCK_ASPECT`).
+
+> **Resolved by the map (2026-11-16, handoff `the_map_draws_the_end_stop_model`).**
+> The map draws the static nested outline: a part with children gets an
+> outline round its own box and its children's small boxes, inside its body's
+> district (`VA.mapLayout`'s `assemblies`; `docs/DAG_TOPOLOGY.md`, "The map").
+> On v2 the pitch link's bearing and the tangential link's two are each a
+> labelled box inside their link's outline. The "+" fold control is NOT drawn
+> and stays open in `ISSUE_20261114_assembly_folding_left_out_of_three_surfaces`
+> (and the table in `ISSUE_20261116_what_the_map_does_not_draw_yet`). The
+> present DAG (Classic) is unchanged and still draws no nested outline; it
+> retires with the map's acceptance.

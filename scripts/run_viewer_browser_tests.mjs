@@ -4413,6 +4413,457 @@ async function testPartsAsBlocks(browser, fileBase, label, realProjection, realC
   return reportSuite(label, checks, errors);
 }
 
+// --- the map (the_map_draws_the_end_stop_model, 2026-11-16) -----------------
+//
+// The DAG region's second drawing of the one model (apps/viewer/map.js,
+// views/map.js), on the real end-stop model with the 3D pane open beside it:
+// the map is the default where the model has a layout, it draws the model's
+// counts, the one selection and the one hover light it both ways against the
+// tree, the grid and the scene, it fits, zooms and pans in its region, and
+// the Map . Classic switch is the region's own and is remembered. Every page
+// here asks for the Map by hand, because the runner starts every suite on
+// Classic (the `newPage` wrapper above).
+const MAP_TOPOLOGY = "vpa_end_stop_v2";
+// A hub feature with a standing binding in the served log (face 144 of the
+// hub's mesh, the pilot gap's from-end), so the scene has a face to pick.
+const MAP_BOUND_FEATURE = "hub@hub_spindle_bore_axis";
+const MAP_BOUND_EDGE = "hub_boss_in_tan_link_mount_pilot";
+
+async function testTheMap(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const model = topologies && (topologies.topologies || []).find((t) => t.id === MAP_TOPOLOGY);
+  const legacy = topologies && (topologies.topologies || []).find((t) => t.id === "vpa_pitch_linkage");
+  const servedLog = await readProjection("feature-identity/log.json");
+  const bound = servedLog && (servedLog.events || []).find((e) => e && e.verdict === "bound" &&
+    e.stack_key && e.stack_key.edge_id === MAP_BOUND_EDGE && e.stack_key.topology_id === MAP_TOPOLOGY &&
+    e.geometry_key && e.geometry_key.source_step_sha256);
+  const index = await realDataIndexForTheAnnotator();
+  if (!model || !model.map || !model.model || !legacy || !bound || !index.meshes.length) {
+    push("[real] the map on the end-stop model (skipped: the topology projection with the map's " +
+      "layout, the served identity log with the hub's binding or the meshes are not on disk -- " +
+      "build them, or pass --repo <a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1700, height: 1500 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  // The Map, by hand, on the FIRST load only (after the runner's own Classic
+  // seed): a later reload reads what the page itself remembered.
+  await page.addInitScript(() => {
+    try {
+      if (!sessionStorage.getItem("__map_suite_seeded")) {
+        localStorage.setItem("tolstack.viewer.dagDrawing", "map");
+        sessionStorage.setItem("__map_suite_seeded", "1");
+      }
+    } catch (e) { /* no storage */ }
+  });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 30000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => !!new Function("arg",
+        "return (" + src + ")(arg);")(arg), { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const untilPane = async (fn, arg, timeout = 30000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const mapEl = (kind, id) => `#topopane svg.tv__map [data-map-kind="${kind}"][data-map-id="${id}"]`;
+  const classOf = (sel) => page.evaluate((s) => {
+    const el = document.querySelector(s);
+    return el ? el.getAttribute("class") || "" : null;
+  }, sel);
+  const settle = (ms = 250) => page.waitForTimeout(ms);
+  // What the four surfaces say about a feature, a part or a dimension.
+  const surfaces = () => page.evaluate(() => {
+    const cls = (sel) => Array.from(document.querySelectorAll(sel));
+    const ids = (sel, attr) => cls(sel).map((n) => n.getAttribute(attr));
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    const L = w && w.__lastLight;
+    return {
+      treeHot: ids("#navtree .navtree__row--hot", "data-nav-id"),
+      // A lit row behind a closed fold marks the fold instead (VA.lightNavTree).
+      treeHolds: ids("#navtree .navtree__row--holds", "data-nav-id"),
+      treeHotTouching: ids("#navtree .navtree__row--hot-touching", "data-nav-id"),
+      treeOn: ids("#navtree .navtree__row--on", "data-nav-id"),
+      gridLead: ids("#topogrid tr.tvrow--lead", "data-id"),
+      gridHot: ids("#topogrid tr.tvrow--hot", "data-id"),
+      gridSelected: ids("#topogrid tr.tvrow--selected", "data-id"),
+      mapLead: cls("#topopane svg.tv__map [data-map-kind]").filter((n) => /--lead\b/.test(n.getAttribute("class") || ""))
+        .map((n) => n.getAttribute("data-map-kind") + ":" + n.getAttribute("data-map-id")),
+      mapHot: cls("#topopane svg.tv__map [data-map-kind]").filter((n) => /--hot\b/.test(n.getAttribute("class") || ""))
+        .map((n) => n.getAttribute("data-map-kind") + ":" + n.getAttribute("data-map-id")),
+      mapSelected: cls("#topopane svg.tv__map [data-map-kind]").filter((n) => /--selected\b/.test(n.getAttribute("class") || ""))
+        .map((n) => n.getAttribute("data-map-kind") + ":" + n.getAttribute("data-map-id")),
+      mapTouched: cls("#topopane svg.tv__map [data-map-kind]").filter((n) => /--touched\b/.test(n.getAttribute("class") || ""))
+        .map((n) => n.getAttribute("data-map-kind") + ":" + n.getAttribute("data-map-id")),
+      paneLayers: L ? L.layers.map((l) => ({ role: l.role, tier: l.tier, faces: l.faceOverlays || 0, parts: l.partOverlays || 0 })) : null,
+    };
+  });
+  const hoverMap = async (kind, id) => {
+    // The pin's own hit circle, at its centre; a box by its stroke is its
+    // name's business, so a part is hovered by its name.
+    const sel = kind === "part" ? `#topopane svg.tv__map g.map__partname[data-map-id="${id}"] text`
+      : kind === "dimension" ? `#topopane svg.tv__map g.map__jumper[data-map-id="${id}"] path.map__jumperhit`
+      : kind === "interface" ? `#topopane svg.tv__map g.map__connector[data-map-id="${id}"] path.map__connectorhit`
+      : `#topopane svg.tv__map g.map__pin[data-map-id="${id}"] circle.map__pinhit`;
+    await page.locator(sel).first().hover({ timeout: 5000 });
+    await settle();
+  };
+  const restHover = async () => {
+    await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 2000 }).catch(() => {});
+    await settle();
+  };
+  const paneBox = () => page.evaluate(() => {
+    const r = document.getElementById("topopane").getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+  });
+  const worldBox = () => page.evaluate(() => {
+    const g = document.querySelector("#topopane svg.tv__map g.map__world");
+    const r = g && g.getBoundingClientRect();
+    return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : null;
+  });
+  const zoomOf = () => page.evaluate(() => {
+    const s = document.querySelector("#topopane svg.tv__map");
+    return s ? Number(s.getAttribute("data-zoom")) : null;
+  });
+  const inside = (r, b, slack = 1) => !!r && r.left >= b.left - slack && r.top >= b.top - slack &&
+    r.right <= b.right + slack && r.bottom <= b.bottom + slack;
+
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + MAP_TOPOLOGY, { waitUntil: "load" });
+    await pickModel(page, MAP_TOPOLOGY);
+    await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 }).catch(() => {});
+    await settle(400);
+
+    // --- 1. the default, and the switch ------------------------------------
+    const opened = await page.evaluate(() => ({
+      map: document.querySelectorAll("#topopane svg.tv__map").length,
+      rails: document.querySelectorAll("#topopane svg.tv__rails").length,
+      pressed: Array.from(document.querySelectorAll("#topopane #dag-drawing button"))
+        .map((b) => [b.getAttribute("data-drawing"), b.getAttribute("aria-pressed"), b.textContent, b.disabled]),
+      headInRegion: !!document.querySelector("#topopane > .tv__daghead"),
+      grid: document.querySelectorAll("#topogrid tr.tvrow").length,
+    }));
+    console.log(`      [${label}] opened: ${JSON.stringify(opened)}`);
+    push("[real] a model with a layout opens on the map: the region draws the map and no rails, " +
+      "its own header presses Map, and the grid beside it is drawn as ever",
+      opened.map === 1 && opened.rails === 0 && opened.headInRegion && opened.grid > 0 &&
+      JSON.stringify(opened.pressed) === JSON.stringify([["map", "true", "Map", false], ["classic", "false", "Classic", false]]));
+
+    // --- 2. the counts -------------------------------------------------------
+    const counts = await page.evaluate(() => {
+      const svg = document.querySelector("#topopane svg.tv__map");
+      const ids = (sel) => Array.from(svg.querySelectorAll(sel)).map((n) => n.getAttribute("data-map-id"));
+      const once = (list) => new Set(list).size === list.length;
+      const districts = ids("rect.map__district"), boxes = ids("rect.map__box"), pins = ids("g.map__pin"),
+        jumpers = ids("g.map__jumper"), connectors = ids("g.map__connector");
+      return { drawn: { bodies: districts.length, parts: boxes.length, features: pins.length,
+        dimensions: jumpers.length, interfaces: connectors.length },
+        once: [districts, boxes, pins, jumpers, connectors].every(once),
+        symbols: Array.from(svg.querySelectorAll("g.map__symbol")).map((s) => s.getAttribute("data-symbol")),
+        notes: window.ViewerApp.lastMapLight.geometry.notes };
+    });
+    const c = model.model.counts;
+    const expected = { bodies: c.bodies, parts: c.parts, features: c.features, dimensions: c.dimensions, interfaces: c.interfaces };
+    console.log(`      [${label}] drawn ${JSON.stringify(counts.drawn)} for ${JSON.stringify(expected)}; symbols ` +
+      `${counts.symbols.join(", ")}; notes ${counts.notes.length ? counts.notes.join("; ") : "none"}`);
+    push("[real] the map draws the model's counts: a district per body, a box per part, a pin per " +
+      "feature, a jumper per dimension and a connector per interface, each once, and the layout " +
+      "reports no defect",
+      JSON.stringify(counts.drawn) === JSON.stringify(expected) && counts.once && counts.notes.length === 0);
+    push("[real] every connector that states a kind wears a symbol, the clocking its ring of dots, " +
+      "the pilot its circle and dot, the ball joints their cup and ball",
+      counts.symbols.length === model.model.interfaces.filter((i) => i.kind).length &&
+      counts.symbols.indexOf("pattern") !== -1 && counts.symbols.indexOf("pin_in_bore") !== -1 &&
+      counts.symbols.filter((s) => s === "spherical").length === 4);
+
+    // --- 3. the fit, and the fills -------------------------------------------
+    const fitted = await page.evaluate(() => {
+      const pane = document.getElementById("topopane").getBoundingClientRect();
+      const world = document.querySelector("#topopane svg.tv__map g.map__world").getBoundingClientRect();
+      const texts = Array.from(document.querySelectorAll("#topopane svg.tv__map text"))
+        .map((t) => t.getBoundingClientRect()).filter((r) => r.width > 0);
+      const curves = Array.from(document.querySelectorAll("#topopane svg.tv__map path, #topopane svg.tv__map line"));
+      const filled = curves.filter((p) => getComputedStyle(p).fill !== "none" || p.getAttribute("fill") !== "none").length;
+      return { inside: world.left >= pane.left && world.top >= pane.top && world.right <= pane.right && world.bottom <= pane.bottom,
+        clipped: texts.filter((r) => r.left < pane.left || r.right > pane.right || r.top < pane.top || r.bottom > pane.bottom).length,
+        curves: curves.length, filled, zoom: document.querySelector("#topopane svg.tv__map").getAttribute("data-zoom") };
+    });
+    console.log(`      [${label}] fitted at ${fitted.zoom}: inside ${fitted.inside}, ${fitted.clipped} clipped labels, ` +
+      `${fitted.filled}/${fitted.curves} curves filled`);
+    push("[real] the map fits its region: the whole drawing is inside the pane and no label is clipped by it",
+      fitted.inside && fitted.clipped === 0);
+    push("[real] every curve the map draws is unfilled, in its markup and as the page computes it",
+      fitted.curves > 0 && fitted.filled === 0);
+
+    // --- 4. the 3D pane beside it ---------------------------------------------
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 });
+    await page.locator("#pane-handle").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 });
+    const sceneReady = await untilPane((w) => w.AnnotateApp && w.__scene && w.__scene.listOpenParts().length > 0, null, 120000);
+    await settle(1500);
+    const stillMap = await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
+      !!document.querySelector("#topopane > .tv__daghead"));
+    push("[real] with the 3D pane open beside it the region still draws the map, with its header",
+      sceneReady && stillMap);
+
+    // --- 5. hover, map -> tree, grid, scene -----------------------------------
+    await hoverMap("feature", MAP_BOUND_FEATURE);
+    let s = await surfaces();
+    // The scene's light arrives by message; wait for a hover layer.
+    await untilPane((w) => w.__lastLight && w.__lastLight.layers.some((l) => l.role === "hover"), null, 5000);
+    s = await surfaces();
+    console.log(`      [${label}] pin hovered: tree hot ${JSON.stringify(s.treeHot)} holds ${JSON.stringify(s.treeHolds)}, grid hot ${JSON.stringify(s.gridHot)}, ` +
+      `map lead ${JSON.stringify(s.mapLead)}, pane ${JSON.stringify(s.paneLayers)}`);
+    const dimsAtBoss = model.model.dimensions.filter((d) => d.from === MAP_BOUND_FEATURE || d.to === MAP_BOUND_FEATURE).map((d) => d.id);
+    push("[real] a pin hovered on the map lights its feature's row in the tree (or the closed fold " +
+      "holding it), the dimensions at it in the grid, the pin itself and its connector on the map, " +
+      "and its bound face in the scene",
+      (s.treeHot.indexOf(MAP_BOUND_FEATURE) !== -1 || s.treeHolds.indexOf("hub") !== -1) &&
+      dimsAtBoss.every((d) => s.gridHot.indexOf(d) !== -1) &&
+      s.mapLead.indexOf("feature:" + MAP_BOUND_FEATURE) !== -1 &&
+      s.mapHot.indexOf("interface:" + MAP_BOUND_EDGE) !== -1 &&
+      !!s.paneLayers && s.paneLayers.some((l) => l.role === "hover" && l.tier === "own" && l.faces > 0));
+    await restHover();
+    s = await surfaces();
+    push("[real] ...and the pointer leaving the map lets the hover go on every surface",
+      s.mapLead.length === 0 && s.treeHot.length === 0 && s.gridHot.length === 0);
+
+    // --- 6. hover, tree and grid -> map ----------------------------------------
+    await page.locator("#navtree " + navRow("part", "hub")).first().hover({ timeout: 5000 });
+    await settle();
+    s = await surfaces();
+    console.log(`      [${label}] hub row hovered: map lead ${JSON.stringify(s.mapLead)}, map hot ${JSON.stringify(s.mapHot)}`);
+    const hubFeatures = model.model.parts.find((p) => p.id === "hub").features;
+    push("[real] a part's row hovered in the tree lights its box, its name and its pins on the map as own, " +
+      "and the interfaces to its neighbours as touching",
+      s.mapLead.indexOf("part:hub") !== -1 &&
+      hubFeatures.every((f) => s.mapLead.indexOf("feature:" + f) !== -1) &&
+      s.mapHot.indexOf("interface:hub_blade1_root_bearing_bore") !== -1 &&
+      s.mapHot.indexOf("interface:" + MAP_BOUND_EDGE) !== -1 &&
+      s.mapLead.indexOf("part:tan_link_mount_215175_002") === -1);
+    await restHover();
+    const gridRow = "#topogrid tr.tvrow[data-id=\"tan_link_mount_height\"]";
+    await page.locator(gridRow).first().hover({ timeout: 5000 });
+    await settle();
+    s = await surfaces();
+    push("[real] a grid row hovered lights its jumper on the map, and the two pins it measures between",
+      s.mapLead.indexOf("dimension:tan_link_mount_height") !== -1 &&
+      s.mapLead.indexOf("feature:tan_link_mount_215175_002@tan_link_mount_hub_face") !== -1 &&
+      s.mapLead.indexOf("feature:tan_link_mount_215175_002@tan_link_mount_bore") !== -1);
+    await restHover();
+
+    // --- 7. select, map -> tree, grid, scene --------------------------------
+    await page.locator(`#topopane svg.tv__map g.map__partname[data-map-id="tan_link_mount_215175_002"] text`).first()
+      .click({ timeout: 5000, noWaitAfter: true });
+    await page.waitForFunction(() => Array.from(document.querySelectorAll("#topopane svg.tv__map [data-map-kind]"))
+      .some((n) => /map__box--selected/.test(n.getAttribute("class") || "")), null, { timeout: 10000 }).catch(() => {});
+    await untilPane((w) => w.__lastLight && w.__lastLight.layers.some((l) => l.role === "select"), null, 5000);
+    await restHover();
+    s = await surfaces();
+    const mountDims = model.model.parts.find((p) => p.id === "tan_link_mount_215175_002").dimensions;
+    console.log(`      [${label}] mount selected on the map: tree on ${JSON.stringify(s.treeOn.slice(0, 8))}..., grid selected ` +
+      `${JSON.stringify(s.gridSelected)}, map selected ${s.mapSelected.length}, touched ${s.mapTouched.length}, pane ${JSON.stringify(s.paneLayers)}`);
+    push("[real] a part's name clicked on the map selects the part: its row is on in the tree, its " +
+      "dimensions' rows are selected in the grid, its box and pins wear the accent and its " +
+      "neighbours' interfaces are touched on the map, and the scene's light is the selection's",
+      s.treeOn.indexOf("tan_link_mount_215175_002") !== -1 &&
+      mountDims.every((d) => s.gridSelected.indexOf(d) !== -1) &&
+      s.mapSelected.indexOf("part:tan_link_mount_215175_002") !== -1 &&
+      s.mapTouched.indexOf("interface:tan_link_mount_gas_spring_seat") !== -1 &&
+      !!s.paneLayers && s.paneLayers.some((l) => l.role === "select" && l.tier === "own"));
+
+    // --- 8. select, tree and grid -> map -------------------------------------
+    await page.locator("#navtree " + navRow("feature", MAP_BOUND_FEATURE)).first().click({ timeout: 5000, noWaitAfter: true });
+    await page.waitForFunction((sel) => /--selected/.test((document.querySelector(sel) || {}).getAttribute?.("class") || ""),
+      mapEl("feature", MAP_BOUND_FEATURE), { timeout: 10000 }).catch(() => {});
+    await restHover();
+    s = await surfaces();
+    push("[real] a feature's row clicked in the tree selects its pin on the map, with the connector it ends touched",
+      s.mapSelected.indexOf("feature:" + MAP_BOUND_FEATURE) !== -1 &&
+      s.mapTouched.indexOf("interface:" + MAP_BOUND_EDGE) !== -1 &&
+      s.mapSelected.indexOf("part:tan_link_mount_215175_002") === -1);
+    await page.locator(gridRow).first().click({ timeout: 5000, noWaitAfter: true });
+    await page.waitForFunction((sel) => /--selected/.test((document.querySelector(sel) || {}).getAttribute?.("class") || ""),
+      mapEl("dimension", "tan_link_mount_height"), { timeout: 10000 }).catch(() => {});
+    await restHover();
+    s = await surfaces();
+    push("[real] a grid row clicked selects its jumper on the map and the two pins it measures between",
+      s.mapSelected.indexOf("dimension:tan_link_mount_height") !== -1 &&
+      s.mapSelected.indexOf("feature:tan_link_mount_215175_002@tan_link_mount_hub_face") !== -1 &&
+      s.mapSelected.indexOf("feature:tan_link_mount_215175_002@tan_link_mount_bore") !== -1);
+
+    // --- 9. select, scene -> map ---------------------------------------------
+    // The scene's anchor clicked: the pane posts `annotate:pick` for the node
+    // (topology_app.js's onScenePick), as the Preview suite drives it.
+    const sha = bound.geometry_key.source_step_sha256;
+    const inScene = await untilPane((w, s) => w.__scene.listOpenParts().indexOf(s) !== -1, sha, 60000);
+    await inPane((w, nodeId) => {
+      new w.Function("msg", "window.parent.postMessage(msg, window.location.origin);")(
+        { type: "annotate:pick", kind: "node", id: nodeId });
+      return true;
+    }, MAP_BOUND_FEATURE.split("@")[1]);
+    const picked = await until((sel) => /--selected/.test((document.querySelector(sel) || {}).getAttribute?.("class") || ""),
+      mapEl("feature", MAP_BOUND_FEATURE), 15000);
+    await restHover();
+    s = await surfaces();
+    console.log(`      [${label}] the boss's anchor picked in the scene (hub mesh open: ${inScene}): map selected ${JSON.stringify(s.mapSelected)}`);
+    push("[real] an anchor picked in the scene selects its feature's pin on the map",
+      inScene && picked && s.mapSelected.indexOf("feature:" + MAP_BOUND_FEATURE) !== -1);
+
+    // --- 10. the view: zoom, pan, fit, and a selection brought into view ------
+    const fitZoom = await zoomOf();
+    const pane = await paneBox();
+    const hubBox = await page.evaluate((sel) => {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, mapEl("part", "hub"));
+    // Six notches in over the hub: the upper piston head, at the far right,
+    // leaves the region.
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.move(hubBox.x, hubBox.y);
+      await page.mouse.wheel(0, -100);
+      await settle(60);
+    }
+    const zoomedIn = await zoomOf();
+    const upperBefore = await page.evaluate((sel) => {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }, mapEl("part", "piston_head_upper_214698_002"));
+    console.log(`      [${label}] zoom ${fitZoom} -> ${zoomedIn}; upper head at ${JSON.stringify(upperBefore)} in pane ${JSON.stringify(pane)}`);
+    push("[real] the wheel over the map zooms it in, and the far part leaves the region",
+      zoomedIn > fitZoom * 1.5 && !inside(upperBefore, pane));
+    await page.locator("#navtree " + navRow("part", "piston_head_upper_214698_002")).first().click({ timeout: 5000, noWaitAfter: true });
+    await settle(400);
+    const upperAfter = await page.evaluate((sel) => {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }, mapEl("part", "piston_head_upper_214698_002"));
+    const zoomKept = await zoomOf();
+    console.log(`      [${label}] after selecting it in the tree: ${JSON.stringify(upperAfter)} at zoom ${zoomKept}`);
+    push("[real] a part selected in the tree while its box is off the map's region is panned into view, " +
+      "at the reader's zoom",
+      inside(upperAfter, pane) && Math.abs(zoomKept - zoomedIn) < 1e-6);
+    // A drag on the drawing's empty space pans it.
+    const worldBefore = await worldBox();
+    await page.mouse.move(pane.left + 40, pane.bottom - 40);
+    await page.mouse.down();
+    await page.mouse.move(pane.left + 140, pane.bottom - 100, { steps: 5 });
+    await page.mouse.up();
+    await settle();
+    const worldAfter = await worldBox();
+    console.log(`      [${label}] drag: ${Math.round(worldBefore.left)} -> ${Math.round(worldAfter.left)}`);
+    push("[real] a drag on the map's empty space pans it by the drag",
+      Math.abs((worldAfter.left - worldBefore.left) - 100) < 3 && Math.abs((worldAfter.top - worldBefore.top) + 60) < 3);
+    await page.locator("#dag-fit").click({ timeout: 5000, noWaitAfter: true });
+    await settle();
+    const refit = await zoomOf();
+    const refitWorld = await worldBox();
+    push("[real] Fit brings the whole map back into the region at the fit's zoom",
+      Math.abs(refit - fitZoom) < 1e-6 && inside(refitWorld, pane, 2));
+    await page.mouse.move(hubBox.x, hubBox.y);
+    await page.mouse.wheel(0, -100);
+    await settle(100);
+    await page.keyboard.press("0");
+    await settle();
+    push("[real] ...and so does the 0 key", Math.abs((await zoomOf()) - fitZoom) < 1e-6);
+
+    // --- 11. Classic, remembered ---------------------------------------------
+    await page.locator('#topopane #dag-drawing button[data-drawing="classic"]').click({ timeout: 5000, noWaitAfter: true });
+    await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
+    await settle(300);
+    const classic = await page.evaluate(() => ({
+      rails: document.querySelectorAll("#topopane svg.tv__rails").length,
+      map: document.querySelectorAll("#topopane svg.tv__map").length,
+      pressed: Array.from(document.querySelectorAll("#topopane #dag-drawing button")).map((b) => b.getAttribute("aria-pressed")),
+      stored: localStorage.getItem("tolstack.viewer.dagDrawing"),
+      grid: document.querySelectorAll("#topogrid tr.tvrow").length,
+    }));
+    push("[real] Classic puts the rails back in the same region under the same header, the grid " +
+      "unchanged, and the choice is stored",
+      classic.rails === 1 && classic.map === 0 && JSON.stringify(classic.pressed) === JSON.stringify(["false", "true"]) &&
+      classic.stored === "classic" && classic.grid === opened.grid);
+    await page.reload({ waitUntil: "load" });
+    await pickModel(page, MAP_TOPOLOGY);
+    await page.waitForSelector("#topopane svg.tv__rails", { timeout: 30000 }).catch(() => {});
+    await settle(300);
+    push("[real] a reload remembers Classic",
+      await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 0 &&
+        document.querySelector('#topopane #dag-drawing button[data-drawing="classic"]').getAttribute("aria-pressed") === "true"));
+    await page.locator('#topopane #dag-drawing button[data-drawing="map"]').click({ timeout: 5000, noWaitAfter: true });
+    await page.waitForSelector("#topopane svg.tv__map", { timeout: 15000 }).catch(() => {});
+    push("[real] Map puts the map back", await page.evaluate(() =>
+      document.querySelectorAll("#topopane svg.tv__rails").length === 0 &&
+      localStorage.getItem("tolstack.viewer.dagDrawing") === "map"));
+
+    // --- 12. the legacy model has no map ---------------------------------------
+    await pickModel(page, "vpa_pitch_linkage");
+    await page.waitForSelector("#topopane svg.tv__rails", { timeout: 30000 }).catch(() => {});
+    await settle(300);
+    const noMap = await page.evaluate(() => {
+      const b = document.querySelector('#topopane #dag-drawing button[data-drawing="map"]');
+      return { map: document.querySelectorAll("#topopane svg.tv__map").length, text: b && b.textContent,
+        disabled: !!(b && b.disabled), classicPressed: document.querySelector('#topopane #dag-drawing button[data-drawing="classic"]').getAttribute("aria-pressed") };
+    });
+    push("[real] the legacy model has no layout: its region draws Classic and the switch says No map, " +
+      "in two words, and takes no click",
+      noMap.map === 0 && noMap.text === "No map" && noMap.disabled && noMap.classicPressed === "true");
+    await pickModel(page, MAP_TOPOLOGY);
+    await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 }).catch(() => {});
+
+    // --- 13. the pane views ----------------------------------------------------
+    const bothWidth = (await paneBox()).width;
+    await page.evaluate(() => document.querySelector('#pane-view button[data-view="dag"]').click());
+    await settle(400);
+    const dagView = await page.evaluate(() => ({
+      width: document.getElementById("topopane").getBoundingClientRect().width,
+      map: document.querySelectorAll("#topopane svg.tv__map").length,
+      head: !!document.querySelector("#topopane > .tv__daghead"),
+      zoom: Number(document.querySelector("#topopane svg.tv__map").getAttribute("data-zoom")),
+    }));
+    push("[real] in the DAG view the map takes the wider region, re-fitted, with its header still in the region",
+      dagView.width > bothWidth * 1.5 && dagView.map === 1 && dagView.head && dagView.zoom > fitZoom);
+    await page.evaluate(() => document.querySelector('#pane-view button[data-view="3d"]').click());
+    await settle(300);
+    push("[real] in the 3D view the region is hidden, map and header with it",
+      await page.evaluate(() => getComputedStyle(document.getElementById("topopane")).display === "none"));
+    await page.evaluate(() => document.querySelector('#pane-view button[data-view="both"]').click());
+    await settle(300);
+    push("[real] side by side again, the map is back in its region",
+      await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
+        getComputedStyle(document.getElementById("topopane")).display !== "none"));
+    push("[real] nothing threw on the map's page", errors.length === 0);
+    if (errors.length) console.log(`      [${label}] errors: ${errors.join(" | ").slice(0, 600)}`);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 async function testDagZoom(browser, fileBase, label, realProjection, realCrops) {
   const realResults = await readProjection("results.json");
   const realKinematic = await readProjection("kinematic/kinematic_studies.json");
@@ -17226,6 +17677,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testSuggestionNamesItsFace(browser, label, topologies)],
       ["a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)",
         (label) => testPatternAndAddAFace(browser, label, topologies)],
+      ["the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+        (label) => testTheMap(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

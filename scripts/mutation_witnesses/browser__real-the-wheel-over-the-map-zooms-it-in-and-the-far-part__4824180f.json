@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] the wheel over the map zooms it in, and the far part leaves the region",
+  "mutations": [
+    {
+      "contract": "The wheel over the map zooms it about the pointer.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "The wheel does nothing.",
+      "file": "apps/viewer/views/map.js",
+      "find": "      setView(VA.mapZoomAt(current(), event.deltaY, event.clientX - r.left, event.clientY - r.top), true);",
+      "replace": "      /* mutated: the wheel does nothing */"
+    }
+  ]
+}

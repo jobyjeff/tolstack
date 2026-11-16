@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map's layout draws the model's counts: a district per body, a box per part, a pin per feature that ends an interface and a mark for one that does not, a jumper per dimension and a connector per interface, with nothing left undrawn",
+  "mutations": [
+    {
+      "contract": "Every feature is drawn once: a pin where it ends an interface, an inner mark where it does not, so the drawn counts equal model.counts and nothing in the model is left undrawn.",
+      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
+      "note": "Drops the inner mark for a feature that ends no interface -- the fixture's base datum -- so one feature is undrawn and the counts no longer match.",
+      "file": "apps/viewer/map.js",
+      "find": "        (marksOf[f.part] = marksOf[f.part] || []).push({ id: f.id, part: f.part, node: f.node, label: f.name });\n        return;",
+      "replace": "        return; /* mutated: a feature that ends no interface is dropped */"
+    }
+  ]
+}

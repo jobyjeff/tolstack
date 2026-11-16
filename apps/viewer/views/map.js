@@ -50,7 +50,13 @@
     Object.keys(VA.MAP_SYMBOLS).forEach(function (word) {
       var sym = node("symbol", { id: VA.mapSymbolId(word), viewBox: [-h, -h, 2 * h, 2 * h].join(" "),
                                  overflow: "visible" });
-      VA.MAP_SYMBOLS[word].shapes.forEach(function (shape) { sym.appendChild(node(shape[0], shape[1])); });
+      VA.MAP_SYMBOLS[word].shapes.forEach(function (shape) {
+        var attrs = Object.assign({}, shape[1]);
+        // A curve never takes SVG's default black fill, in the markup itself
+        // (the stylesheet says the same; the shim has no stylesheet).
+        if (shape[0] !== "circle" && shape[0] !== "rect" && attrs.fill === undefined) attrs.fill = "none";
+        sym.appendChild(node(shape[0], attrs));
+      });
       defs.appendChild(sym);
     });
     return defs;
@@ -242,10 +248,16 @@
     geo.bodies.forEach(function (body) {
       var tintCls = " tv__fill--t" + body.tint;
       var g = VA.svg("g", "map__body" + tintCls);
+      // A wide transparent twin of the border takes the pointer: the drawn
+      // border is dashed and two pixels, and a click in a dash gap landed on
+      // the drawing (the click-around found it).
+      var hit = rect("map__districthit", body, { rx: M.district.radius, ry: M.district.radius });
+      register(reg, hit, "map__districthit", VA.FOCUS_KINDS.body, body.id);
+      wire(hit, ctx, VA.FOCUS_KINDS.body, body.id, body.name);
+      title(hit, body.name);
+      g.appendChild(hit);
       var r = rect("map__district", body, { rx: M.district.radius, ry: M.district.radius });
       register(reg, r, "map__district" + tintCls, VA.FOCUS_KINDS.body, body.id);
-      wire(r, ctx, VA.FOCUS_KINDS.body, body.id, body.name);
-      title(r, body.name);
       g.appendChild(r);
       var name = text("map__bodyname", body.x + 14, body.y + 8 + M.font.body, body.name,
         { "font-size": M.font.body });
@@ -270,10 +282,13 @@
       var base = "map__box" + (box.child ? " map__box--child" : "") + tint;
       var g = VA.svg("g", "map__part");
       g.setAttribute("data-part", box.id);
+      var hit = rect("map__boxhit", box, { rx: M.box.radius, ry: M.box.radius });
+      register(reg, hit, "map__boxhit", VA.FOCUS_KINDS.part, box.id);
+      wire(hit, ctx, VA.FOCUS_KINDS.part, box.id, box.label);
+      title(hit, box.label);
+      g.appendChild(hit);
       var r = rect("map__box", box, { rx: M.box.radius, ry: M.box.radius });
       register(reg, r, base, VA.FOCUS_KINDS.part, box.id);
-      wire(r, ctx, VA.FOCUS_KINDS.part, box.id, box.label);
-      title(r, box.label);
       g.appendChild(r);
       var nameG = VA.svg("g", "map__partname" + tint);
       register(reg, nameG, "map__partname" + tint, VA.FOCUS_KINDS.part, box.id);
@@ -498,7 +513,7 @@
     svg.addEventListener("pointerdown", function (event) {
       if (event.button !== 0 || !event.target) return;
       var t = event.target;
-      if (t !== svg && !(t.classList && (t.classList.contains("map__district") || t.classList.contains("map__box")))) return;
+      if (t !== svg && !(t.classList && (t.classList.contains("map__districthit") || t.classList.contains("map__boxhit")))) return;
       if (t !== svg) {
         // On a district's or a box's stroke the click is the entity's; the
         // interior never arrives here. Let the click stand.
