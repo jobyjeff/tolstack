@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20261116_the_annotate_check_runs_every_pass.md
 area: annotate/browser-check
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md
+resolution: handoff completed 2026-11-16 -- closed automatically by dispatch when handoff `the_annotate_check_runs_every_pass` moved to completed/; not independently verified.
 ---
 
 # The annotate browser check's correction pass throws, so the passes after it never run
