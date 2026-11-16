@@ -4623,7 +4623,14 @@ async function testTheMap(browser, label, topologies) {
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 });
     const sceneReady = await untilPane((w) => w.AnnotateApp && w.__scene && w.__scene.listOpenParts().length > 0, null, 120000);
     await settle(1500);
+    // Opening the pane does not repaint the region by itself; the claim is
+    // about what the page draws WITH the pane open, so the page is repainted
+    // (the density toggle renders; twice, to leave the rows as they were).
+    await page.evaluate(() => document.getElementById("density-toggle").click());
+    await page.evaluate(() => document.getElementById("density-toggle").click());
+    await settle(400);
     const stillMap = await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
+      document.querySelectorAll("#topopane svg.tv__rails").length === 0 &&
       !!document.querySelector("#topopane > .tv__daghead"));
     push("[real] with the 3D pane open beside it the region still draws the map, with its header",
       sceneReady && stillMap);

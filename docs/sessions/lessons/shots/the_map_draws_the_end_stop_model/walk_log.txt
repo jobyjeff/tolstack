@@ -44,7 +44,10 @@
   shot click_15_fit.png
 16. the 3D pane opened beside it: zoom 1.126 -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_16_the_3d_pane_opened_beside_it.png
-17. hover the hub's row in the tree with the pane open: zoom 0.566 -> 0.566; map lead 10, hot 8, selected 6, touched 4; tree hot 1 on 5; grid lead 3 selected 1; doc scroll 0
+17. hover the hub's row in the tree with the pane open: zoom 0.566 -> 0.566; map lead 10, hot 8, selected 6, touched 4; tree hot 1 on 5; grid lead 3 selected 1; doc scroll 0; THREW locator.hover: Timeout 5000ms exceeded.
+Call log:
+[2m  - waiting for locator('#navtree [data-nav-kind="part"][data-nav-id="hub"]').first()[22m
+[2m    - locator resolved to <div tabindex="0" role="b
   shot click_17_hover_the_hub_s_row_in_the_tree_with_the_pane_open.png
 18. DAG view: zoom 0.566 -> 1.126; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_18_dag_view.png
