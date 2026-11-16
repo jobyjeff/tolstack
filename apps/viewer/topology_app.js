@@ -406,6 +406,11 @@
         resizeTimer = window.setTimeout(function () {
           resizeTimer = null;
           applyPaneWidth();
+          // The 3D view is clamped on load and on every open; a window that
+          // shrinks under it needs the same clamp, or it keeps its pixel width
+          // and the map's region is left 0 wide. Measured AFTER the grid's
+          // column is re-applied (roomBesideFlyout reads it).
+          if (nodes.flyout && nodes.flyout.open) refitPane();
           render();
         }, 150);
       });

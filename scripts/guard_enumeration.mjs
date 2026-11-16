@@ -698,7 +698,7 @@ export const DECLARED_GUARDS = {
   // with a spec; and one renamed -- the app suites' "says nothing about a
   // classic view" now counts the word everywhere but the DAG region's own
   // switch (the review's B2), still without a spec.
-  browser: { declared: 898, enrollable: 867, names: "e825c95d4bb4" },
+  browser: { declared: 902, enrollable: 871, names: "95c61ff6ecd2" },
 };
 
 
