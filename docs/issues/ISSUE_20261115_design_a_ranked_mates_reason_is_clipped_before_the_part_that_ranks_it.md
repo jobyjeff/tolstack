@@ -1,7 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+defer_until: 2026-12-16
+class: design_text_clipped
+resolution: deferred 2026-11-16 triage -- low defers by default; 30-day date
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md

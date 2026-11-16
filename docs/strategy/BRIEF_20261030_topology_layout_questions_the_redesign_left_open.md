@@ -69,3 +69,27 @@ issue is the verifier's).
    solver's two slide ends, which is (0,0,0) at 72° and zero travel. Its eight world lines then run
    from the origin and read as the old star of unplaced nodes. The joint is true; the question is how a
    joint at the datum should be drawn so it does not read as "unplaced".
+
+## 2026-11-16 triage sweep — the map arrives with two questions of its own
+
+`the_map_draws_the_end_stop_model` (completed 2026-11-16) built the map beside the
+present DAG, and filed two `audience: strategy` issues that belong beside this
+brief's layout questions rather than in a new file:
+
+- **What the map does not draw yet** —
+  `docs/issues/ISSUE_20261116_what_the_map_does_not_draw_yet.md`. Six items fenced
+  out of that handoff by name (a fold control on an assembly outline, a study lit as
+  a route, a v1 layout, retiring Classic and its suites, compound joints, a portrait
+  arrangement), each with what the code already gives it and its open question. The
+  strategy draft (`dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`,
+  "2026-11-15 -- the chain to the map", step 6) says these are written **after
+  Jeff's review of the map**, so that review is this item's gate. Retiring Classic
+  bears directly on Q8 above and on every DAG question here.
+- **A fastener pattern has no model word** —
+  `docs/issues/ISSUE_20261116_the_model_has_no_interface_word_for_a_fastener_pattern.md`.
+  A vocabulary policy: the map's layout file (`docs/topologies/map_vpa_end_stop_v2.json`,
+  `"symbols"`) names a clocking as `pattern` because nothing in the model can.
+  Options in the issue: a node `kind` (`fastener_pattern`), an interface word on a
+  shared node, or keep the layout override. It touches `tolerance_stack/topology.py`'s
+  vocabulary and the pattern binding of 2026-11-16, so it is a model decision first
+  and a drawing one second.

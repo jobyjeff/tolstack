@@ -1,7 +1,9 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+defer_until: 2026-11-30
+resolution: deferred 2026-11-16 triage -- med beyond the per-repo budget (3 staged); 14-day date
 area: browser runner / kill witness
 class: browser_tier_flake_under_load
 reporter: agent

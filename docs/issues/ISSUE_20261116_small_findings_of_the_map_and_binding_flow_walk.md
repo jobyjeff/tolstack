@@ -1,7 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
+defer_until: 2026-12-16
+class: walk_small_findings
+resolution: deferred 2026-11-16 triage -- low defers by default; 30-day date
 area: viewer
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261115_the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page.md

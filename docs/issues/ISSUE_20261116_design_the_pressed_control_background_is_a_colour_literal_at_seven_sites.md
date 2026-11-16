@@ -1,7 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+defer_until: 2026-12-16
+class: design_token_literal
+resolution: deferred 2026-11-16 triage -- low defers by default; 30-day date
 area: design
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261116_the_map_draws_the_end_stop_model.md

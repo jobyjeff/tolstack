@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
 class: flaky_check
 found_by: docs/sessions/active/HANDOFF_20261115_the_scene_suite_opens_its_own_pane.md
-handoff: the_model_drawn_alone_and_led_hub_hover_check_goes_green
+handoff: docs/sessions/HANDOFF_20261116_the_model_drawn_alone_and_led_hub_hover_check_goes_green.md
 ---
 
 # "The model drawn alone and led" is 21/23 on integration: two hover-lighting sub-checks

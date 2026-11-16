@@ -1,7 +1,9 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
+defer_until: 2026-12-16
+resolution: deferred 2026-11-16 triage -- low defers by default; 30-day date
 area: scripts/fit_bound_features
 reporter: agent
 class: data_root_not_threaded

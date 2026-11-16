@@ -1,7 +1,10 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
+defer_until: 2026-11-30
+class: ranked_mates_coverage_gap
+resolution: deferred 2026-11-16 triage -- med beyond the per-repo budget (3 staged); 14-day date
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md

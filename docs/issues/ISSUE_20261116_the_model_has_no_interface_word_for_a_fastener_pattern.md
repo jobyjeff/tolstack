@@ -1,7 +1,8 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
+strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 area: topology/vocabulary
 reporter: agent
 audience: strategy
