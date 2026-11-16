@@ -920,7 +920,12 @@
   //              is bound until one is kept (the feature reads suggested);
   //              Pick a face, for when neither is the feature's face
   //   suggested  the pane's candidate rows, as before; with none (the run does
-  //              not carry the feature) the suggestion's line and Pick a face
+  //              not carry the feature) the suggestion's line -- naming its
+  //              face: hovering lights it, a click turns the pane to it,
+  //              Take accepts it (2026-11-15) -- and Pick a face
+  //   mates      under an unbound or armed feature whose other side is bound,
+  //              the faces that mate with it (the pane's `mates`), each with
+  //              why it is there and Take
   //   neither    "not bound" and Pick a face, which arms the same pick
   //   armed      the pane's own armed line and Cancel, while a pick is armed
   //              at one of the feature's ends
@@ -949,12 +954,16 @@
     flipTitle: "this face is the dimension's other end",
     cancel: "Cancel",
     cancelTitle: "stop picking (Esc)",
+    take: "Take",
+    takeTitle: "bind this face to the feature",
+    acceptTitle: "bind the suggested face to the feature",
+    lookTitle: "click to turn the 3D view to it",
   });
 
   // The pane verbs a body's actions post, each `<verb> <edge> <end>
   // <topology>` except `arm off` (apps/annotate/app.js registers them).
   VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip", keep: "keep",
-    dropFace: "drop-face" });
+    dropFace: "drop-face", accept: "accept", take: "take", camera: "camera" });
 
   // The kinds of body VA.featureBodyPlan returns (null: draw the pane's rows).
   VA.FEATURE_BODY_KINDS = Object.freeze({ bound: "bound", none: "none", armed: "armed",
@@ -968,23 +977,33 @@
 
   // `model` the one model; `fid` the feature; `topologyId` what its verbs
   // name; `rows` the pane's rows for it (VA.sceneRowsForFeature); `tree` the
-  // pane's newest tree message (its `armedEnd` and `armedLine`), or null.
-  // Returns {kind, lines: [{text, face?}], actions: [{text, title, command}]}
-  // or null for "draw the pane's rows".
+  // pane's newest tree message (its `armedEnd`, `armedLine` and `mates`), or
+  // null. Returns {kind, lines: [{text, sub?, title?, face?, look?, actions?}],
+  // actions: [{text, title, command}]} or null for "draw the pane's rows".
+  // `look` is the pane verb a click on the line posts.
   VA.featureBodyPlan = function (model, fid, topologyId, rows, tree) {
     var feature = model && model.feature(fid);
     if (!feature) return null;
     var W = VA.FEATURE_BODY_WORDS, V = VA.FEATURE_BODY_VERBS, K = VA.FEATURE_BODY_KINDS;
     var ends = model.endsOf(fid);
     var armed = tree && tree.armedEnd;
+    // The faces that mate with the side bound opposite (the pane's ranking),
+    // each a line: the face, why it is there, Take.
+    var mates = tree && tree.mates && tree.mates[fid];
+    var mateLines = mates ? mates.rows.map(function (r) {
+      return { text: r.text, sub: r.reason, title: [r.text, r.reason, r.detail].filter(Boolean).join("\n"),
+        face: { sha256: r.sha256, faceId: r.faceId }, look: [V.camera, "face", r.sha256, String(r.faceId)],
+        actions: [{ text: W.take, title: W.takeTitle,
+          command: [V.take, mates.edgeId, mates.direction, r.sha256, String(r.faceId), topologyId] }] };
+    }) : [];
     if (armed && ends.some(function (e) { return e.edgeId === armed.edgeId && e.end === armed.direction; })) {
-      return { kind: K.armed, lines: [{ text: String(tree.armedLine || "") }],
+      return { kind: K.armed, lines: [{ text: String(tree.armedLine || "") }].concat(mateLines),
         actions: [{ text: W.cancel, title: W.cancelTitle, command: [V.arm, "off"] }] };
     }
     var status = model.status(fid);
     var record = model.featureRecord ? model.featureRecord(fid) : null;
     var disagree = record && record.state === VA.FEATURE_STATES[1];
-    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length && !disagree) return null;
+    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length && !disagree && !mateLines.length) return null;
     var part = model.part(feature.part);
     var partWords = (part && (part.number || part.label)) || feature.part;
     // `arm` also names the feature's own part, armed first (a shared node is
@@ -1046,17 +1065,38 @@
     }
     if (!ends.length) return { kind: K.none, lines: [{ text: W.none }], actions: [] };
     if (!model.hasMesh(feature.part)) return { kind: K.none, lines: [{ text: W.noMesh }], actions: [] };
-    var proposals = model.proposalsOf(fid);
-    var text = W.none;
-    if (proposals.length) {
-      var best = proposals.map(function (p) { return p.event.confidence; })
-        .sort(function (a, b) { return confidenceRank(a) - confidenceRank(b); })[0];
-      text = fill(W.suggested, { confidence: best });
+    // The surest proposal, which the line, its face and its Take all read
+    // (the pane's `accept` answers the surest at that end, which this is).
+    var best = VA.surestProposal(model.proposalsOf(fid));
+    var head = { text: W.none };
+    if (best) {
+      var faces = VA.eventFaces(best.event);
+      head = { text: fill(W.suggested, { confidence: best.event.confidence }) };
+      if (faces.length) {
+        head.face = { sha256: faces[0].source_step_sha256, faceId: faces[0].face_id };
+        head.title = head.text + " · " + faces.map(function (f) { return "face " + f.face_id; }).join(", ") +
+          "\n" + W.lookTitle;
+        head.look = [V.camera, "face", faces[0].source_step_sha256].concat(faces.map(function (f) {
+          return String(f.face_id);
+        }));
+        head.suggestion = true;
+        head.actions = [{ text: W.take, title: W.acceptTitle, command: [V.accept, best.edgeId, best.end, topologyId] }];
+      }
     }
     // Picked at the end a proposal sits at, else the feature's first own end.
-    var at = proposals.length ? proposals[0] : ends[0];
-    return { kind: K.none, lines: [{ text: text }],
+    var at = best || ends[0];
+    return { kind: K.none, lines: [head].concat(mateLines),
       actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, at) }] };
+  };
+
+  // The surest of a feature's proposals (model.proposalsOf), by the proposal
+  // vocabulary's order; the first listed among equals. Null for none.
+  VA.surestProposal = function (proposals) {
+    var best = null;
+    (proposals || []).forEach(function (p) {
+      if (!best || confidenceRank(p.event.confidence) < confidenceRank(best.event.confidence)) best = p;
+    });
+    return best;
   };
 
   // Surest first, the proposal vocabulary's own order (generated).
@@ -1093,12 +1133,30 @@
     plan.lines.forEach(function (line) {
       var row = VA.el("div", "navtree__featurestate");
       var words = VA.el("span", "navtree__featurewords", line.text);
-      words.setAttribute("title", line.text);
-      row.appendChild(words);
+      words.setAttribute("title", line.title || line.text);
+      if (line.sub) {
+        // A face and, under it, why it is listed.
+        var text = VA.el("span", "navtree__featuretext");
+        text.appendChild(words);
+        var sub = VA.el("span", "navtree__featuresub", line.sub);
+        sub.setAttribute("title", line.title || line.sub);
+        text.appendChild(sub);
+        row.appendChild(text);
+      } else {
+        row.appendChild(words);
+      }
+      if (line.suggestion) row.setAttribute("data-suggestion", "true");
       if (line.face) {
         row.setAttribute("data-face", String(line.face.faceId));
         row.onmouseenter = function () { hoverFace(line.face); };
         row.onmouseleave = function () { hoverFace(null); };
+      }
+      if (line.look) {
+        row.setAttribute("data-look", "true");
+        row.onclick = function (event) {
+          if (event && event.stopPropagation) event.stopPropagation();
+          command(line.look);
+        };
       }
       body.appendChild(row);
       if (line.actions && line.actions.length) body.appendChild(actsOf(line.actions));

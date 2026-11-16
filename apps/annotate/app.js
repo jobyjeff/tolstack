@@ -839,7 +839,31 @@ function cmdCamera(mode, ...rest) {
     state.scene.frameParts(shas);
     return shas;
   }
-  throw new Error("unknown camera mode \"" + mode + "\" -- known: reset, frame");
+  if (mode === "face") return cameraFace(rest[0], rest.slice(1));
+  throw new Error("unknown camera mode \"" + mode + "\" -- known: reset, frame, face");
+}
+
+// camera face <mesh> <face> [<face> ...] -- a suggestion line clicked in the
+// shell's tree (2026-11-15): the pane turns to those faces, framed on every
+// occurrence it draws of the part, and the first takes the pick tint, which
+// `deselect face` takes down. Either mode; it writes nothing.
+async function cameraFace(identifier, faceTexts) {
+  const mesh = resolveMeshOrThrow(identifier);
+  const faceIds = faceTexts.map((t) => {
+    const id = parseInt(t, 10);
+    if (!isFinite(id) || String(id) !== String(t)) throw new Error("camera face needs <mesh> <face id>..., got " + JSON.stringify(t));
+    return id;
+  });
+  if (!faceIds.length) throw new Error("camera face needs <mesh> <face id>...");
+  if (state.scene.listOpenParts().indexOf(mesh.sha256) === -1) {
+    await state.scene.loadPart(mesh.sha256);
+    renderPartsPanel();
+  }
+  state.scene.setVisible(mesh.sha256, true);
+  if (!state.scene.frameFaces(mesh.sha256, faceIds)) throw new Error("part \"" + identifier + "\" has no face " + faceIds[0]);
+  state.scene.highlightFace(mesh.sha256, faceIds[0]);
+  window.__lastLook = { sha256: mesh.sha256, faceIds };
+  return window.__lastLook;
 }
 
 function cmdSelectFace(identifier, faceIdText) {
@@ -1229,6 +1253,180 @@ function endFeature(topology, edgeId, direction) {
   return window.ViewerApp.endFeatureKey(topology, edgeId, direction);
 }
 
+// --- the mate (handoff a_suggestion_names_its_face_and_the_mating_side_
+// ranks_the_candidates, 2026-11-15) ------------------------------------------
+//
+// Once one side of an interface is bound, the other side's faces are ranked
+// by how they mate with it, where the open model draws both parts
+// (AA.rankMatingFaces). Kept per model in `state.mates` and read by three
+// places: the armed pick (its faces pre-lit), a joint end's and an element's
+// candidate list, and the tree the shell mirrors (`mates`, per feature). It
+// ranks and colours; nothing here writes.
+
+// { sha256: [placement] }: where `topology` draws each part.
+function placementsOf(topology) {
+  const occ = occurrencesFor(topology);
+  const out = {};
+  if (!occ) return out;
+  Object.keys(occ.byMesh || {}).forEach((sha) => { out[sha] = (occ.byMesh[sha] || []).map((o) => o.placement); });
+  return out;
+}
+
+// A model feature's own edge ends on `topology` (the ends whose feature it
+// is, VA.endFeatureKey): [{edgeId, direction}].
+function featureEnds(topology, feature) {
+  const out = [];
+  for (const e of topology.edges || []) {
+    for (const d of AA.DIRECTIONS) {
+      const k = e[d] === feature.node ? window.ViewerApp.endFeatureKey(topology, e.id, d) : null;
+      if (k && k.part === feature.part) out.push({ edgeId: e.id, direction: d });
+    }
+  }
+  return out;
+}
+
+// The model feature an end is, on `topology`, or null.
+function featureAt(topology, edgeId, direction) {
+  const k = window.ViewerApp.endFeatureKey(topology, edgeId, direction);
+  const features = (topology && topology.model && topology.model.features) || [];
+  return k ? features.find((f) => f.part === k.part && f.node === k.node) || null : null;
+}
+
+// The faces bound on the other side of a feature: what AA.gatherFaceReferences
+// reads at each of its own ends, on any other part, once each.
+function mateReferences(topology, ends, ownSha, view) {
+  const out = [];
+  const seen = new Set();
+  for (const end of ends) {
+    for (const r of AA.gatherFaceReferences(topology, end.edgeId, end.direction, view)) {
+      const key = r.sha256 + "|" + r.faceId;
+      if (r.sha256 === ownSha || seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+// The topology part a mesh is, for a reason's words ("coaxial with blade
+// bonded assembly"), or null.
+function partNameOfMesh(topology, sha256) {
+  const part = ((topology && topology.parts) || []).find((p) => {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, p.id, state.partMeshAliases);
+    return mesh && mesh.sha256 === sha256;
+  });
+  return part ? part.name || part.id : null;
+}
+
+// One feature's faces, ranked by the mate: its part's faces against the faces
+// bound on the other side, both where `topology` draws them. Candidate rows
+// (AA.endCandidates' shape, kind `mate`); [] when nothing is bound opposite,
+// either part has no place in the assembly, or nothing mates.
+async function rankMatesAt(topology, ends, partId, view, placements) {
+  const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
+  if (!mesh || !ends.length || !(placements[mesh.sha256] || []).length) return [];
+  const refs = mateReferences(topology, ends, mesh.sha256, view)
+    .filter((r) => (placements[r.sha256] || []).length);
+  if (!refs.length) return [];
+  // The class the feature's own words ask for, where they ask: a bore bound
+  // opposite a "face" end says nothing about which flat face it is.
+  const edge = (topology.edges || []).find((e) => e.id === ends[0].edgeId);
+  const node = (topology.nodes || []).find((n) => n.id === (edge && edge[ends[0].direction]));
+  const want = AA.endSurfaceClass(edge, node);
+  for (const sha of [mesh.sha256].concat(refs.map((r) => r.sha256))) {
+    await ensureFaceClasses(sha).catch(() => null);
+  }
+  const own = state.faceClasses[mesh.sha256];
+  if (!own) return [];
+  const references = refs.map((r) => ({ sha256: r.sha256, faceId: r.faceId,
+    record: (state.faceClasses[r.sha256] || [])[r.faceId] || null, placements: placements[r.sha256] }))
+    .filter((r) => r.record && (!want || r.record.surface === want.surface));
+  const ranked = AA.rankMatingFaces({ sha256: mesh.sha256, classes: own, placements: placements[mesh.sha256],
+    references });
+  return ranked.map((m) => {
+    const reason = AA.mateReason(m, partNameOfMesh(topology, m.mateSha256));
+    return { kind: AA.CANDIDATE_ROW_KINDS[2], sha256: m.sha256, faceId: m.faceId, surface: m.surface,
+      radius: m.radius, reason, detail: AA.mateDetail(m), bound: false, mate: m };
+  });
+}
+
+// Every unbound feature of the open model with a bound side opposite it,
+// ranked (state.mates), recomputed when the record, the model or the
+// occurrences change. The newest call wins.
+let matesKey = null;
+async function refreshMates() {
+  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+  if (!topology || !state.meshList || !state.meshList.length || !state.scene) return;
+  // What the ranking is read from, by identity: the fold itself is rebuilt
+  // per call where there is no log to fold (sessionIdentityProjection).
+  const key = [topology, state.identityEvents, state.sessionEvents.length, state.identityProjection,
+    state.meshList, state.topologyProjection, state.sameSurface];
+  if (matesKey && key.every((k, i) => k === matesKey[i])) return;
+  matesKey = key;
+  await loadOccurrences();
+  if (matesKey !== key) return;
+  const fold = sessionIdentityProjection();
+  const view = AA.identityReadThrough(fold, topology);
+  const placements = placementsOf(topology);
+  const VA = window.ViewerApp;
+  const byFeature = {};
+  const byEnd = {};
+  for (const f of (topology.model && topology.model.features) || []) {
+    const record = f.identity && fold && fold.features ? VA.featureRecordOf(fold, f.identity) : null;
+    if (record && record.state === VA.FEATURE_STATES[0]) continue;
+    const ends = featureEnds(topology, f);
+    const rows = await rankMatesAt(topology, ends, f.part, view, placements);
+    if (matesKey !== key) return;
+    if (!rows.length) continue;
+    byFeature[f.id] = { edgeId: ends[0].edgeId, direction: ends[0].direction, rows };
+    ends.forEach((e) => { byEnd[e.edgeId + "|" + e.direction] = rows; });
+  }
+  state.mates = { topologyId: topology.id, byFeature, byEnd };
+  window.__mates = state.mates;
+  if (state.sweep) renderSweepRail(); else renderElementList();
+  postEmbedTree(false);
+}
+
+function scheduleMates() {
+  refreshMates().catch((err) => console.warn("ranking the mates failed:", err));
+}
+
+// The mate rows at one end of `topology` -- the armed pick's own when it is
+// armed there -- or [].
+function mateRowsAt(topology, via) {
+  const a = state.armed;
+  if (a && topology && a.topologyId === topology.id && a.edgeId === via.edgeId &&
+      a.direction === via.direction && a.mates) return a.mates;
+  const m = state.mates;
+  if (!m || !topology || m.topologyId !== topology.id) return [];
+  return m.byEnd[via.edgeId + "|" + via.direction] || [];
+}
+
+// An end's candidate list with its mates: the agent's proposals first, then
+// the faces that mate with the side bound opposite, then the contact
+// engine's -- each face once.
+function candidatesWithMates(rows, topology, via) {
+  const mates = mateRowsAt(topology, via);
+  if (!mates.length) return rows;
+  const listed = new Set(rows.map((r) => r.sha256 + "|" + r.faceId));
+  const proposed = rows.filter((r) => r.kind === AA.CANDIDATE_ROW_KINDS[0]);
+  const fresh = mates.filter((r) => !listed.has(r.sha256 + "|" + r.faceId));
+  const freshKeys = new Set(fresh.map((r) => r.sha256 + "|" + r.faceId));
+  return proposed.concat(fresh, rows.filter((r) => r.kind !== AA.CANDIDATE_ROW_KINDS[0] &&
+    !freshKeys.has(r.sha256 + "|" + r.faceId)));
+}
+
+// The armed pick's ranked faces, pre-lit in the suggestion colour (the first
+// AA.CANDIDATES_LISTED, as its list shows them); or the colour taken down.
+function paintArmedMates() {
+  if (!state.scene) return;
+  state.scene.clearMarks("suggested");
+  const a = state.armed;
+  if (!a || !a.mates) return;
+  a.mates.slice(0, AA.CANDIDATES_LISTED).forEach((r) => state.scene.markFace(r.sha256, r.faceId, "suggested"));
+  window.__armedMates = a.mates.map((r) => ({ sha256: r.sha256, faceId: r.faceId }));
+}
+
 // Every mesh a suggestion for `edge` could need read: the element's own part,
 // and every part a nearby binding points at. Done before planning rather than
 // inside it, because the planner is pure and cannot fetch -- and a reference
@@ -1302,6 +1500,9 @@ async function cmdSuggest() {
     meshes: state.meshList,
     aliases: state.partMeshAliases,
     faceClasses: state.faceClasses,
+    // Where the open model draws each part: the mate stage reads it
+    // (AA.rankMatingFaces), before anything the part says about itself.
+    placements: placementsOf(state.currentTopology),
   });
   state.suggestionPlan = plan;
   state.contactRows = { edge: edge.id,
@@ -3057,6 +3258,11 @@ async function cmdArm(what, direction, topologyId, partId) {
   applyArmDisplay();
   state.scene.setPickFilter(state.armed.shas);
   state.scene.frameOccurrences(anchoredOccurrences([targets[0]]));
+  // With the other side of the interface bound, the faces that mate with it
+  // are ranked, listed under the armed end and pre-lit (AA.rankMatingFaces);
+  // the pick still takes any face of the part. Read after the arm returns:
+  // a part's shapes may still be being read.
+  armMates(state.armed, topology, edge, direction, targets[0].partId);
   // The pre-selection line reads the suggestion engine's fit; classify now,
   // and say the face again when the classes land -- a hover that arrived
   // first read "face N" alone until the pointer moved (ISSUE_20261029_no_
@@ -3071,6 +3277,21 @@ async function cmdArm(what, direction, topologyId, partId) {
   renderDetail();
   postEmbedTree(false);
   return { armed: true, edgeId: edge.id, direction, parts: state.armed.shas };
+}
+
+// The armed end's mates, once its feature's ranking lands (rankMatesAt), if
+// the same pick is still armed.
+function armMates(armed, topology, edge, direction, partId) {
+  const feature = featureAt(topology, edge.id, direction);
+  if (!feature) return;
+  rankMatesAt(topology, featureEnds(topology, feature), partId,
+    AA.identityReadThrough(sessionIdentityProjection(), topology), placementsOf(topology)).then((rows) => {
+    if (state.armed !== armed || !rows.length) return;
+    armed.mates = rows;
+    paintArmedMates();
+    if (state.sweep) renderSweepRail(); else renderElementList();
+    postEmbedTree(false);
+  }).catch((err) => console.warn("ranking the mates failed:", err));
 }
 
 // A topology of the projection by id, or a throw naming it.
@@ -3290,6 +3511,12 @@ function disarmPick(reason) {
   hideGroupOffer();
   state.armed = null;
   state.scene.setPickFilter(null);
+  if (a.mates && a.mates.length) {
+    // The pre-lit mates come down; bind mode's own suggestions, if on, go back.
+    state.scene.clearMarks("suggested");
+    window.__armedMates = null;
+    if (!sweep) refreshSuggestions();
+  }
   for (const entry of a.restore.parts) state.scene.setVisible(entry.sha, entry.visible);
   for (const sha of a.restore.opened) state.scene.unloadPart(sha);
   // Outside sweep mode nothing owns the looks at rest, so each part gets back
@@ -3718,8 +3945,8 @@ function featureRow(topology, joint, feature) {
   const li = featureRowBase(topology, joint, feature);
   const via = { edgeId: li.dataset.edge || null, direction: li.dataset.direction || null };
   if (!via.edgeId) return li;
-  const rows = AA.endCandidates(mergedIdentityProjection(), state.contactSuggestions,
-    topology.id, via, state.faceClasses);
+  const rows = candidatesWithMates(AA.endCandidates(mergedIdentityProjection(), state.contactSuggestions,
+    topology.id, via, state.faceClasses), topology, via);
   const key = candidateKey(topology.id, via.edgeId, via.direction);
   li.appendChild(candidateList(key, [{ edgeId: via.edgeId, direction: via.direction, rows }],
     endPickAction(topology, via), renderSweepRail));
@@ -4168,6 +4395,9 @@ function contributorsGroup(topology) {
 function renderSweepRail() {
   const sweep = state.sweep;
   if (!sweep) return;
+  // The mates follow what the rail reads (memoised: a re-render whose inputs
+  // have not moved ranks nothing).
+  scheduleMates();
   let root = document.getElementById("sweep-tree");
   if (!root) {
     root = document.createElement("div");
@@ -4479,19 +4709,21 @@ function clearSuggestionFocus() {
   if (state.scene && state.scene.setSuggestionFocus) state.scene.setSuggestionFocus(null);
 }
 
-// accept <edge> <from|to> -- the surest open proposal at that end, accepted:
-// one `bound` event naming it (ratifies), recorded as this reviewer,
-// superseding the end's one standing binding if it has one. A sweep rail
-// row's Accept; in either mode, through the one answer path (writeAnswer).
-async function cmdAccept(edgeId, direction) {
-  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+// accept <edge> <from|to> [<topology>] -- the surest open proposal at that
+// end, accepted: one `bound` event naming it (ratifies), recorded as this
+// reviewer, superseding the end's one standing binding if it has one. A
+// sweep rail row's Accept, and since 2026-11-15 the shell's feature body's
+// Take, which names the model as `arm` does; in either mode, through the one
+// answer path (writeAnswer).
+async function cmdAccept(edgeId, direction, topologyId) {
+  const topology = topologyId ? topologyNamed(topologyId) : (state.sweep ? sweepTopology() : state.currentTopology);
   if (!topology) throw new Error("no topology is open, so there is nothing to accept");
   const edge = (topology.edges || []).find((e) => e.id === edgeId);
   if (!edge) throw new Error("unknown edge \"" + edgeId + "\" in topology \"" + topology.id + "\"");
   if (AA.DIRECTIONS.indexOf(direction) === -1) {
     throw new Error("accept <edge> takes an end, " + AA.DIRECTIONS.join(" or ") + ", got " + JSON.stringify(direction));
   }
-  const record = AA.findBindingRecord(mergedIdentityProjection(), AA.topologyEdgeKey(topology.id, edge.id));
+  const record = AA.findBindingRecord(identityOn(topology), AA.topologyEdgeKey(topology.id, edge.id));
   const proposal = AA.endProposals(record, direction)[0];
   if (!proposal) throw new Error("nothing is suggested at " + (AA.edgeEndNames(topology, edge)[direction] || direction));
   const plan = AA.planAnswer(AA.ANSWER_VERBS[0], { proposal, standing: AA.endBindings(record, direction) });
@@ -4555,7 +4787,14 @@ function nextEndToPick(topology, edge, direction) {
     state.faceClasses).length ? other : null;
 }
 
-// take <edge> <from|to> <mesh> <face> -- a candidate row's Take (handoff
+// The record as the end view of `topology` reads it: the open topology's,
+// or the one a shell verb names.
+function identityOn(topology) {
+  return topology === state.currentTopology ? mergedIdentityProjection()
+    : AA.identityReadThrough(sessionIdentityProjection(), topology);
+}
+
+// take <edge> <from|to> <mesh> <face> [<topology>] -- a candidate row's Take (handoff
 // a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there), in either
 // mode: that face bound at that end. It is an armed click with the face named
 // rather than clicked, planned the same way (AA.planArmedClick, then
@@ -4564,8 +4803,8 @@ function nextEndToPick(topology, edge, direction) {
 // this one; the end's one standing binding is superseded; the face already
 // bound there writes nothing. An armed pick is ended first. One write path
 // (writeAnswer).
-async function cmdTake(edgeId, direction, meshId, faceText) {
-  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+async function cmdTake(edgeId, direction, meshId, faceText, topologyId) {
+  const topology = topologyId ? topologyNamed(topologyId) : (state.sweep ? sweepTopology() : state.currentTopology);
   if (!topology) throw new Error("no topology is open, so there is nothing to take");
   const edge = (topology.edges || []).find((e) => e.id === edgeId);
   if (!edge) throw new Error("unknown edge \"" + edgeId + "\" in topology \"" + topology.id + "\"");
@@ -4583,7 +4822,7 @@ async function cmdTake(edgeId, direction, meshId, faceText) {
     face = manifest && manifest.faces ? manifest.faces[faceId] || null : null;
   }
   if (!face) throw new Error("part \"" + meshId + "\" has no face " + faceText);
-  const record = AA.findBindingRecord(mergedIdentityProjection(), AA.topologyEdgeKey(topology.id, edge.id));
+  const record = AA.findBindingRecord(identityOn(topology), AA.topologyEdgeKey(topology.id, edge.id));
   const stackKey = identityWriteKey(topology, edge.id);
   const standing = AA.endBindings(record, direction);
   const pick = { sha256: mesh.sha256, faceId, record: face };
@@ -5408,6 +5647,7 @@ function renderElementList() {
   clearCandidateWash();
   el.elementList.innerHTML = "";
   if (!state.currentTopology) return;
+  scheduleMates();
   // A studyless topology lists every edge: with no study to scope it, an empty
   // list would leave its interfaces unreachable.
   const listAll = !state.currentStudy && !state.panelFilter;
@@ -5468,8 +5708,9 @@ function renderElementList() {
     // mode's pick is a click in the scene, and the bar asks which end.
     const names = AA.edgeEndNames(state.currentTopology, edge);
     const ends = AA.DIRECTIONS.map((direction) => ({ edgeId, direction, head: names[direction] || direction,
-      rows: AA.endCandidates(identity, state.contactSuggestions, state.currentTopology.id,
-        { edgeId, direction }, state.faceClasses) })).filter((end) => end.rows.length);
+      rows: candidatesWithMates(AA.endCandidates(identity, state.contactSuggestions, state.currentTopology.id,
+        { edgeId, direction }, state.faceClasses), state.currentTopology, { edgeId, direction }) }))
+      .filter((end) => end.rows.length);
     if (ends.length) {
       const key = candidateKey(state.currentTopology.id, edgeId, null);
       li.insertBefore(candidateTwisty(key, renderElementList), li.firstChild);
@@ -7000,10 +7241,34 @@ function embedTree() {
     armedEnd: state.armed ? { topologyId: state.armed.topologyId, edgeId: state.armed.edgeId,
       direction: state.armed.direction } : null,
     armedLine: state.armed ? state.armed.line : null,
+    mates: treeMates(),
     chips: state.sweep ? railChips() : [], legend: rows.length ? AA.railLegend() : [], rows };
   // A pick armed outside sweep mode (the shell's feature body) is armed too.
   if (!state.sweep && state.armed) tree.armed = true;
   return tree;
+}
+
+// The ranked mates the shell's feature bodies list, per model feature id:
+// {topologyId, edgeId, direction, n, rows: [{sha256, faceId, text, reason,
+// detail}]}, the first AA.CANDIDATES_LISTED of each. The armed end's own
+// ranking stands for its feature, bound or not (a Correct ranks too).
+function treeMates() {
+  const out = {};
+  const say = (r) => ({ sha256: r.sha256, faceId: r.faceId, text: AA.candidateRowWords(r),
+    reason: r.reason, detail: r.detail });
+  const put = (fid, topologyId, edgeId, direction, rows) => {
+    out[fid] = { topologyId, edgeId, direction, n: rows.length,
+      rows: rows.slice(0, AA.CANDIDATES_LISTED).map(say) };
+  };
+  const m = state.mates;
+  if (m) Object.keys(m.byFeature).forEach((fid) => {
+    const e = m.byFeature[fid];
+    put(fid, m.topologyId, e.edgeId, e.direction, e.rows);
+  });
+  const a = state.armed;
+  const f = a && a.mates && a.mates.length ? featureAt(a.topology, a.edgeId, a.direction) : null;
+  if (f) put(f.id, a.topologyId, a.edgeId, a.direction, a.mates);
+  return out;
 }
 
 // Posted when what the rail shows changes (a MutationObserver on the rail,
