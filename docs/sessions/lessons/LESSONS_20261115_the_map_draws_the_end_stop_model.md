@@ -180,8 +180,9 @@ its probe JSON beside it.
   carry a wide transparent twin of their border that takes the pointer
   (`map__districthit`, `map__boxhit`), the drawn border taking none; and a
   top pin's lit label was drawn inside the box, over the part's own name
-  (`click_07`: "mount end bearing centre" on "212956-005"), so a top pin's
-  label sits above its box. Also found and left as it is: a connector's
+  (round 1's shot of the tangential link's selection: "mount end bearing
+  centre" on "212956-005"; the walk was re-shot after the fix, where it is
+  `click_09`), so a top pin's label sits above its box. Also found and left as it is: a connector's
   bounding-box centre is its symbol, so a probe that aims a pointer at the
   centre hits the symbol's group rather than the hit path -- fine for a hand
   (the symbol is in the connector's group and hovers it), a trap for a
@@ -317,3 +318,81 @@ Chrome) was denied by the auto-mode classifier as destructive, so a batch
 started on a suite whose waits still threw ran to its 30-minute cap before the
 fixed suite could be witnessed. Nothing was lost but time; the rule is in the
 session memory: start a batch only on a suite whose every wait is caught.
+
+## Round 2 (2026-11-16), after the review's REQUEST CHANGES
+
+Three blockers, the first a defect no tier saw; two should-fixes closable in
+passing; five nits. All on the handoff branch. The review was of `eb7708dc`;
+the three commits after it had already filled the test record and witnessed
+every spec, so B3 was mostly behind the review by the time it was read.
+
+**B1 -- Fit and the `0` key were dead on Classic and on the legacy model once
+the map had been painted.** `renderTopoMap` set `root.mapFit` (and the resize
+observer) on the region, `fitDag` called it and returned whenever it was a
+function, and `renderTopoPane`'s `innerHTML = ""` removed children, not
+expandos. `VA.releaseMap(root)` (views/map.js) now resets the map's Fit, view
+and light and disconnects its observer, and `renderTopoPane` calls it right
+after it clears the root, so a Classic paint hands Fit back to the rails and
+the page's light reaches no detached map; a map paint sets them again. One
+fast guard (a Classic paint after a map paint on the same root; a map paint
+through the pane sets Fit back) and two browser checks on the SAME page --
+map, Classic by the switch, wheel, Fit, the `0` key; then the legacy model,
+wheel, Fit -- each with a spec on the one hook line. Measured on the real
+page: Classic after the map, rails 330 → wheel 502 → Fit 325 → wheel 430 →
+`0` 325, the pane's `mapFit` null; the legacy model 678 → wheel 1031 → Fit
+206 (its walk is taller than the pane even at Fit, by the legibility floor,
+so the check asks for the rails back under their arrival width).
+
+**B2 -- the word Classic on the switch reddened the app suites' text guard**
+("says nothing about a classic view anywhere on the page", the 2026-09-15
+chip-retirement check, a body-wide substring). Resolved the way the review
+recommended: the guard now counts the word everywhere but the DAG region's
+own switch (`#dag-drawing`), and is renamed to say so -- the retired chip was
+a row of the nav and the stack page, never the region's header. The handoff's
+own word stays on the switch and in every document. `app file://` and
+`app http` are 41/41 again. (This is one edit to an existing browser check,
+outside the present DAG's checks the handoff fenced; the reviewer asked for
+it by name.)
+
+**B3 -- the record and the specs.** The record above was written before the
+review was read (`0d8775b9`); every spec was witnessed by then (batches 2–5
+above). The review's four misses were the three I had already re-pointed
+(the anchor pick, the DAG-view re-fit, the pane-open repaint) and one abort
+of the hover right after the 3D pane opens (`locator.hover`'s stability wait
+under the map's re-fit); that hover is now anchored -- the element's rect is
+read until two reads agree, and the mouse goes to that centre. The
+`--budget-min` default of 30 minutes splits 35 specs over two invocations;
+this round's own specs ran as their own invocations.
+
+**Should-fixes.** `load_topology_map` and `tests/test_topology_map.py` read
+the model view's `interfaces` for "which ids may carry a symbol word" instead
+of restating the node-two-parts-share-or-gap-edge rule -- one rule, the
+view's -- so `ISSUE_20261116_the_builder_and_its_test_restate_the_model_views_interface_rule`
+(on the review branch) can close with this landing. The tint and the
+pressed-control literal stay as the review filed them.
+
+**Nits.** `docs/DAG_TOPOLOGY.md` says which tier counts which (the fast tier
+the fixture, the browser tier the real model); the resolved issue's
+`resolution:` line says what resolved it; the hub row of the entity table
+names its three jumpers; a flank pin's lit label sits just below its pin so it
+never touches a two-line name's second line (measured on the piston cover and
+the hub's middle right pin, `click_04_*` and `click_05_*` in the re-shot
+walk, which has 27 steps now; the round-1 click shots the renumbering
+orphaned were removed). The two tab stops per part are left as filed.
+
+**Round-2 record** (this worktree; the scratch root above, its topology and
+kinematic projections rebuilt from `80e5d950` after the builder changed):
+
+| command | result |
+| --- | --- |
+| `node apps/viewer/run_tests.cjs` | 592/592 (node-fs tier skipped, as every worktree) |
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | **715/715**, `[real]` armed |
+| `node apps/annotate/run_tests.cjs --repo <scratch root>` | 323/323 (unchanged by this round) |
+| browser `--only "the map (Map"` | **29/29** (27 + the two B1 checks), on the suite's final text |
+| browser `--only "app "` (`app file://`, `app http`) | 41/41 and 41/41 -- B2 |
+| witness `--only __242c2092` (fast, B1) | WITNESSED |
+| witness `--only __efee81d8 --only __a1fab9df` (browser, B1) | 2/2 WITNESSED, 4m22s |
+| default tier, once, at the end: `…python.exe -X utf8 -m pytest -q -p no:cacheprovider` | `1 failed, 2027 passed, 1 skipped, 4 deselected in 453.07s` -- the documented worktree red on `test_viewer_js_suite_is_green`; recorded, inside budget |
+
+Not run, the review's: the whole browser tier (B2's resolution touches one
+check of two app suites, run here `--only`) and the `--changed-since` gate.
