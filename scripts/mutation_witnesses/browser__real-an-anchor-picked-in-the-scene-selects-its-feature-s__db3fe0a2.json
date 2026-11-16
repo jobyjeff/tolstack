@@ -4,12 +4,12 @@
   "expect_red": "[real] an anchor picked in the scene selects its feature's pin on the map",
   "mutations": [
     {
-      "contract": "A pin is keyed by its feature (part@node), which is what a scene pick resolves to.",
+      "contract": "An anchor picked in the scene selects its feature on the page, and the map wears that selection like every other surface.",
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
-      "note": "Keys the pin by its node instead, so the feature's light never reaches it.",
-      "file": "apps/viewer/views/map.js",
-      "find": "      register(reg, g, \"map__pin\" + tint, VA.FOCUS_KINDS.feature, pin.id);",
-      "replace": "      register(reg, g, \"map__pin\" + tint, VA.FOCUS_KINDS.feature, pin.node); /* mutated: keyed by node, not feature */"
+      "note": "Drops the page's scene-pick path (selectFromScene), so a pick in the scene selects nothing and the map's pin stays unlit. The first cut keyed the map's pins by node, which made two pins share an id and broke the suite's own selectors before the check was reached.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "  function selectFromScene(entity) {\n    selectEntity(entity);\n  }",
+      "replace": "  function selectFromScene(entity) {\n    /* mutated: a scene pick selects nothing */\n  }"
     }
   ]
 }

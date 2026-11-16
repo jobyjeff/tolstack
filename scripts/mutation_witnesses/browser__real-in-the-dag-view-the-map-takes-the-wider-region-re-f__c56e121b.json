@@ -4,12 +4,12 @@
   "expect_red": "[real] in the DAG view the map takes the wider region, re-fitted, with its header still in the region",
   "mutations": [
     {
-      "contract": "A region that changes size under a fitted view is fitted again, to the region's own width and height (the first paint, a resize and Fit all go through one fit).",
+      "contract": "A region that changes size under a fitted view is fitted again to its own width and height, up to the cap; the DAG view's wider region fits larger than Side by side's.",
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
-      "note": "Fits to the region's height both ways, so a wider region fits no differently from a narrow one and the DAG view's zoom equals Side by side's. The first cut mutated the resize observer alone and the page's repaint on the view switch re-fitted anyway (NOT WITNESSED, 2026-11-16); both paths now share fitTo.",
-      "file": "apps/viewer/views/map.js",
-      "find": "      return Object.assign(VA.mapFitView(geo.bounds, now.width, now.height), { auto: true, size: now });",
-      "replace": "      return Object.assign(VA.mapFitView(geo.bounds, now.height, now.height), { auto: true, size: now }); /* mutated: fits to the height both ways */"
+      "note": "Caps every fit at 0.3: Side by side at the suite's 1700-wide window fits under that anyway (about 0.2), so every earlier check passes, and the DAG view's wider region can no longer fit larger -- the check compares the drawn zoom with the fit the region's own numbers ask for. Two earlier cuts (the resize observer alone; the fit to the height both ways) were NOT WITNESSED: the view switch repaints, and an overflowing first paint aborted the suite at a hover.",
+      "file": "apps/viewer/map.js",
+      "find": "    var k = Math.min(width / bounds.w, height / bounds.h, VA.MAP_ZOOM.fitMax);",
+      "replace": "    var k = Math.min(width / bounds.w, height / bounds.h, 0.3); /* mutated: capped under the DAG view's fit */"
     }
   ]
 }

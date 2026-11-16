@@ -16,24 +16,19 @@
   shot click_01_landing.png
 2. hover the hub's locating boss pin: zoom 1.126 -> 1.126; map lead 1, hot 5, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
   shot click_02_hover_the_hub_s_locating_boss_pin.png
-3. hover the slide connector: zoom 1.126 -> 1.126; map lead 1, hot 5, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0; THREW locator.hover: Timeout 5000ms exceeded.
-Call log:
-[2m  - waiting for locator('#topopane g.map__connector[data-map-id="pitch_plate_slide_bushings_to_piston_body"] path.map__connectorhit').first()[22m
+3. hover the slide connector: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 0, touched 0; tree hot 1 on 0; grid lead 1 selected 0; doc scroll 0
   shot click_03_hover_the_slide_connector.png
 4. hover a jumper: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 0, touched 0; tree hot 0 on 0; grid lead 1 selected 0; doc scroll 0
   shot click_04_hover_a_jumper.png
-5. hover the ground district's name: zoom 1.126 -> 1.126; map lead 41, hot 10, selected 0, touched 0; tree hot 5 on 0; grid lead 12 selected 0; doc scroll 0
+5. hover the ground district's name: zoom 1.126 -> 1.126; map lead 46, hot 10, selected 0, touched 0; tree hot 5 on 0; grid lead 12 selected 0; doc scroll 0
   shot click_05_hover_the_ground_district_s_name.png
-6. hover a bearing's box: zoom 1.126 -> 1.126; map lead 2, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
+6. hover a bearing's box: zoom 1.126 -> 1.126; map lead 3, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
   shot click_06_hover_a_bearing_s_box.png
-7. click the tangential link's name: zoom 1.126 -> 1.126; map lead 9, hot 4, selected 9, touched 4; tree hot 7 on 7; grid lead 1 selected 1; doc scroll 0
+7. click the tangential link's name: zoom 1.126 -> 1.126; map lead 12, hot 4, selected 12, touched 4; tree hot 7 on 7; grid lead 1 selected 1; doc scroll 0
   shot click_07_click_the_tangential_link_s_name.png
-8. click the pitch plate district's border: zoom 1.126 -> 1.126; map lead 0, hot 0, selected 9, touched 4; tree hot 0 on 7; grid lead 0 selected 1; doc scroll 0
+8. click the pitch plate district's border: zoom 1.126 -> 1.126; map lead 36, hot 10, selected 36, touched 10; tree hot 24 on 24; grid lead 8 selected 8; doc scroll 0; under the pointer: rect.map__districthit
   shot click_08_click_the_pitch_plate_district_s_border.png
-9. click the clearance connector: zoom 1.126 -> 1.126; map lead 0, hot 0, selected 9, touched 4; tree hot 0 on 7; grid lead 0 selected 1; doc scroll 0; THREW locator.click: Timeout 5000ms exceeded.
-Call log:
-[2m  - waiting for locator('#topopane g.map__connector[data-map-id="travel_between_end_stops"] path.map__connectorhit').first()[22m
-[2m    - locato
+9. click the clearance connector: zoom 1.126 -> 1.126; map lead 3, hot 2, selected 3, touched 2; tree hot 5 on 5; grid lead 1 selected 1; doc scroll 0
   shot click_09_click_the_clearance_connector.png
 10. click a pin: zoom 1.126 -> 1.126; map lead 1, hot 3, selected 1, touched 3; tree hot 2 on 2; grid lead 0 selected 0; doc scroll 0
   shot click_10_click_a_pin.png
@@ -43,23 +38,23 @@ Call log:
   shot click_12_wheel_in_over_the_hub_three_notches.png
 13. drag the empty space: zoom 1.712 -> 1.712; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0
   shot click_13_drag_the_empty_space.png
-14. select the upper piston head in the tree while zoomed: zoom 1.712 -> 1.712; map lead 5, hot 4, selected 5, touched 4; tree hot 5 on 5; grid lead 1 selected 1; doc scroll 0; box 2201,1625,2662,1803 in pane 302,0,2691,2160
+14. select the upper piston head in the tree while zoomed: zoom 1.712 -> 1.712; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; box 2201,1625,2662,1803 in pane 302,0,2691,2160
   shot click_14_select_the_upper_piston_head_in_the_tree_while_zoomed.png
-15. Fit: zoom 1.712 -> 1.126; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+15. Fit: zoom 1.712 -> 1.126; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_15_fit.png
-16. the 3D pane opened beside it: zoom 1.126 -> 0.566; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+16. the 3D pane opened beside it: zoom 1.126 -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_16_the_3d_pane_opened_beside_it.png
-17. hover the hub's row in the tree with the pane open: zoom 0.566 -> 0.566; map lead 9, hot 8, selected 5, touched 4; tree hot 1 on 5; grid lead 3 selected 1; doc scroll 0
+17. hover the hub's row in the tree with the pane open: zoom 0.566 -> 0.566; map lead 10, hot 8, selected 6, touched 4; tree hot 1 on 5; grid lead 3 selected 1; doc scroll 0
   shot click_17_hover_the_hub_s_row_in_the_tree_with_the_pane_open.png
-18. DAG view: zoom 0.566 -> 1.126; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+18. DAG view: zoom 0.566 -> 1.126; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_18_dag_view.png
-19. 3D view: zoom 1.126 -> 1; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; region display none
+19. 3D view: zoom 1.126 -> 1; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0; region display none
   shot click_19_3d_view.png
-20. Side by side: zoom 1 -> 0.566; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+20. Side by side: zoom 1 -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_20_side_by_side.png
 21. Classic: zoom 0.566 -> undefined; map lead 0, hot 0, selected 5, touched 3; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_21_classic.png
-22. Map again: zoom undefined -> 0.566; map lead 0, hot 0, selected 5, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
+22. Map again: zoom undefined -> 0.566; map lead 0, hot 0, selected 6, touched 4; tree hot 0 on 5; grid lead 0 selected 1; doc scroll 0
   shot click_22_map_again.png
 23. the legacy model: zoom 0.566 -> undefined; map lead 0, hot 0, selected 0, touched 0; tree hot 0 on 0; grid lead 0 selected 0; doc scroll 0; No map(disabled) / Classic
   shot click_23_the_legacy_model.png

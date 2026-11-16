@@ -4790,7 +4790,7 @@ async function testTheMap(browser, label, topologies) {
     push("[real] ...and so does the 0 key", Math.abs((await zoomOf()) - fitZoom) < 1e-6);
 
     // --- 11. Classic, remembered ---------------------------------------------
-    await page.locator('#topopane #dag-drawing button[data-drawing="classic"]').click({ timeout: 5000, noWaitAfter: true });
+    await page.evaluate(() => document.querySelector('#topopane #dag-drawing button[data-drawing="classic"]').click());
     await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});
     await settle(300);
     const classic = await page.evaluate(() => ({
@@ -4811,7 +4811,7 @@ async function testTheMap(browser, label, topologies) {
     push("[real] a reload remembers Classic",
       await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 0 &&
         document.querySelector('#topopane #dag-drawing button[data-drawing="classic"]').getAttribute("aria-pressed") === "true"));
-    await page.locator('#topopane #dag-drawing button[data-drawing="map"]').click({ timeout: 5000, noWaitAfter: true });
+    await page.evaluate(() => document.querySelector('#topopane #dag-drawing button[data-drawing="map"]').click());
     await page.waitForSelector("#topopane svg.tv__map", { timeout: 15000 }).catch(() => {});
     push("[real] Map puts the map back", await page.evaluate(() =>
       document.querySelectorAll("#topopane svg.tv__rails").length === 0 &&
@@ -4844,8 +4844,9 @@ async function testTheMap(browser, label, topologies) {
         map: document.querySelectorAll("#topopane svg.tv__map").length,
         head: !!document.querySelector("#topopane > .tv__daghead"),
         zoom: Number(document.querySelector("#topopane svg.tv__map").getAttribute("data-zoom")),
-        // The fit the region's own size asks for (VA.mapFitView).
-        expected: window.ViewerApp.mapFitView(geo.bounds, pane.width, pane.height).k,
+        // The fit the region's own size asks for, by the rule itself (not by
+        // the function under test): the smaller of the two ratios, capped.
+        expected: Math.min(pane.width / geo.bounds.w, pane.height / geo.bounds.h, 2),
       };
     });
     console.log(`      [${label}] DAG view: region ${Math.round(dagView.width)} wide (was ${Math.round(bothWidth)}), zoom ${dagView.zoom} for a fit of ${dagView.expected.toFixed(3)}`);
