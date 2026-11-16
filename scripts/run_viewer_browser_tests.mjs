@@ -16196,14 +16196,14 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       const f = (view.features || []).find((x) => x.id === fid);
       return !!(f && boundTokens && boundTokens.has([f.identity.topology_id, f.identity.part, f.identity.node].join("|")));
     };
-    // A hovered part's interface partners: the far end of every interface with
-    // an end on one of its features. One whose feature is bound has its face
-    // overlaid in the touching tier, so its part ghosts behind that face
-    // (AA.planLightLooks: a touching face's part is near); every other part
-    // goes faint. Derived, so the next binding Jeff makes moves the
-    // expectation with it rather than reddening the check.
-    const ghostedPartners = (partId) => {
-      const mine = (view.parts || []).find((p) => p.id === partId).features;
+    // A lit part's (or a body's parts') interface partners: the far end of
+    // every interface with an end on one of their features. One whose feature
+    // is bound has its face overlaid in the touching tier, so its part ghosts
+    // behind that face (AA.planLightLooks: a touching face's part is near);
+    // every other part goes faint. Derived, so the next binding Jeff makes
+    // moves the expectation with it rather than reddening the check.
+    const ghostedPartners = (partIds) => {
+      const mine = [].concat(...partIds.map((id) => ((view.parts || []).find((p) => p.id === id) || {}).features || []));
       const far = [];
       (view.interfaces || []).forEach((i) => {
         const ends = i.ends || [];
@@ -16220,13 +16220,15 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const hubLight = await paneLight();
     const hubLooks = await sceneLooks();
     const lookOf = (looks, sha) => (looks.find((r) => r.sha === sha) || {});
-    const hubPartners = ghostedPartners(HUB);
-    const hubPartnerShas = [];
-    for (const pid of hubPartners) hubPartnerShas.push(await shaOf(pid));
-    // Every drawn part's expected look: the hub ghost (its resting look), a
-    // bound interface partner ghost, the rest faint.
-    const hubLookWrong = hubLooks.filter((r) => r.look !== (r.sha === hubSha ||
-      hubPartnerShas.indexOf(r.sha) !== -1 ? "ghost" : "faint"));
+    // Every drawn part off its expected look: the lit parts ghost (their
+    // resting look), a bound interface partner ghost, the rest faint.
+    const looksOffRule = async (looks, litParts, partners) => {
+      const ghosts = [];
+      for (const pid of litParts.concat(partners)) ghosts.push(await shaOf(pid));
+      return looks.filter((r) => r.look !== (ghosts.indexOf(r.sha) !== -1 ? "ghost" : "faint"));
+    };
+    const hubPartners = ghostedPartners([HUB]);
+    const hubLookWrong = await looksOffRule(hubLooks, [HUB], hubPartners);
     console.log(`      [${label}] hub hovered: tree own ${JSON.stringify(uniq(hubHover.treeOwn))}, touching ` +
       `${JSON.stringify(uniq(hubHover.treeTouching))}, holds ${JSON.stringify(uniq(hubHover.treeHolds))}; grid own ` +
       `${JSON.stringify(hubHover.rowsOwn.sort())} (${hubDims.length} dimensions), touching ${JSON.stringify(hubHover.rowsTouching)}; ` +
@@ -16306,9 +16308,12 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const baseLayer = baseLight && baseLight.layers.find((l) => l.role === "select" && l.tier === "own");
     const baseLooks = await sceneLooks();
     const baseParts = (view.bodies || []).find((b) => b.id === "base").parts;
+    const basePartners = ghostedPartners(baseParts);
+    const baseLookWrong = await looksOffRule(baseLooks, baseParts, basePartners);
     console.log(`      [${label}] base selected: tree on ${uniq(baseSel.treeOn).length} rows, on-touching ` +
       `${JSON.stringify(uniq(baseSel.treeOnTouching))}; containers ${JSON.stringify(baseSel.containersSelected)}; pane ` +
-      `${JSON.stringify(baseLight && baseLight.layers)}; opaque ${baseLooks.filter((r) => r.opacity >= 1).length}`);
+      `${JSON.stringify(baseLight && baseLight.layers)}; opaque ${baseLooks.filter((r) => r.opacity >= 1).length}; ` +
+      `ghosted partners ${JSON.stringify(basePartners)}; parts off their look ${JSON.stringify(baseLookWrong)}`);
     push("[real] a body selected lights every part it holds and the joints inside it, the joints to other bodies " +
       "fainter, its container and its parts' containers in the accent, and every one of its parts glows at its " +
       "resting look -- nothing opaque",
@@ -16316,7 +16321,8 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       baseSel.treeOn.indexOf(BASE_FACE) !== -1 && baseSel.treeOnTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
       baseSel.containersSelected.indexOf("base") !== -1 && baseParts.every((p) => baseSel.containersSelected.indexOf(p) !== -1) &&
       !!baseLayer && baseLayer.partOverlays >= baseParts.length && baseLooks.every((r) => r.opacity < 1) &&
-      lookOf(baseLooks, hubSha).look === "ghost" && lookOf(baseLooks, linkSha).look === "faint");
+      !!boundTokens && lookOf(baseLooks, hubSha).look === "ghost" && !!lookOf(baseLooks, linkSha).look &&
+      baseLookWrong.length === 0);
 
     // 3b. Escape lets the body go (review of 2026-11-13, B1: the handler
     //     gated on the ELEMENT form of the selection, which a body, a part
