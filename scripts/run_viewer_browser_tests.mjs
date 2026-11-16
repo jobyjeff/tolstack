@@ -643,6 +643,23 @@ async function scrollRegionsTop(page) {
   });
 }
 
+// Opens the 3D pane and says so or throws. The page remembers open/closed in
+// storage and may reopen the pane on its own at boot, so the handle is clicked
+// only while the pane is closed; a pane that never opens is this one named
+// failure, not a swallowed click and the suite's checks all red downstream.
+async function openPaneByHandle(page) {
+  if (!(await page.locator("#annotate-flyout[open]").count())) {
+    await page.waitForSelector("#pane-handle:visible", { timeout: 15000 });
+    // noWaitAfter: the click opens the pane and the page is busy booting the
+    // scene, so playwright's wait for "scheduled navigations" outlasts the
+    // click's own timeout on a loaded box. The click has landed; the next
+    // line is the real wait.
+    await page.locator("#pane-handle").click({ timeout: 15000, noWaitAfter: true });
+  }
+  await page.waitForSelector("#annotate-flyout[open]", { timeout: 15000 });
+  await page.waitForSelector("#annotate-flyout iframe", { state: "attached", timeout: 15000 });
+}
+
 async function leadersOn(page) {
   for (let i = 0; i < 4; i++) {
     const at = await page.evaluate(() => {
@@ -7342,8 +7359,7 @@ async function testAnnotateModelInTheScene(browser, fileBase, label, topologies)
   try {
     await page.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
     await page.waitForSelector("div.kmverdict", { timeout: 30000 });
-    await page.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
-    await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
+    await openPaneByHandle(page);
     // The bodies resolve first, and the model is rebuilt on the occurrences
     // they chose; only then is it the model this suite is about.
     const swept = await until((w, r) => w.__sweep && w.__sweep.artifact.runId === r &&
@@ -8408,7 +8424,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.setViewportSize({ width: 1920, height: 1000 });
       await page.goto(url + "/apps/viewer/topology.html?kinematic=" + STUDY, { waitUntil: "load" });
       await page.waitForSelector("div.kmverdict", { timeout: 30000 });
-      await page.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
+      await openPaneByHandle(page);
       await until((w) => w.__sweep && w.__sweep.anchored && w.__sweep.anchored.length > 0 &&
         w.__sweep.anchored.every((sha) => w.__scene && w.__scene.parts.has(sha)), null, 120000);
       await page.waitForSelector('#navtree [data-nav-kind="body"]', { timeout: 15000 }).catch(() => {});
@@ -15989,8 +16005,7 @@ async function testSeamLeaders(browser, label, topologies) {
     await live.goto(url + "/apps/viewer/topology.html?kinematic=" + SWEEP_RAIL_STUDY, { waitUntil: "load" });
     await live.waitForSelector("div.kmverdict", { timeout: 30000 });
     await leadersOn(live);
-    await live.waitForSelector("#pane-handle:visible", { timeout: 15000 }).catch(() => {});
-    await live.locator("#pane-handle").click({ timeout: 5000 }).catch(() => {});
+    await openPaneByHandle(live);
     const runId = study.sweep.run_id;
     const built = await liveUntil((r) => {
       const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
