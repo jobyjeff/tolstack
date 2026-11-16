@@ -1320,7 +1320,7 @@ def test_the_capped_summary_says_all_four_numbers_and_the_left_note_names_tier_a
 def test_full_keeps_the_sweeps_summary_grammar_and_no_cap():
     runner = (REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs").read_text(encoding="utf-8")
     assert "declared mutations witnessed" in runner   # WITNESS_SWEEP.md and the JSONL row parse it
-    assert "const BUDGET_MIN = FULL ? 0 :" in runner
+    assert "const BUDGET_MIN = resolveBudgetMin({ full: FULL, arg: BUDGET_ARG });" in runner
     assert "const ordered = FULL ? chosen : orderForBudget(" in runner
 
 
@@ -1329,3 +1329,98 @@ def test_the_slowest_list_is_slowest_first_and_capped():
       const rs = Array.from({ length: 20 }, (_, i) => ({ entry: { id: 'e' + i }, seconds: i }));
       return b.slowest(rs, 15).map((r) => r.entry.id);""")
     assert got[0] == "e19" and len(got) == 15 and got[-1] == "e5"
+
+
+# --- several guards in one `--only`, the 10-minute review cap, the ledger row -----
+#
+# (handoff the_suite_stops_paying_for_the_same_tree_twice)
+
+_ONLY_ENTRIES = """
+      const e = (id, red, tier, suite) => ({ id, expect_red: red, tier, suite });
+      const all = [e('browser__one', 'guard one', 'browser', 'topo'),
+                   e('browser__two', 'guard two, with a comma', 'browser', 'topo'),
+                   e('browser__three', 'guard three', 'browser', 'other'),
+                   e('fast__four', 'guard four', 'fast', undefined)];"""
+
+
+def test_several_only_values_select_their_union_and_group_by_suite():
+    got = _budget_node(_ONLY_ENTRIES + """
+      const argv = ['x', '--only', 'browser__one', '--only', 'browser__three', '--only', 'fast__four'];
+      const terms = b.resolveOnly(all, b.onlyValues(argv));
+      const picked = b.selectOnly(all, terms);
+      const ordered = b.orderForBudget(picked, (t) => t === 'browser');
+      return { terms, ids: ordered.map((x) => x.id) };""")
+    assert got["terms"] == ["browser__one", "browser__three", "fast__four"]
+    assert got["ids"] == ["fast__four", "browser__three", "browser__one"]
+
+
+def test_the_single_substring_form_and_a_guard_name_with_a_comma_are_unchanged():
+    got = _budget_node(_ONLY_ENTRIES + """
+      const one = b.resolveOnly(all, ['browser__t']);
+      const named = b.resolveOnly(all, ['guard two, with a comma']);
+      const split = b.resolveOnly(all, ['browser__one,fast__four']);
+      return { one, named, split,
+               oneIds: b.selectOnly(all, one).map((x) => x.id),
+               splitIds: b.selectOnly(all, split).map((x) => x.id),
+               typo: b.unmatchedOnly(all, ['browser__one', 'no such guard']) };""")
+    assert got["one"] == ["browser__t"] and got["oneIds"] == ["browser__two", "browser__three"]
+    assert got["named"] == ["guard two, with a comma"]
+    assert got["split"] == ["browser__one", "fast__four"]
+    assert got["splitIds"] == ["browser__one", "fast__four"]
+    assert got["typo"] == ["no such guard"]
+
+
+def test_one_shadow_and_one_clean_run_per_suite_not_per_guard():
+    # The runner keys its clean baseline on tier|suite and builds the shadow once
+    # per run; handing it every guard in one invocation is what makes that count 1.
+    runner = (REPO_ROOT / "scripts" / "run_mutation_witness_tests.mjs").read_text(encoding="utf-8")
+    assert runner.count("buildShadow();") == 1
+    assert "const key = `${mutation.tier}|${mutation.suite || \"\"}`;" in runner
+    assert "if (!baselines.has(key))" in runner
+
+
+def test_the_review_cap_of_ten_minutes_is_one_flag_and_stops_launches_at_ten():
+    got = _budget_node("""
+      let t = 0;
+      const min = b.resolveBudgetMin({ full: false, arg: '10' });
+      const entries = Array.from({ length: 20 }, (_, i) => ({ id: 'b' + i, tier: 'browser', suite: 's' }));
+      const r = await b.runWithBudget(entries, { budgetMin: min, now: () => t,
+        runEntry: async () => { t += 100; return { witnessed: true }; } });
+      return { min, ran: r.results.length, wall: r.wallSec,
+               dflt: b.resolveBudgetMin({ full: false, arg: null }),
+               full: b.resolveBudgetMin({ full: true, arg: '10' }) };""")
+    # 100 s apiece: launches at 0..500 (500 + 100 <= 600), the seventh would end at 700.
+    assert got == {"min": 10, "ran": 6, "wall": 600, "dflt": 30, "full": 0}, got
+
+
+def _ledger_node(body: str):
+    module = REPO_ROOT / "scripts" / "browser_runner.mjs"
+    script = (f'import * as r from {json.dumps(module.as_uri())};\n'
+              f'const out = await (async () => {{ {body} }})();\n'
+              'console.log(JSON.stringify(out));')
+    proc = subprocess.run([shutil.which("node"), "--input-type=module", "-e", script],
+                          capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+def test_a_ledger_row_carries_sha_tree_and_the_partial_tier_and_is_suppressible(tmp_path):
+    ledger = tmp_path / "ledger.jsonl"
+    head = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"], capture_output=True,
+                          text=True, encoding="utf-8").stdout.strip()
+    tree = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD^{tree}"], capture_output=True,
+                          text=True, encoding="utf-8").stdout.strip()
+    got = _ledger_node(f"""
+      const ledger = {json.dumps(str(ledger))};
+      const row = r.appendLedgerRow({{ tier: 'partial', seconds: 12.4, command: 'x', ledger,
+        extra: {{ scope: 'witness', specs: 5 }}, env: {{}} }});
+      const off = r.appendLedgerRow({{ tier: 'partial', seconds: 1, command: 'y', ledger,
+        env: {{ [r.NO_LEDGER_ENV]: '1' }} }});
+      return {{ row, off }};""")
+    assert got["off"] is None
+    row = got["row"]
+    assert (row["repo"], row["tier"], row["seconds"], row["scope"], row["specs"]) == (
+        "tolstack", "partial", 12, "witness", 5)
+    if head:   # a tree that is not a git checkout reports null, which is honest
+        assert row["sha"] == head and row["tree"] == tree
+    assert len(ledger.read_text(encoding="utf-8").splitlines()) == 1
