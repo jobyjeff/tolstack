@@ -5805,6 +5805,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       removal is the claim a screenshot can refute cheapest, so read the shot
       for the absence, not only for the presence the caption names, and when
       the two disagree re-shoot before correcting either.
+- [ ] **A viewer bisect that holds the projection fixed can only clear code.**
+      New 2026-11-15 (`the_hub_is_one_part_in_the_grid_and_the_dag`). The
+      lesson rendered every viewer commit against today's projection. It
+      concluded that the data split the hub "since 11-08", the day the edges
+      appeared. Rebuilding v2 at each `docs/topologies/` commit
+      (`build_topology_projection.py --topologies-dir <export> --data-root
+      <scratch>`, about 1 min) put the split at `9b716956` on 11-10, which
+      `docs/issues/` had already recorded. When the answer is "the data did
+      it", bisect the data too, and grep the issues for the part's name first.
 - [ ] **A topology data change "fixed" by reordering its authored edges.**
       2026-11-10 (`the_gas_spring_mount_sits_on_...`): moving one seat made a
       `[real]` block-crossing guard red. The author reordered the hub's edges

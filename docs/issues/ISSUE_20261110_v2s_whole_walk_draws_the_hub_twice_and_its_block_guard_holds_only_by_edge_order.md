@@ -55,3 +55,12 @@ Options:
 
 Recommendation: 1 then 2. Item 1 makes the guard true by construction.
 Item 2 is the one a reader sees.
+
+## Addendum 2026-11-15 (review of `the_hub_is_one_part_in_the_grid_and_the_dag`)
+
+Item 1 is fixed. `VA.gatherParts` now gathers a part's other edges with it
+(option 2 above), and v2's hub is one bracket and one block. The splitting
+commit is `9b716956`, confirmed by rebuilding v2 at each data commit. Item 2
+is still open. The `[real]` "no more crossings than the builder's walk" guard
+is green after the fix (v2 24 as blocks), but `gatherParts` still does not
+guarantee it, so option 1 stands. The status stays as triage set it.

@@ -26,6 +26,17 @@
   His 11-12 "look correct now" cannot have been about this hub, since the
   hub was split on what trunk served that day too.
 
+> **Correction (review, 2026-11-15).** The edges date from 11-08, but the
+> *split* does not. Built from `docs/topologies/` at each commit with today's
+> builder (`--data-root` scratch) and rendered with the pre-fix viewer, v2's
+> hub is one run at `a8003c79`/`48274f9f` and at `d08e647b` (11-10 01:20). It
+> is two runs from **`9b716956`** (2026-11-10 11:19, "v2: the gas-spring mount
+> seats on the tangential link mount, not the hub") onward. That is the
+> splitting commit. It was already recorded, with the same mechanism, in
+> `docs/issues/ISSUE_20261110_v2s_whole_walk_draws_the_hub_twice_and_its_block_guard_holds_only_by_edge_order.md`
+> (item 1). So the split cannot be what Jeff's 11-09 note describes. The
+> 11-12 conclusion stands.
+
 ## The rule `gatherParts` now follows (`gatheredOrder`, `apps/viewer/topology.js`)
 
 **A part's rows are one run.**
@@ -51,6 +62,19 @@ builder's walk untouched, and a kinematic page's band keeps its stack order
 |---|---|---|---|
 | `vpa_end_stop_v2` | hub `214373-002` (grid 2 brackets, DAG block + stray field) | none | 27 → 24 |
 | `vpa_pitch_linkage` (v1) | `pitch_arm`, `blade_root`, `piston_head_lower_214699_002` (each 2 grid brackets / DAG fields) | none | 120 → 121 |
+
+> **Correction (review, 2026-11-15).** The crossings column is
+> `VA.layoutCrossings(VA.blockLayout(gathered, proj)).total`, the score
+> `improveColumns` minimises. That reproduces 27 → 24 and 120 → 121. It is
+> not the walk alone (27 → 26, 155 → 154), and it is not what the page draws
+> after `VA.spineRight` (v2 82 → 70, v1 316 → 338).
+>
+> **Not covered (review, 2026-11-15):** a *block* part is not held back.
+> Its pins and chords are laid at once, and only its other edges wait. A
+> block's edge with neither end on its own pins still splits the part: H is
+> `{H: 2}` in the grid when its edge runs between two faces the mount owns.
+> Filed as
+> `docs/issues/ISSUE_20261115_a_block_parts_edge_between_two_other_parts_faces_still_splits_it.md`.
 
 v1's `piston_head_lower` is the held-back case. Its face-flatness edge comes
 before the gas-spring piston block, and its thickness edge hangs from that
