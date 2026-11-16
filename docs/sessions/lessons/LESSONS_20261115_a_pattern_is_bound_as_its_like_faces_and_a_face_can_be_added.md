@@ -132,3 +132,121 @@ offset cylinder, faces 19/20, documents it).
 - **Every change of a set goes through `writeFeatureSet`**, one event in
   Remove's shape. Remove was refactored onto it, so no second event shape
   exists.
+
+## The definition of done, walked (scratch root, real log copied)
+
+Every write went to `data/scratch/hole_pattern_20261115/` in the main checkout.
+That folder held a copy of the viewer projections and the inbox log, served by
+`tests/debug_hole_pattern_20261115.mjs` (the 11-12/11-15 probe's server and
+folder grant). **The real log had 83 events before and 83 after**, printed by
+each of the four probe runs (3840 ×3, 5120 ×1). The browser suite writes only
+to the pane's in-memory store.
+
+- **Face 744 offers the whole pattern.** The hub's Ø5.5 holes: **N = 10**,
+  counted from the mesh by `pattern_siblings` and by `AA.surfaceSiblings`.
+  The two readers agree on the installed hub
+  (`test_real_the_hub_fastener_hole_offers_ten_holes_and_both_readers_agree`).
+  The bar reads "10 like holes on one plane · Take all 10 holes · Just this
+  one". The suite counts 20 faces on offer and 20 tinted.
+  - Shot `02_…` shows the bar. From that side-on framing the ten lit holes are
+    only the orange band along the flange, so the count above is the evidence.
+  - **Face 744 has no screen point a real click can reach.** Framed, the ray
+    stops on the hub's own top face round the hole. The probe hands the click
+    over through `__scene.onPick`, as `scene.js`'s pointerup does, and the
+    suite does the same. Add a face and both Shift-clicks were real mouse
+    clicks.
+  - **Found by the click-around and fixed:** Correct, then a click on 744 (the
+    hole Jeff had bound) said "already bound to face 744" and offered nothing.
+    The re-pick rule only counted same-surface faces as new. A pattern the set
+    does not hold now counts too, and the offer suite's spec carries a
+    mutation for it.
+- **Take all** writes `0084_hub_boss_to_tan_link_mount_fasteners.json`, one
+  `bound` event with **20 faces** (both halves of all ten holes). It
+  supersedes Jeff's one-hole event `annotate-1794799958760-…`. Written 14 s
+  after the click, through the probe's HTTP folder.
+- **The fit reads back:** the body shows "bound · 20 faces of 214373-002",
+  then "10 holes Ø5.5 on a Ø240 circle", then each face with Remove (shot
+  `03_…`). The Preview, with the feature selected, shows the same line (shot
+  `04_…`). Python's `fit_face_set` on those 20 faces gives the same numbers
+  (the `[real]` pytest above).
+- **Add a face:** on the locating boss (`hub@hub_spindle_bore_axis`, bound
+  through the v2 pilot fit's old edge-end event, face 144). The line read
+  "adding a face to the feature". A real click on face 1029 wrote
+  `0085_hub_spindle_bore_axis_face_added.json` with faces [144, 1029] and
+  ended the pick (shot `06_…`). Remove on 1029 wrote [144].
+- **Shift-click:** on the piston cover's end-stop shoulder (not bound).
+  - Shift-click on face 137 wrote [137] and the pick stayed armed. A second
+    Shift-click on 138 wrote [137, 138], superseding the first, still armed
+    (shot `07_…`). Esc, then the body read "bound · 2 faces of 214958-002"
+    (shot `08_…`). Remove on 137 wrote [138].
+  - The "added face N · M faces" line shows until the pointer moves. A hover
+    still on the face then rewrites it as the pre-selection line ("face 137 ·
+    round · r 5 mm"), which is the pane's ordinary hover rule.
+- **Unbound:**
+  - On the real projection, the filter's count was **22**. The fold's count
+    of unbound v2 features, computed in Python off the scratch log
+    (`fold_with_models`, 34 features), was also **22**.
+  - After the shoulder was bound, the count was **21**, and the fold's was
+    21.
+  - The DOM held 23 rows not bound, because a feature revealed under an open
+    interface is a second row of the same feature.
+  - With Unbound on, no bound row is listed (shot `05_…`). The first run
+    showed one, because interface ends were not filtered. They are now.
+  - The selection and the Preview are untouched by the filter.
+
+## Shots (`docs/sessions/lessons/shots/a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added/`, 3840×2160; `5120/` the same at 5120×2160)
+
+`01_clocking_bound_one_hole`, `02_pattern_offered_all_holes_lit`,
+`03_body_reads_the_fit`, `04_preview_reads_the_fit`, `05_unbound_filter_on`,
+`06_add_a_face_two_faces_bound`, `07_shift_click_still_armed`,
+`08_shift_click_set_bound`.
+
+What the click-around showed beyond the handoff:
+- The re-pick on the bound hole, and the unfiltered interface ends (both
+  above).
+- `camera face 744` zooms so far into one hole that no other hole is in view.
+  The probe frames the whole hub before the offer shot.
+- A 20-face set's body is 22 lines long. It reads fine in the nav, but a
+  pattern's per-face Remove list could fold behind its fit line later. That
+  is left for the strategy session; it is a layout call.
+
+## Test record
+
+All runs were from the worktree. They borrowed the main checkout's data with
+`--repo` and a `node_modules` junction, which was removed at the end.
+- `node apps/annotate/run_tests.cjs`: **323/323** (+2).
+- `node apps/viewer/run_tests.cjs`: **582/582, the node-fs `[real]` tier
+  SKIPPED**. With `--repo C:/workspace/tolstack` the `[real]` tier refuses: the
+  shared projection was built from `a80afedd`, and this branch changes an
+  input of it (`tolerance_stack/feature_geometry.py`). Rebuilding it from a
+  worktree would overwrite the shared artifact, so the `[real]` tier is the
+  review's, after the merge and a rebuild.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "a pattern is bound as its like faces"`:
+  **11/11, 38 s**. The same with `--only "annotate armed pick"`: **18/18**.
+- Witness, every spec added or changed (30 mutations):
+  - one run with `--repo`: 17 witnessed, 4 left to the budget;
+  - the 9 fast entries again without `--repo`: **9/9**. Their clean run is
+    red with `--repo` for the provenance reason above;
+  - the 4 browser entries again: **4/4**.
+  - None NOT WITNESSED.
+- `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs`
+  (worktree, final tree): **1 failed, 2016 passed, 1 skipped, 4 deselected,
+  443 s**, recorded with `suite-time record` (inside budget).
+  - The failure is the expected worktree red, `test_viewer_js_suite_is_green`
+    (no projection in a worktree; see the viewer line above).
+  - The skip is `test_fit_bound_features.py:433` (the pitch-link bearing
+    re-extraction is not installed), as on the predecessor.
+  - `tests/test_hole_pattern.py`'s `[real]` hub test ran (the hub mesh is in
+    the main checkout) and passed.
+- Census pins raised in `scripts/guard_enumeration.mjs`, each with its note:
+  fast 703 → 705, annotate 321 → 323, browser 856 → 868 declared and
+  825 → 837 enrollable. The suite's "(skipped: …)" line carries no spec.
+- Three existing specs re-pointed (the anchors moved under this change):
+  `browser__a-click-on-a-face-with-an-interrupted-like-face-…`,
+  `browser__real-with-the-pane-open-the-left-column-…`,
+  `fast__the-tree-draws-an-assembly-s-parts-inside-it-…`.
+
+## Left alone, in writing (the handoff's)
+
+The grid and the DAG show nothing about a pattern's fit.
+`scripts/propose_bindings.py` proposes no pattern.
