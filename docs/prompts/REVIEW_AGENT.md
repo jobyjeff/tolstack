@@ -6033,6 +6033,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       "settles a structural question by matching text" class -- a chip's
       absence proved by a substring -- so the fix is a strategy call between
       the label and the guard's aim, not a quiet rename.
+- [ ] **A control's check that takes the page's LANDING state as the control's
+      promise.** New 2026-11-16 (same handoff, round 2): the new "Fit is the
+      rails' again" checks asserted `|after Fit − at landing| < 2 px`, but the
+      page lands at the zoom it carried, not at Fit (330 px landing, 325 px
+      fitted at the suite's viewport; 436 vs 326 at 1920 × 1080), so both checks
+      were red on the clean tree, the six browser witnesses behind them came
+      back "red before the mutation", and the author's `--only` runs had passed
+      only because the record predated the checks. Ask of any new check on a
+      control: *is the expected value what the control promises (the walk
+      inside the pane, the drawing fitted to the region), or where the page
+      happened to be?* The author's fix (`40162c99`) asserts the promise.
 
 ## Architectural errors to check
 

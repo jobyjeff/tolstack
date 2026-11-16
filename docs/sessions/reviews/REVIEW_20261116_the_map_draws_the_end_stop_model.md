@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261115_the_map_draws_the_end_stop_model.md
 reviewer: agent
 date: 2026-11-16
-verdict: REQUEST CHANGES
-blockers: 3
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_map_draws_the_end_stop_model (round 1)
@@ -340,3 +340,94 @@ and B1's new check under `--only`; and check that
 was either closed by the rework or left open on purpose. The whole tier on this
 tree is on the ledger (2026-11-16T14:38:42Z, 1829 s, tree `2ad6e521`), but the
 rework's tree will differ, so it runs again.
+
+## Re-run 2026-11-16 — round 2
+
+Round 1 was REQUEST CHANGES, 3 blockers; all three are closed below. The seed
+named `80e5d950`; while my runs on it were in flight the author's session
+committed `40162c99` on top (07:18), so this round reviewed **both**: `80e5d950`
+first (merge `8bbef3ea`), then the tip (merge `7deb9924`, tree `1aa735fe`).
+`integration` is still `6e13e98e`; neither merge conflicted.
+
+**What changed (`61477cbb..40162c99`, 5 commits).** `VA.releaseMap(root)`
+resets the map's Fit, view, light and resize observer and `renderTopoPane`
+calls it after clearing the root (B1); the app suites' classic-word guard
+counts the word everywhere but `#dag-drawing` and is renamed to say so (B2,
+the resolution I recommended); the three unwitnessable specs are re-aimed
+(`selectFromScene` dropped; the fit capped under the DAG view's with the check
+computing the expected fit by the rule; the pane-open check repaints before
+it reads); the post-pane hover polls the element's rect until stable; the
+builder and `test_topology_map.py` read `model_view(...)["interfaces"]`; the
+flank-pin label sits below its pin; the three nits (`DAG_TOPOLOGY.md`'s
+tier sentence, the resolved issue's `resolution:` line, the hub row's
+jumpers) are fixed; the lesson carries the round-1 and round-2 records; the
+click-around is re-shot with two added hovers (27 steps). `40162c99` alone:
+the two new Fit checks assert what Fit promises (the walk inside the pane; the
+legacy rails back under their arrival width) instead of the landing width,
+Fit is dispatched in-page, and the renumbered round-1 shots are removed.
+
+**B1 — verified.** The probe from round 1, on the real projection at
+1920 × 1080: control (Classic only) 436 → Fit **326**; map then Classic by the
+switch 436 → Fit **326**, `0` key the same; legacy model after the map, wheel
+650 → 1136 → Fit **236**, the pane's `mapFit` null in every row. The fast guard
+and the two browser checks carry one spec each (`242c2092`, `efee81d8`,
+`a1fab9df`), all WITNESSED (below).
+
+**B1's own detour, found at `80e5d950` and fixed by `40162c99`.** On the
+clean tree at `80e5d950` both new browser checks were red (deterministic: the
+whole tier and an `--only` re-run), because they compared Fit's result with the
+landing width and the page lands 5 px off its fit at the suite's viewport
+(rails 330 → wheel 502 → Fit 325). Six browser witnesses behind them came back
+"red before the mutation". The author's `--only` runs recorded 29/29 at
+`80e5d950` (ledger, 15:11Z, 15:13Z) — on a window where the two happened to
+agree — and the record predated the checks. `40162c99` asserts the promise
+(rails inside the pane; the legacy rails under their arrival width); on the tip
+the suite is **29/29** and all six specs are WITNESSED. Promoted to the overlay.
+
+**B2 — verified.** `app file://` 41/41 and `app http` 41/41 in the whole tier
+on the tip; the renamed check passes on `mock=1` with the switch present.
+
+**B3 — verified.** The lesson's record names real runs on committed trees
+(pytest 2027 passed twice, the two fast tiers, five map-suite runs, witness
+batches with their verdicts and the reasons each needed another). My own:
+all 35 round-1 specs plus the 3 new ones are WITNESSED across this review
+(37/41 in round 1, the 4 misses and the 3 new ones 6/6 + 1/1 here).
+
+**Should-fixes.** The interface rule now has one home; I marked
+`ISSUE_20261116_the_builder_and_its_test_restate_the_model_views_interface_rule.md`
+resolved. The tint copy and the colour literal stay as filed (the lesson says
+so too).
+
+**Whole browser tier on the tip: 46/47.** The one red is `the model drawn
+alone and led`, the hover sub-check already filed on integration
+(`ISSUE_20261115_…two_hover_lighting_checks_red_on_integration.md`, open) and
+red on the integration baseline in round 1. The `kinematic study page` red of
+the `8bbef3ea` run (the graph width not surviving a reload) paired **27/27 on
+the integration baseline and 27/27 on a merged re-run**, so it was a flake and
+is not filed. Wall time 1853 s, over the 1800 s budget by 53 s — appended to
+the open budget issue as this handoff's third measurement.
+
+### Test record, round 2
+
+Scratch root rebuilt from `8bbef3ea` with every stamp `dirty: False`
+(`40162c99` touches no projection input, so the pairing held for the tip:
+`projection paired with this tree: … @ 8bbef3eaffab`). The main checkout's
+projections are still untouched and predate the `map` block — **the batch
+merge runs `scripts/rebuild_projections.ps1` before its tiers.**
+
+| tier | tree | result |
+| --- | --- | --- |
+| default | `8bbef3ea` | `1 failed, 2027 passed, 1 skipped, 4 deselected in 441.15s` (the worktree red); 442 s, recorded |
+| fast, viewer | `8bbef3ea` / `7deb9924` | 715/715 both, paired |
+| fast, annotate | `8bbef3ea` | 323/323 |
+| Fit probe | `8bbef3ea` | the three rows above, all refit |
+| click-around (`tests/debug_map_shots_20261116.mjs --only click`) | `8bbef3ea` | 27 steps, no throw; the two new flank-pin shots read clean |
+| witness, 7 new / re-aimed specs | `8bbef3ea` | fast `242c2092` WITNESSED; 6 browser "red before the mutation" (the two Fit checks, above) |
+| map suite `--only` | `8bbef3ea` | 27/29, the two Fit checks red, twice |
+| kinematic pair | base / `8bbef3ea` | 27/27 / 27/27 (flake) |
+| witness, 6 browser specs | `7deb9924` | **6/6 WITNESSED**, 9m30s |
+| witness gate `--changed-since integration --budget-min 10` | `8bbef3ea`, `7deb9924` | 20/20 witnessed, 20/63 reached, exit 0, both runs |
+| map suite `--only` | `7deb9924` | **29/29** |
+| browser, whole tier | `7deb9924` (tree `1aa735fe`) | **46/47**, 1120 checks, 1853 s; the one red filed on integration |
+
+**Verdict: APPROVE (round 2).** Landing on `integration` follows.

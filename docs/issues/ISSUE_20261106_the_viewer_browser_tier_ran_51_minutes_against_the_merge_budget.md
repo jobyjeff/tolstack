@@ -203,3 +203,9 @@ page 80.7 s.
 > checks: **1835 s wall, over the 1800 s budget by 35 s** (the runner's own
 > row). Two checks more than round 1 and six seconds slower; the shape of the
 > timing table is unchanged.
+
+> **Measurement, 2026-11-16, round 2b (the handoff tip `40162c99`, merged tree
+> `1aa735fe`).** 47 suites, 1120 checks, **1853 s wall, over by 53 s**
+> (the runner's own row). Three whole-tier runs on this handoff's trees in one
+> day: 1829 → 1835 → 1853 s, the drift being slot-free wall time on a shared
+> box rather than new checks (two were added between the first and second).
