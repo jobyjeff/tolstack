@@ -73,7 +73,10 @@ on fixtures, so a live binding cannot reach them. Nothing is left to file.
   1 failed, 2027 passed, 1 skipped, 4 deselected, 470 s. The one failure is
   `tests/test_viewer_js_suite.py`, the worktree red documented in
   `CLAUDE.md`. The `--repo` run above covers its tier. Recorded with
-  `suite-time record`: inside budget. This repo's pytest has no xdist, so
+  `suite-time record`: inside budget. The one skip, from a second `-rs` run
+  with the same counts: `tests/test_fit_bound_features.py:433`, "the 2026-10-01
+  re-extraction of the pitch-link bearing is not installed". That is a data
+  precondition, and this diff does not touch it. This repo's pytest has no xdist, so
   `-n 16` is refused and the run is single-process.
 
 ## Gotcha
