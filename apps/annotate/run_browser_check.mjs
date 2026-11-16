@@ -572,17 +572,28 @@ async function checkEverything(browser, base) {
   check("nothing above produced an uncaught error", consoleErrors.length === 0,
     consoleErrors.join("\n      "));
 
-  await mockPlacementPass(browser, base);
-  await railResizePass(browser, base);
-  await railRealPass(browser, base);
-  await contextViewPass(browser, base);
-  await correctionPass(browser, base);
-  await proposalPass(browser, base, "accept");
-  await proposalPass(browser, base, "reject");
-  await reducedMotionTimingPass(browser, base);
+  // One pass's throw is one FAIL line, not the end of the run: a pass that
+  // dies must not hide the passes after it.
+  await runPass("mockPlacementPass", () => mockPlacementPass(browser, base));
+  await runPass("railResizePass", () => railResizePass(browser, base));
+  await runPass("railRealPass", () => railRealPass(browser, base));
+  await runPass("contextViewPass", () => contextViewPass(browser, base));
+  await runPass("correctionPass", () => correctionPass(browser, base));
+  await runPass("proposalPass (accept)", () => proposalPass(browser, base, "accept"));
+  await runPass("proposalPass (reject)", () => proposalPass(browser, base, "reject"));
+  await runPass("reducedMotionTimingPass", () => reducedMotionTimingPass(browser, base));
 
   if (SHOTS) await captureShots(page, `${base}?embedded=1&mock=1&sweep=synthetic-demo-sweep`, "mock");
-  if (REAL_RUN) await realPass(browser, base);
+  if (REAL_RUN) await runPass("realPass", () => realPass(browser, base));
+}
+
+async function runPass(name, pass) {
+  try {
+    await pass();
+  } catch (err) {
+    failed++;
+    console.log(`FAIL  ${name}: ${String(err && err.message || err).split("\n")[0]}`);
+  }
 }
 
 // THE PICK RULE, measured rather than argued: aim at one triangle of a part's
@@ -924,7 +935,7 @@ async function contextViewPass(browser, base) {
 
 // A binding written at the wrong end is corrected, not deleted: one click on
 // Flip direction writes a second event that supersedes the first, the row reads
-// the corrected end, and the first is one entry under a disclosure.
+// the corrected end, and the first is taken back (a retraction, no history entry).
 async function correctionPass(browser, base) {
   console.log("\n--- correcting a binding (mock)");
   const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
@@ -946,14 +957,21 @@ async function correctionPass(browser, base) {
     (await page.locator(".an__bound-history").count()) === 0);
 
   await page.locator(".an__bound-flip").click();
-  await page.waitForFunction(() => document.querySelector(".an__bound-history"), null, { timeout: 5000 });
+  await page.waitForFunction(() => [...document.querySelectorAll(".an__bound-row .an__bound-text")]
+    .some((t) => t.textContent.includes("demo bushing face against the plate")), null, { timeout: 5000 });
   const rows = await page.locator(".an__bound-row .an__bound-text").allInnerTexts();
   check("Flip direction leaves one standing binding, at the other end, same face",
     rows.length === 1 && rows[0].includes("demo bushing face against the plate") &&
     rows[0].includes("face 0"), JSON.stringify(rows));
+  // Since a_feature_is_bound_once_to_a_set_of_faces a flip binds the OTHER
+  // end's feature and takes the first binding back with a `retracted` event
+  // on its own feature (AA.planFeatureWrite), not a `supersedes` on this one.
+  // The bar's "Earlier bindings" lists only `superseded`, so a flip leaves it
+  // out; the retraction is in the log, not on this surface.
   const earlier = await page.locator(".an__bound-earlier").allTextContents();
-  check("...and one history entry: the end it was first written at",
-    earlier.length === 1 && earlier[0].includes("demo bolt-head bearing face"), JSON.stringify(earlier));
+  check("...and the end it was first written at is taken back, not listed as an earlier binding",
+    earlier.length === 0 && (await page.locator(".an__bound-history").count()) === 0,
+    JSON.stringify(earlier));
   const surface = await page.locator("#detail").innerText();
   check("no event id reaches the surface", !/annotate-\d+/.test(surface), surface);
   await page.close();
