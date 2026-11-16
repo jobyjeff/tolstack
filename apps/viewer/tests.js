@@ -12844,6 +12844,15 @@
            ["click a face", "face 2356 · round · r 41.2750 mm"], "armed: the line, then the ranked faces");
         // With nothing ranked (the other side unbound) the body is what it was.
         eq(VA.featureBodyPlan(model, "p1@n1", "mini", [], { mates: {} }).lines.length, 1);
+        // A suggested feature the pane lists rows for draws those rows, mates or
+        // not: the pane's rows carry the mates among its proposals and contact
+        // faces (the 2026-11-15 review: mate lines in their place hid them).
+        var meshed = bodiedProj();
+        meshed.model.parts[1].mesh = { installed: true, part_id: "p2" };
+        var withProposal = VA.buildModel(meshed, { stack_keys: [boundIdentity().stack_keys[1]] });
+        eq(VA.featureBodyPlan(withProposal, "p2@n3", "mini", [], null).lines[0].text, "suggested · high");
+        eq(VA.featureBodyPlan(withProposal, "p2@n3", "mini", [{ key: "k" }],
+           { mates: { "p2@n3": tree.mates["p1@n1"] } }), null, "pane rows win over the mate lines");
         // Drawn: a ranked face's Take is on its own line.
         var slot = document.createElement("div");
         VA.renderFeatureBody(slot, [], { plan: plan, command: function () {}, hoverFace: function () {} });

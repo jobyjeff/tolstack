@@ -1003,7 +1003,10 @@
     var status = model.status(fid);
     var record = model.featureRecord ? model.featureRecord(fid) : null;
     var disagree = record && record.state === VA.FEATURE_STATES[1];
-    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length && !disagree && !mateLines.length) return null;
+    // The pane's rows already carry its mates (app.js candidatesWithMates), so
+    // a feature with rows draws them; the mate lines below are for a feature
+    // the pane lists no row for.
+    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length && !disagree) return null;
     var part = model.part(feature.part);
     var partWords = (part && (part.number || part.label)) || feature.part;
     // `arm` also names the feature's own part, armed first (a shared node is

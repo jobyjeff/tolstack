@@ -592,7 +592,8 @@
   // nearest face that fails the relation (the lesson has the table):
   //   axisDeg       true 0.0033 deg; nearest wrong 0.50 deg (blade side)
   //   axisOffsetMm  true 0.000 mm; nearest wrong 0.53 mm, then 3.99 mm
-  //   planeDeg      true 0 deg; nearest wrong 45 deg
+  //   planeDeg      true 0 deg; every nearest wrong flat was parallel too
+  //                 (0 deg), told apart by gap or reach -- not angle-measured
   //   planeGapMm    true 0.05 mm; nearest wrong 7.1 mm
   // A flat face must also be within REACH of the bound one: the distance
   // between their centres along the plane no more than the two faces' sizes

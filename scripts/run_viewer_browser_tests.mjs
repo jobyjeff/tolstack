@@ -11717,6 +11717,7 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   const MOUNT_FACE = "tan_link_mount_215175_002@tan_link_mount_hub_face";
   const HUB_BORE = "hub@hub_blade1_root_bearing_bore";
   const LONE = "piston_cover_214958_002@piston_cover_end_stop_shoulder";
+  const KINEMATIC = "vpa_pitch_linkage_blade_pitch_at_the_stops";
   const servedLog = await readProjection("feature-identity/log.json");
   const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
   const events = (servedLog && servedLog.events) || [];
@@ -11769,13 +11770,19 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   };
   const slotOf = (fid) => page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`)
     .locator("xpath=..").locator(".navtree__scene").first();
-  try {
-    await page.goto(url + "/apps/viewer/topology.html?topology=" + V2, { waitUntil: "load" });
+  const openPage = async (query) => {
+    await page.goto(url + "/apps/viewer/topology.html?" + query, { waitUntil: "load" });
     await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
     await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
     await until((w) => !!w.__embedTree, null, 120000);
-
-    // 1. The mount's base face: its line names the surest proposal's face.
+  };
+  try {
+    // 1. The mount's base face where Jeff met it, on the kinematic page: the
+    // run's joints do not include it, so the pane lists no row for it and the
+    // tree's own line is its body. The line names the surest proposal's face.
+    // (On v2 with no study the pane lists a row for it, and the body is that
+    // row, its mates among the row's candidates -- the 2026-11-15 review's B1.)
+    await openPage("kinematic=" + KINEMATIC);
     await openBody(MOUNT_FACE);
     const line = slotOf(MOUNT_FACE).locator(".navtree__featurestate[data-look]").first();
     await line.waitFor({ timeout: 60000 }).catch(() => {});
@@ -11783,6 +11790,10 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
     const surest = events.filter((e) => e.verdict === "proposed" &&
       faceKeys(e).some((k) => k.face_id === face)).find((e) => e.confidence === "high");
     console.log(`    the mount's suggestion line names face ${face}; surest proposal ${surest && surest.event_id}`);
+    // The sweep opens its parts one by one after the tree is up, and only an
+    // open part washes in sweep mode: hover once the mount is drawn.
+    const mountSha = surest && faceKeys(surest)[0].source_step_sha256;
+    await until((w, s) => w.__scene && w.__scene.listOpenParts().indexOf(s) !== -1, mountSha, 180000);
     await line.hover({ timeout: 5000 }).catch(() => {});
     push("[real] hovering a suggestion line in the tree lights its face in the pane",
       Number.isFinite(face) && !!surest &&
@@ -11799,7 +11810,9 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
       written.length === 1 && written[0].verdict === "bound" && !!surest &&
       written[0].ratifies === surest.event_id && written[0].faces[0] === face);
 
-    // 2. The hub's blade-1 bore, armed: ranked against the blade's bound seat.
+    // 2. The hub's blade-1 bore on v2, armed: ranked against the blade's bound
+    // seat (a fresh page: the Take above wrote to the first page's store only).
+    await openPage("topology=" + V2);
     await openBody(HUB_BORE);
     await slotOf(HUB_BORE).locator('button[data-body-act="arm"]').first().click({ timeout: 10000 }).catch(() => {});
     const want = faceKeys(hubBound).map((k) => k.face_id).sort((a, b) => a - b);

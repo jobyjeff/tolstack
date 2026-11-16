@@ -10,6 +10,14 @@
       "file": "apps/viewer/views/nav.js",
       "find": "(line.sub ? row : body).appendChild(actsOf(line.actions));",
       "replace": "body.appendChild(actsOf(line.actions));"
+    },
+    {
+      "contract": "A suggested feature the pane lists rows for draws those rows; its mates join them, never replace them.",
+      "issue": "docs/sessions/reviews/REVIEW_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
+      "note": "Added by the rework of review B1 (2026-11-15). Puts back the line that let mate lines replace the pane's candidate rows, which reddened annotate rail holds still 17/17 -> 12/17.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "rows && rows.length && !disagree) return null;",
+      "replace": "rows && rows.length && !disagree && !mateLines.length) return null;"
     }
   ]
 }

@@ -185,3 +185,53 @@ All runs were from the worktree, borrowing the main checkout's data with
     every call, and keying on it would loop render → rank → render.
 - `ISSUE_20260921_cross_part_face_relations_need_assembly_placement` was set
   `resolved`, since this is the capability it asked for.
+
+## Rework after review B1 (2026-11-16)
+
+The review found that the mate lines replaced the pane's candidate rows. One
+condition in `VA.featureBodyPlan` (`&& !mateLines.length`) meant a suggested
+feature with mates stopped returning `null` ("draw the pane's rows"). That
+turned `annotate rail holds still` from 17/17 to 12/17 on the merge. On the
+gas-spring mount's bore it showed eight wrong bushings and none of the
+candidates the pane had offered, including the true mate, 53.
+
+- **The fix is to delete that condition.** The pane's rows already carry the
+  mates (`candidatesWithMates`, after the proposals and before the contact
+  faces), for joint ends and element rows alike. The tree lists mates as its
+  own lines only for a feature the pane lists no row for. That is the case
+  item 3 asked for. `ANNOTATION_SURFACE.md`'s row now says so.
+- **Why I added it.** On v2 with no study open, the mount's base face has
+  element rows. Without the condition its suggestion line was never drawn
+  there, and I took that for the bug. It is not: there the row *is* the
+  suggestion, with its own hover and Take. The line is for where the pane
+  lists nothing, the kinematic page where Jeff met it.
+- **The browser suite's step 1 moved to that page.** It is
+  `?kinematic=vpa_pitch_linkage_blade_pitch_at_the_stops`, and steps 2–3
+  reload v2. It also waits for the mount's mesh to open before hovering. The
+  sweep opens its parts one by one after the tree is up, and only an open
+  part washes in sweep mode. Without the wait, the first run hovered with 0
+  parts open and clicked Take before the pane answered.
+- **A fast check now covers the rows-and-mates case.** A suggested feature
+  with pane rows and mates plans `null`. It is a second mutation on the fast
+  spec `an unbound feature with the other side bound…`: putting the
+  condition back is WITNESSED (24 s).
+- The review's nit is fixed too. The `AA.MATE_TOLERANCES` comment's "45 deg"
+  had no row in the table. Every nearest wrong flat was parallel and was told
+  apart by gap or reach, and the comment now says that.
+
+Rework test record (worktree, `--repo C:/workspace/tolstack`):
+- viewer fast tier **703/703**; annotate **321/321**. The new assertion
+  sits inside an existing check, so there is no new check and no census change.
+- `--only "annotate rail holds still"`: **17/17** (12/17 before the fix).
+- `--only "a suggestion names its face"`: **5/5, 91 s**.
+- Witness `--only`, serially: the fast spec's two mutations WITNESSED (58 s,
+  24 s). The suite's two step-1 browser specs WITNESSED again on the moved
+  step (3m19s, 3m42s).
+- pytest on the files the rework reaches (`test_mutation_witnesses`,
+  `test_claims_registry`, `test_mesh_route_doc_facts`,
+  `test_js_vocabulary_is_generated`, `test_architecture_inventory`,
+  `test_viewer_deep_link_contract`): **176 passed**. The full suite stands
+  from round one and the review's post-merge run. The rework moved only
+  `featureBodyPlan`'s one condition, a comment, a doc row, a test and the
+  suite's step 1.
+- The real log was not touched: the suite writes to `__mockWrites` only.
