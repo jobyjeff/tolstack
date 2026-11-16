@@ -12654,6 +12654,57 @@
         eq(rowsWith("navtree__row--on").length, 3, "a hover lights nothing --on and takes nothing --on down");
       });
 
+    await test("the Parts filter: All lists every part and feature; Unbound hides the bound " +
+      "features and every part, and body, whose features are all bound; the count beside it is the " +
+      "model's unbound features; a click asks the page, and nothing else is touched", function () {
+        var identity = bodiedIdentity();
+        // g1's `to` end is p3's ball centre: bound, so p3 -- and its body, arm -- has nothing left.
+        identity.stack_keys[1].bindings = [{ event_id: "e6", direction: "to" }];
+        var model = VA.buildModel(bodiedProj(), identity);
+        eq([model.status("p1@n2"), model.status("p3@n4")],
+           [VA.FEATURE_STATUSES.bound, VA.FEATURE_STATUSES.bound], "the fixture's two bound features");
+        var unboundIds = model.features.filter(function (f) {
+          return model.status(f.id) !== VA.FEATURE_STATUSES.bound;
+        }).map(function (f) { return f.id; });
+        eq(VA.unboundFeatureCount(model), unboundIds.length);
+        var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
+                     looseStacks: [], kinematic: [] };
+        var asked = [];
+        var draw = function (filter) {
+          var state = { mode: "topology", topologyId: "mini", models: { mini: model }, navFilter: filter,
+                        navOpen: { "p:p1": true, "p:p2": true, "p:p3": true },
+                        focus: { selected: null, hovered: null }, selection: null };
+          return render(function (r) {
+            VA.renderNavTree(r, tree, state, { onNavFilter: function (v) { asked.push(v); } });
+          });
+        };
+        var ids = function (root, kind) {
+          return all(root, "div.navtree__row--" + kind).map(function (r) {
+            return r.getAttribute("data-nav-id") || r.querySelector(".navtree__label").textContent;
+          });
+        };
+        var everything = draw(VA.NAV_FILTERS[0]);
+        eq(ids(everything, "feature"), ["p1@n1", "p1@n2", "p2@n2", "p2@n3", "p2@n5", "p3@n4"]);
+        var only = draw(VA.NAV_FILTERS[1]);
+        eq(ids(only, "feature"), unboundIds.filter(function (id) { return id.indexOf("p3") !== 0; }));
+        eq(ids(only, "part"), ["p1", "p2"], "arm's one feature is bound: the part goes");
+        eq(ids(only, "body"), ["b1"], "...and its body with it");
+        var chips = all(only, "button.navtree__tag").filter(function (b) { return b.getAttribute("data-nav-filter"); });
+        eq(chips.map(function (c) { return [c.textContent, c.getAttribute("aria-pressed")]; }),
+           [[VA.NAV_WORDS.filterAll, "false"], [VA.NAV_WORDS.filterUnbound, "true"]]);
+        eq(all(only, "span.navtree__count").filter(function (c) { return c.getAttribute("data-nav-filter-count"); })
+          .map(function (c) { return c.textContent; }), [String(unboundIds.length)]);
+        eq(all(only, "div.navtree__sectionhead").length, 1, "one control, on the parts section");
+        chips[0].click();
+        eq(asked, [VA.NAV_FILTERS[0]]);
+        // A page that does not handle it shows nothing of it.
+        var bare = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: "mini", models: { mini: model },
+            focus: { selected: null, hovered: null } }, {});
+        });
+        eq(all(bare, "div.navtree__sectionhead").length, 0);
+      });
+
     await test("the left column is the model's tree: bodies open to parts and interfaces, " +
       "parts to features with one mark each, joints between bodies listed once, and a " +
       "compound joint to its constraints", function () {

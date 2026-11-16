@@ -82,7 +82,47 @@
     orphanMany: "{n} bindings name something that no longer exists",
     orphanEdge: "{edge} · face {face} · {date} · that interface is gone",
     orphanMesh: "{edge} · face {face} · {date} · that part's 3D model was replaced",
+    // The Parts filter (handoff a_pattern_is_bound_as_its_like_faces_and_a_
+    // face_can_be_added): every feature, or only those still to bind.
+    filterAll: "All",
+    filterUnbound: "Unbound",
+    filterTitle: "show only the features not bound to a face yet, and their parts",
+    filterCountTitle: "features in this model not bound to a face",
   });
+
+  // What the Parts filter can show (`state.navFilter`, the page's): every
+  // part and feature, or only the features not bound and the parts holding
+  // one. It filters the tree and nothing else.
+  VA.NAV_FILTERS = Object.freeze(["all", "unbound"]);
+
+  // A feature the filter keeps: anything not bound (a suggestion, a
+  // disagreement and nothing at all among them).
+  function unbound(model, fid) {
+    return model.status(fid) !== VA.FEATURE_STATUSES.bound;
+  }
+
+  // How many of the model's features are not bound -- the number beside the
+  // filter.
+  VA.unboundFeatureCount = function (model) {
+    return ((model && model.features) || []).filter(function (f) { return unbound(model, f.id); }).length;
+  };
+
+  function filtering(state) {
+    return !!state && state.navFilter === VA.NAV_FILTERS[1];
+  }
+
+  // Under the filter, a part is listed while it or a part inside it holds an
+  // unbound feature.
+  function partShown(model, partId, state) {
+    if (!filtering(state)) return true;
+    return model.subtreeOf(partId).some(function (pid) {
+      return (model.part(pid) || { features: [] }).features.some(function (fid) { return unbound(model, fid); });
+    });
+  }
+
+  function featureShown(model, fid, state) {
+    return !filtering(state) || unbound(model, fid);
+  }
 
   function tooltip(description, hint) {
     if (description && hint) return description + "\n\n" + hint;
@@ -190,11 +230,41 @@
     return VA.el("span", "navtree__count", text);
   }
 
-  function section(kind, heading, list) {
+  function section(kind, heading, list, control) {
     var box = VA.el("div", "navtree__section navtree__section--" + kind);
-    box.appendChild(VA.el("h2", "navtree__heading", heading));
+    if (control) {
+      var head = VA.el("div", "navtree__sectionhead");
+      head.appendChild(VA.el("h2", "navtree__heading", heading));
+      head.appendChild(control);
+      box.appendChild(head);
+    } else {
+      box.appendChild(VA.el("h2", "navtree__heading", heading));
+    }
     box.appendChild(list);
     return box;
+  }
+
+  // "All · Unbound" and the count of unbound features, on the section that
+  // lists the model's parts. Only where the page handles it.
+  function filterControl(model, state, handlers) {
+    if (!handlers || !handlers.onNavFilter) return null;
+    var W = VA.NAV_WORDS;
+    var strip = VA.el("div", "navtree__tags navtree__filter");
+    strip.setAttribute("title", W.filterTitle);
+    [[VA.NAV_FILTERS[0], W.filterAll], [VA.NAV_FILTERS[1], W.filterUnbound]].forEach(function (pair) {
+      var on = (state.navFilter || VA.NAV_FILTERS[0]) === pair[0];
+      var chip = VA.el("button", "navtree__tag" + (on ? " navtree__tag--on" : ""), pair[1]);
+      chip.setAttribute("type", "button");
+      chip.setAttribute("aria-pressed", on ? "true" : "false");
+      chip.setAttribute("data-nav-filter", pair[0]);
+      chip.onclick = function () { handlers.onNavFilter(pair[0]); };
+      strip.appendChild(chip);
+    });
+    var n = count(String(VA.unboundFeatureCount(model)));
+    n.setAttribute("title", W.filterCountTitle);
+    n.setAttribute("data-nav-filter-count", "true");
+    strip.appendChild(n);
+    return strip;
   }
 
   // The rows the page's ONE selection and ONE hover light (one_selection_one_
@@ -456,10 +526,10 @@
     li.appendChild(row);
     if (open) {
       var list = VA.el("ul", "navtree__children");
-      children.forEach(function (pid) {
+      children.filter(function (pid) { return partShown(model, pid, state); }).forEach(function (pid) {
         list.appendChild(partItem(model, pid, state, handlers));
       });
-      part.features.forEach(function (fid) {
+      part.features.filter(function (fid) { return featureShown(model, fid, state); }).forEach(function (fid) {
         list.appendChild(featureItem(model, fid, state, handlers, false));
       });
       li.appendChild(list);
@@ -507,7 +577,8 @@
       var list = VA.el("ul", "navtree__children");
       list.appendChild(groupItem("bp:" + body.id, VA.NAV_WORDS.parts, state, handlers, true,
         function (into) {
-          body.parts.forEach(function (pid) { into.appendChild(partItem(model, pid, state, handlers)); });
+          body.parts.filter(function (pid) { return partShown(model, pid, state); })
+            .forEach(function (pid) { into.appendChild(partItem(model, pid, state, handlers)); });
         }));
       var within = model.jointsWithin(body.id);
       if (within.length) {
@@ -525,15 +596,21 @@
   // between bodies, then its studies.
   function modelSections(root, model, t, state, handlers) {
     if (model) {
+      // The Parts filter sits on the first section that lists parts.
+      var control = filterControl(model, state, handlers);
       if (model.bodies.length) {
         var bodies = VA.el("ul", "navtree__list");
-        model.bodies.forEach(function (body) { bodies.appendChild(bodyItem(model, body, state, handlers)); });
-        root.appendChild(section("bodies", VA.NAV_WORDS.bodies, bodies));
+        model.bodies.filter(function (body) {
+          return model.allPartsOf(body.id).some(function (pid) { return partShown(model, pid, state); });
+        }).forEach(function (body) { bodies.appendChild(bodyItem(model, body, state, handlers)); });
+        root.appendChild(section("bodies", VA.NAV_WORDS.bodies, bodies, control));
+        control = null;
       }
       if (model.unbodiedParts.length) {
         var parts = VA.el("ul", "navtree__list");
-        model.unbodiedParts.forEach(function (pid) { parts.appendChild(partItem(model, pid, state, handlers)); });
-        root.appendChild(section("parts", VA.NAV_WORDS.unbodied, parts));
+        model.unbodiedParts.filter(function (pid) { return partShown(model, pid, state); })
+          .forEach(function (pid) { parts.appendChild(partItem(model, pid, state, handlers)); });
+        root.appendChild(section("parts", VA.NAV_WORDS.unbodied, parts, control));
       }
       var between = model.jointsBetween();
       if (between.length) {

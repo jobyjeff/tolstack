@@ -2075,6 +2075,11 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 
 /* The nav's kinematic section: one small heading over the group labels. */
 .navtree__section { margin-top: 14px; }
+/* A section heading with a control on its line (the Parts filter): the
+   heading keeps its look; the chips sit after it, the count at the right. */
+.navtree__sectionhead { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; }
+.navtree__sectionhead .navtree__heading { margin: 0; }
+.navtree__filter { flex: 1; padding: 0; }
 .navtree__heading {
   font-size: var(--t-micro); color: var(--muted); text-transform: uppercase;
   letter-spacing: 0.04em; font-weight: 600; margin: 0 0 6px;

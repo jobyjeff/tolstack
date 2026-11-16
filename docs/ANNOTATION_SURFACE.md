@@ -751,6 +751,9 @@ table is the one statement of the gestures.**
 | left-click on another part | nothing is written; the state line flashes "not on <part>" and the pick stays armed |
 | left-click on empty space | nothing; the pick stays armed |
 | left-click on the face already bound at that end | nothing is written; the state line says so |
+| left-click on a hole of a pattern, or a face with like faces on its surface that do not touch it | nothing is written yet: every hole of the pattern (each whole, both halves) or every like face is lit, and a bar offers **Take all N holes** / **Take all N** or **Just this one** (`group all\|one`); the pick stays armed until it is answered ("A hole pattern", below) |
+| **Shift**-left-click, while any pick is armed | adds the face, with the faces on its surface, to the feature's set -- one event carrying the whole new set, as **Remove** writes -- and the pick stays armed: the line reads "added face N · M faces". On a feature with nothing bound yet it binds, as a plain click does, and stays armed |
+| **Add a face** in a bound feature's body | arms the pick in the mode that adds (`arm <edge> <end> <model> <part> add`; the line reads "adding a face to the feature"): the click adds the face and its same-surface faces to the set and ends the pick. A face already in the set writes nothing and says so |
 | drag | orbits; nothing is pre-selected or picked (a pick is a release that did not travel — "Binding a face", above) |
 | Esc, the row's **Cancel**, `arm off` | ends the pick and puts back what was shown and where the camera was |
 | play, seek, step, the scrubber | end the pick (the pose moves) |
@@ -1024,11 +1027,11 @@ v1 edges; it is picked once and every one of those ends reads it.
   on the same surface that touch it (a cylinder the STEP split into arcs) --
   never a question. Like faces on that surface that do not touch it (two
   seats of one bore, coplanar feet) are lit and offered: **Take all N** or
-  **Just this one** (`group all|one`). A face pattern (fastener clocking) is
-  not offered as a group; the event shape holds N faces, the pattern fit is a
-  later handoff.
+  **Just this one** (`group all|one`). Since 2026-11-15 a hole of a pattern
+  offers the pattern the same way ("A hole pattern", below).
 - **The feature body lists a set** ("bound · 4 faces of 213668-002", then
-  each face, hoverable, with **Remove**); **Correct** re-picks the whole set.
+  each face, hoverable, with **Remove**); **Correct** re-picks the whole set,
+  and **Add a face** (2026-11-15) adds to it -- the gesture table above.
 - **Every reader asks the feature.** The fold's `features` records hold the
   answer; an edge-end reader (the pane's rows, the marks, an Accept) reads the
   end view (`VA.endView`), whose row at an end is the feature that end is.
@@ -1039,6 +1042,46 @@ v1 edges; it is picked once and every one of those ends reads it.
   one feature that are one surface, because a page has no meshes' fits. Which
   feature an old event reads through to the page works out from the topology
   projection; `tests/test_identity_fold_is_paired.py` folds one log both ways.
+
+### A hole pattern (2026-11-15)
+
+Handoff `a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added`, from
+Jeff binding the tangential link mount's fastener clocking: the pick took one
+hole (both halves, by the sweep above) and nothing offered the others. Jeff:
+"select all cylindrical features that are equal in size, and located axially
+on the same plane (or nearly the same plane)".
+
+- **What a pattern is.** Two cylindrical faces of one mesh are holes of one
+  pattern when they have the same radius, parallel axes, are not one surface,
+  have their axis points on one plane normal to the axis, and do not overlap
+  (axes more than a diameter apart). Each hole must be whole: its faces on its
+  surface go round. `AA.likeHoles` and `feature_geometry.like_holes` say it
+  statement for statement; the numbers, each measured over v2's meshes between
+  the members and the nearest non-member, are `PATTERN_TOLERANCES` and stated
+  there. `tests/test_hole_pattern.py` holds them at those boundaries, pairs
+  them with `AA.PATTERN`, and has both readers offer face 744's pattern on the
+  installed hub.
+- **The pick offers it.** A click on a hole of a pattern lights every hole
+  (`AA.surfaceSiblings`' third tier, `pattern`) and the bar reads "N like holes
+  on one plane": **Take all N holes** binds every face of every hole in one
+  event; **Just this one** binds the clicked hole. A **Take** on a ranked mate
+  that is a hole of a pattern (the other side of a bound pattern) offers the
+  same bar before it writes. A pattern is read from the hole picked: a hole
+  that overlaps one hole of a circle and not the others joins the pattern
+  read from those others.
+- **The fit says what it is.** A set of holes is never fitted as one
+  cylinder: `feature_geometry.fit_face_set` returns surface `hole_pattern`
+  (`PATTERN_SURFACE`) with the hole count, the hole radius, the common axis,
+  each hole's centre and, when the centres lie on one, the circle's centre and
+  radius (`hole_pattern`; three holes always lie on one). Faces of several
+  surfaces that are no pattern are `other`, with the reason. The pane reads
+  the same fit off its own classes (`AA.holePattern`) and the feature's body
+  and the Preview print it in one line: "10 holes Ø5.5 on a Ø240 circle", or
+  "... not on a circle". A measurement of a mesh, never a tolerance; a drawing
+  callout still wins. `scripts/fit_bound_features.py` writes the pattern
+  through the rebuild rail, its centres placed per occurrence.
+- **Left alone.** The grid and the DAG show nothing about a pattern's fit,
+  and `scripts/propose_bindings.py` proposes no pattern.
 
 ### Proposals — an agent proposes, a human ratifies (2026-10-28)
 

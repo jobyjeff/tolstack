@@ -71,6 +71,9 @@
     studyId: null,
     // {axis: [value, ...]}: the nav's tag chips (VA.studyMatchesTags).
     tagFilter: {},
+    // The Parts filter (VA.NAV_FILTERS): the page's, not the model's -- it
+    // filters the tree and touches no selection, light or other surface.
+    navFilter: VA.NAV_FILTERS[0],
     // "comfortable" (26px rows) or "compact" (16px) — a display preference,
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
@@ -996,6 +999,13 @@
     if (at === -1) values.push(value); else values.splice(at, 1);
     if (values.length) state.tagFilter[axis] = values; else delete state.tagFilter[axis];
     navigate(render);
+  }
+
+  // "All · Unbound" on the Parts section: the tree, and only the tree.
+  function onNavFilter(value) {
+    if (VA.NAV_FILTERS.indexOf(value) === -1) return;
+    state.navFilter = value;
+    renderNav();
   }
 
   function onNavStack(stackId) {
@@ -4119,6 +4129,7 @@
       onTopology: onNavTopology,
       onStudy: onNavStudy,
       onTag: onNavTag,
+      onNavFilter: onNavFilter,
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
