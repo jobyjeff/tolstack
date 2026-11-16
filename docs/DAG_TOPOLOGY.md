@@ -331,7 +331,13 @@ and the page re-arranges what it draws (`apps/viewer/topology.js`).
 - **One part, one run.** The page gathers each block part's pins and chords to
   where the walk first reaches the part and re-lays the walk
   (`VA.gatherParts`), without the chords, which need no column. So a part the
-  depth-first walk visited three times is drawn once. The grid is built off
+  depth-first walk visited three times is drawn once. A part's other edges --
+  a dimension on its drawing that ends on another part's pin, like the hub's
+  two to the tangential-link mount on v2 -- follow its pins and chords, and a
+  part that is no block gathers its edges the same way (since 2026-11-15,
+  `the_hub_is_one_part_in_the_grid_and_the_dag`). An edge moves only to where
+  one of its nodes is above it, so a part with an edge that cannot move up yet
+  is held back, whole, until all of them can. The grid is built off
   the drawn walk, as it always was, so its rows and the leaders follow; a
   kinematic page's band keeps its stack order, and a part that order visits
   twice is two blocks there.

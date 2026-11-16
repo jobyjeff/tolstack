@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part whose second edge cannot move up yet is held back, whole, until it can, and laid as one run",
+  "mutations": [
+    {
+      "contract": "A part is laid only once every one of its edges has a node above it.",
+      "issue": "docs/issues/ISSUE_20261114_the_hub_is_two_groups_in_the_grid_and_two_blocks_in_the_dag_on_v2.md",
+      "note": "Declared with the guard by handoff the_hub_is_one_part_in_the_grid_and_the_dag (2026-11-15). The part is laid as soon as any edge can move: the other edge has nothing above it, the re-lay fails and the walk stays split.",
+      "file": "apps/viewer/topology.js",
+      "find": "          if (!waiting.every(movable)) continue;",
+      "replace": "          if (!waiting.some(movable)) continue;"
+    }
+  ]
+}

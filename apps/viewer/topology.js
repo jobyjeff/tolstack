@@ -3436,6 +3436,83 @@
              columns: laid.columns };
   }
 
+  // The walk's rows in the order VA.gatherParts lays them: each part's rows
+  // are ONE run, wherever the depth-first walk reached it from. A block's
+  // pins and chords move up to where the part first appears, as they always
+  // have; then its other edges -- a dimension on the part's own drawing that
+  // ends on another part's pin (the hub's two to the tangential-link mount)
+  // -- follow them, and a part that is no block gathers its edges the same
+  // way. An edge moves only to where one of its nodes is already above it
+  // (VA.layWalk has nothing to draw it down from otherwise), so a part with
+  // an edge that cannot move up yet is held back, whole, until every one of
+  // its edges can, and is then laid at once. Node rows that are no block's
+  // pin keep the walk's order.
+  function gatheredOrder(rows, topoProj, pins) {
+    var top = VA.topPartOf(topoProj);
+    var edgePart = {};
+    ((topoProj && topoProj.edges) || []).forEach(function (e) {
+      if (e.part) edgePart[e.id] = top[e.part] || e.part;
+    });
+    var partOf = function (row) {
+      if (!row || row.collapsed) return null;
+      return blockPartOf(row, pins) || (row.kind === "edge" ? edgePart[row.id] || null : null);
+    };
+    var inWalk = {};
+    rows.forEach(function (row) { if (row.kind === "node") inWalk[row.id] = true; });
+    var own = {};
+    var rest = {};
+    rows.forEach(function (row) {
+      var p = partOf(row);
+      if (!p) return;
+      var into = blockPartOf(row, pins) ? own : rest;
+      (into[p] = into[p] || []).push(row);
+    });
+    var order = [];
+    var placed = {};
+    var done = {};
+    var emit = function (row) {
+      var key = slotKey(row.kind, row.id);
+      if (done[key]) return;
+      done[key] = true;
+      order.push(row);
+      if (row.kind === "node") placed[row.id] = true;
+    };
+    var movable = function (row) {
+      var ends = [row.entered_at, row.left_at].filter(function (id) { return inWalk[id]; });
+      return !ends.length || ends.some(function (id) { return placed[id]; });
+    };
+    var left = function (p) {
+      return (rest[p] || []).filter(function (row) { return !done[slotKey(row.kind, row.id)]; });
+    };
+    var held = [];
+    var release = function () {
+      for (var again = true; again;) {
+        again = false;
+        for (var h = 0; h < held.length; h++) {
+          var waiting = left(held[h]);
+          if (!waiting.every(movable)) continue;
+          waiting.forEach(emit);
+          held.splice(h, 1);
+          again = true;
+          break;
+        }
+      }
+    };
+    var started = {};
+    rows.forEach(function (row) {
+      if (done[slotKey(row.kind, row.id)]) return;
+      var p = partOf(row);
+      if (!p) { emit(row); release(); return; }
+      if (started[p]) return;
+      started[p] = true;
+      (own[p] || []).forEach(emit);
+      held.push(p);
+      release();
+    });
+    held.forEach(function (p) { left(p).forEach(emit); });
+    return order;
+  }
+
   var gatherMemo = { layout: null, topoProj: null, out: null };
 
   VA.gatherParts = function (layout, topoProj) {
@@ -3445,21 +3522,8 @@
     }
     var pins = VA.partPins(topoProj);
     var rows = layout.rows || [];
-    var byPart = {};
-    rows.forEach(function (row) {
-      var p = blockPartOf(row, pins);
-      if (p) (byPart[p] = byPart[p] || []).push(row);
-    });
-    var order = [];
-    var emitted = {};
+    var order = gatheredOrder(rows, topoProj, pins);
     var moved = false;
-    rows.forEach(function (row) {
-      var p = blockPartOf(row, pins);
-      if (!p) { order.push(row); return; }
-      if (emitted[p]) return;
-      emitted[p] = true;
-      byPart[p].forEach(function (r) { order.push(r); });
-    });
     order.forEach(function (row, i) { if (row.row !== i) moved = true; });
     var out = layout;
     if (moved) {

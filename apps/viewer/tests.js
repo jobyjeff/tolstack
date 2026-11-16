@@ -13987,6 +13987,111 @@
         ok(VA.gatherParts(proj.layout, proj) === gathered, "one walk, laid once");
       });
 
+    // A part reached from two directions (the_hub_is_one_part_in_the_grid_and_
+    // the_dag, 2026-11-15): v2's hub is a block of two pins whose two other
+    // dimensions end on faces the tangential-link mount owns, so the walk
+    // closes them at the foot of the body -- a second bracket in the grid and
+    // a second field in the DAG. The fixture is a walk, its rows as `order`.
+    function reachedTwiceProjection(order, parts, nodes, edges) {
+      var rows = order.map(function (row) {
+        return Object.assign({ column: 0, branch: false, body: "B", closes_row: null,
+                               closes_column: null }, row);
+      });
+      var laid = VA.layWalk(rows);
+      return {
+        id: "twice", parts: parts.map(function (p) { return { id: p, name: p }; }),
+        nodes: nodes.map(function (n) {
+          return { id: n[0], name: n[0], kind: "datum_feature", parts: n[1] };
+        }),
+        edges: edges.map(function (e) {
+          return { id: e[0], name: e[0], from: e[1], to: e[2], part: e[3],
+                   kind: e[3] ? "structural" : "gap", interface: null, dimension: null };
+        }),
+        bodies: [{ id: "B", name: "body", kind: "body", parts: parts, joint_nodes: [] }],
+        layout: { columns: laid.columns, column_order: "exact", rows: laid.rows,
+                  rails: laid.rails, links: laid.links, bodies: [] },
+        studies: [],
+      };
+    }
+    function edgeRow(id, from, to) {
+      return { kind: "edge", id: id, entered_at: from, left_at: to };
+    }
+    // What a part is drawn as, per part: its grid brackets, and its DAG blocks
+    // plus the part fields no block of its own already draws.
+    function drawnRuns(proj) {
+      var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
+      var grid = {};
+      VA.gridPlan(layout, proj, null).groups.forEach(function (g) {
+        if (g.part) grid[g.part] = (grid[g.part] || 0) + 1;
+      });
+      var dag = {};
+      layout.blocks.forEach(function (b) { dag[b.part] = (dag[b.part] || 0) + 1; });
+      VA.partSpans(layout.rows, proj).forEach(function (s) {
+        var inBlock = layout.blocks.some(function (b) {
+          return b.part === s.part && b.start <= s.end && b.end >= s.start;
+        });
+        if (!inBlock) dag[s.part] = (dag[s.part] || 0) + 1;
+      });
+      return { layout: layout, grid: grid, dag: dag };
+    }
+    function isWalk(layout) {
+      var at = {};
+      layout.rows.forEach(function (r) { if (r.kind === "node") at[r.id] = r.row; });
+      return layout.rows.every(function (r, i) {
+        return r.row === i && (r.kind !== "edge" ||
+          Math.min(at[r.entered_at], at[r.left_at]) < r.row);
+      });
+    }
+
+    await test("a block part whose other edges end on another block's pins is one run: " +
+      "one bracket in the grid and one block in the DAG", function () {
+        // H: pins h1, h2 (chord eh); x1, x2 are H's dimensions to faces m2, m3,
+        // which M owns (M has more faces). The walk closes x1, x2 last.
+        var proj = reachedTwiceProjection([
+          { kind: "node", id: "h1" }, edgeRow("eh", "h1", "h2"), { kind: "node", id: "h2" },
+          edgeRow("g", "h2", "m1"), { kind: "node", id: "m1" }, edgeRow("e1", "m1", "m2"),
+          { kind: "node", id: "m2" }, edgeRow("e2", "m2", "m3"), { kind: "node", id: "m3" },
+          edgeRow("e3", "m3", "m4"), { kind: "node", id: "m4" }, edgeRow("e4", "m4", "m5"),
+          { kind: "node", id: "m5" }, edgeRow("x1", "h1", "m2"), edgeRow("x2", "h1", "m3"),
+        ], ["H", "M"],
+        [["h1", ["H"]], ["h2", ["H"]], ["m1", ["M"]], ["m2", ["M", "H"]], ["m3", ["M", "H"]],
+         ["m4", ["M"]], ["m5", ["M"]]],
+        [["eh", "h1", "h2", "H"], ["g", "h2", "m1", null], ["e1", "m1", "m2", "M"],
+         ["e2", "m2", "m3", "M"], ["e3", "m3", "m4", "M"], ["e4", "m4", "m5", "M"],
+         ["x1", "h1", "m2", "H"], ["x2", "h1", "m3", "H"]]);
+        eq(VA.partPins(proj).owner.m2, "M", "the contact faces are the mount's pins");
+        var gathered = VA.gatherParts(proj.layout, proj);
+        eq(gathered.rows.map(function (r) { return r.id; }).slice(0, 6),
+           ["h1", "eh", "h2", "x1", "x2", "g"], "H's two dimensions follow its block");
+        var drawn = drawnRuns(proj);
+        ok(isWalk(drawn.layout), "still a walk, every edge hanging from a node above it");
+        eq(drawn.grid, { H: 1, M: 1 }, "one bracket per part in the grid");
+        eq(drawn.dag, { H: 1, M: 1 }, "one block per part in the DAG");
+      });
+
+    await test("a part whose second edge cannot move up yet is held back, whole, until it " +
+      "can, and laid as one run", function () {
+        // K is no block (no face of its own): k0 hangs from s, kk from b2 --
+        // below k0, past block B -- so k0 waits for B and the two land together.
+        var proj = reachedTwiceProjection([
+          { kind: "node", id: "s" }, edgeRow("k0", "s", "n1"), { kind: "node", id: "n1" },
+          edgeRow("g", "n1", "b1"), { kind: "node", id: "b1" }, edgeRow("eb", "b1", "b2"),
+          { kind: "node", id: "b2" }, edgeRow("kk", "b2", "n2"), { kind: "node", id: "n2" },
+        ], ["S", "K", "B", "T"],
+        [["s", ["S"]], ["n1", ["S"]], ["b1", ["B"]], ["b2", ["B"]], ["n2", ["T"]]],
+        [["k0", "s", "n1", "K"], ["g", "n1", "b1", null], ["eb", "b1", "b2", "B"],
+         ["kk", "b2", "n2", "K"]]);
+        var before = VA.gridPlan(VA.blockLayout(proj.layout, proj), proj, null).groups
+          .filter(function (g) { return g.part === "K"; });
+        eq(before.length, 2, "as the builder walked it, K is two brackets");
+        var drawn = drawnRuns(proj);
+        ok(isWalk(drawn.layout), "still a walk");
+        eq(drawn.grid.K, 1, "one bracket");
+        eq(drawn.dag.K, 1, "one field");
+        var ids = drawn.layout.rows.map(function (r) { return r.id; });
+        eq(ids.indexOf("kk") - ids.indexOf("k0"), 1, "k0 and kk are adjacent");
+      });
+
     await test("a block's pins are on its sides, one height each in walk order, inside " +
       "the aspect band; a chord runs pin to pin and a rail-side pin is joined to its column",
       function () {
