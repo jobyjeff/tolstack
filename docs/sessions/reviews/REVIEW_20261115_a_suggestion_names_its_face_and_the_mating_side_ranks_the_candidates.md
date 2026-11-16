@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md
 reviewer: agent
 date: 2026-11-15
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates
@@ -162,3 +162,45 @@ export, because a throw hides behind the known reds.
 Re-run `--only "annotate rail holds still"` and `--only "a suggestion names its
 face"` on the rework, plus the fast tiers. The rest of this round's results
 stand unless the rework moves more than `featureBodyPlan`.
+
+## Re-run 2026-11-16
+
+**Round 2: APPROVE, 0 blockers.** Round 1 was REQUEST CHANGES with one
+blocker (B1). It is closed below.
+
+**B1 is closed.** `a98573dd` deletes the `&& !mateLines.length` condition, so a
+`suggested` feature that has pane rows draws them again. Its mates reach the
+tree through those rows (`candidatesWithMates`, after the proposals and before
+the contact faces). The tree draws mates as its own lines only for a feature
+the pane lists no row for, which is item 3's case. Pinning:
+- a fast assertion, inside the existing ranked-mates check (no census change);
+- a second mutation in that check's spec that puts the condition back;
+- an `ANNOTATION_SURFACE.md` row stating the rule.
+
+The suite's step 1 now runs on the kinematic page, where the line *is* the
+body. It also waits for the mount's mesh to open before hovering. Both changes
+are needed, for the reasons the lesson gives. The 45° nit is fixed. I read the
+lesson's rework section and found nothing in it that I could not reproduce.
+
+Merged with `integration` again (`a7c707dd`, a master sync). The merge was
+clean, and since round 1 that sync changed no app, script or test file.
+
+| what | result |
+|---|---|
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | 703/703 |
+| `node apps/annotate/run_tests.cjs --repo C:/workspace/tolstack` | 321/321 |
+| pytest `test_mutation_witnesses`, `test_js_vocabulary_is_generated`, `test_viewer_readme_doc_facts`, `test_claims_registry`, `test_architecture_inventory` | 167 passed |
+| browser `--only "annotate rail holds still"` | **17/17** (12/17 in round 1) |
+| browser `--only "a suggestion names its face"` | 5/5. Face 134 is named and taken for proposal `proposal-0048-…`; the hub bore ranks `[2356,2358,2427,…]`, and 2564 is absent |
+| witness `--changed-since 9caf662c --budget-min 10` | exit 0: **7/7 reached witnessed**, 1 left to the sweep (`…take-on-a-suggestion-line…`, which the tactical witnessed with `--only`), 450 s |
+
+**Whole browser tier: not re-run, and why.** Round 1 ran it on a tree that
+differs from this one only by the rework. Every red there was settled by a
+baseline/merge pair (B1, two flakes, one already filed). Between the rounds,
+the rework's only app change puts `featureBodyPlan`'s condition back to
+`integration`'s own text, and both suites it reaches pass. The full pytest
+from round 1 also stands: the rework touches no Python and no tracked document
+the doc-scan guards read, other than one table row in `ANNOTATION_SURFACE.md`,
+and the subset above covers that.
+
+The real log: still 83 events.
