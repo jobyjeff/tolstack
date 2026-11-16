@@ -134,7 +134,7 @@ Read off the real page by the suite and the click-around (`click_NN_*.png`,
 | entity (how) | map | tree | grid | 3D |
 | --- | --- | --- | --- | --- |
 | body `ground` (H on its name) | district and name `--lead`, its 4 boxes, names, 15 pins and 11 jumpers lead; the 5 connectors to other bodies and their far pins hot | 5 rows hot (the body, its parts), folds marked | 12 rows lead | the 4 parts' overlays, own |
-| part `hub` (H from tree) | box, name and 4 pins lead; the 4 interfaces to the blade root and the mount and their far pins hot; the mount's box not lit | -- | 3 rows lead, 1 hot | 1 part overlay, 3 faces |
+| part `hub` (H from tree) | box, name, 4 pins and its 3 jumpers lead; the 4 interfaces to the blade root and the mount and their far pins hot; the mount's box not lit | -- | 3 rows lead, 1 hot | 1 part overlay, 3 faces |
 | part `215175-002` (S on its name on the map) | box, name, 5 pins, 4 jumpers selected; 4 interfaces and far pins touched | 7 rows on | 4 rows selected | select layer: 1 part, 5 touching faces |
 | feature `locating boss` (H on its pin) | pin lead with its label shown; its connector (the pilot) and 3 jumpers hot | the hub's closed fold marked `--holds` | 4 rows hot (the pilot gap and 3 dimensions) | hover layer: 1 face (face 144) |
 | feature `locating boss` (S from the tree; S by its anchor picked in the scene) | pin selected, the pilot connector touched | -- | -- | -- |

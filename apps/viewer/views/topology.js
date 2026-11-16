@@ -368,6 +368,9 @@
     var carried = carriedScroll(root, ctx.topoProj, ctx.tween);
     var carriedGrid = carriedGridScroll(gridRoot, ctx.topoProj);
     VA.clear(root);
+    // ...and whatever the map left on the root (views/map.js): a Classic
+    // paint after a map paint hands Fit back to the rails.
+    if (VA.releaseMap) VA.releaseMap(root);
     if (gridRoot !== root) VA.clear(gridRoot);
     root.className = "tv__scroll";
     root.topoGridRoot = gridRoot;

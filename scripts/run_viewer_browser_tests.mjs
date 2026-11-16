@@ -683,9 +683,16 @@ async function testTheApp(browser, url, label) {
     // model picker since 2026-11-10, after the models.
     push("the nav lists exactly the stacks no topology re-expresses",
       await page.locator('option[data-nav-kind="stack"]').count() === 1);
-    push("and says nothing about a classic view anywhere on the page",
-      !(await page.evaluate(() =>
-        document.body.textContent.toLowerCase().includes("classic"))));
+    // Since 2026-11-16 the DAG region's own header says "Classic" for the
+    // present drawing (the Map . Classic switch, views/map.js), so the word is
+    // counted everywhere but there: the retired chip was a row of the nav and
+    // the stack page, never the region's header.
+    push("and says nothing about a classic view anywhere on the page but the DAG region's own switch",
+      await page.evaluate(() => {
+        const count = (text) => ((text || "").toLowerCase().match(/classic/g) || []).length;
+        const sw = document.getElementById("dag-drawing");
+        return count(document.body.textContent) === count(sw ? sw.textContent : "");
+      }));
 
     // Switch from the default topology mode into stack mode — a real click,
     // which is the one thing this test tier exists to exercise.
@@ -4522,13 +4529,46 @@ async function testTheMap(browser, label, topologies) {
   });
   const hoverMap = async (kind, id) => {
     // The pin's own hit circle, at its centre; a box by its stroke is its
-    // name's business, so a part is hovered by its name.
+    // name's business, so a part is hovered by its name. Anchored: the map
+    // re-fits while the 3D pane settles beside it, so the element's rect is
+    // read until two reads agree and the mouse goes to that centre -- a
+    // locator's own stability wait timed out here on the review's run.
     const sel = kind === "part" ? `#topopane svg.tv__map g.map__partname[data-map-id="${id}"] text`
       : kind === "dimension" ? `#topopane svg.tv__map g.map__jumper[data-map-id="${id}"] path.map__jumperhit`
       : kind === "interface" ? `#topopane svg.tv__map g.map__connector[data-map-id="${id}"] path.map__connectorhit`
       : `#topopane svg.tv__map g.map__pin[data-map-id="${id}"] circle.map__pinhit`;
-    await page.locator(sel).first().hover({ timeout: 5000 });
+    const rectOf = () => page.evaluate((s) => {
+      const el = document.querySelector(s);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }, sel);
+    let at = await rectOf();
+    for (let i = 0; i < 40; i++) {
+      await page.waitForTimeout(150);
+      const again = await rectOf();
+      if (at && again && Math.abs(again[0] - at[0]) < 0.5 && Math.abs(again[1] - at[1]) < 0.5) { at = again; break; }
+      at = again;
+    }
+    if (!at) throw new Error("no map element for " + kind + " " + id);
+    await page.mouse.move(at[0], at[1]);
     await settle();
+  };
+  // The rails' drawn width, for Classic's own Fit.
+  const railsWidth = () => page.evaluate(() => {
+    const r = document.querySelector("#topopane svg.tv__rails");
+    return r ? r.getBoundingClientRect().width : null;
+  });
+  const wheelOverRails = async (notches) => {
+    const c = await page.evaluate(() => {
+      const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + Math.min(r.height / 2, 300)];
+    });
+    for (let i = 0; i < notches; i++) {
+      await page.mouse.move(c[0], c[1]);
+      await page.mouse.wheel(0, -100);
+      await settle(80);
+    }
   };
   const restHover = async () => {
     await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 2000 }).catch(() => {});
@@ -4811,6 +4851,26 @@ async function testTheMap(browser, label, topologies) {
       "unchanged, and the choice is stored",
       classic.rails === 1 && classic.map === 0 && JSON.stringify(classic.pressed) === JSON.stringify(["false", "true"]) &&
       classic.stored === "classic" && classic.grid === opened.grid);
+    // The review's B1: after a map paint, Fit and the 0 key must be the
+    // rails' again on the SAME page -- a Classic paint releases the map's.
+    const railsFit = await railsWidth();
+    await wheelOverRails(3);
+    const railsGrown = await railsWidth();
+    await page.locator("#dag-fit").click({ timeout: 5000, noWaitAfter: true });
+    await settle(300);
+    const railsRefit = await railsWidth();
+    await wheelOverRails(2);
+    const railsGrownAgain = await railsWidth();
+    await page.keyboard.press("0");
+    await settle(300);
+    const railsRefitByKey = await railsWidth();
+    console.log(`      [${label}] Classic after the map: rails ${Math.round(railsFit)} -> wheel ${Math.round(railsGrown)} -> Fit ` +
+      `${Math.round(railsRefit)} -> wheel ${Math.round(railsGrownAgain)} -> 0 ${Math.round(railsRefitByKey)}; mapFit on the pane: ` +
+      `${await page.evaluate(() => typeof document.getElementById("topopane").mapFit)}`);
+    push("[real] after the map, Classic's Fit and 0 key are the rails' again on the same page: a wheel " +
+      "grows the rails and Fit, then the 0 key, bring them back",
+      railsGrown > railsFit * 1.2 && Math.abs(railsRefit - railsFit) < 2 &&
+      railsGrownAgain > railsFit * 1.1 && Math.abs(railsRefitByKey - railsFit) < 2);
     await page.reload({ waitUntil: "load" });
     await pickModel(page, MAP_TOPOLOGY);
     await page.waitForSelector("#topopane svg.tv__rails", { timeout: 30000 }).catch(() => {});
@@ -4836,6 +4896,15 @@ async function testTheMap(browser, label, topologies) {
     push("[real] the legacy model has no layout: its region draws Classic and the switch says No map, " +
       "in two words, and takes no click",
       noMap.map === 0 && noMap.text === "No map" && noMap.disabled && noMap.classicPressed === "true");
+    const legacyFit = await railsWidth();
+    await wheelOverRails(3);
+    const legacyGrown = await railsWidth();
+    await page.locator("#dag-fit").click({ timeout: 5000, noWaitAfter: true });
+    await settle(300);
+    const legacyRefit = await railsWidth();
+    console.log(`      [${label}] the legacy model after the map: rails ${Math.round(legacyFit)} -> wheel ${Math.round(legacyGrown)} -> Fit ${Math.round(legacyRefit)}`);
+    push("[real] ...and on the legacy model, which has no map, Fit is the rails' too",
+      legacyGrown > legacyFit * 1.2 && Math.abs(legacyRefit - legacyFit) < 2);
     await pickModel(page, MAP_TOPOLOGY);
     await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 }).catch(() => {});
 

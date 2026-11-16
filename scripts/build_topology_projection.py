@@ -1294,8 +1294,9 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Optional[Dict
         if not (isinstance(place, list) and len(place) == 2
                 and all(isinstance(v, int) and v >= 0 for v in place)):
             raise ValueError(f"{path}: {part_id}'s place must be [column, row], got {place!r}")
-    interface_ids = {n.id for n in topology.nodes if len(n.parts) > 1} | {
-        e.id for e in topology.edges if e.kind == "gap"}
+    # What an interface is belongs to the model view (a node two parts share,
+    # a gap edge) -- read from it, never restated here.
+    interface_ids = {i["id"] for i in model_view(topology)["interfaces"]}
     for iface_id in raw.get("symbols") or {}:
         if iface_id not in interface_ids:
             raise ValueError(f"{path}: names a symbol for {iface_id!r}, which is no interface of the model")

@@ -70,6 +70,23 @@
   // onto both (VA.lightMap). The LAST render's, as VA.lastTopoHot is.
   VA.lastMapLight = null;
 
+  // A Classic paint on a region the map painted (renderTopoPane calls this
+  // after it clears the root): the map's Fit, view and resize watch go with
+  // its drawing, so Fit and the 0 key are the rails' again (the review of
+  // 2026-11-16 found them dead on Classic and on the legacy model after one
+  // map paint -- `innerHTML = ""` removes children, not expandos), and the
+  // page's light reaches no detached map. A map paint sets them again.
+  VA.releaseMap = function (root) {
+    if (!root) return;
+    root.mapFit = null;
+    root.mapView = null;
+    if (root.mapResizeObserver) {
+      root.mapResizeObserver.disconnect();
+      root.mapResizeObserver = null;
+    }
+    VA.lastMapLight = null;
+  };
+
   function registry() {
     return { byKey: {}, marked: [], topologyId: null };
   }
@@ -372,8 +389,10 @@
     // written over "212956-005").
     var labelAt = function (pin, side) {
       var o = 12;
-      if (side === "left") return { x: pin.x + o, y: pin.y + M.font.pin * 0.36, anchor: "start" };
-      if (side === "right") return { x: pin.x - o, y: pin.y + M.font.pin * 0.36, anchor: "end" };
+      // A flank pin's label sits just below its pin, inside the box: level
+      // with a mid-height pin it could touch a two-line name's second line.
+      if (side === "left") return { x: pin.x + o, y: pin.y + o + M.font.pin * 0.8, anchor: "start" };
+      if (side === "right") return { x: pin.x - o, y: pin.y + o + M.font.pin * 0.8, anchor: "end" };
       if (side === "top") return { x: pin.x, y: pin.y - o, anchor: "middle" };
       return { x: pin.x, y: pin.y - o, anchor: "middle" };
     };

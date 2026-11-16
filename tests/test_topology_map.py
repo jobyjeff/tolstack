@@ -29,6 +29,7 @@ from pathlib import Path
 
 import pytest
 
+from tolerance_stack.model_view import model_view
 from tolerance_stack.topology import load_topology
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -77,8 +78,8 @@ def test_v2s_layout_places_every_top_level_part_and_nothing_else(v2):
 
 def test_v2s_layout_names_symbols_only_for_its_interfaces(v2):
     doc = B.load_topology_map(TOPOLOGIES_DIR, v2)
-    interfaces = {n.id for n in v2.nodes if len(n.parts) > 1} | {
-        e.id for e in v2.edges if e.kind == "gap"}
+    # The one rule for what an interface is: the model view's.
+    interfaces = {i["id"] for i in model_view(v2)["interfaces"]}
     assert set(doc.get("symbols", {})) <= interfaces
     # The one word the layout adds today: the clocking constraint is a
     # fastener pattern, which the model has no interface word for yet.

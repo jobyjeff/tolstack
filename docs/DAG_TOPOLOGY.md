@@ -663,9 +663,9 @@ A gap edge that states no interface word is drawn as a bare connector; the
 gap list names it, as before.
 
 **Every entity once, keyed by the model's ids.** Each drawn thing carries its
-entity's kind and id (`data-map-kind`, `data-map-id`), and the browser tier
-counts districts, boxes, pins, jumpers and connectors against `model.counts`
-on the real model and on the fixture. Hover and select go through the page's
+entity's kind and id (`data-map-kind`, `data-map-id`), and districts, boxes,
+pins, jumpers and connectors are counted against `model.counts` -- the fast
+tier on the fixture, the browser tier on the real model. Hover and select go through the page's
 one store and the one resolver (`VA.focusLightOf`, read by `VA.mapLightKeys`),
 by entity rather than by element key — a node two parts share is two pins,
 one per feature — in the two strengths every surface wears, and nothing goes
