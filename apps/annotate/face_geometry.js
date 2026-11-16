@@ -943,6 +943,135 @@
     return norm(sub(delta, scale(direction, dot(delta, direction)))) <= tol.axisDistanceFraction * radius;
   };
 
+  // --- a hole pattern: N like holes on one plane (handoff a_pattern_is_bound_
+  // as_its_like_faces_and_a_face_can_be_added, 2026-11-15) ---------------------
+  //
+  // Same radius, parallel, not one surface, axis points on one plane normal to
+  // the axis, not overlapping; each hole whole. The numbers, and the
+  // measurement over v2's meshes behind each, are tolerance_stack/
+  // feature_geometry.py's PATTERN_TOLERANCES; tests/test_hole_pattern.py pairs
+  // them.
+  AA.PATTERN = Object.freeze({
+    radiusFraction: 1e-3,
+    axisDeg: 1.0,
+    axialOffsetFraction: 0.03,
+    wholeArcDeg: 300.0,
+    circleFraction: 1e-3,
+    circleMaxSpread: 10.0,
+  });
+
+  // Both axes as unit vectors pointing the same way (an axis is a line).
+  function alignedAxes(a, b) {
+    var ua = unit(a), ub = unit(b);
+    if (dot(ua, ub) < 0) ub = scale(ub, -1);
+    return [ua, ub];
+  }
+
+  // feature_geometry.like_holes, statement for statement.
+  AA.likeHoles = function (a, b, tolerances) {
+    var tol = Object.assign({}, AA.PATTERN, tolerances || {});
+    if (!a || !b || a.surface !== "cylindrical" || b.surface !== "cylindrical") return false;
+    var radius = Math.max(a.radius, b.radius);
+    if (!(radius > 0) || Math.abs(a.radius - b.radius) > tol.radiusFraction * radius) return false;
+    var axes = alignedAxes(a.axis, b.axis);
+    if (angleBetweenDeg(axes[0], axes[1]) > tol.axisDeg) return false;
+    if (AA.sameSurface(a, b)) return false;
+    var mean = unit(sub(axes[0], scale(axes[1], -1)));
+    var delta = sub(b.axisPoint, a.axisPoint);
+    var along = dot(mean, delta);
+    if (Math.abs(along) > tol.axialOffsetFraction * radius) return false;
+    // Two holes do not overlap: their axes are more than a diameter apart.
+    return norm(sub(delta, scale(mean, along))) > 2 * radius;
+  };
+
+  // feature_geometry.surface_groups: faces grouped by AA.sameSurface, a face
+  // joining the first group holding a face it is one surface with.
+  AA.surfaceGroups = function (records) {
+    var groups = [];
+    records.forEach(function (r) {
+      for (var i = 0; i < groups.length; i++) {
+        if (groups[i].some(function (o) { return AA.sameSurface(r, o); })) { groups[i].push(r); return; }
+      }
+      groups.push([r]);
+    });
+    return groups;
+  };
+
+  // feature_geometry.hole_pattern, step for step: what a set of cylindrical
+  // faces is when it is a hole pattern -- {holes, radius, axis, centres,
+  // onCircle, circleCentre?, circleRadius?, circleResidual?} -- else null.
+  AA.holePattern = function (records, tolerances) {
+    var tol = Object.assign({}, AA.PATTERN, tolerances || {});
+    if (!records || records.length < 2 ||
+        records.some(function (r) { return !r || r.surface !== "cylindrical"; })) return null;
+    var holes = AA.surfaceGroups(records);
+    if (holes.length < 2) return null;
+    var first = holes[0];
+    for (var h = 1; h < holes.length; h++) {
+      var group = holes[h];
+      var linked = first.some(function (x) {
+        return group.some(function (y) { return AA.likeHoles(x, y, tol); });
+      });
+      if (!linked) return null;
+    }
+    var reference = unit(first[0].axis);
+    var total = [0, 0, 0];
+    records.forEach(function (r) {
+      var u = unit(r.axis);
+      if (dot(u, reference) < 0) u = scale(u, -1);
+      total = [total[0] + u[0], total[1] + u[1], total[2] + u[2]];
+    });
+    var axis = unit(total);
+    var radius = records.reduce(function (s, r) { return s + r.radius; }, 0) / records.length;
+    var centres = holes.map(function (g) {
+      var c = [0, 0, 0];
+      g.forEach(function (r) { c = [c[0] + r.axisPoint[0], c[1] + r.axisPoint[1], c[2] + r.axisPoint[2]]; });
+      return scale(c, 1 / g.length);
+    });
+    var out = { holes: holes.length, radius: radius, axis: axis, centres: centres, onCircle: false };
+    if (centres.length < 3) return out;
+    var mean = scale(centres.reduce(function (s, c) { return [s[0] + c[0], s[1] + c[1], s[2] + c[2]]; },
+      [0, 0, 0]), 1 / centres.length);
+    var seed = (Math.abs(axis[0]) <= Math.abs(axis[1]) && Math.abs(axis[0]) <= Math.abs(axis[2]))
+      ? [1, 0, 0]
+      : (Math.abs(axis[1]) <= Math.abs(axis[2]) ? [0, 1, 0] : [0, 0, 1]);
+    var u = unit(cross(axis, seed));
+    var v = unit(cross(axis, u));
+    var xs = centres.map(function (c) { return dot(sub(c, mean), u); });
+    var ys = centres.map(function (c) { return dot(sub(c, mean), v); });
+    var fit = AA.fitCircle2(xs, ys);
+    if (!fit) return out;
+    var residual = 0, spread = 0;
+    for (var i = 0; i < xs.length; i++) {
+      var dx = xs[i] - fit.cx, dy = ys[i] - fit.cy;
+      residual = Math.max(residual, Math.abs(Math.sqrt(dx * dx + dy * dy) - fit.r));
+      for (var j = 0; j < centres.length; j++) spread = Math.max(spread, norm(sub(centres[i], centres[j])));
+    }
+    if (residual > tol.circleFraction * fit.r || fit.r > tol.circleMaxSpread * spread) return out;
+    out.onCircle = true;
+    out.circleCentre = [0, 1, 2].map(function (k) { return mean[k] + u[k] * fit.cx + v[k] * fit.cy; });
+    out.circleRadius = fit.r;
+    out.circleResidual = residual;
+    return out;
+  };
+
+  // A pattern in one line, numbers from the fit: "10 holes Ø5.5 on a
+  // Ø240 circle", or "... not on a circle". Diameters to two places,
+  // trailing zeros dropped -- a measurement of a mesh, never a callout.
+  AA.PATTERN_WORDS = Object.freeze({
+    onCircle: "{n} holes Ø{d} on a Ø{c} circle",
+    notOnCircle: "{n} holes Ø{d} not on a circle",
+  });
+  function diameterWords(radius) {
+    return String(Number((2 * radius).toFixed(2)));
+  }
+  AA.patternWords = function (pattern) {
+    if (!pattern) return "";
+    var template = pattern.onCircle ? AA.PATTERN_WORDS.onCircle : AA.PATTERN_WORDS.notOnCircle;
+    return template.replace("{n}", String(pattern.holes)).replace("{d}", diameterWords(pattern.radius))
+      .replace("{c}", pattern.onCircle ? diameterWords(pattern.circleRadius) : "");
+  };
+
   // Do two faces of one mesh TOUCH -- share a node of their common boundary?
   // OCC triangulates each face on its own but discretises a shared edge once,
   // so the nodes along it are the same point in both faces' runs -- to the
@@ -983,16 +1112,19 @@
     return false;
   };
 
-  // The faces that go with a picked one, Jeff's first two cases (the handoff's
-  // table): `swept` -- on its surface AND joined to it through faces on that
-  // surface (a split cylinder: taken with it, never a question); `offered` --
-  // on its surface but not joined (an interrupted feature: two seats of one
-  // bore, coplanar feet; Jeff confirms the group or keeps the one). `classes`
-  // is the part's classification by face id; `touch(a, b)` is AA.facesTouch
-  // bound to the part's buffers. Ids in ascending order, the pick excluded.
+  // The faces that go with a picked one, Jeff's three cases: `swept` -- on its
+  // surface AND joined to it through faces on that surface (a split cylinder:
+  // taken with it, never a question); `offered` -- on its surface but not
+  // joined (an interrupted feature: two seats of one bore, coplanar feet; Jeff
+  // confirms the group or keeps the one); `pattern` -- the other holes of the
+  // picked hole's pattern (AA.likeHoles), each as all of its faces on its
+  // surface and only if whole, with `holes` the count including the picked
+  // one (0: no pattern) -- feature_geometry.pattern_siblings. `classes` is the
+  // part's classification by face id; `touch(a, b)` is AA.facesTouch bound to
+  // the part's buffers. Ids in ascending order, the pick excluded.
   AA.surfaceSiblings = function (classes, pickedId, touch) {
     var picked = classes && classes[pickedId];
-    var out = { swept: [], offered: [] };
+    var out = { swept: [], offered: [], pattern: [], holes: 0 };
     if (!picked || picked.surface === "other") return out;
     var like = [];
     Object.keys(classes).forEach(function (id) {
@@ -1014,6 +1146,37 @@
     like.sort(function (a, b) { return a - b; }).forEach(function (n) {
       (joined[n] ? out.swept : out.offered).push(n);
     });
+    var pattern = patternSiblings(classes, Number(pickedId), like);
+    out.pattern = pattern.faces;
+    out.holes = pattern.holes;
     return out;
   };
+
+  // The pattern tier (feature_geometry.pattern_siblings): `own` the picked
+  // hole's other faces, already found.
+  function patternSiblings(classes, pickedId, own) {
+    var none = { faces: [], holes: 0 };
+    var picked = classes[pickedId];
+    if (!picked || picked.surface !== "cylindrical") return none;
+    var ids = Object.keys(classes).map(Number).filter(function (n) {
+      return classes[n] && classes[n].surface === "cylindrical";
+    }).sort(function (a, b) { return a - b; });
+    var whole = function (faces) {
+      return faces.reduce(function (s, f) { return s + (classes[f].arcDeg || 0); }, 0) >= AA.PATTERN.wholeArcDeg;
+    };
+    var mine = [pickedId].concat(own);
+    if (!whole(mine)) return none;
+    var taken = {};
+    mine.forEach(function (f) { taken[f] = true; });
+    var faces = [];
+    var holes = 1;
+    ids.forEach(function (n) {
+      if (taken[n] || !AA.likeHoles(picked, classes[n])) return;
+      var members = ids.filter(function (m) { return m === n || AA.sameSurface(classes[n], classes[m]); });
+      members.forEach(function (m) { taken[m] = true; });
+      if (whole(members)) { faces = faces.concat(members); holes += 1; }
+    });
+    if (holes < 2) return none;
+    return { faces: faces.sort(function (a, b) { return a - b; }), holes: holes };
+  }
 })(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

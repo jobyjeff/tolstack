@@ -1429,6 +1429,243 @@ def same_surface(a: Dict[str, Any], b: Dict[str, Any],
     return perpendicular <= tol["axis_distance_fraction"] * radius
 
 
+# ---------------------------------------------------------------------------
+# a hole pattern: N like holes on one plane (handoff
+# a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added, 2026-11-15)
+# ---------------------------------------------------------------------------
+
+#: When two cylindrical faces of ONE mesh are holes of one pattern: the same
+#: radius, parallel axes, NOT one surface (:func:`same_surface` -- that is the
+#: same hole), and their axis points on one plane normal to the axis (Jeff:
+#: "located axially on the same plane (or nearly the same plane)"). Each hole
+#: must also be WHOLE -- its faces on that surface go round.
+#:
+#: Measured 2026-11-15 over every cylindrical face of v2's fifteen installed
+#: meshes, holes grouped by :func:`same_surface` (the table is in
+#: ``docs/sessions/lessons/LESSONS_20261115_a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added.md``):
+#:
+#: * ``radius_fraction``: holes of one pattern agree to <= 3.2e-5 of the radius
+#:   (the tangential link mount's 2.4998/2.4999 holes, whose axes also wobble);
+#:   the nearest parallel coplanar whole hole that is NOT a member is 0.0999 off
+#:   (the tangential link's 7.94 bores against 7.14). 1e-3: x31 above the one,
+#:   x100 below the other. SAME_SURFACE's 5e-5 would sit x1.6 above members.
+#: * ``axis_deg``: members are parallel to <= 0.185 degrees (the same mount --
+#:   its holes' fitted axes, not the part); the nearest same-radius coplanar
+#:   whole hole that is not parallel is 9.3 degrees off. 1.0.
+#: * ``axial_offset_fraction`` (the two axis points' separation ALONG the mean
+#:   axis, of the radius): members are <= 0.0085 (the mount again); the nearest
+#:   same-radius parallel whole hole on another plane is 0.106 off (two 1.85
+#:   holes of the hub, 0.195 mm apart axially). 0.03.
+#: * ``whole_arc_deg``: a hole's faces on its surface sum to 360 degrees (two
+#:   halves) or 720 (two seats); the largest arc of a cylinder that is not
+#:   round is 273 (a pitch-link clevis). 300. Without it the tier joins
+#:   fillets -- 90-degree arcs of one radius at one height are everywhere.
+#: * ``circle_fraction`` (the hole centres' worst distance off their fitted
+#:   circle, of its radius) and ``circle_max_spread``: see :func:`hole_pattern`.
+PATTERN_TOLERANCES: Dict[str, float] = {
+    "radius_fraction": 1e-3,
+    "axis_deg": 1.0,
+    "axial_offset_fraction": 0.03,
+    "whole_arc_deg": 300.0,
+    "circle_fraction": 1e-3,
+    "circle_max_spread": 10.0,
+}
+
+#: ``PATTERN_TOLERANCES`` key -> the ``AA.PATTERN`` key holding the same number
+#: in the annotator, which offers a picked hole's pattern by it.
+JS_PATTERN_NAMES = {
+    "radius_fraction": "radiusFraction",
+    "axis_deg": "axisDeg",
+    "axial_offset_fraction": "axialOffsetFraction",
+    "whole_arc_deg": "wholeArcDeg",
+    "circle_fraction": "circleFraction",
+    "circle_max_spread": "circleMaxSpread",
+}
+
+#: The word a face set's fit carries when it is a hole pattern rather than one
+#: surface. Not a face class (:data:`SURFACE_CLASSES` is unchanged): no single
+#: face is a pattern, and a consumer that reads ``surface == "cylindrical"`` and
+#: then an ``axis_point`` must never be handed N holes as one cylinder.
+PATTERN_SURFACE = "hole_pattern"
+
+
+def _aligned_axes(a: Sequence[float], b: Sequence[float]) -> Tuple[Vec, Vec]:
+    """Both axes as unit vectors pointing the same way (an axis is a line)."""
+    ua, ub = _unit(a), _unit(b)
+    if _dot(ua, ub) < 0:
+        ub = _scale(ub, -1.0)
+    return ua, ub
+
+
+def like_holes(a: Dict[str, Any], b: Dict[str, Any],
+               tolerances: Optional[Dict[str, float]] = None) -> bool:
+    """Are two cylindrical faces of one mesh (:func:`surface_record`) holes of
+    one pattern? Same radius, parallel, not one surface, axis points on one
+    plane normal to the mean axis -- each within :data:`PATTERN_TOLERANCES` --
+    and not overlapping (axes more than a diameter apart).
+    ``AA.likeHoles``, statement for statement. Wholeness is the set's, not the
+    pair's (:func:`pattern_siblings`)."""
+    tol = dict(PATTERN_TOLERANCES)
+    tol.update(tolerances or {})
+    if not a or not b or a.get("surface") != "cylindrical" or b.get("surface") != "cylindrical":
+        return False
+    radius = max(a["radius"], b["radius"])
+    if not radius > 0 or abs(a["radius"] - b["radius"]) > tol["radius_fraction"] * radius:
+        return False
+    ua, ub = _aligned_axes(a["axis"], b["axis"])
+    if _angle_between_deg(ua, ub) > tol["axis_deg"]:
+        return False
+    if same_surface(a, b):
+        return False
+    mean = _unit(_sub(ua, _scale(ub, -1.0)))
+    delta = _sub(b["axis_point"], a["axis_point"])
+    along = _dot(mean, delta)
+    if abs(along) > tol["axial_offset_fraction"] * radius:
+        return False
+    # Two holes do not overlap: their axes are more than a diameter apart.
+    # A fact rather than a threshold -- and the hub's offset bores (two 80 mm
+    # cylinders 0.8 mm apart, on one plane) are what it refuses.
+    return _norm(_sub(delta, _scale(mean, along))) > 2.0 * radius
+
+
+def pattern_siblings(records: Dict[int, Dict[str, Any]], picked: int,
+                     tolerances: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+    """The holes of a picked hole's pattern: ``AA.surfaceSiblings``' third tier,
+    without the touch sweep (which only decides swept against offered, and a
+    pattern takes both). ``records`` is a part's :func:`surface_record` by face
+    id (``other`` faces as ``None`` or absent).
+
+    The picked hole is the pick and every face :func:`same_surface` with it; it
+    must be whole. Another hole joins when one of its faces is
+    :func:`like_holes` with the pick, and comes as all of its faces on its
+    surface, and only if whole. Returns ``{"faces": [ids, ascending, the picked
+    hole's excluded], "holes": N including the picked}`` -- ``holes`` 0 when
+    there is no pattern."""
+    tol = dict(PATTERN_TOLERANCES)
+    tol.update(tolerances or {})
+    out: Dict[str, Any] = {"faces": [], "holes": 0}
+    a = records.get(picked)
+    if not a or a.get("surface") != "cylindrical":
+        return out
+    cylinders = {fid: r for fid, r in records.items() if r and r.get("surface") == "cylindrical"}
+
+    def hole(seed: int) -> List[int]:
+        return sorted(fid for fid, r in cylinders.items()
+                      if fid == seed or same_surface(cylinders[seed], r))
+
+    def whole(faces: Sequence[int]) -> bool:
+        return sum(cylinders[f].get("arc_deg", 0.0) for f in faces) >= tol["whole_arc_deg"]
+
+    own = hole(picked)
+    if not whole(own):
+        return out
+    taken = set(own)
+    faces: List[int] = []
+    holes = 1
+    for fid in sorted(cylinders):
+        if fid in taken or not like_holes(a, cylinders[fid], tol):
+            continue
+        members = hole(fid)
+        taken.update(members)
+        if whole(members):
+            faces.extend(members)
+            holes += 1
+    if holes < 2:
+        return out
+    return {"faces": sorted(faces), "holes": holes}
+
+
+def surface_groups(records: Sequence[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    """Fitted faces of one mesh, grouped into surfaces by :func:`same_surface`
+    (a face joins the first group holding a face it is one surface with), in
+    first-seen order. Two seats of a bore are one group; two holes are two."""
+    groups: List[List[Dict[str, Any]]] = []
+    for r in records:
+        for g in groups:
+            if any(same_surface(r, other) for other in g):
+                g.append(r)
+                break
+        else:
+            groups.append([r])
+    return groups
+
+
+def hole_pattern(records: Sequence[Dict[str, Any]],
+                 tolerances: Optional[Dict[str, float]] = None) -> Optional[Dict[str, Any]]:
+    """What a set of cylindrical faces is when it is a hole pattern, else
+    ``None``. ``AA.holePattern``, step for step, on :func:`surface_record`\\ s.
+
+    The faces are grouped into holes by :func:`same_surface`; it is a pattern
+    when there are two or more holes and every hole is :func:`like_holes` with
+    the first (some face of it with some face of the first). Then:
+
+    * ``holes`` -- the count; ``radius`` -- the mean of the faces' radii;
+    * ``axis`` -- the mean direction, sign-aligned to the first face's;
+    * ``centres`` -- each hole's centre: the mean of its faces' axis points
+      (each on the axis at its own face's mid-height);
+    * ``on_circle`` and, when it is, ``circle_centre`` / ``circle_radius`` /
+      ``circle_residual``: a circle fitted to the centres in the plane normal
+      to the axis. On it when there are three or more holes, the fit exists,
+      every centre is within ``circle_fraction`` of the circle's radius, and
+      that radius is at most ``circle_max_spread`` times the largest distance
+      between two centres -- a straight row fits a circle the size of the
+      noise, and "on a circle" there would be a number about nothing. Three
+      holes always lie on one circle; it is reported, and it is a fact.
+
+    A measurement of a mesh, never a tolerance (``CLAUDE.md``).
+    """
+    tol = dict(PATTERN_TOLERANCES)
+    tol.update(tolerances or {})
+    if len(records) < 2 or any(not r or r.get("surface") != "cylindrical" for r in records):
+        return None
+    holes = surface_groups(records)
+    if len(holes) < 2:
+        return None
+    first = holes[0]
+    for h in holes[1:]:
+        if not any(like_holes(x, y, tol) for x in first for y in h):
+            return None
+    reference = _unit(first[0]["axis"])
+    total = [0.0, 0.0, 0.0]
+    for r in records:
+        u = _unit(r["axis"])
+        if _dot(u, reference) < 0:
+            u = _scale(u, -1.0)
+        total = [t + c for t, c in zip(total, u)]
+    axis = _unit(total)
+    radius = sum(r["radius"] for r in records) / len(records)
+    centres: List[Vec] = []
+    for h in holes:
+        s = [0.0, 0.0, 0.0]
+        for r in h:
+            s = [t + c for t, c in zip(s, r["axis_point"])]
+        centres.append(tuple(c / len(h) for c in s))  # type: ignore[arg-type]
+    out: Dict[str, Any] = {"holes": len(holes), "radius": radius, "axis": list(axis),
+                           "centres": [list(c) for c in centres], "on_circle": False}
+    if len(centres) < 3:
+        return out
+    mean = tuple(sum(c[k] for c in centres) / len(centres) for k in range(3))
+    abs_axis = [abs(c) for c in axis]
+    seed = [0.0, 0.0, 0.0]
+    seed[abs_axis.index(min(abs_axis))] = 1.0
+    u = _unit(_cross(axis, tuple(seed)))
+    v = _unit(_cross(axis, u))
+    xs = [_dot(_sub(c, mean), u) for c in centres]
+    ys = [_dot(_sub(c, mean), v) for c in centres]
+    fit = fit_circle2(xs, ys)
+    if not fit:
+        return out
+    residual = max(abs(math.hypot(x - fit["cx"], y - fit["cy"]) - fit["r"]) for x, y in zip(xs, ys))
+    spread = max(_norm(_sub(p, q)) for p in centres for q in centres)
+    if residual > tol["circle_fraction"] * fit["r"] or fit["r"] > tol["circle_max_spread"] * spread:
+        return out
+    out["on_circle"] = True
+    out["circle_centre"] = [mean[k] + u[k] * fit["cx"] + v[k] * fit["cy"] for k in range(3)]
+    out["circle_radius"] = fit["r"]
+    out["circle_residual"] = residual
+    return out
+
+
 def fit_face_set(mesh: Mesh, face_ids: Sequence[int],
                  tolerances: Optional[Dict[str, float]] = None) -> FaceFit:
     """ONE nominal through several faces of one feature: one cylinder through
@@ -1440,6 +1677,12 @@ def fit_face_set(mesh: Mesh, face_ids: Sequence[int],
     from the first face's axis (:func:`refine_cylinder`), a sphere outright.
     A set whose faces disagree on class, or include an ``other``, is ``other``
     with the reason. One face is :func:`fit_face` itself.
+
+    Faces of one class on more than one surface (:func:`surface_groups`) are
+    not fitted as one: a hole pattern (:func:`hole_pattern`) comes back as
+    surface :data:`PATTERN_SURFACE` with the pattern as its ``geometry`` --
+    hole count, hole radius, axis, centres and, when they are on one, the
+    circle -- and any other mix is ``other`` with the reason.
 
     The result is a :class:`FaceFit` whose ``face_id`` is the first face's,
     whose ``area`` is the sum, and whose ``geometry`` is the shape
@@ -1466,6 +1709,19 @@ def fit_face_set(mesh: Mesh, face_ids: Sequence[int],
     centroid_extent = _centroid_and_extent(vertices)
     combined.extent = centroid_extent[1]
     kind = first.surface
+    records = [surface_record(s) for s in singles]
+    if len(surface_groups(records)) > 1:
+        # Faces of more than one surface: a hole pattern says what it is; any
+        # other mix is no one shape, and one surface through it would be a
+        # plausible number about nothing (the 2026-11-13 issue's refusal).
+        pattern = hole_pattern(records) if kind == "cylindrical" else None
+        if not pattern:
+            combined.why = (f"the faces are not one {kind} surface"
+                            + (" and not one pattern of like holes" if kind == "cylindrical" else ""))
+            return combined
+        combined.surface = PATTERN_SURFACE
+        combined.geometry = pattern
+        return combined
     if kind == "planar":
         weighted = [0.0, 0.0, 0.0]
         for s in singles:

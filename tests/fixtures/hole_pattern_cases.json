@@ -1,0 +1,661 @@
+{
+ "_about": "Faces built by construction (scratch make_fixture.py, 2026-11-15); every expected value is stated from the construction. Read by tests/test_hole_pattern.py and apps/annotate/run_tests.cjs: the Python and JavaScript halves answer on the same faces.",
+ "records": {
+  "0": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    58.0,
+    20.0,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "1": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    58.0,
+    20.0,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "2": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    34.00000000000001,
+    61.569219381653056,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "3": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    34.00000000000001,
+    61.569219381653056,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "4": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -13.99999999999999,
+    61.569219381653056,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "5": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -13.99999999999999,
+    61.569219381653056,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "6": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -38.0,
+    20.000000000000007,
+    7.055
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "7": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -38.0,
+    20.000000000000007,
+    7.055
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "8": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -14.000000000000021,
+    -21.56921938165305,
+    7.0
+   ],
+   "radius": 2.751375,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "9": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -14.000000000000021,
+    -21.56921938165305,
+    7.0
+   ],
+   "radius": 2.751375,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "10": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "axis_point": [
+    34.00000000000001,
+    -21.569219381653056,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "11": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "axis_point": [
+    34.00000000000001,
+    -21.569219381653056,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "12": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    51.569219381653056,
+    44.0,
+    7.275
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "13": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    51.569219381653056,
+    44.0,
+    7.275
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "14": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    10.000000000000002,
+    50.0,
+    7.0
+   ],
+   "radius": 3.0,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "15": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    10.000000000000002,
+    50.0,
+    7.0
+   ],
+   "radius": 3.0,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "16": {
+   "surface": "cylindrical",
+   "axis": [
+    0.052335956242943835,
+    0.0,
+    0.9986295347545738
+   ],
+   "axis_point": [
+    -15.98076211353316,
+    35.0,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "17": {
+   "surface": "cylindrical",
+   "axis": [
+    0.052335956242943835,
+    0.0,
+    0.9986295347545738
+   ],
+   "axis_point": [
+    -15.98076211353316,
+    35.0,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "18": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    -50.6217782649107,
+    -15.000000000000007,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 90.0,
+   "extent": 4.0
+  },
+  "19": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    59.0,
+    20.0,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "20": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    59.0,
+    20.0,
+    7.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "21": {
+   "surface": "planar",
+   "normal": [
+    0,
+    0,
+    1
+   ],
+   "point": [
+    0,
+    0,
+    7.0
+   ],
+   "extent": 50.0
+  },
+  "22": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    200.0,
+    0.0,
+    57.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "23": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    200.0,
+    0.0,
+    57.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "24": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    220.0,
+    0.0,
+    57.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "25": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    220.0,
+    0.0,
+    57.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "26": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    240.0,
+    0.0,
+    57.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  },
+  "27": {
+   "surface": "cylindrical",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "axis_point": [
+    240.0,
+    0.0,
+    57.0
+   ],
+   "radius": 2.75,
+   "arc_deg": 180.0,
+   "extent": 4.0
+  }
+ },
+ "siblings": [
+  {
+   "pick": 0,
+   "faces": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ],
+   "holes": 6,
+   "why": "the six, the overlapping cylinder left out"
+  },
+  {
+   "pick": 7,
+   "faces": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    8,
+    9,
+    10,
+    11,
+    19,
+    20
+   ],
+   "holes": 7,
+   "why": "from hole 3 the offset cylinder overlaps nothing, so it counts: a pattern is read from the pick"
+  },
+  {
+   "pick": 11,
+   "faces": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    19,
+    20
+   ],
+   "holes": 7,
+   "why": "the flipped-axis hole: an axis is a line (and the offset cylinder counts from here too)"
+  },
+  {
+   "pick": 12,
+   "faces": [],
+   "holes": 0,
+   "why": "on another plane: alone"
+  },
+  {
+   "pick": 14,
+   "faces": [],
+   "holes": 0,
+   "why": "another size: alone"
+  },
+  {
+   "pick": 16,
+   "faces": [],
+   "holes": 0,
+   "why": "tilted: alone"
+  },
+  {
+   "pick": 18,
+   "faces": [],
+   "holes": 0,
+   "why": "a fillet arc is not a whole hole"
+  },
+  {
+   "pick": 19,
+   "faces": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ],
+   "holes": 6,
+   "why": "the overlapping cylinder's own pattern is holes 1-5 -- hole 0 overlaps it"
+  },
+  {
+   "pick": 22,
+   "faces": [
+    24,
+    25,
+    26,
+    27
+   ],
+   "holes": 3,
+   "why": "a row is a pattern too"
+  }
+ ],
+ "patterns": [
+  {
+   "faces": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ],
+   "expect": {
+    "holes": 6,
+    "radius": 2.7502291666666667,
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "on_circle": true,
+    "circle_radius": 48.0,
+    "circle_centre": [
+     10.0,
+     20.0,
+     7.009166666666666
+    ]
+   },
+   "words": "6 holes Ø5.5 on a Ø96 circle"
+  },
+  {
+   "faces": [
+    22,
+    23,
+    24,
+    25,
+    26,
+    27
+   ],
+   "expect": {
+    "holes": 3,
+    "radius": 2.75,
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "on_circle": false
+   },
+   "words": "3 holes Ø5.5 not on a circle"
+  },
+  {
+   "faces": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "expect": {
+    "holes": 2,
+    "radius": 2.75,
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "on_circle": false
+   },
+   "words": "2 holes Ø5.5 not on a circle"
+  },
+  {
+   "faces": [
+    0,
+    1,
+    14,
+    15
+   ],
+   "expect": null,
+   "why": "two sizes are no pattern"
+  },
+  {
+   "faces": [
+    0,
+    1
+   ],
+   "expect": null,
+   "why": "one hole is one surface"
+  },
+  {
+   "faces": [
+    0,
+    21
+   ],
+   "expect": null,
+   "why": "a plane is no hole"
+  }
+ ]
+}

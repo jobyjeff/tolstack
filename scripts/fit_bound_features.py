@@ -97,7 +97,10 @@ Since 2026-11-12 (handoff ``a_feature_is_bound_once_to_a_set_of_faces``) a
 binding is a feature's, and a feature may be several faces. So a row is one
 bound feature (``feature``, from the feature fold), fitted ONCE through all of
 its faces (:func:`tolerance_stack.feature_geometry.fit_face_set`: one cylinder
-through both seats of a bore, one plane through all the feet). The schema
+through both seats of a bore, one plane through all the feet; since 2026-11-15 a
+hole pattern is ``local.surface`` ``hole_pattern`` -- hole count, hole radius,
+axis, ``centres`` and, on one, the circle -- never one cylinder through N
+holes). The schema
 stays ``/v0``: every field ``C:\\workspace\\linkage`` reads (``event_id``,
 ``mesh``, ``local.surface``, ``occurrences[].geometry``,
 ``occurrences[].instance_path``) keeps its place and meaning, and the new ones
@@ -308,7 +311,11 @@ def occurrences_for(provenance: Dict[str, Any]) -> List[Dict[str, Any]]:
 #: the loop, because the one mistake this file can make that still looks right
 #: is translating an axis direction: the result is a unit-ish vector pointing
 #: somewhere believable, and nothing downstream can tell.
-PLACED_POINTS = ("centre", "point", "axis_point")
+PLACED_POINTS = ("centre", "point", "axis_point", "circle_centre")
+#: Fields that are a LIST of points: a hole pattern's hole centres
+#: (:func:`tolerance_stack.feature_geometry.hole_pattern`), each moved like
+#: one of the points above.
+PLACED_POINT_LISTS = ("centres",)
 PLACED_DIRECTIONS = ("axis", "normal")
 
 #: Fields that mean something only in the frame they were fitted in, and are
@@ -333,6 +340,8 @@ def place_geometry(geometry: Dict[str, Any],
             continue
         if key in PLACED_POINTS:
             out[key] = list(fg.apply_placement(placement, value))
+        elif key in PLACED_POINT_LISTS:
+            out[key] = [list(fg.apply_placement(placement, point)) for point in value]
         elif key in PLACED_DIRECTIONS:
             out[key] = list(fg.rotate_direction(placement, value))
         else:
