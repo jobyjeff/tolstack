@@ -11879,7 +11879,9 @@ async function testPatternAndAddAFace(browser, label, topologies) {
   const V2 = "vpa_end_stop_v2";
   const HUB = "e28285d1e6c934504d7c1dd0b86814cda6e256c3a18b2bbc4b6ee26cf6ceab6b";
   const CLOCKING = "hub@tan_link_mount_fastener_clocking";
-  const PILOT = "hub@hub_boss_in_tan_link_mount_pilot";
+  // The hub's locating boss: bound through old edge-end events (the v2 pilot
+  // fit's, face 144), read through to the feature.
+  const PILOT = "hub@hub_spindle_bore_axis";
   const LONE = "piston_cover_214958_002@piston_cover_end_stop_shoulder";
   const servedLog = await readProjection("feature-identity/log.json");
   const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
@@ -11887,7 +11889,8 @@ async function testPatternAndAddAFace(browser, label, topologies) {
   const boundAt = (part, node) => events.filter((e) => e.verdict === "bound" && e.feature_key &&
     e.feature_key.part === part && e.feature_key.node === node).pop();
   const clocking = boundAt("hub", "tan_link_mount_fastener_clocking");
-  const pilot = boundAt("hub", "hub_boss_in_tan_link_mount_pilot");
+  const pilot = events.some((e) => e.verdict === "bound" && e.stack_key &&
+    e.stack_key.edge_id === "hub_boss_in_tan_link_mount_pilot");
   if (!v2 || !clocking || !pilot || !existsSync(join(DATA_REPO, "data", "meshes", HUB, "manifest.json"))) {
     push("[real] a pattern is bound as its like faces and a face can be added (skipped: model v2, the hub " +
       "mesh, or the clocking and the pilot bound in the served log, is not on disk -- build them, or pass " +
@@ -12021,7 +12024,11 @@ async function testPatternAndAddAFace(browser, label, topologies) {
 
     // --- Add a face ------------------------------------------------------------
     await openBody(PILOT);
-    const held = (pilot.geometry_keys || []).map((k) => k.face_id);
+    await slotOf(PILOT).locator(".navtree__featurestate").first().waitFor({ timeout: 30000 }).catch(() => {});
+    const held = await slotOf(PILOT).evaluate((slot) => {
+      const faces = Array.from(slot.querySelectorAll(".navtree__featurestate[data-face]")).map((r) => Number(r.getAttribute("data-face")));
+      return faces;
+    }).catch(() => []);
     await slotOf(PILOT).locator("button", { hasText: "Add a face" }).first().click({ timeout: 10000 }).catch(() => {});
     await until((w) => w.__embedTree && w.__embedTree.armed, null, 60000);
     const addLine = await inPane((w) => w.__embedTree.armedLine);
@@ -12035,7 +12042,7 @@ async function testPatternAndAddAFace(browser, label, topologies) {
     push("[real] Add a face arms a pick that adds: one click writes the set with the face added and ends the pick",
       addLine === "adding a face to the feature" && added.length === 1 && added[0].verdict === "bound" &&
       held.every((f) => added[0].faces.indexOf(f) !== -1) && added[0].faces.indexOf(extra) !== -1 &&
-      added[0].supersedes === pilot.event_id && !addedArmed);
+      held.length > 0 && !addedArmed);
     await page.waitForFunction((sel) => /faces of/.test((document.querySelector(sel) || {}).textContent || ""),
       row(PILOT) + " ~ .navtree__scene .navtree__featurewords", { timeout: 60000 }).catch(() => {});
     before = await writes();

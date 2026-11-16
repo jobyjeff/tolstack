@@ -442,7 +442,7 @@
     li.appendChild(row);
     if (open) {
       var ends = VA.el("ul", "navtree__children");
-      interfaceRow.ends.forEach(function (fid) {
+      interfaceRow.ends.filter(function (fid) { return featureShown(model, fid, state); }).forEach(function (fid) {
         ends.appendChild(featureItem(model, fid, state, handlers, true));
       });
       li.appendChild(ends);

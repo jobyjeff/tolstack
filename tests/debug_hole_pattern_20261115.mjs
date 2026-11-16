@@ -275,7 +275,7 @@ async function pickInScene(page, fid, before) {
 // --- the probes ----------------------------------------------------------------
 const HUB_SHA = "e28285d1e6c934504d7c1dd0b86814cda6e256c3a18b2bbc4b6ee26cf6ceab6b";
 const CLOCKING = "hub@tan_link_mount_fastener_clocking";
-const PILOT = "hub@hub_boss_in_tan_link_mount_pilot";
+const PILOT = "hub@hub_spindle_bore_axis";
 const MOUNT_FACE = "tan_link_mount_215175_002@tan_link_mount_hub_face";
 const realEvents = () => readdirSync(join(MAIN, "data", "inbox", "feature-identity")).filter((n) => n.endsWith(".json")).length;
 log("real log events, before", realEvents());
