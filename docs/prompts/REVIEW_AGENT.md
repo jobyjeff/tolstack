@@ -6019,6 +6019,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       tree has uncommitted changes") makes every fast entry `NOT WITNESSED
       (the tier was red before the mutation)` with `projection NOT paired with
       this tree` -- commit, then build, then run.
+- [ ] **A word the handoff names for a new control is banned elsewhere on the
+      page by a text-matching guard.** New 2026-11-16 (same handoff): the
+      handoff's "Map · Classic" switch put the word *Classic* on every topology
+      page, and the app suites' 2026-09-15 retirement check
+      (`document.body.textContent.toLowerCase().includes("classic")`, the
+      retired classic stack view's chip) went red on `app file://` and
+      `app http`. The author ran only `--only "the map (Map"` and so never saw
+      it; the whole tier did. Two checks on any diff that adds a visible word:
+      `git grep -n '"<word>"' scripts/run_viewer_browser_tests.mjs apps/*/tests.js`
+      for a text ban on it, and the whole browser tier once before hand-back
+      when the diff adds a surface to every page. The guard itself is the
+      "settles a structural question by matching text" class -- a chip's
+      absence proved by a substring -- so the fix is a strategy call between
+      the label and the guard's aim, not a quiet rename.
 
 ## Architectural errors to check
 

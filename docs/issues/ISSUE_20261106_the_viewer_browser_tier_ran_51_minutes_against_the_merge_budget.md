@@ -184,3 +184,16 @@ runner's table: topology http 206.8 s, the DAG zoom/Fit/grid header 179.1 s, top
 file:// 159.1 s, 3D pane follows the selection 106.0 s, no nav click wedges the page
 105.0 s, topology file:// respine 94.5 s, leaders across the seam 93.0 s, kinematic study
 page 80.7 s.
+
+> **Measurement, 2026-11-16 (review of `the_map_draws_the_end_stop_model`).**
+> The whole tier on the merged tree `2ad6e521`, from a review worktree against
+> a scratch root, 47 suites, 1118 checks: **1829 s wall, slot wait 0 s, over the
+> 1800 s merge budget by 29 s** (the runner's own ledger row, `over: true`).
+> The new map suite is 76.6 s of it (27 checks). Slowest first: topology http
+> 154.0 s (181 checks), the DAG zoom / Fit / grid header 150.1 s, topology
+> file:// 98.8 s, 3D pane follows the selection 95.7 s, no nav click wedges the
+> page 92.6 s, annotate rail holds still 91.7 s, a suggestion names its face
+> 86.3 s, leaders across the seam 82.3 s, topology file:// respine 78.9 s, the
+> map 76.6 s, the model drawn alone and led 73.7 s, kinematic study page
+> 73.7 s. The previous whole-tier row (tree `3f5ae923`, 2026-11-16T12:01Z) was
+> 1737 s; the tier gained one suite and 92 s and crossed the line.
