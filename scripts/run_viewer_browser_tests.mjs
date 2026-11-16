@@ -4836,14 +4836,22 @@ async function testTheMap(browser, label, topologies) {
     const bothWidth = (await paneBox()).width;
     await page.evaluate(() => document.querySelector('#pane-view button[data-view="dag"]').click());
     await settle(400);
-    const dagView = await page.evaluate(() => ({
-      width: document.getElementById("topopane").getBoundingClientRect().width,
-      map: document.querySelectorAll("#topopane svg.tv__map").length,
-      head: !!document.querySelector("#topopane > .tv__daghead"),
-      zoom: Number(document.querySelector("#topopane svg.tv__map").getAttribute("data-zoom")),
-    }));
+    const dagView = await page.evaluate(() => {
+      const pane = document.getElementById("topopane").getBoundingClientRect();
+      const geo = window.ViewerApp.lastMapLight.geometry;
+      return {
+        width: pane.width,
+        map: document.querySelectorAll("#topopane svg.tv__map").length,
+        head: !!document.querySelector("#topopane > .tv__daghead"),
+        zoom: Number(document.querySelector("#topopane svg.tv__map").getAttribute("data-zoom")),
+        // The fit the region's own size asks for (VA.mapFitView).
+        expected: window.ViewerApp.mapFitView(geo.bounds, pane.width, pane.height).k,
+      };
+    });
+    console.log(`      [${label}] DAG view: region ${Math.round(dagView.width)} wide (was ${Math.round(bothWidth)}), zoom ${dagView.zoom} for a fit of ${dagView.expected.toFixed(3)}`);
     push("[real] in the DAG view the map takes the wider region, re-fitted, with its header still in the region",
-      dagView.width > bothWidth * 1.5 && dagView.map === 1 && dagView.head && dagView.zoom > fitZoom);
+      dagView.width > bothWidth * 1.5 && dagView.map === 1 && dagView.head && dagView.zoom > fitZoom &&
+      Math.abs(dagView.zoom - dagView.expected) < 0.002);
     await page.evaluate(() => document.querySelector('#pane-view button[data-view="3d"]').click());
     await settle(300);
     push("[real] in the 3D view the region is hidden, map and header with it",

@@ -413,9 +413,14 @@
     var size = regionSize(root, ctx);
     var view = views[geo.topologyId];
     var selectedKey = ctx.selectedEntity ? key(ctx.selectedEntity.kind, ctx.selectedEntity.id) : null;
+    // The page's own fit of the drawing to a region of this size: the first
+    // paint's, a resize's (below) and Fit's -- one function, so the three
+    // cannot disagree.
+    var fitTo = function (now) {
+      return Object.assign(VA.mapFitView(geo.bounds, now.width, now.height), { auto: true, size: now });
+    };
     if (!view || (view.auto && (view.size.width !== size.width || view.size.height !== size.height))) {
-      view = Object.assign(VA.mapFitView(geo.bounds, size.width, size.height),
-        { auto: true, size: size, selectedKey: view ? view.selectedKey : null });
+      view = Object.assign(fitTo(size), { selectedKey: view ? view.selectedKey : null });
     }
     // The selection, in its two tiers; a selection made anywhere else brings
     // its own element into view when it is off-screen, once per change.
@@ -440,10 +445,7 @@
     };
     // Fit: the toolbar's control and the `0` key come here (topology_app.js's
     // fitDag), as a reader's own hand.
-    root.mapFit = function () {
-      var now = regionSize(root, ctx);
-      setView(Object.assign(VA.mapFitView(geo.bounds, now.width, now.height), { auto: true, size: now }), false);
-    };
+    root.mapFit = function () { setView(fitTo(regionSize(root, ctx)), false); };
     root.mapView = function () { return view; };
     wireView(svg, root, setView, function () { return view; });
     watchResize(root, function () {
