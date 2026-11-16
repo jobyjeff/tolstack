@@ -6054,6 +6054,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       control: *is the expected value what the control promises (the walk
       inside the pane, the drawing fitted to the region), or where the page
       happened to be?* The author's fix (`40162c99`) asserts the promise.
+- [ ] **A `[real]` check that hard-codes a look (or any lit state) that Jeff's
+      next binding can move.** New 2026-11-16
+      (`the_model_drawn_alone_and_led_hub_hover_check_goes_green`): the hub
+      hover asserted the blade `faint`, and the blade ghosted once
+      `blade_root@hub_blade1_root_bearing_bore` was bound — a touching face's
+      part is `near` (`AA.planLightLooks`). Red on trunk for two days, and the
+      app was right. On any `[real]` look assertion, ask *does a binding in
+      `data/inbox/feature-identity/` decide this?* If yes, the expected value
+      is derived from `data/projections/feature-identity/bindings.json` (the
+      suite's `featureBound` / `ghostedPartners`), never named. Also check the
+      derivation's *lit set* matches the app's: `VA.focusLightOf` lights a
+      part's whole `subtreeOf` and a body's `allPartsOf`, so a re-derivation
+      over `[HUB]` or `body.parts` false-reds the day a lit part gains a drawn
+      child.
 
 ## Architectural errors to check
 
