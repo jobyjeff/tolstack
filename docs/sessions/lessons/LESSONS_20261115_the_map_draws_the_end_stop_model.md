@@ -174,6 +174,19 @@ its probe JSON beside it.
   through a box it does not end on as a defect note, and the reference drawing
   iteration is where an arrangement is fixed. v2 has none.
 - **The clocking's symbol** comes from the layout file (above).
+- **Two things the click-around found that no check asked about**
+  (`click_NN_*.png`, `click_log.txt`): a click on a district's dashed border
+  landed in a dash gap and selected nothing, so a district and a box each
+  carry a wide transparent twin of their border that takes the pointer
+  (`map__districthit`, `map__boxhit`), the drawn border taking none; and a
+  top pin's lit label was drawn inside the box, over the part's own name
+  (`click_07`: "mount end bearing centre" on "212956-005"), so a top pin's
+  label sits above its box. Also found and left as it is: a connector's
+  bounding-box centre is its symbol, so a probe that aims a pointer at the
+  centre hits the symbol's group rather than the hit path -- fine for a hand
+  (the symbol is in the connector's group and hovers it), a trap for a
+  Playwright `hover` on the hit path; the probes aim a quarter of the way
+  along the line instead.
 - `ISSUE_20261114_the_dag_draws_no_nested_outline_for_a_part_inside_an_assembly`
   is marked resolved (the static outline is drawn; the fold stays open in the
   folding issue), and
