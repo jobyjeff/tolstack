@@ -7,8 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261028_an_interface_suggests_the_faces_that_touch.md
 class: contact_engine_ignores_end_geometry
-defer_until: 2026-11-13
-resolution: triage 2026-10-29: med beyond the budget; deferred onto the_contact_engine_asks_the_ends_what_shape_they_are, whose engine changes this issue's premise -- woke 2026-10-29 -- the_contact_engine_asks_the_ends_what_shape_they_are completed; re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (the class's program the_contact_engine_asks_the_ends_what_shape_they_are has landed, so a date)
+defer_until: 2026-11-29
+resolution: triage 2026-10-29: med beyond the budget; deferred onto the_contact_engine_asks_the_ends_what_shape_they_are, whose engine changes this issue's premise -- woke 2026-10-29 -- the_contact_engine_asks_the_ends_what_shape_they_are completed; re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (the class's program the_contact_engine_asks_the_ends_what_shape_they_are has landed, so a date) | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # Contact suggestions cannot say which blade a topology edge means, and on a part shared by every blade the faces differ per blade

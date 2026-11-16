@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: annotate/browser-check
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261113_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md
 class: stale_check_expectation
+defer_until: 2026-11-29
+resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
 ---
 
 # The annotate browser check's Display-panel list predates the Bound faces setting

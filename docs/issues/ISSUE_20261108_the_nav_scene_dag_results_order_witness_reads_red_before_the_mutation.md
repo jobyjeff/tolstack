@@ -6,7 +6,8 @@ area: mutation-witnesses
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
 class: decayed_witness
-resolution: triage 2026-11-08: low, default 30-day defer
+resolution: triage 2026-11-08: low, default 30-day defer | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
+defer_until: 2026-12-08
 ---
 
 # `browser__real-the-kinematic-page-reads-nav-scene-dag-results-left__fb0d661d` reads "tier red before the mutation"

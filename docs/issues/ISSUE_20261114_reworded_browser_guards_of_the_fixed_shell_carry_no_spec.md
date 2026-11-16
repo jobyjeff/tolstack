@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/mutation-witnesses
 reporter: agent
 class: unenrolled_guard
 found_by: docs/sessions/active/HANDOFF_20261112_the_page_is_a_fixed_layout_and_nothing_scrolls_the_document.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
 ---
 
 # The fixed shell's reworded browser guards carry no mutation spec

@@ -8,8 +8,8 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: unreviewed_design_debt
 needs: agent
-resolution: triage 2026-10-30: brief BRIEF_20260914_hover_card_occlusion_and_a11y consumed 2026-10-29 without curing this (VA.alertBadge in apps/viewer/views/dom.js is still a roleless span tabindex=0 that opens a card on focus, used by nav.js and stack.js); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date
-defer_until: 2026-11-13
+resolution: triage 2026-10-30: brief BRIEF_20260914_hover_card_occlusion_and_a11y consumed 2026-10-29 without curing this (VA.alertBadge in apps/viewer/views/dom.js is still a roleless span tabindex=0 that opens a card on focus, used by nav.js and stack.js); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
+defer_until: 2026-11-29
 ---
 
 # The alert mark is a focusable generic with no role, and nothing announces the card it opens

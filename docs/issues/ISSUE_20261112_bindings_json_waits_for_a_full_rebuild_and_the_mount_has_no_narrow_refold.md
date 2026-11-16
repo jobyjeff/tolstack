@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: drawing-checker mount / rebuild route
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: projection_with_no_rail
 ---
 
 # `bindings.json` is refreshed only by a full rebuild, and the mount offers no narrow refold

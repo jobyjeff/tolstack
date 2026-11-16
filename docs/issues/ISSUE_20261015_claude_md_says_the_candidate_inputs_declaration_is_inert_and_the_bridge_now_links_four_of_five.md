@@ -3,10 +3,11 @@ type: chore
 priority: low
 status: deferred
 class: stale_measurement_in_prose
-defer_until: 2026-11-14
+defer_until: 2026-12-15
 area: CLAUDE.md (batch-merge candidate inputs)
 reporter: agent
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261015_triage_sweep.md
+resolution: woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- low defers by default
 ---
 
 # CLAUDE.md says the `candidate_inputs` declaration is inert; the bridge now links four of its five paths

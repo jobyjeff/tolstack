@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
+defer_until: 2026-11-29
+resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
+class: internal_id_as_display_name
 ---
 
 # Design: a disagreement's Keep rows name each face by its number alone

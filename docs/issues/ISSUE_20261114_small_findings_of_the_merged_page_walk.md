@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_the_walk_reads_the_merged_page_against_jeffs_november_notes.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: merged_page_walk_20261112
 ---
 
 # Small findings of the merged-page walk (2026-11-14)

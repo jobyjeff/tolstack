@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: viewer/tree
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261112_the_walk_reads_the_merged_page_against_jeffs_november_notes.md
+defer_until: 2026-11-29
+resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
+class: merged_page_walk_20261112
 ---
 
 # Three tree requests from Jeff's 11-09 note have no design and no handoff

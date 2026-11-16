@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: tests/browser-tier
 reporter: agent
 audience: tactical
 found_by: docs/sessions/reviews/REVIEW_20261111_the_topology_real_loop_runs_on_one_origin.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: unexplained_past_behaviour
 ---
 
 # Why the +72 stop's `kmverdict` never became visible at baseline is unestablished

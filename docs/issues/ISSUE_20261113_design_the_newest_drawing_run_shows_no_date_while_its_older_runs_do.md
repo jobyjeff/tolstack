@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_a_part_links_to_its_drawing_before_it_has_a_tolerance.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: unreviewed_design_debt
 ---
 
 # Design: the newest drawing run shows no date, while its older runs do

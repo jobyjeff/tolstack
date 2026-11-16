@@ -6,7 +6,8 @@ area: tests/mutation-witness
 reporter: agent
 class: flaky_check
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
-resolution: triage 2026-11-08: low, default 30-day defer
+resolution: triage 2026-11-08: low, default 30-day defer | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
+defer_until: 2026-12-08
 ---
 
 # The synthetic-binding witness is red before mutation inside a `--changed-since` batch, and green alone

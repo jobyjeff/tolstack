@@ -7,8 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261028_a_pick_on_an_element_that_names_no_part_leaves_the_scene_standing.md
 class: reason_free_failure_path
-defer_until: 2026-11-12
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
+defer_until: 2026-11-29
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # Pick on a node feature whose edge is a gap edge is refused, and the end-node links lead to the same refusal

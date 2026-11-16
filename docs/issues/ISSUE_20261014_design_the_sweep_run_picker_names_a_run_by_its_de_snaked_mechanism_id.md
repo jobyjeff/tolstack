@@ -6,8 +6,8 @@ area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
 class: internal_id_as_display_name
-defer_until: 2026-11-12
-resolution: deferred 2026-10-15 (triage) -- med beyond BUDGET=3; needs a producer-side display name (linkage) or a tolstack vocabulary, call it in the handoff -- woke 2026-10-29 -- date trigger passed; re-triage -- triage 2026-10-29: med beyond the budget (3 staged), deferred again 14 days to 2026-11-12
+defer_until: 2026-11-29
+resolution: deferred 2026-10-15 (triage) -- med beyond BUDGET=3; needs a producer-side display name (linkage) or a tolstack vocabulary, call it in the handoff -- woke 2026-10-29 -- date trigger passed; re-triage -- triage 2026-10-29: med beyond the budget (3 staged), deferred again 14 days to 2026-11-12 | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # Design: the sweep run picker names a run by its mechanism id with the underscores swapped for spaces

@@ -7,9 +7,9 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
 class: conditional_message_collapsed_to_unconditional
-defer_until: 2026-11-13
+defer_until: 2026-11-29
 needs: agent
-resolution: woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 to BRIEF_20260911_served_surface_capability_gaps (dated addendum) -- the issue itself says this is that brief's item 4 remainder; triage 2026-10-30: brief BRIEF_20260911_served_surface_capability_gaps consumed 2026-10-29 without curing this (views/banner.js missing() and views/topology.js's empty state still append VA.PROJECTION_BUILT_ELSEWHERE with no capabilities().rebuild gate); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date
+resolution: woke 2026-10-15 -- date trigger passed; re-triage; triaged 2026-10-15 to BRIEF_20260911_served_surface_capability_gaps (dated addendum) -- the issue itself says this is that brief's item 4 remainder; triage 2026-10-30: brief BRIEF_20260911_served_surface_capability_gaps consumed 2026-10-29 without curing this (views/banner.js missing() and views/topology.js's empty state still append VA.PROJECTION_BUILT_ELSEWHERE with no capabilities().rebuild gate); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # The missing-projection box says "not from this page" unconditionally — including on the one origin that *can* rebuild from this page

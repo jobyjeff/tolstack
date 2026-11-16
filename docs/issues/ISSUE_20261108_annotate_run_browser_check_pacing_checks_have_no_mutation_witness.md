@@ -6,7 +6,8 @@ class: guard_cannot_fail
 area: apps/annotate browser check, mutation witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261106_the_annotate_pacing_checks_step_a_virtual_clock.md
-resolution: triage 2026-11-08: low, default 30-day defer
+resolution: triage 2026-11-08: low, default 30-day defer | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
+defer_until: 2026-12-08
 ---
 
 # The annotate pacing checks have no mutation witness

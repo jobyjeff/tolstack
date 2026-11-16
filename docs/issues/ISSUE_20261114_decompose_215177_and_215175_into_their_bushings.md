@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: topology/model-v2
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_a_part_may_contain_parts.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: feature_model_gap
 ---
 
 # Decompose 215177 (pitch plate) and 215175 (tangential link mount) into their bushings

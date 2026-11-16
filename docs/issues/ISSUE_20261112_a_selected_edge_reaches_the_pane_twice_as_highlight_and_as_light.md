@@ -1,11 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/pane
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md
 class: one_selection_many_surfaces
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
 ---
 
 # A selected edge reaches the pane twice, as `highlight` and as `light`

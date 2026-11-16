@@ -2,11 +2,12 @@
 type: chore
 priority: low
 status: deferred
-defer_until: 2026-11-14
+defer_until: class:unpaired_hand_copy
 area: apps/viewer/vendor
 reporter: agent
 class: unpaired_hand_copy
 found_by: forge/docs/sessions/HANDOFF_20261015_markdown_upstream_move_reaches_downstream_copies.md
+resolution: woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- low; onto its class program R2 (built, not done)
 ---
 
 # Vendored markdown.js names a forge path and a global that no longer exist

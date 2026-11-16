@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_a_part_may_contain_parts.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: merged_page_walk_20261112
 ---
 
 # Design: a folded assembly row prints a signed sum in the columns where every other row prints a dimension

@@ -8,8 +8,8 @@ audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: layout_measurement_awaits_human_decision
 todo: 20261007T161822_5nv2iw
-resolution: class trigger `class:layout_measurement_awaits_human_decision` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21); triage 2026-10-21: needs/ask dropped (a layout choice fails the task test) -- routed to strategy; todo 20261007T161822_5nv2iw to be withdrawn; triage 2026-10-30: brief BRIEF_20260916_topology_page_number_reach consumed 2026-10-29 without curing this (the one-shell redesign was the model page; the loose-stack page is untouched and scripts/run_viewer_browser_tests.mjs still asserts its elements table is wider than its scrollport); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date
-defer_until: 2026-11-13
+resolution: class trigger `class:layout_measurement_awaits_human_decision` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21); triage 2026-10-21: needs/ask dropped (a layout choice fails the task test) -- routed to strategy; todo 20261007T161822_5nv2iw to be withdrawn; triage 2026-10-30: brief BRIEF_20260916_topology_page_number_reach consumed 2026-10-29 without curing this (the one-shell redesign was the model page; the loose-stack page is untouched and scripts/run_viewer_browser_tests.mjs still asserts its elements table is wider than its scrollport); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
+defer_until: 2026-11-29
 ---
 
 # The stack page's results table is 1,240 px in a 702 px scrollport — a measurement `BRIEF_20260916_topology_page_number_reach` has no copy of

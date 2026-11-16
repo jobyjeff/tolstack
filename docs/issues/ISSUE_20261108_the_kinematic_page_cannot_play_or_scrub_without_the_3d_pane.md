@@ -7,7 +7,8 @@ area: viewer/pose
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
-resolution: triage 2026-11-08: low, default 30-day defer
+resolution: triage 2026-11-08: low, default 30-day defer | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
+defer_until: 2026-12-08
 ---
 
 # With the 3D pane closed, the kinematic page has no way to play or scrub its pose

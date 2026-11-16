@@ -6,8 +6,8 @@ area: apps/annotate (binding state), feature-identity inbox
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it.md
 class: stale_artifact
-defer_until: 2026-11-12
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
+defer_until: 2026-11-29
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # Until the batch merge, trunk's annotator labels the 33 proposed rows "owner not in set"

@@ -6,8 +6,8 @@ area: contact-suggestions
 reporter: agent
 class: geometric_deliverable_pinned_only_where_a_pure_function
 found_by: docs/sessions/HANDOFF_20261028_an_interface_suggests_the_faces_that_touch.md
-defer_until: 2026-11-13
-resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program)
+defer_until: 2026-11-29
+resolution: triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date (class has no program) | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # Four contact-suggestion rules change the live linkage's answer and no test sees them

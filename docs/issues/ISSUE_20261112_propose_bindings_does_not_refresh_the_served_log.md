@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: scripts/propose_bindings
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: projection_with_no_rail
 ---
 
 # An agent's proposals reach a page with no folder grant only after the next rebuild

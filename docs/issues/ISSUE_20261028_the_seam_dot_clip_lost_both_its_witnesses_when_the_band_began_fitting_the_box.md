@@ -6,8 +6,8 @@ area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below.md
 class: decayed_witness
-defer_until: 2026-11-12
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days
+defer_until: 2026-11-29
+resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # The seam's dot clip lost both of its witnesses when the band began fitting the box

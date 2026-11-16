@@ -3,10 +3,11 @@ type: chore
 priority: low
 status: deferred
 class: dead_code_after_refactor
-defer_until: 2026-11-14
+defer_until: 2026-12-15
 area: apps/annotate/app.js
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261015_annotate_gated_browser_suites_follow_the_three_part_mock.md
+resolution: woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- low defers by default
 ---
 
 # `listedMeshes()` in the annotator has no caller since `a_context_filter_and_a_view_filter`

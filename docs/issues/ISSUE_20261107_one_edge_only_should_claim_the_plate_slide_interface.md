@@ -7,7 +7,8 @@ area: topology/interface
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261106_the_kinematic_study_reads_the_republished_sweep_and_its_checks_match_by_id.md
-resolution: triage 2026-11-08: low, default 30-day defer
+resolution: triage 2026-11-08: low, default 30-day defer | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
+defer_until: 2026-12-08
 ---
 
 # Two edges still carry `cylindrical_slide`: the real slide and the hub coaxiality

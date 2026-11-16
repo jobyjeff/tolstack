@@ -7,8 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261014_a_context_filter_and_a_view_filter.md
 class: context_membership_semantics
-defer_until: 2026-11-14
-resolution: deferred 2026-10-15 (triage) -- low, deferred by default
+defer_until: 2026-12-15
+resolution: deferred 2026-10-15 (triage) -- low, deferred by default | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- low defers by default
 ---
 
 # `trace` draws meshes a binding points at that the model's part list missed

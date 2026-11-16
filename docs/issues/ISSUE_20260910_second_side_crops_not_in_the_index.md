@@ -6,9 +6,9 @@ area: apps/viewer
 reporter: agent
 audience: strategy
 needs: agent
-resolution: triage 2026-10-30: brief BRIEF_20260911_viewer_3d_and_card_content_reach consumed 2026-10-29 without curing this (the element record's edge carries one crop by edge.crop_key; no second-side citation slot is authored or cropped, and a node's sides show only each part's first-row picture); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date
+resolution: triage 2026-10-30: brief BRIEF_20260911_viewer_3d_and_card_content_reach consumed 2026-10-29 without curing this (the element record's edge carries one crop by edge.crop_key; no second-side citation slot is authored or cropped, and a node's sides show only each part's first-row picture); reopened for re-triage; triage 2026-10-30: med beyond the per-repo budget, deferred 14 days to a date | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 class: citation_authoring_gap
-defer_until: 2026-11-13
+defer_until: 2026-11-29
 ---
 
 # Second-side crops: the edge hover card renders a LIST, but the crop index only ever holds one side

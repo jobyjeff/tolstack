@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer/assemblies
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_a_part_may_contain_parts.md
+defer_until: 2026-12-15
+resolution: deferred 2026-11-15 (triage) -- low defers by default
+class: merged_page_walk_20261112
 ---
 
 # Three surfaces where a part inside an assembly is still read flat

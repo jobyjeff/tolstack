@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/grid-and-dag
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261112_the_walk_reads_the_merged_page_against_jeffs_november_notes.md
+class: part_reached_twice_drawn_twice
+handoff: docs/sessions/HANDOFF_20261115_the_hub_is_one_part_in_the_grid_and_the_dag.md
+resolution: triaged 2026-11-15 -- staged (high, opus); the chain's one viewer slot; the strategy session's map handoff should depend on it
 ---
 
 # The hub is two groups in the grid and two blocks in the DAG on the end-stop model (v2)

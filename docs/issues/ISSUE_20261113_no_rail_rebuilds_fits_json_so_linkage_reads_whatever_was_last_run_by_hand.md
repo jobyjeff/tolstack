@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: projections/feature-geometry
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
+class: projection_with_no_rail
+handoff: docs/sessions/HANDOFF_20261115_the_rebuild_rail_runs_the_fit.md
+resolution: triaged 2026-11-15 -- staged
 ---
 
 # No rail rebuilds `fits.json`, so linkage reads whatever was last run by hand

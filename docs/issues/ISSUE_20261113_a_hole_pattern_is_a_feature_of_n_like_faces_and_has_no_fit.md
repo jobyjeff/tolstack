@@ -1,10 +1,13 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: feature-identity/fit
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
+defer_until: 2026-11-29
+resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
+class: feature_model_gap
 ---
 
 # A hole pattern is a feature of N like faces, and nothing fits or offers it yet
