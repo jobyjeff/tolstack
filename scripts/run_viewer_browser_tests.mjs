@@ -4949,8 +4949,73 @@ async function testTheMap(browser, label, topologies) {
     push("[real] side by side again, the map is back in its region",
       await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
         getComputedStyle(document.getElementById("topopane")).display !== "none"));
+
     push("[real] nothing threw on the map's page", errors.length === 0);
     if (errors.length) console.log(`      [${label}] errors: ${errors.join(" | ").slice(0, 600)}`);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
+async function testWindowResizeReclamps(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const model = topologies && (topologies.topologies || []).find((t) => t.id === MAP_TOPOLOGY);
+  const index = await realDataIndexForTheAnnotator();
+  if (!model || !model.map || !index.meshes.length) {
+    push("[real] a window resize re-clamps the pane (skipped: the topology projection with the map's " +
+      "layout or the meshes are not on disk -- build them, or pass --repo <a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 5120, height: 2160 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  await page.addInitScript(() => {
+    try {
+      if (!sessionStorage.getItem("__resize_suite_seeded")) {
+        localStorage.setItem("tolstack.viewer.dagDrawing", "map");
+        sessionStorage.setItem("__resize_suite_seeded", "1");
+      }
+    } catch (e) { /* no storage */ }
+  });
+  const settle = (ms) => page.waitForTimeout(ms);
+  const region = () => page.evaluate(() => {
+    const r = document.getElementById("topopane").getBoundingClientRect();
+    const f = document.getElementById("annotate-flyout");
+    return { width: r.width, left: r.left, flyout: f ? f.getBoundingClientRect().width : 0,
+      map: document.querySelectorAll("#topopane svg.tv__map").length };
+  });
+  const open = async () => {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + MAP_TOPOLOGY + "&pane=1", { waitUntil: "load" });
+    await pickModel(page, MAP_TOPOLOGY);
+    await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 }).catch(() => {});
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 30000 }).catch(() => {});
+    await settle(800);
+  };
+  try {
+    await open();
+    const wide = await region();
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await settle(1200);
+    const shrunk = await region();
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await open();
+    const fresh = await region();
+    console.log(`      [${label}] region ${Math.round(wide.width)} (3D ${Math.round(wide.flyout)}) at 5120 -> ` +
+      `${Math.round(shrunk.width)} (3D ${Math.round(shrunk.flyout)}) after the shrink; a fresh load at 1920 gives ` +
+      `${Math.round(fresh.width)} (3D ${Math.round(fresh.flyout)})`);
+    push("[real] side by side at 5120 has a 3D view and a wide region", wide.flyout > 400 && wide.width > 1000 && wide.map === 1);
+    push("[real] shrinking the window to 1920 re-clamps the pane: the region equals a fresh load's (+-2px) and the map is drawn",
+      shrunk.width > 100 && Math.abs(shrunk.width - fresh.width) <= 2 && shrunk.map === 1 && wide.width > shrunk.width);
+    push("[real] nothing threw on the resize page", errors.length === 0);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);
   } finally {
@@ -17775,6 +17840,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testPatternAndAddAFace(browser, label, topologies)],
       ["the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
+      ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",
+        (label) => testWindowResizeReclamps(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
