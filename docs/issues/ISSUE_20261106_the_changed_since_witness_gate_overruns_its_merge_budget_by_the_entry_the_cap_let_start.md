@@ -134,3 +134,15 @@ five of the 40 were browser entries; the other 35 were fast and annotate.
     1m02s  annotate__an-end-s-proposals-are-its-own-surest-first-the-other-en__9fb8193c
       49s  fast__a-feature-row-selects-its-node-an-interface-row-its-elem__c5a1c9bc#1
 ```
+
+## Measurement 2026-11-15, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261115_triage_sweep.md)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since 1fedd8dff79203b4f33f0560ea70e1eedfa90d95`, main checkout at master `a80afedd` (fast-forwarded from `1fedd8df`, 127 commits), run alone right after the browser tier (1604 s, inside budget) finished: **45/45 witnessed, 45/420 reached in 29m52s; 375 left to the sweep (budget)**, exit 0. Wall **1848 s**, `suite-time record` printed **OVER BUDGET by 0m48s**: the cap stops starting entries at 30 min and process wall lands just past it, the shape this issue names. Note the selection: 420 entries from a 127-commit range, so 89% went to the sweep. Slowest entries:
+
+```
+    1m14s  annotate__a-bound-end-s-leftover-proposal-raises-no-suggestion-chi__eb1f1354
+      43s  annotate__embedstate-names-the-mode-and-the-subject-in-one-line-th__bd227e9f
+      42s  annotate__the-served-log-the-page-writes-is-python-s-shape-events__075668af
+      42s  annotate__recordwithout-opens-the-end-the-corrected-binding-held__1ba81237
+      41s  annotate__a-session-correction-leaves-one-standing-binding-the-cor__b59e6374
+```

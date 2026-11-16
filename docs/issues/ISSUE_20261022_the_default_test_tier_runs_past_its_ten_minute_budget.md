@@ -228,3 +228,25 @@ Triage should fold them into this one, per the one-issue-per-repo-per-tier rule.
  11.71s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False]
  11.58s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[exit-False]
 ```
+
+## Measurement 2026-11-15, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261115_triage_sweep.md)
+
+`PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider --durations=15` (serial), cwd = the merge-candidate worktree at `a80afedd` (inputs bridged, projections rebuilt there first), nothing else running: **1987 passed, 1 skipped, 2 deselected in 633.67 s; wall 635 s**, recorded `OVER BUDGET by 0m35s`. Uncontended. Up from 606 s on 11-11 (+59 tests). The same tree's tactical/review runs on 11-15 recorded 463 s / 480 s, so the merge-candidate figure runs ~150 s above a branch's. Top of `--durations=15`:
+
+```
+108.97s call  tests/test_feature_geometry.py::test_real_both_readers_classify_every_installed_face_the_same
+ 74.59s call  tests/test_mutation_witness_shadow_concurrency.py::test_a_stale_lock_pid_dead_is_cleared_with_a_message
+ 73.90s call  tests/test_mutation_witness_shadow_concurrency.py::test_a_corrupt_lock_file_is_cleared_and_reported_as_corrupt_not_as_stale
+ 68.84s setup tests/test_mutation_witnesses.py::test_the_scan_and_the_run_agree_on_which_guards_exist
+ 41.44s call  tests/test_annotate_js_suite.py::test_annotate_js_suite_is_green
+ 24.40s call  tests/test_mutation_witnesses.py::test_closing_the_concatenation_seam_is_load_bearing
+ 20.10s call  tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green
+ 17.72s call  tests/test_mutation_witnesses.py::test_passing_over_the_skip_arm_is_load_bearing
+ 12.28s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[signal-False]
+ 10.96s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[exit-False]
+  7.11s call  tests/test_browser_runner.py::test_a_runner_that_ends_leaves_no_chrome[throw-True]
+  6.66s call  tests/test_topology_projection.py::test_the_column_order_never_makes_a_topology_cross_itself_more
+  6.44s call  tests/test_topology_projection.py::test_the_rotor_fasteners_close_links_are_not_a_column_order_problem
+  6.31s call  tests/test_topology_projection.py::test_a_topology_with_no_bodies_walks_exactly_as_before
+  5.94s setup tests/test_topology_projection.py::test_the_l1_topology_is_a_ring_and_draws_as_two_rails
+```
