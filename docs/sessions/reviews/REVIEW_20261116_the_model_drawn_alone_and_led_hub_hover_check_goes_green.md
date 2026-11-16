@@ -138,3 +138,11 @@ second question.
 
 Arm `node_modules` before the first browser run in a review worktree. The
 runner fails at import, not with a SKIP.
+
+## Late commit, merged after landing
+
+The tactical branch gained `b58c5c59` ("lesson: the one pytest skip's reason")
+after my first landing (`d76cfd5c`). It is a 4-line lesson addition naming the one
+pytest skip (`tests/test_fit_bound_features.py:433`, a data precondition). My
+run had the same single skip. Docs only, outside every guard corpus
+(`docs/sessions/`). Merged and re-landed with no further test run.
