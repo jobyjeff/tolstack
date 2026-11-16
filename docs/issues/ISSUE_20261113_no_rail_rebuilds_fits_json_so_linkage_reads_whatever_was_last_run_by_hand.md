@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: projections/feature-geometry
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261112_a_feature_is_bound_once_to_a_set_of_faces.md
 class: projection_with_no_rail
 handoff: docs/sessions/HANDOFF_20261115_the_rebuild_rail_runs_the_fit.md
-resolution: triaged 2026-11-15 -- staged
+resolution: rebuild_projections.ps1 step "feature fits" runs fit_bound_features.py after feature identity (0.9 s), stamps fits.json, and warns on an empty fit over a standing log (the_rebuild_rail_runs_the_fit)
 ---
 
 # No rail rebuilds `fits.json`, so linkage reads whatever was last run by hand

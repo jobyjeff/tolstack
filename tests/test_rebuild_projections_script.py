@@ -182,3 +182,26 @@ def test_the_feature_identity_bindings_are_built_on_this_rail():
     assert names.index("feature identity bindings") < names.index("kinematic projection")
     stamps = re.search(r"\$Projections = @\(([^)]*)\)", text)
     assert stamps and r"feature-identity\bindings.json" in stamps.group(1)
+
+
+def test_the_feature_fits_are_built_on_this_rail_after_the_bindings():
+    """``fit_bound_features.py`` is on the rail since 2026-11-15 (handoff
+    ``the_rebuild_rail_runs_the_fit``). linkage reads ``fits.json`` directly and
+    no rail rebuilt it, so it read whatever was last run by hand -- an empty
+    build over eleven standing bindings, on 2026-11-13. It folds the binding log
+    ``build_feature_identity_projection.py`` refuses on, so it runs after it,
+    with tolstack's own interpreter, ahead of the kinematic leg; its file is
+    among the stamps.
+
+    Read as step invocations, for the reason the vocabulary test above gives.
+    """
+    text = SCRIPT.read_text(encoding="utf-8")
+    steps = re.findall(r'Invoke-Step -Name "([^"]+)" -Exe (\$\w+) -Arguments @\(\s*'
+                       r'\(Join-Path \$ScriptsDir "([^"]+)"\)', text)
+    built = [(name, exe) for name, exe, script in steps if script == "fit_bound_features.py"]
+    assert built == [("feature fits", "$TolstackPython")], steps
+    names = [name for name, _, _ in steps]
+    assert names.index("feature identity bindings") < names.index("feature fits")
+    assert names.index("feature fits") < names.index("kinematic projection")
+    stamps = re.search(r"\$Projections = @\(([^)]*)\)", text)
+    assert stamps and r"feature-geometry\fits.json" in stamps.group(1)
