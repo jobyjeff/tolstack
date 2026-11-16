@@ -137,6 +137,39 @@ What the click-around showed beyond the handoff:
 - Reasons are clipped at the nav's rest width. The whole reason and the
   evidence are on hover.
 
+## Test record
+
+All runs were from the worktree, borrowing the main checkout's data with
+`--repo` and a `node_modules` junction.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: **703/703**
+  (+2, `[real]` included).
+- `node apps/annotate/run_tests.cjs --repo C:/workspace/tolstack`:
+  **321/321** (+5).
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "a suggestion names its face"`:
+  the new suite, **5/5 sub-checks, 32 s**.
+- Witness `--only`, one per spec, serially: **12/12 WITNESSED**.
+  - "…ending the pick takes the pre-lit faces down" was NOT WITNESSED on its
+    first mutation (only `clearMarks` removed). Bind mode's `suggest` repaint
+    clears the same layer, so the spec now drops the whole take-down. It is
+    WITNESSED in 1m24s.
+  - A first chain lost its verdict lines to `tail`. A second was REFUSED for
+    nine specs because pytest's own witness tests held the repo lock. The
+    nine were re-run after pytest ended.
+- `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs`:
+  **1 failed, 1986 passed, 1 skipped, 2 deselected, 523 s**. Recorded with
+  `suite-time record`: inside budget.
+  - The failure is the expected worktree red, `test_viewer_js_suite_is_green`
+    (no projection in a worktree). The same tier ran 703/703 against the main
+    checkout above.
+  - The skip is `test_fit_bound_features.py:433` (the pitch-link bearing
+    re-extraction is not installed).
+- Census pins raised in `scripts/guard_enumeration.mjs`, each with its note:
+  - fast 701 → 703;
+  - annotate 316 → 321;
+  - browser 850 → 856 declared and 819 → 825 enrollable. The suite's
+    "(skipped: …)" line carries no spec, because it passes exactly when the
+    data is absent.
+
 ## Decisions not in the handoff
 
 - **`camera face <mesh> <face>…`** is a new pane verb. No existing verb framed
