@@ -16180,6 +16180,39 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     // The scene at rest, before anything is lit: what every leave puts back.
     const restLooks = JSON.stringify(await sceneLooks());
     const sameAsRest = async () => JSON.stringify(await sceneLooks()) === restLooks;
+    // Which model features hold a standing binding, read off the
+    // feature-identity projection (the Python fold of the log the page is
+    // served): since 2026-11-12 a feature shows its own binding, and one whose
+    // faces disagree (the hub's locating boss, until Jeff keeps one) has none.
+    // Null when the projection cannot be read.
+    let boundTokens = null;
+    try {
+      const ident = JSON.parse(await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
+        "bindings.json"), "utf8"));
+      boundTokens = new Set((ident.features || []).filter((r) => r.state === "bound")
+        .map((r) => [r.feature_key.topology_id, r.feature_key.part, r.feature_key.node].join("|")));
+    } catch { boundTokens = null; }
+    const featureBound = (fid) => {
+      const f = (view.features || []).find((x) => x.id === fid);
+      return !!(f && boundTokens && boundTokens.has([f.identity.topology_id, f.identity.part, f.identity.node].join("|")));
+    };
+    // A lit part's (or a body's parts') interface partners: the far end of
+    // every interface with an end on one of their features. One whose feature
+    // is bound has its face overlaid in the touching tier, so its part ghosts
+    // behind that face (AA.planLightLooks: a touching face's part is near);
+    // every other part goes faint. Derived, so the next binding Jeff makes
+    // moves the expectation with it rather than reddening the check.
+    const ghostedPartners = (partIds) => {
+      const mine = [].concat(...partIds.map((id) => ((view.parts || []).find((p) => p.id === id) || {}).features || []));
+      const far = [];
+      (view.interfaces || []).forEach((i) => {
+        const ends = i.ends || [];
+        if (ends.some((fid) => mine.indexOf(fid) !== -1)) {
+          ends.filter((fid) => mine.indexOf(fid) === -1 && featureBound(fid)).forEach((fid) => far.push(fid));
+        }
+      });
+      return uniq(far.map((fid) => (view.features || []).find((x) => x.id === fid).part));
+    };
 
     // 1. a part hovered from the tree.
     await hoverNav("part", HUB);
@@ -16187,16 +16220,29 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const hubLight = await paneLight();
     const hubLooks = await sceneLooks();
     const lookOf = (looks, sha) => (looks.find((r) => r.sha === sha) || {});
+    // Every drawn part off its expected look: the lit parts ghost (their
+    // resting look), a bound interface partner ghost, the rest faint.
+    const looksOffRule = async (looks, litParts, partners) => {
+      const ghosts = [];
+      for (const pid of litParts.concat(partners)) ghosts.push(await shaOf(pid));
+      return looks.filter((r) => r.look !== (ghosts.indexOf(r.sha) !== -1 ? "ghost" : "faint"));
+    };
+    const hubPartners = ghostedPartners([HUB]);
+    const hubLookWrong = await looksOffRule(hubLooks, [HUB], hubPartners);
     console.log(`      [${label}] hub hovered: tree own ${JSON.stringify(uniq(hubHover.treeOwn))}, touching ` +
       `${JSON.stringify(uniq(hubHover.treeTouching))}, holds ${JSON.stringify(uniq(hubHover.treeHolds))}; grid own ` +
       `${JSON.stringify(hubHover.rowsOwn.sort())} (${hubDims.length} dimensions), touching ${JSON.stringify(hubHover.rowsTouching)}; ` +
       `DAG dots ${JSON.stringify(hubHover.dotsOwn.sort())}, bars ${hubHover.barsOwn}+${hubHover.barsTouching}, legs ${hubHover.legs}, ` +
       `containers ${JSON.stringify(hubHover.containersOwn)}; pane ${JSON.stringify(hubLight && hubLight.layers)}; looks hub ` +
-      `${JSON.stringify(lookOf(hubLooks, hubSha))} mount ${JSON.stringify(lookOf(hubLooks, mountSha))} link ${JSON.stringify(lookOf(hubLooks, linkSha))}`);
+      `${JSON.stringify(lookOf(hubLooks, hubSha))} mount ${JSON.stringify(lookOf(hubLooks, mountSha))} link ${JSON.stringify(lookOf(hubLooks, linkSha))} ` +
+      `blade ${JSON.stringify(lookOf(hubLooks, bladeSha))}; expected grid own ${JSON.stringify(hubDims)}, touching ` +
+      `${JSON.stringify(PILOT)}, dots ${JSON.stringify(hubNodes)}, ghosted partners ${JSON.stringify(hubPartners)} ` +
+      `(bindings read ${!!boundTokens}); parts off their look ${JSON.stringify(hubLookWrong)}`);
     const hubOwnLayer = hubLight && hubLight.layers.find((l) => l.role === "hover" && l.tier === "own");
     push("[real] a part hovered in the tree lights the same thing on all four surfaces, in two tiers: its own " +
       "rows, dots, bars and container strong and its interfaces faint; no rail leg; in the scene its mesh " +
       "glows at its resting look with its bound faces harder, every other part faint, nothing opaque",
+      !!boundTokens &&
       uniq(hubHover.treeOwn).length === 5 && hubHover.treeOwn.indexOf(HUB) !== -1 &&
       hubHover.treeTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
       hubHover.rowsOwn.slice().sort().join() === hubDims.join() &&
@@ -16205,9 +16251,8 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       hubHover.barsTouching === 1 && hubHover.legs === 0 && hubHover.containersOwn.indexOf(HUB) !== -1 &&
       !!hubOwnLayer && hubOwnLayer.partOverlays > 0 && hubOwnLayer.faceOverlays > 0 &&
       hubOwnLayer.faceOpacity > hubOwnLayer.partOpacity &&
-      lookOf(hubLooks, hubSha).look === "ghost" && lookOf(hubLooks, mountSha).look === "faint" &&
-      lookOf(hubLooks, bladeSha).look === "faint" && lookOf(hubLooks, linkSha).look === "faint" &&
-      hubLooks.every((r) => r.opacity < 1));
+      lookOf(hubLooks, hubSha).look === "ghost" && [mountSha, bladeSha, linkSha].every((s) => !!lookOf(hubLooks, s).look) &&
+      hubLookWrong.length === 0 && hubLooks.every((r) => r.opacity < 1));
     await leaveNav();
     // `until` here runs in the page's own frame (the suite's helper above), so
     // the pane is reached through its iframe.
@@ -16263,9 +16308,12 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const baseLayer = baseLight && baseLight.layers.find((l) => l.role === "select" && l.tier === "own");
     const baseLooks = await sceneLooks();
     const baseParts = (view.bodies || []).find((b) => b.id === "base").parts;
+    const basePartners = ghostedPartners(baseParts);
+    const baseLookWrong = await looksOffRule(baseLooks, baseParts, basePartners);
     console.log(`      [${label}] base selected: tree on ${uniq(baseSel.treeOn).length} rows, on-touching ` +
       `${JSON.stringify(uniq(baseSel.treeOnTouching))}; containers ${JSON.stringify(baseSel.containersSelected)}; pane ` +
-      `${JSON.stringify(baseLight && baseLight.layers)}; opaque ${baseLooks.filter((r) => r.opacity >= 1).length}`);
+      `${JSON.stringify(baseLight && baseLight.layers)}; opaque ${baseLooks.filter((r) => r.opacity >= 1).length}; ` +
+      `ghosted partners ${JSON.stringify(basePartners)}; parts off their look ${JSON.stringify(baseLookWrong)}`);
     push("[real] a body selected lights every part it holds and the joints inside it, the joints to other bodies " +
       "fainter, its container and its parts' containers in the accent, and every one of its parts glows at its " +
       "resting look -- nothing opaque",
@@ -16273,7 +16321,8 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       baseSel.treeOn.indexOf(BASE_FACE) !== -1 && baseSel.treeOnTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
       baseSel.containersSelected.indexOf("base") !== -1 && baseParts.every((p) => baseSel.containersSelected.indexOf(p) !== -1) &&
       !!baseLayer && baseLayer.partOverlays >= baseParts.length && baseLooks.every((r) => r.opacity < 1) &&
-      lookOf(baseLooks, hubSha).look === "ghost" && lookOf(baseLooks, linkSha).look === "faint");
+      !!boundTokens && lookOf(baseLooks, hubSha).look === "ghost" && !!lookOf(baseLooks, linkSha).look &&
+      baseLookWrong.length === 0);
 
     // 3b. Escape lets the body go (review of 2026-11-13, B1: the handler
     //     gated on the ELEMENT form of the selection, which a body, a part
@@ -16407,22 +16456,9 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const pilotEnds = (view.interfaces || []).find((i) => i.id === PILOT).ends;
     const dimsAtPilot = (view.dimensions || []).filter((d) =>
       pilotEnds.indexOf(d.from) !== -1 || pilotEnds.indexOf(d.to) !== -1).map((d) => d.id).sort();
-    // Does either end hold a bound face? Read off the feature-identity
-    // projection: since 2026-11-12 an end shows its FEATURE's binding, and a
-    // feature whose faces disagree (the hub's locating boss, until Jeff keeps
-    // one) has none -- so the overlay is asked for exactly when one is bound.
-    let pilotBound = false;
-    try {
-      const ident = JSON.parse(await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
-        "bindings.json"), "utf8"));
-      const token = (k) => k && [k.topology_id, k.part, k.node].join("|");
-      const boundTokens = new Set((ident.features || []).filter((r) => r.state === "bound")
-        .map((r) => token(r.feature_key)));
-      pilotBound = pilotEnds.some((fid) => {
-        const f = (view.features || []).find((x) => x.id === fid);
-        return f && boundTokens.has(token(f.identity));
-      });
-    } catch { pilotBound = true; }
+    // Does either end hold a bound face? (featureBound, above) -- the overlay
+    // is asked for exactly when one is. Unreadable bindings ask for it.
+    const pilotBound = !boundTokens || pilotEnds.some(featureBound);
     console.log(`      [${label}] pilot gap hovered from the grid: own rows ${JSON.stringify(gapHover.rowsOwn)}, touching ` +
       `${JSON.stringify(gapHover.rowsTouching.sort())} (dimensions at its ends: ${JSON.stringify(dimsAtPilot)}); dots ` +
       `${JSON.stringify(uniq(gapHover.dotsOwn))}; tree own ${JSON.stringify(uniq(gapHover.treeOwn))}; pane ` +
