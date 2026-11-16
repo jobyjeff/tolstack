@@ -91,10 +91,26 @@ offset cylinder, faces 19/20, documents it).
 ## Decisions not in the handoff
 
 - **`fit_face_set` now refuses any mix of surfaces that is not a pattern**,
-  planes included. Two planes at different heights are `other` ("the faces
-  are not one planar surface"), not one plane through both. The 2026-11-13
-  issue asked for this. Today's real log has no such set: its multi-face
-  features are 744+743, one surface.
+  planes included. The 2026-11-13 issue asked for this.
+  - **What changed:** until now, a set of one class was fitted as one
+    surface whatever it was. Two non-coplanar planar faces fitted as one
+    least-squares plane through both. Two cylinders that are not coaxial
+    fitted as one bad cylinder. Two spheres that are not concentric fitted as
+    one sphere. Each is now `other` with the reason ("the faces are not one
+    planar surface"; for cylinders, "...and not one pattern of like holes").
+    `fit_bound_features.py` lists such a feature as `unresolved` / `unreadable`
+    instead of writing a number about nothing.
+  - **Who it reaches:** nobody today. The real log's only multi-face features
+    are 744+743, which are one surface. A set built through the UI before
+    this change could only be one surface (the sweep and the group offer
+    both use `same_surface`). Any other mix could come only from Correct
+    followed by Shift-click or Add a face, which arrive in this same change.
+- **Every hole of a fitted pattern must be whole** (`hole_pattern`, both
+  readers), which is the rule the offer already applied. The review agent
+  caught this before review: without it, a Shift-click set of two half holes
+  fitted as "2 holes". Such a set is now no pattern, and so `other`. The
+  fixture carries the case (faces 0 and 2) and the spec carries a mutation
+  for it.
 - **A pattern's fit is surface `hole_pattern`** (`PATTERN_SURFACE`), not
   `cylindrical`. Its geometry has no `axis_point`, so linkage (which reads
   `local.surface`) cannot take N holes for one cylinder.

@@ -803,6 +803,14 @@
   {
    "faces": [
     0,
+    2
+   ],
+   "expect": null,
+   "why": "two half holes are two arcs, not a pattern of two"
+  },
+  {
+   "faces": [
+    0,
     21
    ],
    "expect": null,

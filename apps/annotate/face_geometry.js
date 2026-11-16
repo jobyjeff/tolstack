@@ -1006,6 +1006,11 @@
         records.some(function (r) { return !r || r.surface !== "cylindrical"; })) return null;
     var holes = AA.surfaceGroups(records);
     if (holes.length < 2) return null;
+    // Every hole whole, as the offer requires: two half holes are two arcs.
+    var halfHole = holes.some(function (g) {
+      return g.reduce(function (s, r) { return s + (r.arcDeg || 0); }, 0) < tol.wholeArcDeg;
+    });
+    if (halfHole) return null;
     var first = holes[0];
     for (var h = 1; h < holes.length; h++) {
       var group = holes[h];

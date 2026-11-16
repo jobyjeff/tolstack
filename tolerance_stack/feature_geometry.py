@@ -1596,8 +1596,9 @@ def hole_pattern(records: Sequence[Dict[str, Any]],
     ``None``. ``AA.holePattern``, step for step, on :func:`surface_record`\\ s.
 
     The faces are grouped into holes by :func:`same_surface`; it is a pattern
-    when there are two or more holes and every hole is :func:`like_holes` with
-    the first (some face of it with some face of the first). Then:
+    when there are two or more holes, each whole (its faces' arcs sum to
+    ``whole_arc_deg``), and every hole is :func:`like_holes` with the first
+    (some face of it with some face of the first). Then:
 
     * ``holes`` -- the count; ``radius`` -- the mean of the faces' radii;
     * ``axis`` -- the mean direction, sign-aligned to the first face's;
@@ -1620,6 +1621,10 @@ def hole_pattern(records: Sequence[Dict[str, Any]],
         return None
     holes = surface_groups(records)
     if len(holes) < 2:
+        return None
+    # Every hole whole, as the offer requires (pattern_siblings): two half
+    # holes Shift-clicked together are two arcs, not a pattern of two.
+    if any(sum(r.get("arc_deg", 0.0) for r in h) < tol["whole_arc_deg"] for h in holes):
         return None
     first = holes[0]
     for h in holes[1:]:
