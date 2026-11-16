@@ -494,6 +494,15 @@ problem as an unrecorded full suite one step later.
   `correctionPass`, so the proposal, reduced-motion and `--real` passes never
   run. It still exits 1 beside five filed reds, so it looks like the usual red
   (`ISSUE_20261115_the_annotate_browser_checks_correction_pass_throws_and_the_passes_after_it_never_run.md`).
+- **The map — `apps/viewer/map.js`, `apps/viewer/views/map.js`, `map.css`,
+  or a layout file `docs/topologies/map_*.json`** (added 2026-11-16) →
+  `pytest -q tests/test_topology_map.py tests/test_topology_projection.py`,
+  the viewer fast tier through `--repo` (the nine `the map's …` tests), and
+  the browser suite `--only "the map (Map"` on a root built from this tree.
+  The layout file is a projection input (`load_topology_map` ships it
+  verbatim), so the rebuild trap below applies to it; and the map hooks into
+  `fitDag`, `applyFocus` and `entityUnder`, so drive Classic on the SAME page
+  after the map (the expando entry under "Recurring bugs to check").
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
@@ -5984,6 +5993,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       honest answer, but check that the lesson says so, that the scratch
       numbers are also pinned in pytest, and that the committed models are
       untouched (`git diff integration -- docs/topologies/`).
+- [ ] **A page hook stored as an expando on the pane root outlives the
+      renderer that set it.** New 2026-11-16 (`the_map_draws_the_end_stop_model`,
+      round 1 blocker): `views/map.js` sets `root.mapFit` and
+      `root.mapResizeObserver` on `#topopane`, and `topology_app.js`'s `fitDag`
+      calls `pane.mapFit()` and returns when it is a function. `renderTopoPane`
+      clears the root with `innerHTML = ""`, which removes children and not
+      properties, so once the map has been drawn Fit and the `0` key are dead on
+      Classic and on every other model for the page's life; a fresh Classic page
+      refits. No tier saw it: the suite tests Classic on a reload, never on the
+      same page. When a diff hangs a function or an observer off a DOM node that
+      another renderer repaints, find the `VA.clear`/`innerHTML` site and ask
+      what resets the expando; probe it with the two drawings in sequence on
+      one page (zoom, Fit, measure the rails' rect).
+- [ ] **A witness run whose shadow tree predates the author's last suite
+      edit measured the earlier suite.** New 2026-11-16 (same handoff): the
+      runner builds its shadow tree once at the start, so a 40-minute `--only`
+      chain started at 04:57 ran against the working tree of 04:57, and the
+      suite was committed at 05:02 and edited again at 05:04. Four browser
+      entries aborted and the lesson's test record stayed `RECORD_PENDING`.
+      Before reading a witness log, compare its command file's mtime
+      (`witness_cmd.txt`) with `git log --format=%ci` of the suite and the
+      specs; a verdict older than the file it judges is not a verdict on it.
+      And a scratch root built with uncommitted changes (`build.log`: "this
+      tree has uncommitted changes") makes every fast entry `NOT WITNESSED
+      (the tier was red before the mutation)` with `projection NOT paired with
+      this tree` -- commit, then build, then run.
 
 ## Architectural errors to check
 

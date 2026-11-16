@@ -64,3 +64,13 @@ One handoff per surface, in the order the strategy draft gives: the DAG
 replaces its derivations with reads of `VA.buildModel`'s lookups and deletes
 the function it replaced; `tests/test_model_view.py` already pins the model's
 numbers, so the DAG's new reads have a value to agree with.
+
+> **Addendum, 2026-11-16 (review of `the_map_draws_the_end_stop_model`).** A
+> third derivation of a body's tint landed with the map: `apps/viewer/map.js`
+> (`VA.mapLayout`, step 8) computes `i % (VA.BODY_TINTS || 16)` over the model
+> view's `bodies` order, while `VA.bodyTint` (`topology.js`) indexes the raw
+> `topoProj.bodies` and `model.js` indexes `view.bodies`. The map's agrees with
+> the tree's on v2 (same list, same order) and disagrees with the DAG's only
+> where this issue already says the DAG's does. The `|| 16` fallback restates
+> the constant's value beside it. When the DAG handoff above lands, the map's
+> step 8 reads `model.tint(bodyId)` too and the fallback goes.
