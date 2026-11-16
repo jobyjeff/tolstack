@@ -65,17 +65,23 @@ issues were filed:
 
 ## Test record
 
-All runs were in this worktree on the committed tree. No code was changed, so
-only the default tier and the doc scans apply:
+All runs were in this worktree on `c83884ff`, which changes docs only. No code
+was changed.
 
-(filled in below after the run)
-
-> **Correction, 2026-11-16 (review).** Nothing was filled in: the branch was
-> handed back with the placeholder above and no run recorded. The review ran
-> the tiers itself on the merged tree (code identical to `integration`
-> `61f78e19`): default `pytest -q` in the review worktree `1 failed, 2027
-> passed, 1 skipped` in 448 s, the one red the worktree-only
-> `test_viewer_js_suite_is_green`; `node apps/viewer/run_tests.cjs --repo
-> data/scratch/walk1116` (this walk's root, built from `61f78e19`, with a copy
-> of `docs/`) `715/715`; `node apps/annotate/run_tests.cjs` `323/323`. See
-> `docs/sessions/reviews/REVIEW_20261116_the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page.md`.
+- **Default tier:** `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave **1 failed, 2027 passed, 1 skipped, 4 deselected**, 454 s, single
+  process (`pytest-xdist` is not installed in the venv, so `-n 16` is
+  refused). The ledger says inside budget.
+  - The one failure is the documented worktree red,
+    `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`. Its
+    node-fs `[real]` tier finds no projection in the worktree, so that tier
+    was run on its own (next item).
+- **Fast node tiers:**
+  - `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/walk1116`
+    passed **715/715**, with `[real]` armed. The scratch root had a temporary
+    `docs` junction to this worktree, which was removed afterwards.
+  - A bare run passed 592/592 with the node-fs tier skipped.
+  - `node apps/annotate/run_tests.cjs` passed **323/323**.
+- **Not run:** the browser runner and the witness runner, because no suite,
+  guard or spec was added or changed. A review of a docs-only diff runs the
+  two fast tiers only.

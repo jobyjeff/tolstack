@@ -6019,12 +6019,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       tree has uncommitted changes") makes every fast entry `NOT WITNESSED
       (the tier was red before the mutation)` with `projection NOT paired with
       this tree` -- commit, then build, then run.
-- [ ] **A lesson's test record handed back as a placeholder.** Second sighting
-      2026-11-16 (`the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page`:
-      "(filled in below after the run)" and nothing after it; the entry above
-      was `RECORD_PENDING`). `tail` the lesson before you read anything else:
-      a placeholder is "no full-suite run recorded", so the benefit of the
-      doubt is void and the review runs the default tier itself and says so.
+- [ ] **A placeholder test record may mean the author is still running, so
+      re-read the handoff tip before you land.** 2026-11-16
+      (`the_walk_reads_the_map_and_the_binding_flow_on_the_merged_page`): the
+      lesson ended "(filled in below after the run)", and the review judged it
+      empty, ran the tiers itself and landed. The author's record arrived as
+      `889cfc3c` minutes later, and the close-out guard reported the handoff
+      not merged. Before `git fetch . review/<slug>:integration`, run
+      `git log --oneline HEAD..handoff/<slug>` and expect no output.
+      A placeholder still voids the benefit of the doubt, so run the tier.
+      Write it up as "not yet recorded", not as a defect.
 - [ ] **A word the handoff names for a new control is banned elsewhere on the
       page by a text-matching guard.** New 2026-11-16 (same handoff): the
       handoff's "Map · Classic" switch put the word *Classic* on every topology

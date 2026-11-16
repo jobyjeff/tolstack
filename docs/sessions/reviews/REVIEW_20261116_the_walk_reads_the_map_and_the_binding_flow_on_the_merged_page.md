@@ -78,7 +78,7 @@ covers both sides.
 
 ## Findings
 
-**Should-fix (fixed inline):** the lesson's `## Test record` ended at
+**Should-fix (fixed inline; withdrawn in the re-run below):** the lesson's `## Test record` ended at
 "(filled in below after the run)" with nothing below — the DoD's lesson is
 otherwise complete. Fixed with a dated correction blockquote carrying this
 review's runs; the author's placeholder is left in place. Second sighting
@@ -100,3 +100,27 @@ No design findings beyond what the walk itself filed.
   record handed back as a placeholder".
 
 Verdict: **APPROVE**.
+
+## Re-run 2026-11-16 — the author's test record landed after the merge
+
+The close-out guard reported the handoff not merged: the tactical session
+committed `889cfc3c` ("walk lesson: test record", 09:37 -0800) on
+`handoff/…` after this review had fast-forwarded `integration` to
+`c92cbaeb`. It fills in the placeholder this review had called empty. Its
+numbers agree with this review's own runs: 1 failed (the worktree-only
+`test_viewer_js_suite_is_green`) / 2027 passed / 1 skipped in 454 s against
+this review's 448 s, viewer 715/715 on the walk's scratch root, and annotate
+323/323.
+
+- **The round-1 "should-fix" is withdrawn.** It was a race, not a defect.
+  The merge conflicted on the lesson's `## Test record`. I took the
+  handoff's side whole and dropped my correction blockquote, which now says
+  something false ("nothing was filled in"). The lesson is byte-identical to
+  `889cfc3c`.
+- **The overlay entry is reworded** to name what actually happened: re-read
+  `HEAD..handoff/<slug>` before landing. It no longer counts this as a second
+  sighting of an empty record.
+- The commit is docs-only (one file), so the tiers above still cover the
+  merged tree.
+
+Verdict unchanged: **APPROVE**, 0 blockers.
