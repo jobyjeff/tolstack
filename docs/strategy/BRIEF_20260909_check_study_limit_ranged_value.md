@@ -1,5 +1,7 @@
 # STRATEGY BRIEF 2026-09-09 — check_study_limit_ranged_value: let a study's own check fold in a second, independently-ranged term
 
+> **CONSUMED 2026-11-17 — decided: not built. The nine per-fastener study files are a correct workaround and no second case has appeared in ten weeks; re-file with the case when one does (strategy burndown #4).**
+
 > **Routing note.** `docs/issues/ISSUE_20260908_check_study_limit_cannot_carry_a_ranged_value.md`
 > is `type: feature`, `priority: low`, `audience: strategy` — a schema
 > extension with real design tradeoffs, not a mechanical patch.
