@@ -202,7 +202,33 @@ Two notes on the shots:
 
 ## Test record
 
-(below)
+All runs are on this branch. The scratch root's projections were built at
+`cdb6566d`, and no input to them changed afterwards.
+
+- **Default pytest, in the worktree:** `venv-win/Scripts/python.exe -m pytest
+  -q` (the main checkout's interpreter), at `a242fd58`. 2114 passed, 1 failed,
+  1 skipped, 452 s, recorded as default and inside budget. The failure is
+  `test_viewer_js_suite_is_green`, the documented worktree red: no `data/`
+  here, so the node-fs `[real]` tier is skipped. That tier runs green at the
+  scratch root (next line).
+- **Fast tiers at the scratch root (`--repo …/bpj`), at `a242fd58`:** viewer
+  722/722 (with `[real]`), annotate 324/324.
+- **Browser `--only`, at the scratch root.** My diff changed no browser suite.
+  I ran the ones that measure v2's drawn shape, since last round's review
+  bounced on one:
+  - "the map (Map . Classic …)": red on the layout defect before the fix,
+    then 1/1 after it;
+  - "a window resize re-clamps": 1/1 after the fix;
+  - before the fix, all passed: "the model drawn alone and led" 23/23,
+    "topology height budget" 16/16, "the DAG zoom, Fit and the grid header"
+    47/47, "parts as blocks" 8/8.
+
+  The whole tier is the review's.
+- **Witness, one invocation, the one new spec:** 1/1 witnessed, 1 m 15 s.
+- **Real feature-identity log:** 84 files before and after.
+
+The scratch root `data/scratch/bpj` is gitignored, has no `.git`, and is left
+in place for the review. It is safe to delete any time.
 
 ## Blocked actions
 
