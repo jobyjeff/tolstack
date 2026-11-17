@@ -587,21 +587,21 @@
       "note": "Value to come from 215198-A sheet 1's drawing."
     },
     {
-      "id": "tan_link_mount_gas_spring_pilot_to_bore",
-      "name": "gas-spring mount pilot bore to attachment bore",
+      "id": "tan_link_mount_gas_spring_pilot_to_pilot",
+      "name": "gas-spring mount pilot bore to pilot bore",
       "kind": "structural",
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_gas_spring_pilot_bore",
-      "to": "tan_link_mount_bore",
+      "to": "tan_link_mount_pilot_bore",
       "note": "Value to come from 215175-002's drawing."
     },
     {
-      "id": "tan_link_mount_gas_spring_fasteners_to_bore",
-      "name": "gas-spring mount fastener pattern to attachment bore",
+      "id": "tan_link_mount_gas_spring_fasteners_to_fasteners",
+      "name": "gas-spring mount fastener pattern to tangential link mount fastener pattern",
       "kind": "structural",
       "part": "tan_link_mount_215175_002",
       "from": "gas_spring_mount_fastener_clocking",
-      "to": "tan_link_mount_bore",
+      "to": "tan_link_mount_fastener_clocking",
       "note": "Value to come from 215175-002's drawing."
     },
     {

@@ -1207,7 +1207,7 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 15 parts, 31 interfaces, 40 edges, 11 branch points, 10 grounded
+The graph: 15 parts, 31 interfaces, 40 edges, 13 branch points, 10 grounded
 loops, 10 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 

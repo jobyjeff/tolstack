@@ -407,7 +407,11 @@
   function placeName(box, jumpers, dots, M) {
     var full = box.w - 2 * M.name.inset;
     var half = box.w / 2 - M.name.inset - M.pinR - M.name.clear;
-    var wraps = [[full, 2], [half, 3]];
+    // The strip from the box's start to its first top or bottom pin.
+    var across = dots.filter(function (p) { return p.side === "top" || p.side === "bottom"; });
+    var strip = across.length ? Math.min.apply(null, across.map(function (p) { return p.x - box.x; })) -
+      M.name.inset - M.pinR - M.name.clear : half;
+    var wraps = [[full, 2], [half, 3], [strip, 3]];
     for (var w = 0; w < wraps.length; w++) {
       var lines = nameLines(box, wraps[w][0], wraps[w][1], M);
       for (var c = 0; c < NAME_CORNERS.length; c++) {
@@ -620,8 +624,17 @@
       var kidsH = kids.length ? M.child.h + M.child.gap : 0;
       var c = centre(cell);
       var box, ownPins, ownMarks, ownJumpers, name;
+      // Taller first, while the cell has the room; then wider, which opens
+      // the strips beside a side's centred pins (a part with routes through
+      // its top and its bottom has no other room for its name).
+      var h = h0;
+      var maxH = cell.h - 2 * M.district.inset - kidsH, maxW = cell.w - 2 * M.district.inset;
       for (var attempt = 0; attempt <= M.name.tries; attempt++) {
-        var h = h0 + attempt * M.name.grow;
+        if (attempt > 0) {
+          if (h + M.name.grow <= maxH) h += M.name.grow;
+          else if (w + M.name.grow <= maxW) w += M.name.grow;
+          else break;
+        }
         box = {
           id: p.id, label: p.label, number: p.number, name: p.name, body: p.body,
           x: c.x - w / 2, y: c.y - (h + kidsH) / 2, w: w, h: h, cell: cell,

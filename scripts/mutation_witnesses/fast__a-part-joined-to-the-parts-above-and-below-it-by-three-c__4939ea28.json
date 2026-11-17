@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part joined to the parts above and below it by three constraints each, with a dimension straight through it from each upper end to a lower one, grows no taller than its cell has room for, and its name sits in the strip beside its pins",
+  "mutations": [
+    {
+      "contract": "A part's name may wrap into the strip between its box's start and its first top or bottom pin.",
+      "note": "Declared with the guard by handoff the_base_stack_joints_are_seat_boss_and_pattern (2026-11-17). Without the strip wrap, the tangential link mount of model v2 -- three pins on top, three below, a dimension through it from each -- has no corner for its name and outgrows its cell.",
+      "file": "apps/viewer/map.js",
+      "find": "    var wraps = [[full, 2], [half, 3], [strip, 3]];",
+      "replace": "    var wraps = [[full, 2], [half, 3]];",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_base_stack_joints_are_seat_boss_and_pattern.md"
+    }
+  ]
+}

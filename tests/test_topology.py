@@ -1150,10 +1150,16 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     into_bore = {e.other_end("tan_link_mount_bore") for e in v2.incident("tan_link_mount_bore")
                  if e.part == "tan_link_mount_215175_002"}
     assert into_bore == {"tan_link_mount_hub_face", "tan_link_mount_pilot_bore",
-                         "tan_link_mount_fastener_clocking",
-                         # its joint with the gas-spring mount (2026-11-17)
-                         "tan_link_mount_gas_spring_pilot_bore",
-                         "gas_spring_mount_fastener_clocking"}
+                         "tan_link_mount_fastener_clocking"}
+    # Its joint with the gas-spring mount (2026-11-17) is located from the hub
+    # joint's: the upper bore from the pilot bore, the upper ring from the lower.
+    upper = {e.id: (e.from_node, e.to_node) for e in v2.edges
+             if e.part == "tan_link_mount_215175_002" and "gas_spring" in e.id}
+    assert upper == {
+        "tan_link_mount_gas_spring_pilot_to_pilot": (
+            "tan_link_mount_gas_spring_pilot_bore", "tan_link_mount_pilot_bore"),
+        "tan_link_mount_gas_spring_fasteners_to_fasteners": (
+            "gas_spring_mount_fastener_clocking", "tan_link_mount_fastener_clocking")}
     for edge in v2.edges:
         assert edge.dimension is None, edge.id
         assert any(p in (edge.note or "") for p in ("Value to come", "What would close it")), edge.id

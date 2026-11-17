@@ -16121,6 +16121,46 @@
            q.nameBlock.lines.map(function () { return q.nameBlock.anchor; }));
       });
 
+    await test("a part joined to the parts above and below it by three constraints each, with a " +
+      "dimension straight through it from each upper end to a lower one, grows no taller than its cell " +
+      "has room for, and its name sits in the strip beside its pins", function () {
+        // The tangential link mount of model v2 since 2026-11-17: a seat, a
+        // boss and a fastener pattern to the hub below and to the gas-spring
+        // mount above, each upper feature dimensioned from a lower one.
+        var m = mapColumn(false);
+        var f = function (part, nodeId) {
+          return { id: part + "@" + nodeId, part: part, node: nodeId, name: nodeId, kind: "mating_surface",
+                   shared: true, body: "one" };
+        };
+        var seat = function (id, a, b) {
+          return { id: id, name: id, kind: "contact", source: "node", ends: [a, b], parts: [a.split("@")[0], b.split("@")[0]],
+                   bodies: ["one"], within: "one", joint: id.slice(0, 2) };
+        };
+        m.features = [f("P", "low"), f("P", "low2"), f("P", "low3"), f("Q", "high"), f("Q", "high2"), f("Q", "high3"),
+                      f("Q", "low"), f("Q", "low2"), f("Q", "low3"), f("R", "high"), f("R", "high2"), f("R", "high3")];
+        m.parts[0].features = ["P@low", "P@low2", "P@low3"];
+        m.parts[1].features = ["Q@high", "Q@high2", "Q@high3", "Q@low", "Q@low2", "Q@low3"];
+        m.parts[1].dimensions = ["dQ", "dQ2", "dQ3"];
+        m.parts[2].features = ["R@high", "R@high2", "R@high3"];
+        m.dimensions = ["", "2", "3"].map(function (n) {
+          return { id: "dQ" + n, part: "Q", name: "high" + n + " to low" + n, from: "Q@high" + n, to: "Q@low" + n, body: "one" };
+        });
+        m.interfaces = ["", "2", "3"].map(function (n) { return seat("PQ" + n, "P@low" + n, "Q@high" + n); })
+          .concat(["", "2", "3"].map(function (n) { return seat("QR" + n, "Q@low" + n, "R@high" + n); }));
+        m.joints = [{ id: "PQ", parts: ["P", "Q"], bodies: ["one"], within: "one", constraints: ["PQ", "PQ2", "PQ3"] },
+                    { id: "QR", parts: ["Q", "R"], bodies: ["one"], within: "one", constraints: ["QR", "QR2", "QR3"] }];
+        m.counts = { bodies: 1, parts: 3, features: 12, dimensions: 3, interfaces: 6 };
+        var geo = VA.mapLayout(m, mapDoc({ P: [0, 0], Q: [0, 1], R: [0, 2] }));
+        eq(geo.notes, []);
+        eq(nameClearOfJumpers(geo), []);
+        var q = geo.boxes.filter(function (b) { return b.id === "Q"; })[0];
+        ok(q.h <= q.cell.h - 2 * VA.MAP.district.inset, "Q is no taller than its cell has room for");
+        var first = Math.min.apply(null, geo.pins.filter(function (pin) { return pin.part === "Q"; })
+          .map(function (pin) { return pin.x; }));
+        var r = q.nameBlock.rect;
+        ok(r.x + r.w < first || r.x > q.x + q.w / 2, "Q's name is in a strip beside its pins");
+      });
+
     await test("a child with no place sits under its parent, beside any route that leaves the " +
       "parent's bottom, so no route is drawn through a box it does not end on", function () {
         var geo = VA.mapLayout(mapColumn(true), mapDoc({ P: [0, 0], Q: [0, 1], R: [0, 2] }));
