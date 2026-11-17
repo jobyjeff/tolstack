@@ -30,3 +30,14 @@ so the face ids above are the evidence there.
 Meshes: pitch arm `asm217755_215071_001`, blade root
 `asm217755_216332_001_bb3745d2`, piston body `asm217755_214700_002`, upper
 head `asm217755_214698_002`.
+
+## Addendum 2026-11-17 (walk `the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page`)
+
+Both questions are copied as Q1 and Q2 onto
+`docs/sessions/lessons/REVIEW_20261117_the_portrait_map_and_the_joints.md`,
+the page Jeff reads, with these shots. Shot 10 does not show the pockets, and
+neither does this walk's retry (`isolate` on the piston body's mesh, then
+`camera face … 140`: the whole assembly stays drawn, unframed;
+`shots/the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page/q2_piston_body_top_isolated.png`).
+A shot that shows them would need the pick-armed isolation with both heads
+hidden. The face ids are the evidence until then.
