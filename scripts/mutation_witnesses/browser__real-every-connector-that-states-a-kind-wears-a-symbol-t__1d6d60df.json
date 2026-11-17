@@ -4,12 +4,12 @@
   "expect_red": "[real] every connector that states a kind wears a symbol, the clocking its ring of dots, the pilot its circle and dot, the ball joints their cup and ball",
   "mutations": [
     {
-      "contract": "The layout file's symbol word for a constraint is honoured: the clocking is drawn as the ring of dots.",
-      "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
-      "note": "Ignores the layout file's word, so the clocking has no symbol.",
+      "contract": "The clocking is drawn as the ring of dots because the model says it is a fastener pattern (since 2026-11-17 the word is the model's, not the layout file's).",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "Re-anchored 2026-11-17 (a_joint_says_what_kind_it_is): the layout's `symbols` override is gone, so the mutation draws a shared node's stated word as the seat it was before the model could say otherwise -- the clocking loses its ring of dots.",
       "file": "apps/viewer/map.js",
-      "find": "    if (named) return VA.MAP_SYMBOLS[named] ? named : null;",
-      "replace": "    if (named) return null; /* mutated: the layout's word is ignored */"
+      "find": "    return VA.MAP_SYMBOLS[iface.kind] ? iface.kind : null;",
+      "replace": "    return VA.MAP_SYMBOLS[iface.kind] ? (iface.source === \"node\" ? \"contact\" : iface.kind) : null; /* mutated: a shared node's stated word is drawn as a seat */"
     }
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "endSurfaceClass reads a shared node's stated joint kind after its declared face: a rotary joint and a fastener pattern ask for a cylinder, whatever the name says",
+  "mutations": [
+    {
+      "contract": "A rotary joint or a fastener pattern asks for a cylinder before the name's words are read.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "Skips the joint step, so the name decides: 'seat face' asks for a flat, and the clocking's name asks nothing.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    if (joint && CYLINDRICAL_INTERFACE_KINDS.indexOf(joint) !== -1) {",
+      "replace": "    if (false && joint && CYLINDRICAL_INTERFACE_KINDS.indexOf(joint) !== -1) {"
+    }
+  ]
+}

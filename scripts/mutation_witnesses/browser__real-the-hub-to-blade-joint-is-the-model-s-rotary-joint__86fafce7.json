@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] the hub to blade joint is the model's rotary joint: the map draws its rotary symbol, its hover says so, and the tree's joint row reads rotary",
+  "mutations": [
+    {
+      "contract": "The blade's pitch bearing is drawn with the rotary symbol, not the flat seat it was on 2026-11-16.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "The exact regression Jeff found: the shared node's word is ignored and the bearing is drawn as a seat.",
+      "file": "apps/viewer/map.js",
+      "find": "    return VA.MAP_SYMBOLS[iface.kind] ? iface.kind : null;",
+      "replace": "    return VA.MAP_SYMBOLS[iface.kind] ? (iface.source === \"node\" ? \"contact\" : iface.kind) : null; /* mutated: a shared node's stated word is drawn as a seat */"
+    },
+    {
+      "contract": "The tree's joint row prints a reader's word for the kind: rotary, not the stored word.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "Prints the stored word with its underscores spaced, as the row did before the word table: 'revolute'.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    row.appendChild(count(VA.interfaceKindWord(interfaceRow.kind)));",
+      "replace": "    row.appendChild(count(String(interfaceRow.kind || \"\").replace(/_/g, \" \")));"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a connector's symbol is its interface's kind alone: a shared node's rotary or fastener-pattern word draws its own symbol, a layout's word is never read, and every interface word has a symbol",
+  "mutations": [
+    {
+      "contract": "A connector's symbol is read off the interface's kind, never off the layout file.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "Brings back the retired override: a layout's word wins over the model's.",
+      "file": "apps/viewer/map.js",
+      "find": "      var symbol = VA.mapSymbolOf(iface);",
+      "replace": "      var symbol = (doc.symbols && doc.symbols[iface.id]) || VA.mapSymbolOf(iface);"
+    },
+    {
+      "contract": "A shared node's stated word draws its own symbol.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "Draws every shared node as a seat, whatever it states.",
+      "file": "apps/viewer/map.js",
+      "find": "    return VA.MAP_SYMBOLS[iface.kind] ? iface.kind : null;",
+      "replace": "    return VA.MAP_SYMBOLS[iface.kind] ? (iface.source === \"node\" ? \"contact\" : iface.kind) : null; /* mutated: a shared node's stated word is drawn as a seat */"
+    }
+  ]
+}

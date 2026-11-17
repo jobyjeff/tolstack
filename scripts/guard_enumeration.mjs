@@ -349,7 +349,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-17 (the_map_is_portrait_as_jeff_drew_it): +3 -- a part's name
   // clear of its jumpers, a child beside a route out of its parent's bottom,
   // and a right flank's label stepped below a level left one. Each carries a spec.
-  fast: { declared: 718, enrollable: 718, names: "7d4d95c8a9d8" },
+  // 2026-11-17 (a_joint_says_what_kind_it_is): +2 -- a connector's symbol is
+  // its interface's kind alone, and a shared node's joint kind in words on the
+  // tree, the Preview and Classic. Each carries a spec.
+  fast: { declared: 720, enrollable: 720, names: "df0f22d7e7bd" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -440,7 +443,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): +2 --
   // a picked hole's pattern and a set of holes' fit, on the faces
   // tests/test_hole_pattern.py answers on. Both carry a spec.
-  annotate: { declared: 323, enrollable: 323, names: "3aaff7c3e5c2" },
+  // 2026-11-17 (a_joint_says_what_kind_it_is): +1 -- a shared node's stated
+  // joint kind asks a cylinder of the shape rule. It carries a spec.
+  annotate: { declared: 324, enrollable: 324, names: "447969c10819" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -705,7 +710,9 @@ export const DECLARED_GUARDS = {
   // crosses a name on the real map, a still click inside a box selects its
   // part, a press inside a box that moves pans, a district's field selects its
   // body. Each carries a spec.
-  browser: { declared: 906, enrollable: 875, names: "c6eadc364e22" },
+  // 2026-11-17 (a_joint_says_what_kind_it_is): +1 -- the hub to blade joint
+  // is the rotary joint on the real map and in the tree. It carries a spec.
+  browser: { declared: 907, enrollable: 876, names: "5c33b9d3bb4b" },
 };
 
 
