@@ -6121,6 +6121,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       next click on a pin, jumper or connector is eaten. On any pan/drag
       gesture that suppresses its trailing click, ask which release paths fire
       no click, and whether the flag can outlive the gesture.
+- [ ] **A walk's "small findings" issue files a named-rule design violation
+      at `low`.** New 2026-11-17
+      (`the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page`):
+      F2 (a handoff slug, rename history and `mating_surface` in a joint's
+      Preview) sat in a `low`, `area: viewer/map` bundle beside two
+      judgement calls, so it would auto-defer. Read each row of a walk's
+      bundle against the prose-budget rules and the three prohibitions; split
+      any hit into its own `med`, `area: design` issue and grep for the
+      older narrower one (here `ISSUE_20261110_topology_notes_still_say_…`).
 
 ## Architectural errors to check
 

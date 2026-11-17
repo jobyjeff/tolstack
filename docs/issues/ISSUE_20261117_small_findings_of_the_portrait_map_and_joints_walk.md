@@ -22,3 +22,10 @@ the shots are in
 | F3 | **At 3840 Side by side the map is now width-bound.** It fits at 0.897, against 0.925 in the other three 3840/5120 regions and the 0.933 the portrait handoff measured. The upper head's two detour lanes (`ISSUE_20261117_design_a_map_detour_lane_runs_outside_its_bodys_district`) widened the drawing after that measurement, so the target view lost about 4% of its size. Labels still measure 15 px. Low. It goes away if that issue moves the lane inside the district. | Measure `#topopane svg.tv__map`'s `data-zoom` at 3840 × 2160 with the pane open | `region_3840x2160_both.png` |
 
 None of these is a one-line fix, so none was fixed in the walk.
+
+## Addendum 2026-11-17 (review)
+
+F2 is split out at `med`, `area: design`, as
+`ISSUE_20261117_design_a_joints_preview_prints_a_handoff_name_and_a_raw_kind_word.md`:
+it breaks two named rules (no history, no internal names on the surface), so
+it should not wait behind F1/F3's `low`. F1 and F3 stay here.
