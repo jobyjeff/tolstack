@@ -20880,8 +20880,11 @@
         // joints, both ends of each a ball; the plate's slide, whose other end
         // (the hub's spindle bore) the study does not light; the -7 deg stop's
         // clearance, both faces. The +72 deg stop is a plain mating face --
-        // nothing states it `planar` -- and the rest are plain.
-        var LIVE_STOPS_GLYPHS = { spherical: 8, cylindrical_slide: 1, clearance: 2, plain: 11 };
+        // nothing states it `planar` -- and the rest are plain, but for the
+        // pitch arm's clocking on the blade root, a fastener pattern since
+        // 2026-11-17 (a_joint_says_what_kind_it_is).
+        var LIVE_STOPS_GLYPHS = { spherical: 8, cylindrical_slide: 1, clearance: 2, fastener_pattern: 1,
+                                  plain: 10 };
 
         // The numbers the hand-made sheet for the tangential link carried
         // (linkage/data/runs/vpa-pitch-p2-20261016-235852/
