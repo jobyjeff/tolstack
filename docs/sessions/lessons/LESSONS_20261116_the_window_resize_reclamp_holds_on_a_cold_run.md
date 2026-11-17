@@ -14,6 +14,14 @@ from just before the shrink), a red cold run:
 | the debounce's timer fires (736 ms late) | 4338 |
 | `refitPane()` writes `473px` | 4832 |
 
+> **Correction, 2026-11-17 (review).** Two readings of this table. The timer
+> fired 736 ms **after the event** (4338 − 3602). That is **586 ms late**
+> against its 150 ms due time. And the 4832 row is when the `style`
+> MutationObserver **recorded** the write. Its callback is a microtask and runs
+> only after the whole timer callback returns, including `render()`. So
+> `refitPane()` wrote `473px` somewhere between 4338 and 4832, not at 4832.
+> Neither reading changes the root cause.
+
 The listener **fires**, the flyout **is open**, and `refitPane()` clamps to
 the **right** width (473, a fresh load's). But the ~3 s of 3D-scene work left
 over from `open()` (the annotator's first part load and render, same main

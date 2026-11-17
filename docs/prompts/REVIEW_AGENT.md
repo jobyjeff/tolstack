@@ -4257,6 +4257,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       into a filed latent flake.
       (`ISSUE_20260918_three_browser_tier_resizes_measure_through_the_apps_own_debounce`.)
 
+- [ ] **Red alone, green in the whole tier: suspect the cold 3D load before
+      leaked state.** New 2026-11-17 (`the_window_resize_reclamp_holds_on_a_cold_run`).
+      `browser.newPage` is a fresh context per suite, so storage does not leak
+      between suites. What a whole tier shares is the warm browser and GPU
+      process. On a cold page the annotator's first load is a ~3 s long task,
+      and it held both a `resize` event and a 150 ms debounce behind it.
+      Ask two things. Does the fix put layout state behind a timer? It should
+      run in the event; only the paint should wait. Does the check read after a
+      wall-clock settle? It should read two `requestAnimationFrame`s after the
+      action. The rest of the class is deferred as `class: wall_clock_dependence`
+      (`ISSUE_20260918_three_browser_tier_resizes_measure_through_the_apps_own_debounce`).
+
 - [ ] **A probe/screenshot pair claimed identical to the byte — re-take it
       TWICE, not once.** New 2026-09-18 (`visual_rules_nothing_checks`). The
       handoff's own issue reported "7 of the 13 `after` shots differ from a
