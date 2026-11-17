@@ -195,9 +195,11 @@ def check(proposal: Proposal, ctx: Context, planned: Sequence[fi.FeatureIdentity
                       f"{node_id!r}'s face is on {end_parts}")
 
     surface = ctx.surface_class(proposal.sha256, proposal.face_id)
-    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface)
+    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface,
+                                node.interface)
     if rule and surface != rule["surface"]:
-        why = f"the word {rule['word']!r}" if rule["word"] else "its declared face"
+        why = (f"its joint kind {rule['word']!r}" if rule["where"] == "joint"
+               else f"the word {rule['word']!r}" if rule["word"] else "its declared face")
         raise Refused("wrong_shape", f"{node_id!r} asks for a {rule['surface']} face "
                       f"({why}), and face {proposal.face_id} is {surface}")
 

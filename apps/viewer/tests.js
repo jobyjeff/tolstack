@@ -12783,6 +12783,62 @@
         eq(root.textContent.indexOf("In this model"), -1);
       });
 
+    // --- a joint says what kind it is (a_joint_says_what_kind_it_is,
+    // 2026-11-17): a node two parts share may state a rotary joint or a
+    // fastener pattern, and every place that prints a joint's kind says it.
+    await test("a shared node's stated joint kind is printed in everyday words on the tree's " +
+      "interface row and the Preview, and Classic draws it as its glyph; a seat still reads contact",
+      function () {
+        eq(VA.interfaceKindWord("revolute"), "rotary");
+        eq(VA.interfaceKindWord("fastener_pattern"), "fastener pattern");
+        eq(VA.interfaceKindWord("contact"), "contact");
+        eq(VA.interfaceKindWord("pin_in_bore"), "pin in bore");
+        eq(VA.interfaceKindWord(null), "");
+        VA.INTERFACE_KINDS.forEach(function (kind) {
+          ok(VA.INTERFACE_KIND_WORDS[kind] && VA.INTERFACE_KIND_WORDS[kind].indexOf("_") === -1,
+             kind + " has an everyday word");
+        });
+        // The tree: the shared node n2 says it is a rotary joint.
+        var proj = bodiedProj();
+        proj.model.interfaces[0].kind = "revolute";
+        var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
+                     looseStacks: [], kinematic: [] };
+        var state = { mode: "topology", topologyId: "mini",
+                      models: { mini: VA.buildModel(proj, bodiedIdentity()) },
+                      navOpen: { "bi:b1": true, "j:p1+p2": true }, focus: { selected: null, hovered: null },
+                      selection: null };
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree, state, { sceneSlot: true, onVisibility: function () {} });
+        });
+        var words = {};
+        all(root, "div.navtree__row--interface").forEach(function (row) {
+          words[row.getAttribute("data-nav-id")] = row.querySelector(".navtree__count").textContent;
+        });
+        eq(words, { n2: "rotary", g2: "pin in bore", g1: "spherical" });
+        // The Preview: the demo's shared seat, stated as a fastener pattern,
+        // and as nothing (a seat).
+        var topo = JSON.parse(JSON.stringify(TOPO));
+        var seat = topo.nodes.filter(function (n) { return n.id === "base_post_seat"; })[0];
+        eq(VA.elementRecord(topo, "node|base_post_seat", { crops: TOPOCROPS }).jointKind, "contact");
+        seat.interface = "fastener_pattern";
+        var record = VA.elementRecord(topo, "node|base_post_seat", { crops: TOPOCROPS });
+        eq(record.jointKind, "fastener_pattern");
+        var pane = render(function (r) {
+          VA.renderTopoDetail(r, { topoProj: topo, previewKey: "node|base_post_seat", crops: TOPOCROPS });
+        });
+        ok(all(pane, ".chip--kind").some(function (c) { return c.textContent === "fastener pattern"; }),
+           "the Preview names the joint's kind");
+        var oneSided = topo.nodes.filter(function (n) { return (n.parts || []).length === 1; })[0];
+        eq(VA.elementRecord(topo, "node|" + oneSided.id, { crops: TOPOCROPS }).jointKind, null,
+           "a node of one part joins nothing");
+        // Classic: the node wears its stated word's glyph, and a stated node
+        // outranks nothing it should not -- a ball end still wins.
+        eq(VA.nodeJointKinds(topo)[seat.id], "fastener_pattern");
+        seat.interface = "revolute";
+        eq(VA.nodeJointKinds(topo)[seat.id], "revolute");
+        ok(VA.NODE_GLYPH_PRECEDENCE.indexOf("spherical") < VA.NODE_GLYPH_PRECEDENCE.indexOf("revolute"));
+      });
+
     // --- a binding shows the moment it is made and is corrected where it is
     // shown (handoff 2026-11-12): the body from the model, the orphans, the log.
     function boundIdentity() {
@@ -15798,9 +15854,9 @@
                   between_bodies: 1, within_bodies: 2, joints: 2, assemblies: 0 },
       };
     }
-    function mapDoc(places, symbols) {
+    function mapDoc(places) {
       return { schema: "joby.tolerance_stack/topology_map/v0", topology: "m",
-               places: places || { A: [0, 0], B: [1, 0], C: [1, 1] }, symbols: symbols || {} };
+               places: places || { A: [0, 0], B: [1, 0], C: [1, 1] } };
     }
     function angleOf(p, q) {
       return Math.round(Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI);
@@ -15913,16 +15969,37 @@
         eq(ball.symbol, "spherical");
         var seat = geo.connectors.filter(function (c) { return c.id === "seat"; })[0];
         eq(seat.symbol, "contact");
-        eq(VA.mapSymbolOf({ id: "seat", kind: "contact" }, mapDoc(null, { seat: "pattern" })), "pattern",
-           "the layout file may name a constraint a pattern");
-        eq(VA.mapSymbolOf({ id: "seat", kind: "contact" }, mapDoc(null, { seat: "nonsense" })), null,
-           "a word with no picture is no symbol");
         // The fixture's one gap edge states no contact kind: drawn bare, and
         // no defect is reported for it.
         var demo = VA.mapLayout(TOPO.model, TOPO.map);
         var bare = demo.connectors.filter(function (c) { return c.id === "tip_to_strut_end"; })[0];
         eq(bare.symbol, null);
         eq(demo.notes, []);
+      });
+
+    await test("a connector's symbol is its interface's kind alone: a shared node's rotary or " +
+      "fastener-pattern word draws its own symbol, a layout's word is never read, and every " +
+      "interface word has a symbol", function () {
+        var model = mapModel();
+        model.interfaces.forEach(function (i) { if (i.id === "seat") i.kind = "fastener_pattern"; });
+        model.interfaces.forEach(function (i) { if (i.id === "pilot") i.kind = "revolute"; });
+        var doc = mapDoc();
+        doc.symbols = { seat: "contact", pilot: "spherical" };
+        var geo = VA.mapLayout(model, doc);
+        var symbolOf = {};
+        geo.connectors.forEach(function (c) { symbolOf[c.id] = c.symbol; });
+        eq(symbolOf.seat, "fastener_pattern", "the clocking draws as its own word");
+        eq(symbolOf.pilot, "revolute", "the bearing draws as the rotary joint");
+        eq(geo.notes, []);
+        eq(VA.mapSymbolOf({ id: "x", kind: "nonsense" }), null, "a word with no picture is no symbol");
+        VA.INTERFACE_KINDS.concat(["contact"]).forEach(function (kind) {
+          ok(VA.MAP_SYMBOLS[kind] && VA.MAP_SYMBOLS[kind].shapes.length, kind + " has a map symbol");
+        });
+        // The three round symbols tell apart by their parts, not only by size.
+        var shapesOf = function (kind) { return VA.MAP_SYMBOLS[kind].shapes.map(function (s) { return s[0]; }).join(" "); };
+        eq(shapesOf("pin_in_bore"), "circle circle");
+        eq(shapesOf("revolute"), "circle circle path");
+        ok(shapesOf("cylindrical_slide") !== shapesOf("revolute"));
       });
 
     await test("a layout that leaves a part unplaced, places one the model has not, or routes " +
@@ -16168,9 +16245,9 @@
         var withHead = mapRoot({ regionHead: function () { return VA.renderDagSwitch({ dagDrawing: "map" }, TOPO, null); } });
         eq(all(withHead, ".tv__daghead").length, 1);
         bannedIn(viewerAuthoredText(root), "the map");
-        // The symbol table: every interface word, the seat, the pattern.
+        // The symbol table: every interface word and the seat.
         eq(Object.keys(VA.MAP_SYMBOLS).sort(),
-           Object.keys(VA.INTERFACE_GLYPHS).concat(["contact", "pattern"]).sort());
+           Object.keys(VA.INTERFACE_GLYPHS).concat(["contact"]).sort());
         Object.keys(VA.MAP_SYMBOLS).forEach(function (w) {
           ok(VA.MAP_SYMBOLS[w].label && VA.MAP_SYMBOLS[w].shapes.length, w + " has a label and a picture");
         });

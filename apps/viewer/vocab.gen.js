@@ -168,7 +168,7 @@
     // tolerance_stack/topology.py: INTERFACE_KINDS
     INTERFACE_KINDS: [
       "planar", "pin_in_bore", "spherical", "cylindrical_slide", "thread",
-      "clearance"
+      "clearance", "revolute", "fastener_pattern"
     ],
 
     // tolerance_stack/topology.py: FORM_KINDS
@@ -239,6 +239,9 @@
       "thickness length width height depth grip flange face shoulder gap protrusion step land",
       "sphere spherical ball centre center"
     ],
+
+    // tolerance_stack/feature_geometry.py: CYLINDRICAL_INTERFACE_KINDS
+    CYLINDRICAL_INTERFACE_KINDS: ["revolute", "fastener_pattern"],
 
     // tolerance_stack/interface_contact.py: PAIRING_KINDS
     CONTACT_PAIRING_KINDS: [

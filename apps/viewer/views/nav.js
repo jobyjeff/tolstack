@@ -435,7 +435,7 @@
     var name = label(interfaceRow.name, null, null);
     name.setAttribute("title", interfaceRow.name);
     row.appendChild(name);
-    row.appendChild(count(String(interfaceRow.kind || "").replace(/_/g, " ")));
+    row.appendChild(count(VA.interfaceKindWord(interfaceRow.kind)));
     activatable(row, function () {
       if (handlers.onInterface) handlers.onInterface(kind, interfaceRow.id);
     });

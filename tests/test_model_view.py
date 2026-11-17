@@ -167,7 +167,7 @@ def test_every_membership_the_view_states_is_the_topologys_own(path):
     for interface in view["interfaces"]:
         if interface["source"] == INTERFACE_SOURCES[0]:
             node = topology.node(interface["id"])
-            assert interface["kind"] == CONTACT_KIND
+            assert interface["kind"] == (node.interface or CONTACT_KIND)
             assert interface["parts"] == list(node.parts)
             bodies = list(topology.node_bodies(node.id))
             assert interface["bodies"] == bodies

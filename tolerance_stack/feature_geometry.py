@@ -136,6 +136,21 @@ SUGGESTION_RULE_WORDS = (
 )
 
 
+#: The joint kinds a node's stated ``interface`` word asks a CYLINDER for
+#: (``tolerance_stack.topology.SHARED_NODE_INTERFACES``; 2026-11-17, handoff
+#: ``a_joint_says_what_kind_it_is``): a rotary joint is a journal in a bore and
+#: a fastener pattern is its holes, so a pick ranks the faces coaxial with the
+#: bound mate and a hole of a pattern offers the whole pattern. Only the words
+#: added with that handoff are here; the older words leave the question to the
+#: element's name, as they did. **This tuple is the definition, for both
+#: languages** (``AA.endSurfaceClass`` reads it through the generated
+#: vocabulary).
+CYLINDRICAL_INTERFACE_KINDS = ("revolute", "fastener_pattern")
+
+#: The class :data:`CYLINDRICAL_INTERFACE_KINDS` asks for.
+CYLINDRICAL = "cylindrical"
+
+
 def required_surface_class(text: Optional[str]) -> Optional[Dict[str, str]]:
     """The class a string of words asks for, or ``None`` -- ``AA.requiredSurfaceClass``.
 
@@ -155,17 +170,22 @@ def required_surface_class(text: Optional[str]) -> Optional[Dict[str, str]]:
 
 
 def end_surface_class(edge_name: Optional[str], node_name: Optional[str],
-                      declared: Optional[str] = None) -> Optional[Dict[str, str]]:
+                      declared: Optional[str] = None,
+                      interface: Optional[str] = None) -> Optional[Dict[str, str]]:
     """The class for ONE END of a dimension -- ``AA.endSurfaceClass``.
 
     A class the node DECLARES (its ``face.surface``, ``tolerance_stack.topology``
     ``NODE_FACE_FIELDS``) answers before any word does: the words are a guess at
-    the shape, the declaration is the author saying it. Otherwise the
-    interface's own name is asked first and the dimension's second, because
-    the thing being bound IS the interface; ``where`` says which answered.
+    the shape, the declaration is the author saying it. The node's stated
+    joint kind (its ``interface``, :data:`CYLINDRICAL_INTERFACE_KINDS`) answers
+    next, for the same reason. Otherwise the interface's own name is asked
+    first and the dimension's second, because the thing being bound IS the
+    interface; ``where`` says which answered.
     """
     if declared:
         return {"surface": declared, "rule": None, "word": None, "where": "declared"}
+    if interface in CYLINDRICAL_INTERFACE_KINDS:
+        return {"surface": CYLINDRICAL, "rule": None, "word": interface, "where": "joint"}
     found = required_surface_class(node_name)
     if found:
         return dict(found, where="interface")

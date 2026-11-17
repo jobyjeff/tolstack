@@ -29,6 +29,8 @@ from pathlib import Path
 
 import pytest
 
+from tolerance_stack.topology import SHARED_NODE_INTERFACES
+
 from tolerance_stack import feature_geometry as fg
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -462,6 +464,21 @@ def test_an_end_asks_its_interface_before_its_dimension():
     assert fg.end_surface_class(edge, "bolt-head bearing face against the bushing")["surface"] == "planar"
     assert fg.end_surface_class(edge, None)["where"] == "dimension"
     assert fg.end_surface_class("diagonal brace", "rigid mount") is None
+
+
+def test_an_end_asks_its_stated_joint_kind_after_its_declared_face():
+    """``AA.endSurfaceClass``'s twin (2026-11-17): a rotary joint and a
+    fastener pattern ask for a cylinder whatever the name says; a declared face
+    still answers first, and an older word leaves the question to the name."""
+    edge = "mount flange face to pilot"
+    got = fg.end_surface_class(edge, "blade root seat face", interface="revolute")
+    assert (got["surface"], got["where"], got["word"]) == ("cylindrical", "joint", "revolute")
+    got = fg.end_surface_class(edge, "pitch arm clocked to the blade root",
+                               interface="fastener_pattern")
+    assert (got["surface"], got["where"]) == ("cylindrical", "joint")
+    assert fg.end_surface_class(edge, "x", "planar", "revolute")["where"] == "declared"
+    assert fg.end_surface_class(edge, "blade root seat face", interface="spherical")["surface"] == "planar"
+    assert set(fg.CYLINDRICAL_INTERFACE_KINDS) <= set(SHARED_NODE_INTERFACES)
 
 
 # ---------------------------------------------------------------------------

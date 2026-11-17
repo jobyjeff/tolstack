@@ -237,15 +237,35 @@ WALK_ORDERS = ("nearest_fork", "authored")
 #: * ``thread`` -- a threaded engagement (a short helix).
 #: * ``clearance`` -- a distance across free space that no contact closes: an
 #:   end-stop gap, a shank sticking out past a nut (two bars with a gap).
+#: * ``revolute`` -- a journal that turns in a bore and does not slide: a
+#:   bearing seat, a pivot; a reader's word for it is "rotary" (a dot in a
+#:   ring, with a turning arrow round it). Added 2026-11-17 (handoff
+#:   ``a_joint_says_what_kind_it_is``).
+#: * ``fastener_pattern`` -- a ring of fasteners through matching holes; it
+#:   fixes rotation about the joint's axis, the clocking (a ring of dots).
+#:   Added 2026-11-17, with ``revolute``.
 #:
 #: Optional on a ``gap`` edge in v0 -- an edge that states none is drawn with
 #: the plain dash and listed by the gap list as "contact kind not stated" --
 #: and refused on a ``structural`` one, which is a dimension of one part and
-#: touches nothing. A word, never an input: nothing folds it. Paired against
-#: ``docs/DAG_TOPOLOGY.md``, "Joint glyphs"; the linkage solver's joint types
-#: map onto it in ``tolerance_stack/kinematic.py``'s ``LINKAGE_JOINT_INTERFACES``.
+#: touches nothing. A node two parts share may state one too
+#: (:data:`SHARED_NODE_INTERFACES`); one that states none is a seat. A word,
+#: never an input: nothing folds it. Paired against ``docs/DAG_TOPOLOGY.md``,
+#: "Joint glyphs"; the linkage solver's joint types map onto it in
+#: ``tolerance_stack/kinematic.py``'s ``LINKAGE_JOINT_INTERFACES``.
 INTERFACE_KINDS = ("planar", "pin_in_bore", "spherical", "cylindrical_slide",
-                   "thread", "clearance")
+                   "thread", "clearance", "revolute", "fastener_pattern")
+
+#: The ``interface`` words a node two parts SHARE may state (2026-11-17,
+#: handoff ``a_joint_says_what_kind_it_is``): the two parts touch there, so a
+#: word for free space between them is refused. ``clearance`` is a distance
+#: across free space, and ``planar`` is two flat faces across a clearance --
+#: two flat faces that touch are the seat a shared node already is when it
+#: states nothing, so ``planar`` would be a second spelling of the default.
+#: A one-part node (a ``datum_feature``) states no interface at all. Paired
+#: against ``docs/DAG_TOPOLOGY.md``, "The vocabularies".
+SHARED_NODE_INTERFACES = tuple(k for k in INTERFACE_KINDS
+                               if k not in ("planar", "clearance"))
 
 #: What a form callout (flatness, straightness, circularity, cylindricity) on
 #: an edge's dimension IS in the chain -- the rule Jeff gave 2026-10-26, stated
@@ -435,6 +455,10 @@ class Node:
     #: ``docs/tolerance_stacks/hardware_entries.json``, the SOP's Step 4
     #: convention, resolved by ``tests/test_topology.py``.
     hardware_ref: Optional[str] = None
+    #: The kind of joint a node two parts share is (one of
+    #: :data:`SHARED_NODE_INTERFACES`), or ``None``: a seat, two faces
+    #: together. Refused on a one-part node, which joins nothing.
+    interface: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.kind not in NODE_KINDS:
@@ -460,6 +484,19 @@ class Node:
                 f"node {self.id!r}: kind {self.kind!r} disagrees with its parts "
                 f"{list(self.parts)} -- {len(self.parts)} part(s) makes this a "
                 f"{expected!r}")
+        if self.interface is not None:
+            if len(self.parts) != 2:
+                raise TopologyError(
+                    f"node {self.id!r}: interface {self.interface!r} on a node of "
+                    f"one part. An interface is how two parts meet; this node is "
+                    f"a feature of {self.parts[0]!r} alone")
+            if self.interface not in SHARED_NODE_INTERFACES:
+                raise TopologyError(
+                    f"node {self.id!r}: interface on a node two parts share must "
+                    f"be one of {SHARED_NODE_INTERFACES}, got {self.interface!r}. "
+                    f"The parts touch there: two flat faces together are the seat "
+                    f"a node that states nothing already is, and a clearance is "
+                    f"a gap edge")
         if self.face is not None:
             self._check_face()
 

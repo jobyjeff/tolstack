@@ -129,13 +129,12 @@
   // boss-in-hole = a closed circle and a dot, spherical = cup and ball, a
   // fastener pattern (clocking) = a ring of dots. The model's other kinds
   // keep the present design's pictures (apps/viewer/interface_glyphs.js) at
-  // the same large size. The six INTERFACE_KINDS come through the generated
+  // the same large size. The INTERFACE_KINDS come through the generated
   // vocabulary so a word added in Python and drawn nowhere throws at load;
-  // `contact` is the model view's word for a node two parts share
-  // (model_view.CONTACT_KIND), and `pattern` is the map's own: the model has
-  // no interface word for a fastener pattern yet, so the layout file names
-  // which constraint is one (`symbols: {interface id: "pattern"}`) until it
-  // does.
+  // `contact` is the model view's word for a node two parts share that
+  // states none (model_view.CONTACT_KIND). Since 2026-11-17
+  // (a_joint_says_what_kind_it_is) a shared node may state its own word --
+  // a rotary joint, a fastener pattern -- so every symbol is the model's.
   //
   // Shapes are primitives -- [tag, attrs] -- in a box of VA.MAP.symbol units
   // centred on 0, 0 with the route running along +x, so the DOM shim builds
@@ -187,14 +186,17 @@
                ["path", { d: "M -9 0 H 9 M -9 0 l 4 -3 M -9 0 l 4 3 M 9 0 l -4 -3 M 9 0 l -4 3",
                           "class": LINE }]],
     },
-  });
-  VA.MAP_SYMBOLS = Object.freeze(Object.assign({}, kinds, {
-    contact: {
-      label: "a seat: two faces together",
+    revolute: {
+      label: "a rotary joint",
       mask: true,
-      shapes: kinds.planar.shapes,
+      // the boss in its hole, with a turning arrow round it: the rotary
+      // sibling of the slide's straight double arrow
+      shapes: [["circle", { cx: 0, cy: 0, r: 11, "class": RING }],
+               ["circle", { cx: 0, cy: 0, r: 3.5, "class": SOLID }],
+               ["path", { d: "M -14.72 -8.5 A 17 17 0 0 1 14.72 -8.5 M 14.72 -8.5 L 15.68 -14.83" +
+                             " M 14.72 -8.5 L 8.76 -10.83", "class": LINE }]],
     },
-    pattern: {
+    fastener_pattern: {
       label: "a fastener pattern",
       mask: true,
       shapes: [0, 1, 2, 3, 4, 5].map(function (i) {
@@ -203,14 +205,19 @@
                             r: 3, "class": SOLID }];
       }).concat([["circle", { cx: 0, cy: 0, r: 12, "class": RING + " map__sym-faint" }]]),
     },
+  });
+  VA.MAP_SYMBOLS = Object.freeze(Object.assign({}, kinds, {
+    contact: {
+      label: "a seat: two faces together",
+      mask: true,
+      shapes: kinds.planar.shapes,
+    },
   }));
 
-  // The symbol an interface is drawn with: the layout file's word for it
-  // where it names one, else its kind. An unknown word is a layout defect
-  // and is reported, not drawn as something else.
-  VA.mapSymbolOf = function (iface, doc) {
-    var named = doc && doc.symbols && doc.symbols[iface.id];
-    if (named) return VA.MAP_SYMBOLS[named] ? named : null;
+  // The symbol an interface is drawn with: its kind, and nothing else. An
+  // unknown word is the vocabulary's defect and is reported, not drawn as
+  // something else.
+  VA.mapSymbolOf = function (iface) {
     return VA.MAP_SYMBOLS[iface.kind] ? iface.kind : null;
   };
 
@@ -692,12 +699,11 @@
       var a = pinById[ends[0]], b = pinById[ends[1]];
       if (!a || !b) { notes.push("interface " + iface.id + " has an end the map did not place"); return; }
       var pts = route(a, b, M);
-      var symbol = VA.mapSymbolOf(iface, doc);
+      var symbol = VA.mapSymbolOf(iface);
       // A gap edge that states no interface word is a model gap (the gap
       // list names it), not a layout defect: its connector is drawn bare.
-      // A WORD with no symbol is the layout's or the vocabulary's defect.
-      var word = (doc.symbols && doc.symbols[iface.id]) || iface.kind;
-      if (!symbol && word) notes.push("interface " + iface.id + " has no symbol for " + word);
+      // A WORD with no symbol is the vocabulary's defect.
+      if (!symbol && iface.kind) notes.push("interface " + iface.id + " has no symbol for " + iface.kind);
       var mid = symbolPoint(pts, a, b);
       connectors.push({
         id: iface.id, name: iface.name, kind: iface.kind, joint: iface.joint,

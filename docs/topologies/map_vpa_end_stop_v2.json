@@ -4,8 +4,7 @@
   "description": "Where each part's box sits on the map's coarse grid, [column, row]. Everything else the map draws -- box sizes, pin sides, districts, outlines, routes and bundles -- is computed from the model (apps/viewer/map.js; docs/DAG_TOPOLOGY.md, \"The map\"). The map is a second drawing of the same model, never a second model.",
   "provenance": {
     "authored_by": "handoff the_map_draws_the_end_stop_model, 2026-11-16; re-placed tall by handoff the_map_is_portrait_as_jeff_drew_it, 2026-11-17",
-    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): three columns by seven rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body the right column in the same sense -- pitch plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle; the tangential link between its mount and the pitch plate; the pitch link, the pitch arm and the blade down the right below the plate, the hub to blade joint along the bottom. A bearing with no place of its own sits under its link.",
-    "symbols": "The model has no interface word for a fastener pattern yet, so the one clocking constraint in v2 is named here; it is drawn as the ring of dots until the model carries the word."
+    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): three columns by seven rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body the right column in the same sense -- pitch plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle; the tangential link between its mount and the pitch plate; the pitch link, the pitch arm and the blade down the right below the plate, the hub to blade joint along the bottom. A bearing with no place of its own sits under its link."
   },
   "places": {
     "piston_cover_214958_002": [0, 0],
@@ -20,8 +19,5 @@
     "pitch_arm": [2, 5],
     "blade_root": [2, 6],
     "tan_link_212956_005": [1, 3]
-  },
-  "symbols": {
-    "tan_link_mount_fastener_clocking": "pattern"
   }
 }

@@ -57,6 +57,7 @@ from tolerance_stack.topology import (
     IDENTITY,
     INTERFACE_KINDS,
     NODE_KINDS,
+    SHARED_NODE_INTERFACES,
     TRANSFORM_KINDS,
     WALK_ORDERS,
     Body,
@@ -1370,6 +1371,8 @@ _DOC_VOCABULARIES = (
     ("Transform.kind", "\n`kind` on a transform is one of ", TRANSFORM_KINDS),
     ("Body.kind", "\n`kind` on a body is one of ", BODY_KINDS),
     ("Edge.interface", "\n`interface` on a gap edge is one of ", INTERFACE_KINDS),
+    ("Node.interface", "\n`interface` on a node two parts share is one of ",
+     SHARED_NODE_INTERFACES),
     ("Topology.walk_order", "\n`walk_order` on a topology is one of ", WALK_ORDERS),
     ("Form.kind", "\n`kind` on a form callout is one of ", FORM_KINDS),
 )
@@ -2458,13 +2461,16 @@ LINKAGE_TOPOLOGY = TOPOLOGIES_DIR / "topology_vpa_pitch_linkage.json"
 LINKAGE_SWEEP = Path(r"C:\workspace\tolstack\data\inbox\linkage-sweeps"
                      r"\vpa-pitch-p2-20261105-204957.json")
 
-#: Which of linkage's swept joints each gap edge stands at, read off the
-#: sweep's own ``links[]`` (a ``distance`` joint is the link between two ball
-#: joints, so both ends stand at it) and the plate's slide on the spindle. A
-#: test-side table because the topology names no sweep joint; the test below
-#: derives each joint's TYPE from the sweep's own rows, so the only thing
-#: written here is which edge is at which joint.
+#: Which of linkage's swept joints each interface stands at -- a gap edge, or
+#: (since 2026-11-17) a node two parts share that states its word -- read off
+#: the sweep's own ``links[]`` (a ``distance`` joint is the link between two
+#: ball joints, so both ends stand at it), the plate's slide on the spindle and
+#: the blade's hinge in the hub. A test-side table because the topology names
+#: no sweep joint; the test below derives each joint's TYPE from the sweep's
+#: own rows, so the only thing written here is which interface is at which
+#: joint.
 SWEPT_JOINT_EDGES = {
+    "hub_blade1_root_bearing_bore": "blade_hinge",
     "pitch_arm_link_joint": "pitch_link",
     "pitch_plate_link_joint": "pitch_link",
     "tan_link_mount_joint": "tan_link",
@@ -2509,18 +2515,14 @@ def test_the_linkage_joint_types_map_onto_the_interface_words():
     assert tuple(LINKAGE_JOINT_INTERFACES) == LINKAGE_JOINT_TYPES
     assert set(LINKAGE_JOINT_INTERFACES.values()) - {None} <= set(INTERFACE_KINDS)
     assert LINKAGE_JOINT_INTERFACES["distance"] == "spherical"
-    assert LINKAGE_JOINT_INTERFACES["revolute"] == "pin_in_bore"
+    assert LINKAGE_JOINT_INTERFACES["revolute"] == "revolute"
     assert LINKAGE_JOINT_INTERFACES["screw"] == "thread"
     assert LINKAGE_JOINT_INTERFACES["fixed"] is None
     assert LINKAGE_JOINT_INTERFACES["axial_position"] is None
 
 
-def test_an_edge_at_a_swept_joint_says_what_the_joints_type_suggests():
-    """The sweep's joint type, read off its own residual rows, suggests the
-    word; an authored edge that disagrees fails here. One set of words."""
-    if not LINKAGE_SWEEP.exists():
-        pytest.skip(f"{LINKAGE_SWEEP} is not on disk (gitignored inbox)")
-    sweep = json.loads(LINKAGE_SWEEP.read_text(encoding="utf-8"))
+def _swept_joint_types(sweep) -> dict:
+    """``{joint: linkage joint type}``, read off the sweep's own residual rows."""
     rows: dict = {}
     for label in sweep["mechanism"]["row_labels"]:
         joint, row = label.split(".", 1)
@@ -2531,15 +2533,113 @@ def test_an_edge_at_a_swept_joint_says_what_the_joints_type_suggests():
                    if tuple(names) == sig]
         assert len(matches) == 1, (joint, names)
         type_of[joint] = matches[0]
+    return type_of
+
+
+def _swept_joint_bodies(sweep) -> dict:
+    """``{joint: (body, body)}`` -- the two bodies each swept joint joins, read
+    off the sweep's own geometry features (``<joint>.point_a`` / ``point_b``
+    name the body each end is on). A ``distance`` joint's link is named by
+    ``links[]`` and lies between the two."""
+    ends: dict = {}
+    for feature in sweep["geometry"]["features"]:
+        joint, _, rest = feature["label"].partition(".")
+        side = rest.split("[")[0]
+        if side in ("point_a", "point_b") and feature.get("body"):
+            ends.setdefault(joint, {})[side] = feature["body"]
+    return {j: (e["point_a"], e["point_b"]) for j, e in ends.items()
+            if "point_a" in e and "point_b" in e}
+
+
+def test_an_edge_at_a_swept_joint_says_what_the_joints_type_suggests():
+    """The sweep's joint type, read off its own residual rows, suggests the
+    word; an authored interface that disagrees fails here -- a gap edge's word
+    or, since 2026-11-17, a shared node's. One set of words.
+
+    And from the solver's side: each of its joints that is a contact (the
+    cylindrical slide, the revolute hinge, and the two ball ends of each
+    distance link) has a model interface of the mapped word between parts of
+    the two bodies it joins, read off the sweep's own features. On 2026-11-16
+    the merged page drew the blade's bearing as a flat seat while the solver
+    turned the blade about it, and nothing compared the two: this check read
+    gap edges only."""
+    if not LINKAGE_SWEEP.exists():
+        pytest.skip(f"{LINKAGE_SWEEP} is not on disk (gitignored inbox)")
+    from tolerance_stack.model_view import model_view  # noqa: PLC0415
+
+    sweep = json.loads(LINKAGE_SWEEP.read_text(encoding="utf-8"))
+    type_of = _swept_joint_types(sweep)
     topology = load_topology(LINKAGE_TOPOLOGY)
+    interfaces = model_view(topology)["interfaces"]
+    kind_of = {i["id"]: i["kind"] for i in interfaces}
     wrong = []
-    for edge_id, joint in SWEPT_JOINT_EDGES.items():
+    for interface_id, joint in SWEPT_JOINT_EDGES.items():
         suggested = LINKAGE_JOINT_INTERFACES[type_of[joint]]
-        authored = topology.edge(edge_id).interface
+        authored = kind_of.get(interface_id)
         if authored != suggested:
-            wrong.append(f"{edge_id}: {authored!r}, joint {joint} "
+            wrong.append(f"{interface_id}: {authored!r}, joint {joint} "
                          f"({type_of[joint]}) suggests {suggested!r}")
     assert not wrong, "\n".join(wrong)
+
+    links = {link["joint"]: link for link in sweep["links"]}
+    body_of = {p: b.id for b in topology.bodies for p in b.parts}
+    missing = []
+    compared = 0
+    for joint, (body_a, body_b) in sorted(_swept_joint_bodies(sweep).items()):
+        word = LINKAGE_JOINT_INTERFACES[type_of[joint]]
+        if word is None:
+            continue
+        if type_of[joint] == "distance":
+            link_bodies = {body_of[p] for p in links[joint]["parts"]}
+            assert len(link_bodies) == 1, (joint, link_bodies)
+            (link_body,) = link_bodies
+            pairs = [(link_body, body_a), (link_body, body_b)]
+        else:
+            pairs = [(body_a, body_b)]
+        for pair in pairs:
+            compared += 1
+            hits = [i["id"] for i in interfaces if i["kind"] == word
+                    and sorted(body_of[p] for p in i["parts"]) == sorted(pair)]
+            if not hits:
+                missing.append(f"{joint} ({type_of[joint]}): no {word!r} interface "
+                               f"between {pair[0]} and {pair[1]}")
+    assert not missing, "\n".join(missing)
+    # Non-vacuity: the slide, the hinge, and the two ball ends of each link.
+    assert compared == 6, compared
+
+
+def test_a_shared_node_may_state_its_joint_kind_and_a_one_part_node_may_not():
+    """2026-11-17: a node two parts share may say it is a bearing or a
+    fastener pattern; one that states nothing is the seat it was. The words
+    for free space between two parts are refused where the parts touch."""
+    shared = dict(id="n", name="n", parts=("a", "b"))
+    assert Node(**shared).interface is None
+    for word in SHARED_NODE_INTERFACES:
+        assert Node(**shared, interface=word).interface == word
+    for word in set(INTERFACE_KINDS) - set(SHARED_NODE_INTERFACES):
+        with pytest.raises(TopologyError, match="two parts share must be one of"):
+            Node(**shared, interface=word)
+    assert set(INTERFACE_KINDS) - set(SHARED_NODE_INTERFACES) == {"planar", "clearance"}
+    with pytest.raises(TopologyError, match="two parts share must be one of"):
+        Node(**shared, interface="ball_joint")
+    with pytest.raises(TopologyError, match="on a node of one part"):
+        Node(id="n", name="n", parts=("a",), kind="datum_feature", interface="revolute")
+
+
+def test_the_model_view_reads_a_shared_nodes_word_and_a_seat_for_none():
+    from tolerance_stack.model_view import CONTACT_KIND, model_view  # noqa: PLC0415
+
+    for path in (LINKAGE_TOPOLOGY, TOPOLOGIES_DIR / "topology_vpa_end_stop_v2.json"):
+        topology = load_topology(path)
+        kinds = {i["id"]: i["kind"] for i in model_view(topology)["interfaces"]
+                 if i["source"] == "node"}
+        stated = {n.id: n.interface for n in topology.nodes if len(n.parts) == 2}
+        assert kinds == {k: (v or CONTACT_KIND) for k, v in stated.items()}, path.name
+        assert kinds["hub_blade1_root_bearing_bore"] == "revolute", path.name
+        clocking = ("pitch_arm_blade_root_clocking" if path == LINKAGE_TOPOLOGY
+                    else "tan_link_mount_fastener_clocking")
+        assert kinds[clocking] == "fastener_pattern", path.name
+        assert CONTACT_KIND in kinds.values(), f"{path.name}: some node must still be a seat"
 
 
 def _form_edge(form, nominal=0.0, lo=-0.025, hi=0.025, kind="structural"):

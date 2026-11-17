@@ -117,6 +117,11 @@
 // shape and no number: every projected node's `face` and `hardware_ref`
 // (`null` -- the demo declares neither; the builder writes `null` for an
 // undeclared one), added to the builder by b4b641db.
+//
+// The tenth (a_joint_says_what_kind_it_is, 2026-11-17), all shape and no
+// number: every projected node's `interface` (`null` -- the demo's shared
+// nodes state no joint kind, so each is a seat), and the map layout's
+// `symbols: {}` gone, since the builder refuses a layout that carries it.
 
 (function (VA) {
   "use strict";
@@ -457,7 +462,8 @@
             "degree": 1,
             "branch": false,
             "face": null,
-            "hardware_ref": null
+            "hardware_ref": null,
+            "interface": null
           },
           {
             "id": "base_post_seat",
@@ -473,7 +479,8 @@
             "degree": 3,
             "branch": true,
             "face": null,
-            "hardware_ref": null
+            "hardware_ref": null,
+            "interface": null
           },
           {
             "id": "post_arm_pin",
@@ -489,7 +496,8 @@
             "degree": 2,
             "branch": false,
             "face": null,
-            "hardware_ref": null
+            "hardware_ref": null,
+            "interface": null
           },
           {
             "id": "arm_tip",
@@ -504,7 +512,8 @@
             "degree": 2,
             "branch": false,
             "face": null,
-            "hardware_ref": null
+            "hardware_ref": null,
+            "interface": null
           },
           {
             "id": "post_strut_bushing",
@@ -520,7 +529,8 @@
             "degree": 2,
             "branch": false,
             "face": null,
-            "hardware_ref": null
+            "hardware_ref": null,
+            "interface": null
           },
           {
             "id": "strut_end",
@@ -535,7 +545,8 @@
             "degree": 2,
             "branch": false,
             "face": null,
-            "hardware_ref": null
+            "hardware_ref": null,
+            "interface": null
           }
         ],
         "edges": [
@@ -1251,8 +1262,7 @@
             "post": [1, 1],
             "arm": [1, 0],
             "strut": [2, 0]
-          },
-          "symbols": {}
+          }
         },
         "branch_nodes": [
           "base_post_seat"

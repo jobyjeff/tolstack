@@ -161,11 +161,21 @@ DAG"), never a fold.
 - `authored` — the document's `bodies[]` order, and each body's `parts` order
   inside it, is the order the page reads in.
 
-`interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance`.
+`interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance | revolute | fastener_pattern`.
 
 Optional in v0 and refused on a structural edge. What each word draws is the
 table in "Joint glyphs" below; a joint that states none leaves its ends plain
 dots and puts a "contact kind not stated" row on the gap list.
+
+`interface` on a node two parts share is one of `pin_in_bore | spherical | cylindrical_slide | thread | revolute | fastener_pattern`.
+
+Since 2026-11-17 (handoff `a_joint_says_what_kind_it_is`). The two parts
+touch at such a node, so the two words for free space between them are
+refused: `clearance` is a gap edge, and `planar` — two flat faces across a
+clearance — would be a second spelling of the seat a shared node already is
+when it states nothing. A node of one part states no interface at all.
+`tolerance_stack/model_view.py` gives the interface built from the node its
+stated word as its kind, and `contact` when it states none.
 
 `kind` on a form callout is one of `element | modifier`.
 
@@ -369,10 +379,11 @@ Jeff's mock-up C) **a node that is an end of a joint edge is drawn as that
 joint's glyph**, in the node's own ink and at the row pitch; every other node is
 the plain dot, and no glyph is drawn on an edge. Both ends of a joint wear its
 glyph. A node at the end of joints of two kinds wears the higher of
-`VA.NODE_GLYPH_PRECEDENCE` (a ball, then a slide, a pin, a thread, flat faces, a
-clearance: a joint that moves says more about the interface than a seat).
-`VA.nodeJointKinds` is the one place that decides it, read off the edges alone,
-since no node declares an interface word. One SVG `<symbol>` per word in
+`VA.NODE_GLYPH_PRECEDENCE` (a ball, then a slide, a rotary joint, a pin, a
+thread, a fastener pattern, flat faces, a clearance: a joint that moves says
+more about the interface than a seat). `VA.nodeJointKinds` is the one place
+that decides it, read off the edges and, since 2026-11-17, off a node two
+parts share that states its own word. One SVG `<symbol>` per word in
 `apps/viewer/interface_glyphs.js`, enumerated against `INTERFACE_KINDS` by
 `tests/test_topology_projection.py`.
 
@@ -389,6 +400,8 @@ and its band the grid's MIN/MAX. Hover and selection still spend width.
 | `cylindrical_slide` | a hollow bar with a double-headed arrow along the slide | `hub_to_pitch_plate_spindle_coaxiality` |
 | `thread` | a hollow block crossed by the flanks | none on a committed topology yet |
 | `clearance` | two bars with a gap between them | `end_stop_clearance` |
+| `revolute` (a reader's "rotary") | the pin in its bore with a turning arrow over it | the node `hub_blade1_root_bearing_bore` |
+| `fastener_pattern` | a ring of six dots on a ring | the nodes `pitch_arm_blade_root_clocking` (v1) and `tan_link_mount_fastener_clocking` (v2) |
 | form `element` | a rough-surface squiggle beside the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
 | form `modifier` | the same squiggle beside the node the callout is on | none on a committed topology yet |
 
@@ -567,7 +580,8 @@ The entities:
 - **dimensions** — the structural edges, each on one part between two of its
   features.
 - **interfaces** — both authored shapes for "two parts meet" in one list: a
-  node on two parts (`source: "node"`, kind `contact`) and a gap edge
+  node on two parts (`source: "node"`, kind = its `interface` word, or
+  `contact` when it states none) and a gap edge
   (`source: "edge"`, kind = its `interface` word), each with its two ends as
   features, its two parts, the bodies they move with and `within` — the one
   body it sits inside, or `null` for a joint between two bodies.
@@ -604,10 +618,11 @@ the model view above (`model`) and one authored layout file beside the model,
 
 **What is authored** is one thing: a part's place on a coarse grid —
 `places: {<part>: [column, row]}`, one entry per top-level part. A child part
-(a bearing in its link) may have no entry and sits in its parent's cell. The
-file may also name a `symbols: {<interface>: <word>}` override, today only to
-say that the tangential-link mount's clocking is a fastener pattern, which the
-model has no interface word for yet. The builder ships the file verbatim as
+(a bearing in its link) may have no entry and sits in its parent's cell.
+What a joint is drawn as is never authored here: it is the interface's kind,
+from the model (since 2026-11-17 a shared node states its own, so the
+`symbols` override that named the clocking a pattern until then is gone, and
+the builder refuses a file that still carries one). The builder ships the file verbatim as
 the topology's `map` and refuses one that leaves a top-level part unplaced or
 places a part the model has not (`build_topology_projection.load_topology_map`):
 the map's whole claim is that nothing in the model is left undrawn. A model
@@ -675,15 +690,17 @@ out of its parent's bottom (below).
   district's field or the empty drawing that moves past a few pixels is a
   pan and its click is swallowed; one that does not move is a click.
 
-**The symbol table** (`VA.MAP_SYMBOLS`; the six `INTERFACE_KINDS` through the
-generated vocabulary, plus the view's `contact` and the map's `pattern`):
+**The symbol table** (`VA.MAP_SYMBOLS`; the `INTERFACE_KINDS` through the
+generated vocabulary, plus the view's `contact`; `VA.mapSymbolOf` reads an
+interface's kind and nothing else):
 
 | word | drawn as |
 | --- | --- |
 | `contact` (a node two parts share) and `planar` | the capacitor mark — two plates across the route, the route broken between them |
 | `pin_in_bore` | a closed circle and a dot: a boss in a hole |
 | `spherical` | a cup and a ball, the cup open toward the far end |
-| `pattern` (named by the layout file) | a ring of dots |
+| `revolute` (a rotary joint) | the boss-in-hole circle and dot with a turning arrow round it, the rotary sibling of the slide's straight double arrow |
+| `fastener_pattern` | a ring of dots |
 | `cylindrical_slide` | the present design's hollow bar with the double arrow, large |
 | `clearance` | two stops with the travel arrow between them |
 | `thread` | the present design's block crossed by the flanks, large |

@@ -3967,6 +3967,27 @@ check("endSurfaceClass reads a node's declared face before its words; an undecla
     "undeclared, wordless: the dimension answers as before");
 });
 
+check("endSurfaceClass reads a shared node's stated joint kind after its declared face: a rotary " +
+  "joint and a fastener pattern ask for a cylinder, whatever the name says", () => {
+  const edge = { id: "e", name: "mount flange face to pilot" };
+  // The two worked names: neither says a shape the cylinder rule reads.
+  const clocking = { id: "tan_link_mount_fastener_clocking", name: "pitch arm clocked to the blade root",
+    parts: ["a", "b"], interface: "fastener_pattern" };
+  const bearing = { id: "b", name: "blade root seat face", parts: ["a", "b"], interface: "revolute" };
+  assertEqual(AA.requiredSurfaceClass(clocking.name), null, "the worked name must carry no shape word");
+  const pattern = AA.endSurfaceClass(edge, clocking);
+  assertEqual([pattern.surface, pattern.where, pattern.word], ["cylindrical", "joint", "fastener_pattern"]);
+  assertEqual(typeof pattern.says === "string" && pattern.says.length > 0, true, "a reader's sentence for the rule");
+  const rotary = AA.endSurfaceClass(edge, bearing);
+  assertEqual([rotary.surface, rotary.where], ["cylindrical", "joint"], "a seat's word 'face' is overruled");
+  const declared = Object.assign({ face: { part: "a", surface: "planar" } }, bearing);
+  assertEqual(AA.endSurfaceClass(edge, declared).where, "declared", "a declared face still answers first");
+  const older = Object.assign({}, bearing, { interface: "spherical" });
+  assertEqual(AA.endSurfaceClass(edge, older).where, "interface", "an older word leaves it to the name");
+  const seat = Object.assign({}, bearing, { interface: null });
+  assertEqual(AA.endSurfaceClass(edge, seat).surface, "planar", "a seat is asked by its name, as before");
+});
+
 check("the narrowing stages and the relations they may assert are one table, " +
   "and the cross-part plane null is written out rather than missing", () => {
   assertEqual(AA.NARROWING_STAGE_KEYS, AA.NARROWING_STAGES.map((s) => s.key),

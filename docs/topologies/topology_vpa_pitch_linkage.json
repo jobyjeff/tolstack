@@ -689,7 +689,8 @@
         "blade_root"
       ],
       "kind": "mating_surface",
-      "note": "Expected to be the CAD X axis for blade 1, on the same evidence (none) as the spindle bore above."
+      "interface": "revolute",
+      "note": "Expected to be the CAD X axis for blade 1, on the same evidence (none) as the spindle bore above. Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: revolute`: the blade turns in this bore about its pitch axis, the solver's revolute joint between the base and the blade."
     },
     {
       "id": "pitch_arm_root_seat",
@@ -1037,7 +1038,8 @@
         "blade_root"
       ],
       "kind": "mating_surface",
-      "note": "The second branch point, and the one the brief names: from the blade roots a further branch runs to the ring gear (cyclic-only), while the blade's own OML and the blade-root-to-hub seat carry on."
+      "interface": "fastener_pattern",
+      "note": "The second branch point, and the one the brief names: from the blade roots a further branch runs to the ring gear (cyclic-only), while the blade's own OML and the blade-root-to-hub seat carry on. Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: fastener_pattern`: a ring of fasteners through matching holes, fixing rotation about the joint's axis."
     },
     {
       "id": "blade_root_oml",

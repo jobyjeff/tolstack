@@ -4628,6 +4628,17 @@ async function testTheMap(browser, label, topologies) {
         dimensions: jumpers.length, interfaces: connectors.length },
         once: [districts, boxes, pins, jumpers, connectors].every(once),
         symbols: Array.from(svg.querySelectorAll("g.map__symbol")).map((s) => s.getAttribute("data-symbol")),
+        // The hub to blade joint: its symbol on the map, and its word in the
+        // tree's "Joints between bodies" row (a_joint_says_what_kind_it_is).
+        bearing: (() => {
+          const g = svg.querySelector('g.map__connector[data-map-id="hub_blade1_root_bearing_bore"]');
+          const sym = g ? g.querySelector("g.map__symbol") : null;
+          const row = document.querySelector('.navtree__row--interface[data-nav-id="hub_blade1_root_bearing_bore"]');
+          const word = row ? row.querySelector(".navtree__count") : null;
+          return { symbol: sym ? sym.getAttribute("data-symbol") : null,
+            title: sym && sym.querySelector("title") ? sym.querySelector("title").textContent : null,
+            tree: word ? word.textContent : null };
+        })(),
         notes: window.ViewerApp.lastMapLight.geometry.notes };
     });
     const c = model.model.counts;
@@ -4641,8 +4652,13 @@ async function testTheMap(browser, label, topologies) {
     push("[real] every connector that states a kind wears a symbol, the clocking its ring of dots, " +
       "the pilot its circle and dot, the ball joints their cup and ball",
       counts.symbols.length === model.model.interfaces.filter((i) => i.kind).length &&
-      counts.symbols.indexOf("pattern") !== -1 && counts.symbols.indexOf("pin_in_bore") !== -1 &&
+      counts.symbols.indexOf("fastener_pattern") !== -1 && counts.symbols.indexOf("pin_in_bore") !== -1 &&
       counts.symbols.filter((s) => s === "spherical").length === 4);
+    console.log(`      [${label}] the hub to blade joint: ${JSON.stringify(counts.bearing)}`);
+    push("[real] the hub to blade joint is the model's rotary joint: the map draws its rotary symbol, " +
+      "its hover says so, and the tree's joint row reads rotary",
+      counts.bearing.symbol === "revolute" && /a rotary joint$/.test(counts.bearing.title || "") &&
+      counts.bearing.tree === "rotary");
 
     // --- 3. the fit, and the fills -------------------------------------------
     const fitted = await page.evaluate(() => {

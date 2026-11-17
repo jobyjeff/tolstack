@@ -76,14 +76,14 @@ def test_v2s_layout_places_every_top_level_part_and_nothing_else(v2):
         assert all(isinstance(v, int) and v >= 0 for v in place)
 
 
-def test_v2s_layout_names_symbols_only_for_its_interfaces(v2):
+def test_v2s_layout_names_no_symbol_and_the_model_says_what_each_joint_is(v2):
+    """Since 2026-11-17 (a_joint_says_what_kind_it_is) a joint's symbol is
+    its interface word in the model: the clocking says it is a fastener
+    pattern itself, so the layout's `symbols` override is gone."""
     doc = B.load_topology_map(TOPOLOGIES_DIR, v2)
-    # The one rule for what an interface is: the model view's.
-    interfaces = {i["id"] for i in model_view(v2)["interfaces"]}
-    assert set(doc.get("symbols", {})) <= interfaces
-    # The one word the layout adds today: the clocking constraint is a
-    # fastener pattern, which the model has no interface word for yet.
-    assert doc["symbols"] == {"tan_link_mount_fastener_clocking": "pattern"}
+    assert "symbols" not in doc
+    kinds = {i["id"]: i["kind"] for i in model_view(v2)["interfaces"]}
+    assert kinds["tan_link_mount_fastener_clocking"] == "fastener_pattern"
 
 
 def test_the_projection_row_carries_the_map():
@@ -125,10 +125,12 @@ def test_a_layout_may_leave_a_child_part_unplaced(tmp_path, v2):
     assert B.load_topology_map(_write(tmp_path, v2, doc), v2) is not None
 
 
-def test_a_layout_naming_a_symbol_for_no_interface_is_refused(tmp_path, v2):
+def test_a_layout_still_naming_symbols_is_refused(tmp_path, v2):
+    """What a joint is drawn as is the model's word, never the layout's: a
+    file still carrying the retired override is refused, not ignored."""
     doc = _good(v2)
-    doc["symbols"]["hub_blade_axis_offset"] = "pattern"  # a dimension, not an interface
-    with pytest.raises(ValueError, match="hub_blade_axis_offset"):
+    doc["symbols"] = {"tan_link_mount_fastener_clocking": "fastener_pattern"}
+    with pytest.raises(ValueError, match="carries `symbols`"):
         B.load_topology_map(_write(tmp_path, v2, doc), v2)
 
 

@@ -1294,12 +1294,13 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Optional[Dict
         if not (isinstance(place, list) and len(place) == 2
                 and all(isinstance(v, int) and v >= 0 for v in place)):
             raise ValueError(f"{path}: {part_id}'s place must be [column, row], got {place!r}")
-    # What an interface is belongs to the model view (a node two parts share,
-    # a gap edge) -- read from it, never restated here.
-    interface_ids = {i["id"] for i in model_view(topology)["interfaces"]}
-    for iface_id in raw.get("symbols") or {}:
-        if iface_id not in interface_ids:
-            raise ValueError(f"{path}: names a symbol for {iface_id!r}, which is no interface of the model")
+    # What a joint is drawn as is the model's word for it (an interface's
+    # kind), never the layout's: the `symbols` key that named one until the
+    # model could (handoff a_joint_says_what_kind_it_is, 2026-11-17) is
+    # refused rather than ignored, so a layout still carrying it says so.
+    if "symbols" in raw:
+        raise ValueError(f"{path}: carries `symbols`; a joint's symbol is its interface word "
+                         f"in the model (docs/DAG_TOPOLOGY.md, \"The map\")")
     return raw
 
 
@@ -1442,6 +1443,9 @@ def project_node(topology: Topology, node: Node, branch_nodes: Sequence[str]
         "parts": list(node.parts),
         "face": dict(node.face) if node.face else None,
         "hardware_ref": node.hardware_ref,
+        # The kind of joint a node two parts share states (INTERFACE_KINDS,
+        # since 2026-11-17), `null` for a seat and on every one-part node.
+        "interface": node.interface,
         "note": node.note,
         "source_ref": as_plain(node.source_ref),
         "confidence": node.source_ref.confidence if node.source_ref else None,

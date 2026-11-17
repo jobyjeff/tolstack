@@ -35,7 +35,8 @@ The entities, and what each is:
 * **dimensions** -- the structural edges, each on one part between two of its
   features.
 * **interfaces** -- the two authored shapes for "two parts meet", in one list:
-  a node on two parts (``source: "node"``, kind ``contact``) and a gap edge
+  a node on two parts (``source: "node"``, kind = the node's ``interface``
+  word where it states one, since 2026-11-17, else ``contact``) and a gap edge
   (``source: "edge"``, kind = the edge's ``interface`` word). Each names its
   two ends as features, the two parts, the bodies those parts move with, and
   ``within`` -- the one body it sits inside, or ``None`` for a joint between
@@ -71,8 +72,9 @@ __all__ = [
     "model_view",
 ]
 
-#: The interface kind a two-part node is: the parts touch there. A gap edge's
-#: kind is its own ``interface`` word (:data:`~tolerance_stack.topology.
+#: The interface kind a two-part node that states no ``interface`` is: the
+#: parts touch there, a seat. A node that states one, and a gap edge, are
+#: their own ``interface`` word (:data:`~tolerance_stack.topology.
 #: INTERFACE_KINDS`); this is the one word the view adds.
 CONTACT_KIND = "contact"
 
@@ -211,7 +213,7 @@ def model_view(topology: Topology,
             continue
         bodies = list(topology.node_bodies(node.id))
         interfaces.append(_interface(
-            node.id, node.name, CONTACT_KIND, INTERFACE_SOURCES[0],
+            node.id, node.name, node.interface or CONTACT_KIND, INTERFACE_SOURCES[0],
             [feature_id(p, node.id) for p in node.parts], list(node.parts),
             bodies, bodies[0] if len(bodies) == 1 else None))
     for edge in topology.edges:

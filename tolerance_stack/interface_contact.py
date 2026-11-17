@@ -52,6 +52,8 @@ Vec = Tuple[float, float, float]
 #: ``thread`` and ``clearance`` pair cylinders because that is what they are on
 #: a fastener: a thread is tessellated as its major-diameter cylinder, and every
 #: ``clearance`` edge in the linkage is a shank through a washer or a bushing.
+#: ``revolute`` is a journal in its bore and ``fastener_pattern`` a fastener
+#: in its hole (2026-11-17): both cylinder in cylinder.
 CONTACT_PAIRINGS: Dict[str, str] = {
     "planar": "plane_on_plane",
     "pin_in_bore": "cylinder_in_cylinder",
@@ -59,6 +61,8 @@ CONTACT_PAIRINGS: Dict[str, str] = {
     "thread": "cylinder_in_cylinder",
     "clearance": "cylinder_in_cylinder",
     "spherical": "ball_in_seat",
+    "revolute": "cylinder_in_cylinder",
+    "fastener_pattern": "cylinder_in_cylinder",
 }
 
 #: The pairing families :data:`CONTACT_PAIRINGS` and :data:`END_PAIRINGS` map

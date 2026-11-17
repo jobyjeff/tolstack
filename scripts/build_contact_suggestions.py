@@ -174,7 +174,8 @@ def _end(topology, edge, node_id: str, store: Store,
     node = next(n for n in topology.nodes if n.id == node_id)
     part = node.face_part if node.parts else None
     mesh = store.resolve(part)
-    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface)
+    rule = fg.end_surface_class(edge.name or edge.id, node.name or node.id, node.face_surface,
+                                node.interface)
     direction = "from" if node_id == edge.from_node else "to"
     feature, _reason = fi.edge_end_feature(models or {topology.id: topology},
                                            fi.StackKey(kind="topology_edge", topology_id=topology.id,

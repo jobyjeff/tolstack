@@ -89,6 +89,15 @@
     spherical_centre: "a joint centre is on a ball-shaped surface",
   });
   var RULE_SURFACES = VOCAB.list("SUGGESTION_RULE_SURFACES");
+
+  // The joint kinds a node's stated word asks a cylinder for -- Python's
+  // (feature_geometry.CYLINDRICAL_INTERFACE_KINDS), with the reader's
+  // sentence authored here, keyed by the generated words.
+  var CYLINDRICAL_INTERFACE_KINDS = VOCAB.list("CYLINDRICAL_INTERFACE_KINDS");
+  var CYLINDRICAL_INTERFACE_SAYS = VOCAB.table("CYLINDRICAL_INTERFACE_KINDS", {
+    revolute: "a rotary joint turns in a round bore",
+    fastener_pattern: "a fastener pattern is a ring of round holes",
+  });
   var RULE_WORDS = VOCAB.list("SUGGESTION_RULE_WORDS");
   AA.SUGGESTION_RULES = Object.freeze(VOCAB.list("SUGGESTION_RULE_KEYS").map(function (key, i) {
     return Object.freeze({
@@ -149,10 +158,17 @@
   //
   // A node's DECLARED face (`face.surface`) answers before any word does, as
   // `feature_geometry.end_surface_class` does: the words are a guess at the
-  // shape and the declaration is the author saying it.
+  // shape and the declaration is the author saying it. The node's stated
+  // joint kind answers next (its `interface`, 2026-11-17): a rotary joint is a
+  // journal in a bore and a fastener pattern its holes, a cylinder each.
   AA.endSurfaceClass = function (edge, node) {
     var declared = node && node.face && node.face.surface;
     if (declared) return { where: "declared", surface: declared, rule: null, says: null, word: null };
+    var joint = node && node.interface;
+    if (joint && CYLINDRICAL_INTERFACE_KINDS.indexOf(joint) !== -1) {
+      return { where: "joint", surface: "cylindrical", rule: null,
+               says: CYLINDRICAL_INTERFACE_SAYS[joint], word: joint };
+    }
     var fromNode = node ? AA.requiredSurfaceClass(node.name || node.id) : null;
     if (fromNode) return Object.assign({ where: "interface" }, fromNode);
     var fromEdge = edge ? AA.requiredSurfaceClass(edge.name || edge.id) : null;

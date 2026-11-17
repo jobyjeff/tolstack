@@ -198,7 +198,8 @@
         "blade_root"
       ],
       "kind": "mating_surface",
-      "note": "Was named \"hub blade-1 root bearing bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "interface": "revolute",
+      "note": "Was named \"hub blade-1 root bearing bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\"). Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: revolute`: the blade turns in this bore about its pitch axis, the solver's revolute joint between the base and the blade."
     },
     {
       "id": "tan_link_mount_hub_face",
@@ -231,7 +232,8 @@
         "hub"
       ],
       "kind": "mating_surface",
-      "note": "New in v2 (2026-11-08): the fasteners round the mount's flange constrain its rotation about the boss. One node on both parts, as v1's `pitch_arm_blade_root_clocking`. Was named \"tan-link mount clocked to the hub by its perimeter fasteners\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "interface": "fastener_pattern",
+      "note": "New in v2 (2026-11-08): the fasteners round the mount's flange constrain its rotation about the boss. One node on both parts, as v1's `pitch_arm_blade_root_clocking`. Was named \"tan-link mount clocked to the hub by its perimeter fasteners\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\"). Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: fastener_pattern`: a ring of fasteners through matching holes, fixing rotation about the joint's axis."
     },
     {
       "id": "tan_link_mount_bore",

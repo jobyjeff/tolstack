@@ -169,6 +169,8 @@
       id: id,
       title: edge.name,
       elementKind: edge.kind,
+      // The kind of joint a gap edge is (INTERFACE_KINDS), or null.
+      jointKind: edge.interface || null,
       confidence: edge.confidence,
       confidenceLabel: confidenceLabel(edge.confidence),
       valueSource: edge.value_source,
@@ -228,6 +230,10 @@
       id: id,
       title: node.name,
       elementKind: node.kind,
+      // The kind of joint a node two parts share is: its stated interface
+      // word, else a seat (`contact`, the model view's word); null on a node
+      // of one part, which joins nothing.
+      jointKind: (node.parts || []).length === 2 ? (node.interface || "contact") : null,
       degree: node.degree,
       branch: !!node.branch,
       note: node.note || null,

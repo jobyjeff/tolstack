@@ -634,6 +634,9 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
                "tolerance_stack/feature_geometry.py: SUGGESTION_RULE_WORDS "
                "(one per SUGGESTION_RULE_KEYS entry, same order)",
                _const(_feature_geometry_module, "SUGGESTION_RULE_WORDS")),
+    Vocabulary("annotate", "CYLINDRICAL_INTERFACE_KINDS",
+               "tolerance_stack/feature_geometry.py: CYLINDRICAL_INTERFACE_KINDS",
+               _const(_feature_geometry_module, "CYLINDRICAL_INTERFACE_KINDS")),
     # --- apps/annotate/suggestions.js: contact suggestions ----------------- #
     Vocabulary("annotate", "CONTACT_PAIRING_KINDS",
                "tolerance_stack/interface_contact.py: PAIRING_KINDS",

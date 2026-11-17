@@ -1,5 +1,7 @@
 // The joint glyphs: one SVG <symbol> per kind of contact a gap edge crosses
-// (the_dag_draws_bodies_as_containers_and_joints_as_symbols, 2026-10-26), and
+// (the_dag_draws_bodies_as_containers_and_joints_as_symbols, 2026-10-26) or,
+// since a_joint_says_what_kind_it_is (2026-11-17), a node two parts share
+// states, and
 // since the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit (2026-11-04)
 // the glyph IS the node: an interface at an end of a joint edge is drawn as
 // that joint's picture instead of the plain dot, and no glyph sits on an edge.
@@ -71,31 +73,74 @@
                ["rect", { x: -8, y: -6, width: 16, height: 3, "class": SOLID }],
                ["rect", { x: -8, y: 3, width: 16, height: 3, "class": SOLID }]],
     },
+    revolute: {
+      label: "a rotary joint",
+      // the pin in its bore, with a turning arrow over it: the rotary
+      // sibling of the slide's straight one
+      shapes: [["circle", { cx: 0, cy: 0, r: 6, "class": RING }],
+               ["line", { x1: -9, y1: 0, x2: 9, y2: 0, "class": LINE }],
+               ["path", { d: "M -8.66 -5 A 10 10 0 0 1 8.66 -5 M 8.66 -5 L 9.24 -8.8" +
+                             " M 8.66 -5 L 5.08 -6.4", "class": LINE }]],
+    },
+    fastener_pattern: {
+      label: "a fastener pattern",
+      // a ring of six fasteners
+      shapes: [["circle", { cx: 0, cy: 0, r: 7, "class": RING }]].concat(
+        [0, 1, 2, 3, 4, 5].map(function (i) {
+          var a = i * Math.PI / 3;
+          return ["circle", { cx: +(7 * Math.cos(a)).toFixed(2), cy: +(7 * Math.sin(a)).toFixed(2),
+                              r: 2, "class": SOLID }];
+        })),
+    },
   });
+
+  // What a reader calls each kind, wherever the page prints one in words (the
+  // tree's interface rows, the Preview's chip): everyday words, never the
+  // stored one. `contact` is the model view's word for a node two parts share
+  // that states none (tolerance_stack/model_view.py, CONTACT_KIND): a seat.
+  VA.INTERFACE_KIND_WORDS = Object.freeze(Object.assign({}, VOCAB.table("INTERFACE_KINDS", {
+    planar: "planar",
+    pin_in_bore: "pin in bore",
+    spherical: "spherical",
+    cylindrical_slide: "cylindrical slide",
+    thread: "thread",
+    clearance: "clearance",
+    revolute: "rotary",
+    fastener_pattern: "fastener pattern",
+  }), { contact: "contact" }));
+
+  // The word for `kind`, or "" for none. A kind with no row (a projection
+  // newer than this page) reads as its own word, underscores spaced.
+  VA.interfaceKindWord = function (kind) {
+    if (!kind) return "";
+    return VA.INTERFACE_KIND_WORDS[kind] || String(kind).replace(/_/g, " ");
+  };
 
   // Which glyph a node wears when it is an end of joints of two kinds -- a
   // ball centre that is also the bearing's pin, a bore two slides share: the
   // first of these. A joint that moves (a ball, a slide) says more about the
   // interface than a seat does, and a clearance least. Every INTERFACE_KINDS
   // word, once; the fast tier pairs the two.
-  VA.NODE_GLYPH_PRECEDENCE = ["spherical", "cylindrical_slide", "pin_in_bore", "thread",
-    "planar", "clearance"];
+  VA.NODE_GLYPH_PRECEDENCE = ["spherical", "cylindrical_slide", "revolute", "pin_in_bore",
+    "thread", "fastener_pattern", "planar", "clearance"];
 
   // The one place that says which glyph a node is drawn as: {nodeId: kind}
   // for every node at an end of an edge that states an `interface` with a
-  // glyph; a node absent from it is the plain dot. Read off the edges alone --
-  // no node declares an interface word.
+  // glyph, and every node two parts share that states one itself (since
+  // 2026-11-17); a node absent from it is the plain dot.
   VA.nodeJointKinds = function (topoProj) {
     var rank = {};
     VA.NODE_GLYPH_PRECEDENCE.forEach(function (kind, i) { rank[kind] = i; });
     var out = {};
+    function wear(id, kind) {
+      if (!id || !kind || !VA.INTERFACE_GLYPHS[kind]) return;
+      if (out[id] === undefined || rank[kind] < rank[out[id]]) out[id] = kind;
+    }
     ((topoProj && topoProj.edges) || []).forEach(function (edge) {
-      var kind = edge.interface;
-      if (!kind || !VA.INTERFACE_GLYPHS[kind]) return;
-      [edge.from, edge.to].forEach(function (id) {
-        if (id && (out[id] === undefined || rank[kind] < rank[out[id]])) out[id] = kind;
-      });
+      wear(edge.from, edge.interface);
+      wear(edge.to, edge.interface);
     });
+    ((topoProj && topoProj.nodes) || []).forEach(function (node) { wear(node.id, node.interface); });
     return out;
   };
 
