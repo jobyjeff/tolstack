@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the view settings are remembered in one store entry, and a word outside a table reads as its default",
+  "mutations": [
+    {
+      "contract": "A remembered palette outside VA.PALETTES reads as the default.",
+      "issue": "docs/sessions/lessons/LESSONS_20261105_the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste.md",
+      "note": "The stored word is taken without asking the table.",
+      "file": "apps/viewer/topology.js",
+      "find": "        if (VA.PALETTES[saved.palette]) out.palette = saved.palette;",
+      "replace": "        out.palette = saved.palette;"
+    }
+  ]
+}

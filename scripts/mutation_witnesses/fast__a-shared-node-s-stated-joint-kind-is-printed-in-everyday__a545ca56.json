@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a shared node's stated joint kind is printed in everyday words on the tree's interface row and the Preview; a seat still reads contact",
+  "mutations": [
+    {
+      "contract": "A reader sees 'rotary', never the stored word.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "The one word Jeff named: the table prints the stored word.",
+      "file": "apps/viewer/topology.js",
+      "find": "    revolute: \"rotary\",",
+      "replace": "    revolute: \"revolute\","
+    },
+    {
+      "contract": "The Preview of a shared node names its joint's kind, a seat included.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
+      "note": "A node record that carries only its stated word reads null for a seat.",
+      "file": "apps/viewer/element_record.js",
+      "find": "      jointKind: (node.parts || []).length === 2 ? (node.interface || \"contact\") : null,",
+      "replace": "      jointKind: node.interface || null,"
+    }
+  ]
+}

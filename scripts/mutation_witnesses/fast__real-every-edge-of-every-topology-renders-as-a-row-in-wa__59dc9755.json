@@ -4,12 +4,12 @@
   "expect_red": "[real] every edge of every topology renders as a row in walk order, with its merged groups, and every part boundary keeps its seam row",
   "mutations": [
     {
-      "contract": "Every part boundary's seam row is recorded on the live models with no leader drawn.",
+      "contract": "Every part boundary's seam row is recorded on the live models.",
       "issue": null,
       "note": "Declared with the guard's new name by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The seams are dropped.",
       "file": "apps/viewer/views/topology.js",
-      "find": "                          boundaryEdge: leaderGeo.boundaryEdge,",
-      "replace": "                          boundaryEdge: {},"
+      "find": "        out[leader.id] = leader.beforeEdge || null;",
+      "replace": "        out[leader.id] = null;"
     }
   ]
 }

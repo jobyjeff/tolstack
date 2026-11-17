@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "clicking a grid row, or Enter on it, is selection -- the one action that freezes the Preview",
+  "mutations": [
+    {
+      "contract": "Enter or Space on a focused grid row selects it, as a click does.",
+      "issue": null,
+      "note": "The row's key handler stops before selecting.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (event.target && event.target !== el) return;\n      if (event.preventDefault) event.preventDefault();\n      ctx.onSelect(kind, id);",
+      "replace": "      if (event.target && event.target !== el) return;\n      if (event.preventDefault) event.preventDefault();"
+    }
+  ]
+}

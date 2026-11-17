@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the render puts the header at the top of the grid's own scroller, and the map alone in the DAG's region",
+  "mutations": [
+    {
+      "contract": "The header is the grid's, in the grid's own scroller, and the map alone is in the DAG's region.",
+      "issue": null,
+      "note": "The header goes into the map's region instead of the grid's scroller.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    gridScroll.appendChild(head);",
+      "replace": "    root.appendChild(head);"
+    }
+  ]
+}
