@@ -414,6 +414,10 @@
     var wraps = [[full, 2], [half, 3], [strip, 3]];
     for (var w = 0; w < wraps.length; w++) {
       var lines = nameLines(box, wraps[w][0], wraps[w][1], M);
+      // The strip takes the name whole or not at all: a word cut short there
+      // is a reason to draw the box wider.
+      if (w === 2 && lines.filter(function (l) { return l.kind === "name"; })
+        .map(function (l) { return l.text; }).join(" ") !== String(box.name || box.label).split(/\s+/).filter(Boolean).join(" ")) continue;
       for (var c = 0; c < NAME_CORNERS.length; c++) {
         var block = nameBlock(box, lines, NAME_CORNERS[c], M);
         var r = block.rect;
@@ -629,9 +633,10 @@
       // its top and its bottom has no other room for its name).
       var h = h0;
       var maxH = cell.h - 2 * M.district.inset - kidsH, maxW = cell.w - 2 * M.district.inset;
-      for (var attempt = 0; attempt <= M.name.tries; attempt++) {
+      // `tries` bounds the growth in height; the width is bounded by the cell.
+      for (var attempt = 0; ; attempt++) {
         if (attempt > 0) {
-          if (h + M.name.grow <= maxH) h += M.name.grow;
+          if (attempt <= M.name.tries && h + M.name.grow <= maxH) h += M.name.grow;
           else if (w + M.name.grow <= maxW) w += M.name.grow;
           else break;
         }

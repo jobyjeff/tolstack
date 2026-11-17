@@ -16159,6 +16159,8 @@
           .map(function (pin) { return pin.x; }));
         var r = q.nameBlock.rect;
         ok(r.x + r.w < first || r.x > q.x + q.w / 2, "Q's name is in a strip beside its pins");
+        eq(q.nameBlock.lines.filter(function (l) { return l.kind === "name"; }).map(function (l) { return l.text; }).join(" "),
+           q.name, "and whole: a word cut short in the strip is a reason to draw the box wider");
       });
 
     await test("a child with no place sits under its parent, beside any route that leaves the " +
