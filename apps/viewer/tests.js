@@ -4315,36 +4315,7 @@
         studySummary(topoProj, study).textContent;
     }
 
-    await test("railGeometry puts a row's mark at the row's own y", function () {
-      var geometry = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS);
-      eq(geometry.marks.length, TOPO.layout.rows.length);
-      geometry.marks.forEach(function (mark, i) {
-        eq(mark.y, VA.railY(i, VA.RAIL_METRICS), "mark " + i);
-        eq(mark.x, VA.railX(TOPO.layout.rows[i].column, VA.RAIL_METRICS));
-      });
-      eq(geometry.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight);
-    });
 
-    await test("a rail allocated at a fork is drawn from below the fork's dot",
-      function () {
-        // The half-row the `branch` curve covers. A rail drawn from the dot
-        // itself would cross the mark it fans out of.
-        var geometry = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS);
-        var forked = geometry.rails.filter(function (r) { return r.forked; });
-        ok(forked.length >= 1, "the demo mechanism has a fork");
-        forked.forEach(function (rail) {
-          var start = TOPO.layout.rails.filter(function (r) {
-            return r.column === rail.column;
-          })[0];
-          eq(rail.y1, VA.railY(start.start, VA.RAIL_METRICS) +
-             VA.RAIL_METRICS.rowHeight * 0.5);
-        });
-        geometry.rails.filter(function (r) { return !r.forked; })
-          .forEach(function (rail) {
-            ok(rail.y1 % (VA.RAIL_METRICS.rowHeight / 2) === 0,
-               "an unforked rail starts on a row centre");
-          });
-      });
 
     // The demo mechanism's own grid plan, spelled out once so every test below
     // reads against the same expectations (viewer_leader_line_grid): the walk's
@@ -4355,6 +4326,10 @@
     // six nodes get leaders.
     var TOPO_EDGE_ORDER = ["base_thickness", "post_height", "arm_pin_to_tip",
       "tip_to_strut_end", "strut_length", "post_bushing_offset"];
+    // ...and the grid's: the same walk with each part's rows gathered into one
+    // run (VA.gatherParts), the order the page lays it in.
+    var TOPO_GRID_ORDER = ["base_thickness", "post_height", "post_bushing_offset",
+      "arm_pin_to_tip", "tip_to_strut_end", "strut_length"];
 
     await test("internal means every adjacent edge carries one part — and a " +
       "gap counts as a part boundary", function () {
@@ -4539,34 +4514,6 @@
         eq(plan.leaders[0].beforeEdge, "e2");
       });
 
-    await test("leaderGeometry jogs each leader from its node's dot to its " +
-      "grid seam, on monotone lanes that cannot cross", function () {
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var geo = VA.leaderGeometry(TOPO.layout, plan, VA.RAIL_METRICS);
-        eq(geo.leaders.length, 5);
-        var rowsByLayoutRow = {};
-        TOPO.layout.rows.forEach(function (r) { rowsByLayoutRow[r.row] = r; });
-        geo.leaders.forEach(function (leader, i) {
-          var planLeader = plan.leaders[i];
-          eq(leader.id, planLeader.id);
-          // Start y: the node's own dot centre — the same VA.railY the SVG
-          // mark was drawn from.
-          eq(leader.y1, VA.railY(planLeader.layoutRow, VA.RAIL_METRICS), leader.id);
-          // End y: the grid seam — boundary × the same rowHeight the grid's
-          // inline row heights sum to.
-          eq(leader.y2, planLeader.boundary * VA.RAIL_METRICS.rowHeight, leader.id);
-          // The path is exactly the jog: H to the lane, V to the seam, H out.
-          eq(leader.d, "M " + leader.x1 + " " + leader.y1 + " H " + leader.laneX +
-            " V " + leader.y2 + " H " + geo.width);
-          if (i > 0) ok(leader.laneX > geo.leaders[i - 1].laneX,
-            "lanes must be strictly monotone (" + leader.id + ")");
-        });
-        // The zone starts where the rails end, and the SVG's width is the
-        // grid's left edge, so the last H segment hands off with no seam.
-        var railWidth = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS).width;
-        eq(geo.zoneLeft, railWidth);
-        ok(geo.width > railWidth, "the jog zone has real width");
-      });
 
     // --- leader legibility (viewer_leader_grid_legibility, 2026-09-14) -----
     //
@@ -4610,129 +4557,9 @@
       return pairs;
     }
 
-    await test("descending leaders cross nothing in either style", function () {
-        // The configuration that used to cross (ISSUE_20260914_leaders_cross_
-        // each_other_since_the_grid_was_centred.md): a grid pushed far enough
-        // down the DAG that leaders above the centring point DESCEND. With
-        // lanes in walk order, a descending leader's vertical run cut through
-        // every later leader's horizontal run above its seam; with the
-        // descending leaders' lanes handed round in reverse, and every angled
-        // leader's slanted run starting at one x, nothing crosses
-        // (VA.leaderGeometry's comment carries the argument).
-        //
-        // The witness is asserted first -- some leader's seam really is below
-        // a later leader's dot -- or this test passes forever on a straight
-        // ladder of rising leaders and says nothing.
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var centred = VA.rowPositions(TOPO.layout, TOPO, "uniform", M,
-          { budget: 200, plan: plan });
-        ok(centred.gridOffset > 1, "the grid really is pushed down");
-        // The demo mechanism's own centring only makes the first two leaders
-        // TOUCH, so the store is pushed one step further to model the real
-        // product graph, whose grid sits well down its DAG. Only
-        // `gridOffset` moves -- the same knob
-        // VA.centreOffsets turns -- and leaderGeometry reads nothing else off
-        // a store but that, the node y's and the total height. The [real]
-        // tier below checks the shipped projection rather than this model.
-        var crossed = { nodes: centred.nodes, height: centred.height,
-                        gridOffset: centred.gridOffset + 60 };
 
-        [null, crossed].forEach(function (positions) {
-          // The witness: with the grid pushed down, some descending leader's
-          // seam sits below a LATER leader's dot -- the configuration
-          // walk-order lanes crossed on (the old repro's predicate). Top-
-          // aligned, every leader rises and there is none.
-          var jog = VA.leaderGeometry(TOPO.layout, plan, M, positions);
-          var wouldCross = 0;
-          jog.leaders.forEach(function (a, i) {
-            jog.leaders.slice(i + 1).forEach(function (b) {
-              if (a.y2 > a.y1 && a.y2 > b.y1) wouldCross++;
-            });
-          });
-          if (positions) {
-            ok(wouldCross > 0,
-               "the pushed-down fixture must hold a descending leader whose " +
-               "seam is below a later dot, or nothing here is exercised");
-          } else {
-            eq(wouldCross, 0, "top-aligned, every leader rises");
-          }
-          ["jogged", "angled"].forEach(function (style) {
-            eq(strictLeaderCrossings(VA.leaderGeometry(TOPO.layout, plan, M,
-               positions, { style: style }).leaders), [],
-               (positions ? "pushed down " : "top-aligned ") + style);
-          });
-        });
-      });
 
-    await test("angled leaders run flat to the zone's edge, then straight, " +
-      "between the SAME two ends the jogged ones have", function () {
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var jogged = VA.leaderGeometry(TOPO.layout, plan, M);
-        var angled = VA.leaderGeometry(TOPO.layout, plan, M, null, { style: "angled" });
-        eq(jogged.style, "jogged");
-        eq(angled.style, "angled");
-        eq(angled.width, jogged.width, "the zone is the same width in both");
-        angled.leaders.forEach(function (leader, i) {
-          var twin = jogged.leaders[i];
-          eq(leader.id, twin.id);
-          // The contract: both ends, unmoved. This is what lets the browser
-          // tier's CORRESPONDENCE_IN_PAGE pass in either style without being
-          // taught that styles exist.
-          eq(leader.x1, twin.x1, leader.id);
-          eq(leader.y1, twin.y1, leader.id);
-          eq(leader.y2, twin.y2, leader.id);
-          eq(leader.boundary, twin.boundary, leader.id);
-          eq(leader.beforeEdge, twin.beforeEdge, leader.id);
-          // Flat out of the rails to the zone's left edge -- one x for every
-          // leader, which is what keeps the slanted runs from crossing -- then
-          // straight to the seam.
-          eq(leader.d, "M " + leader.x1 + " " + leader.y1 +
-             " H " + angled.zoneLeft + " L " + angled.width + " " + leader.y2);
-          eq(leader.points.length, 3, "two segments, not three");
-          ok(twin.points.length === 4, "the jogged one still jogs");
-        });
-      });
 
-    await test("dragging the jog zone spreads the lanes across the new width " +
-      "and moves neither end of any leader", function () {
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var one = VA.leaderGeometry(TOPO.layout, plan, M);
-        var three = VA.leaderGeometry(TOPO.layout, plan, M, null, { zoneScale: 3 });
-        eq(one.zoneScale, 1);
-        eq(three.zoneScale, 3);
-        eq(three.naturalZone, one.naturalZone);
-        eq(one.width - one.zoneLeft, one.naturalZone);
-        eq(three.width - three.zoneLeft, one.naturalZone * 3,
-           "the zone is three times as wide, the rails beside it unmoved");
-        eq(three.zoneLeft, one.zoneLeft);
-        // Evenly spread: the gap between consecutive lanes is the lane pitch
-        // times the scale, everywhere.
-        three.leaders.forEach(function (leader, i) {
-          eq(leader.y1, one.leaders[i].y1, leader.id);
-          eq(leader.y2, one.leaders[i].y2, leader.id);
-          eq(leader.x1, one.leaders[i].x1, leader.id);
-          if (i > 0) {
-            eq(leader.laneX - three.leaders[i - 1].laneX, M.leaderLane * 3,
-               "lanes stay evenly spread (" + leader.id + ")");
-          }
-        });
-      });
-
-    await test("the jog-zone scale is a multiple of the zone's natural width, " +
-      "clamped by the geometry", function () {
-        // A multiple rather than a pixel width because the setting outlives
-        // the topology it was set on.
-        eq(VA.clampJogZoneScale(0), VA.JOG_ZONE_SCALE.min);
-        eq(VA.clampJogZoneScale("x"), VA.JOG_ZONE_SCALE.min);
-        eq(VA.clampJogZoneScale(1e9), VA.JOG_ZONE_SCALE.max);
-        // And the clamp is what the geometry applies, not the caller.
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        eq(VA.leaderGeometry(TOPO.layout, plan, VA.RAIL_METRICS, null,
-           { zoneScale: 99 }).zoneScale, VA.JOG_ZONE_SCALE.max);
-      });
 
     // --- names, references and the copy rules (viewer_component_names_and_
     //     reference_copy, 2026-09-15) ---------------------------------------
@@ -6060,13 +5887,12 @@
       });
 
     await test("the settings bar offers the view only while the 3D pane is open, " +
-      "presses the one in force, and the leaders control says when it can draw " +
-      "nothing", function () {
+      "and presses the one in force", function () {
         var picked = [];
         var bar = function (handlers) {
           return render(function (r) {
-            VA.renderTopoToolbar(r, { rowDensity: "comfortable", leaderStyle: "angled",
-              paneView: "3d", edgeLengthMode: "uniform" }, TOPO, handlers);
+            VA.renderTopoToolbar(r, { rowDensity: "comfortable", paneView: "3d" },
+              TOPO, handlers);
           });
         };
         var closed = bar({ onPaneView: function (id) { picked.push(id); }, paneOpen: false });
@@ -6074,26 +5900,13 @@
           return all(root, "button").filter(function (b) { return b.getAttribute("data-view"); });
         };
         eq(viewButtons(closed).length, 0, "no pane, no control");
-        var open = bar({ onPaneView: function (id) { picked.push(id); }, paneOpen: true,
-          leadersDrawable: false });
+        var open = bar({ onPaneView: function (id) { picked.push(id); }, paneOpen: true });
         var buttons = viewButtons(open);
         eq(buttons.map(function (b) { return b.getAttribute("data-view"); }), VA.PANE_VIEW_ORDER);
         eq(buttons.map(function (b) { return b.getAttribute("aria-pressed"); }),
           ["false", "true", "false"]);
         buttons[2].onclick();
         eq(picked, ["dag"]);
-        var leaderOf = function (root) {
-          return all(root, "button").filter(function (b) {
-            return b.getAttribute("id") === "leader-style-toggle";
-          })[0];
-        };
-        var leaders = leaderOf(open);
-        eq(leaders.getAttribute("title"), VA.LEADERS_UNAVAILABLE,
-          "nothing to draw: the hover says when it draws");
-        var drawable = leaderOf(bar({ paneOpen: true, onPaneView: function () {},
-          leadersDrawable: true, onLeaderStyle: function () {} }));
-        eq(drawable.getAttribute("title"), VA.LEADER_STYLES.angled.title,
-          "side by side, the hover says what the style draws");
       });
 
     // --- the nav's width (a_face_is_picked_the_way_cad_picks_it) ------------
@@ -6439,27 +6252,6 @@
     // zero-width band (arm_pin_to_tip, min == max), and one derived gap
     // (tip_to_strut_end, no dimension at all).
 
-    await test("edgeLengthValue reads max − min for tolerance mode, falls " +
-      "back to 2 × plus_minus, and is null with nothing to scale by", function () {
-        var index = VA.topologyIndex(TOPO);
-        eq(VA.edgeLengthValue(index.edges.post_height, "tolerance"),
-           Math.abs(10.1 - 9.9));
-        // min/max absent, plus_minus present: the handoff's fallback.
-        eq(VA.edgeLengthValue({ dimension: { nominal: 5, min: null, max: null,
-          plus_minus: 0.3 } }, "tolerance"), 0.6);
-        // A zero-width band is a real (zero) width, not an absence.
-        eq(VA.edgeLengthValue(index.edges.arm_pin_to_tip, "tolerance"), 0);
-        // A derived gap has no dimension: nothing to scale by.
-        eq(VA.edgeLengthValue(index.edges.tip_to_strut_end, "tolerance"), null);
-        eq(VA.edgeLengthValue(index.edges.tip_to_strut_end, "absolute"), null);
-        eq(VA.edgeLengthValue(index.edges.base_thickness, "absolute"), 4);
-        // An unstated nominal is null, never treated as a stated zero — the
-        // zero itself IS a value (the variation-only case) and scales to the
-        // floor via proportional length 0, not via this null.
-        eq(VA.edgeLengthValue({ dimension: { nominal: null, min: -0.1,
-          max: 0.1, plus_minus: 0.1 } }, "absolute"), null);
-        eq(VA.edgeLengthValue(index.edges.base_thickness, "uniform"), null);
-      });
 
     // The containers' label bands the store keeps before a row's slot
     // (VA.containerLabelRoom): `before[i]` is every band up to and including
@@ -6471,262 +6263,15 @@
       return { before: before, total: run };
     }
 
-    await test("rowPositions in uniform mode is the classic row pitch plus the " +
-      "containers' label bands, exactly — today's rendering, not a near miss", function () {
-        // A model with bodies keeps a band above each body's first row.
-        var two = twoBodyProjection();
-        var twoPos = VA.rowPositions(two.layout, two, "uniform", VA.RAIL_METRICS);
-        var twoBands = labelBands(two.layout, two);
-        ok(twoBands.total > 0, "a model with bodies keeps label bands, or this says nothing");
-        two.layout.rows.forEach(function (row, i) {
-          eq(twoPos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS) + twoBands.before[i],
-             "two bodies: " + row.id);
-        });
-        var pos = VA.rowPositions(TOPO.layout, TOPO, "uniform", VA.RAIL_METRICS);
-        var bands = labelBands(TOPO.layout, TOPO);
-        eq(pos.mode, "uniform");
-        eq(pos.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight + bands.total);
-        TOPO.layout.rows.forEach(function (row, i) {
-          eq(pos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS) + bands.before[i], row.id);
-          eq(pos.byRow[row.row].floored, false, row.id);
-        });
-        // The keyed stores address every node and every edge by id.
-        TOPO.nodes.forEach(function (n) {
-          ok(pos.nodes[n.id] !== undefined, "node " + n.id + " keyed");
-        });
-        TOPO.edges.forEach(function (e) {
-          ok(pos.edges[e.id], "edge " + e.id + " keyed");
-        });
-      });
 
-    await test("rowPositions under a scaled mode stretches edges in " +
-      "proportion, keeps node slots at one row, and floors the rest", function () {
-        var M = VA.RAIL_METRICS;
-        var maxLen = M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
-        var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
-        var index = VA.topologyIndex(TOPO);
 
-        ["tolerance", "absolute"].forEach(function (mode) {
-          var pos = VA.rowPositions(TOPO.layout, TOPO, mode, M);
-          eq(pos.mode, mode);
-          // Node slots never scale: an interface is a point.
-          TOPO.layout.rows.forEach(function (row) {
-            if (row.kind !== "node") return;
-            eq(pos.byRow[row.row].height, M.rowHeight, mode + " " + row.id);
-          });
-          // The largest value in the serialisation renders at exactly maxLen
-          // (v/v is exactly 1); everything else is its own proportion of it,
-          // floored — the same expression the implementation uses, so float
-          // identity holds.
-          var vmax = 0;
-          TOPO.layout.rows.forEach(function (row) {
-            if (row.kind !== "edge") return;
-            var v = VA.edgeLengthValue(index.edges[row.id], mode);
-            if (v !== null && v > vmax) vmax = v;
-          });
-          ok(vmax > 0, mode + " has a yardstick");
-          TOPO.layout.rows.forEach(function (row) {
-            if (row.kind !== "edge") return;
-            var v = VA.edgeLengthValue(index.edges[row.id], mode);
-            var proportional = v !== null ? (v / vmax) * maxLen : 0;
-            var slot = pos.edges[row.id];
-            if (proportional < floor) {
-              eq(slot.length, floor, mode + " " + row.id + " floored length");
-              eq(slot.floored, true, mode + " " + row.id + " floored flag");
-            } else {
-              eq(slot.length, proportional, mode + " " + row.id);
-              eq(slot.floored, false, mode + " " + row.id);
-            }
-          });
-          // The slots tile: total height is the sum of every slot and the
-          // label bands between them (VA.containerLabelRoom), nothing else.
-          var sum = 0;
-          var room = VA.containerLabelRoom(TOPO.layout, TOPO, M);
-          TOPO.layout.rows.forEach(function (row, i) {
-            sum += room[i].body + room[i].part + room[i].block;
-            eq(pos.byRow[row.row].top, sum, mode + " row " + row.row + " top");
-            sum += pos.byRow[row.row].height;
-          });
-          eq(pos.height, sum, mode + " height");
-        });
 
-        // The named cases, pinned: the zero-width band and the derived gap
-        // are floored under tolerance; the derived gap again under absolute;
-        // the widest band (post_height, 0.2) is the tolerance yardstick and
-        // the largest nominal (post_height, 10) the absolute one.
-        var tol = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M);
-        eq(tol.edges.arm_pin_to_tip.floored, true);
-        eq(tol.edges.tip_to_strut_end.floored, true);
-        eq(tol.edges.post_height.floored, false);
-        eq(tol.edges.post_height.length, maxLen);
-        var abs = VA.rowPositions(TOPO.layout, TOPO, "absolute", M);
-        eq(abs.edges.tip_to_strut_end.floored, true);
-        eq(abs.edges.post_height.length, maxLen);
-        eq(abs.edges.arm_pin_to_tip.floored, false,
-           "a real nominal above the floor is a measured proportion");
-      });
-
-    await test("a serialisation with no usable values at all — the " +
-      "variation-only case — floors every edge rather than inventing a scale",
-      function () {
-        // pitch_system's real shape: every nominal 0.0, provenance says the
-        // nominal is unstated. Miniature here; pinned against the live
-        // projection in the [real] tier.
-        var mini = miniTopo(false);
-        mini.edges[0].dimension = { nominal: 0.0, min: -0.1, max: 0.1, plus_minus: 0.1 };
-        mini.edges[1].dimension = { nominal: 0.0, min: -0.05, max: 0.05, plus_minus: 0.05 };
-        var pos = VA.rowPositions(mini.layout, mini, "absolute", VA.RAIL_METRICS);
-        eq(pos.edges.e1.floored, true);
-        eq(pos.edges.e2.floored, true);
-        eq(pos.height, mini.layout.rows.length * VA.RAIL_METRICS.rowHeight +
-           labelBands(mini.layout, mini).total,
-           "all-floored absolute mode is uniform-height, honestly marked");
-      });
-
-    await test("railGeometry and leaderGeometry read the keyed position " +
-      "store: bars get their slot's extent, dots and leader starts get the " +
-      "keyed node y, and the grid-side seam does NOT move", function () {
-        var M = VA.RAIL_METRICS;
-        var pos = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M);
-        var geometry = VA.railGeometry(TOPO.layout, M, pos);
-        eq(geometry.height, pos.height);
-        geometry.marks.forEach(function (mark) {
-          var slot = pos.byRow[mark.row];
-          eq(mark.y, slot.y, "mark " + mark.id);
-          if (mark.kind === "edge") {
-            eq(mark.y1, slot.top + 1, mark.id);
-            eq(mark.y2, slot.top + slot.height - 1, mark.id);
-            eq(mark.floored, slot.floored, mark.id);
-          }
-        });
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var geo = VA.leaderGeometry(TOPO.layout, plan, M, pos);
-        geo.leaders.forEach(function (leader, i) {
-          var planLeader = plan.leaders[i];
-          // Node side: the keyed store, which under scaling sits at-or-below
-          // the uniform y (edges only ever stretch), so leaders still rise.
-          eq(leader.y1, pos.nodes[leader.id], leader.id);
-          ok(leader.y1 >= VA.railY(planLeader.layoutRow, M) - 1e-9,
-             leader.id + " never rises above its uniform position");
-          // Grid side: boundary × rowHeight, exactly as under uniform — the
-          // grid's rows stay evenly spaced whatever the DAG did.
-          eq(leader.y2, planLeader.boundary * M.rowHeight, leader.id);
-          ok(leader.y2 <= leader.y1, leader.id + " still rises left-to-right");
-        });
-      });
 
     // --- right-justified spine, the viewport fit, and centring -----------
     //     (viewer_dag_spine_layout, 2026-09-14)
 
-    await test("spineRight mirrors every column claim in a layout and leaves " +
-      "the walk itself alone", function () {
-        var mirrored = VA.spineRight(TOPO.layout);
-        eq(mirrored.columns, TOPO.layout.columns);
-        var last = TOPO.layout.columns - 1;
-        // Rows: same rows, same order, same ids, mirrored columns. The walk is
-        // the author's steering wheel and this must not touch it.
-        eq(mirrored.rows.map(function (r) { return r.id; }),
-           TOPO.layout.rows.map(function (r) { return r.id; }));
-        mirrored.rows.forEach(function (row, i) {
-          eq(row.column, last - TOPO.layout.rows[i].column, row.id);
-          eq(row.kind, TOPO.layout.rows[i].kind, row.id);
-        });
-        // The walk's own mainline is column 0 in the projection, so it is the
-        // RIGHTMOST column after the mirror — which is the whole deliverable.
-        var mainline = mirrored.rows.filter(function (row, i) {
-          return TOPO.layout.rows[i].column === 0;
-        });
-        ok(mainline.length > 1, "the demo mechanism has a mainline");
-        mainline.forEach(function (row) { eq(row.column, last, row.id); });
-        // Rails and links carry column claims too, and a rail drawn at the old
-        // x beside a dot drawn at the new one is the whole failure mode.
-        mirrored.rails.forEach(function (rail, i) {
-          eq(rail.column, last - TOPO.layout.rails[i].column);
-          eq(rail.start, TOPO.layout.rails[i].start);
-          eq(rail.end, TOPO.layout.rails[i].end);
-        });
-        mirrored.links.forEach(function (link, i) {
-          eq(link.from_column, last - TOPO.layout.links[i].from_column);
-          eq(link.to_column, last - TOPO.layout.links[i].to_column);
-          eq(link.row, TOPO.layout.links[i].row);
-        });
-        // Pure: the projection object the app holds across every render is
-        // never written to.
-        eq(TOPO.layout.rows[0].column, 0, "the projection's own layout is untouched");
-        // A single-column layout mirrors onto itself.
-        var mini = miniTopo(false);
-        eq(VA.spineRight(mini.layout).rows.map(function (r) { return r.column; }),
-           [0, 0, 0, 0, 0]);
-      });
 
-    await test("a leader leaves a right-justified spine with no rail standing " +
-      "between it and the grid", function () {
-        // The observable the mirror exists for: a leader's horizontal run from
-        // its dot to its lane crosses every rail standing in the gap, and the
-        // spine's leaders used to cross all of them.
-        var M = VA.RAIL_METRICS;
-        var crossings = function (layout) {
-          var plan = VA.gridPlan(layout, TOPO);
-          var geo = VA.railGeometry(layout, M);
-          var leaderGeo = VA.leaderGeometry(layout, plan, M);
-          var n = 0;
-          leaderGeo.leaders.forEach(function (leader) {
-            geo.rails.forEach(function (rail) {
-              if (rail.x > leader.x1 && rail.x < leader.laneX &&
-                  rail.y1 <= leader.y1 && leader.y1 <= rail.y2) n++;
-            });
-          });
-          return n;
-        };
-        var before = crossings(TOPO.layout);
-        var after = crossings(VA.spineRight(TOPO.layout));
-        ok(before > 0, "the demo mechanism's leaders cross its branch rail");
-        eq(after, 0, "right-justified, nothing stands between them and the grid");
-      });
 
-    await test("the RENDER draws the spine on the rightmost rail — the page " +
-      "mirrors, not just the layout helper", function () {
-        // The wiring, not the pure function: VA.spineRight is pinned above,
-        // and renderTopoPane calling it is a separate claim that nothing else
-        // in this tree can see. A column mirror moves only x, and every other
-        // check here measures y or compares the store against itself, so
-        // dropping the call renders a left-justified DAG with all three tiers
-        // green. Read the x's the page actually drew.
-        var M = VA.RAIL_METRICS;
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var spineX = VA.railX(TOPO.layout.columns - 1, M);
-        var onMainline = {};
-        TOPO.layout.rows.forEach(function (row) {
-          if (row.column === 0) onMainline[row.id] = true;
-        });
-        var x = function (node, attr) { return Number(node.getAttribute(attr)); };
-
-        // Every dot and bar the projection put on the WALK'S OWN MAINLINE is
-        // drawn in the rightmost column, hard against the jog zone.
-        var mainlineDots = all(root, "circle.rail__dot").filter(function (dot) {
-          return onMainline[dot.getAttribute("data-id")];
-        });
-        ok(mainlineDots.length > 1, "the demo mechanism has a mainline");
-        mainlineDots.forEach(function (dot) {
-          eq(x(dot, "cx"), spineX, dot.getAttribute("data-id"));
-        });
-        all(root, "line.rail__bar").forEach(function (bar) {
-          if (!onMainline[bar.getAttribute("data-id")]) return;
-          eq(x(bar, "x1"), spineX, bar.getAttribute("data-id"));
-        });
-
-        // Nothing is drawn to the right of it, and something is drawn to its
-        // left — otherwise this passes on a one-column diagram forever.
-        var railXs = all(root, "line.rail").map(function (rail) {
-          return x(rail, "x1");
-        });
-        ok(railXs.length > 1, "the demo mechanism has a branch rail");
-        railXs.forEach(function (railX) {
-          ok(railX <= spineX, "a rail at " + railX + " is right of the spine");
-        });
-        ok(railXs.some(function (railX) { return railX < spineX; }),
-           "the branches extend LEFT of the spine");
-      });
 
     // --- the leader-legibility WIRING (viewer_leader_grid_legibility) -----
     //
@@ -6737,20 +6282,23 @@
     // cannot see it. Each of these dies under a one-line revert of its own
     // wiring.
 
-    await test("the RENDER draws no band behind the leaders, and a grid row " +
-      "wears no tint: its body is a bracket, drawn from VA.gridBraces", function () {
+    await test("a grid row wears no tint: its body is a bracket, drawn from " +
+      "VA.gridBraces", function () {
         // The demo declares no bodies, so this copy puts its first half in one
         // and the rest in another.
         var topo = JSON.parse(JSON.stringify(TOPO));
         topo.bodies = [{ id: "front", name: "front" }, { id: "back", name: "back" }];
+        // Halved in the grid's own order (the walk with each part's rows
+        // gathered, VA.gatherParts), so each body is one run of rows.
         var half = Math.floor(topo.layout.rows.length / 2);
-        topo.layout.rows.forEach(function (r, i) { r.body = i < half ? "front" : "back"; });
+        var front = {};
+        // (A copy: gatherParts remembers its last answer by object.)
+        VA.gatherParts(JSON.parse(JSON.stringify(topo.layout)), topo).rows.forEach(function (r, i) {
+          if (i < half) front[r.kind + "|" + r.id] = true;
+        });
+        topo.layout.rows.forEach(function (r) { r.body = front[r.kind + "|" + r.id] ? "front" : "back"; });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ topoProj: topo })); });
-        var plan = VA.gridPlan(VA.spineRight(topo.layout), topo);
-
-        // The zebra bands are gone (the_dag_and_grid_nest_coloured_bodies_
-        // and_compact_means_denser_rows): Jeff, 11-05 and 11-08.
-        eq(all(root, "path.rail__band").length, 0, "no band is drawn");
+        var plan = VA.gridPlan(VA.gatherParts(topo.layout, topo), topo);
 
         // No row wears a tint (the_grid_fits_the_screen_and_its_brackets_say_
         // what_nests_in_what): a body that holds more than one part is a
@@ -6772,46 +6320,11 @@
             return c.getAttribute("data-brace") === body.id && hasClass(c, "tvbrace--body");
           }).length, 2, body.id + " has its two caps");
         });
-        // ...and a body's tint is still the DAG container's: one token per index.
+        // ...and a body's tint is the map district's: one token per index.
         eq(VA.bodyTint(topo, "back"), 1);
       });
 
-    await test("the RENDER builds no leader across to the grid, in any style: " +
-      "the grid is in a region of its own", function () {
-        // The fixed shell (2026-11-14): the grid scrolls by itself in the
-        // column right of the DAG, so a leader ending at the drawing's right
-        // edge would point at a row that is somewhere else. Every style.
-        Object.keys(VA.LEADER_STYLES).forEach(function (style) {
-          var root = render(function (r) {
-            VA.renderTopoPane(r, topoCtx({ leaderStyle: style }));
-          });
-          eq(all(root, "path.rail__leader").length, 0, style);
-          eq(all(root, "path.rail__leaderhit").length, 0, style);
-          ok(all(root, "tr.tvrow").length > 0, "the grid is still drawn: " + style);
-        });
-      });
 
-    await test("the RENDER widens the jog zone when the preference says so, " +
-      "and the grid's header, in its own scroller, takes none of it",
-      function () {
-        var M = VA.RAIL_METRICS;
-        var layout = VA.spineRight(TOPO.layout);
-        var plan = VA.gridPlan(layout, TOPO);
-        var want = VA.leaderGeometry(layout, plan, M, null, { zoneScale: 3 }).width;
-        var narrow = VA.leaderGeometry(layout, plan, M).width;
-        ok(want > narrow, "scale 3 is wider than scale 1");
-
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ jogZoneScale: 3 }));
-        });
-        var svg = root.querySelector("svg.tv__rails");
-        eq(Number(svg.getAttribute("width")), want, "the SVG spans the wider zone");
-        // The header is the grid's, at its scroller's left edge.
-        var head = root.querySelector(".tv__gridscroll").childNodes[0];
-        ok(head && hasClass(head, "tv__head"), "the header is the first thing in the grid's scroller");
-        eq(head.style.paddingLeft || "", "", "no rail width to pad by");
-        ok(!root.querySelector(".tv__hscroll .tv__head"), "and nothing of it is in the DAG's");
-      });
 
     await test("the header carries a grip for every column, and each drives " +
       "the app's own handlers", function () {
@@ -6940,57 +6453,32 @@
     // therefore no clamp to observe -- that half is the browser tier's -- but
     // WHICH renders carry the number at all is pure logic, and it is the half
     // a reviewer would otherwise have to take on trust.
-    await test("a re-render of the same topology carries the reader's " +
-      "sideways scroll, and a different topology starts at the left edge",
+    await test("a re-render of the same topology carries the grid's sideways " +
+      "scroll, and a different topology starts at the left edge",
       function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         if (!canHoldScroll(root)) return;
-        root.querySelector(".tv__hscroll").scrollLeft = 240;
+        var grid = function () { return root.querySelector(".tv__gridscroll"); };
+        grid().scrollLeft = 240;
         VA.renderTopoPane(root, topoCtx());
-        eq(root.querySelector(".tv__hscroll").scrollLeft, 240,
+        eq(grid().scrollLeft, 240,
            "the same topology, re-drawn, keeps the reader where they were");
         // A study selection is the same topology re-serialised, not a new one.
-        root.querySelector(".tv__hscroll").scrollLeft = 310;
+        grid().scrollLeft = 310;
         VA.renderTopoPane(root, topoCtx({ study: topoStudy(TOPO.studies[0].id) }));
-        eq(root.querySelector(".tv__hscroll").scrollLeft, 310);
-        // A DIFFERENT mechanism shares no horizontal extent with this one, so
+        eq(grid().scrollLeft, 310);
+        // A DIFFERENT mechanism shares no columns' content with this one, so
         // carrying the number across would be carrying a number, not a place.
-        root.querySelector(".tv__hscroll").scrollLeft = 310;
+        grid().scrollLeft = 310;
         var other = JSON.parse(JSON.stringify(TOPO));
         other.id = TOPO.id + "_elsewhere";
         VA.renderTopoPane(root, topoCtx({ topoProj: other }));
         // `|| 0`: a fresh element's scrollLeft is 0 in a browser and undefined
         // in the DOM shim, and what is being claimed is that nothing was
         // written back, not which of those two a tier reports.
-        eq(root.querySelector(".tv__hscroll").scrollLeft || 0, 0);
+        eq(grid().scrollLeft || 0, 0);
       });
 
-    await test("the respine's ghost is handed the scroll the outgoing pane " +
-      "was carrying, so the cross-fade shows ONE horizontal window",
-      function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        if (!canHoldScroll(root)) return;
-        var outgoing = root.querySelector(".tv__hscroll");
-        outgoing.scrollLeft = 275;
-        // What VA.animateTopoPane does before its first frame: re-parent the
-        // outgoing pane into an inert ghost. In a browser that resets its
-        // scrollLeft, which is why ghostOf has to read the number first.
-        var ghost = VA.el("div", "tv__ghost");
-        ghost.paneScrollLeft = outgoing.scrollLeft;
-        ghost.appendChild(outgoing);
-        // The DOM shim's appendChild does not detach from the old parent, so
-        // the pane has to be taken out of `root` by hand for the shim to be in
-        // the state a browser is already in. Both tiers run this file.
-        VA.clear(root);
-        outgoing.scrollLeft = 0;
-        VA.renderTopoPane(root, topoCtx({
-          tween: { positions: null, e: 0.5, ghost: ghost },
-        }));
-        eq(root.querySelector(".tv__hscroll").scrollLeft, 275,
-           "the first frame is drawn at the position the reader left");
-        eq(ghost.querySelector(".tv__hscroll").scrollLeft, 275,
-           "and the ghost under it shows the same window");
-      });
 
     await test("column widths come off the ONE array -- both tables' <col>s " +
       "and their inline totals move together, and the stylesheet declares none",
@@ -7117,31 +6605,10 @@
       return all(root, "tr.tvrow--hot").map(function (n) { return n.getAttribute("data-id"); });
     }
 
-    await test("a rail is no element: hovering any part of one tells the page its key and " +
-      "lights nothing -- no leg, no curve, no mark on it", function () {
-        var told = [];
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
-        });
-        ok(nothingLit(root), "nothing is lit before a pointer arrives");
-        var hits = all(root, "line.rail__hit");
-        eq(hits.length, 2, "one hit path per rail, so a 2px line is pointable");
-        hits[1].onmouseenter({});
-        eq(told, ["rail|1"], "the pointer on a rail is told as the rail's key");
-        ok(nothingLit(root), "...and the leg it draws is not a thing hover says any more");
-        eq(VA.lightTopoKeys(VA.focusElementKeysOf(demoModel, VA.focusKeyEntity(demoModel, "rail|1"))), 0,
-           "the page resolves a rail's key to no entity, and lights nothing for it");
-        hits[1].onmouseleave({});
-        eq(told, ["rail|1", null]);
-        hits[0].onmouseenter({});
-        ok(nothingLit(root), "the mainline too");
-        hits[0].onmouseleave({});
-      });
 
-    await test("the DAG and the grid share ONE hover state through the page's resolver: a " +
-      "dimension lights its bar, its row and its two end dots as own, the interfaces at its " +
-      "ends as touching, and no rail leg; the bar's hit path and the row tell the same key",
-      function () {
+    await test("the grid lights through the page's one resolver: a row tells the page its " +
+      "key and lights nothing itself, and a dimension's row is own and the interfaces at its " +
+      "ends touching", function () {
         var picked = [];
         var told = [];
         var root = render(function (r) {
@@ -7153,190 +6620,45 @@
         var row = all(root, "tr.tvrow")[1];
         var edgeId = row.getAttribute("data-id");
         ok(edgeId, "a grid row is addressed by its edge id");
-        var barHit = all(root, "line.rail__barhit").filter(function (n) {
-          return n.getAttribute("data-id") === edgeId;
-        })[0];
-        ok(barHit, "the bar's hit path is addressed by the same edge id");
-
-        // Grid -> page -> both surfaces.
         row.onmouseenter({});
         eq(told, ["edge|" + edgeId], "the row tells the page its edge");
         ok(nothingLit(root), "...and lights nothing on its own");
         var keys = keysFor("edge", edgeId);
-        eq(keys.own.slice().sort(), ["edge|" + edgeId].concat(
-          [TOPO.edges.filter(function (e) { return e.id === edgeId; })[0]].map(function (e) {
-            return ["node|" + e.from, "node|" + e.to];
-          })[0]).sort(), "a dimension's own tier: its edge and its two ends");
-        ok(VA.lightTopoKeys(keys) >= 3, "the page lights the keys");
-        var fromGrid = litState(root);
-        eq(fromGrid.leadBars, [markAt(barHit)],
-           "its bar, and only its bar -- the one drawn over that hit path");
-        eq(fromGrid.leadDots.length, 2, "its two ends' dots");
-        eq(fromGrid.leadRows, [edgeId], "its own row leads, no other");
-        eq(fromGrid.rails, 0, "no leg glows: a leg is not a thing hover says");
-        eq(fromGrid.links, 0);
+        ok(VA.lightTopoKeys(keys) >= 1, "the page lights the keys");
+        eq(litState(root).leadRows, [edgeId], "its own row leads, no other");
         // The touching tier: the interfaces at its ends that are edges (a
-        // gap) are rows and bars lit `--hot` only.
+        // gap) are rows lit `--hot` only.
         var touchingRows = keys.touching.filter(function (k) { return k.indexOf("edge|") === 0; })
           .map(function (k) { return k.slice(5); });
         eq(hotRows(root).sort(), [edgeId].concat(touchingRows).sort(),
            "the rows lit are its own and its touching interfaces', nothing else");
-        // DAG -> page, off the bar's own hit path.
+        eq(picked, [], "hovering must not select");
         row.onmouseleave({});
         VA.lightTopoKeys(null);
-        ok(nothingLit(root));
-        barHit.onmouseenter({});
-        eq(told.slice(-1), ["edge|" + edgeId], "the bar tells the same key");
-        VA.lightTopoKeys(keysFor("edge", edgeId));
-        eq(litState(root), fromGrid, "the same state, whichever surface the pointer arrived on");
-        eq(picked, [], "hovering must not select");
-        barHit.onmouseleave({});
-        VA.lightTopoKeys(null);
-        ok(nothingLit(root), "the page's clear takes both surfaces down");
+        ok(nothingLit(root), "the page's clear takes the grid down");
       });
 
-    await test("an interface has no grid row of its own: its dot is the own tier, and the " +
-      "dimensions that meet it light only as touching -- their rows and bars fainter, never " +
-      "as the thing pointed at", function () {
+    await test("an interface has no grid row of its own: the dimensions that meet it " +
+      "light only as touching -- their rows fainter, never as the thing pointed at",
+      function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ onHot: function () {} })); });
-        var dots = all(root, "circle.rail__dot").filter(function (dot) {
-          return !hasClass(dot, "rail__dot--branch");
-        });
-        var dot = dots[1];
-        var nodeId = dot.getAttribute("data-id");
-        ok(nodeId, "a dot IS wired by (kind, id) -- it has no hit path over it");
+        var nodeId = "post_arm_pin";
         var keys = keysFor("node", nodeId);
         eq(keys.own, ["node|" + nodeId], "a node's own tier is itself");
         VA.lightTopoKeys(keys);
-        var lit = litState(root);
-        eq(lit.leadDots, [markAt(dot)]);
-        eq(lit.leadRows, [], "no row leads: the node has none");
-        var meeting = VA.spineRight(TOPO.layout).rows.filter(function (r) {
+        eq(litState(root).leadRows, [], "no row leads: the node has none");
+        var meeting = TOPO.layout.rows.filter(function (r) {
           return r.kind === "edge" && (r.entered_at === nodeId || r.left_at === nodeId);
         }).map(function (r) { return r.id; });
         eq(meeting.length, 2, "an interior interface meets two edges");
         eq(hotRows(root).sort(), meeting.slice().sort(),
            "the dimensions that meet it are lit, as touching");
-        eq(lit.bars, 2, "...their bars too, at the fainter weight");
-        eq(lit.leadBars, [], "and none of them leads");
         VA.lightTopoKeys(null);
         ok(nothingLit(root));
       });
 
-    await test("the pane's pointer tells the page its key and its leave and lights nothing of " +
-      "its own; a pane repainted under the pointer is lit again from the page's one hover, " +
-      "and the leave after it still reaches the page", function () {
-        var told = [];
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
-        });
-        var bar = all(root, "line.rail__barhit")[0];
-        var key = "edge|" + bar.getAttribute("data-id");
-        bar.onmouseenter({});
-        eq(told, [key], "the pointer on a bar is told as its key");
-        ok(nothingLit(root), "...and the pane lights nothing itself: the page's resolver does");
-        eq(VA.lightTopoKeys({ own: [key], touching: [] }), 1, "the page lights it");
-        ok(litState(root).leadRows.length > 0);
-        bar.onmouseleave({});
-        eq(told, [key, null], "the pointer leaving is told");
-        VA.lightTopoKeys(null);
-        ok(nothingLit(root));
-        // A repaint under the resting pointer: the new state holds nothing,
-        // the page re-lights what it knows is hovered, and the pointer's
-        // leave from the rebuilt bar reaches the page even so.
-        told = [];
-        root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ onHot: function (key) { told.push(key); } }));
-        });
-        eq(VA.lightTopoKeys({ own: [key], touching: [] }), 1, "the page's hover lights the repainted pane");
-        ok(litState(root).leadRows.length > 0);
-        bar = all(root, "line.rail__barhit")[0];
-        bar.onmouseleave({});
-        eq(told, [null], "a leave with nothing held still tells the page");
-        VA.lightTopoKeys(null);
-        ok(nothingLit(root), "...and the page's clear takes the light down");
-        // A pane with no page at all (a bare render) lights a hovered mark as
-        // its own tier, so the drawing still answers the pointer.
-        var alone = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        all(alone, "line.rail__barhit")[0].onmouseenter({});
-        eq(litState(alone).leadRows.length, 1);
-        all(alone, "line.rail__barhit")[0].onmouseleave({});
-        ok(nothingLit(alone));
-      });
 
-    await test("the page's light always applies -- the pane's own pointer no longer wins: the " +
-      "scene's pointer on a joint lights every node it stands for as own, and the rows meeting " +
-      "them only as touching", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ onHot: function () {} })); });
-        var dots = all(root, "circle.rail__dot").filter(function (dot) {
-          return !hasClass(dot, "rail__dot--branch");
-        });
-        var a = dots[1], b = dots[2];
-        var ids = [a.getAttribute("data-id"), b.getAttribute("data-id")];
-        var meeting = VA.spineRight(TOPO.layout).rows.filter(function (r) {
-          return r.kind === "edge" && (ids.indexOf(r.entered_at) !== -1 || ids.indexOf(r.left_at) !== -1);
-        }).map(function (r) { return "edge|" + r.id; });
-        eq(VA.lightTopoKeys({ own: ids.map(function (id) { return "node|" + id; }), touching: meeting }),
-           2 + meeting.length);
-        var both = litState(root);
-        eq(both.leadDots.slice().sort(), [markAt(a), markAt(b)].sort(), "both members' dots lead");
-        eq(both.leadRows, [], "no row is the thing pointed at");
-        eq(hotRows(root).sort(), meeting.map(function (k) { return k.slice(5); }).sort(),
-           "every row meeting either, as touching");
-        // The pane's pointer arrives on a dot: it tells the page, and the
-        // page's next light replaces this one -- nothing here refuses it.
-        a.onmouseenter({});
-        eq(VA.lightTopoKeys({ own: ["node|" + ids[1]], touching: [] }), 1, "the page's light is never refused");
-        eq(litState(root).leadDots, [markAt(b)]);
-        a.onmouseleave({});
-        VA.lightTopoKeys(null);
-        ok(nothingLit(root), "the page's clear takes it down");
-      });
 
-    await test("hover emphasis is keyed by element, so it survives the " +
-      "respine's column renumbering", function () {
-        // The one trap this whole mechanism was written around: the drawn
-        // column index is a RENDER decision -- VA.spineRight mirrors every
-        // one of them, and the projection is free to renumber -- so a
-        // connected line resolved by column number is resolved against a
-        // number that moves. Same document, columns mirrored: the same edge
-        // must light the same set.
-        var mirrored = JSON.parse(JSON.stringify(TOPO));
-        var flip = function (c) {
-          return c === null || c === undefined ? c : 1 - c;
-        };
-        mirrored.layout.rows.forEach(function (r) {
-          r.column = flip(r.column);
-          r.closes_column = flip(r.closes_column);
-        });
-        mirrored.layout.rails.forEach(function (r) { r.column = flip(r.column); });
-        mirrored.layout.links.forEach(function (l) {
-          l.from_column = flip(l.from_column);
-          l.to_column = flip(l.to_column);
-        });
-        var lit = function (proj) {
-          var root = render(function (r) {
-            VA.renderTopoPane(r, topoCtx({ topoProj: proj }));
-          });
-          var hit = all(root, "line.rail__barhit")[0];
-          VA.lightTopoKeys(keysFor("edge", hit.getAttribute("data-id")));
-          var state = litState(root);
-          // Every x on the page is SUPPOSED to move -- that is what a
-          // renumbering does. What must not move is which elements are lit,
-          // so the coordinates are counted and the grid rows named.
-          return { rails: state.rails, halos: state.halos, links: state.links,
-                   bars: state.bars, dots: state.dots, rows: state.rows,
-                   leaders: state.leaders, leadLeaders: state.leadLeaders,
-                   leadBars: state.leadBars.length,
-                   leadDots: state.leadDots.length,
-                   leadRows: state.leadRows };
-        };
-        var plain = lit(TOPO);
-        eq(lit(mirrored), plain);
-        ok(plain.leadBars === 1 && plain.leadDots === 2 && plain.leadRows.length === 1,
-           "anti-vacuity: the hover really lit an edge with its ends");
-        VA.lightTopoKeys(null);
-      });
 
     await test("the element cell prints the authored name whole, and its hover " +
       "title is the same string", function () {
@@ -7357,258 +6679,30 @@
         });
       });
 
-    await test("a scaled length mode takes the height it needs: the window is " +
-      "no budget, and only a bar clamped to the legibility floor says so", function () {
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
-        var rows = TOPO.layout.rows;
-        var edges = rows.filter(function (r) { return r.kind === "edge"; });
-        // A budget a caller still passes (the old viewport fit) is ignored:
-        // the largest bar is always the scale's own `maxRows`, however small
-        // the window.
-        [{ plan: plan }, { budget: 100, plan: plan }, { budget: 5000, plan: plan }]
-          .forEach(function (fit) {
-            var pos = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M, fit);
-            eq(pos.edges.post_height.length,
-               M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows);
-            var drawn = {};
-            edges.forEach(function (row) { drawn[Math.round(pos.edges[row.id].length)] = true; });
-            ok(Object.keys(drawn).length >= 3,
-               "a scaled mode draws at least three distinct bar lengths");
-            edges.forEach(function (row) {
-              var slot = pos.edges[row.id];
-              eq(slot.floored, slot.length === floor,
-                 row.id + ": floored exactly where the bar sits at the floor");
-            });
-          });
-        var uniform = VA.rowPositions(TOPO.layout, TOPO, "uniform", M, { plan: plan });
-        eq(uniform.dagHeight, rows.length * M.rowHeight + labelBands(TOPO.layout, TOPO).total);
-        rows.forEach(function (row) {
-          eq(uniform.byRow[row.row].floored, false, row.id);
-        });
-        eq(VA.fitEdgeLength, undefined, "the viewport fit is gone, not dormant");
-        eq(VA.dagHeightBudget, undefined);
-      });
 
-    await test("the zoom's bounds, wheel and anchor arithmetic: clamped, " +
-      "proportional, and the point under the pointer stays put", function () {
-        var Z = VA.DAG_ZOOM;
-        var near = function (a, b, t) { ok(Math.abs(a - b) < t, a + " vs " + b); };
-        ok(Z.min > 0 && Z.min < 1 && Z.max > 1 && Z.step > 1, "a usable range");
-        eq(VA.clampDagZoom(Z.max * 10), Z.max);
-        eq(VA.clampDagZoom(Z.min / 10), Z.min);
-        eq(VA.clampDagZoom("nonsense"), 1);
-        eq(VA.clampDagZoom(0), 1);
-        // One mouse notch (deltaY 100, away) is one step out; one the other
-        // way is one step in; no delta is no change.
-        near(VA.dagZoomAfterWheel(1, 100), 1 / Z.step, 1e-9);
-        near(VA.dagZoomAfterWheel(1, -100), Z.step, 1e-9);
-        eq(VA.dagZoomAfterWheel(1, 0), 1);
-        eq(VA.dagZoomAfterWheel(Z.max, -100), Z.max);
-        eq(VA.dagZoomAfterWheel(Z.min, 100), Z.min);
-        // The content point under the pointer stays under it: at scroll 300,
-        // pointer 100 into the box, scale 1 -> 2, content 400 is at 800 - 100.
-        eq(VA.dagScrollAfterZoom(300, 100, 1, 2), 700);
-        eq(VA.dagScrollAfterZoom(300, 100, 2, 1), 100);
-        // ...and never scrolls to a negative offset.
-        eq(VA.dagScrollAfterZoom(0, 100, 1, 0.5), 0);
-        // Fit: never past 1, and a span too tall for the box shrinks to it.
-        eq(VA.dagFitScale(0, 400, 900, 12), 1);
-        near(VA.dagFitScale(0, 1788, 900, 6), 900 / 1800, 1e-9);
-        eq(VA.dagFitScale(0, 1e7, 900, 0), Z.min);
-        eq(VA.dagFitScale(0, 0, 900, 0), 1);
-        eq(VA.dagFitScale(0, 400, 0, 0), 1);
-      });
 
-    await test("the lit span is the lit dots and bars (and the grid beside " +
-      "them), the whole walk when nothing is lit", function () {
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var pos = VA.rowPositions(TOPO.layout, TOPO, "uniform", M, { plan: plan });
-        var whole = VA.litSpan(pos, null, plan, M);
-        eq(whole.top, 0);
-        eq(whole.bottom, pos.height);
-        var edge = TOPO.layout.rows.filter(function (r) { return r.kind === "edge"; })[1];
-        var lit = { nodes: {}, edges: {} };
-        lit.edges[edge.id] = true;
-        // Without a grid beside it the span is the bar's own extent, exactly.
-        var bare = VA.litSpan(pos, lit, null, M);
-        eq(bare.top, pos.edges[edge.id].y1);
-        eq(bare.bottom, pos.edges[edge.id].y2);
-        // With the grid it also reaches the grid block, which sits beside it.
-        var span = VA.litSpan(pos, lit, plan, M);
-        eq(span.top <= bare.top, true);
-        eq(span.bottom >= bare.bottom, true);
-        eq(span.bottom >= pos.gridOffset + pos.gridHeight, true,
-           "the grid block is part of what Fit shows");
-        ok(span.bottom - span.top < whole.bottom - whole.top, "a part of the walk");
-        // A lit set that names nothing drawn falls back to the whole walk.
-        var none = VA.litSpan(pos, { nodes: { nope: true }, edges: {} }, plan, M);
-        eq(none.bottom, pos.height);
-      });
 
-    await test("the DAG's header height is the stylesheet's own", function () {
-        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
-        if (!src) return;
-        // `.tv__head` sits INSIDE the pane and is not DAG: its height lives in
-        // the stylesheet and the pin and the body's top padding read it from
-        // here. One number in two files is this repo's most-repeated defect.
-        var css = src.readText("topology.css");
-        ok(css, "topology.css must be readable");
-        var head = /\.tv__head\s*\{[^}]*[;{\s]height:\s*(\d+)px/.exec(css);
-        ok(head, "expected an explicit height on .tv__head in topology.css");
-        eq(Number(head[1]), VA.DAG_FIT.headHeight,
-           "VA.DAG_FIT.headHeight must be .tv__head's own CSS height");
-      });
 
     await test("the render puts the header at the top of the grid's own scroller, " +
-      "the drawing in the DAG's, and draws only the DAG at the zoom", function () {
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance", zoom: 0.5 }));
-        });
-        var zoomed = root.querySelector("div.tv__zoom");
-        ok(zoomed, "one zoom box");
-        // 2026-10-29: the box holding the DAG is never scaled; the DAG's two
-        // layers in the rails SVG carry the zoom, and the grid and its header
-        // stay at 1.
-        eq(zoomed.style.transform || "", "", "the box itself is not scaled");
-        eq(zoomed.getAttribute("data-zoom"), "0.5");
-        var layers = all(root, "g.tv__dag");
-        eq(layers.length, 2, "the DAG's two layers");
-        layers.forEach(function (g) {
-          ok(/scale\(0\.5\)/.test(g.getAttribute("transform") || ""), "each layer at the zoom");
-        });
-        // The two regions (the fixed shell, 2026-11-14): the drawing in its
+      "and the map alone in the DAG's region", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        // The two regions (the fixed shell, 2026-11-14): the map in its
         // scroller, the header and the rows in the grid's.
         var dag = root.querySelector(".tv__hscroll");
         var grid = root.querySelector(".tv__gridscroll");
         ok(dag && grid, "a scroller each");
-        ok(dag.querySelector("svg.tv__rails") && !dag.querySelector("div.tv__rows"),
-           "the drawing alone in the DAG's");
+        ok(dag.querySelector("svg.tv__map") && !dag.querySelector("div.tv__rows"),
+           "the map alone in the DAG's");
         var head = grid.childNodes[0];
         ok(head && hasClass(head, "tv__head"), "the header first in the grid's");
-        ok(grid.querySelector("div.tv__rows") && !grid.querySelector("svg.tv__rails"),
+        ok(grid.querySelector("div.tv__rows") && !grid.querySelector("svg.tv__map"),
            "then the rows, and no drawing");
         eq(head.style.top || "", "", "pinned by the stylesheet, not by an inline offset");
-        var span = VA.lastTopoRender.span;
-        ok(span && span.bottom > span.top, "Fit has something to bring into view");
+        eq(all(root, "svg.tv__rails").length, 0, "no rails");
       });
 
-    await test("the grid is centred against the DAG across the leaders' own " +
-      "span, which is what makes the largest jog smaller", function () {
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var maxJog = function (positions) {
-          var geo = VA.leaderGeometry(TOPO.layout, plan, M, positions);
-          var worst = 0;
-          geo.leaders.forEach(function (leader) {
-            worst = Math.max(worst, Math.abs(leader.y1 - leader.y2));
-          });
-          return worst;
-        };
-        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
-          var flat = VA.rowPositions(TOPO.layout, TOPO, mode, M);
-          var centred = VA.rowPositions(TOPO.layout, TOPO, mode, M,
-            { budget: 0, plan: plan });
-          eq(flat.gridOffset, 0, mode + ": no grid to centre against, no offset");
-          ok(centred.gridOffset > 0, mode + ": the grid moved down");
-          ok(maxJog(centred) < maxJog(flat),
-             mode + ": max jog " + maxJog(centred) + " vs " + maxJog(flat));
-          // The grid's own pitch never changes — it is offset as a BLOCK, so
-          // every seam stays exactly one row from the one above it.
-          var geo = VA.leaderGeometry(TOPO.layout, plan, M, centred);
-          geo.leaders.forEach(function (leader, i) {
-            eq(leader.y2,
-               centred.gridOffset + plan.leaders[i].boundary * M.rowHeight,
-               leader.id);
-          });
-          // Whichever block sits higher stays put: only one side ever moves.
-          ok(centred.offset === 0 || centred.gridOffset === 0,
-             mode + ": both blocks cannot move");
-        });
-        // With no leaders there is nothing to centre across, so the two
-        // blocks' own heights are it — and that is the only case where a
-        // taller GRID moves the DAG.
-        var mini = miniTopo(false);
-        var miniPlan = VA.gridPlan(mini.layout, mini);
-        eq(miniPlan.leaders, []);
-        var pos = VA.rowPositions(mini.layout, mini, "uniform", M,
-          { budget: 0, plan: miniPlan });
-        var miniBands = labelBands(mini.layout, mini).total;
-        eq(pos.dagHeight, 5 * M.rowHeight + miniBands);
-        eq(pos.gridHeight, 2 * M.rowHeight);
-        eq(pos.gridOffset, ((5 - 2) * M.rowHeight + miniBands) / 2);
-        eq(pos.offset, 0);
-      });
 
-    await test("centring across the leaders beats centring the two blocks' " +
-      "heights — the measured reason this is not the obvious rule", function () {
-        // The deliverable said "centre the shorter block against the taller".
-        // Shipped instead: centre the LEADERS' own span, because a scaled DAG
-        // puts its length where the big dimensions are and not where the
-        // leaders are, so height-centring can push every leader further than
-        // it started. Without this test the obvious rule passes in place of
-        // the measured one — VA.centreOffsets' fallback IS height-centring,
-        // so forcing it is a one-line edit.
-        var M = VA.RAIL_METRICS;
-        var plan = VA.gridPlan(TOPO.layout, TOPO);
-        var maxJogAt = function (positions, gridOffset) {
-          var worst = 0;
-          plan.leaders.forEach(function (leader) {
-            var y1 = positions.nodes[leader.id];
-            var y2 = gridOffset + leader.boundary * M.rowHeight;
-            worst = Math.max(worst, Math.abs(y1 - y2));
-          });
-          return worst;
-        };
-        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
-          var pos = VA.rowPositions(TOPO.layout, TOPO, mode, M,
-            { budget: 0, plan: plan });
-          // The rule that shipped, and the one the handoff's words describe.
-          var shipped = maxJogAt(pos, pos.gridOffset);
-          var byHeight = maxJogAt(pos, (pos.dagHeight - pos.gridHeight) / 2);
-          ok(shipped <= byHeight,
-             mode + ": leader-span " + shipped + " vs height-centred " + byHeight);
-          // And it is the best any single block offset can do: shifting the
-          // grid either way from where it sits makes the worst leader worse.
-          ok(maxJogAt(pos, pos.gridOffset + M.rowHeight) > shipped,
-             mode + ": nudging the grid down makes the worst jog worse");
-          ok(maxJogAt(pos, pos.gridOffset - M.rowHeight) > shipped,
-             mode + ": nudging the grid up makes the worst jog worse");
-        });
-        // The case that makes the two rules actually disagree, which is the
-        // real documents' shape: the leaders sit in the top third of a DAG
-        // whose length is all below them (pitch_link_to_pitch_plate under
-        // tolerance width is exactly this — 132px → 228px WORSE if the
-        // heights are centred). A mini fixture reproduces it: one long edge
-        // at the bottom, past every leader.
-        var lopsided = lopsidedTopo();
-        var lopsidedPlan = VA.gridPlan(lopsided.layout, lopsided);
-        var pos = VA.rowPositions(lopsided.layout, lopsided, "tolerance", M,
-          { budget: 0, plan: lopsidedPlan });
-        var shipped = maxJogAt2(pos, lopsidedPlan, pos.gridOffset, M);
-        var byHeight = maxJogAt2(pos, lopsidedPlan,
-          (pos.dagHeight - pos.gridHeight) / 2, M);
-        ok(byHeight > shipped * 2,
-           "height-centring is far worse here: " + byHeight + " vs " + shipped);
-      });
 
-    await test("the grid's rows start right under their header, in their own " +
-      "region: the DAG's centring offsets the drawing and never the table", function () {
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance" }));
-        });
-        var positions = VA.lastTopoRender.positions;
-        ok(positions.gridOffset > 0, "the demo grid is the shorter block");
-        var px = function (value) { return parseFloat(value) || 0; };
-        eq(px(root.querySelector("div.tv__rows").style.marginTop), 0,
-           "the table is not pushed down by the store's gridOffset");
-        // ...and the SVG is still drawn tall enough to hold the store.
-        ok(Math.abs(px(root.querySelector("svg.tv__rails").style.height) -
-                    positions.height) < 0.05,
-           "the SVG is the store's height");
-      });
 
     // --- the respine animation (viewer_study_respine_animation) -------------
     //
@@ -7654,331 +6748,14 @@
       };
     }
 
-    await test("respineEase pins both ends, clamps outside them, and rises",
-      function () {
-        eq(VA.respineEase(0), 0);
-        eq(VA.respineEase(1), 1);
-        eq(VA.respineEase(-5), 0);
-        eq(VA.respineEase(9), 1);
-        var last = -1;
-        [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].forEach(function (t) {
-          var e = VA.respineEase(t);
-          ok(e > last, "ease must rise at " + t + ": " + e + " after " + last);
-          last = e;
-        });
-      });
 
-    await test("the respine tween pairs the two stores by ELEMENT, not by row " +
-      "index — which is the whole reason the store is keyed", function () {
-        var s = respineStores();
-        // The trap: chain row 3 and walk row 3 are different edges.
-        eq(s.chainLayout.rows[3].id, "post_bushing_offset");
-        eq(s.walk.rows[3].id, "post_height");
-        var fromY = s.from.edges.post_bushing_offset.y;
-        var toY = s.to.edges.post_bushing_offset.y;
-        ok(Math.abs(fromY - toY) > 100,
-           "the fixture must actually move this edge: " + fromY + " -> " + toY);
 
-        var half = VA.tweenPositions(s.from, s.to, 0.5);
-        ok(Math.abs(half.edges.post_bushing_offset.y - (fromY + toY) / 2) < 1e-9,
-           "midway between its OWN two y's");
-        // Same claim through byRow, which is what railGeometry reads.
-        var slot = half.byRow[3];
-        eq(slot.id, "post_bushing_offset");
-        eq(slot.kind, "edge");
-        ok(Math.abs(slot.y - (fromY + toY) / 2) < 1e-9);
-        // Paired by index it would have come from the post height's slot.
-        ok(Math.abs(slot.y - (s.from.byRow[3].y + s.to.byRow[3].y) / 2) > 50,
-           "an index pairing would put it somewhere else entirely");
-      });
 
-    await test("a respine at e = 1 is the target store exactly — the " +
-      "animation adds no geometry drift", function () {
-        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
-          var s = respineStores(mode);
-          var settled = VA.tweenPositions(s.from, s.to, 1);
-          eq(Object.keys(settled.byRow).sort(), Object.keys(s.to.byRow).sort(),
-             mode + ": byRow is the target's rows and only those");
-          // "exactly" is a claim about the KEY SETS as much as the values, and
-          // it used to be checked on one side of each of the two below --
-          // which reads as equality and tests containment
-          // (ISSUE_20260915_a_settled_tween_store_is_not_the_target_store_it_
-          // keeps_the_outgoing_sides_keys). The carried-over keys were inert,
-          // because both geometry passes iterate the layout rather than the
-          // store, and they compounded across an interrupted respine.
-          eq(Object.keys(settled.nodes).sort(), Object.keys(s.to.nodes).sort(),
-             mode + ": nodes is the target's interfaces and only those");
-          eq(Object.keys(settled.edges).sort(), Object.keys(s.to.edges).sort(),
-             mode + ": edges is the target's dimensions and only those");
-          Object.keys(s.to.byRow).forEach(function (key) {
-            var a = settled.byRow[key], b = s.to.byRow[key];
-            eq([a.id, a.kind], [b.id, b.kind], mode + " row " + key);
-            ["top", "height", "y"].forEach(function (f) {
-              ok(Math.abs(a[f] - b[f]) < 1e-9,
-                 mode + " row " + key + "." + f + ": " + a[f] + " !== " + b[f]);
-            });
-          });
-          Object.keys(s.to.edges).forEach(function (id) {
-            ["y1", "y2", "y", "length"].forEach(function (f) {
-              ok(Math.abs(settled.edges[id][f] - s.to.edges[id][f]) < 1e-9,
-                 mode + " " + id + "." + f);
-            });
-          });
-          Object.keys(s.to.nodes).forEach(function (id) {
-            ok(Math.abs(settled.nodes[id] - s.to.nodes[id]) < 1e-9, mode + " " + id);
-          });
-          ["height", "dagHeight", "gridHeight", "offset", "gridOffset"].forEach(
-            function (f) {
-              ok(Math.abs(settled[f] - s.to[f]) < 1e-9, mode + " " + f);
-            });
-          eq(settled.mode, s.to.mode, mode + ": the length mode is the target's");
-        });
-      });
 
-    await test("a settled respine store's KEY SET is the target's, in both " +
-      "directions — nothing of the outgoing serialisation survives settling",
-      function () {
-        // The guard the test above is named for, stated once on its own so it
-        // cannot be lost inside a value-drift loop again, and run BOTH ways:
-        // the walk is a superset of any chain, so the select direction is the
-        // only one with keys to leak and the deselect direction would pass on
-        // a broken function. Both are asserted, and so is which of them is
-        // the witness.
-        var s = respineStores();
-        [[s.from, s.to, "select (walk -> chain)"],
-         [s.to, s.from, "deselect (chain -> walk)"]].forEach(function (pair) {
-          var settled = VA.tweenPositions(pair[0], pair[1], 1);
-          ["byRow", "nodes", "edges"].forEach(function (field) {
-            eq(Object.keys(settled[field]).sort(),
-               Object.keys(pair[1][field]).sort(),
-               pair[2] + ": " + field);
-          });
-        });
-        // Non-vacuity: the select direction really does drop keys, so the
-        // assertion above has something to bite on. These are the two
-        // interfaces and three dimensions the chain leaves behind.
-        var dropped = Object.keys(s.from.nodes).filter(function (id) {
-          return s.to.nodes[id] === undefined;
-        }).concat(Object.keys(s.from.edges).filter(function (id) {
-          return s.to.edges[id] === undefined;
-        }));
-        eq(dropped.sort(), ["arm_pin_to_tip", "arm_tip", "post_arm_pin",
-                            "post_height", "tip_to_strut_end"],
-           "the chain drops these, and settling must not keep them");
-        // And the mid-flight store is the target's key set too: a stale key
-        // is not a settling artifact, it is a carry-over that was never
-        // wanted at any e. The rows a transition drops are drawn by the
-        // GHOST, from the DOM the outgoing paint already produced.
-        var mid = VA.tweenPositions(s.from, s.to, 0.4);
-        eq(Object.keys(mid.nodes).sort(), Object.keys(s.to.nodes).sort());
-        eq(Object.keys(mid.edges).sort(), Object.keys(s.to.edges).sort());
-      });
 
-    await test("an element on one side only fades at its own settled " +
-      "position, and everything shared stays opaque", function () {
-        var s = respineStores();
-        var mid = VA.tweenPositions(s.from, s.to, 0.25);
-        // The three edges the chain drops. They are not in the target layout
-        // at all, so the ghost is what draws them -- the alpha is the number
-        // it fades on.
-        ["post_height", "arm_pin_to_tip", "tip_to_strut_end"].forEach(
-          function (id) {
-            ok(Math.abs(VA.tweenAlpha(mid, "edge", id) - 0.75) < 1e-9,
-               id + " must be leaving: " + VA.tweenAlpha(mid, "edge", id));
-          });
-        // Shared rows are drawn at full strength and MOVE, which is the read
-        // the whole animation exists for.
-        eq(VA.tweenAlpha(mid, "edge", "post_bushing_offset"), 1);
-        eq(VA.tweenAlpha(mid, "node", "base_datum"), 1);
-        // Run the other way and the same three ARRIVE -- at their own target
-        // position, not slid in from a slot they never occupied.
-        var back = VA.tweenPositions(s.to, s.from, 0.25);
-        ok(Math.abs(VA.tweenAlpha(back, "edge", "post_height") - 0.25) < 1e-9);
-        var row = s.walk.rows.filter(function (r) { return r.id === "post_height"; })[0];
-        eq(back.byRow[row.row].y, s.from.byRow[row.row].y);
-        // A store with no animation behind it answers 1 for everything.
-        eq(VA.tweenAlpha(s.to, "edge", "post_height"), 1);
-        eq(VA.tweenAlpha(null, "edge", "post_height"), 1);
-      });
 
-    await test("a bar floored on EITHER side wears the not-to-scale mark for " +
-      "the whole transition, and the target's own flag once it settles",
-      function () {
-        // Hand-built stores, because no shared edge of the fixture floors on
-        // one side only: the two that floor (arm_pin_to_tip, tip_to_strut_end)
-        // are exactly the two the chain drops. The rule still has to hold, so
-        // it is tested where it can be seen.
-        var store = function (y, floored) {
-          var slot = { top: y, height: 26, y: y + 13, floored: floored,
-                       id: "e1", kind: "edge" };
-          return {
-            mode: "tolerance", height: 52, dagHeight: 52, gridHeight: 26,
-            offset: 0, gridOffset: 0, byRow: { 0: slot }, nodes: {},
-            edges: { e1: { y1: y, y2: y + 26, y: y + 13, length: 26,
-                           floored: floored } },
-          };
-        };
-        var wasFloored = VA.tweenPositions(store(0, true), store(100, false), 0.5);
-        ok(wasFloored.byRow[0].floored, "still marked while it is moving");
-        ok(wasFloored.edges.e1.floored);
-        var becomesFloored = VA.tweenPositions(store(0, false), store(100, true), 0.5);
-        ok(becomesFloored.byRow[0].floored, "marked on the way in too");
-        // Settled, the target's flag is the only one left -- which is what
-        // keeps a tween at e = 1 identical to a fresh store, break marks
-        // included (BARS_MATCH_STORE_IN_PAGE counts them against it).
-        var settled = VA.tweenPositions(store(0, true), store(100, false), 1);
-        eq(settled.byRow[0].floored, false);
-        eq(settled.edges.e1.floored, false);
-        // And on the fixture: the walk's two floored edges are the chain's
-        // two dropped ones, so the chain claims no floor of its own.
-        var s = respineStores("tolerance");
-        ok(s.from.edges.arm_pin_to_tip.floored, "floored in the walk");
-        eq(Object.keys(s.to.edges).filter(function (id) {
-          return s.to.edges[id].floored;
-        }), [], "nothing floors in this chain");
-      });
 
-    await test("an element the transition ADDS fades in at its own settled " +
-      "position, and the rows around it do not", function () {
-        // SYNTHETIC (see respineStores above): the outgoing store is the
-        // chain laid out on its own, which the page cannot produce any more,
-        // so three edge rows and two interfaces ARRIVE. The view's wiring of
-        // VA.tweenAlpha is what is under test, and it is kept because it is
-        // the only thing standing between "a respine adds an element" and
-        // "an element appears whole, from nowhere" the next time a layout
-        // change makes that reachable.
-        var s = respineStores();
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = { positions: s.to, columns: s.chainLayout.columns,
-                     floor: 0, links: {},
-                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
-                                              s.M, s.to).width };
-        var ghost = VA.el("div", "tv__ghost");
-        ghost.appendChild(root.querySelector(".tv__hscroll"));
-        VA.renderTopoPane(root, topoCtx({
-          tween: { positions: from.positions, columns: from.columns,
-                   floor: from.floor, width: from.width, links: from.links,
-                   e: 0.25, ghost: ghost },
-        }));
-        var opacityOf = function (selector, id) {
-          var hit = all(root, selector).filter(function (n) {
-            return n.getAttribute("data-id") === id;
-          })[0];
-          ok(hit, "expected " + selector + " for " + id);
-          return hit.style.opacity;
-        };
-        ["post_height", "arm_pin_to_tip", "tip_to_strut_end"].forEach(
-          function (id) {
-            ok(Math.abs(parseFloat(opacityOf("tr.tvrow", id)) - 0.25) < 0.05,
-               id + "'s row arrives faded: " + opacityOf("tr.tvrow", id));
-            // The hit twin, because that is the one carrying `data-id` --
-            // the visible bar beside it is faded by the same call.
-            ok(Math.abs(parseFloat(opacityOf("line.rail__barhit", id)) - 0.25) < 0.05,
-               id + "'s bar arrives faded");
-          });
-        ["post_arm_pin", "arm_tip"].forEach(function (id) {
-          ok(Math.abs(parseFloat(opacityOf("circle.rail__dot", id)) - 0.25) < 0.05,
-             id + "'s dot arrives faded");
-        });
-        // Everything the two serialisations share is drawn at full strength
-        // and MOVES -- which is the read the animation exists for, and the
-        // thing a blanket fade would have thrown away.
-        ["base_thickness", "post_bushing_offset", "strut_length"].forEach(
-          function (id) {
-            eq(opacityOf("tr.tvrow", id) || "", "", id + " is not faded");
-            eq(opacityOf("line.rail__barhit", id) || "", "", id + "'s bar is not faded");
-          });
-        eq(opacityOf("circle.rail__dot", "base_datum") || "", "");
-      });
 
-    await test("respineX interpolates the DRAWN COLUMN COUNT and the pane " +
-      "width, and both land on the target's own at e = 1", function () {
-        var s = respineStores();
-        var from = { columns: s.walk.columns,
-                     width: VA.leaderGeometry(s.walk, s.walkPlan, s.M, s.from).width };
-        var toWidth = VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M, s.to).width;
-        var at = function (e) {
-          return VA.respineX(s.chainLayout, s.chainPlan, s.M, from, e,
-                             undefined);
-        };
-        // The spine's own drawn index, which is the number the drawn column
-        // COUNT is: VA.drawnColumn of the last column, plus one.
-        var count = function (e) {
-          return VA.drawnColumn(s.chainLayout.columns - 1, at(e)) + 1;
-        };
-        // e = 0 is the outgoing frame's own two numbers, which is the whole
-        // continuity claim: the first frame of a transition draws the picture
-        // the reader is already looking at.
-        var spread = s.chainLayout.columns - s.walk.columns;
-        eq(at(0).columnShift, spread);
-        eq(at(0).width, from.width);
-        eq(count(0), s.walk.columns,
-           "drawn with the OUTGOING serialisation's column count");
-        // e = 1 is the target's, exactly -- so a settled frame is a plain
-        // render and no geometry drifts through the animation.
-        eq(count(1), s.chainLayout.columns);
-        eq(at(1).width, toWidth);
-        // And it is a straight interpolation in between. `columnShift` is the
-        // outgoing frame's whole shortfall at every e -- it does not decay,
-        // because the decay lives in VA.drawnColumn, which interpolates each
-        // column between the two frames' own indices for its depth.
-        eq(at(0.25).columnShift, spread);
-        eq(count(0.25), s.walk.columns + 0.25 * (s.chainLayout.columns - s.walk.columns));
-        ok(Math.abs(at(0.25).width - (toWidth + 0.75 * (from.width - toWidth)))
-           < 1e-9);
-        // Out-of-range e is clamped, the same way VA.respineEase clamps it.
-        eq(count(-3), count(0));
-        eq(count(7), count(1));
-        // Nothing to interpolate from (a pane that never rendered) is no
-        // tween at all, which is what makes a first paint a plain render.
-        eq(VA.respineX(s.chainLayout, s.chainPlan, s.M, null, 0), null);
-        eq(VA.respineX(s.chainLayout, s.chainPlan, s.M,
-                       { columns: 0, width: 82 }, 0), null);
-        eq(VA.respineX(s.chainLayout, s.chainPlan, s.M,
-                       { columns: 2, width: 0 }, 0), null);
-      });
-
-    await test("a column a respine ADDS unfolds out of the outgoing frame's " +
-      "leftmost rail — it is never drawn left of it, because it has no " +
-      "outgoing x to come from", function () {
-        var s = respineStores();
-        var from = { columns: s.chainLayout.columns,
-                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M,
-                                              s.to).width };
-        var railsAt = function (e) {
-          var x = VA.respineX(s.walk, s.walkPlan, s.M, from, e);
-          return VA.railGeometry(s.walk, s.M,
-            VA.tweenPositions(s.to, s.from, e), { x: x })
-            .rails.map(function (rail) { return rail.x; });
-        };
-        // The deselect direction from a SETTLED chain: its one column gives
-        // way to the walk's, so every column but the spine is one the respine
-        // adds. At e = 0 they are all collapsed onto drawn column 0 -- which
-        // is where a settled frame's leftmost rail always is, and where this
-        // one's only rail was. The interrupted case, where the outgoing frame
-        // is mid-unfold and has no rail there at all, is the check below.
-        var first = railsAt(0);
-        eq(first.filter(function (x) { return x === VA.railX(0, s.M); }).length,
-           first.length, "every rail starts on the leftmost one: " + first);
-        var settled = railsAt(1);
-        eq(settled, VA.railGeometry(s.walk, s.M, s.from).rails.map(
-             function (rail) { return rail.x; }),
-           "and lands on the plain render's own rails");
-        ok(settled.length > 1 && Math.max.apply(null, settled) >
-           Math.min.apply(null, settled),
-           "this fixture really does have columns to unfold: " + settled);
-        // Monotone in between: a rail only ever moves away from the leftmost
-        // one, never back, so the unfold cannot read as a wobble.
-        var previous = railsAt(0);
-        [0.25, 0.5, 0.75, 1].forEach(function (e) {
-          var now = railsAt(e);
-          now.forEach(function (x, i) {
-            ok(x >= previous[i] - 1e-9,
-               "rail " + i + " went backwards at e = " + e);
-          });
-          previous = now;
-        });
-      });
 
     // A synthetic 10-column walk and a 1-column chain -- the real
     // pitch_system's own column gap, at VA.RAIL_METRICS. The demo fixture is
@@ -8008,749 +6785,20 @@
                width: x ? x.width : width };
     }
 
-    await test("a respine interrupting a respine unfolds out of a rail the " +
-      "frame it interrupted really drew — not out of drawn column 0, which " +
-      "a frame caught mid-unfold has nothing on", function () {
-        // ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
-        // nowhere, at its own numbers. The claim rails and links are drawn
-        // with no opacity of their own on the strength of -- "a column the
-        // transition is adding is drawn collapsed onto a rail the outgoing
-        // frame drew, so there is nothing to appear from nowhere" -- used to
-        // clamp at drawn column 0. A SETTLED frame always has a rail there;
-        // a frame caught at e = 0.5 of a select does not, and nine rails
-        // arrived at full opacity where it had drawn nothing at all.
-        var M = VA.RAIL_METRICS;
-        var plan = { leaders: [], rows: [] };
-        var walk = tenColumnWalk();
-        var chain = oneColumnChain();
-        var railsAt = function (layout, x) {
-          return VA.railGeometry(layout, M, undefined, { x: x })
-            .rails.map(function (rail) { return rail.x; });
-        };
-        // Frame A: half way through a select, out of the settled walk.
-        var walkWidth = VA.leaderGeometry(walk, plan, M).width;
-        var xA = VA.respineX(chain, plan, M,
-          { columns: walk.columns, width: walkWidth }, 0.5);
-        var frameA = railsAt(chain, xA);
-        eq(frameA, [VA.railX(4.5, M)],
-           "the chain's one rail, half way out of the walk's spine");
-        // Non-vacuity, and the whole defect in one line: frame A has no rail
-        // at drawn column 0, so clamping there collapses onto nothing.
-        ok(frameA.indexOf(VA.railX(0, M)) === -1,
-           "frame A must have nothing at drawn column 0: " + frameA);
 
-        // Frame B: the reader clicks again mid-flight. The interrupting
-        // transition's first frame continues from frame A's own record, and
-        // every rail it draws has to land on a rail frame A drew.
-        var xB = VA.respineX(walk, plan, M, drewX(chain, xA), 0);
-        var frameB = railsAt(walk, xB);
-        frameB.forEach(function (x, i) {
-          ok(frameA.indexOf(x) !== -1, "rail " + i + " of the interrupting " +
-             "frame is at " + x + ", where the frame it interrupted drew " +
-             "nothing: " + frameB + " vs " + frameA);
-        });
-        eq(xB.width, xA.width, "and the pane width is continuous too");
 
-        // It still unfolds: the floor relaxes to 0 as the transition settles,
-        // so e = 1 is the plain render's own rails and nothing has drifted.
-        eq(railsAt(walk, VA.respineX(walk, plan, M, drewX(chain, xA), 1)),
-           railsAt(walk, null), "and lands on the plain render's own rails");
-        // And no rail wobbles on the way. The settled case's stronger claim
-        // -- every rail only ever moves AWAY from the leftmost one -- is not
-        // this one's: the fold point here is drawn column 4.5 and has to
-        // travel back to 0, so the rails left of the spine move LEFT for the
-        // whole flight while the spine moves right. What must hold is that
-        // each rail picks one direction and keeps it.
-        var track = [0, 0.25, 0.5, 0.75, 1].map(function (e) {
-          return railsAt(walk, VA.respineX(walk, plan, M, drewX(chain, xA), e));
-        });
-        track[0].forEach(function (unused, i) {
-          var sign = 0;
-          for (var k = 1; k < track.length; k++) {
-            var step = track[k][i] - track[k - 1][i];
-            if (Math.abs(step) < 1e-9) continue;
-            var now = step > 0 ? 1 : -1;
-            ok(sign === 0 || sign === now, "rail " + i + " reversed: " +
-               track.map(function (frame) { return frame[i]; }));
-            sign = now;
-          }
-        });
-        var settled = track[track.length - 1];
-        ok(Math.max.apply(null, settled) > Math.min.apply(null, settled),
-           "the walk really does unfold: " + settled);
 
-        // A settled `from` carries no floor at all, and reads as 0 -- which
-        // is what a settled frame's leftmost drawn column index is.
-        eq(VA.respineX(chain, plan, M,
-             { columns: walk.columns, width: walkWidth }, 0.5).floor, 0);
-        eq(VA.drawnColumn(3, null), 3, "no transition, no clamp");
-      });
 
-    await test("a link a respine ADDS between two columns BOTH serialisations " +
-      "have fades in — the column unfold cannot cover it, because neither " +
-      "column is one the transition adds", function () {
-        // ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_
-        // has_no_fade. Synthetic on purpose, and the reason is worth keeping:
-        // all 21 study chains across the five committed topologies have
-        // `columns: 1` and `links: []` while their walks run 2-10 columns and
-        // 2-18 links, so every link a respine adds TODAY arrives on a column
-        // the respine also adds and the unfold covers it. The pair below is
-        // the case BRIEF_20260915_respine_scope_and_grid_motion item 1 makes
-        // reachable: two serialisations differing by a loop closure and by
-        // nothing else.
-        var M = VA.RAIL_METRICS;
-        var plan = { leaders: [], rows: [] };
-        var rows = [
-          { row: 0, kind: "node", id: "a", column: 0, branch: true },
-          { row: 1, kind: "edge", id: "ab", column: 1 },
-          { row: 2, kind: "node", id: "b", column: 1 },
-          { row: 3, kind: "edge", id: "bc", column: 0 },
-          { row: 4, kind: "node", id: "c", column: 0 },
-        ];
-        var rails = [{ column: 0, start: 0, end: 4 },
-                     { column: 1, start: 0, end: 2 }];
-        var branch = { kind: "branch", row: 0, from_column: 0, to_row: 0,
-                       to_column: 1 };
-        var closure = { kind: "close", row: 3, from_column: 0, to_row: 2,
-                        to_column: 1 };
-        var open = { columns: 2, rows: rows, rails: rails, links: [branch] };
-        var closed = { columns: 2, rows: rows, rails: rails,
-                       links: [branch, closure] };
-        var linksOf = function (layout) {
-          return VA.railGeometry(layout, M).links;
-        };
-        var keyOf = function (layout, link) { return VA.linkKey(layout, link); };
-        var kept = keyOf(open, branch);
-        var added = keyOf(closed, closure);
-        ok(kept !== added, "the two links are not the same link");
-        eq(linksOf(open).map(function (l) { return l.key; }), [kept]);
-        eq(linksOf(closed).map(function (l) { return l.key; }), [kept, added]);
 
-        // The two sides share their columns, so respineX has nothing to
-        // unfold: every rail is at rest from the first frame, and so are both
-        // ends of the closure. Its own opacity is the only thing that can
-        // carry it in.
-        var settledLinks = VA.linkOpacity(linksOf(open), null, 1);
-        var from = { columns: open.columns, floor: 0,
-                     width: VA.leaderGeometry(open, plan, M).width,
-                     links: settledLinks };
-        var x = VA.respineX(closed, plan, M, from, 0);
-        eq(x.columnShift, 0, "nothing to unfold: the columns are the same");
-        eq(VA.railGeometry(closed, M, undefined, { x: x }).rails.map(
-             function (r) { return r.x; }),
-           VA.railGeometry(open, M).rails.map(function (r) { return r.x; }),
-           "and every rail is exactly where the outgoing frame drew it");
 
-        var alphaAt = function (e, prev) {
-          return VA.linkOpacity(linksOf(closed),
-                                prev === undefined ? from.links : prev, e);
-        };
-        eq(alphaAt(0)[added], 0,
-           "the loop closure would otherwise appear from nowhere at e = 0");
-        eq(alphaAt(0.25)[added], 0.25);
-        eq(alphaAt(1)[added], 1, "and is whole once the transition settles");
-        [0, 0.5, 1].forEach(function (e) {
-          eq(alphaAt(e)[kept], 1, "a link both sides draw never fades");
-        });
-        // Interrupted, a part-done fade continues from what was drawn --
-        // the same continuity the column floor gives the rails.
-        var caught = alphaAt(0.4);
-        eq(alphaAt(0, caught)[added], 0.4);
-        ok(alphaAt(0.5, caught)[added] > 0.4 &&
-           alphaAt(0.5, caught)[added] < 1);
-        // No transition behind it: everything is opaque, which is what makes
-        // a plain render carry nothing of the animation.
-        eq(VA.linkOpacity(linksOf(closed), null, 0)[added], 1);
-      });
 
-    await test("the rendered frame carries a link's fade on the drawn path, " +
-      "and a settled frame carries none", function () {
-        // The other half of the check above: the geometry knows each link's
-        // opacity, and this is the view actually putting it on the path.
-        // SYNTHETIC in the same way (see respineStores) -- the outgoing frame
-        // is one that drew no links at all, which a linear chain layout
-        // really was and which no study selection can be any more.
-        var s = respineStores();
-        var from = { positions: s.to, columns: s.chainLayout.columns,
-                     floor: 0, links: {},
-                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
-                                              s.M, s.to).width };
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        eq(Object.keys(from.links), [], "the outgoing frame drew no links");
 
-        VA.renderTopoPane(root, topoCtx({
-          tween: { positions: from.positions, columns: from.columns,
-                   floor: from.floor, width: from.width, links: from.links,
-                   e: 0.25 },
-        }));
-        var drawn = all(root, "path.rail__link");
-        eq(drawn.length, TOPO.layout.links.length,
-           "the walk's own links are drawn");
-        drawn.forEach(function (node) {
-          ok(Math.abs(parseFloat(node.style.opacity) - 0.25) < 1e-9,
-             "a link the respine adds arrives faded: " + node.style.opacity);
-        });
-        // A plain render fades nothing -- the settled page is the page a
-        // render that never animated produces.
-        var fresh = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var settled = all(fresh, "path.rail__link");
-        eq(settled.length, TOPO.layout.links.length);
-        settled.forEach(function (node) {
-          eq(node.style.opacity || "", "", "a plain render fades no link");
-        });
-      });
 
-    await test("a branch link is keyed by where it LANDS, so one fork's two " +
-      "fan-outs are two different links", function () {
-        // A close link's two ends are two different rows and name it
-        // outright; a branch link's `row` and `to_row` are the SAME fork row,
-        // so two branches off one fork differ only in `to_column` -- which is
-        // the one thing that is not comparable between two serialisations.
-        var layout = {
-          columns: 3,
-          rows: [
-            { row: 0, kind: "node", id: "fork", column: 0, branch: true },
-            { row: 1, kind: "edge", id: "left", column: 1 },
-            { row: 2, kind: "edge", id: "right", column: 2 },
-          ],
-          rails: [{ column: 0, start: 0, end: 0 }, { column: 1, start: 0, end: 1 },
-                  { column: 2, start: 0, end: 2 }],
-          links: [
-            { kind: "branch", row: 0, from_column: 0, to_row: 0, to_column: 1 },
-            { kind: "branch", row: 0, from_column: 0, to_row: 0, to_column: 2 },
-          ],
-        };
-        var keys = VA.railGeometry(layout, VA.RAIL_METRICS).links.map(
-          function (l) { return l.key; });
-        eq(keys, ["link|branch|node|fork|edge|left",
-                  "link|branch|node|fork|edge|right"]);
-        // And on the fixture, every drawn link of the walk is distinct --
-        // a collision would fade two links as one.
-        var walk = VA.spineRight(TOPO.layout);
-        var fixture = VA.railGeometry(walk, VA.RAIL_METRICS).links.map(
-          function (l) { return l.key; });
-        ok(fixture.length === TOPO.layout.links.length && fixture.length > 1,
-           "the fixture really has links to key: " + fixture);
-        eq(fixture.filter(function (k, i) { return fixture.indexOf(k) !== i; }),
-           [], "duplicate link keys: " + fixture);
-      });
 
-    await test("every frame of a respine draws every rail, mark, link and " +
-      "leader end inside the pane — the DAG no longer unfolds from behind " +
-      "its left edge", function () {
-        // The defect this pins: the horizontal change used to be one
-        // whole-block CSS translate, right-anchored on the outgoing frame's
-        // grid seam. The pane's left edge is fixed and the incoming block is
-        // the wider one in the grow direction, so anchoring its right edge on
-        // the narrow frame's put its left part outside the pane, where
-        // .tv__hscroll's overflow-x clipped it
-        // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_block_
-        // slides). Measured over every drawn x there is, both directions.
-        var s = respineStores();
-        var drawn = function (fromLayout, fromPlan, fromPos,
-                              toLayout, toPlan, toPos, e) {
-          var from = { columns: fromLayout.columns,
-                       width: VA.leaderGeometry(fromLayout, fromPlan, s.M,
-                                                fromPos).width };
-          var x = VA.respineX(toLayout, toPlan, s.M, from, e);
-          var tweened = VA.tweenPositions(fromPos, toPos, e);
-          var geo = VA.railGeometry(toLayout, s.M, tweened, { x: x });
-          var leaders = VA.leaderGeometry(toLayout, toPlan, s.M, tweened,
-            { x: x });
-          var xs = geo.rails.map(function (r) { return r.x; })
-            .concat(geo.marks.map(function (m) { return m.x; }))
-            .concat(leaders.leaders.map(function (l) { return l.x1; }))
-            .concat(leaders.leaders.map(function (l) { return l.laneX; }));
-          geo.links.forEach(function (link) {
-            (link.d.match(/-?[\d.]+ -?[\d.]+/g) || []).forEach(function (pt) {
-              xs.push(parseFloat(pt.split(" ")[0]));
-            });
-          });
-          return { left: Math.min.apply(null, xs),
-                   right: Math.max.apply(null, xs),
-                   width: leaders.width };
-        };
-        [0, 0.25, 0.5, 0.75, 1].forEach(function (e) {
-          [["deselect", s.chainLayout, s.chainPlan, s.to, s.walk, s.walkPlan,
-            s.from],
-           ["select", s.walk, s.walkPlan, s.from, s.chainLayout, s.chainPlan,
-            s.to]].forEach(function (run) {
-            var box = drawn(run[1], run[2], run[3], run[4], run[5], run[6], e);
-            ok(box.left >= 0, run[0] + " at e = " + e +
-               " draws something at x = " + box.left);
-            // The other edge of the same claim: the SVG's own width is the
-            // grid's left edge, so anything drawn past it would be under the
-            // table (and clipped by the SVG's own viewport).
-            ok(box.right <= box.width + 1e-9, run[0] + " at e = " + e +
-               " draws past the grid seam: " + box.right + " > " + box.width);
-          });
-        });
-        // Non-vacuity: the width-anchored, whole-block slide this replaced
-        // really did put the incoming walk off the pane, so the loop above is
-        // not passing on a transition that never moved.
-        var wideShift =
-          VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M, s.to).width -
-          VA.leaderGeometry(s.walk, s.walkPlan, s.M, s.from).width;
-        ok(wideShift < 0, "the walk really is the wider serialisation");
-        var slid = VA.railGeometry(s.walk, s.M, VA.tweenPositions(s.to, s.from, 0))
-          .marks.map(function (m) { return m.x + wideShift; });
-        ok(Math.min.apply(null, slid) < 0,
-           "the old anchor drew marks at x = " + Math.min.apply(null, slid));
-      });
 
-    await test("a tweened render draws the DAG from the interpolated store " +
-      "and the interpolated layout, cross-fades the grid and keeps the " +
-      "outgoing frame as an inert ghost", function () {
-        var s = respineStores();
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var plain = VA.lastTopoRender;
-        eq(plain.tweening, false, "a plain render is not a transition");
-        ok(plain.width > 0, "the render records the SVG width it drew");
-        eq(plain.columns, s.walk.columns,
-           "and the column count -- the horizontal pair a respine tweens");
 
-        // SYNTHETIC outgoing frame (see respineStores): a serialisation with
-        // its own column count and its own pane width, which is what the
-        // horizontal interpolation exists for. The target is the walk,
-        // because the walk is the only thing this pane draws now.
-        var from = { positions: s.to, columns: s.chainLayout.columns,
-                     floor: 0, links: {},
-                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
-                                              s.M, s.to).width };
-        var ghost = VA.el("div", "tv__ghost");
-        ghost.appendChild(root.querySelector(".tv__hscroll"));
-        VA.renderTopoPane(root, topoCtx({
-          tween: { positions: from.positions, columns: from.columns,
-                   floor: from.floor, width: from.width, links: from.links,
-                   e: 0.5, ghost: ghost },
-        }));
-        eq(VA.lastTopoRender.tweening, true);
 
-        // The bar is at the midpoint of its own two slots -- read off the
-        // attribute the browser drew from, not off the store.
-        var bar = all(root, "line.rail__barhit").filter(function (n) {
-          return n.getAttribute("data-id") === "post_bushing_offset";
-        })[0];
-        ok(bar, "the moving edge must be drawn");
-        var want = (s.from.edges.post_bushing_offset.y1 +
-                    s.to.edges.post_bushing_offset.y1) / 2 + 1;
-        ok(Math.abs(parseFloat(bar.getAttribute("y1")) - want) < 0.05,
-           "drawn y1 " + bar.getAttribute("y1") + " should be " + want);
 
-        // The horizontal half, and it is in the GEOMETRY rather than in a
-        // transform: the SVG is drawn at the interpolated pane width. The
-        // grid and its header are in their own region and do not move with
-        // it. Nothing carries a translate -- a block slide is what drew the
-        // incoming serialisation off the pane.
-        var x = VA.respineX(s.walk, s.walkPlan, s.M, from, 0.5);
-        var svg = root.querySelector("svg.tv__rails");
-        ok(Math.abs(parseFloat(svg.getAttribute("width")) - x.width) < 0.05,
-           "the SVG is drawn at " + svg.getAttribute("width") +
-           ", should be " + x.width);
-        eq(root.querySelector(".tv__head").style.paddingLeft || "", "",
-           "and the header, in the grid's region, takes none of it");
-        ok(x.width !== from.width, "this fixture's two widths really differ");
-        [".tv__head", ".tv__body"].forEach(function (sel) {
-          eq(root.querySelector(sel).style.transform || "", "",
-             sel + " must carry no translate");
-        });
-        // The DAG's own x is the interpolated column spread, and a dot's is
-        // the same number its rail is drawn at.
-        var dot = all(root, "circle.rail__dot").filter(function (n) {
-          return n.getAttribute("data-id") === "base_datum";
-        })[0];
-        ok(dot, "the spine's first interface must be drawn");
-        var mark = VA.railGeometry(s.walk, s.M,
-          VA.tweenPositions(s.to, s.from, 0.5), { x: x })
-          .marks.filter(function (m) { return m.id === "base_datum"; })[0];
-        ok(Math.abs(parseFloat(dot.getAttribute("cx")) - mark.x) < 0.05,
-           "drawn cx " + dot.getAttribute("cx") + " should be " + mark.x);
-
-        // The grid cross-fades; the ghost is the other half of it.
-        ok(Math.abs(parseFloat(root.querySelector("div.tv__rows").style.opacity)
-                    - 0.5) < 0.05, "the incoming grid is at its share");
-        var inPane = root.querySelector("div.tv__ghost");
-        ok(inPane, "the outgoing frame is re-appended to the pane every frame");
-        ok(Math.abs(parseFloat(inPane.style.opacity) - 0.5) < 0.05);
-        ok(inPane.querySelector(".tv__hscroll"), "it holds the real outgoing DOM");
-      });
-
-    await test("a respine interrupting a respine continues from the picture " +
-      "on screen, not from the serialisation behind it", function () {
-        // VA.lastTopoRender records what a frame DREW, which mid-transition
-        // is an interpolated column count and an interpolated pane width --
-        // fractional, and deliberately so. The animator reads that record
-        // back as its own `from`, so recording the target serialisation's
-        // own numbers instead would make a reader who clicks twice see the
-        // DAG jump sideways at the second click.
-        // SYNTHETIC outgoing frame again (see respineStores): a frame drawn
-        // with fewer columns and a narrower pane than the walk the pane is
-        // transitioning to.
-        var s = respineStores();
-        var outgoing = { positions: s.to, columns: s.chainLayout.columns,
-                         floor: 0, links: {},
-                         width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
-                                                  s.M, s.to).width };
-        var railSet = function (root) {
-          return all(root, "line.rail").map(function (n) {
-            return parseFloat(n.getAttribute("x1"));
-          });
-        };
-        var spineAndWidth = function (root) {
-          var rails = railSet(root);
-          return [Math.max.apply(null, rails),
-                  parseFloat(root.querySelector("svg.tv__rails")
-                    .getAttribute("width"))];
-        };
-
-        // The outgoing picture itself -- the frame at e = 0, which is the
-        // one the reader is looking at when the transition starts.
-        var frameAt = function (root, e) {
-          VA.renderTopoPane(root, topoCtx({
-            tween: { positions: outgoing.positions, columns: outgoing.columns,
-                     floor: outgoing.floor, width: outgoing.width,
-                     links: outgoing.links, e: e },
-          }));
-          return VA.lastTopoRender;
-        };
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var walk = VA.lastTopoRender;
-        var start = spineAndWidth(render(function (r) { frameAt(r, 0); }));
-        // Halfway toward the walk.
-        frameAt(root, 0.5);
-        var caught = VA.lastTopoRender;
-        var midway = spineAndWidth(root);
-        var midwayRails = railSet(root);
-        ok(caught.columns > outgoing.columns && caught.columns < walk.columns,
-           "the frame records the count it drew with: " + caught.columns);
-
-        // The interrupt: a new transition, back the other way, off that
-        // record. Its FIRST frame has to draw the same picture.
-        VA.renderTopoPane(root, topoCtx({
-          tween: { positions: caught.positions, columns: caught.columns,
-                   floor: caught.floor, width: caught.width,
-                   links: caught.links, e: 0 },
-        }));
-        eq(spineAndWidth(root), midway,
-           "the interrupting frame must continue from the drawn picture");
-        // And over the whole DRAWN SET, not just its two summary numbers.
-        // `spineAndWidth` reduces a frame of N rails to the max rail x and
-        // the SVG width -- which are precisely the two numbers VA.respineX
-        // returns, so it agreed with itself while the interrupting frame
-        // drew rails at x's the caught frame had nothing at
-        // (ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
-        // nowhere). Not an equal SET: the walk has more columns than the
-        // frame it interrupts, and the extra ones are collapsed on top of
-        // one another. Every rail must land on a rail that was there.
-        railSet(root).forEach(function (x, i) {
-          ok(midwayRails.indexOf(x) !== -1, "rail " + i + " of the " +
-             "interrupting frame is at " + x + ", where the frame it " +
-             "interrupted drew nothing: " + railSet(root) + " vs " +
-             midwayRails);
-        });
-
-        // Non-vacuity: the two serialisations' own spines are far apart, so
-        // continuing from either of them instead would be visible.
-        var freshWalk = spineAndWidth(render(function (r) {
-          VA.renderTopoPane(r, topoCtx());
-        }));
-        ok(midway[0] !== freshWalk[0] && midway[0] !== start[0],
-           "midway is its own picture: " + midway + " between " +
-           start + " and " + freshWalk);
-      });
-
-    await test("the settled frame carries none of the animation: no ghost, " +
-      "no slide, no inline opacity, and the numbers a fresh render draws",
-      function () {
-        var studyCtx = function () {
-          return topoCtx({ study: topoStudy("demo_strut_branch") });
-        };
-        var fresh = render(function (r) { VA.renderTopoPane(r, studyCtx()); });
-        var freshBars = all(fresh, "line.rail__barhit").map(function (n) {
-          return [n.getAttribute("data-id"), n.getAttribute("y1"), n.getAttribute("y2")];
-        });
-
-        // The same selection, reached through a whole transition.
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        var clock = 0;
-        var queue = [];
-        VA.animateTopoPane(root, studyCtx(), from, {
-          now: function () { return clock; },
-          raf: function (fn) { queue.push(fn); },
-          duration: 100, reduced: false,
-        });
-        while (queue.length) {
-          clock += 50;
-          queue.shift()();
-        }
-        eq(VA.lastTopoRender.tweening, false, "it lands on a plain render");
-        eq(all(root, "div.tv__ghost").length, 0, "the ghost is gone");
-        eq(root.querySelector(".tv__head").style.transform || "", "");
-        eq(root.querySelector(".tv__body").style.transform || "", "");
-        eq(root.querySelector("div.tv__rows").style.opacity || "", "");
-        all(root, "line.rail__bar").forEach(function (n) {
-          eq(n.style.opacity || "", "", "no faded bar survives the transition");
-        });
-        all(root, "circle.rail__dot").forEach(function (n) {
-          eq(n.style.opacity || "", "", "no faded dot survives the transition");
-        });
-        all(root, "tr.tvrow").forEach(function (n) {
-          eq(n.style.opacity || "", "", "no faded row survives the transition");
-        });
-        eq(all(root, "line.rail__barhit").map(function (n) {
-          return [n.getAttribute("data-id"), n.getAttribute("y1"), n.getAttribute("y2")];
-        }), freshBars, "the settled geometry is the fresh render's, bar for bar");
-      });
-
-    await test("VA.animateTopoPane runs a whole transition off an injected " +
-      "clock: the outgoing pane becomes the ghost, every frame is a render, " +
-      "and a cancel stops it dead", function () {
-        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var outgoing = root.querySelector(".tv__hscroll");
-        var from = VA.lastTopoRender;
-        var clock = 0;
-        var queue = [];
-        var opts = { now: function () { return clock; },
-                     raf: function (fn) { queue.push(fn); },
-                     duration: 100, reduced: false };
-        var handle = VA.animateTopoPane(root, studyCtx, from, opts);
-        ok(handle, "an animated transition hands back a handle");
-        // The first frame is drawn synchronously, at e = 0, and it is the
-        // outgoing picture: the ghost is opaque and the incoming grid is not
-        // yet there. So a click never flashes an intermediate state.
-        eq(VA.lastTopoRender.tweening, true);
-        eq(VA.lastTopoRender.positions.t, 0);
-        var ghost = root.querySelector("div.tv__ghost");
-        ok(ghost && ghost.querySelector(".tv__hscroll") === outgoing,
-           "the ghost holds the very nodes the previous paint rendered");
-        eq(ghost.getAttribute("aria-hidden"), "true",
-           "it is a picture of a state the reader has left, not content");
-        eq(ghost.querySelector(".tv__head"), null,
-           "the column header is in the grid's region, which fades in place: no double image");
-        eq(parseFloat(ghost.style.opacity), 1);
-        eq(parseFloat(root.querySelector("div.tv__rows").style.opacity), 0);
-        eq(queue.length, 1, "and it asks for the next frame");
-
-        clock = 50;
-        queue.shift()();
-        ok(VA.lastTopoRender.positions.t > 0.3 &&
-           VA.lastTopoRender.positions.t < 0.7,
-           "halfway through, halfway eased: " + VA.lastTopoRender.positions.t);
-        eq(queue.length, 1);
-
-        // Cancelled mid-flight, nothing more is drawn -- which is what lets a
-        // resize or a second selection land on top of a running transition.
-        handle.cancel();
-        var before = VA.lastTopoRender;
-        clock = 90;
-        queue.shift()();
-        ok(VA.lastTopoRender === before, "a cancelled frame renders nothing");
-        eq(queue.length, 0);
-
-        // With no previous store there is nothing to animate between, and the
-        // pane just renders -- the boot path, and a topology switch.
-        var boot = render(function (r) {
-          eq(VA.animateTopoPane(r, topoCtx(), null, opts), null);
-        });
-        ok(boot.querySelector("svg.tv__rails"), "it still painted");
-        eq(all(boot, "div.tv__ghost").length, 0);
-      });
-
-    await test("a frame that throws stops the transition and lands on the " +
-      "page's one crash seam, not on an unhandled error", function () {
-        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        var caught = [];
-        var clock = 0;
-        var queue = [];
-        // The first frame paints; the second one -- running off the
-        // animation callback, outside every try/catch this page has -- blows
-        // up.
-        var armed = false;
-        studyCtx.onPainted = function () {
-          if (armed) throw new Error("seeded frame failure");
-        };
-        VA.animateTopoPane(root, studyCtx, from, {
-          now: function () { return clock; },
-          raf: function (fn) { queue.push(fn); },
-          duration: 100, reduced: false,
-          onError: function (err) { caught.push(String(err.message)); },
-        });
-        eq(queue.length, 1);
-        armed = true;
-        clock = 50;
-        queue.shift()();
-        eq(caught, ["seeded frame failure"]);
-        eq(queue.length, 0, "and it stops asking for frames");
-      });
-
-    await test("the frames between keyframes move the live nodes and build " +
-      "none: a transition is three renders and a settle, whatever its length",
-      function () {
-        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        var clock = 0;
-        var queue = [];
-        var builds = 0;
-        var real = VA.renderTopoPane;
-        var handle;
-        try {
-          VA.renderTopoPane = function (r, c) { builds++; return real(r, c); };
-          handle = VA.animateTopoPane(root, studyCtx, from, {
-            now: function () { return clock; },
-            raf: function (fn) { queue.push(fn); },
-            duration: 1000, reduced: false,
-          });
-          var afterSetup = builds;
-          var bar = root.querySelector("line.rail__barhit");
-          var ys = function () {
-            return all(root, "line.rail__barhit").map(function (n) {
-              return n.getAttribute("y1");
-            }).join(",");
-          };
-          var seen = [ys()];
-          for (var t = 100; t < 1000; t += 100) {
-            clock = t;
-            queue.shift()();
-            seen.push(ys());
-          }
-          eq(builds, afterSetup, "nine frames, no render among them");
-          ok(root.querySelector("line.rail__barhit") === bar,
-             "the same node moved");
-          ok(seen.filter(function (v, i) { return seen.indexOf(v) === i; }).length > 4,
-             "and it moved a step each frame: " + seen);
-          clock = 1000;
-          queue.shift()();
-          eq(builds, afterSetup + 1, "the settled frame is the one plain render");
-        } finally {
-          VA.renderTopoPane = real;
-        }
-        ok(handle.done, "and the handle says it landed");
-      });
-
-    await test("a landing that names a pulled-back scale runs two legs: out " +
-      "to it first, then in to the arrival", function () {
-        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        var clock = 0;
-        var queue = [];
-        var zooms = [];
-        var legs = [];
-        var landing = {
-          target: function () { studyCtx.zoom = 0.8; },
-          waypoint: function () { return 0.3; },
-          frame: function () {},
-          placed: function (e, w) {
-            legs.push(w.k);
-            zooms.push(VA.lastTopoRender.zoom);
-          },
-        };
-        VA.animateTopoPane(root, studyCtx, from, {
-          now: function () { return clock; },
-          raf: function (fn) { queue.push(fn); },
-          reduced: false, landing: landing,
-        });
-        var total = VA.RESPINE.fitDuration;
-        for (var t = total / 20; t < total && queue.length; t += total / 20) {
-          clock = t;
-          queue.shift()();
-        }
-        ok(Math.min.apply(null, zooms) < 0.35, "the scale went out to the fit: " + zooms);
-        ok(legs.indexOf(0) !== -1 && legs.indexOf(1) !== -1, "both legs ran: " + legs);
-        var low = zooms.indexOf(Math.min.apply(null, zooms));
-        ok(zooms[0] > 0.9 && zooms[zooms.length - 1] > zooms[low] + 0.2,
-           "it started in, went out, and came back in: " + zooms);
-      });
-
-    await test("prefers-reduced-motion jumps to the end state: one render, " +
-      "no ghost, no tween", function () {
-        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        var asked = 0;
-        var handle = VA.animateTopoPane(root, studyCtx, from, {
-          reduced: true,
-          raf: function () { asked++; },
-          now: function () { return 0; },
-        });
-        eq(handle, null, "nothing is animating, so there is nothing to cancel");
-        eq(asked, 0, "and no frame was ever asked for");
-        eq(VA.lastTopoRender.tweening, false);
-        eq(all(root, "div.tv__ghost").length, 0);
-        eq(root.querySelector("div.tv__rows").style.opacity || "", "");
-        var fresh = render(function (r) { VA.renderTopoPane(r, studyCtx); });
-        eq(all(root, "line.rail__barhit").map(function (n) {
-          return n.getAttribute("y1");
-        }), all(fresh, "line.rail__barhit").map(function (n) {
-          return n.getAttribute("y1");
-        }), "the reduced-motion page is the settled page, immediately");
-      });
-
-    await test("VA.prefersReducedMotion asks the media query, and no query " +
-      "reads as no preference", function () {
-        var had = Object.prototype.hasOwnProperty.call(window, "matchMedia");
-        var saved = window.matchMedia;
-        try {
-          var asked = [];
-          window.matchMedia = function (q) { asked.push(q); return { matches: true }; };
-          eq(VA.prefersReducedMotion(), true);
-          eq(asked, ["(prefers-reduced-motion: reduce)"]);
-          window.matchMedia = function () { return { matches: false }; };
-          eq(VA.prefersReducedMotion(), false);
-          // A query that throws (an old engine) is not a crash and not a
-          // preference either.
-          window.matchMedia = function () { throw new Error("nope"); };
-          eq(VA.prefersReducedMotion(), false);
-          window.matchMedia = undefined;
-          eq(VA.prefersReducedMotion(), false);
-        } finally {
-          if (had) window.matchMedia = saved; else delete window.matchMedia;
-        }
-      });
-
-    await test("a floored bar is rendered marked: the --floored class, the " +
-      "break glyph, and a hover label that says not-to-scale", function () {
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance" }));
-        });
-        // arm_pin_to_tip (zero-width) and tip_to_strut_end (derived) floor.
-        var floored = all(root, "line.rail__bar--floored");
-        eq(floored.length, 2);
-        eq(all(root, "path.rail__break").length, 2);
-        var hitFor = function (id) {
-          return all(root, "line.rail__barhit").filter(function (h) {
-            return h.getAttribute("data-id") === id;
-          })[0];
-        };
-        var label = function () {
-          var labels = all(root, "text.rail__hoverlabel");
-          return labels.length ? labels[0].textContent : null;
-        };
-        hitFor("arm_pin_to_tip").onmouseenter();
-        has(label(), "not to scale");
-        hitFor("arm_pin_to_tip").onmouseleave();
-        eq(label(), null);
-        // A bar at its measured proportion is NOT marked, and its label is the
-        // plain edge title.
-        hitFor("post_height").onmouseenter();
-        eq(label().indexOf("not to scale"), -1);
-        // The grid's rows do not move with the mode: still rowHeight, evenly
-        // spaced — the leaders absorb the whole difference.
-        all(root, "tr.tvrow").forEach(function (row) {
-          eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
-        });
-        // Uniform mode marks nothing: it claims no proportion.
-        var uniformRoot = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "uniform" }));
-        });
-        eq(all(uniformRoot, "line.rail__bar--floored").length, 0);
-        eq(all(uniformRoot, "path.rail__break").length, 0);
-      });
 
     await test("the grid renders one row per EDGE in walk order, at the rail " +
       "pitch, and the plan still names each part boundary's seam row, drawn or not", function () {
@@ -8758,17 +6806,15 @@
         var rows = all(root, "tr.tvrow");
         eq(rows.length, TOPO.edges.length);
         rows.forEach(function (row, i) {
-          eq(row.getAttribute("data-id"), TOPO_EDGE_ORDER[i]);
+          eq(row.getAttribute("data-id"), TOPO_GRID_ORDER[i]);
           eq(row.getAttribute("data-row-kind"), "edge");
           // Set inline from VA.RAIL_METRICS, not from the stylesheet.
           eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
         });
         // No node rows at all: an interface is its dot.
         eq(all(root, "tr.tvrow--node").length, 0);
-        // No leader is drawn across to the grid (its own region since
-        // 2026-11-14), but the plan's seams are kept: a selected node scrolls
-        // the row its seam is above into view (scrollSelectionIntoView).
-        eq(all(root, "path.rail__leader").length, 0);
+        // The plan's seams are kept: a selected node scrolls the row its
+        // seam is above into view (scrollSelectionIntoView).
         var seams = VA.lastTopoRender.boundaryEdge;
         ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
          "post_strut_bushing"].forEach(function (id) {
@@ -8799,14 +6845,16 @@
         var said = all(root, "td.tvcell--description").filter(function (c) {
           return c.textContent;
         });
-        eq(said.length, 6);
+        // Five: the post's two dimensions are one run (VA.gatherParts), so
+        // its words are said once.
+        eq(said.length, 5);
         // Human names, never part ids (Jeff, 2026-09-15: "2nd line
         // bolt_nas6403u11d appears to be some type of internal id that is
         // meaningless to user ... replace these with a concise human friendly
         // name").
         eq(said.map(function (c) { return c.textContent; }),
           ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
-           "parallel strut", "post"]);
+           "parallel strut"]);
       });
 
     await test("a part's number is said once: by its bracket where parts are " +
@@ -9148,48 +7196,8 @@
         ok(marks > TOPO.edges.length * 2, "the walk must not be vacuous: " + marks);
       });
 
-    await test("hovering a mark on either tier reports its ONE key, draws one " +
-      "line of label, and opens no card", function () {
-        var hot = [];
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({
-            onHot: function (key) { hot.push(key); },
-            onCardShow: function () { throw new Error("a mark opened a card"); },
-          }));
-        });
-        var byId = function (selector, id) {
-          return all(root, selector).filter(function (n) {
-            return n.getAttribute("data-id") === id;
-          })[0];
-        };
-        // No native tooltip left on a mark: the label and the Preview replace it.
-        all(root, "line.rail__barhit").forEach(function (hit) { eq(hit.textContent, ""); });
-        all(root, "circle.rail__dot").forEach(function (dot) { eq(dot.textContent, ""); });
-        var labels = function () { return all(root, "text.rail__hoverlabel"); };
-        byId("line.rail__barhit", "base_thickness").onmouseenter();
-        eq(hot[hot.length - 1], "edge|base_thickness");
-        eq(labels().length, 1);
-        eq(labels()[0].textContent, "base plate thickness");
-        eq(labels()[0].getAttribute("data-label-for"), "edge|base_thickness");
-        byId("line.rail__barhit", "base_thickness").onmouseleave();
-        eq(hot[hot.length - 1], null);
-        eq(labels().length, 0);
-        // The grid row of the same edge reports the same key.
-        byId("tr.tvrow", "base_thickness").onmouseenter();
-        eq(hot[hot.length - 1], "edge|base_thickness");
-        byId("tr.tvrow", "base_thickness").onmouseleave();
-        // A dot, by focus as well as by pointer.
-        var dot = all(root, "circle.rail__dot")[0];
-        dot.onfocus();
-        eq(hot[hot.length - 1], "node|" + dot.getAttribute("data-id"));
-        eq(labels().length, 1);
-        dot.onblur();
-        // The grid holds no card trigger of any kind any more.
-        eq(all(root, ".cardtrig").length, 0);
-        eq(all(root, "button.crop-trigger").length, 0);
-      });
 
-    await test("clicking a mark, or Enter on it, is selection -- the one action " +
+    await test("clicking a grid row, or Enter on it, is selection -- the one action " +
       "that freezes the Preview", function () {
         var selected = [];
         var root = render(function (r) {
@@ -9197,58 +7205,18 @@
             onSelect: function (kind, id) { selected.push(kind + "|" + id); },
           }));
         });
-        all(root, "circle.rail__dot")[0].onclick();
-        all(root, "line.rail__barhit")[0].onclick();
         var row = all(root, "tr.tvrow")[0];
         row.onclick();
         row.onkeydown({ key: "Enter", target: row, preventDefault: function () {} });
-        all(root, "circle.rail__dot")[0].onkeydown({ key: " ", preventDefault: function () {} });
-        eq(selected.length, 5);
-        eq(selected[0].indexOf("node|"), 0);
-        eq(selected[1].indexOf("edge|"), 0);
-        eq(selected[2], "edge|" + row.getAttribute("data-id"));
-        eq(selected[3], selected[2]);
+        eq(selected.length, 2);
+        eq(selected[0], "edge|" + row.getAttribute("data-id"));
+        eq(selected[1], selected[0]);
         // A key that is not a click is not one.
         row.onkeydown({ key: "a", target: row });
-        eq(selected.length, 5);
+        eq(selected.length, 2);
       });
 
-    await test("a sub-stack's label sits right of its bar when it fits, and " +
-      "otherwise ends at the drawing's right edge, never past it", function () {
-        var w = VA.HOVER_LABEL_METRICS.charPx;
-        var g = VA.SUB_STACK_LABEL_GAP;
-        eq(VA.subStackLabelPlacement(100, 20, 400),
-           { x: 100 + g, anchor: "start", side: "right" }, "room for it: beside the bar");
-        // One character more than the room right of the bar: it ends at the edge.
-        var room = Math.floor((400 - 2 - 100 - g) / w);
-        eq(VA.subStackLabelPlacement(100, room, 400).side, "right");
-        eq(VA.subStackLabelPlacement(100, room + 1, 400),
-           { x: 398, anchor: "end", side: "edge" }, "no room: anchored at the edge");
-      });
 
-    await test("the hover label goes where no other mark is, and keeps a " +
-      "picture fact when it must cut the name", function () {
-        var anchor = { x: 100, y: 50, r: 4 };
-        // Free on the left: the left wins.
-        eq(VA.hoverLabelPlacement(anchor, 60, 12, [], null).side, "left");
-        // A dot to the left: the right.
-        var leftMark = { x1: 50, x2: 58, y1: 46, y2: 54 };
-        eq(VA.hoverLabelPlacement(anchor, 60, 12, [leftMark], null).side, "right");
-        // Both sides taken: a corner above.
-        var rightMark = { x1: 110, x2: 118, y1: 46, y2: 54 };
-        eq(VA.hoverLabelPlacement(anchor, 60, 12, [leftMark, rightMark], null).side,
-          "above-left");
-        // Out of the drawing counts against a place: the left edge of the box.
-        eq(VA.hoverLabelPlacement({ x: 10, y: 50, r: 4 }, 60, 12, [],
-          { x1: 0, x2: 400, y1: 0, y2: 400 }).side, "right");
-        // A label is one line of at most HOVER_LABEL_CHARS, and the note is
-        // never the part that is cut.
-        var long = new Array(80).join("x");
-        eq(VA.hoverLabelText(long).length, VA.HOVER_LABEL_CHARS);
-        var noted = VA.hoverLabelText(long, VA.FLOORED_RENDER_NOTE);
-        has(noted, " — " + VA.FLOORED_RENDER_NOTE);
-        ok(/^x+…/.test(noted), "the name gives up its room, and says so: " + noted);
-      });
 
     await test("citationCard reassembles what the stack view already renders — " +
       "where-ref, callout, note, export provenance", function () {
@@ -9415,21 +7383,6 @@
         eq(all(frozen, "img")[0].getAttribute("src"), "blob:selected");
       });
 
-    await test("selecting a node marks its dot — the grid has no node row to " +
-      "outline", function () {
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({
-            selection: { kind: "node", id: "base_post_seat" } }));
-        });
-        eq(all(root, "circle.rail__dot--selected").length, 1);
-        eq(all(root, "tr.tvrow--selected").length, 0);
-        // An internal node selects the same way (its dot is clickable).
-        var internalRoot = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({
-            selection: { kind: "node", id: "base_datum" } }));
-        });
-        eq(all(internalRoot, "circle.rail__dot--selected").length, 1);
-      });
 
     await test("the preview pane says which side of the leader rule an " +
       "interface is on", function () {
@@ -9481,34 +7434,7 @@
         eq(rule.indexOf("arm"), -1);
       });
 
-    await test("every node row gets a dot and every edge row gets a bar",
-      function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var nodes = TOPO.layout.rows.filter(function (r) { return r.kind === "node"; });
-        var edges = TOPO.layout.rows.filter(function (r) { return r.kind === "edge"; });
-        eq(all(root, "circle.rail__dot").length, nodes.length);
-        eq(all(root, "line.rail__bar").length, edges.length);
-        // Every fan-out and every loop closure is a curve, and both are in the
-        // projection — the view invents neither.
-        eq(all(root, "path.rail__link").length, TOPO.layout.links.length);
-      });
 
-    await test("a bar says only lit or unlit: it wears no confidence, a gap is " +
-      "dashed, and the grid's mark is where its sourcing is", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var bars = all(root, "line.rail__bar");
-        ok(bars.length > 0, "the demo mechanism draws its bars");
-        eq(bars.filter(function (n) {
-          return /(^| )conf--/.test(n.getAttribute("class"));
-        }).length, 0, "no bar carries a confidence class");
-        // The demo mechanism holds one of each confidence on purpose, and the
-        // grid still says the untraced one, on its row's mark.
-        ok(all(root, "span.tvmark--untraced").length > 0,
-           "the untraced edge is still said, in the grid");
-        eq(bars.filter(function (n) { return hasClass(n, "rail__bar--gap"); }).length,
-           TOPO.edges.filter(function (e) { return e.kind === "gap"; }).length,
-           "every gap is dashed, and nothing else is");
-      });
 
     await test("a derived gap says it carries no value, rather than showing an " +
       "empty one", function () {
@@ -9526,79 +7452,24 @@
             selection: { kind: "edge", id: derived[0].getAttribute("data-id") } }));
         });
         has(pane.textContent, "DERIVED");
-        eq(all(root, "line.rail__bar--derived").length, 1);
       });
 
-    await test("a branch point is marked on the dot — the grid has no node " +
-      "rows to mark any more", function () {
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
-      });
 
-    // --- selecting a study (viewer_respine_whole_walk, 2026-09-15) ---------
-    //
-    // The invariant this handoff exists for, in one sentence: a study
-    // selection changes EMPHASIS, never what is on screen. Jeff read the old
-    // behaviour -- selecting a study swapped the DAG for a second, chain-only
-    // layout -- as a bug, and specifically as an inconsistent one: the two
-    // studies whose chains dropped rows looked different from the one whose
-    // chain covered nearly every visible element. The cure is uniformity, so
-    // the check is a count taken over EVERY study of the fixture rather than
-    // one reading of one study.
-    //
-    // Since 2026-10-28 a selection re-ARRANGES the walk around the study
-    // (VA.bandLayout), so the rails and links it draws are the re-arranged
-    // walk's, not the projection's: what must not change is the set of bars
-    // and dots, and what is drawn must still be a walk.
-    await test("selecting a study never hides a node or an edge: the DAG is " +
-      "the whole walk before and after, whatever the study is",
-      function () {
-        var marks = function (root) {
-          return [all(root, "line.rail__barhit").length,
-                  all(root, "circle.rail__dot").length];
-        };
-        var deselected = render(function (r) {
-          VA.renderTopoPane(r, topoCtx());
-        });
-        var walk = marks(deselected);
-        eq(walk, [TOPO.edges.length, TOPO.nodes.length],
-           "the deselected walk draws every element of the document");
-        eq([all(deselected, "line.rail").length, all(deselected, "path.rail__link").length],
-           [TOPO.layout.columns, TOPO.layout.links.length], "as the projection laid it");
-        TOPO.studies.forEach(function (study) {
-          var root = render(function (r) {
-            VA.renderTopoPane(r, topoCtx({ study: study }));
-          });
-          eq(marks(root), walk, "study " + study.id + " kept the whole walk");
-          var drawn = VA.bandLayout(TOPO.layout, VA.studyLitSet(study, TOPO));
-          eq(walkProblems(drawn), [], study.id + " draws as a walk");
-          eq([all(root, "line.rail").length, all(root, "path.rail__link").length],
-             [drawn.rails.length, drawn.links.length], study.id + ": its own rails and links");
-        });
-      });
 
-    await test("selecting a study dims the non-members, numbers the chain " +
-      "and drops the grid to the chain's own rows", function () {
+    await test("selecting a study numbers the chain and drops the grid to the " +
+      "chain's own rows", function () {
         var study = topoStudy("demo_strut_branch");
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ study: study }));
         });
         var chain = study.result.chain;
-        // The DAG: every edge is still drawn, and exactly the chain's are lit.
-        var on = all(root, "line.rail__bar--on");
-        var off = all(root, "line.rail__bar--off");
-        eq(on.length, chain.length, "every chain edge's bar is lit");
-        ok(off.length > 0, "the rest of the topology is dimmed, not hidden");
-        eq(on.length + off.length, TOPO.edges.length);
-        ok(all(root, "circle.rail__dot--off").length > 0, "and so are its dots");
-        // The grid: the chain's rows, and only those. Walk order, not sum
-        // order -- the table sits under a DAG that did not move, so a row
-        // re-ordered here would cross every leader on the page. The sum's own
-        // order is the `#` column, which is what the ordinals below check.
+        // The grid: the chain's rows, and only those, in the walk's order
+        // (the lit rows made one band, VA.bandLayout), not the sum's: the
+        // sum's own order is the `#` column, which the ordinals below check.
         var rows = all(root, "tr.tvrow");
         eq(rows.length, chain.length, "the grid is exactly the chain");
         eq(rows.map(function (n) { return n.getAttribute("data-id"); }),
-           ["base_thickness", "strut_length", "post_bushing_offset"]);
+           ["base_thickness", "post_bushing_offset", "strut_length"]);
         // Nothing in the table is marked off any more: every row in it is a
         // member, so there is no non-member left to fade.
         eq(all(root, "tr.tvrow--off").length, 0);
@@ -9614,42 +7485,6 @@
         });
       });
 
-    await test("the leaders run to the chain and nowhere else, and every one " +
-      "of them lands on a seam one of its OWN edges bounds", function () {
-        // The plan's leaders -- the seams a selected node scrolls to, since
-        // none is drawn across to the grid (2026-11-14).
-        var index = VA.topologyIndex(TOPO);
-        var layout = VA.spineRight(TOPO.layout);
-        var leaderIds = function (plan) {
-          return plan.leaders.map(function (l) { return l.id; });
-        };
-        // The walk's own boundaries: every non-internal node of the document.
-        eq(leaderIds(VA.gridPlan(layout, TOPO)),
-           ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
-            "post_strut_bushing"]);
-        var study = topoStudy("demo_strut_branch");
-        eq(leaderIds(VA.gridPlan(layout, TOPO,
-             { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) })),
-           ["base_post_seat", "strut_end", "post_strut_bushing"]);
-        // And the honesty claim under it: a seam says "this interface is
-        // between these two rows", so the seam it names must be bounded by one
-        // of its own edges. Measured over every study of the fixture.
-        TOPO.studies.forEach(function (s) {
-          if (s.status !== "ok") return;
-          var plan = VA.gridPlan(layout, TOPO,
-            { edges: VA.chainIndex(s), nodes: VA.chainNodes(s) });
-          plan.leaders.forEach(function (leader) {
-            var touches = function (planRow) {
-              var edge = planRow && index.edges[planRow.id];
-              return !!edge && (edge.from === leader.id || edge.to === leader.id);
-            };
-            ok(touches(plan.rows[leader.boundary - 1]) ||
-               touches(plan.rows[leader.boundary]),
-               s.id + ": leader " + leader.id + " points at seam " +
-               leader.boundary + ", which neither of its edges bounds");
-          });
-        });
-      });
 
     await test("a study that REFUSED to sum leaves the walk exactly as it " +
       "was: nothing dimmed, every leader, every row", function () {
@@ -9689,10 +7524,9 @@
         has(cell, contribution.units);
       });
 
-    await test("VA.gridPlan's focus filters the grid and the leaders and " +
-      "nothing else -- the rails are handed the same walk either way",
-      function () {
-        var layout = VA.spineRight(TOPO.layout);
+    await test("VA.gridPlan's focus filters the grid's rows and their seams and " +
+      "nothing else", function () {
+        var layout = TOPO.layout;
         var study = topoStudy("demo_base_to_tip");
         var walk = VA.gridPlan(layout, TOPO);
         var focused = VA.gridPlan(layout, TOPO,
@@ -9704,7 +7538,7 @@
            ["base_thickness", "post_height", "arm_pin_to_tip"]);
         // A dropped edge leaves no gap in the numbering: gridRow is the
         // index in the table that is actually drawn, which is what the
-        // leaders' seams and the row bands are both counted in.
+        // seams are counted in.
         eq(focused.rows.map(function (r) { return r.gridRow; }), [0, 1, 2]);
         eq(focused.leaders.map(function (l) { return l.id + "@" + l.boundary; }),
            ["base_post_seat@1", "post_arm_pin@2", "arm_tip@3"]);
@@ -9713,7 +7547,7 @@
         // leaderless under either plan.
         eq(focused.internal, walk.internal);
         // No focus is the whole walk, exactly as the call that has never
-        // passed one -- the DAG's own plan is unchanged by any of this.
+        // passed one.
         eq(VA.gridPlan(layout, TOPO, null).rows.length, walk.rows.length);
       });
 
@@ -9724,7 +7558,7 @@
         // edge must not carry its part across the hole (which would merge two
         // components into one merged cell) and must not swallow a leader
         // still waiting for a seam.
-        var layout = VA.spineRight(TOPO.layout);
+        var layout = TOPO.layout;
         var study = topoStudy("demo_strut_branch");
         var plan = VA.gridPlan(layout, TOPO,
           { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) });
@@ -11525,25 +9359,13 @@
         eq(handlerNoMount.querySelector("#study-3d"), null);
       });
 
-    await test("VA.applyRowDensity moves the one shared row-height metric, " +
-      "and only it", function () {
+    await test("VA.applyRowDensity moves the grid's one row-height metric, and an " +
+      "unknown density reads as the default", function () {
         var original = VA.RAIL_METRICS.rowHeight;
         try {
-          var before = {
-            block: VA.blockWidth({ pins: 3 }, VA.RAIL_METRICS),
-            target: VA.jointNodeTargetR(VA.RAIL_METRICS),
-          };
           var compact = VA.applyRowDensity("compact");
           eq(compact.rowHeight, 18);
           eq(VA.RAIL_METRICS.rowHeight, 18);
-          // Everything else in the metrics object -- gutter, dot radii, the
-          // pitch the marks are drawn at -- is untouched: density is a
-          // row-height control, not a column one and not a zoom
-          // (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows).
-          eq(VA.RAIL_METRICS.gutter, 20);
-          eq(VA.RAIL_METRICS.drawPitch, 26);
-          eq(VA.blockWidth({ pins: 3 }, VA.RAIL_METRICS), before.block, "a block keeps its width");
-          eq(VA.jointNodeTargetR(VA.RAIL_METRICS), before.target, "a joint keeps its ring");
 
           var comfortable = VA.applyRowDensity("comfortable");
           eq(comfortable.rowHeight, 26);
@@ -11564,13 +9386,11 @@
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
             rowDensity: "compact" }, TOPO, {});
         });
-        // density-toggle, edge-value-toggle, edge-length-toggle
-        // (viewer_edge_length_scaling), leader-style-toggle
-        // (viewer_leader_grid_legibility) -- four, since
-        // viewer_respine_whole_walk retired the layout toggle that used to
-        // lead the strip.
+        // density-toggle and edge-value-toggle: two, since the length mode
+        // and the leader style retired with the rails
+        // (the_map_is_the_only_drawing_and_classic_retires).
         var buttons = all(root, "button.tvpick__mode");
-        eq(buttons.length, 4);
+        eq(buttons.length, 2);
         has(buttons[0].textContent, "Rows: Compact");
       });
 
@@ -11617,127 +9437,9 @@
       })[0];
     }
 
-    await test("the edge-length toggle is on the toolbar, names the current " +
-      "mode from VA.EDGE_LENGTH_MODES, and defaults to uniform", function () {
-        var root = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            rowDensity: "comfortable",
-            edgeLengthMode: "uniform" }, TOPO, {});
-        });
-        var toggle = edgeLengthToggle(root);
-        ok(toggle, "expected #edge-length-toggle on the toolbar");
-        has(toggle.textContent, "Lengths: uniform");
-        // Each mode's label comes off the one table, never re-spelled here.
-        ["tolerance", "absolute"].forEach(function (mode) {
-          var r2 = render(function (r) {
-            VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-              rowDensity: "comfortable",
-              edgeLengthMode: mode }, TOPO, {});
-          });
-          has(edgeLengthToggle(r2).textContent,
-              "Lengths: " + VA.EDGE_LENGTH_MODES[mode].label);
-        });
-        // An unrecognised mode falls back to uniform's label rather than
-        // rendering "Lengths: undefined".
-        var r3 = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            rowDensity: "comfortable",
-            edgeLengthMode: "cozy" }, TOPO, {});
-        });
-        has(edgeLengthToggle(r3).textContent, "Lengths: uniform");
-      });
 
-    await test("clicking the edge-length toggle calls its own handler, and " +
-      "the mode table's next-pointers cycle through all four and home, skipping " +
-      "contribution on a page that has none",
-      function () {
-        var called = 0;
-        var root = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            rowDensity: "comfortable" }, TOPO,
-            { onEdgeLength: function () { called++; } });
-        });
-        edgeLengthToggle(root).onclick();
-        eq(called, 1);
-        // The cycle order is a fact of the table (topology_app.js follows the
-        // `next` pointers): uniform → tolerance → absolute → contribution →
-        // uniform, and a page with no contributions skips the last.
-        eq(VA.EDGE_LENGTH_MODES.uniform.next, "tolerance");
-        eq(VA.EDGE_LENGTH_MODES.tolerance.next, "absolute");
-        eq(VA.EDGE_LENGTH_MODES.absolute.next, "contribution");
-        eq(VA.EDGE_LENGTH_MODES.contribution.next, "uniform");
-        eq(VA.nextEdgeLengthMode("absolute", true), "contribution");
-        eq(VA.nextEdgeLengthMode("absolute", false), "uniform");
-        eq(VA.nextEdgeLengthMode("contribution", true), "uniform");
-        // The default: contribution where the page has contributions (a
-        // kinematic study), uniform elsewhere; a choice the page cannot draw
-        // falls back to it.
-        eq(VA.edgeLengthModeFor(null, true), "contribution");
-        eq(VA.edgeLengthModeFor(null, false), "uniform");
-        eq(VA.edgeLengthModeFor("tolerance", true), "tolerance");
-        eq(VA.edgeLengthModeFor("contribution", false), "uniform");
-      });
 
-    // --- which leader style a fresh load draws --------------------------------
-    //
-    // ANGLED since 2026-09-21 (viewer_nav_alert_badge_and_angled_default).
-    // Jeff, having tried both against the real mechanisms: "angled by default
-    // (jogged isn't really usable yet and arguably isn't worth putting more
-    // effort into since the angled lines look just fine)." Both styles stay on
-    // the toggle; apps/viewer/README.md's leaders section carries the decision
-    // and the note that jogged is deprioritized.
-    // ...and since 2026-11-10 (one_selection_one_hover_and_leaders_off) OFF is
-    // the default: the one selection and the one hover light every surface,
-    // and a leader is a second way of saying so, drawn on request.
-    await test("the leader default is off, is a real style the toggle cycles through " +
-      "with the two drawn ones, and the toolbar names it", function () {
-        eq(VA.DEFAULT_LEADER_STYLE, "off");
-        ok(VA.LEADER_STYLES[VA.DEFAULT_LEADER_STYLE],
-           "the default must be a style the toggle can cycle to");
-        eq(VA.LEADER_STYLE_ON, "angled", "the first drawn style is the one the tier turns on");
-        // A preference-less state: the toolbar falls back to the default
-        // rather than to whichever style happened to ship first.
-        var root = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            rowDensity: "comfortable" }, TOPO, {});
-        });
-        var toggle = all(root, "button.tvpick__mode").filter(function (n) {
-          return n.getAttribute("id") === "leader-style-toggle";
-        })[0];
-        ok(toggle, "expected #leader-style-toggle on the toolbar");
-        has(toggle.textContent, "Leaders: " + VA.LEADER_STYLES.off.label);
-        // Off and on (the fixed shell, 2026-11-14: a leader runs to the 3D
-        // scene only, and that overlay has one look).
-        eq(Object.keys(VA.LEADER_STYLES).sort(), ["angled", "off"]);
-        eq(VA.LEADER_STYLES.off.next, "angled");
-        eq(VA.LEADER_STYLES.angled.next, "off");
-      });
 
-    await test("leaders off: the geometry builds no leader and moves nothing else -- the " +
-      "zone, the width and each node's seam row are what the drawn styles have -- and the " +
-      "pane draws none", function () {
-        var layout = TOPO.layout;
-        var plan = VA.gridPlan(layout, TOPO);
-        var M = VA.RAIL_METRICS;
-        var on = VA.leaderGeometry(layout, plan, M, null, { style: "angled" });
-        var off = VA.leaderGeometry(layout, plan, M, null, { style: "off" });
-        ok(on.leaders.length > 0, "the demo mechanism has leaders when on");
-        eq(off.leaders.length, 0);
-        eq(off.style, "off");
-        eq(off.width, on.width, "the grid starts where it did");
-        eq(off.zoneLeft, on.zoneLeft, "the jog zone keeps its place...");
-        eq(off.naturalZone, on.naturalZone, "...and its width");
-        eq(off.height, on.height);
-        // Every non-internal node's seam row, drawn or not: what the page
-        // scrolls a selected node's row into view by.
-        eq(Object.keys(off.boundaryEdge).sort(), plan.leaders.map(function (l) { return l.id; }).sort());
-        on.leaders.forEach(function (leader) { eq(off.boundaryEdge[leader.id], leader.beforeEdge); });
-        var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ leaderStyle: "off" })); });
-        eq(all(root, "path.rail__leader").length, 0);
-        eq(all(root, "path.rail__leaderhit").length, 0);
-        ok(all(root, "tr.tvrow").length > 0, "the grid is still drawn");
-        eq(VA.lastTopoRender.boundaryEdge, off.boundaryEdge);
-      });
 
     // One default, one place. The app shell's initial state and the toggle's
     // own fallback both read VA.DEFAULT_LEADER_STYLE; a literal re-introduced
@@ -12360,9 +10062,7 @@
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
         VA.writeCollapsedAssemblies(store, "t", { link: true });
-        VA.writeCollapsedBodies(store, "t", { base: true });
         eq(VA.readCollapsedAssemblies(store, "t"), { link: true });
-        eq(VA.readCollapsedBodies(store, "t"), { base: true }, "the bodies' store is its own");
         eq(VA.readCollapsedAssemblies({ getItem: function () { throw new Error("denied"); } }, "t"), {});
         eq(VA.assemblyIds(assemblyTopo()), { link: true });
         var asked = [];
@@ -12787,7 +10487,7 @@
     // 2026-11-17): a node two parts share may state a rotary joint or a
     // fastener pattern, and every place that prints a joint's kind says it.
     await test("a shared node's stated joint kind is printed in everyday words on the tree's " +
-      "interface row and the Preview, and Classic draws it as its glyph; a seat still reads contact",
+      "interface row and the Preview; a seat still reads contact",
       function () {
         eq(VA.interfaceKindWord("revolute"), "rotary");
         eq(VA.interfaceKindWord("fastener_pattern"), "fastener pattern");
@@ -12831,12 +10531,6 @@
         var oneSided = topo.nodes.filter(function (n) { return (n.parts || []).length === 1; })[0];
         eq(VA.elementRecord(topo, "node|" + oneSided.id, { crops: TOPOCROPS }).jointKind, null,
            "a node of one part joins nothing");
-        // Classic: the node wears its stated word's glyph, and a stated node
-        // outranks nothing it should not -- a ball end still wins.
-        eq(VA.nodeJointKinds(topo)[seat.id], "fastener_pattern");
-        seat.interface = "revolute";
-        eq(VA.nodeJointKinds(topo)[seat.id], "revolute");
-        ok(VA.NODE_GLYPH_PRECEDENCE.indexOf("spherical") < VA.NODE_GLYPH_PRECEDENCE.indexOf("revolute"));
       });
 
     // --- a binding shows the moment it is made and is corrected where it is
@@ -13519,11 +11213,6 @@
         // over the other stop's rows): then it is a reading like any other.
         var cleared = Object.assign({}, VA.kinematicPose(KIN_STUDY, 4), { stop: null });
         eq(VA.kinematicStack(KIN_STUDY, topo, "low", 3, {}, cleared).stop.id, "low");
-        // The contributions the DAG reads are the grid's own.
-        eq(VA.kinematicContributions(KIN_STUDY, "low", 1.5).arm_pin_to_tip,
-           VA.kinematicPoseRows(KIN_STUDY, VA.kinematicPose(KIN_STUDY, 1.5)).arm_pin_to_tip.magnitude);
-        eq(VA.kinematicContributions(KIN_STUDY, "low", 4),
-           VA.kinematicContributions(KIN_STUDY, "high"));
       });
 
     await test("a stack position row off its stop says it is the stop's", function () {
@@ -13550,56 +11239,6 @@
         eq(text(moved.root), text(target.root));
       });
 
-    await test("the contribution length mode draws each bar at its contribution, and the " +
-      "pose film moves the live drawing to a keyframe's own picture without a rebuild",
-      function () {
-        var topo = KIN_TOPOLOGIES.topologies[0];
-        var lit = VA.kinematicLitSet(KIN_STUDY, topo);
-        var ctxAt = function (pose) {
-          var stack = VA.kinematicStack(KIN_STUDY, topo, "low", 3, {}, pose);
-          return { topoProj: topo, study: null, crops: null, selection: null,
-            detailImage: null, onSelect: function () {}, lit: lit, stack: stack,
-            kinematicStudy: KIN_STUDY, decimals: 3, openSubStacks: VA.stackOpenMap(stack),
-            edgeLengthMode: "contribution",
-            lengths: VA.kinematicPoseLengths(KIN_STUDY, pose) };
-        };
-        var geometry = function (root) {
-          return all(root, "line").concat(all(root, "circle")).map(function (node) {
-            // To the hundredth: an eased value is written at three decimals.
-            return ["y1", "y2", "cy"].map(function (k) {
-              var v = node.getAttribute(k);
-              return v === null ? "" : (Math.round(Number(v) * 100) / 100).toFixed(2);
-            }).join(",");
-          });
-        };
-        // The values the bars scale by are the linkage terms' contributions
-        // at the pose, against the largest any of them reaches anywhere.
-        var c = VA.kinematicPoseLengths(KIN_STUDY, 0.5);
-        eq(c.values.arm_pin_to_tip,
-           VA.kinematicContributions(KIN_STUDY, "low", 0.5).arm_pin_to_tip);
-        ok(Math.abs(c.max - 0.3) < 1e-12, "arm's 3.0 x 0.1 at the high stop");
-        eq(VA.edgeLengthValue({ id: "arm_pin_to_tip" }, "contribution", c.values),
-           c.values.arm_pin_to_tip);
-        eq(VA.edgeLengthValue({ id: "not_a_contributor", dimension: { nominal: 3 } },
-           "contribution", c.values), null, "no contribution, no length");
-        var slots = VA.rowPositions(topo.layout, topo,
-          "contribution", VA.RAIL_METRICS, null, c);
-        var arm = slots.edges.arm_pin_to_tip;
-        eq(arm.floored, false);
-        ok(Math.abs(arm.length - c.values.arm_pin_to_tip / 0.3 *
-           VA.RAIL_METRICS.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows) < 1e-9,
-           "a bar's length is its share of the sweep's yardstick");
-        var live = render(function (r) { VA.renderTopoPane(r, ctxAt(0.5)); });
-        var fresh = render(function (r) { VA.renderTopoPane(r, ctxAt(3)); });
-        ok(geometry(live).join("|") !== geometry(fresh).join("|"), "the pose moves the DAG");
-        var scroller = live.querySelector(".tv__hscroll");
-        var film = VA.poseFilm(live, ctxAt, [0.5, 1.75, 3]);
-        ok(film && film.entries > 0, "the keyframes pair and something moves");
-        film.apply(3);
-        eq(geometry(live), geometry(fresh));
-        ok(live.querySelector(".tv__hscroll") === scroller, "the same nodes, moved");
-        ok(film.valid());
-      });
 
     await test("the pose read-out: the angle at the pose as a field that sets the pose, a button " +
       "per stop, the chart's cursor marks the pose -- and the page carries no transport " +
@@ -14033,51 +11672,7 @@
         eq([only.columns, walkProblems(only)], [1, []]);
       });
 
-    await test("a curve to a node below it bows downward, a close to a node above " +
-      "it bows upward", function () {
-        var laid = VA.bandLayout(bandWalk(), BAND_LIT);
-        var geo = VA.railGeometry(laid, VA.RAIL_METRICS);
-        var nums = function (d) { return d.match(/-?[0-9.]+/g).map(Number); };
-        var byRow = {};
-        laid.rows.forEach(function (r) { byRow[r.id] = r.row; });
-        var down = geo.links.filter(function (l) { return l.kind === "close" && l.row === byRow.pa; })[0];
-        var up = geo.links.filter(function (l) { return l.kind === "close" && l.row === byRow.au; })[0];
-        var d = nums(down.d);   // x1 y1  x1 c1  x2 c2  x2 y2
-        ok(d[7] > d[1] && d[3] > d[1] && d[5] < d[7], "down: " + down.d);
-        var u = nums(up.d);
-        ok(u[7] < u[1] && u[3] < u[1] && u[5] > u[7], "up: " + up.d);
-      });
 
-    await test("a body in several blocks around the band is one container: named " +
-      "once, on the band's field, bridged block to block", function () {
-        var laid = VA.bandLayout(bandWalk(), BAND_LIT);
-        var spans = VA.bodySpans(laid.rows);
-        var fieldsOf = spans.filter(function (s) { return s.body === "A"; });
-        ok(fieldsOf.length >= 2, "A is still more than one block: " +
-           JSON.stringify(fieldsOf));
-        var named = VA.bodyLabelFields(spans, laid.rows, BAND_LIT);
-        var namedA = spans.filter(function (s, i) { return named[i] && s.body === "A"; });
-        eq(namedA.length, 1, "A is named once");
-        eq([namedA[0].start <= 4, namedA[0].end >= 10], [true, true], "on the band's field");
-        eq(spans.filter(function (s, i) { return named[i]; }).length, 2, "and C once");
-        eq(VA.bodyLabelFields(spans, laid.rows, null).filter(Boolean).length,
-           new Set(spans.map(function (s) { return s.body; })).size,
-           "with nothing lit, still once per body");
-        var rect = function (s) { return { body: s.body, x1: 0, x2: 40, y1: s.start * 10,
-                                           y2: s.end * 10 + 8 }; };
-        var bridges = VA.bodyBridges(spans.map(rect));
-        eq(bridges.filter(function (b) { return b.body === "A"; }).length, fieldsOf.length - 1,
-           "a bridge between each pair of A's fields");
-        eq(bridges.length, spans.length - new Set(spans.map(function (s) {
-          return s.body; })).size, "and none for a body drawn whole");
-        has(bridges[0].d, "M 8 ");
-        // The rows still fold to a pill per block (a node id is one row); the
-        // drawing makes them one container (the [real] collapse check).
-        var pills = VA.collapseBodies(laid, { A: true }, null, BAND_LIT).rows
-          .filter(function (r) { return r.collapsed; }).map(function (r) { return r.id; });
-        eq(pills.length, fieldsOf.length);
-        eq(new Set(pills).size, pills.length, "one id per pill row: " + pills.join(", "));
-      });
 
     // --- bodies as containers, joints as glyphs (2026-10-26) ----------------
     //
@@ -14231,21 +11826,15 @@
     }
     // What a part is drawn as, per part: its grid brackets, and its DAG blocks
     // plus the part fields no block of its own already draws.
+    // The grid's runs of a part: the walk as the page orders it (each part's
+    // rows gathered, VA.gatherParts), one count per bracket.
     function drawnRuns(proj) {
-      var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
+      var layout = VA.gatherParts(proj.layout, proj);
       var grid = {};
       VA.gridPlan(layout, proj, null).groups.forEach(function (g) {
         if (g.part) grid[g.part] = (grid[g.part] || 0) + 1;
       });
-      var dag = {};
-      layout.blocks.forEach(function (b) { dag[b.part] = (dag[b.part] || 0) + 1; });
-      VA.partSpans(layout.rows, proj).forEach(function (s) {
-        var inBlock = layout.blocks.some(function (b) {
-          return b.part === s.part && b.start <= s.end && b.end >= s.start;
-        });
-        if (!inBlock) dag[s.part] = (dag[s.part] || 0) + 1;
-      });
-      return { layout: layout, grid: grid, dag: dag };
+      return { layout: layout, grid: grid };
     }
     function isWalk(layout) {
       var at = {};
@@ -14257,7 +11846,7 @@
     }
 
     await test("a block part whose other edges end on another block's pins is one run: " +
-      "one bracket in the grid and one block in the DAG", function () {
+      "one bracket in the grid", function () {
         // H: pins h1, h2 (chord eh); x1, x2 are H's dimensions to faces m2, m3,
         // which M owns (M has more faces). The walk closes x1, x2 last.
         var proj = reachedTwiceProjection([
@@ -14279,7 +11868,6 @@
         var drawn = drawnRuns(proj);
         ok(isWalk(drawn.layout), "still a walk, every edge hanging from a node above it");
         eq(drawn.grid, { H: 1, M: 1 }, "one bracket per part in the grid");
-        eq(drawn.dag, { H: 1, M: 1 }, "one block per part in the DAG");
       });
 
     await test("a part whose second edge cannot move up yet is held back, whole, until it " +
@@ -14294,61 +11882,16 @@
         [["s", ["S"]], ["n1", ["S"]], ["b1", ["B"]], ["b2", ["B"]], ["n2", ["T"]]],
         [["k0", "s", "n1", "K"], ["g", "n1", "b1", null], ["eb", "b1", "b2", "B"],
          ["kk", "b2", "n2", "K"]]);
-        var before = VA.gridPlan(VA.blockLayout(proj.layout, proj), proj, null).groups
+        var before = VA.gridPlan(proj.layout, proj, null).groups
           .filter(function (g) { return g.part === "K"; });
         eq(before.length, 2, "as the builder walked it, K is two brackets");
         var drawn = drawnRuns(proj);
         ok(isWalk(drawn.layout), "still a walk");
         eq(drawn.grid.K, 1, "one bracket");
-        eq(drawn.dag.K, 1, "one field");
         var ids = drawn.layout.rows.map(function (r) { return r.id; });
         eq(ids.indexOf("kk") - ids.indexOf("k0"), 1, "k0 and kk are adjacent");
       });
 
-    await test("a block's pins are on its sides, one height each in walk order, inside " +
-      "the aspect band; a chord runs pin to pin and a rail-side pin is joined to its column",
-      function () {
-        var proj = splitPartProjection();
-        var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
-        var M = VA.RAIL_METRICS;
-        var positions = VA.rowPositions(layout, proj, "uniform", M);
-        var geo = VA.railGeometry(layout, M, positions, { topoProj: proj });
-        eq(geo.blocks.length, 2);
-        geo.blocks.forEach(function (b) {
-          var ratio = (b.x2 - b.x1) / (b.y2 - b.y1);
-          ok(ratio >= VA.BLOCK_ASPECT.min && ratio <= VA.BLOCK_ASPECT.max,
-             b.part + " is " + ratio.toFixed(2) + " wide per unit high");
-        });
-        var pins = geo.marks.filter(function (m) { return m.pin; });
-        eq(pins.map(function (m) { return m.id; }), ["p1", "p2", "p3", "c", "q1", "q2"]);
-        pins.forEach(function (m) {
-          var b = geo.blocks[m.block];
-          eq(m.x, m.pin === "left" ? b.x1 : b.x2, m.id + " is on its side");
-          ok(m.y > b.y1 && m.y < b.y2, m.id + " is within its block's height");
-        });
-        eq(pins.filter(function (m) { return m.pin === "right"; }).map(function (m) { return m.id; }),
-           ["p1"], "only the face nothing else meets faces away from the rails");
-        var ys = geo.marks.filter(function (m) { return m.kind === "node"; })
-          .map(function (m) { return m.y; });
-        ok(ys.every(function (y, i) { return i === 0 || y > ys[i - 1]; }),
-           "every node its own height, in walk order -- the leaders' premise");
-        var byId = {};
-        geo.marks.forEach(function (m) { byId[m.kind + "|" + m.id] = m; });
-        var chord = byId["edge|e1"].chord;
-        ok(chord && chord.d.indexOf("M " + byId["node|p1"].x + " " + byId["node|p1"].y) === 0,
-           "the chord leaves p1");
-        ok(/ (\S+) (\S+)$/.exec(chord.d)[0].trim() === byId["node|p2"].x + " " + byId["node|p2"].y,
-           "and lands on p2");
-        ok(!layout.rails.some(function (r) {
-          return layout.rows[r.start].id === "p1" && layout.rows[r.end].id === "p2";
-        }), "a chord has no rail");
-        var stubs = {};
-        geo.stubs.forEach(function (s) { stubs[s.id] = s; });
-        ok(stubs.p2 && stubs.p2.x2 === byId["node|p2"].x && stubs.p2.y === byId["node|p2"].y,
-           "p2's rails reach it along a stub");
-        ok(!stubs.p1, "an inner pin has none");
-        ok(geo.width >= geo.blocks[0].x2, "the drawing is as wide as its strip");
-      });
 
     await test("a block holds only its pins and the chords between them: a chord whose " +
       "other pin is elsewhere cuts the run and keeps its rail", function () {
@@ -14371,42 +11914,7 @@
         ok(e3.row < p[0].start || e3.row > p[0].end, "outside the block");
       });
 
-    await test("in a scaled length mode two pins a chord joins are the chord's own length " +
-      "apart, and the block stretches for it", function () {
-        var proj = splitPartProjection();
-        proj.edges.forEach(function (e) {
-          e.dimension = { nominal: 0, min: -0.1, max: 0.1 };
-        });
-        proj.edges[0].dimension = { nominal: 0, min: -1, max: 1 };
-        var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
-        var M = VA.RAIL_METRICS;
-        var positions = VA.rowPositions(layout, proj, "tolerance", M);
-        eq(positions.nodes.p2 - positions.nodes.p1, positions.edges.e1.length,
-           "p1 to p2 is e1's drawn length");
-        var uniform = VA.rowPositions(layout, proj, "uniform", M);
-        ok(uniform.nodes.p2 - uniform.nodes.p1 < positions.nodes.p2 - positions.nodes.p1);
-        eq(uniform.edges.e1.length, 0, "uniform, a chord takes no height of its own");
-      });
 
-    await test("a leader leaves a block's pin, and the jog zone starts past the strip", function () {
-      var proj = splitPartProjection();
-      var layout = VA.blockLayout(VA.spineRight(VA.gatherParts(proj.layout, proj)), proj);
-      var M = VA.RAIL_METRICS;
-      var plan = VA.gridPlan(layout, proj, null);
-      var positions = VA.rowPositions(layout, proj, "uniform", M, { plan: plan });
-      var geo = VA.railGeometry(layout, M, positions, { topoProj: proj });
-      var leaders = VA.leaderGeometry(layout, plan, M, positions, {});
-      var mark = {};
-      geo.marks.forEach(function (m) { if (m.kind === "node") mark[m.id] = m; });
-      ok(leaders.leaders.length > 0);
-      leaders.leaders.forEach(function (l) {
-        var m = mark[l.id];
-        eq(l.x1, m.x + (m.branch ? M.branchDot : M.dot) + 1.5, l.id + " starts at its dot");
-        eq(l.y1, m.y);
-      });
-      var strip = Math.max.apply(null, geo.blocks.map(function (b) { return b.x2; }));
-      ok(leaders.zoneLeft > strip, "the zone is right of every block");
-    });
 
     await test("the crossing count leaves out a block's inner pins, which draw nothing " +
       "across a rail", function () {
@@ -14420,46 +11928,7 @@
         eq(VA.layoutCrossings(layout).leader, 1);
       });
 
-    await test("the page draws a block per component only when it asks for blocks: its " +
-      "rect, its chords as curves and its pins' stubs", function () {
-        var proj = splitPartProjection();
-        var paint = function (drawing) {
-          return render(function (r) {
-            VA.renderTopoPane(r, { topoProj: proj, study: null, crops: null, selection: null,
-                                   onSelect: function () {}, partDrawing: drawing });
-          });
-        };
-        var blocks = paint("blocks");
-        eq(all(blocks, "rect.tv__block").map(function (n) {
-          return n.getAttribute("data-block");
-        }), ["P", "Q"]);
-        eq(all(blocks, "path.rail__bar--chord").length, 3, "e1, e3 and eq");
-        ok(all(blocks, "path.rail__stub").length > 0);
-        ok(all(blocks, "circle.rail__dot--pin").length === 6);
-        var rails = paint(undefined);
-        eq(all(rails, "rect.tv__block").length, 0, "no setting is the walk on its rails");
-        eq(all(rails, "path.rail__bar--chord").length, 0);
-      });
 
-    await test("a body's container is every run of rows tagged with it, as wide " +
-      "as the columns those rows use", function () {
-        var layout = twoBodyLayout();
-        eq(VA.bodySpans(layout.rows), layout.bodies, "the builder's own spans");
-        // A joint row between two blocks belongs to neither.
-        ok(VA.bodySpans(layout.rows).every(function (s) { return s.start > 3 || s.end < 3; }));
-        // A body whose rows are interrupted -- here by the joint -- is two
-        // runs, never one field drawn over the rows between them.
-        var rows = layout.rows.map(function (r) {
-          return r.body === "B" ? { row: r.row, kind: r.kind, id: r.id,
-                                    column: r.column, body: "A" } : r;
-        });
-        var spans = VA.bodySpans(rows);
-        eq(spans.map(function (s) { return s.body + s.start + "-" + s.end; }),
-           ["A0-2", "A4-8"]);
-        eq(VA.bodySpans([]), []);
-        eq(VA.bodySpans([{ row: 0, kind: "node", id: "x", column: 0, body: null }]), [],
-           "no bodies declared, no containers");
-      });
 
     // --- a study as a see-through group (a_study_is_a_translucent_group_on_the_dag)
     //
@@ -14482,126 +11951,64 @@
       });
     }
 
-    await test("a study's group is every run of consecutive rows its lit set holds, " +
-      "and a study the walk splits is several", function () {
-        var s = twoStudies(null);
-        var rows = s.proj.layout.rows;
-        // The joint j is closed over by the lit set (both ends lit): it joins A
-        // to B's leg, so study one is ONE run.
-        eq(VA.studySpans(s.proj.layout, s.groups[0].lit),
-           [{ start: 0, end: 6, lo: 0, hi: 0 }], "study one");
-        eq(VA.studySpans(s.proj.layout, s.groups[1].lit).map(function (x) {
-          return [x.start, x.end, x.lo, x.hi]; }), [[4, 4, 0, 0], [7, 8, 1, 1]],
-          "study two is cut by the leg it does not light");
-        eq(VA.studySpans(s.proj.layout, null), []);
-        eq(VA.studySpans({ rows: [] }, s.groups[0].lit), []);
-        eq(rows.length, 9);
-      });
 
-    await test("a group's field is wider and taller than the body field it " +
-      "wraps, and the bodies' own geometry is unchanged by it", function () {
-        var s = twoStudies(null);
-        var plain = VA.railGeometry(s.proj.layout, VA.RAIL_METRICS);
-        var geo = VA.railGeometry(s.proj.layout, VA.RAIL_METRICS, undefined,
-          { groups: s.groups });
-        eq(geo.bodies, plain.bodies);
-        eq(plain.groups, [], "no groups asked for, none made");
-        eq(geo.groups.map(function (g) { return [g.id, g.spans.length]; }),
-           [["s1", 1], ["s2", 2]]);
-        var field = geo.groups[0].spans[0];
-        var bodyA = geo.bodies[0];
-        ok(field.x1 < bodyA.x1 && field.x2 > bodyA.x2 && field.y1 < bodyA.y1,
-           "the group wraps the body field it coincides with");
-      });
 
-    await test("the groups draw after every body field and before every mark, " +
-      "and a body's name stays above them", function () {
-        var s = twoStudies("s1");
-        var root = paintGroups(s.proj, s.groups, "both");
-        var svg = all(root, "svg.tv__rails")[0];
-        // In document order: the DAG is drawn in layers (g.tv__dag) since its
-        // zoom moved into the SVG, so the order is the descendants', not the
-        // children's.
-        var kids = [];
-        var walk = function (node) {
-          Array.prototype.slice.call(node.childNodes || []).forEach(function (n) {
-            if (n.nodeType !== 1) return;
-            kids.push(n);
-            walk(n);
-          });
-        };
-        walk(svg);
-        var last = function (cls) {
-          var at = -1;
-          kids.forEach(function (n, i) { if (hasClass(n, cls)) at = i; });
-          return at;
-        };
-        var first = function (cls) {
-          for (var i = 0; i < kids.length; i++) if (hasClass(kids[i], cls)) return i;
-          return -1;
-        };
-        eq(all(root, "rect.tv__bodyfield").length, 2);
-        eq(all(root, "rect.tv__studyfield").length, 3, "one rect per span: 1 + 2");
-        ok(last("tv__bodyfield") < first("tv__studyfield"), "over the bodies");
-        ok(last("tv__studyfield") < first("rail__bar"), "under every mark");
-        ok(last("tv__studyfield") < first("tv__bodyname"), "under the body's name");
-      });
 
-    await test("each group kind is its own checkbox: every kind draws only what it " +
-      "names, and a reader's choice is remembered per topology", function () {
-        var s = twoStudies(null);
-        var counts = function (kinds) {
-          var root = paintGroups(s.proj, s.groups, undefined, { groupKinds: kinds });
-          return [all(root, "rect.tv__bodyfield").length,
-                  all(root, "rect.tv__studyfield").length];
-        };
+    await test("each group kind is its own checkbox: the grid draws only the brackets " +
+      "it names, and a reader's choice is remembered per topology", function () {
+        // The demo in two bodies of several parts each, halved in the grid's
+        // own order so each body is one run.
+        var topo = JSON.parse(JSON.stringify(TOPO));
+        topo.bodies = [{ id: "front", name: "front" }, { id: "back", name: "back" }];
+        var half = Math.floor(topo.layout.rows.length / 2);
+        var front = {};
+        VA.gatherParts(JSON.parse(JSON.stringify(topo.layout)), topo).rows.forEach(function (r, i) {
+          if (i < half) front[r.kind + "|" + r.id] = true;
+        });
+        topo.layout.rows.forEach(function (r) { r.body = front[r.kind + "|" + r.id] ? "front" : "back"; });
         var on = function (ids) {
           var o = {};
           VA.GROUP_KINDS.forEach(function (k) { o[k.id] = ids.indexOf(k.id) >= 0; });
           return o;
         };
-        eq(counts(on(["bodies", "chain", "kinematic"])), [2, 3]);
-        eq(counts(on(["bodies"])), [2, 0]);
-        eq(counts(on(["chain", "kinematic"])), [0, 3]);
-        eq(counts(on(["chain"])), [0, 1], "study one alone: one run");
-        eq(counts(on(["kinematic"])), [0, 2], "study two alone: two runs");
-        eq(counts(on([])), [0, 0]);
-        eq(counts(undefined), [2, 3], "nothing chosen: everything on");
-        // Every kind a group can carry is a checkbox kind.
-        var kinds = VA.GROUP_KINDS.map(function (k) { return k.id; });
-        VA.studyGroups(s.proj, null, null).concat(s.groups).forEach(function (g) {
-          ok(kinds.indexOf(g.kind) >= 0, "group kind " + g.kind);
-        });
+        var counts = function (kinds) {
+          var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ topoProj: topo, groupKinds: kinds })); });
+          return [all(root, "div.tvbrace--body").length > 0, all(root, "div.tvbrace--part").length > 0];
+        };
+        eq(VA.GROUP_KINDS.map(function (k) { return k.id; }), ["bodies", "parts"],
+           "the grid's two bracket kinds; the study kinds were the rails'");
+        eq(counts(on(["bodies", "parts"])), [true, true]);
+        eq(counts(on(["bodies"])), [true, false]);
+        eq(counts(on(["parts"])), [false, true]);
+        eq(counts(on([])), [false, false]);
+        eq(counts(undefined), [true, true], "nothing chosen: everything on");
         var data = {};
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
+        var kinds = VA.GROUP_KINDS.map(function (k) { return k.id; });
         eq(VA.readGroupKinds(store, "t"), on(kinds), "never chosen: all on");
         VA.writeGroupKinds(store, "t", on(["bodies"]));
-        VA.writeGroupKinds(store, "u", on(["chain", "kinematic"]));
+        VA.writeGroupKinds(store, "u", on(["parts"]));
         eq([VA.readGroupKinds(store, "t"), VA.readGroupKinds(store, "u")],
-           [on(["bodies"]), on(["chain", "kinematic"])]);
-        data[VA.GROUP_KINDS_KEY] = JSON.stringify({ t: ["nonsense", "chain"] });
-        eq(VA.readGroupKinds(store, "t"), on(["bodies", "parts", "kinematic"]),
-           "a word outside the set is ignored");
+           [on(["bodies"]), on(["parts"])]);
+        data[VA.GROUP_KINDS_KEY] = JSON.stringify({ t: ["nonsense", "chain", "parts"] });
+        eq(VA.readGroupKinds(store, "t"), on(["bodies"]),
+           "a word outside the set, a retired study kind among them, is ignored");
         data[VA.GROUP_KINDS_KEY] = "{not json";
         eq(VA.readGroupKinds(store, "t"), on(kinds), "an unreadable store: all on");
         eq(VA.readGroupKinds(null, "t"), on(kinds));
         VA.writeGroupKinds(null, "t", on(kinds));
         var seen = [];
-        var live = on(kinds);
         var toolbar = render(function (r) {
-          VA.renderTopoToolbar(r, { mode: "topology", topologyId: s.proj.id, studyId: null },
-            s.proj, { groupKinds: live, onGroupKind: function (k, v) { seen.push([k, v]); } });
+          VA.renderTopoToolbar(r, { mode: "topology", topologyId: topo.id, studyId: null }, topo, {
+            groupKinds: on(kinds), onGroupKind: function (k, v) { seen.push([k, v]); } });
         });
-        var summary = all(toolbar, "summary").filter(function (b) {
-          return b.getAttribute("id") === "group-kinds-toggle"; })[0];
-        eq(summary.textContent, "Groups (4 of 4)");
         var boxes = all(toolbar, "input");
-        eq(boxes.length, 4);
-        boxes[2].checked = false;
-        boxes[2].onchange();
-        eq(seen, [["chain", false]]);
-        eq(summary.textContent, "Groups (3 of 4)");
+        eq(boxes.map(function (b) { return b.getAttribute("data-kind"); }), kinds);
+        boxes[0].checked = false;
+        boxes[0].onchange();
+        eq(seen, [["bodies", false]]);
+        eq(all(toolbar, "summary")[0].textContent, "Groups (1 of 2)");
       });
 
     // --- groups as borders, colour overlays, the graph's width
@@ -14622,246 +12029,54 @@
       return kids;
     }
 
-    await test("a part's group is every run of rows on one part inside one body, " +
-      "holding an edge, and it sits inside its body's field", function () {
-        var proj = twoBodyProjection();
-        var spans = function (p) {
-          return VA.partSpans(p.layout.rows, p).map(function (s) {
-            return [s.part, s.body, s.start, s.end, s.lo, s.hi];
-          });
-        };
-        eq(spans(proj), [["pa", "A", 0, 2, 0, 0], ["pb", "B", 4, 8, 0, 1]]);
-        // A node two parts meet at goes with the edge it continues: b1 opens
-        // eB (now part pc) and b2, on pb only, goes with eB2 below it.
-        var p2 = twoBodyProjection();
-        p2.edges[2].part = "pc";
-        p2.nodes[2].parts = ["pb", "pc"];
-        p2.bodies[1].parts = ["pb", "pc"];
-        eq(spans(p2), [["pa", "A", 0, 2, 0, 0], ["pc", "B", 4, 5, 0, 0],
-                       ["pb", "B", 6, 8, 0, 1]]);
-        eq(VA.partSpans([{ row: 0, kind: "node", id: "a1", column: 0, body: "A" }], proj), [],
-           "a part that is one face is its node, not a box");
-        var geo = VA.railGeometry(proj.layout, VA.RAIL_METRICS, undefined, { topoProj: proj });
-        eq(VA.railGeometry(proj.layout, VA.RAIL_METRICS).parts, [], "no topology, no parts");
-        var part = geo.parts[0];
-        var body = geo.bodies[0];
-        ok(part.x1 > body.x1 && part.x2 < body.x2 && part.y1 > body.y1 && part.y2 < body.y2,
-           "inside its body's field: " + JSON.stringify([part, body]));
-      });
 
-    await test("every group is a border with no fill by default; the group fill " +
-      "adds parts, then every kind, in one layer under every border", function () {
-        var s = twoStudies("s1");
-        var paint = function (mode) {
-          return paintGroups(s.proj, s.groups, "both", mode ? { groupFill: mode } : {});
-        };
-        var fills = function (root, kind) {
-          return all(root, "rect.tv__groupfill").filter(function (n) {
-            return hasClass(n, "tv__groupfill--" + kind);
-          }).length;
-        };
-        var off = paint(null);
-        eq(all(off, "rect.tv__groupfill").length, 0, "no fill by default");
-        eq([all(off, "rect.tv__bodyfield").length, all(off, "rect.tv__partfield").length,
-            all(off, "rect.tv__studyfield").length], [2, 2, 3], "every border is drawn");
-        var parts = paint("parts");
-        eq([fills(parts, "part"), fills(parts, "body"), fills(parts, "study")], [2, 0, 0]);
-        var every = paint("all");
-        eq([fills(every, "part"), fills(every, "body"), fills(every, "study")], [2, 2, 3]);
-        var kids = svgOrder(every);
-        var lastFill = -1;
-        var firstBorder = Infinity;
-        kids.forEach(function (n, i) {
-          if (hasClass(n, "tv__groupfill")) lastFill = i;
-          if ((hasClass(n, "tv__bodyfield") || hasClass(n, "tv__partfield") ||
-               hasClass(n, "tv__studyfield") || hasClass(n, "tv__bodybridge")) &&
-              i < firstBorder) firstBorder = i;
-        });
-        ok(lastFill < firstBorder, "every fill under every border: " + lastFill + " / " + firstBorder);
-        eq(all(paint("nonsense"), "rect.tv__groupfill").length, 0, "an unknown fill is none");
-      });
 
-    await test("a body's other blocks carry a muted repeat of its name, and only " +
-      "its named block folds it", function () {
-        var proj = twoBodyProjection();
-        // Body A on both sides of the joint: two blocks, one body.
-        proj.layout.rows.forEach(function (r) { if (r.body === "B") r.body = "A"; });
-        var root = paintGroups(proj, []);
-        eq(all(root, "rect.tv__bodyfield").length, 2);
-        eq(all(root, "text.tv__bodyname").map(function (n) {
-          return n.getAttribute("data-body-toggle"); }), ["A"], "named once");
-        var repeats = all(root, "text.tv__bodyrepeat");
-        eq(repeats.map(function (n) { return n.getAttribute("data-body-repeat"); }), ["A"]);
-        eq(repeats[0].getAttribute("data-body-toggle"), null, "a repeat folds nothing");
-        ok(repeats[0].textContent.indexOf("body a") === 0 ||
-           repeats[0].textContent.indexOf("…") > 0, repeats[0].textContent);
-      });
 
-    await test("a colour overlay maps every edge and node through one table of " +
-      "named schemes, and none is the one neutral ink", function () {
-        var proj = twoBodyProjection();
-        proj.edges[1].interface = "spherical";
-        proj.edges[0].confidence = "traced";
-        proj.edges[2].confidence = "untraced";
-        var none = VA.dagOverlay("none", proj);
-        eq([none.scheme, Object.keys(none.edges).length, Object.keys(none.nodes).length,
-            none.legend.length], ["none", 0, 0, 0]);
-        eq(VA.dagOverlay("nonsense", proj).scheme, "none");
-        var body = VA.dagOverlay("body", proj);
-        eq(body.edges, { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1" },
-           "a gap is in no body, so it keeps the neutral ink");
-        eq([body.nodes.a1, body.nodes.b3], ["ovl ovl-b0", "ovl ovl-b1"]);
-        eq(body.legend, [], "the containers name the bodies in their inks; no key repeats them");
-        var p = twoBodyProjection();
-        p.bodies[1].parts = ["pb", "pc"];
-        p.edges[3].part = "pc";
-        eq(VA.dagOverlay("part", p).edges,
-           { eA: "ovl ovl-b0", eB: "ovl ovl-b1", eB2: "ovl ovl-b1 ovl-s1" },
-           "a body's hue, a shade per part");
-        var iface = VA.dagOverlay("interface", proj);
-        eq(iface.edges, { j: "ovl ovl-i0" });
-        eq([iface.nodes.a2, iface.nodes.b1, iface.nodes.a1], ["ovl ovl-i0", "ovl ovl-i0", undefined]);
-        eq(iface.legend.map(function (l) { return l.label; }),
-           [VA.INTERFACE_GLYPHS.spherical.label]);
-        var src = VA.dagOverlay("sourcing", proj);
-        eq(src.edges, { eA: "ovl ovl-conf--traced", j: "ovl ovl-src-gap",
-                        eB: "ovl ovl-conf--untraced", eB2: "ovl ovl-src-none" });
-        eq(src.legend.map(function (l) { return l.label; }), ["traced", "untraced", "gap", "no value"]);
-        VA.COLOUR_SCHEMES.forEach(function (s) {
-          ok(s.label && (s.id === "none" ||
-            (typeof s.edge === "function" && typeof s.node === "function")), s.id);
-        });
-      });
 
-    await test("the contribution overlay is a sequential ramp over |sensitivity| x " +
-      "band at the page's stop, offered on a kinematic page only", function () {
-        var proj = twoBodyProjection();
-        var ids = function (o) { return VA.availableColourSchemes(o).map(function (s) { return s.id; }); };
-        eq(ids(null).indexOf("contribution"), -1);
-        ok(ids({ contributions: {} }).indexOf("contribution") !== -1);
-        eq(VA.dagOverlay("contribution", proj).scheme, "none", "no contributions, no ramp");
-        var o = VA.dagOverlay("contribution", proj,
-          { contributions: { eA: 1, eB: 0.5, eB2: 0.01, j: 0 }, units: "deg" });
-        eq(o.edges, { eA: "ovl ovl-seq-4", eB: "ovl ovl-seq-2", eB2: "ovl ovl-seq-0" },
-           "a zero contribution is the neutral ink");
-        eq(o.legend.length, VA.CONTRIBUTION_STEPS);
-        var study = { stops: [
-          { id: "a", rows: [{ edge: "x", magnitude: 0.2 }, { edge: "y", magnitude: -0.1 }],
-            groups: [{ children: [{ edge: "z", magnitude: 0.3 }] }] },
-          { id: "b", rows: [{ edge: "x", magnitude: 9 }] }] };
-        eq(VA.kinematicContributions(study, "a"), { x: 0.2, y: 0.1, z: 0.3 });
-        eq(VA.kinematicContributions(study, "b"), { x: 9 });
-        eq(VA.kinematicContributions(study, "nope"), { x: 0.2, y: 0.1, z: 0.3 }, "the first stop");
-        eq(VA.kinematicContributions({ stops: [] }, "a"), null);
-      });
 
-    await test("the overlay's ink rides on the bar, the dot and the glyph, and with " +
-      "none nothing wears it", function () {
-        var s = twoStudies(null);
-        s.proj.edges[1].interface = "spherical";
-        var count = function (root, sel, cls) {
-          return all(root, sel).filter(function (n) { return hasClass(n, cls); }).length;
-        };
-        var body = paintGroups(s.proj, [], null, { colourBy: "body" });
-        eq([count(body, "line.rail__bar", "ovl-b0"), count(body, "line.rail__bar", "ovl-b1"),
-            count(body, "line.rail__bar", "ovl")], [1, 2, 3], "the gap keeps the neutral ink");
-        eq([count(body, "circle.rail__dot", "ovl-b0"), count(body, "circle.rail__dot", "ovl-b1")],
-           [2, 3]);
-        var iface = paintGroups(s.proj, [], null, { colourBy: "interface" });
-        var glyphs = all(iface, "use").filter(function (n) {
-          return n.getAttribute("data-glyph-node") === "a2"; });
-        eq(glyphs.length, 1);
-        ok(hasClass(glyphs[0], "ovl-i0"), "the joint's glyph wears the overlay");
-        eq(all(paintGroups(s.proj, [], null, {}), ".ovl").length, 0);
-      });
 
-    await test("the DAG's view settings are remembered in one store entry, a word " +
-      "outside a table reads as its default, and the width scales the column pitch only",
-      function () {
+    await test("the view settings are remembered in one store entry, and a word outside " +
+      "a table reads as its default", function () {
         var data = {};
         var store = { getItem: function (k) { return k in data ? data[k] : null; },
                       setItem: function (k, v) { data[k] = String(v); } };
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "never chosen");
-        // One colour per body by default (the_dag_and_grid_nest_coloured_
-        // bodies_and_compact_means_denser_rows): Colour by Body, parts tinted,
-        // the Bold palette -- under a key the old "None" entries do not reach.
-        eq([VA.DAG_VIEW_DEFAULTS.colourBy, VA.DAG_VIEW_DEFAULTS.groupFill,
-            VA.DAG_VIEW_DEFAULTS.palette], ["body", "parts", "bold"]);
-        data["tolstack.viewer.dagView"] = JSON.stringify({ colourBy: "none", groupFill: "off" });
+        eq(VA.DAG_VIEW_DEFAULTS, { palette: "bold" },
+           "the palette alone: the four rails settings retired with the rails");
+        data["tolstack.viewer.dagView"] = JSON.stringify({ palette: "cvd" });
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS, "an entry under the old key is not read");
-        var chosen = { colourBy: "sourcing", groupFill: "parts", graphWidth: "wide",
-                       partDrawing: "rails", palette: "cvd" };
-        VA.writeDagView(store, chosen);
-        eq(VA.readDagView(store), chosen);
-        data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "rainbow", groupFill: "parts",
-                                                 graphWidth: "huge", partDrawing: "boxes",
-                                                 palette: "neon" });
-        eq(VA.readDagView(store), { colourBy: "body", groupFill: "parts", graphWidth: "narrow",
-                                    partDrawing: "blocks", palette: "bold" });
+        VA.writeDagView(store, { palette: "cvd" });
+        eq(VA.readDagView(store), { palette: "cvd" });
+        eq(JSON.parse(data[VA.DAG_VIEW_KEY]), { palette: "cvd" }, "only the palette is written");
+        data[VA.DAG_VIEW_KEY] = JSON.stringify({ colourBy: "sourcing", groupFill: "parts",
+                                                 graphWidth: "wide", partDrawing: "rails",
+                                                 palette: "cvd" });
+        eq(VA.readDagView(store), { palette: "cvd" },
+           "an entry written with the retired settings is read for its palette");
+        data[VA.DAG_VIEW_KEY] = JSON.stringify({ palette: "neon" });
+        eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
         data[VA.DAG_VIEW_KEY] = "{not json";
         eq(VA.readDagView(store), VA.DAG_VIEW_DEFAULTS);
         eq(VA.readDagView(null), VA.DAG_VIEW_DEFAULTS);
-        VA.writeDagView(null, chosen);
-        var layout = twoBodyLayout();
-        var pitch = function () {
-          var xs = VA.railGeometry(layout, VA.RAIL_METRICS).rails.map(function (r) { return r.x; });
-          return Math.max.apply(null, xs) - Math.min.apply(null, xs);
-        };
-        var rowsY = function () {
-          return VA.railGeometry(layout, VA.RAIL_METRICS).marks.map(function (m) { return m.y; });
-        };
-        try {
-          eq(VA.applyGraphWidth("narrow").gutter, 20, "narrow is the pitch the DAG always had");
-          var narrow = pitch();
-          var ys = rowsY();
-          VA.applyGraphWidth("medium");
-          var medium = pitch();
-          VA.applyGraphWidth("wide");
-          var wide = pitch();
-          ok(narrow < medium && medium < wide, [narrow, medium, wide].join(" < "));
-          eq(wide / narrow, VA.GRAPH_WIDTHS.wide.gutter / VA.GRAPH_WIDTHS.narrow.gutter);
-          eq(rowsY(), ys, "no row moves");
-          eq(VA.applyGraphWidth("bogus").gutter, VA.GRAPH_WIDTHS.narrow.gutter);
-        } finally {
-          VA.applyGraphWidth("narrow");
-        }
+        VA.writeDagView(null, { palette: "cvd" });
       });
 
-    await test("the view popover offers the five settings over their own tables and " +
-      "reports a change; the overlay's key is beside it, and absent with none", function () {
-        var proj = twoBodyProjection();
+    await test("the view popover offers the palette over its own table and reports a " +
+      "change", function () {
         var seen = [];
-        var toolbar = function (colourBy, options) {
-          return render(function (r) {
-            VA.renderTopoToolbar(r, { mode: "topology", topologyId: proj.id, studyId: null }, proj, {
-              dagView: { colourBy: colourBy, groupFill: "off", graphWidth: "narrow",
-                         partDrawing: "blocks", palette: "bold",
-                         schemes: VA.availableColourSchemes(options),
-                         legend: VA.dagOverlay(colourBy, proj, options).legend },
-              onDagView: function (k, v) { seen.push([k, v]); },
-            });
+        var tb = render(function (r) {
+          VA.renderTopoToolbar(r, { mode: "topology", topologyId: TOPO.id, studyId: null }, TOPO, {
+            dagView: { palette: "bold" },
+            onDagView: function (k, v) { seen.push([k, v]); },
           });
-        };
-        var tb = toolbar("body", null);
+        });
         var selects = all(tb, "select");
-        eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }),
-           ["colourBy", "palette", "groupFill", "graphWidth", "partDrawing"]);
-        eq(all(selects[0], "option").map(function (o) { return o.value; }),
-           VA.availableColourSchemes(null).map(function (s) { return s.id; }));
-        eq(all(selects[1], "option").map(function (o) { return o.value; }), VA.PALETTE_ORDER);
-        eq(all(selects[2], "option").map(function (o) { return o.value; }), VA.GROUP_FILL_ORDER);
-        eq(all(selects[3], "option").map(function (o) { return o.value; }), VA.GRAPH_WIDTH_ORDER);
-        eq(all(selects[4], "option").map(function (o) { return o.value; }), VA.PART_DRAWING_ORDER);
-        selects[3].value = "wide";
-        selects[3].onchange();
-        selects[1].value = "cvd";
-        selects[1].onchange();
-        eq(seen, [["graphWidth", "wide"], ["palette", "cvd"]]);
-        eq(all(tb, "span.tvovl__item").length, 0, "Body needs no key: its containers name it");
-        eq(all(toolbar("sourcing", null), "div.tvovl").length, 1, "a scheme with words has its key");
-        eq(all(toolbar("none", null), "div.tvovl").length, 0);
-        ok(all(all(toolbar("none", { contributions: {} }), "select")[0], "option")
-          .some(function (o) { return o.value === "contribution"; }), "kinematic page");
+        eq(selects.map(function (n) { return n.getAttribute("data-view-setting"); }), ["palette"]);
+        eq(all(selects[0], "option").map(function (o) { return o.value; }), VA.PALETTE_ORDER);
+        selects[0].value = "cvd";
+        selects[0].onchange();
+        eq(seen, [["palette", "cvd"]]);
+        eq(all(tb, "div.tvovl").length, 0, "no overlay key: there is no overlay");
       });
 
     await test("the scene is told each part's body colour in its own model verb", function () {
@@ -14874,80 +12089,8 @@
       eq(VA.sceneTintCommand(null, null), ["model", "tint", "off"]);
     });
 
-    await test("the selected study's group is drawn last and a step stronger; hidden, " +
-      "only it remains, whole", function () {
-        var s = twoStudies("s1");
-        var root = paintGroups(s.proj, s.groups.slice().reverse(), "both");
-        var rects = all(root, "rect.tv__studyfield");
-        eq(rects.map(function (n) { return n.getAttribute("data-study-group"); }),
-           ["s2", "s2", "s1"], "as handed in, one rect per span: the page's " +
-           "VA.studyGroups is what puts the selected one last");
-        eq(rects.filter(function (n) { return hasClass(n, "tv__studyfield--selected"); })
-          .map(function (n) { return n.getAttribute("data-study-group"); }), ["s1"]);
-        eq(all(root, "text.tv__studyname").map(function (n) {
-          return n.getAttribute("data-study-open"); }).sort(), ["s1", "s2"], "named once each");
-        // Hidden: the walk is s1's band alone, and so is the one group.
-        var hidden = paintGroups(s.proj, s.groups, "both",
-          { study: null, lit: s.groups[0].lit, unlitStyle: "hide" });
-        eq(all(hidden, "rect.tv__studyfield").map(function (n) {
-          return n.getAttribute("data-study-group"); }), ["s1"],
-          "one rect: the lit band is one run");
-      });
 
-    await test("clicking a group's title opens its study, and hovering the field " +
-      "lights its edges' bars", function () {
-        var s = twoStudies(null);
-        var opened = [];
-        var root = paintGroups(s.proj, s.groups, "studies",
-          { onOpenStudy: function (g) { opened.push(g.id); } });
-        var titles = all(root, "text.tv__studyname");
-        titles.filter(function (n) { return n.getAttribute("data-study-open") === "s2"; })[0]
-          .onclick();
-        eq(opened, ["s2"]);
-        var field = all(root, "rect.tv__studyfield").filter(function (n) {
-          return n.getAttribute("data-study-group") === "s1"; })[0];
-        field.onmouseenter();
-        var lit = all(root, "line.rail__bar").filter(function (n) {
-          return hasClass(n, "rail__bar--hot") || hasClass(n, "rail__bar--lead"); });
-        ok(lit.length >= 2, "s1's two edges' bars light: " + lit.length);
-        field.onmouseleave();
-        eq(all(root, "line.rail__bar").filter(function (n) {
-          return hasClass(n, "rail__bar--lead"); }).length, 0, "and clear again");
-      });
 
-    await test("collapsing a body folds its block to one pill, and the edges " +
-      "that leave it meet the pill at the columns their nodes were on", function () {
-        var proj = twoBodyProjection();
-        var folded = VA.collapseBodies(proj.layout, { B: true }, proj, null);
-        eq(folded.rows.map(function (r) { return r.id; }),
-           ["a1", "eA", "a2", "j", "body:B"], "B's five rows are one");
-        var pill = folded.rows[4];
-        eq(pill.collapsed, { body: "B", name: "body b", lo: 0, hi: 1, joints: 1 });
-        eq(folded.rows[3].left_at, "body:B", "the joint lands on the pill");
-        eq(folded.rows[3].rim_left_column, 0, "at its own node's column");
-        // Rails re-derive: the joint's rail runs on down to the pill.
-        eq(setOf(folded.rails), setOf(VA.walkRailsAndLinks(folded.rows).rails));
-        ok(folded.rails.some(function (r) {
-          return r.column === 0 && r.start <= 3 && r.end >= 4;
-        }), "a rail runs down through the joint into the pill");
-        // Nothing to collapse, the walk as laid.
-        eq(VA.collapseBodies(proj.layout, {}, proj, null), proj.layout);
-        eq(VA.collapseBodies(proj.layout, null, proj, null), proj.layout);
-        // Collapsing A instead: the joint now LEAVES the pill at a2's column.
-        var a = VA.collapseBodies(proj.layout, { A: true }, proj, null);
-        eq(a.rows[0].id, "body:A");
-        eq(a.rows[1].entered_at, "body:A");
-        eq(a.rows[1].rim_column, 0);
-        // A node a lit edge outside the body stands on stays drawn.
-        var lit = VA.litSetOfEdges(proj, ["j"]);
-        var keep = VA.collapseBodies(proj.layout, { B: true }, proj, lit);
-        eq(keep.rows.map(function (r) { return r.id; }),
-           ["a1", "eA", "a2", "j", "body:B", "b1"]);
-        eq(keep.rows[3].left_at, "b1", "the lit joint keeps its own end");
-        // Mirrored, the pill's span is mirrored with it.
-        var mirrored = VA.spineRight(folded);
-        eq([mirrored.rows[4].collapsed.lo, mirrored.rows[4].collapsed.hi], [0, 1]);
-      });
 
     // --- the leaders across the seam (leaders_follow_the_active_study_
     // across_the_seam, 2026-10-27) ----------------------------------------
@@ -14964,153 +12107,11 @@
       return VA.lastTopoRender.seam;
     }
 
-    await test("the leaders across the seam start at each lit node's dot, turn " +
-      "once left of the rails and end at its anchor; with no study every drawn node does", function () {
-        var study = topoStudy("demo_base_to_tip");
-        var lit = VA.studyLitSet(study);
-        var seam = seamOf(study);
-        eq(Object.keys(seam.dots).sort(), Object.keys(lit.nodes).sort(),
-          "one DAG end per lit node, and only those");
-        var geometry = VA.railGeometry(VA.spineRight(TOPO.layout), SEAM_M,
-          VA.lastTopoRender.positions);
-        geometry.marks.filter(function (m) { return m.kind === "node" && lit.nodes[m.id]; })
-          .forEach(function (mark) {
-            var r = mark.branch ? SEAM_M.branchDot : SEAM_M.dot;
-            eq(seam.dots[mark.id], [mark.x - r - 1.5, mark.y], mark.id + "'s dot, left side");
-          });
-        ok(geometry.rails.every(function (rail) { return rail.x > seam.bend; }) &&
-           geometry.marks.every(function (m) { return m.x > seam.bend; }),
-          "the bend is left of everything the DAG draws");
-        // Page pixels: the rails at (500, 100), the scene's anchors far left.
-        var ids = Object.keys(seam.dots).sort();
-        var dots = {};
-        var anchors = {};
-        ids.forEach(function (id, i) {
-          dots[id] = [500 + seam.dots[id][0], 100 + seam.dots[id][1]];
-          anchors[id] = [80 + i, 200 + 10 * i];
-        });
-        anchors[ids[0]] = null;
-        anchors[ids[1]] = [80, 5000];
-        var geo = VA.seamLeaderGeometry({ dots: dots, anchors: anchors, bendX: 500 + seam.bend,
-          anchorClip: { left: 0, right: 400, top: 0, bottom: 1000 } });
-        eq(geo.skipped.noAnchor, [ids[0]], "a null anchor: no leader, no stub");
-        eq(geo.skipped.offScene, [ids[1]], "an anchor outside the scene: none either");
-        eq(geo.skipped.offDag, []);
-        eq(geo.leaders.map(function (l) { return l.id; }), ids.slice(2));
-        geo.leaders.forEach(function (l) {
-          eq(l.from, dots[l.id]);
-          eq(l.bend, [500 + seam.bend, dots[l.id][1]], "level with its dot");
-          eq(l.to, anchors[l.id]);
-          eq(l.d, "M " + l.from[0] + " " + l.from[1] + " H " + l.bend[0] +
-            " L " + l.to[0] + " " + l.to[1], "one bend");
-        });
-        // No study: every node the DAG draws is lit for leaders, and a leader
-        // is drawn wherever the scene posted an anchor.
-        var whole = render(function (r) { VA.renderTopoPane(r, topoCtx({ study: null })); });
-        var walk = VA.lastTopoRender.seam;
-        var drawnNodes = {};
-        ["use.rail__glyph", "circle.rail__dot"].forEach(function (selector) {
-          all(whole, selector).forEach(function (n) {
-            if (n.getAttribute("data-row-kind") === "node") drawnNodes[n.getAttribute("data-id")] = true;
-          });
-        });
-        ok(Object.keys(drawnNodes).length > 0, "the walk draws nodes");
-        eq(Object.keys(walk.dots).sort(), Object.keys(drawnNodes).sort(),
-          "no study: every drawn node has a DAG end");
-        eq(walk.bars, [], "and no edge is lit, so no bar is counted");
-      });
 
-    await test("a leader across the seam leaves level with its own row, so it runs " +
-      "through no lit bar -- and the counter that says so can count one", function () {
-        var study = topoStudy("demo_base_to_tip");
-        var seam = seamOf(study);
-        var anchors = {};
-        Object.keys(seam.dots).forEach(function (id) { anchors[id] = [-200, 0]; });
-        var geo = VA.seamLeaderGeometry({ dots: seam.dots, anchors: anchors, bendX: seam.bend });
-        ok(geo.leaders.length > 0 && seam.bars.length > 0);
-        eq(VA.seamBarCrossings(geo.leaders, seam.bars), 0);
-        var leader = geo.leaders[0];
-        var across = { id: "x", x: (leader.from[0] + leader.bend[0]) / 2,
-                       y1: leader.from[1] - 5, y2: leader.from[1] + 5 };
-        eq(VA.seamBarCrossings([leader], [across]), 1, "a bar it did run through");
-      });
 
-    await test("crossings among the leaders across the seam are counted by pairs", function () {
-      var leader = function (id, y, to) {
-        return { id: id, from: [300, y], bend: [200, y], to: to };
-      };
-      eq(VA.seamCrossings([leader("a", 10, [0, 10]), leader("b", 20, [0, 20])]), 0,
-        "in order: parallel");
-      eq(VA.seamCrossings([leader("a", 10, [0, 20]), leader("b", 20, [0, 10])]), 1,
-        "swapped: one crossing");
-      eq(VA.seamCrossings([leader("a", 10, [0, 30]), leader("b", 20, [0, 20]),
-        leader("c", 30, [0, 10])]), 3, "reversed: every pair");
-    });
 
-    await test("a lit node folded into a collapsed body leads from its own column " +
-      "on the pill's rim, mirrored with it", function () {
-        var proj = twoBodyProjection();
-        // eB lit: inside B, so b1 and b2 fold (only an end of a lit edge
-        // OUTSIDE the block stays drawn).
-        var lit = VA.litSetOfEdges(proj, ["eB"]);
-        var layout = VA.spineRight(VA.collapseBodies(proj.layout, { B: true }, proj, lit));
-        eq(layout.folded.b2, { pill: "body:B", column: 1 }, "b2 was on column 0, mirrored");
-        var positions = VA.rowPositions(layout, proj, "uniform", SEAM_M);
-        var geometry = VA.railGeometry(layout, SEAM_M, positions);
-        var pill = geometry.marks.filter(function (m) { return m.id === "body:B"; })[0];
-        var seam = VA.seamDots(layout, geometry, lit, SEAM_M, null);
-        eq(seam.dots.b1, [VA.railX(1, SEAM_M), pill.y]);
-        eq(seam.dots.b2, [VA.railX(1, SEAM_M), pill.y]);
-      });
 
-    await test("one selection lights its leaders across the seam -- a node's own, " +
-      "an edge's two ends -- and the rest step back", function () {
-        var index = VA.topologyIndex(TOPO);
-        var edge = TOPO.edges[0];
-        var want = {};
-        want[edge.from] = true;
-        want[edge.to] = true;
-        eq(VA.selectedLeaderNodes({ kind: "edge", id: edge.id }, index), want);
-        eq(VA.selectedLeaderNodes({ kind: "node", id: edge.from }, index),
-          (function () { var o = {}; o[edge.from] = true; return o; })());
-        eq(VA.selectedLeaderNodes(null, index), {});
-        var S = VA.SEAM_LEADER_STATES;
-        var other = TOPO.nodes.filter(function (n) { return !want[n.id]; })[0].id;
-        var ids = [edge.from, edge.to, other];
-        var states = VA.seamLeaderStates(ids, { kind: "edge", id: edge.id }, null, index);
-        eq([states[edge.from], states[edge.to], states[other]], [S[0], S[0], S[2]]);
-        states = VA.seamLeaderStates(ids, null, "node|" + other, index);
-        eq([states[edge.from], states[other]], ["", S[1]], "hover is the lighter emphasis");
-        states = VA.seamLeaderStates(ids, null, "edge|" + edge.id, index);
-        eq([states[edge.from], states[edge.to], states[other]], [S[1], S[1], ""]);
-        // A joint's one 3D dot (coaxial_ends_share_one_3d_node) stands for
-        // several nodes: the scene's hover is a LIST, and lights each one.
-        states = VA.seamLeaderStates(ids, null, ["node|" + edge.from, "node|" + other], index);
-        eq([states[edge.from], states[edge.to], states[other]], [S[1], "", S[1]],
-          "a joint's members all light");
-      });
 
-    await test("the overlay draws each leader in its state, the selected one on top, " +
-      "with an outlined end on the scene", function () {
-        var S = VA.SEAM_LEADER_STATES;
-        var leaders = [
-          { id: "a", from: [300, 10], bend: [200, 10], to: [50, 40], d: "M 300 10 H 200 L 50 40" },
-          { id: "b", from: [300, 20], bend: [200, 20], to: [50, 50], d: "M 300 20 H 200 L 50 50" },
-        ];
-        var states = { a: S[0], b: S[2] };
-        var svg = render(function (r) { VA.renderSeamLeaders(r, { leaders: leaders }, states); });
-        var paths = all(svg, "path.seam__leader");
-        eq(paths.map(function (p) { return p.getAttribute("data-node-id"); }), ["b", "a"],
-          "the selected leader last, over the others");
-        eq(paths[1].getAttribute("class"), "seam__leader seam__leader--" + S[0]);
-        eq(paths[0].getAttribute("class"), "seam__leader seam__leader--" + S[2]);
-        eq(paths[1].getAttribute("d"), leaders[0].d);
-        var ends = all(svg, "circle.seam__end");
-        eq(ends.length, 2);
-        eq([ends[1].getAttribute("cx"), ends[1].getAttribute("cy")].map(Number), [50, 40]);
-        var plain = render(function (r) { VA.renderSeamLeaders(r, { leaders: leaders }, {}); });
-        eq(all(plain, "path.seam__leader")[0].getAttribute("class"), "seam__leader");
-      });
 
     await test("a pick in the scene names the element its mirrored row stands for: " +
       "an edge's row, or a body's one lit edge", function () {
@@ -15142,161 +12143,17 @@
       eq(VA.sceneLitCommand({ edges: { b: true, a: true, c: false }, nodes: {} }),
         ["model", "lit", "a", "b"]);
       eq(VA.sceneLitCommand(null), ["model", "lit", "all"]);
-      eq(VA.SCENE_ANCHORS_MESSAGE, "annotate:anchors");
       // The scene's hover and pick, by the literals apps/annotate asserts too.
       eq(VA.SCENE_HOVER_MESSAGE, "annotate:hover");
       eq(VA.SCENE_PICK_MESSAGE, "annotate:pick");
     });
 
-    await test("a collapsed body is remembered per topology per reader, and an " +
-      "unreadable store reads as nothing collapsed", function () {
-        var data = {};
-        var store = { getItem: function (k) { return k in data ? data[k] : null; },
-                      setItem: function (k, v) { data[k] = String(v); } };
-        eq(VA.readCollapsedBodies(store, "t"), {});
-        VA.writeCollapsedBodies(store, "t", { base: true, blade: false });
-        VA.writeCollapsedBodies(store, "u", { other: true });
-        eq(VA.readCollapsedBodies(store, "t"), { base: true });
-        eq(VA.readCollapsedBodies(store, "u"), { other: true });
-        VA.writeCollapsedBodies(store, "t", {});
-        eq(VA.readCollapsedBodies(store, "t"), {});
-        eq(VA.readCollapsedBodies(store, "u"), { other: true }, "another topology's kept");
-        data[VA.COLLAPSED_BODIES_KEY] = "{not json";
-        eq(VA.readCollapsedBodies(store, "u"), {});
-        var throwing = { getItem: function () { throw new Error("denied"); },
-                         setItem: function () { throw new Error("denied"); } };
-        eq(VA.readCollapsedBodies(throwing, "t"), {});
-        VA.writeCollapsedBodies(throwing, "t", { base: true });
-        eq(VA.readCollapsedBodies(null, "t"), {});
-      });
 
-    await test("every contact kind has one glyph symbol, and a joint's two ends are " +
-      "drawn as its glyph in the node's own ink -- never on the edge", function () {
-        eq(Object.keys(VA.INTERFACE_GLYPHS), VA.INTERFACE_KINDS);
-        eq(VA.NODE_GLYPH_PRECEDENCE.slice().sort(), VA.INTERFACE_KINDS.slice().sort(),
-           "the precedence ranks every contact kind once");
-        var defs = VA.interfaceGlyphDefs();
-        var ids = Array.prototype.map.call(defs.childNodes,
-          function (n) { return n.getAttribute("id"); });
-        eq(ids, VA.INTERFACE_KINDS.map(VA.interfaceGlyphId).concat([VA.FORM_GLYPH_ID]));
-        var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
-        var gap = topo.edges.filter(function (e) { return e.kind === "gap"; })[0];
-        gap.interface = "spherical";
-        eq(VA.nodeJointKinds(topo), (function () {
-          var o = {}; o[gap.from] = "spherical"; o[gap.to] = "spherical"; return o;
-        })(), "both ends of the joint, and nothing else");
-        var root = render(function (r) {
-          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
-                                 selection: null, onSelect: function () {} });
-        });
-        var uses = all(root, "use").filter(function (u) {
-          return u.getAttribute("data-glyph") === VA.interfaceGlyphId("spherical");
-        });
-        eq(uses.map(function (u) { return u.getAttribute("data-glyph-node"); }).sort(),
-           [gap.from, gap.to].sort(), "one glyph per end, on its node");
-        ok(uses.every(function (u) {
-          return hasClass(u, "rail__node") && u.getAttribute("data-node-glyph") === "spherical" &&
-            !/conf--/.test(u.getAttribute("class"));
-        }), "in the node's ink, not a confidence colour");
-        eq(all(root, "use").filter(function (u) {
-          return u.getAttribute("data-glyph") !== VA.FORM_GLYPH_ID &&
-            !u.getAttribute("data-node-glyph");
-        }).length, 0, "no glyph on an edge");
-        // The dot under the glyph is the node's target and address.
-        var targets = all(root, "circle.rail__dot").filter(function (n) {
-          return hasClass(n, "rail__dot--joint");
-        });
-        eq(targets.map(function (n) { return n.getAttribute("data-id"); }).sort(),
-           [gap.from, gap.to].sort());
-        var picked = [];
-        var clicked = render(function (r) {
-          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
-            selection: null, onSelect: function (k, id) { picked.push(k + ":" + id); } });
-        });
-        all(clicked, "circle.rail__dot").filter(function (n) {
-          return n.getAttribute("data-id") === gap.from;
-        })[0].onclick();
-        eq(picked, ["node:" + gap.from], "a joint node selects its node");
-        // An end of two kinds of joint wears the higher-ranked one.
-        var other = topo.edges.filter(function (e) {
-          return e.id !== gap.id && (e.from === gap.from || e.to === gap.from);
-        })[0];
-        ok(other, "the demo has a second edge at the joint's first end");
-        other.interface = "clearance";
-        eq(VA.nodeJointKinds(topo)[gap.from], "spherical", "a ball outranks a clearance");
-        gap.interface = null;
-        eq(VA.nodeJointKinds(topo)[gap.from], "clearance");
-        other.interface = null;
-        var none = render(function (r) {
-          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
-                                 selection: null, onSelect: function () {} });
-        });
-        eq(all(none, "use").length, 0, "no contact kind, no glyph -- the plain dot");
-        eq(all(none, "circle.rail__dot").filter(function (n) {
-          return hasClass(n, "rail__dot--joint");
-        }).length, 0);
-      });
 
-    await test("a form element wears its squiggle beside its bar and a form " +
-      "modifier beside the face it is on", function () {
-        var topo = JSON.parse(JSON.stringify(KIN_TOPOLOGIES.topologies[0]));
-        var sized = topo.edges.filter(function (e) {
-          return e.kind === "structural" && e.dimension;
-        });
-        sized[0].dimension.form = { kind: "element", zone: 0.05, node: null };
-        sized[1].dimension.form = { kind: "modifier", zone: 0.01, node: sized[1].from };
-        var marks = VA.formMarks(topo);
-        eq(Object.keys(marks.edges), [sized[0].id]);
-        eq(marks.nodes[sized[1].from], [sized[1].id]);
-        var root = render(function (r) {
-          VA.renderTopoPane(r, { topoProj: topo, study: null, crops: TOPOCROPS,
-                                 selection: null, onSelect: function () {} });
-        });
-        var forms = all(root, "use").filter(function (u) {
-          return u.getAttribute("data-glyph") === VA.FORM_GLYPH_ID;
-        });
-        eq(forms.length, 2, "one beside the bar, one beside the node");
-        eq(forms.map(function (u) { return u.getAttribute("data-id"); })
-          .filter(Boolean), [sized[0].id], "the element's carries its edge");
-        var bar = all(root, "line.rail__bar").filter(function (n) {
-          return n.getAttribute("x1") !== null;
-        })[0];
-        ok(forms.every(function (u) { return hasClass(u, "rail__glyph--form"); }),
-           "both muted, neither in a bar's colour");
-        ok(bar, "the bars are drawn");
-        eq(VA.formMarks({ edges: [] }), { edges: {}, nodes: {} });
-      });
 
-    await test("a kinematic page's lit set dims the rest of the walk, and hidden " +
-      "draws only the lit part", function () {
-        var topo = KIN_TOPOLOGIES.topologies[0];
-        var lit = VA.litSetOfEdges(topo, ["arm_pin_to_tip", "base_thickness"]);
-        var base = { topoProj: topo, study: null, crops: TOPOCROPS, selection: null,
-                     detailImage: null, onSelect: function () {}, lit: lit };
-        var dim = render(function (r) { VA.renderTopoPane(r, base); });
-        var on = all(dim, ".rail__bar--on").length;
-        var off = all(dim, ".rail__bar--off").length;
-        eq(on, 2, "the two lit edges");
-        eq(on + off, topo.edges.length, "every other edge drawn, dimmed");
-        ok(all(dim, ".rail__dot--off").length > 0, "unlit nodes are dimmed too");
-        eq(all(dim, "tr.tvrow--edge").length, 2, "the grid holds the lit edges only");
-        var hidden = render(function (r) {
-          VA.renderTopoPane(r, Object.assign({}, base, { unlitStyle: "hide" }));
-        });
-        eq(all(hidden, ".rail__bar--on").length, 2);
-        eq(all(hidden, ".rail__bar--off").length, 0, "nothing unlit is drawn");
-        eq(all(hidden, ".rail__dot--off").length, 0);
-        eq(all(hidden, "tr.tvrow--edge").length, 2, "...and the leaders still land on rows");
-        // No lit set at all: the hide preference has nothing to act on.
-        var whole = render(function (r) {
-          VA.renderTopoPane(r, Object.assign({}, base, { lit: null, unlitStyle: "hide" }));
-        });
-        eq(all(whole, ".rail__bar--off").length, 0);
-        eq(all(whole, "tr.tvrow--edge").length, topo.edges.length);
-      });
 
-    await test("a joint between two lit nodes is lit by closure: it draws at full " +
-      "emphasis, survives hiding, and is no row of the grid", function () {
+    await test("a joint between two lit nodes is lit by closure and is no row of the " +
+      "grid, and two lit pieces are joined through the model", function () {
         var topo = KIN_TOPOLOGIES.topologies[0];
         // The closure alone (no bridge): the four contributors' own edges.
         var lit = VA.litSetOfEdges(topo, ["arm_pin_to_tip", "base_thickness",
@@ -15306,18 +12163,8 @@
         var base = { topoProj: topo, study: null, crops: TOPOCROPS, selection: null,
                      detailImage: null, onSelect: function () {}, lit: lit };
         var dim = render(function (r) { VA.renderTopoPane(r, base); });
-        eq(all(dim, ".rail__bar--on").length, Object.keys(lit.edges).length,
-           "contributors and the joint, all at full emphasis");
         eq(all(dim, "tr.tvrow--edge").length, Object.keys(lit.edges).length - 1,
            "the grid lists contributors only: the joint is none");
-        eq(all(dim, "use.rail__node--off").length,
-           all(dim, "use.rail__node").length - all(dim, "use.rail__node--on").length,
-           "a joint node's glyph is on or off, by whether its node is lit");
-        var hidden = render(function (r) {
-          VA.renderTopoPane(r, Object.assign({}, base, { unlitStyle: "hide" }));
-        });
-        eq(all(hidden, ".rail__bar--on").length, Object.keys(lit.edges).length);
-        eq(all(hidden, ".rail__node--off").length, 0, "no dimmed glyph is drawn hidden");
         // Two lit pieces with nothing between them are joined through the model.
         var apart = VA.litSetOfEdges(topo, ["base_thickness", "strut_length"]);
         ok(walkComponents(VA.hideUnlit(topo.layout, apart).rows).length > 1,
@@ -16256,45 +13103,6 @@
            "a left flank's label just below its pin, as ever");
       });
 
-    await test("the map is the default drawing for a model with a layout, Classic for one " +
-      "without, the choice is remembered under its own key, and the region's switch presses " +
-      "the drawing shown or says No map", function () {
-        eq(VA.DEFAULT_DAG_DRAWING, "map");
-        eq(VA.dagDrawingFor(undefined, TOPO), "map");
-        eq(VA.dagDrawingFor("classic", TOPO), "classic");
-        eq(VA.dagDrawingFor("nonsense", TOPO), "map");
-        var bare = Object.assign({}, TOPO, { map: null });
-        eq(VA.dagDrawingFor("map", bare), "classic", "no layout, no map");
-        eq(VA.topologyHasMap(bare), false);
-        eq(VA.topologyHasMap(null), false);
-        var store = {
-          data: {},
-          getItem: function (k) { return Object.prototype.hasOwnProperty.call(this.data, k) ? this.data[k] : null; },
-          setItem: function (k, v) { this.data[k] = String(v); },
-        };
-        eq(VA.readStoredDagDrawing(store), null);
-        VA.writeStoredDagDrawing(store, "classic");
-        eq(VA.readStoredDagDrawing(store), "classic");
-        eq(Object.keys(store.data), [VA.DAG_DRAWING_KEY]);
-        VA.writeStoredDagDrawing(store, "nonsense");
-        eq(VA.readStoredDagDrawing(store), "classic");
-        ok(VA.DAG_DRAWING_KEY !== VA.PANE_VIEW_KEY && VA.DAG_DRAWING_KEY !== VA.DAG_VIEW_KEY, "its own key");
-        var chosen = null;
-        var head = VA.renderDagSwitch({ dagDrawing: "classic" }, TOPO, function (id) { chosen = id; });
-        var buttons = all(head, "button");
-        eq(buttons.map(function (b) { return b.textContent; }), ["Map", "Classic"]);
-        eq(buttons.map(function (b) { return b.getAttribute("aria-pressed"); }), ["false", "true"]);
-        buttons[0].click();
-        eq(chosen, "map");
-        var none = VA.renderDagSwitch({ dagDrawing: "map" }, bare, function (id) { chosen = "never " + id; });
-        var noneButtons = all(none, "button");
-        eq(noneButtons.map(function (b) { return b.textContent; }), [VA.NO_MAP_LABEL, "Classic"]);
-        eq(noneButtons.map(function (b) { return b.getAttribute("aria-pressed"); }), ["false", "true"]);
-        ok(noneButtons[0].getAttribute("disabled") !== null, "No map takes no click");
-        noneButtons[0].click();
-        eq(chosen, "map", "the disabled button chose nothing");
-        eq(VA.NO_MAP_LABEL.split(" ").length, 2, "two words");
-      });
 
     await test("the map draws every entity once, keyed by the model's kind and id, its drawn " +
       "counts equal the model's, every curve takes fill none, and its words carry no banned string", function () {
@@ -16329,14 +13137,12 @@
         symbols.forEach(function (s) { ok(VA.MAP_SYMBOLS[s.getAttribute("data-symbol")], "a word of the table"); });
         var uses = all(svg, "use");
         eq(uses.length, symbols.length);
-        // The switch is the region's header, after the drawing.
-        eq(all(root, "#dag-drawing").length === 0, true, "no header unless the page gives one");
-        var withHead = mapRoot({ regionHead: function () { return VA.renderDagSwitch({ dagDrawing: "map" }, TOPO, null); } });
-        eq(all(withHead, ".tv__daghead").length, 1);
+        // No switch: the map is the region's one drawing.
+        eq(all(root, "#dag-drawing").length, 0, "no Map . Classic switch");
         bannedIn(viewerAuthoredText(root), "the map");
         // The symbol table: every interface word and the seat.
         eq(Object.keys(VA.MAP_SYMBOLS).sort(),
-           Object.keys(VA.INTERFACE_GLYPHS).concat(["contact"]).sort());
+           VA.INTERFACE_KINDS.concat(["contact"]).sort());
         Object.keys(VA.MAP_SYMBOLS).forEach(function (w) {
           ok(VA.MAP_SYMBOLS[w].label && VA.MAP_SYMBOLS[w].shapes.length, w + " has a label and a picture");
         });
@@ -16423,19 +13229,18 @@
         eq(far.mapView().selectedKey, "part:strut");
       });
 
-    await test("a Classic paint on a region the map painted releases the map's Fit, its view and " +
-      "its light, so Fit is the rails' again; a map paint takes them back", function () {
+    await test("a region the map painted, painted with no projection, releases the map's " +
+      "Fit, its view and its light; a map paint takes them back", function () {
         VA.forgetMapViews();
         var root = mapRoot();
         ok(typeof root.mapFit === "function", "the map paint sets Fit");
         ok(VA.lastMapLight && VA.lastMapLight.topologyId === TOPO.id, "...and the light");
-        VA.renderTopoPane(root, topoCtx());
-        eq(root.mapFit, null, "a Classic paint on the same root releases Fit");
+        VA.renderTopoPane(root, topoCtx({ topoProj: null }));
+        eq(root.mapFit, null, "a paint with nothing to draw releases Fit");
         eq(root.mapView, null);
         eq(VA.lastMapLight, null, "...and the map's light, so nothing detached is lit");
         eq(all(root, "svg.tv__map").length, 0);
-        ok(all(root, "svg.tv__rails").length === 1, "the rails are drawn");
-        VA.renderTopoPane(root, topoCtx({ dagDrawing: "map", model: VA.buildModel(TOPO, null),
+        VA.renderTopoPane(root, topoCtx({ model: VA.buildModel(TOPO, null),
           mapRegion: { width: 2390, height: 2160 } }));
         ok(typeof root.mapFit === "function", "a map paint through the pane sets Fit again");
         eq(all(root, "svg.tv__rails").length, 0);
@@ -16465,10 +13270,9 @@
         byId("g.map__jumper", "strut_length").onkeydown({ key: "Enter", preventDefault: function () {} });
         eq(selected[2], { kind: VA.FOCUS_KINDS.dimension, id: "strut_length" });
         var bare = document.createElement("div");
-        VA.renderTopoMap(bare, { topoProj: Object.assign({}, TOPO, { map: null }), model: null,
-          regionHead: function () { return VA.renderDagSwitch({ dagDrawing: "map" }, Object.assign({}, TOPO, { map: null }), null); } });
+        VA.renderTopoMap(bare, { topoProj: Object.assign({}, TOPO, { map: null }), model: null });
         eq(all(bare, "svg.tv__map").length, 0);
-        eq(all(bare, "button")[0].textContent, VA.NO_MAP_LABEL);
+        has(bare.textContent, "This model has no map");
         ok(bare.mapFit === null, "nothing to fit");
       });
 
