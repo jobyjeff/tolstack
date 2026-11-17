@@ -352,7 +352,7 @@ export const DECLARED_GUARDS = {
   // 2026-11-17 (a_joint_says_what_kind_it_is): +2 -- a connector's symbol is
   // its interface's kind alone, and a shared node's joint kind in words on the
   // tree, the Preview and Classic. Each carries a spec.
-  fast: { declared: 720, enrollable: 720, names: "df0f22d7e7bd" },
+  fast: { declared: 721, enrollable: 721, names: "ce67d8691713" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
