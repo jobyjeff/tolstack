@@ -19050,7 +19050,9 @@
                     "feature:" + MOUNT + "@tan_link_mount_pilot_bore"],
               touching: ["joint:hub+" + MOUNT, "dimension:hub_spindle_to_tan_link_mount_face",
                          "dimension:hub_boss_to_tan_link_mount_fasteners", "dimension:hub_blade_axis_offset",
-                         "dimension:tan_link_mount_pilot_to_bore"],
+                         "dimension:tan_link_mount_pilot_to_bore",
+                         // the mount's upper pilot bore is located from this one (2026-11-17)
+                         "dimension:tan_link_mount_gas_spring_pilot_to_pilot"],
             });
             var joint = light(F.joint, "hub+" + MOUNT);
             eq(joint.own.filter(function (k) { return k.indexOf("interface:") === 0; }),
