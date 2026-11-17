@@ -187,4 +187,75 @@ copies instead, per the review recipe in the session memory. The topology
 and kinematic projections in it were rebuilt from this tree with
 `--data-root`. The main checkout's `data/` was not written.
 
-(filled in below)
+**Fast tiers**, in this worktree, at the final tree:
+
+| command | result |
+| --- | --- |
+| `node apps/viewer/run_tests.cjs` | 595/595; the node-fs tier skipped (no projection in a worktree) |
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | **718/718**, with the `[real]` checks armed |
+| `node apps/annotate/run_tests.cjs` (bare, then `--repo <scratch root>`) | 323/323 and 323/323 (no annotate code changed) |
+
+The first armed run was red on one check, `[real] the projection this tier
+reads was built from this tree`. The kinematic projection reads
+`docs/topologies/`, so it was stale too, not only the topology projection.
+Rebuilding it from this tree (`build_kinematic_projection.py --data-root`)
+made the run green.
+
+**Browser runner**, `--only` for each suite this branch changed or whose
+drawing it moved:
+
+| command | result |
+| --- | --- |
+| `node scripts/run_viewer_browser_tests.mjs --repo <scratch root> --only "the map (Map"` | **33/33** (29 + the four new checks), 95.2 s, on the final text |
+| `... --only "a window resize re-clamps"` | 3/3, 22.4 s (unchanged suite; it draws the map) |
+
+**Witness runner**: one invocation, every spec this branch added or changed
+(`--only __9f67fb7a --only __6a40e84f --only __ffa918de --only __82cc1b61
+--only __8460eda4 --only __90d563b8 --only __5b42fd02 --only __f9c586da`).
+**All WITNESSED**: 5 fast mutations (3 new specs, plus the two mutations of
+the re-anchored `__82cc1b61`) and 4 browser specs, about 10 minutes. The
+runner's closing "NOT ENROLLED" block read the shadow tree snapshot, taken
+before the pins were written. The pin lines it printed are exactly the ones
+committed in `scripts/guard_enumeration.mjs`.
+
+**Default tier**, once, in this worktree, at the end:
+
+```
+C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider
+1 failed, 2027 passed, 1 skipped, 4 deselected in 484.51s (0:08:04)
+```
+
+The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+the documented worktree red: no `data/projections/` here, so the wrapper
+refuses to call a skipped tier green. The same tier ran 718/718 against the
+scratch root (above). The skip is the pitch-link bearing re-extraction
+(`test_fit_bound_features.py:433`). Recorded with `suite-time record tolstack
+--tier default --seconds 485`: inside budget.
+
+**Not run**, because they are the review's after the merge: the whole browser
+tier and the `--changed-since` witness gate.
+
+**Scratch left behind**: `C:/workspace/tolstack/data/scratch/portrait_20261117`,
+the copy-based root above, with the run logs. It is left for the reviewer,
+since the main checkout's projection carries the wide places until it is
+rebuilt from a tree that has these. It is about 800 MB and safe to delete
+once the review is done. The worktree's `node_modules` junction stays for
+the same reason.
+
+## Found on arrival
+
+Nothing. This is a worktree session; the main checkout's `git status` was
+clean at the end too.
+
+## Blocked actions
+
+One, worked around rather than repeated. Building the scratch root with
+junctions (`New-Item -ItemType Junction -Path <scratch>\data\inbox -Target
+C:\workspace	olstack\data\inbox`) was refused by the main-checkout edit
+guard, which read the junction's target as a write into the main checkout.
+The root was built by copying instead (`cp -r`), as the session memory's
+review recipe does.
+
+A stale `index.lock` in this worktree's own git directory, left after the
+witness runner's shadow-tree build, stopped one commit. No git process was
+running and the lock was empty; it was removed, and the commit went through.
