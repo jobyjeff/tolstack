@@ -1,7 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
+class: stale_check_expectation
+defer_until: 2026-11-23
+resolution: triage 2026-11-16 (2nd sweep) -- low, deferred onto the same wake date as its likely root, ISSUE_20261108_the_annotate_real_browser_check_still_expects_v1_as_the_default_model
 area: annotate/browser-check
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261116_the_annotate_check_runs_every_pass.md

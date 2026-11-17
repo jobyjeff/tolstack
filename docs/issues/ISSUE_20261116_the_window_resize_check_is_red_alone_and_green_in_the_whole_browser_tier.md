@@ -1,11 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/browser-tier
 reporter: agent
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261116_triage_sweep.md
-handoff: the_window_resize_reclamp_holds_on_a_cold_run
+handoff: docs/sessions/HANDOFF_20261116_the_window_resize_reclamp_holds_on_a_cold_run.md
 ---
 
 # The window-resize check is red when its suite runs alone and green in the whole browser tier
