@@ -5874,6 +5874,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       run the whole browser tier (or every suite naming that model) before
       approving, and grep the runner for `scrollingElement` and `innerHeight`
       assumptions.
+- [ ] **A topology note's mesh evidence is a claim you can re-fit in a
+      minute.** New 2026-11-17
+      (`the_blade_and_piston_joints_are_authored_as_what_the_parts_show`).
+      Joint-authoring handoffs put face ids, diameters, z-ranges and hole
+      centres into node `note`s, and no test reads them. Re-fit a sample with
+      `fg.fit_face(fg.read_mesh(dir), id)` and move it by the mesh's
+      `provenance.json` `extraction.instances[0].placement_world`
+      (`fg.apply_placement`). Find the mesh dir by `manifest.json`'s
+      `part_id`. That review re-derived every piston and plate figure it
+      sampled, and every blade diameter. Also check that a
+      lane the map draws for a new joint stays inside its body's district.
 - [ ] **A topology data change "fixed" by reordering its authored edges.**
       2026-11-10 (`the_gas_spring_mount_sits_on_...`): moving one seat made a
       `[real]` block-crossing guard red. The author reordered the hub's edges

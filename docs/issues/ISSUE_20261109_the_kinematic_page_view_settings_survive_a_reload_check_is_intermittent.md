@@ -47,3 +47,10 @@ Seen again: 1 of 3 consecutive `--only` runs of the kinematic study page suite f
 
 ## Addendum 2026-11-17 (a_joint_says_what_kind_it_is)
 Seen again: the first of two `--only "kinematic study page"` runs on that branch failed the same two checks (`DAG width ... after a reload 420`); the rerun and an `integration` baseline, against the same scratch root, were 27/27.
+
+## Sighting, 2026-11-17 (review of `the_blade_and_piston_joints_are_authored_as_what_the_parts_show`)
+
+Red once in a whole-tier run on tree `6026532151d5` ("[real] colouring by body
+puts the overlay's ink on the DAG's bars, and the choice survives a reload",
+26/27), then 27/27 on `--only "kinematic study page"` against the same scratch
+root. That diff touches only model v2 and the map, and this page draws v1's study.

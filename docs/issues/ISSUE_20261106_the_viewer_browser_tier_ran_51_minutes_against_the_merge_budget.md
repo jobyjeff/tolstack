@@ -297,3 +297,13 @@ Whole tier, review worktree, `node scripts/run_viewer_browser_tests.mjs --repo C
      57.4s   22 checks  annotate model in the scene (anchors, lines, the sweep, the anchors message)
      55.7s   41 checks  annotate flyout (repo-root mount + file:// degradation)
 ```
+
+## Measurement, 2026-11-17 (review of `the_blade_and_piston_joints_are_authored_as_what_the_parts_show`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rvbpj`,
+whole tier, merged tree `6026532151d5`: **1903 s** against the 1800 s
+budget (the runner's own ledger row, `over: true`); 47/48 suites, the one red
+the deferred kinematic-reload flake (27/27 on `--only`). The four slowest
+suites: the DAG zoom, Fit and the grid header 162.2 s; topology http 157.7 s;
+topology file:// 103.0 s; 3D pane follows the selection 100.9 s. v2 grew 40 → 56
+edges in this diff.
