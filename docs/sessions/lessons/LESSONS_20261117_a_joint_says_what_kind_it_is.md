@@ -148,6 +148,72 @@ a positional-tolerance question that a single band does not answer. That is
 not a design, just where the pressure will show: the node-as-point
 assumption in `tolerance_stack.topology.traverse` and the one-fold rule.
 
+## The click-around (shots in `shots/a_joint_says_what_kind_it_is/`, log in `walk_log.txt`)
+
+At 2400 × 1500 on the real projection, built from this branch into a
+scratch root (below), with model "Propeller Pitch System" (v2) and then the
+legacy v1. No page error came up at any point.
+
+- On the map, every connector has a symbol (`01`). The hub ↔ blade joint has
+  the rotary symbol (`02`). The hub ↔ tangential-link-mount bundle still
+  shows the seat, the ring of dots and the boss in a bore, side by side
+  (`06`). The layout file has no `symbols` key.
+- Hovering the bearing: the Preview's chips read `mating_surface · rotary ·
+  2 edge(s)` and the hover title reads "blade 1 root bearing bore — a rotary
+  joint" (`07`). A click selects it on the map and lights both features in
+  the tree (`08`). The clocking's hover reads "… — a fastener pattern", and
+  its Preview chip reads "fastener pattern". A wheel zoom on it works
+  (`11`).
+- The tree's interface rows read rotary, contact, spherical ×4, cylindrical
+  slide and clearance (`09`, `10`).
+- The "How to read the rails" dialog has the new sentence (`12`).
+- In Classic, the bearing node wears the rotary glyph and the mount's
+  clocking the pattern glyph (`13`–`17`). On v1 the same is true for the
+  bearing and for `pitch_arm_blade_root_clocking` (`18`).
+- `19_three_round_symbols_side_by_side.png` shows the boss in a bore, the
+  rotary joint and the slide, drawn from `VA.MAP_SYMBOLS` at the map's own
+  40-unit box and at 3×. Read with vision, the three are plainly different
+  at both sizes: a closed circle and dot, the same with an arrowed arc over
+  it, and a bar under a straight double arrow.
+
+What the page did that the handoff did not ask about: **Classic's glyphs are
+small.** They are drawn at the row pitch, and on the hub's block a chord
+runs across the rotary glyph's arc (`14`), so the arrow is hard to read
+there. That is Classic's existing size rule (Jeff's "hard to make out" was
+about these). The map is the drawing that carries the large symbols, and
+Classic is slated to retire, so I left it.
+
 ## Test record
 
-(Filled in at the end of the session; see below.)
+Scratch root: `C:/workspace/tolstack/data/scratch/joint_kind_20261117`.
+It holds copies of the main checkout's `data/inbox`,
+`data/meshes` and `data/projections`, plus this worktree's `docs`. Every
+projection (topology, viewer, part names, feature identity, fits, contact
+suggestions, kinematic, and crops with drawing-checker's venv) was rebuilt
+in it from this branch's committed tree with `--data-root`. The main
+checkout's `data/` was not written. The integration export used as a
+baseline is `C:/workspace/tolstack/data/scratch/jk_base`. Both are safe to
+delete after the review.
+
+| command (in this worktree) | result |
+| --- | --- |
+| `node apps/viewer/run_tests.cjs` | 597/597 (node-fs tier skipped: no projection in a worktree) |
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | **720/720**, `[real]` armed. The first armed run was red on the stops study's live glyph census, which correctly gained the v1 clocking's `fastener_pattern`; the census was updated |
+| `node apps/annotate/run_tests.cjs` and `--repo <scratch root>` | 324/324 and 324/324 |
+| `node scripts/run_viewer_browser_tests.mjs --repo <scratch root> --only "the map (Map"` | **34/34**, the new rotary check included |
+| `... --only "kinematic study page"` (its Classic glyph census moved) | run 1: 25/27, the two reload checks of `ISSUE_20261109_the_kinematic_page_view_settings_survive_a_reload_check_is_intermittent` (sighting appended there); run 2: **27/27**; the integration baseline against the same root: 27/27 |
+| `node scripts/run_mutation_witness_tests.mjs --repo <scratch root> --only __1d6d60df --only __86fafce7 --only __4d6c2975 --only __2f5e192a --only __6d321b6d --only __c2adf3c9 --only __b20f0661` | **14/14 witnessed** in 12m15s: the four new specs, the re-anchored connector-symbol spec, and the two glyph-precedence specs whose anchors moved into `wear()` |
+| `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider` | `1 failed, 2032 passed, 1 skipped, 4 deselected in 424.10s`. The one failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the documented worktree red (no `data/projections/` here); that tier ran 720/720 against the scratch root above. The skip is `test_fit_bound_features.py:433` (the pitch-link bearing re-extraction is not installed). Recorded with `suite-time record --tier default --seconds 425`: inside budget |
+
+**Not run**, because they are the review's after the merge: the whole browser
+tier and the `--changed-since` witness gate.
+
+## Found on arrival
+
+Nothing. This is a worktree session.
+
+## Blocked actions
+
+None. A stale `index.lock` in this worktree's git directory, left while the
+witness runner built its shadow tree, stopped one commit; it was removed once
+no git process was running, as in the previous handoff's lesson.
