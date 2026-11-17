@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: resolved
 area: viewer/dag
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261112_the_page_is_a_fixed_layout_and_nothing_scrolls_the_document.md
 defer_until: 2026-11-29
-resolution: deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
+resolution: resolved 2026-11-17 by handoff the_map_is_the_only_drawing_and_classic_retires -- the leaders, the jog zone and the centring went with the rails; deferred 2026-11-15 (triage) -- med beyond budget; the 11-12 chain rule allows one viewer handoff at a time, and most of these are inputs to the strategy session's map handoff (REVIEW_20261112_the_merged_page.md)
 class: merged_page_walk_20261112
 ---
 
@@ -44,3 +44,13 @@ map would rewrite again.
 > it (Map . Classic). They go when Classic retires, which is step 6 of the
 > strategy draft's chain (`ISSUE_20261116_what_the_map_does_not_draw_yet`,
 > "Retiring Classic"); this issue resolves with that handoff, not before.
+
+> **Resolved 2026-11-17 (handoff `the_map_is_the_only_drawing_and_classic_retires`).**
+> Classic retired: the DAG↔grid leaders (`VA.leaderGeometry`, the
+> `jogged`/`angled` paths, the leader layer, `VA.respineX`), the jog zone and
+> the centring (`VA.rowPositions`, `VA.centreOffsets`) are gone with the rails
+> drawing. The two things this issue said must survive did: a selected
+> interface still scrolls the grid row its seam is above into view, off the
+> grid plan's own `beforeEdge` (`VA.lastTopoRender.boundaryEdge`, now built
+> straight from the plan), and the seam leaders to the 3D pane retired with
+> the rails by the handoff's own scope.

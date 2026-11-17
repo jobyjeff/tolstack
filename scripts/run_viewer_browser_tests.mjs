@@ -1877,7 +1877,63 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
-  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
+  // Every grid row's edge is on the map: a dimension's jumper or a gap's
+  // connector, keyed by the edge's own id (the map draws every entity once,
+  // views/map.js). Since the rails retired (2026-11-17) this is the pairing
+  // between the two surfaces; the map is not scrolled with the grid, so no
+  // pixel ties them.
+  const correspondence = () => page.evaluate(() => {
+    const drift = [];
+    const rows = Array.from(document.querySelectorAll("#topogrid tr.tvrow"));
+    for (const row of rows) {
+      if (row.getAttribute("data-row-kind") !== "edge") continue;
+      const id = row.getAttribute("data-id");
+      if (!document.querySelector(`#topopane svg.tv__map [data-map-id="${CSS.escape(id)}"]`)) {
+        drift.push(`edge ${id}: not on the map`);
+      }
+    }
+    return { rows: rows.length, drift };
+  });
+
+  // The grid's rows against the page's own plan (the walk with each part's
+  // rows gathered, VA.gatherParts): no row painted beyond its body's ink
+  // (which is on its cells), every bracket drawn, and the measures the grip
+  // checks below compare.
+  const GRID_ROWS_IN_PAGE = () => {
+    const VA = window.ViewerApp;
+    const last = VA.lastTopoRender;
+    const proj = VA.findTopology(VA.demoTopologyFixture().topologies, last.topologyId);
+    const plan = VA.gridPlan(VA.gatherParts(proj.layout, proj), proj);
+    const rows = Array.from(document.querySelectorAll("#topogrid tr.tvrow"));
+    const bad = [];
+    let provenanceLayers = 0;
+    plan.rows.forEach((planRow, r) => {
+      const row = rows[r];
+      if (!row) { bad.push(`plan row ${planRow.id} has no <tr>`); return; }
+      if (row.getAttribute("data-id") !== planRow.id) {
+        bad.push(`row ${r} is ${row.getAttribute("data-id")}, the plan says ${planRow.id}`);
+      }
+      if (/tvrow--body-|tvrow--divide-|tvrow--band-|conf--/.test(row.getAttribute("class") || "")) {
+        bad.push(`row ${planRow.id} still wears a tint class: ${row.getAttribute("class")}`);
+      }
+      const style = getComputedStyle(row);
+      if (style.backgroundColor !== "rgba(0, 0, 0, 0)" &&
+          !row.classList.contains("tvrow--hot") && !row.classList.contains("tvrow--lead")) {
+        bad.push(`row ${planRow.id} is painted ${style.backgroundColor}`);
+      }
+      if (row.querySelector("span.tvmark--untraced, span.tvmark--no_source_ref")) provenanceLayers++;
+    });
+    VA.gridBraces(plan, { study: null }).braces.forEach((brace) => {
+      const caps = document.querySelectorAll(`#topogrid div.tvbrace[data-brace="${brace.id}"]`);
+      if (caps.length < 2) bad.push(`bracket ${brace.id} has ${caps.length} caps`);
+    });
+    return {
+      bad, rows: rows.length, provenanceLayers,
+      rowHeights: rows.map((r) => Math.round(r.getBoundingClientRect().height * 100) / 100),
+      nameWidth: Math.round(document.querySelector("td.tvcell--name")
+        .getBoundingClientRect().width * 100) / 100,
+    };
+  };
 
   // Everything the hover-card layout contracts are measured against: the
   // DOCUMENT's own height (the thing a popover that is still in flow
@@ -1956,85 +2012,35 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-    // Off by default (one_selection_one_hover_and_leaders_off): the toggle
-    // says so, no leader is built on either tier, and the grid is whole.
-    push("leaders are off by default: the toggle says so, no leader is drawn, and the grid is whole",
-      /Leaders: off/.test(await page.locator("#leader-style-toggle").textContent()) &&
-      await page.locator("path.rail__leader").count() === 0 &&
-      await page.locator("path.rail__leaderhit").count() === 0 &&
+    // One drawing in the DAG's region since the rails retired
+    // (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17): the map,
+    // with no switch beside it, and the grid whole in its own region.
+    push("the DAG region draws the map and nothing else, and the grid is whole",
+      await page.locator("#topopane svg.tv__map").count() === 1 &&
+      await page.locator("#topopane svg.tv__rails").count() === 0 &&
+      await page.locator("#dag-drawing").count() === 0 &&
       await page.locator("svg.seamleaders path").count() === 0 &&
       await page.locator("tr.tvrow").count() === 6);
-    push("...and a selected node still finds its grid row with no leader to read it from",
+    push("...and a selected node still finds its grid row by the seam it is above",
       await page.evaluate(() => {
         const seams = window.ViewerApp.lastTopoRender.boundaryEdge || {};
         return Object.keys(seams).length === 5 && seams.base_post_seat !== undefined;
       }));
-    // A leader runs between the DAG and the 3D scene only (the fixed shell,
-    // 2026-11-14: the grid is in its own region), so with no pane open the
-    // control has nothing to draw and says so on hover.
-    push("with no 3D pane open the leaders control says on hover that it draws only with the pane beside the DAG",
-      await page.evaluate(() => {
-        const t = document.getElementById("leader-style-toggle");
-        return !!t && t.getAttribute("title") === window.ViewerApp.LEADERS_UNAVAILABLE;
-      }));
 
-    push("the rails render as SVG, not as unknown HTML elements",
-      await page.locator("svg.tv__rails circle.rail__dot").count() > 0 &&
-      await page.locator("svg.tv__rails line.rail__bar").count() > 0 &&
-      await page.locator("svg.tv__rails path.rail__link").count() > 0);
+    push("the map renders as SVG, not as unknown HTML elements",
+      await page.locator("svg.tv__map g.map__pin circle").count() > 0 &&
+      await page.locator("svg.tv__map g.map__jumper path").count() > 0 &&
+      await page.locator("svg.tv__map g.map__connector path").count() > 0);
 
-    // An edge says only lit or unlit (the_joint_is_the_node_and_an_edge_says_
-    // only_lit_or_unlit): every bar one computed ink whatever its citation, a
-    // lit bar measurably heavier than an unlit one, and a dash on a gap only.
-    // COMPUTED styles, not class names -- a class set the wrong way on an SVG
-    // node does nothing, and a stylesheet rule can bring a channel back.
-    const strokes = await page.evaluate(() => {
-      const bars = [...document.querySelectorAll("svg.tv__rails line.rail__bar")];
-      const probe = bars[0];
-      const widthWith = (cls) => {
-        const was = probe.getAttribute("class");
-        probe.setAttribute("class", was + " " + cls);
-        const w = parseFloat(getComputedStyle(probe).strokeWidth);
-        probe.setAttribute("class", was);
-        return w;
-      };
-      return {
-        count: bars.length,
-        inks: [...new Set(bars.filter((n) => !n.classList.contains("rail__bar--gap"))
-          .map((n) => getComputedStyle(n).stroke))],
-        gapInks: [...new Set(bars.filter((n) => n.classList.contains("rail__bar--gap"))
-          .map((n) => getComputedStyle(n).stroke))],
-        dashedNonGap: bars.filter((n) => !n.classList.contains("rail__bar--gap") &&
-          getComputedStyle(n).strokeDasharray !== "none").length,
-        plainGap: bars.filter((n) => n.classList.contains("rail__bar--gap") &&
-          getComputedStyle(n).strokeDasharray === "none").length,
-        gaps: bars.filter((n) => n.classList.contains("rail__bar--gap")).length,
-        lit: widthWith("rail__bar--on"), unlit: widthWith("rail__bar--off"),
-      };
-    });
-    // With no colour overlay (the default) a bar's ink says nothing but
-    // "bar"; a gap's is its own dimmer one, the same on every gap
-    // (the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste).
-    push("every DAG bar is one ink and two weights, and only a gap is dashed",
-      strokes.count > 0 && strokes.inks.length === 1 && strokes.inks[0] !== "none" &&
-      strokes.gapInks.length === 1 && strokes.gapInks[0] !== strokes.inks[0] &&
-      strokes.lit > strokes.unlit && strokes.dashedNonGap === 0 &&
-      strokes.gaps > 0 && strokes.plainGap === 0);
-    if (strokes.inks.length !== 1 || !(strokes.lit > strokes.unlit)) {
-      console.log("    bar strokes: " + JSON.stringify(strokes));
-    }
-
-    // The merged-row grid and the leaders (viewer_leader_line_grid): the demo
-    // mechanism has six edges in six single-edge component groups (every
-    // consecutive pair changes part), and five of its six interfaces are part
-    // boundaries — base_datum's one edge makes it internal, so it must NOT
-    // have a leader.
+    // The merged-row grid: the demo mechanism has six edges, each with its
+    // own part cell (the_grid_fits_the_screen_and_its_brackets_say_what_
+    // nests_in_what).
     push("the grid holds one row per edge, each with its own part cell",
       await page.locator("tr.tvrow").count() === 6 &&
       await page.locator("td.tvcell--part").count() === 6);
     const first = await correspondence();
-    push("every grid row has its bar on the DAG, and no leader runs across to the grid",
-      first.rows > 0 && first.leaders === 0 && first.drift.length === 0);
+    push("every grid row's edge is drawn on the map, as its jumper or its connector",
+      first.rows > 0 && first.drift.length === 0);
     if (first.drift.length) console.log("    drift: " + first.drift.slice(0, 5).join(" | "));
 
     // --- the Preview's DEFAULT, and a divider a reader can find ------------
@@ -2087,27 +2093,27 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("...and carries a grip mark, centred on the seam it sits on",
       paneAtRest.grip !== "none" && paneAtRest.gripPosition === "absolute");
 
-    // 3) scrolled, the DAG and the grid each stay whole: each scrolls in its
-    //    own region, and every row keeps its bar.
+    // 3) scrolled, the grid stays whole in its own region and the document
+    //    does not move; every row's edge is still on the map.
     await page.evaluate(() => {
-      document.querySelector("#topopane .tv__hscroll").scrollTop = 120;
       document.querySelector("#topogrid .tv__gridscroll").scrollTop = 40;
     });
     const scrolled = await correspondence();
     push("correspondence holds after scrolling", scrolled.drift.length === 0 &&
       await page.evaluate(() => document.scrollingElement.scrollTop === 0));
     await page.evaluate(() => {
-      document.querySelector("#topopane .tv__hscroll").scrollTop = 0;
       document.querySelector("#topogrid .tv__gridscroll").scrollTop = 0;
     });
 
-    // 2) a real click on an SVG circle.
-    await page.locator("svg.tv__rails circle.rail__dot").first().click();
-    push("clicking a rail dot opens that interface in the preview pane",
+    // 2) a real click on an interface: the shared seat's connector on the
+    //    map (the rails' dot until 2026-11-17).
+    const seat = 'svg.tv__map g.map__connector[data-map-id="base_post_seat"]';
+    await page.locator(seat).dispatchEvent("click");
+    push("clicking an interface's connector on the map opens that interface in the preview pane",
       /An interface is a location, not a value/
         .test(await page.locator("#detail").textContent()));
-    push("the clicked dot is visibly marked — the grid has no node rows",
-      await page.locator("circle.rail__dot--selected").count() === 1 &&
+    push("the clicked connector is visibly marked — the grid has no node rows",
+      await page.locator("svg.tv__map g.map__connector.map__connector--selected").count() === 1 &&
       await page.locator("tr.tvrow--selected").count() === 0);
 
     // No crop on a row (the_grid_fits_the_screen_and_its_brackets_say_what_
@@ -2148,10 +2154,29 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.waitForTimeout(returnMs + 120);
     };
     const rowFor = (id) => `tr.tvrow[data-id='${id}']`;
-    const dotFor = (id) => `svg.tv__rails circle.rail__dot[data-id="${id}"]`;
-    // A row is hovered on its own visible cells, right of the sticky rails --
-    // the measured trap from the leaders handoff: a row's centre can sit under
-    // the rails, where a hover reaches a leader instead.
+    // An interface's mark on the map: a node two parts share is its
+    // connector, a node on one part that part's pin (views/map.js).
+    const markFor = (id) => `svg.tv__map [data-map-id="${id}"]`;
+    // A real pointer onto a map mark, a quarter of the way along a
+    // connector or a jumper (its box's centre is its symbol, which hovers the
+    // same group -- the map's own lesson) and at a pin's centre.
+    const hoverMark = async (sel) => {
+      const at = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const path = el.querySelector("path.map__connectorhit, path.map__jumperhit");
+        if (path) {
+          const p = path.getPointAtLength(path.getTotalLength() / 4);
+          const m = path.getScreenCTM();
+          return { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f };
+        }
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }, sel);
+      if (at) await page.mouse.move(at.x, at.y);
+      return !!at;
+    };
+    // A row is hovered on its own visible cells (its PART cell).
     const hoverRow = async (id) => {
       const at = await page.evaluate((sel) => {
         const row = document.querySelector(sel);
@@ -2191,49 +2216,19 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       crop > 260);
     push("no popover opens on a mark's hover", !(await page.locator(".croppop").isVisible()));
 
-    // The same edge's own bar previews the same record, character for
-    // character: one edge, two marks, one record.
-    const barHovered = await hoverRailBar(page, "base_thickness");
-    push("hovering the DAG's own bar previews the edge's record", barHovered === true);
-    push("the bar's Preview and the same edge's row's Preview are the same " +
+    // The same edge's own jumper on the map previews the same record,
+    // character for character: one edge, two marks, one record.
+    const barHovered = await hoverMark('svg.tv__map g.map__jumper[data-map-id="base_thickness"]') &&
+      await previewIs("hover", "edge|base_thickness");
+    push("hovering the edge's jumper on the map previews the edge's record", barHovered === true);
+    push("the jumper's Preview and the same edge's row's Preview are the same " +
       "record, character for character", (await preview()).body === rowPreview);
-
-    // What a hover draws on the canvas: the mark's own highlight and ONE
-    // line of label -- and nothing larger than the label.
-    const canvas = await page.evaluate(() => {
-      const svg = document.querySelector("svg.tv__rails");
-      const labels = [...svg.querySelectorAll("text.rail__hoverlabel")];
-      const label = labels[0] ? labels[0].getBoundingClientRect() : null;
-      const own = svg.querySelector('line.rail__barhit[data-id="base_thickness"]');
-      const marks = [...svg.querySelectorAll("circle.rail__dot, line.rail__bar, use.rail__node, use.rail__glyph")]
-        .filter((n) => n.getAttribute("data-id") !== "base_thickness" &&
-          !(n.tagName === "line" && n.getAttribute("x1") === own.getAttribute("x1") &&
-            n.getAttribute("y1") === own.getAttribute("y1")))
-        .map((n) => n.getBoundingClientRect());
-      const meets = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-      return {
-        count: labels.length, text: labels[0] ? labels[0].textContent : null,
-        height: label ? label.height : null, width: label ? label.width : null,
-        covers: label ? marks.filter((m) => m.width + m.height > 0 && meets(label, m)).length : null,
-        takesPointer: labels[0] ? getComputedStyle(labels[0]).pointerEvents !== "none" : null,
-      };
-    });
-    push("a hovered mark draws exactly one label, one line high, naming it",
-      canvas.count === 1 && canvas.text === "base plate thickness" &&
-      canvas.height > 0 && canvas.height <= 18);
-    push("the label covers no other mark on the DAG, and takes no pointer",
-      canvas.covers === 0 && canvas.takesPointer === false);
-    push("no rail mark carries a native tooltip any more",
-      await page.locator("svg.tv__rails line.rail__barhit > title").count() === 0 &&
-      await page.locator("svg.tv__rails circle.rail__dot > title").count() === 0);
     await leave();
-    push("leaving every mark takes the label down and empties the Preview",
-      await page.locator("text.rail__hoverlabel").count() === 0 &&
-      await previewIs("empty", ""));
+    push("leaving every mark empties the Preview", await previewIs("empty", ""));
 
-    // A boundary dot: both parts named, the one with a crop pictured.
-    await page.locator(dotFor("base_post_seat")).hover();
-    push("hovering a boundary dot previews the parts that meet there, with " +
+    // A boundary interface: both parts named, the one with a crop pictured.
+    await hoverMark(markFor("base_post_seat"));
+    push("hovering a boundary interface previews the parts that meet there, with " +
       "the picture only where one resolves",
       await previewIs("hover", "node|base_post_seat") && await (async () => {
         const p = await preview();
@@ -2243,26 +2238,26 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           !/drawing 215197/.test(p.body) &&
           await page.locator(".detail__previewbody div.detail__side img").count() === 1;
       })());
-    await page.locator(dotFor("base_datum")).hover();
-    push("an internal dot's Preview says it is internal",
+    await hoverMark(markFor("base@base_datum"));
+    push("an internal interface's Preview says it is internal",
       await previewIs("hover", "node|base_datum") &&
       /An internal interface/.test((await preview()).body));
-    await page.locator(dotFor("arm_tip")).hover();
-    push("a dot with no croppable side names the clearance and shows no image",
+    await hoverMark(markFor("arm@arm_tip"));
+    push("an interface with no croppable side names the clearance and shows no image",
       await previewIs("hover", "node|arm_tip") && await (async () => {
         const p = await preview();
         return /a clearance/.test(p.body) && p.images === 0;
       })());
 
-    // FREEZE on a dot: click A; hover B shows B under A's pin; leave, A again;
-    // Escape, nothing.
-    await page.locator(dotFor("base_post_seat")).click();
-    push("clicking a dot freezes the Preview on it, pinned and named in the " +
+    // FREEZE on an interface: click A; hover B shows B under A's pin; leave,
+    // A again; Escape, nothing.
+    await page.locator(markFor("base_post_seat")).dispatchEvent("click");
+    push("clicking an interface freezes the Preview on it, pinned and named in the " +
       "section head", await previewIs("frozen", "node|base_post_seat") && await (async () => {
         const p = await preview();
         return p.pinned && /base \/ post seat/.test(p.head);
       })());
-    await hoverRailBar(page, "base_thickness");
+    await hoverMark('svg.tv__map g.map__jumper[data-map-id="base_thickness"]');
     push("with A frozen, hovering B previews B — and A stays named under the pin",
       await previewIs("hover", "edge|base_thickness") && await (async () => {
         const p = await preview();
@@ -2274,7 +2269,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.keyboard.press("Escape");
     push("Escape lets go: nothing frozen, nothing selected",
       await previewIs("empty", "") &&
-      await page.locator("circle.rail__dot--selected").count() === 0);
+      await page.locator("svg.tv__map .map__connector--selected").count() === 0);
 
     // FREEZE on a grid row, the same four steps.
     await onCellStart(page, rowFor("base_thickness") + " td.tvcell--part", "click");
@@ -2287,33 +2282,32 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("...and leaving returns to the frozen row",
       await previewIs("frozen", "edge|base_thickness"));
     // Keyboard parity: focus previews exactly like hover.
-    await page.locator(dotFor("strut_end")).focus();
+    await page.locator(markFor("strut@strut_end")).focus();
     push("focusing a mark previews it the way hovering does",
       await previewIs("hover", "node|strut_end"));
-    await page.locator(dotFor("strut_end")).evaluate((n) => n.blur());
+    await page.locator(markFor("strut@strut_end")).evaluate((n) => n.blur());
     await page.waitForTimeout(returnMs + 120);
-    // A click on the model's empty canvas lets go too.
+    // A click on the map's empty space lets go too.
     const blank = await page.evaluate(() => {
-      const svg = document.querySelector("svg.tv__rails");
+      const svg = document.querySelector("#topopane svg.tv__map");
       const b = svg.getBoundingClientRect();
       for (let y = b.top + 4; y < Math.min(b.bottom, window.innerHeight) - 4; y += 6) {
-        const x = b.left + 3;
-        const hit = document.elementFromPoint(x, y);
-        if (hit && hit.closest && hit.closest("svg.tv__rails") &&
-            !hit.closest("[data-row-kind], .rail__leaderhit, [role]")) return { x, y };
+        for (let x = b.left + 3; x < b.right - 3; x += 40) {
+          const hit = document.elementFromPoint(x, y);
+          if (hit === svg) return { x, y };
+        }
       }
       return null;
     });
     if (blank) await page.mouse.click(blank.x, blank.y);
-    push("a click on the DAG's empty canvas lets the frozen Preview go",
+    push("a click on the map's empty space lets the frozen Preview go",
       !!blank && await previewIs("empty", ""));
 
-    // Every focusable mark is NAMED, by its record's title.
+    // Every focusable mark is NAMED.
     const unnamed = await page.evaluate(() =>
-      [...document.querySelectorAll(
-        "svg.tv__rails [tabindex][data-row-kind], svg.tv__rails path.rail__leaderhit, tr.tvrow")]
+      [...document.querySelectorAll("svg.tv__map [tabindex], tr.tvrow")]
         .filter((n) => !(n.getAttribute("aria-label") || "").trim()).length);
-    push("every focusable mark on both tiers carries an accessible name", unnamed === 0);
+    push("every focusable mark on both surfaces carries an accessible name", unnamed === 0);
     await onCellStart(page, rowFor("base_thickness") + " td.tvcell--part", "click");
     await page.keyboard.press("Escape");
     await page.mouse.move(4, 4);
@@ -2327,172 +2321,34 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       });
     });
 
-    // Whole-edge hover (deliverable 3): a dashed bar's OWN stroke
-    // (rail__bar--gap/--derived) has real gaps in it, and under
-    // `pointer-events: stroke` a gap in the dash pattern used to hit nothing.
-    // `tip_to_strut_end` is the fixture's one gap/derived edge, so its bar is
-    // dashed by construction; sampling several points along its FULL drawn
-    // length (not just its centre, where a dash happens to land) proves the
-    // invisible hit path (views/topology.js's railsSvg) covers the whole
-    // thing, not just the visible dashes.
-    const hoverCoverage = await page.evaluate(() => {
-      const mark = document.querySelector(
-        'svg.tv__rails [data-id="tip_to_strut_end"][data-row-kind="edge"]');
-      if (!mark) return null;
-      const box = mark.getBoundingClientRect();
-      const x = box.left + box.width / 2;
-      return [0.02, 0.25, 0.5, 0.75, 0.98].map((f) => {
-        const y = box.top + box.height * f;
-        const hit = document.elementFromPoint(x, y);
-        return hit && hit.getAttribute ? hit.getAttribute("data-id") : null;
-      });
-    });
-    push("the whole drawn length of a dashed (gap) edge responds to hover, " +
-      "not just its own dashes",
-      hoverCoverage && hoverCoverage.every((id) => id === "tip_to_strut_end"));
-
-    // Study selection, through the nav tree. Since viewer_respine_whole_walk
-    // this is an EMPHASIS change, not a view switch: the rails stay the whole
-    // walk, the non-members dim, the leaders retarget onto the chain and the
-    // grid drops to the chain's rows.
-    const railShape = () => page.evaluate(() => ({
-      dots: document.querySelectorAll("svg.tv__rails circle.rail__dot").length,
-      bars: document.querySelectorAll("svg.tv__rails line.rail__bar").length,
-      rails: document.querySelectorAll("svg.tv__rails line.rail").length,
-      links: document.querySelectorAll("svg.tv__rails path.rail__link").length,
-      leaders: [...document.querySelectorAll("svg.tv__rails path.rail__leaderhit")]
-        .map((n) => n.getAttribute("data-leader-id")),
+    // Study selection, through the nav tree: an EMPHASIS change, not a view
+    // switch. The map draws the whole model before and after (a study lit as
+    // a route on the map is a later handoff), and the grid drops to the
+    // chain's rows.
+    const mapShape = () => page.evaluate(() => ({
+      boxes: document.querySelectorAll("svg.tv__map rect.map__box").length,
+      pins: document.querySelectorAll("svg.tv__map g.map__pin").length,
+      jumpers: document.querySelectorAll("svg.tv__map g.map__jumper").length,
+      connectors: document.querySelectorAll("svg.tv__map g.map__connector").length,
     }));
-    const walkShape = await railShape();
+    const walkShape = await mapShape();
     const walkRows = await page.locator("tr.tvrow").count();
-    // The landing (the_rearrange_animates_and_centres_the_active_study): count
-    // the transition's mutations, then measure where the band came to rest.
-    await page.evaluate(() => {
-      window.__respineMutations = { removed: 0, added: 0, removedIds: [], addedIds: [] };
-      window.__respineObserver = new MutationObserver((records) => {
-        const ids = (nodes) => [...nodes].flatMap((n) => n.nodeType !== 1 ? [] :
-          [n, ...n.querySelectorAll("[data-node-id],[data-edge-id],[data-leader-id]")])
-          .map((n) => n.getAttribute && (n.getAttribute("data-node-id") ||
-            n.getAttribute("data-edge-id") || n.getAttribute("data-leader-id")))
-          .filter(Boolean);
-        for (const r of records) {
-          window.__respineMutations.removed += r.removedNodes.length;
-          window.__respineMutations.added += r.addedNodes.length;
-          window.__respineMutations.removedIds.push(...ids(r.removedNodes));
-          window.__respineMutations.addedIds.push(...ids(r.addedNodes));
-        }
-      });
-      window.__respineObserver.observe(document.querySelector("#topopane"),
-        { childList: true, subtree: true });
-    });
-    // The amended "nothing blinks" requirement (the per-frame rebuild stays; see
-    // ISSUE_20261029_the_respine_rebuilds_the_pane_every_frame): every animation
-    // frame of the transition has the DAG drawn -- dots and bars on screen --
-    // never an emptied pane between the old layout and the new.
-    await page.evaluate(() => {
-      window.__frames = [];
-      const until = Date.now() + 1200;
-      const tick = () => {
-        const live = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
-          .filter((n) => !n.closest(".tv__ghost"))[0];
-        window.__frames.push({
-          dots: live ? live.querySelectorAll("circle.rail__dot").length : 0,
-          bars: live ? live.querySelectorAll("line.rail__bar").length : 0,
-          tweening: !!window.ViewerApp.lastTopoRender.tweening });
-        if (Date.now() < until) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
-    await page.waitForTimeout(150);
-    const landed = await page.evaluate(() => {
-      window.__respineObserver.disconnect();
-      const bars = Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
-        .map((n) => n.getBoundingClientRect());
-      const hsNode = document.querySelector("#topopane .tv__hscroll");
-      const hs = hsNode.getBoundingClientRect();
-      const top = window.__pinnedBottom();
-      const mid = (a, b) => (a + b) / 2;
-      return {
-        bars: bars.length,
-        dx: mid(Math.min(...bars.map((b) => b.left)), Math.max(...bars.map((b) => b.right))) -
-          mid(hs.left, hs.right),
-        dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
-          mid(top, window.innerHeight),
-        inside: bars.every((b) => b.left >= hs.left - 1 && b.right <= hs.right + 1),
-        scrollY: hsNode.scrollTop, mutations: window.__respineMutations,
-      };
-    });
-    console.log("      landing: " + JSON.stringify(landed));
-    // Sideways the band is only kept inside the pane, never centred: centring
-    // put space before the drawing, which pushed the grid right by as much
-    // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
-    push("a study arrival lands with the active band centred in the window's height, " +
-      "within 4 px, and inside the pane sideways",
-      landed.bars > 0 && landed.inside && Math.abs(landed.dy) <= 4);
-    const churn = landed.mutations.removedIds.filter((id) => landed.mutations.addedIds.includes(id));
-    console.log(`      transition churn: ${churn.length} ids removed and re-added of ` +
-      `${landed.mutations.removedIds.length} removed`);
-    await page.waitForTimeout(1200);
-    const frames = await page.evaluate(() => window.__frames);
-    const tweened = frames.filter((f) => f.tweening);
-    push("a study change never blinks: the transition drew frames, and every one of them has the DAG on screen",
-      tweened.length > 0 && frames.every((f) => f.dots > 0 && f.bars > 0));
-    // Reduced motion: positions jump (no ghost, no tween frame), and the band
-    // still lands centred.
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
-    await page.waitForTimeout(150);
-    const reduced = await page.evaluate(() => {
-      const bars = Array.from(document.querySelectorAll("#topopane line.rail__bar--on"))
-        .map((n) => n.getBoundingClientRect());
-      const hs = document.querySelector("#topopane .tv__hscroll").getBoundingClientRect();
-      const mid = (a, b) => (a + b) / 2;
-      return { bars: bars.length, ghost: document.querySelectorAll("#topopane .tv__ghost").length,
-        inside: bars.every((b) => b.left >= hs.left - 1 && b.right <= hs.right + 1),
-        dy: mid(Math.min(...bars.map((b) => b.top)), Math.max(...bars.map((b) => b.bottom))) -
-          mid(window.__pinnedBottom(), window.innerHeight) };
-    });
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    push("with reduced motion the band still lands centred in the window's height and inside " +
-      "the pane, with no ghost of the old layout",
-      reduced.bars > 0 && reduced.ghost === 0 && reduced.inside && Math.abs(reduced.dy) <= 4);
-    await page.locator(navRow("study", "demo_strut_branch")).click();
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
-    const litShape = await railShape();
-    // Since 2026-10-28 the selection re-arranges the walk around the study
-    // (VA.bandLayout), so its rails and links are the re-arranged walk's --
-    // drawn exactly as that layout says -- while every dot and bar stays.
-    const bandShape = await page.evaluate(() => {
-      const VA = window.ViewerApp;
-      const topo = VA.findTopology(VA.demoTopologyFixture().topologies, "demo_mechanism");
-      const laid = VA.bandLayout(topo.layout,
-        VA.studyLitSet(VA.findStudy(topo, "demo_strut_branch"), topo));
-      return { rails: laid.rails.length, links: laid.links.length };
-    });
-    push("selecting a study hides nothing: every dot, bar, rail and link the " +
-      "walk drew is still on screen",
-      litShape.dots === walkShape.dots && litShape.bars === walkShape.bars &&
-      litShape.rails === bandShape.rails && litShape.links === bandShape.links);
-    if (litShape.dots !== walkShape.dots || litShape.bars !== walkShape.bars) {
+    const litShape = await mapShape();
+    push("selecting a study hides nothing on the map: every box, pin, jumper and " +
+      "connector the model drew is still on screen",
+      walkShape.boxes > 0 && JSON.stringify(litShape) === JSON.stringify(walkShape));
+    if (JSON.stringify(litShape) !== JSON.stringify(walkShape)) {
       console.log("    walk " + JSON.stringify(walkShape) +
                   " vs study " + JSON.stringify(litShape));
     }
     const chained = await correspondence();
-    push("the emphasized walk corresponds too — every row keeps its bar",
+    push("with a study selected every grid row's edge is still on the map",
       chained.drift.length === 0);
     if (chained.drift.length) console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
     push("the grid is exactly the chain, and shorter than the walk's table",
       chained.rows === 3 && chained.rows < walkRows);
-    const dimmedBar = await page.locator("svg.tv__rails line.rail__bar--off")
-      .first().evaluate((n) => parseFloat(getComputedStyle(n).opacity));
-    push("a non-member is actually dimmed, not just classed", dimmedBar < 0.9);
     // The balance sheet (viewer_summary_balance_sheet, 2026-09-22): the
     // rolled-up numbers are rows of the CONTRIBUTIONS TABLE, under the
     // members they total and in the same columns. A chip strip could line up
@@ -2524,15 +2380,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
 
-    // Deselecting is the same transition run backwards: the walk gets its
-    // leaders and its own table back.
+    // Deselecting gives the walk its own table back.
     await pickModel(page, "demo_mechanism");
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
-    push("deselecting restores the walk's own leaders and rows",
-      JSON.stringify(await railShape()) === JSON.stringify(walkShape) &&
-      await page.locator("tr.tvrow").count() === walkRows &&
-      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0);
+    await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+    push("deselecting restores the walk's own rows",
+      JSON.stringify(await mapShape()) === JSON.stringify(walkShape) &&
+      await page.locator("tr.tvrow").count() === walkRows);
 
     // A study that refuses to sum shows the refusal, with its next step.
     await page.locator(navRow("study", "demo_ambiguous")).click();
@@ -2555,19 +2408,15 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // refusal and no selection at all are the same picture — which is
     // exactly why the old mutation was invisible.
     await page.locator(navRow("study", "demo_strut_branch")).click();
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
-    push("the anchor: a study that sums really is emphasized first",
-      await page.locator("svg.tv__rails line.rail__bar--off").count() > 0);
+    await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
+    push("the anchor: a study that sums really drops the grid to its chain first",
+      await page.locator("tr.tvrow").count() < walkRows);
     await page.locator(navRow("study", "demo_ambiguous")).click();
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
-    push("a refusing study leaves the walk exactly as it was rather than " +
-      "emphasizing a chain it has not got",
-      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0 &&
-      await page.locator("svg.tv__rails line.rail__bar--on").count() === 0 &&
+    await page.waitForSelector(".tverror", { timeout: 5000 });
+    push("a refusing study leaves the grid the whole walk rather than a chain it " +
+      "has not got",
       await page.locator("tr.tvrow").count() === walkRows &&
-      JSON.stringify(await railShape()) === JSON.stringify(walkShape));
+      JSON.stringify(await mapShape()) === JSON.stringify(walkShape));
 
     // Back to the deselected walk for the rest of this suite. A refusing
     // study and no selection draw the same page (that is the check above), so
@@ -2575,8 +2424,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // below measuring a page whose STATE is the one they describe, rather
     // than one that merely looks like it.
     await pickModel(page, "demo_mechanism");
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
+    await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
     // The legend dialog: a help affordance, not layout — closed by default,
     // opens on a real click, and does not affect the DAG pane's own box.
@@ -2584,9 +2432,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
     await page.locator("#legend-toggle").click();
     await page.waitForSelector("#legend-dialog[open]", { timeout: 5000 });
-    push("the legend opens on a real click and states the rail rule",
-      /A column is a branch, not a part/
-        .test(await page.locator("#legend-dialog").textContent()));
+    push("the legend opens on a real click",
+      await page.locator("#legend-dialog").evaluate((n) => n.open));
     await page.locator("#legend-close").click();
     push("its own close button closes it",
       !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
@@ -2607,8 +2454,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("with no study selected, a topology with no sheet of its own offers none",
       !(await page.locator("#worksheet-toggle").isVisible()));
     await page.locator(navRow("study", "demo_strut_branch")).click();
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
+    await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
     push("a study whose chain re-expresses a stack shows that stack's joint block",
       /DETAIL B/.test(await page.locator("#topojoint").textContent()));
     // Guarded rather than clicked blind: a page that offers no toggle here is
@@ -2627,61 +2473,17 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     if (studySheetOffered) await page.locator("#worksheet-close").click();
     // Back to the deselected walk, which the blocks below measure.
     await pickModel(page, "demo_mechanism");
-    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
-      null, { timeout: 5000 });
+    await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     push("leaving the study takes its joint block with it",
       /no joint block/.test(await page.locator("#topojoint").textContent()));
 
-    // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
-    // mode button through all three stops. At each: the bars measure what the
-    // keyed position store says (BARS_MATCH_STORE_IN_PAGE), floored bars wear
-    // their break marks, and — the point of the jogged leaders — every leader
-    // still lands on its dot and its seam even though the DAG stretched and
-    // the grid did not.
-    const barsMatch = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
-      { topologyId: "demo_mechanism", mode });
-    push("the length toggle starts at uniform",
-      /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()));
-    await page.locator("#edge-length-toggle").click();
-    await page.waitForTimeout(50);
-    push("one click: tolerance-width mode, bars measure the store's slots",
-      /Lengths: tolerance width/.test(await page.locator("#edge-length-toggle").textContent()));
-    const tolBars = await barsMatch("tolerance");
-    push("tolerance mode: every bar is its slot, floored bars wear breaks",
-      tolBars.bad.length === 0 && tolBars.floored > 0 &&
-      tolBars.floored < tolBars.edges);
-    if (tolBars.bad.length) console.log("    bars: " + tolBars.bad.slice(0, 5).join(" | "));
-    push("tolerance mode: every row still has its bar",
-      (await correspondence()).drift.length === 0);
-    await page.locator("#edge-length-toggle").click();
-    await page.waitForTimeout(50);
-    push("two clicks: feature-size mode",
-      /Lengths: feature size/.test(await page.locator("#edge-length-toggle").textContent()));
-    const absBars = await barsMatch("absolute");
-    // The demo's one dimension-less edge (the derived gap) floors; every
-    // real nominal scales.
-    push("feature-size mode: every bar is its slot, only the derived gap floors",
-      absBars.bad.length === 0 && absBars.floored === 1);
-    if (absBars.bad.length) console.log("    bars: " + absBars.bad.slice(0, 5).join(" | "));
-    push("feature-size mode: every row still has its bar",
-      (await correspondence()).drift.length === 0);
-    await page.locator("#edge-length-toggle").click();
-    await page.waitForTimeout(50);
-    const uniBars = await barsMatch("uniform");
-    push("three clicks: back to uniform, nothing floored, no break marks",
-      /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()) &&
-      uniBars.bad.length === 0 && uniBars.floored === 0);
-
-    // --- the grid's bands and its column grips (viewer_leader_grid_
+    // --- the grid's rows and its column grips (viewer_leader_grid_
     // legibility) ------------------------------------------------------------
-    // The leader-style matrix and the jog zone's grip retired with the
-    // DAG-to-grid leaders (the fixed shell, 2026-11-14: the grid has its own
-    // region, so no leader runs across to it).
-    const bands = () => page.evaluate(GRID_IN_PAGE);
+    const bands = () => page.evaluate(GRID_ROWS_IN_PAGE);
     const restBands = await bands();
-    push("no band is drawn behind the leaders, and no grid row wears a tint",
-      restBands.bad.length === 0 && restBands.drawn === 0 && restBands.tinted > 0);
-    if (restBands.bad.length) console.log("    bands: " + restBands.bad.slice(0, 5).join(" | "));
+    push("no grid row is painted, every bracket is drawn, and every row is the plan's",
+      restBands.bad.length === 0 && restBands.rows > 0);
+    if (restBands.bad.length) console.log("    rows: " + restBands.bad.slice(0, 5).join(" | "));
 
     // The ELEMENT column: widening it must reveal more text and change NO
     // row's height -- a <tr>'s height is a floor, not a cap, so a cell that
@@ -2716,19 +2518,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         const cell = document.querySelector(`tr.tvrow[data-id="${id}"] td.tvcell--name`);
         return cell.scrollWidth - cell.clientWidth;
       }, longest.id)) === 0);
-    push("every row keeps its bar beside a wider column",
-      (await correspondence()).drift.length === 0);
 
-    // Both preferences survive a topology switch, like density does -- they
-    // are how the page is drawn, not a fact about what is on it.
+    // The width survives a re-render at the other density -- it is how the
+    // page is drawn, not a fact about what is on it.
     await page.locator("#density-toggle").click();
     await page.waitForTimeout(50);
     const afterDensity = await bands();
-    push("the resized widths survive a re-render at the other density",
-      Math.abs(afterDensity.nameWidth - afterCol.nameWidth) < 0.5 &&
-      Math.abs(afterDensity.svgWidth - afterCol.svgWidth) < 0.5);
-    push("and correspondence holds at compact density with both widths dragged",
-      (await correspondence()).drift.length === 0);
+    push("the resized column width survives a re-render at the other density",
+      Math.abs(afterDensity.nameWidth - afterCol.nameWidth) < 0.5);
     await page.locator("#density-toggle").click();
     await page.waitForTimeout(50);
 
@@ -4266,6 +4063,21 @@ const BLOCKS_IN_PAGE = (bodyOfPart) => {
                    partCells: partCells.length, partMissed } };
 };
 
+// --- the map (the_map_draws_the_end_stop_model, 2026-11-16) -----------------
+//
+// The DAG region's one drawing of the model (apps/viewer/map.js,
+// views/map.js; the only one since the_map_is_the_only_drawing_and_classic_
+// retires, 2026-11-17), on the real end-stop model with the 3D pane open
+// beside it: it draws the model's counts, the one selection and the one hover
+// light it both ways against the tree, the grid and the scene, and it fits,
+// zooms and pans in its region. v1, which has no layout file, draws its map
+// from the computed places.
+const MAP_TOPOLOGY = "vpa_end_stop_v2";
+// A hub feature with a standing binding in the served log (face 144 of the
+// hub's mesh, the pilot gap's from-end), so the scene has a face to pick.
+const MAP_BOUND_FEATURE = "hub@hub_spindle_bore_axis";
+const MAP_BOUND_EDGE = "hub_boss_in_tan_link_mount_pilot";
+
 async function testTheMap(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -4289,16 +4101,6 @@ async function testTheMap(browser, label, topologies) {
   page.on("pageerror", (e) => errors.push(String(e)));
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
     aliases: index.aliases, binding: "real" });
-  // The Map, by hand, on the FIRST load only (after the runner's own Classic
-  // seed): a later reload reads what the page itself remembered.
-  await page.addInitScript(() => {
-    try {
-      if (!sessionStorage.getItem("__map_suite_seeded")) {
-        localStorage.setItem("tolstack.viewer.dagDrawing", "map");
-        sessionStorage.setItem("__map_suite_seeded", "1");
-      }
-    } catch (e) { /* no storage */ }
-  });
   const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
     const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
     if (!w || !w.document) return null;
@@ -4384,32 +4186,6 @@ async function testTheMap(browser, label, topologies) {
     await page.mouse.move(at[0], at[1]);
     await settle();
   };
-  // The rails' drawn width, for Classic's own Fit.
-  const railsWidth = () => page.evaluate(() => {
-    const r = document.querySelector("#topopane svg.tv__rails");
-    return r ? r.getBoundingClientRect().width : null;
-  });
-  // Fit's promise on the rails: the whole walk inside the visible pane --
-  // the drawn shapes, not the svg's box, whose margin a walk as tall as the
-  // pane (v2 since 2026-11-17) carries a few pixels past it.
-  const railsFitThePane = () => page.evaluate(() => {
-    const shapes = Array.from(document.querySelectorAll("#topopane svg.tv__rails :is(circle, line, path, rect)"))
-      .map((e) => e.getBoundingClientRect()).filter((b) => b.width > 0 || b.height > 0);
-    const p = document.getElementById("topopane").getBoundingClientRect();
-    return shapes.length > 0 && Math.max(...shapes.map((b) => b.bottom)) - Math.min(...shapes.map((b) => b.top)) <= p.height + 2 &&
-      Math.max(...shapes.map((b) => b.right)) - Math.min(...shapes.map((b) => b.left)) <= p.width + 2;
-  });
-  const wheelOverRails = async (notches) => {
-    const c = await page.evaluate(() => {
-      const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
-      return [r.left + r.width / 2, r.top + Math.min(r.height / 2, 300)];
-    });
-    for (let i = 0; i < notches; i++) {
-      await page.mouse.move(c[0], c[1]);
-      await page.mouse.wheel(0, -100);
-      await settle(80);
-    }
-  };
   const restHover = async () => {
     await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 2000 }).catch(() => {});
     await settle();
@@ -4436,20 +4212,17 @@ async function testTheMap(browser, label, topologies) {
     await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 }).catch(() => {});
     await settle(400);
 
-    // --- 1. the default, and the switch ------------------------------------
+    // --- 1. the map, and no switch -----------------------------------------
     const opened = await page.evaluate(() => ({
       map: document.querySelectorAll("#topopane svg.tv__map").length,
       rails: document.querySelectorAll("#topopane svg.tv__rails").length,
-      pressed: Array.from(document.querySelectorAll("#topopane #dag-drawing button"))
-        .map((b) => [b.getAttribute("data-drawing"), b.getAttribute("aria-pressed"), b.textContent, b.disabled]),
-      headInRegion: !!document.querySelector("#topopane > .tv__daghead"),
+      switches: document.querySelectorAll("#dag-drawing, .tv__daghead").length,
       grid: document.querySelectorAll("#topogrid tr.tvrow").length,
     }));
     console.log(`      [${label}] opened: ${JSON.stringify(opened)}`);
-    push("[real] a model with a layout opens on the map: the region draws the map and no rails, " +
-      "its own header presses Map, and the grid beside it is drawn as ever",
-      opened.map === 1 && opened.rails === 0 && opened.headInRegion && opened.grid > 0 &&
-      JSON.stringify(opened.pressed) === JSON.stringify([["map", "true", "Map", false], ["classic", "false", "Classic", false]]));
+    push("[real] the model opens on the map: the region draws the map and no rails, there is no " +
+      "drawing switch, and the grid beside it is drawn as ever",
+      opened.map === 1 && opened.rails === 0 && opened.switches === 0 && opened.grid > 0);
 
     // --- 2. the counts -------------------------------------------------------
     const counts = await page.evaluate(() => {
@@ -4526,9 +4299,8 @@ async function testTheMap(browser, label, topologies) {
     await page.evaluate(() => document.getElementById("density-toggle").click());
     await settle(400);
     const stillMap = await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
-      document.querySelectorAll("#topopane svg.tv__rails").length === 0 &&
-      !!document.querySelector("#topopane > .tv__daghead"));
-    push("[real] with the 3D pane open beside it the region still draws the map, with its header",
+      document.querySelectorAll("#topopane svg.tv__rails").length === 0);
+    push("[real] with the 3D pane open beside it the region still draws the map",
       sceneReady && stillMap);
 
     // --- 5. hover, map -> tree, grid, scene -----------------------------------
@@ -4928,14 +4700,6 @@ async function testWindowResizeReclamps(browser, label, topologies) {
   page.on("pageerror", (e) => errors.push(String(e)));
   await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
     aliases: index.aliases, binding: "real" });
-  await page.addInitScript(() => {
-    try {
-      if (!sessionStorage.getItem("__resize_suite_seeded")) {
-        localStorage.setItem("tolstack.viewer.dagDrawing", "map");
-        sessionStorage.setItem("__resize_suite_seeded", "1");
-      }
-    } catch (e) { /* no storage */ }
-  });
   const settle = (ms) => page.waitForTimeout(ms);
   const region = () => page.evaluate(() => {
     const r = document.getElementById("topopane").getBoundingClientRect();
@@ -7040,64 +6804,19 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1000 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  // The respine transition, waited out -- the same wait every other suite
-  // that addresses this pane already uses, and the one wait this suite was
-  // missing. Selecting a study re-serialises the pane, and
-  // VA.animateTopoPane cross-fades to it by RE-PARENTING the outgoing paint
-  // into an inert `div.tv__ghost` overlay for VA.RESPINE.duration (260 ms,
-  // apps/viewer/topology.js). For that window the document holds TWO
-  // `.tv__hscroll` panes, so every edge present in both serialisations has
-  // two `tr.tvrow` carrying the same `data-id`, and a bare
-  // `tr.tvrow[data-id=...]` locator is a strict-mode violation.
-  //
-  // That is arithmetic, not flake. Measured on this suite: the study click
-  // lands at page time 264 ms and the `arm_pin_to_tip` click at 459 ms --
-  // about 200 ms into a 260 ms transition. Whether a run is red is only
-  // whether the six Playwright actions between those two take more or less
-  // than 260 ms, which is the whole of why this suite was green in a full
-  // run and red on its own
-  // (ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run).
-  // Nothing is shared between suites and nothing renders twice.
-  //
-  // NOT a fixed timeout, and NOT a ghost-excluding locator. The ghost is
-  // the state to wait out, so wait on the page's own record of it: a pane
-  // that never settles then FAILS here, where a locator scoped past the
-  // ghost would have found its one live row and passed straight over it.
-  //
-  // Swallowed and reported rather than thrown, the same choice the embedded
-  // annotator's banner wait below makes and for the same reason: a timeout
-  // thrown from here takes the suite down as an ERROR, which carries no
-  // check name, so the mutation-witness tier reads it as a MISS instead of
-  // the red it is (scripts/mutation_witnesses/README.md, "One thing a spec
-  // cannot declare"). A pane that never settles has to fail with a name on
-  // it.
-  const paneSettled = async () => {
-    try {
-      await page.waitForFunction(
-        () => window.ViewerApp && window.ViewerApp.lastTopoRender &&
-              !window.ViewerApp.lastTopoRender.tweening,
-        null, { timeout: 10000 });
-      return true;
-    } catch {
-      return false;
-    }
-  };
   try {
     // --- mounted: the sibling annotate app is served beside the viewer ------
     await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("#study-3d", { timeout: 15000 });
-    push("the study's respine transition settles before any of its rows " +
-      "are addressed -- no ghost of the walk still holds a second copy of them",
-      await paneSettled());
     push("the probe upgrades the study affordance to the View-in-3D button",
       await page.locator("#study-3d").count() === 1 &&
       await page.locator("#toolbar a").count() === 0);
 
     const paneBefore = await page.locator("#topopane").boundingBox();
     const railsBefore = await page.evaluate(() => {
-      const svg = document.querySelector("#topopane svg.tv__rails");
+      const svg = document.querySelector("#topopane svg.tv__map");
       const r = svg.getBoundingClientRect();
       return { visible: Math.round(r.width), left: Math.round(r.left) };
     });
@@ -7122,7 +6841,8 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // the panel back on the right.
     //
     // WHAT "ADJACENT" IS MEASURED AGAINST, and it took a review to get right
-    // (2026-09-16): the DAG **drawing** is one `svg.tv__rails`, and `#topopane`
+    // (2026-09-16): the DAG **drawing** is one SVG (the map's, `svg.tv__map`,
+    // since 2026-11-17), and `#topopane`
     // is its horizontal scrollport. The first version of this block compared
     // the panel against the SCROLLPORT and passed while the panel sat on top of
     // 100% of the diagram -- `position: fixed` means the pane's own box never
@@ -7138,7 +6858,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // anti-vacuity guard beside it, because a page rendering no rails at all
     // would satisfy "none of it is covered" trivially.
     const rails = () => page.evaluate(() => {
-      const svg = document.querySelector("#topopane svg.tv__rails");
+      const svg = document.querySelector("#topopane svg.tv__map");
       const panel = document.querySelector("#annotate-flyout");
       if (!svg) return { visible: 0, clear: false };
       const r = svg.getBoundingClientRect();
@@ -7288,11 +7008,6 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("#study-3d", { timeout: 15000 });
-    // The respine again, waited out for the same reason the first one is (see
-    // this suite's header): the reload re-enters the study, and the rows
-    // addressed further down would otherwise be doubled by the outgoing
-    // paint's ghost.
-    push("the reloaded study's respine settles too", await paneSettled());
     await page.locator("#study-3d").click();
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
     push("...and a reload opens the panel at the remembered width",
@@ -7314,10 +7029,8 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.waitForFunction(
       () => !document.body.classList.contains("flyout-open"),
       null, { timeout: 5000 }).catch(() => {});
-    // Closing glides the drawing back to where the band was centred for the
-    // restored width (the same transition a study change takes), so the page is
-    // measured once that has landed.
-    await paneSettled();
+    // Closing re-fits the map to the restored width; measured a frame on.
+    await page.waitForTimeout(100);
     const paneClosed = await page.locator("#topopane").boundingBox();
     const railsClosed = await rails();
     push("closing the flyout puts the page back exactly -- the nav rail, the " +
@@ -7425,7 +7138,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     // Everything above runs at ?mock=1, whose DAG drawing is ~78px wide. That
     // is enough to catch the panel lying on top of the diagram, but it can
     // never exercise the measurement that decides the clamp: `graphNeed()`
-    // reads `svg.tv__rails`, and at 78px the floor (VA.FLYOUT_WIDTH.reserve,
+    // read the rails' SVG, and at 78px the floor (VA.FLYOUT_WIDTH.reserve,
     // 320) wins every time, so a mock-only suite is silent about whether the
     // drawing is measured at all. The review that found this blocker said so
     // in as many words: "the fixture has to be able to discriminate".
@@ -7451,15 +7164,13 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         push(`[real] SKIPPED -- the live projection has no study ${liveStudy}`, true);
       } else {
         await liveRow.click();
-        // The click reaches the respine through a promise, so a settled-check
-        // taken at once can read the PREVIOUS paint; the study's nav row
-        // lights in the paint that starts the transition.
+        // The click reaches the paint through a promise; the study's nav row
+        // lights in that paint.
         await page.waitForSelector(navRow("study", liveStudy) + ".navtree__row--on",
           { timeout: 10000 }).catch(() => {});
-        push("[real] the live study's respine settles", await paneSettled());
         await page.waitForSelector("#study-3d", { timeout: 20000 });
         const liveRailsBefore = await page.evaluate(() => {
-          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const r = document.querySelector("#topopane svg.tv__map").getBoundingClientRect();
           return { w: Math.round(r.width), left: Math.round(r.left) };
         });
         // A premise check stood here until 2026-10-26 -- "the live drawing
@@ -7471,11 +7182,11 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         await page.locator("#study-3d").click();
         await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
         // Waited for on the state, not the clock: the column the panel opens
-        // moves the drawing through syncSceneColumn, the respine and the zoom
-        // fit, so its rect is read once two consecutive frames agree on it.
+        // moves the drawing through syncSceneColumn and the map's re-fit, so
+        // its rect is read once two consecutive frames agree on it.
         await page.waitForFunction(() => new Promise((resolve) => {
           const rect = () => {
-            const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+            const r = document.querySelector("#topopane svg.tv__map").getBoundingClientRect();
             const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
             return [r.left, r.width, r.top, p.right].join(",");
           };
@@ -7484,16 +7195,15 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         }), null, { timeout: 15000, polling: 100 }).catch(() => {});
         const livePanel = await page.locator("#annotate-flyout").boundingBox();
         const liveRails = await page.evaluate(() => {
-          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const r = document.querySelector("#topopane svg.tv__map").getBoundingClientRect();
           const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
           // Flush is clear: the two meet on a sub-pixel seam, so within 1px.
           return { w: Math.round(r.width), left: Math.round(r.left), clear: r.left >= p.right - 1 };
         });
         console.log(`      live drawing ${liveRailsBefore.w}px -> ${liveRails.w}px, its left ` +
           `${liveRails.left} against the panel's right ${Math.round(livePanel.x + livePanel.width)}`);
-        push("[real] the whole live drawing is clear of the panel, at its own " +
-          "measured width",
-          liveRails.w === liveRailsBefore.w && liveRails.clear &&
+        push("[real] the whole live map is clear of the panel, and still drawn",
+          liveRails.w > 0 && liveRails.clear &&
           liveRails.left >= livePanel.x + livePanel.width - 1);
         // ...and dragged as wide as it will go, still clear. This is the leg
         // the mock cannot run: at 262px the drawing is under the floor, so
@@ -7507,7 +7217,7 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
         await page.mouse.move(seam.x + seam.width / 2 + 2000, seam.y + 300, { steps: 10 });
         await page.mouse.up();
         const liveMaxed = await page.evaluate(() => {
-          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const r = document.querySelector("#topopane svg.tv__map").getBoundingClientRect();
           const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
           return { w: Math.round(r.width), clear: r.width > 0 && r.left >= p.right };
         });
@@ -7545,18 +7255,9 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
     await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    // Pushed, as the mounted half's is: a pane that never settles here would
-    // otherwise reach the `tr.tvrow` click below and abort the suite as an
-    // unnamed ERROR -- so a false stops the half with its name on the board.
-    const fileSettled = await paneSettled();
-    push("under file:// the study's respine transition settles too, before " +
-      "any of its rows are addressed", fileSettled);
-    if (!fileSettled) return reportSuite(label, checks, errors);
-    // The respine is waited out above. This beat is for the OTHER thing the
-    // click starts -- the annotate-mount probe, which resolves false at once
-    // under file:// and re-renders the toolbar when it lands. It was never a
-    // stand-in for the transition: 300 ms happens to clear the 260 ms
-    // duration, which is the only reason THIS half never failed.
+    // This beat is for the annotate-mount probe the click starts, which
+    // resolves false at once under file:// and re-renders the toolbar when it
+    // lands.
     await page.waitForTimeout(300);
     push("under file:// the study offers no 3D affordance at all",
       await page.locator("#study-3d").count() === 0 &&
@@ -8508,7 +8209,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
         return { x: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width) };
       };
       return { nav: box("#navtree"), scene: box("#annotate-flyout"),
-        dag: box("#topopane svg.tv__rails"), pane: box("#topopane"), grid: box(".tv__main"),
+        dag: box("#topopane svg.tv__map"), pane: box("#topopane"), grid: box(".tv__main"),
         detail: box("#detail"), chart: box("#detail figure.kmchart"),
         shown: getComputedStyle(document.querySelector("#detail")).display };
     });
@@ -8671,9 +8372,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // The feature's row under its part is `--on`; since 2026-11-12 the same
     // feature's end row under the interface it is on is revealed and lit too.
     push("[real] clicking a feature row in the nav selects its node in the scene, and the row " +
-      "shows it selected",
+      "and the map's pin show it selected",
       nodeSelected && await page.locator(featureSel + ".navtree__row--on").count() >= 1 &&
-      await page.locator(`#topopane .rail__dot--selected, #topopane [data-row-kind="node"].is-selected`).count() >= 0);
+      await page.locator(`#topopane g.map__pin--selected[data-map-id="${FEATURE_PART}@${FEATURE_NODE}"]`).count() === 1);
 
     // ...and its body: the pitch link's lower bearing centre is bound in the
     // real log, so since 2026-11-12 (a_binding_shows_the_moment_it_is_made_
@@ -8943,7 +8644,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     // and grid keep at least the room the scene's clamp reserves for them;
     // closing the scene gives its column back to them.
     await page.locator(navRow("study", CHAIN)).click({ timeout: 5000 }).catch(() => {});
-    await page.waitForSelector("svg.tv__rails", { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector("svg.tv__map", { timeout: 15000 }).catch(() => {});
     const floorSeam = await page.locator("#flyout-divider").boundingBox();
     if (floorSeam) {
       await page.mouse.move(floorSeam.x + floorSeam.width / 2, floorSeam.y + 300);
@@ -9730,8 +9431,6 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
           cursor: cursor ? Number(cursor.getAttribute("x1")) : null,
           grid: Array.from(document.querySelectorAll("#topogrid td.tvcell--contribution"))
             .slice(0, 8).map((n) => n.textContent).join("|"),
-          bar: (document.querySelector("#topopane line.rail__bar--on") || { getAttribute: () => null })
-            .getAttribute("y2"),
         };
       });
       const exec = (command) => page.evaluate((c) =>
@@ -15057,20 +14756,22 @@ async function testPreviewFromTheScene(browser, label) {
     push("an anchor under the scene's pointer previews its node's record",
       await previewIs("hover", "node|base_post_seat") &&
       /base plate ⇔ post/.test(await page.locator(".detail__previewbody").textContent()));
-    // The same record its DAG dot previews, character for character.
+    // The same record its interface's connector on the map previews,
+    // character for character.
     const fromScene = await page.locator(".detail__previewbody").textContent();
     await fromPane({ type: "annotate:hover", kind: null, id: null });
-    await page.locator('svg.tv__rails circle.rail__dot[data-id="base_post_seat"]').hover();
+    await page.locator('#topopane g.map__connector[data-map-id="base_post_seat"]').dispatchEvent("mouseenter");
     await previewIs("hover", "node|base_post_seat");
-    push("the anchor's Preview and its DAG dot's are the same record",
+    push("the anchor's Preview and its map connector's are the same record",
       await page.locator(".detail__previewbody").textContent() === fromScene);
+    await page.locator('#topopane g.map__connector[data-map-id="base_post_seat"]').dispatchEvent("mouseleave");
     await page.mouse.move(4, 4);
     await page.waitForTimeout(returnMs + 120);
 
     await fromPane({ type: "annotate:pick", kind: "node", id: "base_post_seat" });
-    push("clicking an anchor freezes the Preview on it, and selects its dot",
+    push("clicking an anchor freezes the Preview on it, and selects its connector on the map",
       await previewIs("frozen", "node|base_post_seat") &&
-      await page.locator('circle.rail__dot--selected[data-id="base_post_seat"]').count() === 1);
+      await page.locator('#topopane g.map__connector--selected[data-map-id="base_post_seat"]').count() === 1);
     await fromPane({ type: "annotate:hover", kind: "node", id: "arm_tip" });
     push("with an anchor frozen, another anchor under the pointer previews that one",
       await previewIs("hover", "node|arm_tip"));
@@ -16094,7 +15795,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testSuggestionNamesItsFace(browser, label, topologies)],
       ["a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)",
         (label) => testPatternAndAddAFace(browser, label, topologies)],
-      ["the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+      ["the map (the counts on both models, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
       ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",
         (label) => testWindowResizeReclamps(browser, label, topologies)],

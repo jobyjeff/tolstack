@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: open
+status: closed
+resolution: closed 2026-11-17 without action -- Classic and its glyphs retired (handoff the_map_is_the_only_drawing_and_classic_retires); the map draws the rotary joint as VA.MAP_SYMBOLS.revolute
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_a_joint_says_what_kind_it_is.md

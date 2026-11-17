@@ -1274,9 +1274,10 @@ has no anchor geometry. An edge is listed only while it is drawn (not hidden
 by `model unlit hide`) and both its ends are on screen. When the layer goes
 down the scene posts the message once with both maps empty. `model anchors`
 posts it at once, unchanged or not, for a shell that dropped its copy (its
-pane reopened, or the scene's state changed). The shell offsets
-by the iframe's measured rect and draws a leader from each lit node's DAG dot
-— with no study open, every node's — to its anchor (`apps/viewer/README.md`, "Leaders across the seam"); it posts
+pane reopened, or the scene's state changed). Until 2026-11-17 the shell drew
+a leader from each lit node's DAG dot to its anchor; those leaders retired
+with the rails (`the_map_is_the_only_drawing_and_classic_retires`), and the
+shell no longer reads the message. The shell posts
 its lit set and its dim-or-hide word whenever either changes, so the
 fallback above is what a full page, or a shell that has not yet spoken, sees.
 

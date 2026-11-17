@@ -207,14 +207,14 @@ The outbound twin, for building one of these links in code, is
 ## The Preview — one record behind every mark
 
 (`a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark`,
-2026-10-30.) Jeff: *"The point of the leader lines is that they're tracing the
-same data from 3d to 2d to grid view, which means all of them should present
-the same additional data when hovered or clicked. … the hover previews are
+2026-10-30.) Jeff: *"[…] they're tracing the same data from 3d to 2d to grid
+view, which means all of them should present the same additional data when
+hovered or clicked. … the hover previews are
 actually pretty jarring and obscure too much of what you're trying to look at
 or select."*
 
-- **One record per element.** Every mark of the model — a 3D anchor, a DAG dot,
-  bar, joint glyph or leader, a grid row — resolves by the pane's own
+- **One record per element.** Every mark of the model — a 3D anchor, a grid
+  row, and through its entity anything the map draws — resolves by the pane's own
   `node|<id>` / `edge|<id>` key to ONE record (`element_record.js`,
   `VA.elementRecords`): title, kind, part (name, drawing or the documents its
   rows cite, picture, whether it has a 3D model), the two interfaces, the
@@ -232,13 +232,12 @@ or select."*
   beat after the pointer leaves every mark (`VA.PREVIEW_RETURN_MS`). Esc, a
   click on the model's empty canvas, or the pin itself lets go. The scene posts
   the anchor under its pointer and the anchor clicked (`annotate:hover`,
-  `annotate:pick`), so a 3D anchor previews and freezes exactly as its DAG dot
-  does; a kinematic study's contributor row previews its edge the same way.
+  `annotate:pick`), so a 3D anchor previews and freezes exactly as its pin on
+  the map does; a kinematic study's contributor row previews its edge the same
+  way.
 - **No popups over the model.** The edge, component and node hover cards are
-  gone. The only thing a hover draws on the DAG is its mark's highlight and one
-  line of label — the record's title, cut to `VA.HOVER_LABEL_CHARS` — placed
-  beside the mark where no other mark is (`VA.hoverLabelPlacement`), and taking
-  no pointer.
+  gone. The only thing a hover draws on the map is its entity's highlight and,
+  on a pin, its short label.
 - **Accessibility.** Every focusable mark carries `role="button"` and an
   `aria-label` that is its record's title; a grid row is focusable too. Focus
   previews exactly as hover does, and Enter or Space clicks. A new mark is named
@@ -246,8 +245,8 @@ or select."*
 
 A node's Preview names **which parts meet there**: the sides derived from the
 edges actually incident on it (`VA.nodeAdjacentParts` — the same adjacency the
-leader/internal rule reads, not the node's authored `parts` list), each with
-what identifies its part and that part's own picture, so the dot and every row
+boundary/internal rule reads, not the node's authored `parts` list), each with
+what identifies its part and that part's own picture, so the pin and every row
 of the part cannot disagree about it. An adjacent edge with no part is a
 **clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
 is never a crop *of the interface itself*: an interface is a location, not a
@@ -479,18 +478,16 @@ has not been built.
   2026-11-14), so the results stay on screen while the model scrolls.
 - **The model** (2026-10-26, `the_kinematic_page_keeps_the_dag_and_says_each_contributor_once`).
   A kinematic study is a lit subset of its topology's one model, so its page
-  draws that model's DAG, exactly as a chain study's page does: the study's **lit set** (`VA.kinematicLitSet` — every
-  contributor's edge, the edge each one borrows its band from, and every node
-  either end of one stands on, every joint between two lit nodes, and the
-  shortest path joining the lit set's pieces — `VA.litSetOfEdges`,
-  `VA.bridgeLitSet`) is on, the rest of the walk dimmed, the grid beside it
-  holds the contributors only and the leaders run only to lit nodes. The
-  page scrolls the DAG as on every other page (its 50vh box went with the
-  results' move, 2026-10-28), and **Fit** brings the lit set into the window.
-  The toolbar's **Unused** toggle hides the unlit part instead (see "Studies"
-  below).
+  draws that model's map, exactly as a chain study's page does, and the
+  study's **lit set** (`VA.kinematicLitSet` — every contributor's edge, the
+  edge each one borrows its band from, and every node either end of one stands
+  on, every joint between two lit nodes, and the shortest path joining the lit
+  set's pieces — `VA.litSetOfEdges`, `VA.bridgeLitSet`) is what the grid
+  beside it and the 3D scene show. The settings bar's **Unused** toggle hides
+  the unlit part of the scene and the grid instead of dimming it (see
+  "Studies" below).
 - **The grid is the study's stack** (2026-11-03,
-  `the_kinematic_grid_is_a_stack_of_sub_stacks`). The grid beside the DAG is
+  `the_kinematic_grid_is_a_stack_of_sub_stacks`). The grid beside the map is
   the study's one contributor table, the same rows and columns a chain study's
   grid has, at ONE pose at a time (the pose control, below; the first stop's
   own point by default). It reads as a stack: a **Linkage at this pose**
@@ -499,11 +496,9 @@ has not been built.
   yet authored", no total). A sub-stack's header carries its own total in its
   own units and what it contributes here (`±0.82 mm → ±1.417 deg at the −7 deg
   stop`); one with more than three terms is folded until opened (▸/▾), and the
-  reader's choice is remembered per study. The DAG's dashed field for the same
-  sub-study opens and closes with it. Rows follow the chain, not the reach:
-  `VA.kinematicStackOrder` is the one ordering rule, and the DAG's lit band is
-  drawn in the same order, so two adjacent rows are two connected edges and
-  every leader lands on its own row. **SENSITIVITY** (the signed coefficient
+  reader's choice is remembered per study. Rows follow the chain, not the
+  reach: `VA.kinematicStackOrder` is the one ordering rule, so two adjacent
+  rows are two connected edges. **SENSITIVITY** (the signed coefficient
   at that stop, deg/mm; a chain row's ratio) sits before **CONTRIBUTION** (±
   deg). The grouping is drawn as brackets: thin rounded caps over a group's
   first row and under its last, inset a step per level, so the study holds
@@ -522,8 +517,9 @@ has not been built.
   and step (`AA.embedPose`). The page has no transport of its own — over the
   envelope chart it carries the measure at the pose as a field that takes a
   typed angle (it pauses the pane and `seek`s it there) and one button per
-  stop that puts the pose on it. The grid, the DAG and a cursor on the chart
-  all read that one pose, a frame of play at a time. A pane on another run
+  stop that puts the pose on it. The grid and a cursor on the chart read that
+  one pose, a frame of play at a time; the map draws the model, which does not
+  move with the pose. A pane on another run
   than the study's is refused (one muted line on the page, a console warning). A pose is a fractional sweep point
   (`VA.kinematicPose`): every number at it is the projection's own per-point
   number — `contributors[].by_point[]`, `envelope[]` — read linearly between
@@ -532,14 +528,13 @@ has not been built.
   foot are read at the pose (the foot is then the linkage alone, which is
   what the envelope folds), and the stop position's rows stay at their stop
   and say so (`· at the −7 deg stop`). A frame of the pane's play or a scrub rewrites the
-  grid's numbers in place (`VA.applyStackText`) and eases the DAG between
-  keyframes rendered off screen (`VA.poseFilm`); a typed angle, a stop
+  grid's numbers in place (`VA.applyStackText`); a typed angle, a stop
   button, a pause or a scrub gone quiet renders the pose itself. `?kinematic=…&pose=30`
   opens the page at 30 deg (the pose is written back into the URL when it
   settles; `scripts/filmstrip.mjs --pose` opens a scenario at one).
 - **Rows reached from the page select in place.** A click on a term row —
-  or on anything in the DAG — selects that edge here: the page stays the
-  study, the DAG marks the edge, and the preview pane shows its citation and
+  or on its jumper or connector on the map — selects that edge here: the page
+  stays the study, the map and the grid mark it, and the preview pane shows its citation and
   crop (and its 3D attach, where the part has a mesh). Where a contributor has
   no value of its own and borrows its band from another edge, the pane names
   that edge as **band in this study**, one click from its citation, and the
@@ -576,8 +571,7 @@ has not been built.
   between the stops is visible rather than a sentence somewhere. It opens as
   the page's one hover card (kind `curve`), which no table scroll box can
   clip.
-- **A row with no band** reads **no band on file**, the way a valueless edge
-  reads on the rails, and the chip opens a card saying what would resolve it:
+- **A row with no band** reads **no band on file**, and the chip opens a card saying what would resolve it:
   the drawing each of the edge's parts names, and whether a copy of it is on
   file to be read (the builder's `gap_rows[].drawings`, off drawing-checker's
   drawing inbox) — "drawing on file, not yet read", "no drawing on file", or
@@ -628,7 +622,7 @@ a stack's alert lines are `VA.summaryChips`' own text, moved.
 | `marginal` | amber, and the verdict leads the card in plain words |
 | `pass` | **no mark at all** — *unless* a flag stands against it, which is a pass that still asks to be looked at |
 | `no pass/fail criterion recorded yet` / `does not sum` | amber. An absence is not an answer; the row also keeps its amber `--warn` tint, which is a state and not a badge |
-| `unverified` / `no tolerance recorded` / `incomplete` | in the card. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge **rows**, where there is room to read them. At STUDY scale they are rows of the findings table now (see "The study summary reads like a balance sheet"), each naming the thing it is about — which a badge over a list never could |
+| `unverified` / `no tolerance recorded` / `incomplete` | in the card. These are `VA.ATTENTION`'s three flags; they are still chips on the grid's edge **rows**, where there is room to read them. At STUDY scale they are rows of the findings table now (see "The study summary reads like a balance sheet"), each naming the thing it is about — which a badge over a list never could |
 | a stack's `traced` / `inferred` counts, `checks GENERATED`, probe count | **not on the rail.** A scoreboard is not something a reader is asked to act on, and it is on the stack's own page, which renders the same `VA.summaryChips` unchanged |
 
 **Why (2026-09-22, `viewer_nav_verdict_into_alert_and_icon`).** This rail has
@@ -689,61 +683,75 @@ venv-win/Scripts/python.exe scripts\build_topology_projection.py
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
 disk access, exactly like the stack view's own demo.)
 
-### The map: the region's second drawing (2026-11-16)
+The page shows a model three ways at once: the **map** in the DAG's region,
+the **grid** of its dimensions beside it, and the **3D pane** when it is open.
+The rails drawing that stood in the DAG's region until 2026-11-17 ("Classic"),
+with its switch, its leaders, its zoom box, its length modes, its colour
+overlays and its study animation, retired then
+(`the_map_is_the_only_drawing_and_classic_retires`).
 
-Since handoff `the_map_draws_the_end_stop_model` the DAG's region has two
-drawings of the one model and a **Map · Classic** switch in its own header
-(top-right of the region, in every view that shows it). The map draws bodies
-as districts, a box round every part, pins on a box's perimeter where parts
-meet, jumpers inside a box for its dimensions, and a connector per interface
-with the joint's symbol drawn large on it; a joint with several constraints
-runs as a bundle. It is laid out from the model view and one authored layout
-file beside the model (`docs/topologies/map_<model id>.json` -- a part's place
-on a coarse grid, nothing else), fitted to its region, and zoomed and panned
-by the reader as the rails are. Its one arrangement is tall, after Jeff's
-sketch (2026-11-17), so it fills the Side by side region; a part's name sits
-in whichever corner of its box its jumpers leave clear, and a click anywhere
-in a box selects the part while a drag from it pans. A model with no layout file draws Classic and
-the switch says *No map*. The one selection and the one hover light it by
-entity, in the two strengths every surface wears. `docs/DAG_TOPOLOGY.md`,
-"The map", is the rule; `apps/viewer/map.js` the layout, `views/map.js` the
-drawing, `map.css` the look. Everything below this line about the rails is
-Classic's, unchanged.
+The settings bar (`#toolbar`, `VA.renderTopoToolbar`) carries what changes how
+they are shown, and nothing else: **Rows** (comfortable or compact),
+**Rows: labelled / values only**, **Fit** (the map, back to its region; the
+`0` key too), **Side by side · 3D · DAG** while the 3D pane is open,
+**Unused: dimmed / hidden** while something is lit, **Collapse assemblies /
+Expand all** on a model with an assembly, **Groups** (which of the grid's
+brackets are drawn: Bodies, Parts), **View** (the palette the bodies wear)
+and **View in 3D** on a study with something to show.
 
-### The row model: edge rows, merged components, and leader lines
+### The map: the DAG region's drawing
 
-**A dot is an interface; a bar is the dimension between two of them; a grid row
-is a dimension; a leader line is a part boundary.** Since handoff
-`viewer_leader_line_grid` (2026-09-10) the grid holds **one row per edge** in
-walk order — compact and evenly spaced — while the DAG keeps its own layout
-(one slot per node and edge today; the coming edge-length scaling modes will
-make it deliberately uneven). The two are tied together by **leader
-lines**: from a node's dot, across the jog zone, into the seam between the two
-grid rows that interface separates. They shipped GD&T ordinate-dimension style
-— orthogonal segments — and since 2026-09-21 the default is the angled variant
-of the same two ends (see "Reading the leaders", below).
+Since handoff `the_map_draws_the_end_stop_model` (2026-11-16), and for every
+model since 2026-11-17. The map draws bodies as districts, a box round every
+part, pins on a box's perimeter where parts meet, jumpers inside a box for its
+dimensions, and a connector per interface with the joint's symbol drawn large
+on it; a joint with several constraints runs as a bundle. It is laid out from
+the model view and the model's places on a coarse grid -- an authored file
+beside the model (`docs/topologies/map_<model id>.json`), or, for a model with
+none, one column per body computed by the topology builder -- fitted to its
+region, and zoomed (the wheel) and panned (a drag) by the reader; Fit and the
+`0` key fit it again. A part's name sits in whichever corner of its box its
+jumpers leave clear, and a click anywhere in a box selects the part while a
+drag from it pans. The one selection and the one hover light it by entity, in
+the two strengths every surface wears. `docs/DAG_TOPOLOGY.md`, "The map", is
+the rule; `apps/viewer/map.js` the layout, `views/map.js` the drawing,
+`map.css` the look.
 
-**A leader is drawn only at a part boundary, and that omission IS the
-component grouping** (locked 2026-09-10; it supersedes the earlier
-boundary-lasso question). A node whose adjacent edges all carry one `part` —
-several tolerances on one feature, size + flatness on one distance — is
-*internal* and gets no leader (`VA.internalNodes`, topology.js); a node whose
-edges span two parts, or a part and a clearance, gets one. The grid says the
-same thing in table form: its leftmost **component** column is one merged cell
-per contiguous same-part run (`rowspan` over the run's tolerance sub-rows,
-`VA.gridPlan`), and a group breaks exactly where the part changes or a leader
-lands. One honest consequence: the depth-first walk can revisit a part on a
-later branch, and each contiguous run gets its own merged cell — the real
-pitch system's 12 parts render as 18 runs: `hub` as two, its pitch plate as
-three, `gas_spring` and `blade_root` as two each (all four splits pinned by
-the `[real]` fixture tier).
-Reordering the grid to force literally one row per part would cross the
-leaders and break the walk-order correspondence, so the walk wins.
+### The grid: edge rows, merged components, the walk's order
 
-Nodes have no grid rows any more. An interface is clicked on its dot or its
-leader (both open the preview pane, which also says which side of the leader
-rule the node is on); a chain of n edges is n rows, which is roughly the row
-count of the Excel stack it replaces.
+**A grid row is a dimension.** Since handoff `viewer_leader_line_grid`
+(2026-09-10) the grid holds **one row per edge**, compact and evenly spaced;
+an interface has no row of its own and is reached on the map, in the tree or
+in the scene. A chain of n edges is n rows, which is roughly the row count of
+the Excel stack it replaces.
+
+**The rows are the walk's**, in its order: the builder's depth-first walk of
+the model (`topoProj.layout`, body-major, `docs/DAG_TOPOLOGY.md`, "Bodies in
+the walk and on the map"), each part's rows gathered into one run
+(`VA.gatherParts`), and a study's lit rows made one band (`VA.bandLayout`,
+"Studies" below). The walk is no longer drawn; its column search
+(`columns_ordered_to_minimise_crossings`, 2026-09-30, counting the walk's own
+fan-out, loop-closing and boundary crossings) still breaks ties in the row
+order. What it reaches on the product model is declared and re-derived from
+the committed document on every run:
+
+```claim
+metric: layout_crossings
+topology: vpa_pitch_linkage
+branch: 16
+close: 70
+leader: 50
+```
+
+**A part boundary is a group break, and that IS the component grouping**
+(locked 2026-09-10). A node whose adjacent edges all carry one `part` is
+*internal* (`VA.internalNodes`, topology.js); a node whose edges span two
+parts, or a part and a clearance, is a boundary, and the plan records which
+grid row it sits above (`VA.gridPlan`'s `leaders`, `VA.lastTopoRender.
+boundaryEdge`) so a selected interface scrolls its row into view. The
+**part** and **description** columns say a part once per contiguous run, with
+brackets (`VA.gridBraces`) over its rows and its body's rows; a run the walk
+splits is two brackets.
 
 The grid itself is a real `<table>` (since 2026-09-04, handoff
 `viewer_consolidation`) with real `<th>` headers, not a div-flex grid styled to
@@ -754,164 +762,31 @@ for cell, which only genuine table markup does. The values are `nominal` /
 follows). Column widths live on a shared `<colgroup>`
 (`views/topology.js`'s `COLUMNS`), one array driving both the head table and the
 body table so the two cannot silently disagree about how wide a column is.
+Every row's height is set inline from `VA.RAIL_METRICS.rowHeight`, and every
+cell's content is clamped to that pitch, so the brackets, which are drawn off
+row counts, land on their rows.
 
-Every row whose edge carries a `crop_key` gets a **crop** cell at the row's
-right end — and a key comes in **two shapes**, for two disjoint crop-index
-spaces (`VA.cropForKey`): a `dimension_ref` edge re-expresses a committed
-stack element and carries `{stack, element}` into `crops.json`'s `by_stack`,
-while an **inline** edge whose own citation is croppable carries
-`{topology, edge}` into `by_topology` (an inline edge is in no stack, and a
-topology's id can equal a stack's, so the spaces cannot merge — the real
-`pitch_system`'s six croppable edges are all this second shape). Once the PNG
-is fetched (`ensureThumbImages`, topology_app.js) the trigger *is* the
-thumbnail, the actual crop of the tolerance annotation inline on the row;
-before that, or for a crop that cannot resolve, it is the same stateful text
-button the elements table has always had. Hover or focus previews the
-edge's record in the right pane's **Preview**, and a click freezes it there
-(the edge hover card this sentence used to name was retired 2026-10-30,
-`a_preview_pane_replaces_the_hover_popups_and_one_record_backs_every_mark`). An edge with no `crop_key` — a
-workbook/assumed inline dimension, or a derived gap — gets nothing at all,
-never a placeholder image: showing one would read as "not built yet" when the
-truth is "no document to crop," and the two are different facts (see "The
-preview pane reuses the crop plumbing" below, which draws the same distinction
-in the pane on the right).
-
-### The rails: a column is a branch, not a part
-
-The serialisation is a depth-first walk from the **document's first node**, with
-rail continuity: a branch keeps its column until it rejoins or ends. So the
-author's node and edge order is still the layout's spine — put the datum first,
-and reordering an `edges` array is how you steer the row order without touching
-a value. **The root is never chosen by heuristic**, and that part has not
-changed: a "lowest degree" or "most-cited" root would move the whole diagram
-when an unrelated edge is added, and the author already ordered the document.
-
-**The column order now is** (`columns_ordered_to_minimise_crossings`,
-2026-09-30).
-The walk still allocates the mainline column 0 and the lowest free column at
-each fork, git-log's convention — but that is a claim about *when* a branch
-opened, and a poor claim about where to draw it. A second pass renumbers the
-non-trunk columns so the picture crosses itself as little as possible, which
-works out as **shortest leg nearest the trunk**: Jeff, reading the real
-`pitch_system`, *"when possible, rearrange the dag to minimize self-crossings
-(makes it hard to trace the lines) … moving the shorter legs to be closer to
-the trunk would help a lot."* The objective is three kinds of line counted
-equally — a fan-out curve, a loop-closing curve, and a node's own leader on its
-way to the grid — and the search is exhaustive up to a declared width
-(`EXACT_ORDER_MAX_COLUMNS`, which every committed topology but the product
-graph is inside), so a
-diagram this wide gets a proved minimum rather than a good guess. Past that
-width the layout is the rule above and `layout.column_order` says so, which is
-what stops a wide diagram claiming a minimum it did not prove. A renumbering is a bijection on
-column ids, so rail continuity, column reuse and the one-dashed-curve-per-cycle
-invariant all survive it untouched. The trade, taken deliberately: adding one
-edge can now re-order the columns.
-
-What that was worth on `pitch_system`, the graph Jeff was reading: branch 20,
-close 12, leader 52 as the walk allocated them on 2026-09-30, and branch 0,
-close 17, leader 0 after the pass — branch and leader crossings to zero, paid
-for in close links. Both are pinned by name in
-`tests/test_topology_projection.py` against a frozen copy of that graph, since
-it was folded into `vpa_pitch_linkage` on 2026-10-26. The product graph is past
-the exact width, so it takes the rule above and then single-column moves while
-any lowers the count (`_improved`, still a local minimum and still declared
-`shortest_first`). Since 2026-10-26 its walk is also **body-major**: every
-rigid body's rows are one block the page draws a container behind
-(`docs/DAG_TOPOLOGY.md`, "Bodies on the DAG"), joints deferred until a body is
-finished. On the merged model that went from 18 columns and branch 5 / close
-115 / leader 2 (122) to 11 columns and the figures below (109): fewer closing
-curves, more leaders crossing a rail. What it reaches is declared and
-re-derived from the committed document on every run:
-
-```claim
-metric: layout_crossings
-topology: vpa_pitch_linkage
-branch: 16
-close: 70
-leader: 50
-```
-
-**The spine draws on the RIGHT**, hard against the jog zone, with branches
-extending left (`viewer_dag_spine_layout`, 2026-09-14): the page mirrors the
-column ids at render time, column `c` → `columns − 1 − c` (`VA.spineRight`,
-called once in `renderTopoPane`). Which column an edge lands on is the graph's
-business; which side the picture is justified to is a display preference about
-a page that happens to have a grid on its right. What the mirror buys is the
-leaders — the spine carries most of them, and every rail that used to stand
-between a spine node and its row is now on the far side of it. Over the two
-committed topologies, leader-vs-rail crossings went **371 → 55**, zero of the
-two to zero (model v2, `vpa_end_stop_v2`, is 152 → 33 of those since its blade and pitch-plate joints were authored as their meshes show them on 2026-11-17, 115 → 20 before that and since its two upper ground joints gained their bosses and fastener patterns the same day, 57 → 15 before that and since its gas-spring mount moved onto the tangential link mount on 2026-11-10, 41 → 12 before that and since the 2026-11-08 riders fold, 37 → 3 before it); on `vpa_pitch_linkage`, the product graph since the 2026-10-26
-fold (and with the four fastener stacks in it since 2026-10-27, when the
-before-and-after were 125 → 25 over its mechanism alone), that one
-topology's total moves 219 → 22. Both
-sides of those are measured at the column order above, so the before-side is a
-counterfactual — and where it is zero it is the two mechanisms together, not the
-mirror alone: `order_columns` minimises leader crossings counted *towards column 0*,
-which is the side the mirror puts the grid on.
-
-Three shapes come out of it, and all three are in the projection:
-
-* **a fan-out** at a fork — a short curve into a freshly allocated column, which
-  then runs as a rail from the fork downwards, past whatever the first branch's
-  subtree puts on screen;
-* **a loop closure** — a long dashed curve back up to an interface the walk has
-  already drawn. There is exactly one per independent cycle (|E| − |V| + 1),
-  which `tests/test_topology_projection.py` checks;
-* **column reuse** — a column is freed when its branch ends and the next
-  allocation may take it, so a column holds a *list* of disjoint rail spans
-  rather than one extent. Re-measured live, 2026-09-30: reuse **fires**, on
-  every topology. Rail allocations over columns, per committed topology: 59 over 14 for
-  `vpa_pitch_linkage` and 29 over 11 for `vpa_end_stop_v2` (model v2, since 2026-11-17's blade and pitch-plate joints; 20 over 11 from the same day's bosses and fastener patterns up the ground stack; 15 over 8 from 2026-11-10's mount-on-mount seat; 18 over 7 from 2026-11-08, 17 over 7 before its riders folded),
-  where some columns carry more than one disjoint span (for `vpa_pitch_linkage`: 37
-  over 11 before the four fastener stacks folded in on 2026-10-27, when they were
-  3 over 3, 10 over 10, 2 over 2 and 2 over 2 as topologies of their own; 23
-  over 18 until the 2026-10-26 body-major walk, whose deferred joints reuse a
-  column once the rows below a fork are clear; 14 over 11 until the 2026-10-26
-  fold brought `pitch_system`'s ten in, 13 over 11 until 2026-10-22's datum-A
-  edge on the gas-spring mount). Until that
-  topology was committed the count was one-to-one everywhere, and the
-  2026-09-15 reading recorded here said so; disabling reuse would now visibly
-  widen one page. It is still the mechanism the disjointness invariant guards
-  rather than an explanation of today's widths. Guarded the way the walk/chain
-  column counts just above are:
-  `apps/viewer/tests.js`'s doc-pairing test re-derives every number here from
-  the live projection.
-
-The L1 grip stack draws as **two rails that rejoin**, not one, and that is the
-truth about it: every interface has exactly two edges — the five clamped members
-in series, the bolt's grip running parallel to them, and the derived `shank_out`
-gap closing the ring. Its *study* is a single chain through that ring, and the
-page shows that by lighting the chain on the two rails rather than by redrawing
-them as one — see "Selecting a study emphasizes the walk" below.
+A row's crop is the Preview's, at the pane's width (since 2026-11-05): no grid
+row draws a crop image. Hover or focus previews the edge's record in the
+**Preview**, and a click freezes it there. An edge with no `crop_key` — a
+workbook/assumed inline dimension, or a derived gap — gets no crop anywhere,
+never a placeholder image (see "The preview pane reuses the crop plumbing"
+below).
 
 ### The colours: there is no lane palette, and that is deliberate
 
-Jeff's second reference image colours a rail per branch. This page does not.
-Green, amber, red and magenta are **provenance** on this surface and nothing else
-may wear them; what is left of a validated categorical palette after removing
-four of its eight hue families cannot separate nine rails, and the pitch system
-has twelve parts, which is past any categorical palette's cap regardless. So:
+Green, amber, red and magenta are **provenance** on this surface and nothing
+else may wear them. So:
 
-* rails are neutral, alternating two greys by column parity so two crossing rails
-  can still be told apart;
 * **one colour per body, everywhere the body is drawn** (2026-11-08,
   `the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows`): its
-  DAG container and name, its parts' containers and tint, its grid bracket and
-  label, and — under `Colour by: Body`, the default — its bars, dots and rows,
-  from one of two palettes in `View → Palette` (Bold, or Colour-blind:
+  district and name on the map, its parts' boxes, its grid bracket, label and
+  rows, from one of two palettes in `View → Palette` (Bold, or Colour-blind:
   Okabe–Ito first). The body's ink never fills a state: provenance keeps its
-  marks. There are no leader bands any more — Jeff asked twice for them to go;
-* **an edge's bar says only lit or unlit**, by weight, in one neutral ink
-  (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
-  It used to wear its citation's confidence as well, and band hashes, and the
-  joint glyph sat on it; Jeff read the four channels on one stroke as "a jumbled
-  mess of lines/hashes". Confidence is the grid's SOURCING chip, the band its
-  MIN/MAX, and a joint is drawn as its two end nodes
-  (`docs/DAG_TOPOLOGY.md`, "Joint glyphs — the joint is the node");
-* a `gap` bar is dashed (it crosses between lanes and has no rail of its own),
-  a derived gap included;
-* the selected study's path is the accent, and that is a binary, so it needs no
-  palette.
+  marks;
+* an edge's confidence is the grid's SOURCING mark, its band the grid's
+  MIN/MAX;
+* the selection is the accent, and that is a binary, so it needs no palette.
 
 Since 2026-09-17 (`design_pass_typography`) there is one more rule about the
 palette, and it is about **fill** rather than hue: a filled mark -- a background
@@ -921,18 +796,15 @@ that came with it are in `docs/DESIGN_TYPE_AND_COLOUR.md`; the numbers are in
 `style.css`'s `:root` and paired against both apps by
 `tests/test_app_type_scale.py`.
 
-Part identity is carried as text, on the row and in the preview pane -- as
-the part's **name**, never its id. It printed the id until 2026-09-15, with the
-name demoted to hover, because a live part name ran to eighty characters and
-would not fit a 150px cell; Jeff read the result and said what it was: *"2nd
-line `bolt_nas6403u11d` appears to be some type of internal id that is
-meaningless to user. Actually just realized this is what's used in the main
-table -- replace these with a concise human friendly name (NAS6403U11D Shoulder
-Bolt is fine)."* Every part `name` in `docs/topologies/` is a short noun phrase
-now (`VA.componentLabel`), with what it shed demoted into `note`, and an id is
-rendered nowhere a reader reads: not the merged cell, not a pane heading, not a
-card heading, not an interface's side list. It rides a heading's hover title,
-which is where a deep link or a debugging session can still reach it.
+Part identity is carried as text, on the row, on the map and in the preview
+pane -- as the part's **name**, never its id. It printed the id until
+2026-09-15; Jeff read the result and said what it was: *"2nd line
+`bolt_nas6403u11d` appears to be some type of internal id that is meaningless
+to user. […] replace these with a concise human friendly name (NAS6403U11D
+Shoulder Bolt is fine)."* Every part `name` in `docs/topologies/` is a short
+noun phrase now (`VA.componentLabel`), with what it shed demoted into `note`,
+and an id is rendered nowhere a reader reads. It rides a heading's hover
+title, which is where a deep link or a debugging session can still reach it.
 
 Guarded from both sides, because the strings live in two places: the documents
 by `tests/test_topology_prose_for_a_reader.py` (which also pins the four
@@ -940,183 +812,31 @@ pitch-link names by value) and the rendering by two banned-string walks in
 `apps/viewer/tests.js` -- one over the fixture, one over every live topology's
 grid, preview panes and hover cards.
 
-### Reading the leaders: two styles, and two widths you can drag
-
-> **Superseded 2026-11-14**: the grid has its own region, so no leader runs
-> from the DAG to the grid and the jog zone has no grip; the Leaders control
-> governs the leaders across the seam to the 3D scene only. See "The page is a
-> fixed layout, and nothing scrolls the document". What follows is the
-> history.
-
-Jeff, reviewing the shipped arcs: *"The jogged leader lines between the dag and
-the grid view rows are near impossible to follow because the vertical sections
-are so bunched up."* Three answers, all of them **display preferences** — they
-survive a topology switch like density does, none of them touches a value, and
-none moves either end of a leader, so the correspondence contract below is
-measured in every combination of them.
-
-* **No bands.** The alternating tints between adjacent leaders shipped
-  2026-09-14 and were removed 2026-11-08 at Jeff's request; a body's colour,
-  on its bracket and its row, is what carries the eye across now.
-* **No two leaders cross, in either style** (2026-10-30,
-  `descending_leaders_take_a_path_that_cannot_cross`). The rule rests on one
-  premise: in walk order the dots go strictly down the page and the seams never
-  go up it. A jogged leader whose seam is above its dot takes its lane in walk
-  order; one whose seam is *below* its dot — every leader above the centring
-  point, since the grid is centred against the DAG — takes its lane in reverse
-  walk order. An angled leader runs flat out of the rails to the jog zone's left
-  edge and turns there for its seam, so every slanted run spans the same width.
-  `VA.leaderGeometry`'s comment carries the argument; a `[real]` test checks the
-  premise and the zero on every view of every committed topology, at every
-  density, length mode and style. The counts before the fix are in that
-  handoff's lesson.
-* **Off, angled or jogged**, from the toolbar's one **Leaders** control, which
-  covers both the DAG↔grid leaders and the leaders across the seam to the 3D
-  scene. **Off is the default** (2026-11-10,
-  `one_selection_one_hover_and_leaders_off`): no leader is built on either
-  tier and nothing re-measures on scroll or resize; what links the surfaces is
-  the one selection and the one hover (below). Turning them off moves nothing
-  else — the jog zone keeps its width and the grid its rows, and a selected
-  node still finds its grid row (`VA.lastTopoRender.boundaryEdge`, the plan's
-  seam per node, drawn or not). Angled — flat out of the diagram, then one
-  straight segment to the seam — is the first drawn style; jogged is what
-  shipped first: out from the dot, down a lane of the leader's own, into the
-  grid. Jeff asked for both so he could try them against a real mechanism, and
-  since only the path between the ends changes, the endpoint checks pass in
-  either. The default lives in exactly one place, `VA.DEFAULT_LEADER_STYLE`
-  (`topology.js`); the app shell's initial state and the toolbar's fallback
-  both read it, and the browser tier turns leaders on (`VA.LEADER_STYLE_ON`)
-  before it reads one.
-
-  **2026-09-21: jogged is kept and deprioritized.** Jeff, having read both
-  against the real mechanisms: *"angled by default (jogged isn't really usable
-  yet and arguably isn't worth putting more effort into since the angled lines
-  look just fine)."* So the toggle keeps both styles and nothing about jogged is
-  deleted — but it gets **no further investment without a new decision**. The
-  open jogged-only complaint is in that freeze rather than queued: its lanes
-  bunch up on a dense mechanism, which is the complaint that produced the two
-  styles in the first place (quoted at the top of this section) and which
-  angled sidesteps by having no lanes. A later session that finds itself
-  polishing jogged is doing work nobody asked for.
-* **Two draggable widths**, each a grip in the sticky column header. The jog
-  zone's sits on the seam between the SVG and the grid and spreads the lanes
-  proportionally across whatever width it is dragged to — held as a *multiple*
-  of the zone's natural width, because the preference outlives the topology it
-  was set on and a stored pixel width would crush a sparse diagram's lanes
-  together while leaving a dense one's barely moved. The ELEMENT column's sits on that header
-  cell's right edge and writes into the one `COLUMNS` array both tables take
-  their `<col>` widths from (the stylesheet declares no column width at all —
-  a second source would come apart on the first drag). Widening is the only
-  relief valve on offer: cell content still clips rather than wrapping, because
-  a `<tr>`'s height is a floor and not a cap.
-
-  Both are **clamped into the pane's visible window**
-  (`topology_grid_scroll_and_grips`, 2026-09-16), and the two are clamped by
-  different mechanisms because they mark two different kinds of boundary. The
-  jog grip is `position: sticky` at the inset its seam sits at, because that
-  seam is itself sticky — `.tv__rails` holds the SVG's right edge a fixed
-  distance from the pane's *visible* left edge at every horizontal scroll, so
-  a grip at a fixed content coordinate drifted off the seam it names the
-  moment the reader scrolled. The ELEMENT grip rides its own column's edge,
-  which really does scroll, and pins to the pane's right edge past it. Before
-  that, either grip could simply leave the window — `.tv__hscroll`'s
-  `overflow-x` clips there — and a reader who had widened the preview pane,
-  the jog zone or the column itself was pressing on a control the browser had
-  already clipped away.
-* **The element cell and its hover are one phrase.** The cell prints the edge's
-  `name` as authored and its hover title is the same string; nothing shortens it
-  on the way (`VA.elementDisplayLabel` is gone). What an author may put in a
-  `name` is the rule in `docs/SOP_TOLERANCE_STACK.md`, "Titling an artifact" —
-  the span in the part's own words, no part name, because the component cell
-  beside it carries that.
-
-**The preview pane on the right is draggable too, and it is the one preference
-on this page that survives a reload.** A full-height divider on its left edge
-(`#detail-divider`), dragged or nudged with the arrow keys, clamped by
-`VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
-(`VA.PANE_WIDTH_KEY`).
-
-**So is the nav, since 2026-10-29** (handoff
-`a_face_is_picked_the_way_cad_picks_it`: with the 3D pane open the nav carries
-the scene's mechanism tree, and its joint-end names were clipped). The same
-divider control on its right edge (`#nav-divider`), dragged right to widen,
-clamped by `VA.clampNavWidth` to a floor and to half the window, remembered
-under `VA.NAV_WIDTH_KEY`. The stylesheet's width stays the default.
-
-Its **default** is **560px** since 2026-09-16, and the two-step history is why
-that is a measured number rather than a guess. It went to 560 with the drag on
-2026-09-15 and came straight back the same day: the centre pane is then 133px
-narrower, the grid's content overflows it horizontally either way (fixed-width
-head table, no inner scrollport by design), and a widened jog zone put its own
-drag grip *out of the pane's visible window*, where `.tv__hscroll` clips it and
-a pointer reaches the preview pane instead. The browser tier caught it on
-`pitch_system` at 1600px wide.
-
-That hazard is **fixed** (`topology_grid_scroll_and_grips`, 2026-09-16): both
-grips are clamped into the visible window, and the browser tier drags them for
-real at a 560px pane and at `VA.TOPO_PANE_WIDTH.max`. With it closed, the only
-thing still holding the default at 430px was that Jeff had asked for
-*resizable* and not for *wider* — and he then asked for wider too (*"It's too
-narrow"*, carried forward still open into
-`viewer_hover_deslop_and_banner_purge`). 560 is the width already measured safe
-at the tier's own viewport.
-
-The **maximum** stays at 1000px, declined rather than overlooked: at 1600px a
-1000px pane already leaves the grid ~298px, which `.tvgrip`'s own clamp
-arithmetic is written against, and a reader on a wider screen reaches the same
-width by dragging.
-
-The divider itself is **visible at rest** since the same date — a hairline in
-`--line`, plus a three-dot grip mark held in the middle of the *viewport* by
-`position: sticky` (this page scrolls as one document, so a mark centred in the
-divider's own box would sit halfway down a long study, off screen). It was
-`background: transparent` until hover before that, so the one control that
-answers "it's too narrow" announced itself only to a reader who already knew
-where to put the pointer.
-
-The other four preferences (density, the two leader settings, the jog zone's
-width) still do **not** persist, and that asymmetry is deliberate rather than
-an oversight. They are ways of reading the *diagram*, and a stored pixel width
-for a jog zone crushes one topology's lanes while barely moving another's; a
-pane width is a property of the window, means the same thing on every topology
-and in both modes, and is the one Jeff noticed was wrong. Every access is
-wrapped either way — a `file://` page's `localStorage` is per-path at best and
-throws outright in some configurations, and a preference is never worth a
-crash.
+**The element cell and its hover are one phrase.** The cell prints the edge's
+`name` as authored and its hover title is the same string; nothing shortens it
+on the way. What an author may put in a `name` is the rule in
+`docs/SOP_TOLERANCE_STACK.md`, "Titling an artifact" — the span in the part's
+own words, no part name, because the part cell beside it carries that.
 
 ### Studies
 
-Picking a study **emphasizes its chain on the walk** and re-arranges the walk
-around it (the band, below): every node and every edge of the document stays
-on screen, the chain's
-bars and dots light, the rest dim, and a **leader is drawn only where it points
-at a chain node** — so the part boundaries the study does not cross simply have
-no line, which is the loudest of the three signals. The grid beside it drops to
-the chain's own rows, in **walk order**, each numbered with its place in the sum
-(`#`), with its signed and scaled contribution printed and the totals at the
-bottom. A study that refuses to sum has no chain, so it leaves the walk at full
-emphasis — the error is the result.
+Picking a study **drops the grid to the chain's own rows**, each numbered with
+its place in the sum (`#`), with its signed and scaled contribution printed and
+the totals at the bottom (the balance sheet, below). The rows keep the walk's
+order with the study's lit rows made **one band** (2026-10-28,
+`VA.bandLayout`): the lit rows contiguous, in their walk order, the rest of
+the walk above and below. A study that refuses to sum has no chain, so it
+leaves the grid the whole walk — the error is the result. The map does not
+re-arrange for a study; lighting a study as a route on it is a later handoff.
 
-There is **no layout toggle**, and there is no second layout for it to pick.
-Until 2026-09-15 selecting a study swapped the DAG for `StudyResult.chain` laid
-out on its own — one rail, in the order the sum runs — with "Showing: whole
-topology" to put the walk back. Jeff, reviewing it: *"When you click a
-study/stack, the entire dag/model should still be visible. It should be fairly
-obvious that there are no leader lines pointing to certain elements."* That old
-nav-click behaviour gave a reader no signal at all about what a study excluded
-from the walk: every study dropped its non-chain rows and none of them dimmed
-anything, so there was nothing on screen to notice was missing. One walk,
-varying emphasis, is the fix — and since 2026-10-28 the walk's rows are
-re-ordered around the study rather than left where they were, which Jeff never
-asked to lose (the band, below).
-
-That paragraph used to reconstruct which of the three `pitch_link_*` studies
-(on `vpa_pitch_linkage`, since the 2026-10-26 fold — `pitch_link_to_pitch_plate`
-was its own topology until then) dropped what, and it had the sizes backwards
-(`ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_change_does_not_reproduce.md`).
-The reconstruction is gone; the one fact it got wrong is declared instead, so it
-is re-derived from the live topology projection on every run rather than argued
-from memory — the smallest chain of the three is `pitch_link_thread_region_t`:
+There is **no layout toggle**, and there is no second layout for it to pick
+(Jeff, 2026-09-15: *"When you click a study/stack, the entire dag/model should
+still be visible."*). The one fact an earlier version of this section got
+backwards about the three `pitch_link_*` studies on `vpa_pitch_linkage`
+(`ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_change_does_not_reproduce.md`)
+is declared instead, so it is re-derived from the live topology projection on
+every run rather than argued from memory — the smallest chain of the three is
+`pitch_link_thread_region_t`:
 
 ```claim
 metric: smallest_chain
@@ -1125,69 +845,13 @@ studies: pitch_link_
 value: pitch_link_thread_region_t
 ```
 
-`study.layout` is still in the projection and still built by
-`scripts/build_topology_projection.py` — nothing about the data changed, only
-which serialisation this page draws. The viewer no longer reads it; the
-respine's own column machinery is now exercised against it synthetically (see
-below).
-
-The change of emphasis is **animated** — see "Selecting a study re-spines the
-DAG" below.
-
-**Dimmed or hidden** (2026-10-26). On a product-sized model the walk outside a
-study is most of the picture, so the toolbar carries one more toggle wherever
-something is lit — a chain study, or a kinematic study's page — **Unused:
-dimmed** (the default) or **Unused: hidden** (`VA.UNLIT_STYLES`,
-`VA.DEFAULT_UNLIT_STYLE`). Hidden draws only the lit rows, in walk order: the
-band of "The active study is one band" below, with the rest taken away
-(`VA.bandLayout(…, { only: true })`). The rails and links are re-derived from
-the rows (`VA.walkRailsAndLinks`, which on every committed topology reproduces
-the projection's own rails and links exactly — the fast tier pins that), and a
-run of the walk that a hidden edge used to join becomes two runs with nothing
-drawn between them — which is why
-the lit set is *closed* first (2026-10-28, `the_lit_set_closes_over_its_joints`):
-a joint whose two ends are lit is lit (`VA.closeLitSet`), so the bodies' joint
-symbols draw at full strength on the active study and the hidden drawing stays
-one piece. A node a hidden edge shares with a lit one stays: it is lit. The leaders still land on their
-grid rows. The choice is kept for the session, like the leader style.
-
-**The active study is one band** (2026-10-28,
-`the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below`).
-Jeff: *"the active part of the model for any given study becomes a straight
-vertical line, with the rest of the graph extending above/below it … so you
-don't have to scroll the graph to see all the elements of the active study."*
-Nothing is hidden and nothing is replaced — the 2026-09-15 rule ("the entire
-dag/model should still be visible") was about visibility, and still holds. The
-walk's rows are **re-ordered** (`VA.bandLayout`, `topology.js`):
-
-* **the band.** The lit rows, in their walk order, contiguous, laid out on
-  their own columns (`VA.layWalk`: a chain is one rail, a branch takes the next
-  column for as long as it runs), then the non-trunk columns permuted to cross
-  least and held against the columns the same rows had in the walk
-  (`VA.layoutCrossings`, the builder's `layout_crossings` ported) — the band
-  never crosses itself more than its rows did. Its columns are the spine's, so
-  no leader from a lit dot crosses a rail of the unlit model;
-* **above and below** (`VA.bandSides`). An unlit row before the first lit row
-  goes above, one after the last goes below, and the unlit rows *inside* the lit
-  span go to the nearer side **as connected pieces**, judged by the piece's mean
-  row — row by row tore a side branch in two. A piece that forks off a lit node
-  goes below whatever its position (above, it would have nothing to hang from),
-  and below the band such an edge is drawn after the node at its far end, so it
-  curves back up to the band instead of running a rail through it. The rest
-  keeps the walk's own columns wherever they are free;
-* **curves both ways.** An edge whose other node is now above it closes up to
-  it, as always; one whose other node is in the band below it curves *down*
-  to it (`closePath` bows toward its node either way);
-* **bodies** the band splits are several fields (they always could be), and
-  with a study lit a body is **named once**, on its band field
-  (`VA.bodyLabelFields`); collapsed, each block is its own pill
-  (`body:<id>`, then `body:<id>#2`, …).
-
-Arriving at a study **frames the band** (Fit, below) once the transition has
-settled, keeping the reader's sideways scroll. The `[real]` tier holds every
-study of the product model to one contiguous band that draws as a walk, crosses
-itself no more than in the walk and widens the walk by nothing; the browser tier
-checks three on screen.
+**Dimmed or hidden** (2026-10-26). Wherever something is lit — a chain study,
+or a kinematic study's page — the settings bar carries **Unused: dimmed** (the
+default) or **Unused: hidden** (`VA.UNLIT_STYLES`, `VA.DEFAULT_UNLIT_STYLE`):
+the 3D scene draws the parts outside the lit set faint or not at all, and the
+grid's walk is the band alone. The lit set is *closed* first (2026-10-28,
+`the_lit_set_closes_over_its_joints`): a joint whose two ends are lit is lit
+(`VA.closeLitSet`). The choice is kept for the session.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -1236,11 +900,8 @@ Two things are deliberate and easy to undo by accident:
   (`pitch_system_end_stop_minus7` carries two that do not), so a verdict merged
   over the block would be one row's answer printed over another's.
 
-Nothing about the rails moved. These rows sit below the last member row, and
-the grid block's own centring offset comes from the plan's row count
-(`VA.rowPositions`), not from the table's rendered height — the browser tier
-measures both the correspondence and the column alignment (`a total lands in
-the column it totals, to the pixel`).
+These rows sit below the last member row — the browser tier measures the
+column alignment (`a total lands in the column it totals, to the pixel`).
 
 **The pane below holds what is not a number**, in three blocks and no prose
 between them:
@@ -1343,31 +1004,6 @@ Two things a crop can also carry:
   run": a run is an internal artifact, and its id told a reader nothing about
   which drawing they were about to open.
 
-### Row/leader correspondence is the claim, so it is measured
-
-A grid row, its rail bar and the leaders around it describe the same graph — but
-since `viewer_leader_line_grid` they are deliberately **not** at one y (the grid
-is compact, the DAG is not), so the measurable contract is the leaders': each
-leader's node-side end sits on its own dot's centre, and its grid-side end sits
-on the seam of the boundary row it names (`data-boundary-edge` on the hit path).
-Three things enforce it and none is a stylesheet:
-
-* the row's `height` is set **inline** from `VA.RAIL_METRICS.rowHeight`, the same
-  constant `VA.leaderGeometry` computes every seam from — and the node ends come
-  off the same keyed position store (`VA.rowPositions`) the dots were drawn from,
-  whatever the edge-length mode did to the DAG above;
-* every cell's content is clamped to that pitch (the chips and crop wrappers) —
-  a `<tr>`'s height is a floor, not a cap, so one overgrown cell would silently
-  walk every seam below it off its leader;
-* the rails, the leaders and the rows live in **one scrollport**, so "scrolling
-  keeps them locked together" has nothing to synchronise.
-
-`scripts/run_viewer_browser_tests.mjs` then measures it (`CORRESPONDENCE_IN_
-PAGE`): the leader paths' real geometry (`getBBox`) against the dot boxes and
-row boxes, every topology, in both layouts, after scrolling, at both densities.
-That is the check no DOM shim can make, and it is why the browser tier is not
-optional here.
-
 ### The page is a fixed layout, and nothing scrolls the document
 
 `the_page_is_a_fixed_layout_and_nothing_scrolls_the_document` (2026-11-14),
@@ -1378,7 +1014,7 @@ and four regions each scroll by themselves inside it:
 |---|---|---|
 | the title and the model's tree | left column (`.tv__left`): the title above `#navtree`, the model picker pinned at the tree's top | the tree, vertically |
 | the 3D pane | `#annotate-flyout`, beside the tree | its own scene |
-| the DAG | `#topopane`, full height; its scroller is `.tv__hscroll` | both ways; the wheel zooms, a drag pans |
+| the map | `#topopane`, full height; the map's SVG fills it | the map in place: the wheel zooms, a drag pans |
 | the settings, the grid and the Preview | the column right of the DAG (`.tv__main`): the banner, `#toolbar`, `#topogrid` (scroller `.tv__gridscroll`, its header pinned by CSS `position: sticky`), the study totals, then `#detail` | the grid both ways, its sideways scrollbar directly under its rows; the Preview vertically |
 
 Every seam is a divider, wired once at boot (`wireDivider`) and remembered:
@@ -1396,111 +1032,33 @@ closed, so its scene survives). The choice is remembered
 selection run the same in all three: a hidden surface is still lit, the other
 three are on screen.
 
-**No leader runs to the grid any more**: it is in its own region, so a leader
-ending at the drawing's right edge would point at a row that is somewhere
-else. The Leaders control governs the leaders across the seam to the 3D scene
-(off or on); it can be set at any time, and whenever the pane is closed or not
-side by side its hover says it draws only then (`VA.LEADERS_UNAVAILABLE`). A selection anywhere scrolls its grid row
-into view in the grid's region and its mark into view in the DAG's, each by its
-own scroller (`scrollSelectionIntoView`).
+A selection anywhere scrolls its grid row into view in the grid's region
+(`scrollSelectionIntoView`) and pans the map to it when it is off the region
+(views/map.js).
 
 `scripts/run_viewer_browser_tests.mjs`'s `testHeightBudget` pins the region
 contract: no document overflow either way, each region a scroll container
 inside the window, one region's scroll moving no other, and the grid's rows
-directly under their header in every length mode. The two sections below are
-the history this replaced.
+directly under their header.
 
-### The DAG owns the main area
-
-> **Superseded 2026-11-14** by "The page is a fixed layout, and nothing
-> scrolls the document", above: the document no longer scrolls, the DAG and
-> the grid are separate regions, and the header is pinned by CSS. What follows
-> is the history.
-
-`HANDOFF_20260904_dag_viewer_vertical_budget.md` gave the graph pane
-(`.tv__scroll`) a 10-row `min-height` floor because the chrome above it — a
-provenance alarm banner, two `<select>` pickers, a totals panel that could
-grow to 260px, an always-open legend — could otherwise squeeze it to a
-handful of rows. `HANDOFF_20260908_viewer_v2_single_nav.md` removed the floor
-instead of raising it, by shrinking the chrome it was floored against:
-
-* the two `<select>` pickers and the flat stack rail retired into the one nav
-  tree (`#navtree`, "The one nav" above), which sits *beside* the DAG pane, not
-  above it — it costs the page horizontal width, not vertical height;
-* the provenance alarm (`views/banner.js`) collapsed from an always-expanded
-  block (headline + alarm list + two `<code>` rebuild commands) to a one-line
-  badge — "Data is older than the latest code — needs a rebuild" — with the
-  full detail behind a `<details>` a reader opens on purpose;
-* "How to read the rails" moved into `#legend-dialog`, a `<dialog>` opened from
-  a topbar button, so it no longer reserves a line of layout even collapsed;
-* the totals footer (`.tvtotals`) demoted from a 260px panel to a slim,
-  always-visible strip of chips — the same folded numbers, one line, with the
-  rule sentence and a study's own `notes` behind their own `Details` toggle.
-  (The chips themselves are gone since 2026-09-22: the numbers are rows of the
-  contributions grid now. See "The study summary reads like a balance sheet".)
-
-The topology's own joint block (`#topojoint`, deliverable 4) is new chrome
-above the pane, not removed chrome — but it costs one collapsed `<details>`
-line even for the 4 of 5 topologies that carry a real one, the same as a
-stack's own joint block always has, so it does not reopen the budget the rest
-of this section closes.
-
-With that chrome capped to roughly a topbar, a one-line banner, a toolbar
-strip, a one-line joint block and a slim totals strip, `HANDOFF_20260909_
-viewer_error_surface_and_layout.md` finished the job the floor and its
-removal were both fighting toward: the DAG pane (`.tv__scroll`) no longer
-clips its own rows at all. Every row renders at full height and contributes
-that height to the **document**, which scrolls once the content is taller
-than the viewport — the same "one page" model the rest of the site already
-used. The **left nav is the one region still capped to the viewport**
-(`position: sticky; max-height`) and scrolls independently; everything else,
-this pane included, just gets longer. `scripts/run_viewer_browser_tests.mjs`'s
-`testHeightBudget` pins this directly: `.tv__scroll` carries no `overflow-y`
-of its own, its rendered height is never less than its own row count demands,
-and — with the real `pitch_system` loaded, which has more rows than a 900px
-viewport can show — the *document's* scroll height exceeds the viewport's,
-proving the growth actually reached the page rather than clipping inside the
-pane.
-
-The grid's own columns (`COLUMNS`, `views/topology.js`) sum to well over a
-typical pane's width and always have — that is a **separate, pre-existing**
-axis this handoff did not touch. `.tv__rails`'s own `position: sticky; left:
-0` (so the rail column stays put while the grid scrolls sideways) needs a
-scrolling ancestor to mean anything, so the header and the body still share
-one **horizontal-only** scrollport, `.tv__hscroll` — `height: max-content` is
-what stops that scrollport from being a second place a row count could get
-squeezed: an element with `overflow-x: auto` is a scroll container, and a
-scroll container's automatic content-height contribution to its own flex
-ancestor is zero by spec, not its actual content size, which is exactly the
-"squeeze to fit" shape the rest of this section retires. Scrolling remains
-vertical-at-the-page, horizontal-at-the-grid — two axes, two scrollports, on
-purpose.
-
-Scrollbars are themed to match the page everywhere they still appear
-(`scrollbar-color`/`scrollbar-width` plus the `::-webkit-scrollbar` pseudo
-pair, both set once at `html`/`*` in `style.css` so no scrollable box needs
-its own rule).
-
-**The worksheet** moved into its own `<dialog>` too (`#worksheet-dialog`),
-for the same reason as the legend: opening it can no longer compete with
-anything else for space, because a `<dialog>` sits in the browser's own top
-layer, entirely outside `.tv`'s flex column.
-
-**Row density** (`VA.ROW_DENSITIES`, `topology.js`) is the toggle that is still
-worth having even with the floor gone: "Rows: Comfortable / Compact", on the
-toolbar strip above the DAG pane (`#toolbar`, next to the layout-mode toggle),
-at 26px and 16px respectively — compact turns the pitch system's 45-slot DAG
-into ~720px, a single screen instead of several (its grid, at one row per edge,
-is shorter still). Row height is one number that has to
-move in three places at once (documented where it bites, `topology.js`): `VA.
-RAIL_METRICS.rowHeight`, the `--tv-row` CSS variable, and the grid's inline
-row heights. `VA.applyRowDensity` mutates `RAIL_METRICS.rowHeight` **in
-place** rather than replacing the object, so the SVG geometry and the inline
-row heights — both of which hold a reference to that same object — pick up
+**Row density** (`VA.ROW_DENSITIES`, `topology.js`): "Rows: Comfortable /
+Compact" on the settings bar. Row height is one number that has to move in
+three places at once (documented where it bites, `topology.js`):
+`VA.RAIL_METRICS.rowHeight`, the `--tv-row` CSS variable, and the grid's
+inline row heights. `VA.applyRowDensity` mutates `RAIL_METRICS.rowHeight`
+**in place** rather than replacing the object, so the inline row heights and
+the brackets — both of which hold a reference to that same object — pick up
 the change with nothing to re-wire; `topology_app.js`'s `applyDensity()` is
 the one DOM write left, setting the CSS variable to match. Density is a
 display preference, not a fact about a topology or a study, so switching
 topologies never resets it.
+
+Scrollbars are themed to match the page everywhere they appear
+(`scrollbar-color`/`scrollbar-width` plus the `::-webkit-scrollbar` pseudo
+pair, both set once at `html`/`*` in `style.css`). The legend and the
+worksheet each open in a `<dialog>` (`#legend-dialog`, `#worksheet-dialog`),
+in the browser's top layer, so neither competes with the regions for space.
+
 
 ### A render crash cannot leave the page silently unchanged
 
@@ -1519,23 +1077,10 @@ error = …).then(render)` shape `gesture()` already had. One seam, not a
 "render crash shows the banner" tier proves it by forcing `VA.renderTopoPane`
 to throw and asserting nothing escapes as an uncaught page error.
 
-### Whole-edge hover, and an experimental values-only row mode
+### An experimental values-only row mode
 
-Two related pieces from the same handoff. First, a fix: a rail bar's
-*visible* stroke is dashed wherever its citation is a gap or derived
-(`.rail__bar--gap`/`--derived`), and under `pointer-events: stroke` a dash's
-own gap used to hit nothing — only a lucky hover over a solid segment of a
-long edge showed its tooltip. `.rail__barhit` is a second, invisible line per
-edge (`stroke: transparent`, wider, `pointer-events: stroke`) drawn over the
-same coordinates, carrying the hover surface and the click handler instead; the
-visible bar is untouched. Since `viewer_dag_hover_cards` that hover surface is
-the **edge card**, not a title. (A zero-width `<line>` has a zero-area bounding
-box, which playwright calls "not visible" and refuses `locator.hover()` on — the
-browser tier drives the pointer to the bar's own coordinates instead. See
-`hoverBar` in `scripts/run_viewer_browser_tests.mjs`.)
-
-Second, an experimental **view setting, default off** (the toolbar's third
-button, "Rows: labelled" / "Rows: values only", `state.edgeValueOnly`): Jeff's
+An experimental **view setting, default off** (the settings bar's
+"Rows: labelled" / "Rows: values only", `state.edgeValueOnly`): Jeff's
 observation that this page used to run about 2× a typical Excel stack's row
 count, because a spreadsheet lists only the dimensions *between* interfaces,
 never the interfaces themselves. `viewer_leader_line_grid` retired the node
@@ -1543,8 +1088,7 @@ rows outright (the grid is edge rows only now — the bigger half of the same
 observation), and this toggle remains as the smaller half: an edge's own label
 is just its two adjacent node labels concatenated, so it hides it and lets the
 row read as values only, with the label moved to the row's own hover
-(`VA.edgeHoverTitle` — the same text the bar's card now heads itself with, one
-statement of an edge's name and not three). The merged component cell, and a row the projection cannot
+(`VA.edgeHoverTitle`). The part cell, and a row the projection cannot
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
 
@@ -1554,13 +1098,13 @@ Since 2026-11-10 what is selected and what is hovered are **one state object**,
 `state.focus = { selected, hovered }` (`topology_app.js`), each a model entity
 `{kind, id}` — body, part, feature, dimension, interface or joint
 (`VA.FOCUS_KINDS`, `model.js`) — or null, written by exactly one setter each
-(`setSelected`, `setHovered`). The tree, the DAG, the grid, the Preview and the
+(`setSelected`, `setHovered`). The tree, the map, the grid, the Preview and the
 3D scene each light from it (`applyFocus`, run on every change and after every
-paint, so a repaint loses nothing) and each can set it: a tree row, a DAG mark,
-a grid row, a part's or a body's container on the DAG (its field or block, and
-a part's name, since 2026-11-12), a scene anchor, the pane's own rail. A grid
-bracket is lit with its part or body but is no control: its caps lie across
-the rows, which are the pointer's targets there.
+paint, so a repaint loses nothing) and each can set it: a tree row, anything
+the map draws (a box, a pin, a jumper, a connector, a district), a grid row, a
+scene anchor, the pane's own rail. A grid bracket is lit with its part or body
+but is no control: its caps lie across the rows, which are the pointer's
+targets there.
 `state.selection`, the element form every view keys by, is derived in the
 setter and written nowhere else; a body, a part or a joint selected has none.
 
@@ -1588,14 +1132,15 @@ dimension; a container its part or body), which element an entity is shown as
 
 Hover and select both go through it, and every surface draws both tiers and
 nothing else: own in the present highlight, touching visibly fainter (Jeff: *"a
-less pronounced color for interfaces"*). The four derivations are
+less pronounced color for interfaces"*). The derivations are
 `VA.focusElementKeysOf` (`{own, touching}` element and container keys for the
-DAG and the grid), `VA.focusNavRowsOf` (row keys for the tree),
+grid), `VA.mapLightKeys` (entity keys for the map), `VA.focusNavRowsOf` (row
+keys for the tree),
 `VA.navRevealPaths` (the folds a lit row is behind, outermost first — what a
 selection opens) and `VA.sceneLightOf` (ids for the pane). Until 2026-11-12 a
 part hover lit every edge of every part that touched any of its nodes, plus
 whole rail legs — Jeff's "random rows" — because a node key led every row at
-that node and every key lit its leg.
+that node.
 
 The pane is told by message: `model select node|clear` for the selection it
 holds in its own rail, `highlight` for a selected edge while a run is loaded,
@@ -1608,320 +1153,30 @@ opaque — a solid part is reachable only through the pane's own See-through
 control (`AA.planActionLooks`). It works in both of the pane's modes. The pane
 answers by message (its anchors' hover and pick, its tree's selected row); what
 it keeps of its own — the sweep rail's `inspect`, the model layer's `selected`
-— is the 2026-11-11 lesson's inventory. Lighting only: no DAG node moves and
+— is the 2026-11-11 lesson's inventory. Lighting only: nothing on the map moves and
 no grid row is added.
 
-Within the DAG and the grid hover is **state**, not a `:hover` rule — Jeff,
-2026-09-30, tracing a leg through a crossing: *"add an emphasis (bold/glow etc)
-to the edges when you hover over them"*, and *"it would be awesome if the DAG
-and the table/grid shared their highlighted state, so everything lit up
-together."* One lighter (`lightKeys`, `views/topology.js`) with one door: the
-page's `VA.lightTopoKeys`, handed the resolver's two key lists. The pane's own
-pointer (`setHot`) draws the one-line label and *tells* the page (`onChange`),
-and the page lights every surface from it, this pane included — since
-2026-11-12 the pane's pointer no longer lights anything of its own or wins over
-the page's hover, which was the split brain Jeff named. A rail is no element
-and lights nothing. Two levels, now the two tiers:
+Within the grid and the map hover is **state**, not a `:hover` rule — Jeff,
+2026-09-30: *"it would be awesome if the DAG and the table/grid shared their
+highlighted state, so everything lit up together."* The grid has one lighter
+(`lightKeys`, `views/topology.js`) with one door, the page's
+`VA.lightTopoKeys`, handed the resolver's two key lists; the map has its own
+(`VA.lightMap`, `views/map.js`), handed the entity. A row's or a mark's own
+pointer *tells* the page (`onHot`, `onHotEntity`) and lights nothing of its
+own, and the page lights every surface from it. Two levels, the two tiers:
 
-* **`--lead`** — the own tier: the hovered edge's bar, its row and its two end
-  dots; a hovered part's dots, bars and container; a node's dot and leader.
+* **`--lead`** — the own tier: the hovered dimension's row, its jumper and its
+  two end pins; a hovered part's box, its rows and its features.
 * **`--hot`** — the touching tier, at the lighter weight and tint: the
-  interfaces at a dimension's ends, the dimensions arriving at a node, a
+  interfaces at a dimension's ends, the dimensions arriving at an interface, a
   part's neighbours' interfaces.
 
 The selection wears the same two tiers in the accent (`--selected`, and the
-fainter `--touched`, on dots, bars, rows, containers and brackets). Nothing is
-dimmed — a reader is tracing *one* line through the others, not hiding them.
-**Hover spends brightness and width only**: the accent means *selected*, so a
-pointer may not paint anything with it, and a bar keeps its provenance hue —
-thickened, never recoloured. Hovering opens no card either.
-
-Two implementation facts worth knowing before editing either file:
-
-* **The glow is the hit path, lit.** Bars carry a wide transparent twin (so a
-  2px line is pointable at all), and when the bar is lit that twin is stroked
-  at a low alpha — a halo for one colour change and no extra element. A CSS
-  `drop-shadow` was the alternative and was dropped because these are
-  *vertical lines*: a zero-width object bounding box is where a filter region
-  is least dependable. The browser tier reaches them exactly the way it
-  reaches a bar (the `locator.hover()` note in "Whole-edge hover" above
-  applies verbatim — see `railPoint`).
-* **Lighting is keyed by element**, never by a column index: `VA.spineRight`
-  mirrors every column at render time and the projection is free to renumber,
-  so a column number is a drawing decision. A fast guard plants the mirror
-  and requires the same edge to light the same set.
-
-### Edge-length scaling: four modes, one keyed position store
-
-The toolbar's fourth button (`#edge-length-toggle`, `state.edgeLengthMode`,
-`VA.EDGE_LENGTH_MODES` in `topology.js`) cycles how much vertical extent a
-dimension bar gets:
-
-* **uniform** — the default, and the original rendering: every slot is one
-  `rowHeight`.
-* **tolerance width** — a bar's length ∝ its dimension's band (`max − min`,
-  falling back to `2 × plus_minus` where min/max are absent).
-* **feature size** — a bar's length ∝ its dimension's nominal.
-* **contribution** — offered only where the page has contributions (a
-  kinematic study), and the default there: a linkage term's bar ∝ what it
-  contributes at the live pose (|sensitivity| × band,
-  `VA.kinematicPoseLengths`), against one yardstick for the whole sweep — the
-  largest contribution any linkage term reaches anywhere — so the DAG moves
-  as the linkage cycles and a length means the same at every pose. The stop
-  position's terms are the stop's, the same at every pose and an order of
-  magnitude larger, so this mode leaves them at the floor, marked.
-
-The scale is relative to the serialisation on screen: the largest value renders
-at `EDGE_LENGTH_SCALE.maxRows` row heights, everything else in proportion — the
-window is not a budget — and **nothing renders
-shorter than one row height** (`floorRows`). The floor keeps
-a zero/tiny/unstated edge clickable (whole-edge hover is a landed contract) and
-keeps every node at-or-below its uniform y, so a scaled mode only ever
-stretches the DAG — it is the centring below, not any length mode, that lets a
-leader point downhill. A bar sitting at the floor is **not a measured
-proportion** and is never allowed to read like one: it gets
-`.rail__bar--floored`, a drafting-style break mark (`.rail__break`) across its
-middle, and a hover that says "not to scale" — the edge card's `renderNote`
-where the bar cards, `VA.flooredEdgeTitle` where it falls back to a title, both
-reading `VA.FLOORED_RENDER_NOTE`; the legend states outright that lengths are
-indicative. The variation-only edges
-the real workbooks produce (`nominal: 0.0`, the provenance note saying the
-nominal is unstated) are exactly this case: they floor, honestly marked, rather
-than inventing a scale.
-
-### A scaled mode takes the height it needs; the reader zooms
-
-Until 2026-10-28 the page also *fitted* the DAG to the window
-(`viewer_dag_spine_layout`), and on the product model `vpa_pitch_linkage` — whose
-floor alone is taller than any window — the fit collapsed onto the floor at
-every window size: **uniform and both scaled modes drew the same picture**
-("Lengths select appears to be broken", Jeff). The window is no longer a budget
-(`the_dag_is_zoomable_and_a_length_mode_draws_to_scale`): a scaled mode draws
-the largest bar at `maxRows` and the rest in proportion, the walk takes the
-height that needs (taller than uniform in both scaled modes on that model — a
-real-model test pins it), and the reader sees it all with **Fit**. The floor stays as a
-legibility rule — a bar must stay clickable — and a bar clamped up to it says so
-(break mark, "not to scale" hover); a bar with nothing to scale by says so too.
-
-### Zoom, Fit and the grid header
-
-One scale (`VA.DAG_ZOOM`, `{min, max, step}` — the lightbox's shape) on the
-**DAG alone** (2026-10-29, `a_leader_starts_at_the_mark_it_names_on_every_tier`;
-Jeff: zoom the DAG, the grid keeps its own scale). The DAG's drawing sits in two
-layers of the rails SVG (`g.tv__dag`, under and over the leaders) drawn at the
-scale about the DAG block's top-left; the grid, its header and `.tv__zoom`
-around them stay at the page's own pixels. The leaders and the bands are drawn
-in the SVG's own pixels between those layers, from the scaled dot to the
-unscaled seam (`VA.leaderGeometry`'s `zoom`); the jog zone scales with the DAG,
-so a narrow pane keeps room for the grid.
-A zoom change repaints the pane at the new scale (`VA.applyTopoZoom` →
-`topoRezoom`). The scale is per page state (`state.dagZoom`), never stored. The
-minimum is chosen so the whole walk, in its tallest mode, shows in a 900px pane
-(a test re-derives that off the real model).
-
-* **Wheel** over the drawing zooms about the pointer; Ctrl/Cmd+wheel (and a
-  trackpad pinch) zooms from anywhere over the pane. A plain wheel elsewhere
-  scrolls the region it is over (since 2026-11-14 nothing scrolls the
-  document). A drag on the
-  drawing's empty space pans: the SVG itself and a study's field, never a
-  control — and since 2026-11-13 a body's field border is a control (it
-  selects the body), so a drag cannot start on it; its interior, drawn with
-  `pointer-events: stroke`, was always the SVG's. Where a part's field border
-  runs under a rail's hit path (the hub field's left edge, the tan_link
-  field's top edge on the end-stop model) the rail takes the click; the
-  part's NAME is the dependable control there.
-* **Fit** (toolbar, key `0`) zooms the DAG to its lit part — a study's chain,
-  a kinematic study's — or the whole walk where nothing is lit, never past a
-  scale of 1, and scrolls it to the top of what is visible, in one step. The
-  grid beside it is not part of what Fit fits: no scale changes its size.
-  Arriving at a study does the same on its own once the paint (or the
-  transition) has settled, leaving the sideways scroll where it was.
-* **The leaders across the seam** read each dot in the rails SVG's own
-  pixels with the zoom already in it (`VA.lastTopoRender.seam`, `VA.seamDots`),
-  and the SVG itself is never scaled.
-* **The grid header** (`.tv__head`) is the first thing in the grid's own
-  scroller (`.tv__gridscroll`) and is pinned at its top by CSS `position:
-  sticky` (since 2026-11-14; until then the grid shared the DAG's strip,
-  whose scroller never scrolled vertically, and `VA.pinTopoHead` wrote the pin
-  from the page's scroll events).
-
-### The DAG and the grid are centred against each other
-
-They are two blocks of different heights sharing one scrollport, and
-top-aligning both put the whole difference into the leaders. `VA.centreOffsets`
-pushes the shorter one down — and centres them across the **leaders' own span**
-rather than across the two heights, which is not a subtlety: a scaled DAG puts
-its length wherever the big dimensions are, so on
-`pitch_link_to_pitch_plate` (then its own topology; folded into
-`vpa_pitch_linkage` 2026-10-26) under tolerance width all five leaders live in the
-top 236px of a 691px DAG and centring the heights would make every one of them
-jog *further*. Centring the leader span is what minimises the largest jog,
-which is the thing the change is for: `vpa_pitch_linkage`'s max jog 2321px → 1147px,
-and every topology × mode pair on the shelf improves.
-
-A leader can therefore now **descend** left-to-right, where before it always
-rose. Nothing about the no-crossing guarantee changes (both endpoint sequences
-are still monotone in walk order), but anything measuring a leader's ends has
-to stop reading them off its bounding box — the browser tier's
-`CORRESPONDENCE_IN_PAGE` measures with `getPointAtLength` now.
-
-The mechanism under all of it is one **keyed position store**:
-`VA.rowPositions(layout, topoProj, mode, metrics, fit)` computes every slot
-once — node id → y, edge id → `{y1, y2, length, floored}`, plus `dagHeight`,
-`gridOffset` and the total `height` — and both geometry passes
-(`VA.railGeometry`, `VA.leaderGeometry`) consume the store rather than
-re-deriving `row × rowHeight` inline. `fit` is `{ budget, plan }`: the measured
-viewport and the grid beside it, supplied by the render and by nothing else, so
-a pure call still gets exactly the pre-fit store. The **grid's own pitch never
-moves**: its rows stay at `rowHeight`, evenly spaced, and a leader's grid-side
-seam stays `gridOffset + boundary × rowHeight` — the block moves, the pitch
-does not, and the node-side ends follow the store, which is the stretch the
-jogged leaders were built to absorb. The store is also the
-seam the study re-spine animation runs on (below): geometry is a pure function
-of `(layout, metrics, positions)`, so the animator interpolates between two
-stores and redraws per frame with nothing else changing. A display preference
-like density: switching topologies never resets it, and the mode button only
-ever re-renders (no scroll rewind).
-
-### Selecting a study re-spines the DAG, and that is a movement
-
-Jeff, on the shipped arcs: *"I asked for this before (including smooth
-animation when the dag rearranges itself)."* So the two clicks that change
-**which serialisation** is on screen — picking a study in the nav and dropping
-it again — render the pane as a transition rather than a repaint. Nothing else
-does: density, length mode, leader style and the two drag widths all change how
-the *same* rows are drawn, and have always been a plain render. (There used to
-be a third: the toolbar's layout toggle, retired with the second layout it
-picked between.)
-
-**What actually moves, since the walk stopped being swapped out.** Both frames
-are the same rows, and since 2026-10-28 in a different ORDER: the study's band
-(above) moves every row it re-orders, keyed by element, so a dot travels from
-where the walk had it to its place in the band. The column count is the walk's
-on both sides on the live corpus, so `VA.respineX` returns a zero column shift
-and a row that changes column jumps to it on the first frame — x is not keyed,
-for the reason given below. The rest is real, and measured per study on the
-live corpus (before the band). Taking
-`pitch_system_gas_spring_branch`, over the product graph:
-
-* the **jog zone narrows** as leaders drop, and the pane width with it — the
-  pane goes **678 → 330px**;
-* the **grid block travels**, because a shorter table re-centres against a DAG
-  of unchanged height — `gridOffset` goes **1174 → 743px**;
-* the grid **cross-fades** between two different row sets, as it always did.
-
-Every committed study moves at least one of those, which the `[real]` tier
-asserts study by study — a quarter-second of nothing would be worse than no
-animation at all.
-
-`VA.tweenPositions(from, to, e)` interpolates one position store into another
-and hands the result to the two geometry passes unchanged, which is why there
-is no second layout path and no geometry function moved to get this. Three
-things are worth knowing about it:
-
-* **the pairing is by element, not by row key.** A layout row *index* is not
-  comparable between the walk and a chain — row 3 of one is a different edge
-  from row 3 of the other — so every slot in the store carries its own
-  `id`/`kind` and the tween matches on those. Paired by index, a row would fly
-  in from a slot it never occupied and still look plausible;
-* **the store's key set is the target's, at every `e`.** Not a union with the
-  outgoing side's: settled, it *is* the target store, and mid-flight it is the
-  target's keys at interpolated values. It used to carry over every node and
-  edge the outgoing store had, which no geometry pass ever read (both iterate
-  the layout and look positions up by id) but which compounded across an
-  interrupted respine, since `VA.lastTopoRender`'s store is this one and the
-  animator reads it back as `from`;
-* **x cannot go through the store either, so the drawn LAYOUT is what is
-  interpolated.** Which column a row lands on is a claim about the graph, the
-  two serialisations disagree about how many columns there are (`vpa_pitch_linkage`'s
-  walk needs **14 columns**, while every one of its study chains is linear and
-  needs **1**), and a rail belongs to a *column* rather than to an element, so
-  there is nothing to pair the two frames' rails on. What the two frames do
-  agree about is **depth from the spine** — both are right-justified, so the
-  mainline is the last column of either — so `VA.respineX` pairs a column *by
-  depth* and `VA.drawnColumn` interpolates its drawn index between the two
-  frames' own, alongside the **pane width**; both geometry passes draw the
-  frame from those. A surviving rail starts exactly where the outgoing frame
-  drew it; a column the respine *adds* unfolds out of **the outgoing frame's
-  leftmost rail** rather than arriving from a place it never was.
-
-  That last qualifier is load-bearing, and getting it wrong is what the first
-  cut did: it collapsed an added column onto drawn index **0**, which every
-  *settled* frame has a rail at and a frame caught mid-unfold does not.
-  Interrupting a select at `e = 0.5` — a 10-column walk half way into a
-  1-column chain, the real `pitch_system`'s own gap — left one rail drawn at
-  x = 105 with nothing to its left, and the deselect's first frame popped nine
-  rails in at x = 15…85. The spine and the pane width were continuous across
-  that, which is why the guard on those two numbers never saw it. So the
-  outgoing frame now records the **leftmost** index it drew as well as the
-  spine's, and the unfold holds from a transition frame and not only from a
-  settled one;
-* **a link is the one drawn thing that unfold does NOT cover, so it carries an
-  opacity of its own.** A rail belongs to a column, and every column *both*
-  serialisations have has a rail on both sides — so the only rails a respine
-  can add are exactly the ones the unfold draws on top of a rail already
-  there. A link belongs to a *pair* of columns, and two serialisations can
-  differ by a link on columns they **share**: a loop closure present in one
-  and not the other arrives on rails that never move, with nothing to hide
-  behind. `VA.linkOpacity` fades it in, keyed by `VA.linkKey` — the *elements*
-  at the link's two ends, the same element-by-element pairing the store makes
-  for a row. (A branch link's two ends are the same fork row, so two fan-outs
-  off one fork would key alike; a branch is keyed by the row it *lands* on
-  instead.) No committed topology can show this yet — all 21 study chains
-  across the five topologies are linear, `columns: 1` and `links: []`, so
-  every link a respine adds today arrives on a column it also adds — so the
-  check for it is synthetic, against the day a respine re-columns the whole
-  walk;
-* **the width goes with it, and nothing is slid as a block.** The SVG is drawn
-  at the interpolated width, which is the grid's own left edge, so the table
-  beside it and the header padded to sit over it follow without either
-  learning that a transition exists.
-
-  The first cut *was* a whole-block CSS translate, right-anchored on the
-  outgoing frame's grid seam, and it is worth knowing why that cannot work:
-  the pane's left edge is fixed, each frame is right-justified against its own
-  grid, and the two grids are hundreds of pixels apart — so anchoring the
-  **wider** incoming block on the narrower outgoing one's right edge
-  necessarily puts its left part outside the pane, where `.tv__hscroll`'s
-  `overflow-x` clips it. Deselecting a study on the real `pitch_system` drew
-  all 45 of the walk's marks left of x = 0 and the DAG appeared to unfold from
-  behind the pane's edge. A pane width is also the wrong *origin*: it is rails
-  **plus** the jog zone, and the zone's width is a function of the leader
-  count, which the two serialisations also disagree about, so the 234px slide
-  over-shot the rails' true 180px travel and drew even the spine left of where
-  it had just been;
-* **the rows a study drops cannot be drawn from the target layout**, because
-  they are not in it. So the outgoing paint is kept — the real nodes, moved
-  into an inert overlay — and faded out while the incoming one moves into
-  place. The grid cross-fades with it rather than moving, because two tables of
-  different lengths cannot be lined up; the DAG beside it does not, because its
-  marks start exactly where they were.
-
-  The per-element fade `VA.tweenAlpha` drives is a **second** mechanism, and
-  since 2026-09-15 nothing a reader can click reaches it: both sides of a
-  respine are now the same walk, so the position store's key set is identical
-  and no DAG element is ever added or dropped. It is kept, and tested
-  synthetically, for the same reason the shared-column link fade is — the
-  guarantee is about any two serialisations, not about the corpus.
-
-**The animation is presentation and nothing else.** Its last frame is a plain
-render with no tween and no ghost, so the settled page is the page a render
-that never animated produces — bar for bar, dot for dot, leader for leader, in
-every length mode and both directions. That holds of the *store* as well as of
-the DOM: `VA.tweenPositions(from, to, 1)` is `to`, key set included, which is
-the guard that stopped the carry-over above coming back. The browser tier proves that by
-reaching the same selection twice, once through the transition and once with
-`prefers-reduced-motion: reduce` emulated, and pairing the two DOMs.
-`prefers-reduced-motion` is also the honest answer to the preference itself:
-reduce means jump to the end state, not animate faster.
-
-Two failure modes get explicit answers. A frame runs off an animation callback,
-outside the one try/catch every other render on this page goes through, so a
-throw in one is handed to the same crash banner instead of escaping as an
-unhandled error. And any paint that is **not** one of the transition's own
-frames cancels it first — otherwise the next frame would repaint from the
-context the transition started with and silently undo a preference the reader
-had just changed.
+fainter `--touched`, on rows, brackets and everything the map draws). Nothing
+is dimmed — a reader is tracing *one* thing through the others, not hiding
+them. **Hover spends brightness and width only**: the accent means
+*selected*, so a pointer may not paint anything with it. Hovering opens no
+card either.
 
 ### Generated checks are generated in Python too
 
@@ -2158,73 +1413,6 @@ on the very rail row it mirrors, so the words and the effects stay the
 annotator's: hover lights the thing in the scene, a click selects it, a
 disclosure opens, a checkbox shows or hides, and a selection made in the
 scene comes back marked. Every row that does something is reachable by Tab.
-
-**Leaders across the seam** (handoff `leaders_follow_the_active_study_across_the_seam`,
-2026-10-27; Jeff: "if you selected a single element in 2d or 3d, you could
-quickly trace its 2d and 3d representation, as well as the line of the
-tolerance rollup"). The scene posts where it draws each node
-(`annotate:anchors`, in the iframe's own pixels — docs/ANNOTATION_SURFACE.md,
-"Talking to the shell"); the pane publishes each lit node's DAG end
-(`VA.lastTopoRender.seam`, from `VA.seamDots`: the left side of its dot, or
-its own column on a collapsed body's pill); and one page-level SVG
-(`svg.seamleaders`) draws a leader between the two, offset by the rails SVG's
-and the iframe's measured rects (`VA.seamLeaderGeometry`). Rules:
-
-- **The lit set, or with no study every node** — a kinematic study's own, a
-  chain study's chain, and a node outside it never gets one whatever the scene
-  posts; with no study open every node the DAG draws is lit for leaders, so
-  each node the scene placed has one (2026-11-08, Jeff asked for them by name
-  on the end-stop model's ~25 nodes). A node whose anchor is `null`, whose anchor is outside the
-  scene's visible frame, or whose dot is scrolled out of the DAG's view gets
-  nothing: no leader, no stub. A dot under the pinned grid header is out of
-  view only where the header is painted — its table; over the rails the header
-  is transparent and the dot keeps its leader. A node anchored at `origin` (no
-  mesh installed for its part) is a `null`: its DAG↔grid leader is drawn and
-  its leg into the scene is not, which is the absence it is.
-- **One bend.** A leader runs level out of its dot to half a gutter left of
-  the leftmost thing the DAG draws, turns once, and runs straight to the
-  anchor. Leaving level with its own row is what keeps it off every lit edge's
-  bar: no other row's bar reaches into that row (`VA.seamBarCrossings` counts,
-  and the tiers pin it at none). Crossings among the leaders are counted
-  (`VA.seamCrossings`), not minimised.
-- **One selection, three representations.** `VA.selectedLeaderNodes` — a
-  node's own, an edge's two ends — is the rule both the DAG↔grid leaders and
-  these read: the selected element's leaders wear the accent, every other
-  leader steps back, and the pane's hover lights them lighter. Hover reads the
-  same rule backwards (`VA.leaderEdgesAt`): a DAG↔grid leader lights for every
-  edge ending at its node, so a hovered row lights its two ends' leaders and
-  no other (until 2026-10-29 it lit the leaders whose seam its row starts at,
-  up to three from nodes the edge does not name). The scene's
-  line lights through the `highlight` a kinematic page already posts -- and,
-  since 2026-11-12, a topology page whose pane reports a run loaded on its
-  own topology (`VA.annotateEdgeIsHighlight`): a selected edge there lights
-  in the sweep and never re-drives the pane into bind mode. A selected node
-  is posted with one verb, `model select node`, which in sweep mode is the
-  rail's end row for it; a tree that then shows the pane let go of that row
-  (a second click on the bead or the face) lets the page go too
-  (`VA.sceneInspectStep`), and Escape cancels a pick only when the pane's
-  tree says one is armed (`VA.scenePickArmed`). A pick
-  in the scene selects its row in the scene's rail, and the tree it sends back
-  marks that row: a row naming an edge, or a body carrying exactly one lit
-  edge, selects it here (`VA.sceneRowElement`), so a pick and a click on its
-  contributor row arrive at the same state. A selection never scrolls the
-  document to its grid row, which would slide another row under a pointer that
-  has not moved.
-- **The scene is told the page's lit set and its dim-or-hide word** in its
-  own verb (`model lit …` / `model lit all`, `model unlit dim|hide`), each
-  only when it changed.
-- **Re-drawn on every anchors message, every pane paint (a respine's frames
-  and a zoom's repaint included), every scroll and every resize** — one
-  `ResizeObserver`, one measurement of the three rects, at most one draw per
-  frame. The page's copy of the anchors is dropped when the scene closes and
-  when its document reloads, so a leader is drawn to the DAG only until the
-  scene posts again — never to a point it no longer draws; on reopen and on
-  `annotate:state` the scene is asked for them (`model anchors`), since an
-  unchanged scene posts nothing of its own accord.
-
-The DAG↔grid leaders stay in the rails SVG: they share that SVG's scroll
-exactly, where an overlay redrawn on a scroll event trails a
-compositor-scrolled pane by a frame.
 
 **Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
 `../annotate/index.html` and requires an ok `text/html` answer — the same
@@ -2760,7 +1948,7 @@ apps/viewer/
                       three panes, legend + worksheet + crop-lightbox
                       <dialog>s)
   topology.css        that page's own rules: the nav tree, the toolbar, the
-                      rails, the grid and its totals footer, the study summary
+                      grid and its totals footer, the study summary
                       pane, the legend and worksheet dialogs (the crop
                       lightbox's rules are in style.css, beside the crop rules
                       they extend)
@@ -2785,21 +1973,20 @@ apps/viewer/
                       exception here, and it is the same class as
                       topology.js's below — screen pixels only, never a
                       printed number and never a verdict
-  topology.js         the same, for the topology mode: its vocabularies, the
-                      rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's, mirrored right-justified by VA.spineRight),
-                      the keyed position store + edge-length modes + the
-                      zoom bounds and the DAG/grid centring (VA.rowPositions /
-                      VA.edgeLengthValue / VA.centreOffsets /
-                      VA.DAG_ZOOM / VA.litSpan — the one declared arithmetic on
-                      dimension fields: it feeds bar LENGTHS only, pixels,
-                      never a printed number or a verdict), the grid PLAN +
-                      leader geometry
-                      (VA.gridPlan / VA.internalNodes / VA.leaderGeometry),
+  topology.js         the same, for the topology mode: its vocabularies and
+                      interface words (VA.INTERFACE_KIND_WORDS), the walk's
+                      ORDER for the grid (VA.gatherParts / VA.bandLayout /
+                      VA.layWalk), the grid PLAN and its brackets
+                      (VA.gridPlan / VA.internalNodes / VA.gridBraces),
                       VA.looseStacks / VA.stacksCoveredByTopology
                       (which stacks have no topology, read off edges' own
                       crop_key) and VA.navTree (the nav's data shape)
   fixtures.js         the ?mock=1 demo STACK projection (every provenance state)
+  map.js              the map's layout (VA.mapLayout), pure: boxes, pins,
+                      jumpers, connectors, districts and the view's fit, zoom
+                      and pan arithmetic -- screen pixels only, never a
+                      printed number
+  map.css             the map's look (colour, weight and state only)
   topology_fixtures.js  the ?mock=1 demo MECHANISM, generated by running the
                       real builder over it; topology_app.js merges the two
                       fixtures into one mock adapter at boot
@@ -2830,7 +2017,7 @@ apps/viewer/
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
   views/              dom, banner, nav, stack, crop, cards, lightbox,
-                      worksheet, detail, topology
+                      worksheet, detail, topology, map, kinematic
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```
@@ -2839,6 +2026,6 @@ The stylesheet was inline in `index.html` until 2026-08-31 and has been a linked
 file since, because the DAG mode needs the same colour system, the same chips
 and the same right-hand pane stack mode does — and now, since the two
 modes are one page, `style.css` is simply the whole app's stylesheet
-(`topology.css` on top of it for the DAG-specific rules). A `<link>` is safe from
+(`topology.css` on top of it for the topology page's rules). A `<link>` is safe from
 `file://`; an ES module import is not, which is the constraint this whole app is
 shaped by.
