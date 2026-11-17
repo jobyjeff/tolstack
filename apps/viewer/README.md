@@ -700,7 +700,10 @@ with the joint's symbol drawn large on it; a joint with several constraints
 runs as a bundle. It is laid out from the model view and one authored layout
 file beside the model (`docs/topologies/map_<model id>.json` -- a part's place
 on a coarse grid, nothing else), fitted to its region, and zoomed and panned
-by the reader as the rails are. A model with no layout file draws Classic and
+by the reader as the rails are. Its one arrangement is tall, after Jeff's
+sketch (2026-11-17), so it fills the Side by side region; a part's name sits
+in whichever corner of its box its jumpers leave clear, and a click anywhere
+in a box selects the part while a drag from it pans. A model with no layout file draws Classic and
 the switch says *No map*. The one selection and the one hover light it by
 entity, in the two strengths every surface wears. `docs/DAG_TOPOLOGY.md`,
 "The map", is the rule; `apps/viewer/map.js` the layout, `views/map.js` the

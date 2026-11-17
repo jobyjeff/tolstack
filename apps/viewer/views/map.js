@@ -198,33 +198,9 @@
     return t;
   }
 
-  // A part's name, in two lines inside its box: the number, then the
-  // everyday name, cut to the box with an ellipsis -- the whole label is the
-  // box's tooltip, so a cut name is always discoverable (Jeff, 2026-10-20).
-  function fitText(str, widthPx, fontPx) {
-    var perChar = fontPx * 0.56;
-    var room = Math.max(1, Math.floor(widthPx / perChar));
-    if (str.length <= room) return str;
-    return str.slice(0, Math.max(1, room - 1)).replace(/\s+$/, "") + "…";
-  }
-
-  // ...wrapped onto up to `lines` lines at word boundaries, the last one cut.
-  function wrapText(str, widthPx, fontPx, lines) {
-    var perChar = fontPx * 0.56;
-    var room = Math.max(1, Math.floor(widthPx / perChar));
-    var words = String(str).split(/\s+/).filter(Boolean);
-    var out = [];
-    var line = "";
-    words.forEach(function (w) {
-      var next = line ? line + " " + w : w;
-      if (next.length <= room || !line) line = next;
-      else { out.push(line); line = w; }
-    });
-    if (line) out.push(line);
-    if (out.length > lines) out = out.slice(0, lines - 1).concat([out.slice(lines - 1).join(" ")]);
-    return out.map(function (l) { return fitText(l, widthPx, fontPx); });
-  }
-
+  // A part's name is wrapped and placed by the layout (map.js's
+  // `box.nameBlock`: the corner its jumpers leave clear); a child's, which
+  // has no jumpers, is wrapped here with the same estimate.
   // THE RENDER. `ctx` is renderTopoPane's context: `topoProj` (its `model`
   // block and its `map` file), `model` (the page's model object, for the
   // light), `selectedEntity`, `onHotEntity`, `onSelectEntity`, `regionHead`
@@ -268,6 +244,16 @@
       // A wide transparent twin of the border takes the pointer: the drawn
       // border is dashed and two pixels, and a click in a dash gap landed on
       // the drawing (the click-around found it).
+      // The field inside takes a click and nothing else: a press there
+      // that does not move selects the body (a press that moves pans), but
+      // passing over it lights nothing -- the pointer crosses a district on
+      // its way to every part in it.
+      var field = rect("map__districtfield", body, { rx: M.district.radius, ry: M.district.radius });
+      field.onclick = function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        if (ctx.onSelectEntity) ctx.onSelectEntity({ kind: VA.FOCUS_KINDS.body, id: body.id });
+      };
+      g.appendChild(field);
       var hit = rect("map__districthit", body, { rx: M.district.radius, ry: M.district.radius });
       register(reg, hit, "map__districthit", VA.FOCUS_KINDS.body, body.id);
       wire(hit, ctx, VA.FOCUS_KINDS.body, body.id, body.name);
@@ -312,22 +298,17 @@
       wire(nameG, ctx, VA.FOCUS_KINDS.part, box.id, box.label);
       title(nameG, box.label);
       if (box.child) {
-        var kidLines = wrapText(box.name || box.label, box.w - 16, M.font.child, 2);
+        var kidLines = VA.mapWrapText(box.name || box.label, box.w - 16, M.font.child, 2);
         var ky = box.y + box.h / 2 - (kidLines.length - 1) * (M.font.child + 2) / 2 + M.font.child * 0.36;
         kidLines.forEach(function (l, i) {
           nameG.appendChild(text("map__partname-text", box.x + 8, ky + i * (M.font.child + 2), l,
             { "font-size": M.font.child }));
         });
       } else {
-        var y1 = box.y + 8 + M.font.number;
-        if (box.number) {
-          nameG.appendChild(text("map__partnumber-text", box.x + 10, y1, box.number,
-            { "font-size": M.font.number }));
-          y1 += M.font.part + 4;
-        }
-        wrapText(box.name || box.label, box.w - 20, M.font.part, 2).forEach(function (l, i) {
-          nameG.appendChild(text("map__partname-text", box.x + 10, y1 + i * (M.font.part + 3), l,
-            { "font-size": M.font.part }));
+        var nb = box.nameBlock;
+        nb.lines.forEach(function (l) {
+          nameG.appendChild(text(l.kind === "number" ? "map__partnumber-text" : "map__partname-text", nb.x, l.y, l.text,
+            { "font-size": l.font, "text-anchor": nb.anchor }));
         });
       }
       g.appendChild(nameG);
@@ -384,9 +365,10 @@
     // perimeter, with its short label beside it -- shown on hover and when
     // lit (map.css). An inner mark for a feature that ends none.
     // A pin's label sits just inside its box -- clear of the routes -- except
-    // a top pin's, which sits above the box: inside, it landed on the part's
-    // own name (the 11-16 click-around found "mount end bearing centre"
-    // written over "212956-005").
+    // a top pin's, which sits above the box, and a bottom pin's, below it:
+    // inside, it landed on the part's own name (the 11-16 click-around found
+    // "mount end bearing centre" written over "212956-005"), and a name may
+    // sit at any corner of its box since the map was drawn tall.
     var labelAt = function (pin, side) {
       var o = 12;
       // A flank pin's label sits just below its pin, inside the box: level
@@ -394,7 +376,7 @@
       if (side === "left") return { x: pin.x + o, y: pin.y + o + M.font.pin * 0.8, anchor: "start" };
       if (side === "right") return { x: pin.x - o, y: pin.y + o + M.font.pin * 0.8, anchor: "end" };
       if (side === "top") return { x: pin.x, y: pin.y - o, anchor: "middle" };
-      return { x: pin.x, y: pin.y - o, anchor: "middle" };
+      return { x: pin.x, y: pin.y + o + M.font.pin * 0.8, anchor: "middle" };
     };
     geo.pins.forEach(function (pin) {
       var tint = tintOf(geo, (modelView.parts || []).filter(function (p) { return p.id === pin.part; })
@@ -522,10 +504,17 @@
     return { width: w, height: h };
   }
 
-  // The wheel zooms about the pointer and a drag on the drawing's empty space
-  // pans -- the SVG itself; a box's and a district's interior are the SVG's
-  // (`pointer-events: stroke`), as on the present DAG. Both stop at this
-  // element so the page's own DAG zoom never sees them.
+  // The wheel zooms about the pointer, and a press anywhere but a pin, a
+  // jumper or a connector may pan: the drawing's empty space, a district's
+  // field, a box's interior. A press that moves past VA.MAP_DRAG_SLOP is a
+  // pan and its click is swallowed; a press that does not is a click on
+  // whatever is under it -- a box's interior selects its part, exactly as
+  // its name does (the walk of 2026-11-16 found a click inside the hub's box
+  // selected nothing). The pointer is captured only once the press moves, so
+  // a still click lands on its own element. Both stop at this element so the
+  // page's own DAG zoom never sees them.
+  VA.MAP_DRAG_SLOP = 4;
+  var PANNABLE = ["map__districthit", "map__districtfield", "map__boxhit"];
   function wireView(svg, root, setView, current) {
     if (!svg.addEventListener) return;
     svg.addEventListener("wheel", function (event) {
@@ -535,36 +524,47 @@
       setView(VA.mapZoomAt(current(), event.deltaY, event.clientX - r.left, event.clientY - r.top), true);
     }, { passive: false });
     var drag = null;
+    var swallow = false;
     svg.addEventListener("pointerdown", function (event) {
       if (event.button !== 0 || !event.target) return;
       var t = event.target;
-      if (t !== svg && !(t.classList && (t.classList.contains("map__districthit") || t.classList.contains("map__boxhit")))) return;
-      if (t !== svg) {
-        // On a district's or a box's stroke the click is the entity's; the
-        // interior never arrives here. Let the click stand.
-        return;
-      }
-      drag = { x: event.clientX, y: event.clientY, moved: false };
+      var pannable = t === svg || (t.classList && PANNABLE.some(function (c) { return t.classList.contains(c); }));
+      if (!pannable) return;
+      drag = { x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY,
+               moved: false, pointerId: event.pointerId };
+      swallow = false;
       if (event.stopPropagation) event.stopPropagation();
-      root.classList.add("tv__scroll--zoomgrab");
-      if (svg.setPointerCapture) {
-        try { svg.setPointerCapture(event.pointerId); } catch (err) { /* synthetic */ }
-      }
     });
     svg.addEventListener("pointermove", function (event) {
       if (!drag) return;
+      if (!drag.moved) {
+        if (Math.hypot(event.clientX - drag.x0, event.clientY - drag.y0) < VA.MAP_DRAG_SLOP) return;
+        drag.moved = true;
+        root.classList.add("tv__scroll--zoomgrab");
+        if (svg.setPointerCapture) {
+          try { svg.setPointerCapture(drag.pointerId); } catch (err) { /* synthetic */ }
+        }
+      }
       var dx = event.clientX - drag.x, dy = event.clientY - drag.y;
       if (!dx && !dy) return;
-      drag.moved = true;
       drag.x = event.clientX; drag.y = event.clientY;
       setView(VA.mapPan(current(), dx, dy), true);
     });
     var release = function () {
+      if (drag && drag.moved) swallow = true;
       drag = null;
       root.classList.remove("tv__scroll--zoomgrab");
     };
     svg.addEventListener("pointerup", release);
     svg.addEventListener("pointercancel", release);
+    // A pan's click is no click: caught on the way down, before the box
+    // under the pointer sees it.
+    svg.addEventListener("click", function (event) {
+      if (!swallow) return;
+      swallow = false;
+      if (event.stopPropagation) event.stopPropagation();
+      if (event.preventDefault) event.preventDefault();
+    }, true);
   }
 
   // The region's size moved with no repaint (the 3D pane opened or closed, a

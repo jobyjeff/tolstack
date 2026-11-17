@@ -4842,6 +4842,103 @@ async function testTheMap(browser, label, topologies) {
     await settle();
     push("[real] ...and so does the 0 key", Math.abs((await zoomOf()) - fitZoom) < 1e-6);
 
+    // --- 10b. names, and the box's interior (the_map_is_portrait_as_jeff_drew_it)
+    // No jumper strikes through a part's number or name: every jumper's path,
+    // walked as the page draws it, against every name line's box as the page
+    // lays it out (the walk of 2026-11-16 found three).
+    const struck = await page.evaluate(() => {
+      const svg = document.querySelector("#topopane svg.tv__map");
+      const texts = Array.from(svg.querySelectorAll("g.map__partname text"))
+        .map((t) => ({ r: t.getBoundingClientRect(), s: t.textContent }));
+      const lines = Array.from(svg.querySelectorAll("path.map__jumperline"));
+      const hits = [];
+      lines.forEach((p) => {
+        const L = p.getTotalLength(), m = p.getScreenCTM();
+        for (let i = 0; i <= 200; i++) {
+          const q = p.getPointAtLength(L * i / 200).matrixTransform(m);
+          const t = texts.find((t) => q.x >= t.r.left && q.x <= t.r.right && q.y >= t.r.top && q.y <= t.r.bottom);
+          if (t) { hits.push(p.parentNode.getAttribute("data-map-id") + " x " + t.s); break; }
+        }
+      });
+      return { jumpers: lines.length, texts: texts.length, hits };
+    });
+    console.log(`      [${label}] ${struck.jumpers} jumpers against ${struck.texts} name lines: ` +
+      `${struck.hits.length ? struck.hits.join("; ") : "none crossed"}`);
+    push("[real] no jumper crosses a part's number or name on the map",
+      struck.jumpers === model.model.counts.dimensions && struck.texts > 0 && struck.hits.length === 0);
+    // A point inside a box (or a district's field) where nothing else is: a
+    // grid over its rect, the first point the page hands to that element.
+    const emptyPointIn = (kind, id, cls) => page.evaluate(({ sel, cls }) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      for (let fy = 0.2; fy <= 0.85; fy += 0.05) {
+        for (let fx = 0.15; fx <= 0.85; fx += 0.05) {
+          const x = r.left + r.width * fx, y = r.top + r.height * fy;
+          const hit = document.elementFromPoint(x, y);
+          if (hit && hit.classList && hit.classList.contains(cls) && (hit === el || hit.parentNode === el.parentNode)) return [x, y];
+        }
+      }
+      return null;
+    }, { sel: kind === "body" ? `#topopane svg.tv__map rect.map__district[data-map-id="${id}"]`
+      : `#topopane svg.tv__map rect.map__boxhit[data-map-id="${id}"]`, cls });
+    await page.keyboard.press("Escape");
+    await settle();
+    const inHub = await emptyPointIn("part", "hub", "map__boxhit");
+    if (inHub) {
+      await page.mouse.move(inHub[0], inHub[1]);
+      await page.mouse.down();
+      await page.mouse.up();
+    }
+    await page.waitForFunction((sel) => /--selected/.test((document.querySelector(sel) || {}).getAttribute?.("class") || ""),
+      mapEl("part", "hub") + ".map__box", { timeout: 10000 }).catch(() => {});
+    await untilPane((w) => w.__lastLight && w.__lastLight.layers.some((l) => l.role === "select"), null, 5000);
+    await restHover();
+    s = await surfaces();
+    const hubDims = model.model.parts.find((p) => p.id === "hub").dimensions;
+    console.log(`      [${label}] a click inside the hub's box at ${JSON.stringify(inHub && inHub.map(Math.round))}: ` +
+      `map selected ${s.mapSelected.length}, tree on ${JSON.stringify(s.treeOn.slice(0, 4))}, grid selected ${JSON.stringify(s.gridSelected)}`);
+    push("[real] a still click inside a part's box, clear of its name, pins and jumpers, selects the part " +
+      "on all four surfaces, as a click on its name does",
+      !!inHub && s.mapSelected.indexOf("part:hub") !== -1 && s.treeOn.indexOf("hub") !== -1 &&
+      hubDims.every((d) => s.gridSelected.indexOf(d) !== -1) &&
+      !!s.paneLayers && s.paneLayers.some((l) => l.role === "select" && l.tier === "own"));
+    // A press inside a box that moves is a pan, and selects nothing.
+    await page.keyboard.press("Escape");
+    await settle();
+    const inCover = await emptyPointIn("part", "piston_cover_214958_002", "map__boxhit");
+    const beforePress = await worldBox();
+    if (inCover) {
+      await page.mouse.move(inCover[0], inCover[1]);
+      await page.mouse.down();
+      await page.mouse.move(inCover[0] + 60, inCover[1] + 40, { steps: 6 });
+      await page.mouse.up();
+    }
+    await settle();
+    const afterPress = await worldBox();
+    s = await surfaces();
+    console.log(`      [${label}] a drag from inside the cover's box: world ${Math.round(beforePress.left)},${Math.round(beforePress.top)} -> ` +
+      `${Math.round(afterPress.left)},${Math.round(afterPress.top)}; map selected ${s.mapSelected.length}`);
+    push("[real] a press inside a part's box that moves pans the map by the drag, and selects nothing",
+      !!inCover && Math.abs((afterPress.left - beforePress.left) - 60) < 3 &&
+      Math.abs((afterPress.top - beforePress.top) - 40) < 3 && s.mapSelected.length === 0);
+    // A still click on a district's field selects its body.
+    const inGround = await emptyPointIn("body", "base", "map__districtfield");
+    if (inGround) {
+      await page.mouse.move(inGround[0], inGround[1]);
+      await page.mouse.down();
+      await page.mouse.up();
+    }
+    await page.waitForFunction((sel) => /--selected/.test((document.querySelector(sel) || {}).getAttribute?.("class") || ""),
+      mapEl("body", "base") + ".map__district", { timeout: 10000 }).catch(() => {});
+    await restHover();
+    s = await surfaces();
+    push("[real] a still click on a district's field selects its body",
+      !!inGround && s.mapSelected.indexOf("body:base") !== -1);
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => document.getElementById("dag-fit").click());
+    await settle();
+
     // --- 11. Classic, remembered ---------------------------------------------
     await page.evaluate(() => document.querySelector('#topopane #dag-drawing button[data-drawing="classic"]').click());
     await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 }).catch(() => {});

@@ -615,13 +615,37 @@ with no file (v1) has no map; its region draws Classic and the switch says
 *No map*. The file is not named `topology_<id>.map.json` because every reader
 of the directory globs `topology_*.json` for the models.
 
+**There is one arrangement, and it is tall** (Jeff, 2026-11-17: *"flip the
+map/dag to be portrait instead of landscape so it fits in the side-by-side
+view mode more nicely"*; handoff `the_map_is_portrait_as_jeff_drew_it`). v2's
+places follow his sketch of 2026-11-10: three columns by seven rows, the base
+body a column on the left read upward as the hardware stacks (hub, tangential
+link mount, gas-spring mount, piston cover), the pitch plate body a column on
+the right in the same sense (pitch plate, piston body, lower head, upper
+head), so the end-stop route runs across the top and the feather stop and the
+slide cross the middle; the tangential link between its mount and the pitch
+plate; the pitch link, the pitch arm and the blade down the right below the
+plate, the hub ↔ blade joint along the bottom. Side by side at 3840 × 2160 it
+fits the region's height. Nothing in the layout code assumes either shape: a
+pin's side is decided in cell units, a part's name takes whichever corner of
+its box its jumpers leave clear, and a child's row moves aside for a route
+out of its parent's bottom (below).
+
 **What is computed** (`apps/viewer/map.js`, pure; drawn by
 `apps/viewer/views/map.js`):
 
 - **A box per part**, centred in its cell, sized by its pins: as wide as the
   pins on its top or bottom need, as tall as those on its left or right, never
   under a minimum; its number and everyday name inside, the name wrapped and
-  cut with the whole label as its tooltip.
+  cut with the whole label as its tooltip. **The name keeps clear of the
+  part's jumpers, pins and marks**: it takes the first corner of the box
+  (top-left, top-right, bottom-left, bottom-right, then mid-height), at the
+  box's width or wrapped to half of it, that none of them reaches, and where
+  no corner has room the box is drawn taller until one does
+  (`placeName`; the walk of 2026-11-16 found a jumper struck through three
+  parts' numbers). A child's small boxes sit in a row under the parent --
+  centred, or beside the routes that leave the parent's bottom, so no route
+  runs through a child it does not end on.
 - **A pin per feature that ends an interface**, on the side of the box that
   faces the counterpart's cell; the pins of one side centred and evenly
   spaced, ordered by the counterpart's position and then by the constraint's
@@ -642,9 +666,14 @@ of the directory globs `topology_*.json` for the models.
   assembly's outline** round its own box and its children's small boxes
   (three nested outlines: body, assembly, part).
 - **The view**: fitted to the region on the first paint, never past a cap,
-  then the reader's wheel zooms about the pointer, a drag on empty space pans,
-  Fit and the `0` key re-fit; a selection made elsewhere is panned into view
-  when it is off the region. The view outlives a repaint, not the page.
+  then the reader's wheel zooms about the pointer, a drag pans, Fit and the
+  `0` key re-fit; a selection made elsewhere is panned into view when it is
+  off the region. The view outlives a repaint, not the page.
+- **The pointer**: a whole box is its part's control -- border, interior and
+  name -- and a district's field selects its body on a click but lights
+  nothing as the pointer crosses it. A press on a box's interior, a
+  district's field or the empty drawing that moves past a few pixels is a
+  pan and its click is swallowed; one that does not move is a click.
 
 **The symbol table** (`VA.MAP_SYMBOLS`; the six `INTERFACE_KINDS` through the
 generated vocabulary, plus the view's `contact` and the map's `pattern`):

@@ -15952,6 +15952,123 @@
         eq(VA.mapLayout(mapModel(), null), null);
       });
 
+    // A column of three parts stacked one on the next, as the tall map
+    // draws a body (the_map_is_portrait_as_jeff_drew_it): P on Q on R, each
+    // seat a top or bottom pin; Q's dimension runs from its top pin to its
+    // bottom pin, straight down the middle of its box, and Q's number and
+    // name are long enough that the box's usual corner would cross it.
+    // `kid` gives Q a child with no place of its own.
+    function mapColumn(kid) {
+      var f = function (part, nodeId) {
+        return { id: part + "@" + nodeId, part: part, node: nodeId, name: nodeId, kind: "mating_surface",
+                 shared: true, body: "one" };
+      };
+      var part = function (id, name, features, dims) {
+        return { id: id, label: id + " " + name, number: id + "-000002", name: name, body: "one",
+                 features: features, dimensions: dims, parent: null, children: [], depth: 0 };
+      };
+      var seat = function (id, a, b) {
+        return { id: id, name: id, kind: "contact", source: "node", ends: [a, b], parts: [a.split("@")[0], b.split("@")[0]],
+                 bodies: ["one"], within: "one", joint: id };
+      };
+      var m = {
+        id: "col", title: "col", identity_ids: ["col"],
+        bodies: [{ id: "one", name: "one", kind: "body", parts: ["P", "Q", "R"], all_parts: ["P", "Q", "R"] }],
+        parts: [part("P", "the upper part", ["P@low"], []),
+                part("Q", "the middle part of the stack", ["Q@high", "Q@low"], ["dQ"]),
+                part("R", "the lower part", ["R@high"], [])],
+        features: [f("P", "low"), f("Q", "high"), f("Q", "low"), f("R", "high")],
+        dimensions: [{ id: "dQ", part: "Q", name: "seat to seat", from: "Q@high", to: "Q@low", body: "one" }],
+        interfaces: [seat("PQ", "P@low", "Q@high"), seat("QR", "Q@low", "R@high")],
+        joints: [{ id: "PQ", parts: ["P", "Q"], bodies: ["one"], within: "one", constraints: ["PQ"] },
+                 { id: "QR", parts: ["Q", "R"], bodies: ["one"], within: "one", constraints: ["QR"] }],
+        counts: { bodies: 1, parts: 3, features: 4, dimensions: 1, interfaces: 2 },
+      };
+      if (kid) {
+        m.parts.push({ id: "K", label: "K bearing", number: null, name: "a bearing", body: "one", features: [],
+                       dimensions: [], parent: "Q", children: [], depth: 1 });
+        m.parts[1].children = ["K"];
+        m.bodies[0].all_parts.push("K");
+        m.counts.parts += 1;
+      }
+      return m;
+    }
+    function nameClearOfJumpers(geo) {
+      var M = VA.MAP;
+      var out = [];
+      geo.boxes.filter(function (b) { return !b.child; }).forEach(function (box) {
+        var r = box.nameBlock && box.nameBlock.rect;
+        if (!r) { out.push(box.id + " has no name block"); return; }
+        if (r.x < box.x || r.y < box.y || r.x + r.w > box.x + box.w || r.y + r.h > box.y + box.h) {
+          out.push(box.id + "'s name leaves its box");
+        }
+        geo.jumpers.filter(function (j) { return j.part === box.id; }).forEach(function (j) {
+          var pts = VA.mapJumperSamples(j);
+          for (var i = 1; i < pts.length; i++) {
+            if (VA.mapSegmentHitsRect(pts[i - 1], pts[i], r)) { out.push(j.id + " crosses " + box.id + "'s name"); return; }
+          }
+        });
+        geo.pins.concat(geo.marks).filter(function (p) { return p.part === box.id; }).forEach(function (p) {
+          if (p.x > r.x - M.pinR && p.x < r.x + r.w + M.pinR && p.y > r.y - M.pinR && p.y < r.y + r.h + M.pinR) {
+            out.push(p.id + " sits on " + box.id + "'s name");
+          }
+        });
+      });
+      return out;
+    }
+
+    await test("a part's name sits in a corner of its box that none of the part's jumpers, pins " +
+      "or marks reaches, on the fixture and in a column of parts stacked one on the next, and " +
+      "the drawing writes it where the layout placed it", function () {
+        var demo = VA.mapLayout(TOPO.model, TOPO.map);
+        eq(nameClearOfJumpers(demo), [], "the fixture");
+        var col = VA.mapLayout(mapColumn(false), mapDoc({ P: [0, 0], Q: [0, 1], R: [0, 2] }));
+        eq(col.notes, []);
+        eq(nameClearOfJumpers(col), [], "the column");
+        var q = col.boxes.filter(function (b) { return b.id === "Q"; })[0];
+        var chord = col.jumpers.filter(function (j) { return j.id === "dQ"; })[0];
+        eq(chord.d.indexOf("Q"), -1, "Q's dimension is a straight line, top pin to bottom pin");
+        var r = q.nameBlock.rect;
+        ok(r.x + r.w < q.x + q.w / 2 || r.x > q.x + q.w / 2, "Q's name is beside its chord, not across it");
+        // The drawing writes the block's lines at the block's place.
+        VA.forgetMapViews();
+        var root = document.createElement("div");
+        VA.renderTopoMap(root, { topoProj: { id: "col", model: mapColumn(false), map: mapDoc({ P: [0, 0], Q: [0, 1], R: [0, 2] }) },
+          model: null, mapRegion: { width: 600, height: 1200 } });
+        var nameG = all(root, "g.map__partname").filter(function (g) { return g.getAttribute("data-map-id") === "Q"; })[0];
+        var texts = all(nameG, "text");
+        eq(texts.map(function (t) { return t.textContent; }), q.nameBlock.lines.map(function (l) { return l.text; }));
+        eq(texts.map(function (t) { return Number(t.getAttribute("x")); }),
+           q.nameBlock.lines.map(function () { return q.nameBlock.x; }));
+        eq(texts.map(function (t) { return t.getAttribute("text-anchor"); }),
+           q.nameBlock.lines.map(function () { return q.nameBlock.anchor; }));
+      });
+
+    await test("a child with no place sits under its parent, beside any route that leaves the " +
+      "parent's bottom, so no route is drawn through a box it does not end on", function () {
+        var geo = VA.mapLayout(mapColumn(true), mapDoc({ P: [0, 0], Q: [0, 1], R: [0, 2] }));
+        eq(geo.notes, [], "no route through the child");
+        var k = geo.boxes.filter(function (b) { return b.id === "K"; })[0];
+        var q = geo.boxes.filter(function (b) { return b.id === "Q"; })[0];
+        var low = geo.pins.filter(function (p) { return p.id === "Q@low"; })[0];
+        ok(k.child && k.y >= q.y + q.h, "under its parent");
+        ok(k.x + k.w < low.x - VA.MAP.pinR || k.x > low.x + VA.MAP.pinR, "beside the route out of Q's bottom");
+        var route = geo.connectors.filter(function (c) { return c.id === "QR"; })[0];
+        for (var i = 1; i < route.points.length; i++) {
+          ok(!VA.mapSegmentHitsRect(route.points[i - 1], route.points[i], k), "QR clears the child, leg " + i);
+        }
+        // With nothing leaving the parent's bottom the row is centred, as before.
+        var nested = mapModel();
+        nested.parts.push({ id: "K", label: "k", number: null, name: "bearing", body: "two", features: [],
+          dimensions: [], parent: "C", children: [], depth: 1 });
+        nested.parts[2].children = ["K"];
+        nested.bodies[1].all_parts = ["C", "K"];
+        var g2 = VA.mapLayout(nested, mapDoc());
+        var c2 = g2.boxes.filter(function (b) { return b.id === "C"; })[0];
+        var k2 = g2.boxes.filter(function (b) { return b.id === "K"; })[0];
+        eq(Math.round(k2.x + k2.w / 2), Math.round(c2.x + c2.w / 2), "centred under a part with no bottom pin");
+      });
+
     await test("the map is the default drawing for a model with a layout, Classic for one " +
       "without, the choice is remembered under its own key, and the region's switch presses " +
       "the drawing shown or says No map", function () {

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a part's name sits in a corner of its box that none of the part's jumpers, pins or marks reaches, on the fixture and in a column of parts stacked one on the next, and the drawing writes it where the layout placed it",
+  "mutations": [
+    {
+      "contract": "A part's name takes the first corner of its box that its jumpers, pins and marks leave clear.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_map_is_portrait_as_jeff_drew_it.md",
+      "note": "Takes the first corner whatever crosses it, so a jumper running top pin to bottom pin strikes through the name, as the walk of 2026-11-16 found.",
+      "file": "apps/viewer/map.js",
+      "find": "        if (!hit) return block;",
+      "replace": "        return block; /* mutated: the first corner, crossed or not */"
+    }
+  ]
+}

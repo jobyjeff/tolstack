@@ -110,10 +110,15 @@
     district: Object.freeze({ inset: 24, pad: 46, radius: 12 }),
     // An assembly's outline round its own box and its children's.
     assembly: Object.freeze({ pad: 12, radius: 8 }),
-    // A child part with no place of its own: a small box under its parent's.
-    child: Object.freeze({ w: 150, h: 50, gap: 12 }),
+    // A child part with no place of its own: a small box under its parent's
+    // (`clear` is how far it keeps from a route leaving the parent's bottom).
+    child: Object.freeze({ w: 150, h: 50, gap: 12, clear: 16 }),
     // Type, in world units (SVG attributes, scaled with the drawing).
     font: Object.freeze({ body: 18, part: 17, number: 15, pin: 13, child: 12 }),
+    // A part's name block: `inset` from the box's border, `clear` from any
+    // jumper or mark; `grow` is how much taller a box is drawn, at a time,
+    // when no corner of it has room for the name.
+    name: Object.freeze({ inset: 10, clear: 6, grow: 24, tries: 8 }),
     margin: 40,
   });
 
@@ -278,6 +283,142 @@
 
   function round(n) { return Math.round(n * 100) / 100; }
 
+  // --- a part's name ----------------------------------------------------------
+  //
+  // One estimate of a glyph's width, shared by the layout (which corner of a
+  // box has room for the name) and the drawing (where the lines are cut), so
+  // the two cannot disagree. Generous: a proportional face is narrower.
+  VA.MAP_GLYPH = 0.56;
+
+  // A string cut to `width` world units at `font`, with an ellipsis -- the
+  // whole label is the box's tooltip, so a cut name is always discoverable
+  // (Jeff, 2026-10-20).
+  VA.mapFitText = function (str, width, font) {
+    var room = Math.max(1, Math.floor(width / (font * VA.MAP_GLYPH)));
+    if (str.length <= room) return str;
+    return str.slice(0, Math.max(1, room - 1)).replace(/\s+$/, "") + "…";
+  };
+
+  // ...wrapped onto up to `lines` lines at word boundaries, the last one cut.
+  VA.mapWrapText = function (str, width, font, lines) {
+    var room = Math.max(1, Math.floor(width / (font * VA.MAP_GLYPH)));
+    var words = String(str).split(/\s+/).filter(Boolean);
+    var out = [];
+    var line = "";
+    words.forEach(function (w) {
+      var next = line ? line + " " + w : w;
+      if (next.length <= room || !line) line = next;
+      else { out.push(line); line = w; }
+    });
+    if (line) out.push(line);
+    if (out.length > lines) out = out.slice(0, lines - 1).concat([out.slice(lines - 1).join(" ")]);
+    return out.map(function (l) { return VA.mapFitText(l, width, font); });
+  };
+
+  // A name block's lines, wrapped to `width`: the number, then the everyday
+  // name on up to `lines` lines. Each line is {text, font, kind}.
+  function nameLines(box, width, lines, M) {
+    var out = [];
+    if (box.number) out.push({ text: box.number, font: M.font.number, kind: "number" });
+    VA.mapWrapText(box.name || box.label, width, M.font.part, lines).forEach(function (t) {
+      out.push({ text: t, font: M.font.part, kind: "name" });
+    });
+    return out;
+  }
+
+  // The block those lines take at a corner of the box: `at` is
+  // [horizontal, vertical] -- start | end, top | middle | bottom. Each line
+  // gets its baseline; `rect` is the block's extent, the thing the layout
+  // keeps every jumper out of.
+  function nameBlock(box, lines, at, M) {
+    var pad = M.name.inset;
+    var lineH = function (l) { return Math.round(l.font * 1.25); };
+    var h = lines.reduce(function (s, l) { return s + lineH(l); }, 0);
+    var w = lines.reduce(function (m, l) { return Math.max(m, l.text.length * l.font * VA.MAP_GLYPH); }, 0);
+    var top = at[1] === "top" ? box.y + pad - 2
+      : at[1] === "bottom" ? box.y + box.h - pad - h + 2 : box.y + (box.h - h) / 2;
+    var x = at[0] === "start" ? box.x + pad : box.x + box.w - pad;
+    var y = top;
+    var placed = lines.map(function (l) {
+      var baseline = y + l.font * 0.95;
+      y += lineH(l);
+      return { text: l.text, font: l.font, kind: l.kind, y: round(baseline) };
+    });
+    return {
+      x: round(x), anchor: at[0], lines: placed,
+      rect: { x: at[0] === "start" ? x : x - w, y: top, w: w, h: h },
+    };
+  }
+
+  // The points a jumper's path passes through, for a clearance test: its
+  // straight line, or its bow sampled.
+  function jumperSamples(j) {
+    var out = [];
+    for (var i = 0; i <= 24; i++) {
+      var t = i / 24, s = 1 - t;
+      if (j.ctrl) {
+        out.push({ x: s * s * j.a.x + 2 * s * t * j.ctrl.x + t * t * j.b.x,
+                   y: s * s * j.a.y + 2 * s * t * j.ctrl.y + t * t * j.b.y });
+      } else {
+        out.push({ x: j.a.x + (j.b.x - j.a.x) * t, y: j.a.y + (j.b.y - j.a.y) * t });
+      }
+    }
+    return out;
+  }
+
+  // Does a polyline through `pts` come within `d` of rect `r`? Checked on
+  // each segment against the rect grown by `d` (a segment test, not samples
+  // alone, so a steep line cannot slip between two).
+  function nearRect(pts, r, d) {
+    var g = { x: r.x - d, y: r.y - d, w: r.w + 2 * d, h: r.h + 2 * d };
+    for (var i = 1; i < pts.length; i++) {
+      if (segmentHitsRect(pts[i - 1], pts[i], g)) return true;
+    }
+    return false;
+  }
+
+  // Liang-Barsky: does segment p-q meet rect r?
+  function segmentHitsRect(p, q, r) {
+    var t0 = 0, t1 = 1, dx = q.x - p.x, dy = q.y - p.y;
+    var edges = [[-dx, p.x - r.x], [dx, r.x + r.w - p.x], [-dy, p.y - r.y], [dy, r.y + r.h - p.y]];
+    for (var i = 0; i < 4; i++) {
+      var pp = edges[i][0], qq = edges[i][1];
+      if (pp === 0) { if (qq < 0) return false; continue; }
+      var t = qq / pp;
+      if (pp < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+      else { if (t < t0) return false; if (t < t1) t1 = t; }
+    }
+    return true;
+  }
+  VA.mapSegmentHitsRect = segmentHitsRect;
+
+  // Where a part's name sits: the first corner of its box, at the box's
+  // width or half of it, whose block keeps `clear` from every jumper, mark
+  // and pin of the part. Null when no corner has room.
+  var NAME_CORNERS = [["start", "top"], ["end", "top"], ["start", "bottom"], ["end", "bottom"],
+                      ["start", "middle"], ["end", "middle"]];
+  function placeName(box, jumpers, dots, M) {
+    var full = box.w - 2 * M.name.inset;
+    var half = box.w / 2 - M.name.inset - M.pinR - M.name.clear;
+    var wraps = [[full, 2], [half, 3]];
+    for (var w = 0; w < wraps.length; w++) {
+      var lines = nameLines(box, wraps[w][0], wraps[w][1], M);
+      for (var c = 0; c < NAME_CORNERS.length; c++) {
+        var block = nameBlock(box, lines, NAME_CORNERS[c], M);
+        var r = block.rect;
+        if (r.y < box.y || r.y + r.h > box.y + box.h) continue;
+        var hit = jumpers.some(function (j) { return nearRect(jumperSamples(j), r, M.name.clear); }) ||
+          dots.some(function (p) {
+            return p.x > r.x - M.pinR - M.name.clear && p.x < r.x + r.w + M.pinR + M.name.clear &&
+                   p.y > r.y - M.pinR - M.name.clear && p.y < r.y + r.h + M.pinR + M.name.clear;
+          });
+        if (!hit) return block;
+      }
+    }
+    return null;
+  }
+  VA.mapJumperSamples = jumperSamples;
+
   // Where a connector's symbol sits: the point of the route nearest the
   // midpoint between its two pins, and the angle (degrees) of the segment it
   // is on. Between two boxes centred in adjacent cells that midpoint is the
@@ -391,55 +532,29 @@
       });
     });
 
-    // 4. Boxes: sized by their pins, centred in their cells. A child with
-    //    no place of its own is a small box under its parent's; the parent
-    //    shifts up to make the room.
+    // 4-6. Each part, placed whole: its box sized by its pins and centred in
+    //    its cell, its pins along each side, its inner marks, its jumpers,
+    //    its children and its name. The name takes the first corner of the
+    //    box its jumpers leave clear (the walk of 2026-11-16 found a jumper
+    //    struck through three parts' numbers); where no corner has room the
+    //    box is drawn taller and the part placed again.
     var boxes = [];
     var boxOf = {};
+    var pins = [];
+    var marks = [];
+    var jumpers = [];
     var childrenInCell = {};
     Object.keys(childless).forEach(function (cid) {
       (childrenInCell[childless[cid]] = childrenInCell[childless[cid]] || []).push(cid);
     });
-    (model.parts || []).forEach(function (p) {
-      if (!placeOf[p.id] || childless[p.id]) return;
-      var cell = cellRect(placeOf[p.id], M);
-      var pins = pinsOf[p.id] || { top: [], right: [], bottom: [], left: [] };
-      var across = Math.max(pins.top.length, pins.bottom.length);
-      var down = Math.max(pins.left.length, pins.right.length);
-      var w = Math.max(M.box.minW, across * M.pinPitch + 2 * M.box.pad);
-      var h = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);
-      var kids = childrenInCell[p.id] || [];
-      var kidsH = kids.length ? M.child.h + M.child.gap : 0;
-      var c = centre(cell);
-      var box = {
-        id: p.id, label: p.label, number: p.number, name: p.name, body: p.body,
-        x: c.x - w / 2, y: c.y - (h + kidsH) / 2, w: w, h: h, cell: cell,
-      };
-      if (w > cell.w - 2 * M.district.inset || h + kidsH > cell.h - 2 * M.district.inset) {
-        notes.push("part " + p.id + "'s box (" + Math.round(w) + " x " + Math.round(h + kidsH) +
-          ") outgrows its cell");
-      }
-      boxes.push(box);
-      boxOf[p.id] = box;
-      // The children, in a row under the parent, centred.
-      var rowW = kids.length * M.child.w + (kids.length - 1) * M.child.gap;
-      kids.forEach(function (cid, i) {
-        var kid = parts[cid];
-        var kx = c.x - rowW / 2 + i * (M.child.w + M.child.gap);
-        var kbox = {
-          id: cid, label: kid.label, number: kid.number, name: kid.name, body: kid.body,
-          x: kx, y: box.y + h + M.child.gap, w: M.child.w, h: M.child.h, cell: cell, child: true,
-        };
-        boxes.push(kbox);
-        boxOf[cid] = kbox;
-      });
-    });
+    var dimsOf = {};
+    (model.dimensions || []).forEach(function (d) { (dimsOf[d.part] = dimsOf[d.part] || []).push(d); });
 
-    // 5. Pin coordinates, along each side, centred.
-    var pins = [];
-    boxes.forEach(function (box) {
+    // Pin coordinates along each side of `box`, centred on the side.
+    var pinsAlong = function (box) {
+      var out = [];
       var bySide = pinsOf[box.id];
-      if (!bySide) return;
+      if (!bySide) return out;
       SIDES.forEach(function (side) {
         var list = bySide[side];
         list.forEach(function (pin, i) {
@@ -449,42 +564,123 @@
           if (side === "top") { pin.x = box.x + box.w / 2 + off; pin.y = box.y; }
           if (side === "bottom") { pin.x = box.x + box.w / 2 + off; pin.y = box.y + box.h; }
           pin.x = round(pin.x); pin.y = round(pin.y);
-          pins.push(pin);
+          out.push(pin);
         });
       });
-    });
+      return out;
+    };
     // Inner marks: spread along the box's middle.
-    var marks = [];
-    boxes.forEach(function (box) {
+    var marksAlong = function (box) {
       var list = marksOf[box.id] || [];
       list.forEach(function (mark, i) {
         mark.x = round(box.x + box.w * (i + 1) / (list.length + 1));
         mark.y = round(box.y + box.h / 2);
-        marks.push(mark);
+      });
+      return list.slice();
+    };
+    // A part's jumpers: one per dimension, between the two ends it measures.
+    // Two ends on one side bow into the box so the line is not lost in it.
+    var jumpersOf = function (pid, ends) {
+      var out = [];
+      (dimsOf[pid] || []).forEach(function (d) {
+        var a = ends[d.from], b = ends[d.to];
+        if (!a || !b) return;
+        var j = { id: d.id, part: d.part, name: d.name, from: d.from, to: d.to,
+                  a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, ctrl: null,
+                  mid: { x: round((a.x + b.x) / 2), y: round((a.y + b.y) / 2) } };
+        if (a.side && a.side === b.side) {
+          var n = NORMAL[a.side];
+          var bow = Math.max(24, Math.hypot(b.x - a.x, b.y - a.y) * 0.35);
+          j.ctrl = { x: round((a.x + b.x) / 2 - n[0] * bow), y: round((a.y + b.y) / 2 - n[1] * bow) };
+          j.d = "M" + a.x + " " + a.y + " Q" + j.ctrl.x + " " + j.ctrl.y + " " + b.x + " " + b.y;
+        } else {
+          j.d = pathD([a, b]);
+        }
+        out.push(j);
+      });
+      return out;
+    };
+
+    (model.parts || []).forEach(function (p) {
+      if (!placeOf[p.id] || childless[p.id]) return;
+      var cell = cellRect(placeOf[p.id], M);
+      var bySide = pinsOf[p.id] || { top: [], right: [], bottom: [], left: [] };
+      var across = Math.max(bySide.top.length, bySide.bottom.length);
+      var down = Math.max(bySide.left.length, bySide.right.length);
+      var w = Math.max(M.box.minW, across * M.pinPitch + 2 * M.box.pad);
+      var h0 = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);
+      var kids = childrenInCell[p.id] || [];
+      var kidsH = kids.length ? M.child.h + M.child.gap : 0;
+      var c = centre(cell);
+      var box, ownPins, ownMarks, ownJumpers, name;
+      for (var attempt = 0; attempt <= M.name.tries; attempt++) {
+        var h = h0 + attempt * M.name.grow;
+        box = {
+          id: p.id, label: p.label, number: p.number, name: p.name, body: p.body,
+          x: c.x - w / 2, y: c.y - (h + kidsH) / 2, w: w, h: h, cell: cell,
+        };
+        ownPins = pinsAlong(box);
+        ownMarks = marksAlong(box);
+        var ends = {};
+        ownPins.forEach(function (q) { ends[q.id] = q; });
+        ownMarks.forEach(function (q) { ends[q.id] = q; });
+        ownJumpers = jumpersOf(p.id, ends);
+        name = placeName(box, ownJumpers, ownPins.concat(ownMarks), M);
+        if (name) break;
+      }
+      if (!name) {
+        notes.push("part " + p.id + "'s name has no room clear of its jumpers");
+        name = nameBlock(box, nameLines(box, w - 2 * M.name.inset, 2, M), ["start", "top"], M);
+      }
+      box.nameBlock = name;
+      if (box.w > cell.w - 2 * M.district.inset || box.h + kidsH > cell.h - 2 * M.district.inset) {
+        notes.push("part " + p.id + "'s box (" + Math.round(box.w) + " x " + Math.round(box.h + kidsH) +
+          ") outgrows its cell");
+      }
+      boxes.push(box);
+      boxOf[p.id] = box;
+      Array.prototype.push.apply(pins, ownPins);
+      Array.prototype.push.apply(marks, ownMarks);
+      Array.prototype.push.apply(jumpers, ownJumpers);
+      // The children, in a row under the parent: centred, or -- where routes
+      // leave the parent's bottom, as in a column of parts stacked one on
+      // the next -- beside those routes, on the side with more room, so no
+      // route is drawn through a child it does not end on.
+      var rowW = kids.length * M.child.w + (kids.length - 1) * M.child.gap;
+      var rowX = c.x - rowW / 2;
+      var under = bySide.bottom;
+      if (kids.length && under.length) {
+        var lo = Math.min.apply(null, under.map(function (q) { return q.x; })) - M.pinR - M.child.clear;
+        var hi = Math.max.apply(null, under.map(function (q) { return q.x; })) + M.pinR + M.child.clear;
+        var roomL = lo - (cell.x + M.district.inset + M.assembly.pad);
+        var roomR = (cell.x + cell.w - M.district.inset - M.assembly.pad) - hi;
+        if (roomL >= rowW && roomL >= roomR) rowX = lo - rowW;
+        else if (roomR >= rowW) rowX = hi;
+      }
+      kids.forEach(function (cid, i) {
+        var kid = parts[cid];
+        var kbox = {
+          id: cid, label: kid.label, number: kid.number, name: kid.name, body: kid.body,
+          x: rowX + i * (M.child.w + M.child.gap), y: box.y + box.h + M.child.gap,
+          w: M.child.w, h: M.child.h, cell: cell, child: true,
+        };
+        boxes.push(kbox);
+        boxOf[cid] = kbox;
+        // A child's own features, should it have any, on its own box.
+        var kidPins = pinsAlong(kbox), kidMarks = marksAlong(kbox);
+        var kidEnds = {};
+        kidPins.concat(kidMarks).forEach(function (q) { kidEnds[q.id] = q; });
+        Array.prototype.push.apply(pins, kidPins);
+        Array.prototype.push.apply(marks, kidMarks);
+        Array.prototype.push.apply(jumpers, jumpersOf(cid, kidEnds));
       });
     });
-    var endOf = {};
-    pins.forEach(function (p) { endOf[p.id] = p; });
-    marks.forEach(function (m) { endOf[m.id] = m; });
-
-    // 6. Jumpers: one per dimension, between the two ends it measures. Two
-    //    ends on one side bow into the box so the line is not lost in it.
-    var jumpers = [];
+    // A dimension whose ends the map did not place on its own part is a
+    // defect, said once.
+    var drawn = {};
+    jumpers.forEach(function (j) { drawn[j.id] = true; });
     (model.dimensions || []).forEach(function (d) {
-      var a = endOf[d.from], b = endOf[d.to];
-      if (!a || !b) { notes.push("dimension " + d.id + " has an end the map did not place"); return; }
-      var box = boxOf[d.part];
-      var dpath;
-      if (a.side && a.side === b.side && box) {
-        var n = NORMAL[a.side];
-        var bow = Math.max(24, Math.hypot(b.x - a.x, b.y - a.y) * 0.35);
-        var cx = (a.x + b.x) / 2 - n[0] * bow, cy = (a.y + b.y) / 2 - n[1] * bow;
-        dpath = "M" + a.x + " " + a.y + " Q" + round(cx) + " " + round(cy) + " " + b.x + " " + b.y;
-      } else {
-        dpath = pathD([a, b]);
-      }
-      jumpers.push({ id: d.id, part: d.part, name: d.name, from: d.from, to: d.to, d: dpath,
-                     mid: { x: round((a.x + b.x) / 2), y: round((a.y + b.y) / 2) } });
+      if (!drawn[d.id]) notes.push("dimension " + d.id + " has an end the map did not place");
     });
 
     // 7. Connectors: one per interface, routed between its two pins, with

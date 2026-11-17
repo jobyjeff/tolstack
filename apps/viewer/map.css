@@ -20,7 +20,8 @@
 .tv__map text { font-family: inherit; }
 
 /* A body's district: a dashed field in the body's ink, barely tinted, named
-   once at its corner. Its interior is the drawing's empty space (pan). */
+   once at its corner. Its interior pans on a drag and selects the body on a
+   still click (views/map.js's wireView), and lights nothing on a pass. */
 .map__district {
   fill: color-mix(in srgb, var(--fill-ink, var(--group-body)) 5%, transparent);
   stroke: var(--fill-ink, var(--group-body)); stroke-opacity: .7; stroke-width: 2;
@@ -31,6 +32,9 @@
    border is dashed and thin; a click in a dash gap must still be the body's).
    The drawn border itself takes no pointer, so it never shadows the twin. */
 .map__districthit, .map__boxhit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+.map__districtfield { fill: transparent; stroke: none; pointer-events: fill; }
+/* A box's interior is its part's, like its border and its name. */
+.map__boxhit { fill: transparent; pointer-events: all; }
 .map__district { pointer-events: none; }
 
 /* An assembly's outline round its own box and its children's: dotted,
@@ -41,8 +45,8 @@
 }
 
 /* A part's box: an outline in a lighter cut of the body's ink; a bearing's
-   (a child's) thinner. The interior is pan space; the border and the name
-   are the part's controls, as on the present DAG. */
+   (a child's) thinner. The whole box is the part's control -- border,
+   interior and name; a drag that starts inside it still pans. */
 .map__box {
   fill: none; stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
   stroke-width: 2; pointer-events: none;

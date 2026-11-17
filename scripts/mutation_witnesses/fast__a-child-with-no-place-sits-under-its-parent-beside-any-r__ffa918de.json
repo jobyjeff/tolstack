@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a child with no place sits under its parent, beside any route that leaves the parent's bottom, so no route is drawn through a box it does not end on",
+  "mutations": [
+    {
+      "contract": "A child's row moves beside the routes that leave its parent's bottom.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_map_is_portrait_as_jeff_drew_it.md",
+      "note": "Always centres the row, so the route out of the parent's bottom runs through the child, as the pitch link's bearing did in the first tall arrangement.",
+      "file": "apps/viewer/map.js",
+      "find": "      if (kids.length && under.length) {",
+      "replace": "      if (false) { /* mutated: the row is always centred */"
+    }
+  ]
+}

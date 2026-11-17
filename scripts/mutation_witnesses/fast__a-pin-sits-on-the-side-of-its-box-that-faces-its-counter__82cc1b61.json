@@ -16,8 +16,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
       "note": "Holds every box at the minimum height, so two pins on one side no longer size it.",
       "file": "apps/viewer/map.js",
-      "find": "      var h = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);",
-      "replace": "      var h = M.box.minH; /* mutated: pins no longer size the box */"
+      "find": "      var h0 = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);",
+      "replace": "      var h0 = M.box.minH; /* mutated: pins no longer size the box */"
     }
   ]
 }
