@@ -399,18 +399,25 @@
     // settled: WHICH rows are on screen never changes, only how tall their
     // slots are, so this is a render() like the density and length-mode
     // toggles are, never a rewind().
+    //
+    // The widths are re-clamped AT ONCE, in the event itself; only the paint
+    // waits. A timer is a promise about when nothing else is running, and on a
+    // cold page the 3D scene's own re-render at the new size held the main
+    // thread for ~3 s, so a clamp behind the debounce left the map's region 0
+    // wide for ~4 s. Clamped in the event, the scene's ResizeObserver sees
+    // the final width and draws once, at that width.
     if (window.addEventListener) {
       var resizeTimer = null;
       window.addEventListener("resize", function () {
+        applyPaneWidth();
+        // The 3D view is clamped on load and on every open; a window that
+        // shrinks under it needs the same clamp, or it keeps its pixel width
+        // and the map's region is left 0 wide. Measured AFTER the grid's
+        // column is re-applied (roomBesideFlyout reads it).
+        if (nodes.flyout && nodes.flyout.open) refitPane();
         if (resizeTimer) window.clearTimeout(resizeTimer);
         resizeTimer = window.setTimeout(function () {
           resizeTimer = null;
-          applyPaneWidth();
-          // The 3D view is clamped on load and on every open; a window that
-          // shrinks under it needs the same clamp, or it keeps its pixel width
-          // and the map's region is left 0 wide. Measured AFTER the grid's
-          // column is re-applied (roomBesideFlyout reads it).
-          if (nodes.flyout && nodes.flyout.open) refitPane();
           render();
         }, 150);
       });

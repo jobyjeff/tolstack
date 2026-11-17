@@ -8,8 +8,8 @@
       "issue": "docs/issues/ISSUE_20261116_shrinking_the_window_with_the_pane_open_leaves_the_map_region_zero_wide.md",
       "note": "The resize handler no longer refits the 3D view.",
       "file": "apps/viewer/topology_app.js",
-      "find": "          if (nodes.flyout && nodes.flyout.open) refitPane();\n",
-      "replace": "          /* mutated */\n"
+      "find": "        if (nodes.flyout && nodes.flyout.open) refitPane();\n",
+      "replace": "        /* mutated */\n"
     }
   ]
 }

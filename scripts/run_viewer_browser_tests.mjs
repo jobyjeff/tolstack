@@ -5004,7 +5004,14 @@ async function testWindowResizeReclamps(browser, label, topologies) {
     await open();
     const wide = await region();
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await settle(1200);
+    // Read on the page's own clock, not the wall's: two animation frames are
+    // past the resize steps (which run before them in the same frame), so this
+    // is the first layout the page could paint at 1920. A fixed settle raced
+    // the cold page's ~3 s of 3D-scene work, which held the resize event and
+    // the clamp's old debounce both, and read the region in between
+    // (the_window_resize_reclamp_holds_on_a_cold_run).
+    await page.evaluate(() => new Promise((done) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => done()))));
     const shrunk = await region();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await open();
