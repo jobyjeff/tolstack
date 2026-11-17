@@ -253,3 +253,25 @@ not a one-off.
 ## Measurement 2026-11-17 (review of the_map_is_portrait_as_jeff_drew_it; found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_portrait_as_jeff_drew_it.md)
 
 `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/portrait_20261117`, review worktree (merged tree, runner row sha `129c0330`, tree `ed593878`), **48/48, 1127 checks, 1871 s** -- OVER BUDGET by 1m12s against the 30-minute merge tier. The default pytest tier ran beside it for its first ~8 minutes. The map suite is 89.8 s of it (33 checks, +4 this handoff).
+
+## Measurement 2026-11-17 (review of a_joint_says_what_kind_it_is)
+
+Whole tier, review worktree, `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/jk_review`, tree `b16290de`: **2177 s** (36m17s) against 1800 s, slot wait 1 s, 1128 checks, 46/48 suites. Both reds are flakes: the baseline/merge pairs are in `REVIEW_20261117_a_joint_says_what_kind_it_is.md`. The red "a suggestion names its face" run spent about 250 s in timed-out waits, which is most of the overrun (`ISSUE_20261117_the_suggestion_names_its_face_suite_flakes_with_the_mount_line_never_appearing.md`). Slowest 15:
+
+```
+    372.2s    5 checks  a suggestion names its face and the mate ranks the other side (hover, Take, armed mates, nothing opposite)
+    159.3s   47 checks  the DAG zoom, Fit and the grid header
+    156.9s  181 checks  topology http
+    102.1s  135 checks  topology file://
+     98.6s   31 checks  3D pane follows the selection (sweep, bind, reload, hover)
+     93.6s   17 checks  annotate rail holds still (bodies under Bodies, joint words, framing, the second face)
+     91.8s   16 checks  no nav click wedges the page
+     91.3s   34 checks  the map (Map . Classic, the counts, the one selection on four surfaces, the view)
+     86.6s   25 checks  leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)
+     80.1s   44 checks  topology file:// respine
+     74.0s   23 checks  the model drawn alone and led (the end-stop model's parts only, a leader per placed node)
+     71.3s   27 checks  kinematic study page (deep link, chart hover, contributors, no projection)
+     70.4s   41 checks  annotate flyout (repo-root mount + file:// degradation)
+     63.9s   11 checks  every study opens in 3D showing only its parts
+     55.5s   22 checks  annotate model in the scene (anchors, lines, the sweep, the anchors message)
+```

@@ -41,3 +41,15 @@ module, `viewer` namespace), regenerate, and have `model.js` / `nav.js` read
 `VOCAB.list("DIRECTIONS")`, `VOCAB.list("STACK_KEY_KINDS")` and the two new
 lists rather than spelling the words. `VA.EDGE_ENDS` can stay as the viewer's
 named handle if it is *built from* the generated list, not beside it.
+
+## Addendum 2026-11-17 (review of a_joint_says_what_kind_it_is)
+
+Two more hand copies of `CONTACT_KIND`, plus one hand copy of the model view's
+rule. `apps/viewer/element_record.js` (the node record's `jointKind`) computes
+`parts.length === 2 ? (node.interface || "contact") : null`, which is
+`model_view`'s rule for a shared node's interface kind restated in JS. And
+`apps/viewer/interface_glyphs.js` adds `{ contact: "contact" }` to
+`VA.INTERFACE_KIND_WORDS`. The fix this issue already proposes, a registry
+row for `CONTACT_KIND`, covers the word. The record could also read the
+interface's `kind` off the model view the page already builds instead of
+re-deriving it.

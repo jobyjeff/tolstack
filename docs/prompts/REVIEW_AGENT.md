@@ -472,6 +472,10 @@ problem as an unrecorded full suite one step later.
   positional, the fast tier's DOM shim **structurally cannot see the defect
   class** and the browser tier is not optional:
   `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`.
+  **That runner honours only the FIRST `--only`** (measured 2026-11-17: two
+  flags printed `running 1 of 48 suites`), unlike the witness runner, which
+  repeats. To pair two red suites baseline-vs-merge, give each suite its own
+  invocation, and read the `running N of 48` line.
 - **`apps/annotate/`** → `pytest -q tests/test_js_python_vocabulary.py
   tests/test_js_vocabulary_is_generated.py tests/test_feature_identity.py
   tests/test_part_mesh_aliases.py`, plus
