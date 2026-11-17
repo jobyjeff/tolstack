@@ -199,8 +199,24 @@ All runs were on this branch's tree.
     not exist yet.
 
   The re-run after this lesson is below.
+- **Re-run after the lesson:** `tests/test_mutation_witnesses.py`,
+  `test_model_view.py` and `test_topology.py`, 250 passed. The default tier
+  was also run from the scratch root, where the JS suite has data: 2058
+  passed, 5 failed. All five are the scratch root's own. Four history tests
+  need commits the scratch repo doesn't have. The JS suite's pairing failed
+  because the guard blocks committing in the scratch repo. Suite time
+  recorded: default, 461 s, inside budget.
 - **Fast tiers at the scratch root (with `[real]`):** viewer 721/721,
   annotate 324/324.
 - **Browser `--only`:** "the map (Map . Classic …)" 34/34, layout notes
   "none". "a pattern is bound as its like faces …" 11/11.
 - **Witness, one invocation with both guards:** 2/2 witnessed.
+
+## Blocked actions
+
+- `rm -rf C:/workspace/tolstack/data/scratch/bsj` was meant to delete the
+  scratch root. Dispatch's main-checkout edit guard refused it: the root
+  holds a nested `.git`, so the guard reads it as a main checkout. The root
+  is gitignored, and its `venv-win` and `node_modules` junctions are already
+  removed. Deleting the whole directory reaches nothing else and is safe any
+  time.
