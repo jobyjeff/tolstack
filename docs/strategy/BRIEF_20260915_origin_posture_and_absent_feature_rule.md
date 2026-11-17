@@ -1,5 +1,7 @@
 # BRIEF 2026-09-15 — origin posture: what a surface shows when the capability is absent on *this* origin
 
+> **CONSUMED 2026-11-17 — answered by work: since 2026-10-28 the 3D pane is one flyout that reads over HTTP and states its write limit where the reader presses (docs/sessions/completed/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md), and since 2026-10-30 the viewer has one URL. What is left is dead code on an unserved branch, not a policy question (strategy burndown #4).**
+
 Filed by triage 2026-09-15, consolidating three issues that all ask one
 question from different corners: **the viewer and the annotator now know which
 origin they are on, and nobody has decided what a surface should do with that

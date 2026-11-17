@@ -1,5 +1,7 @@
 # BRIEF 2026-09-15 — the prose-field rules: what a `name` may carry, and whether a `description` may state a count
 
+> **CONSUMED 2026-11-17 — the remaining half is decided: no rule about a derivable count in a description. No stack or study has written one since the brief was filed, and a rule for something nobody does is not built (strategy burndown #4). The name half was decided 2026-11-05, below.**
+
 > **PARTIALLY CONSUMED 2026-11-05 — the `name` half is decided, the derivable-count half stays open.** Jeff (note 20261105T164140_sm8hkc) asked for one wording pass over every stack: an element `name` is `<from feature> to <to feature>` or the drawing's one word, no articles, no part name, no explanation after a comma; the cell and its hover are one phrase. Expanded as `docs/sessions/HANDOFF_20261105_stack_wording_drops_filler_and_the_hover_says_the_same_thing.md`, which writes the rule into the SOP's "Titling an artifact" and pairs the corpus against its mechanical half. Whether a `description` may state a derivable count is not decided here.
 
 Filed by triage 2026-09-15, joining two issues that both land on the same
