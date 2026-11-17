@@ -1798,9 +1798,9 @@
     if (first) el.className += " tvrow--group-start";
     // A kinematic term's sourcing is its band's (VA.kinematicStack's
     // `confidence`); every other row's is its edge's own. It is the row's
-    // mark (VA.rowSourcingMark), not a tint: the brackets, and under Colour
-    // by Body its body's ink, are the only things a row's background says.
-    if (ctx.colourBy === "body" && planRow.body !== null && planRow.body !== undefined) {
+    // mark (VA.rowSourcingMark), not a tint: the brackets and its body's ink
+    // are the only things a row's background says.
+    if (planRow.body !== null && planRow.body !== undefined) {
       el.className += " tvrow--ink tv__fill--t" + VA.bodyTint(ctx.topoProj, planRow.body);
     }
     var confidence = term && term.confidence ? term.confidence : edge ? edge.confidence : null;
@@ -1981,7 +1981,7 @@
     var el = baseRow("part", ctx, partId);
     el.className += " tvrow--group-start tvrow--rollup";
     el.setAttribute("data-assembly", partId);
-    if (ctx.colourBy === "body" && planRow.body !== null && planRow.body !== undefined) {
+    if (planRow.body !== null && planRow.body !== undefined) {
       el.className += " tvrow--ink tv__fill--t" + VA.bodyTint(ctx.topoProj, planRow.body);
     }
     if (isSelected(ctx, "part", partId)) el.className += " tvrow--selected";

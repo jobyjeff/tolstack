@@ -1366,7 +1366,7 @@ def test_both_projection_builders_gate_the_register_on_the_same_constant():
 # the_dag_draws_bodies_as_containers_and_joints_as_symbols)                    #
 # --------------------------------------------------------------------------- #
 
-GLYPHS_JS = REPO_ROOT / "apps" / "viewer" / "interface_glyphs.js"
+TOPOLOGY_JS = REPO_ROOT / "apps" / "viewer" / "topology.js"
 
 
 def test_every_body_of_the_product_model_is_one_block_of_the_walk(projection):
@@ -1496,18 +1496,21 @@ def test_a_deferred_joint_never_draws_its_rail_over_another_on_one_column(topolo
         by_column.setdefault(rail["column"], []).append(rail)
 
 
-def test_the_joint_glyph_file_draws_exactly_the_interface_words():
-    """One symbol per INTERFACE_KINDS word in ``interface_glyphs.js`` -- the
-    table is keyed through the generated vocabulary, and this reads the file's
-    own keys so a glyph for a word Python does not have is red here too."""
+def test_the_viewer_names_exactly_the_interface_words():
+    """One everyday word per INTERFACE_KINDS word in ``topology.js``'s
+    ``VA.INTERFACE_KIND_WORDS`` -- the table is keyed through the generated
+    vocabulary, and this reads the file's own keys so a word Python does not
+    have is red here too. (The rails' joint glyphs, the file this pinned until
+    2026-11-17, retired with the rails; the map's symbols are map.js's.)"""
     import re
 
     from tolerance_stack.topology import INTERFACE_KINDS
 
-    text = GLYPHS_JS.read_text(encoding="utf-8")
-    start = text.index('VA.INTERFACE_GLYPHS = VOCAB.table("INTERFACE_KINDS", {')
-    end = text.index("\n  });", start)
-    keys = re.findall(r"^    ([a-z_]+): \{$", text[start:end], flags=re.M)
+    text = TOPOLOGY_JS.read_text(encoding="utf-8")
+    start = text.index('VA.INTERFACE_KIND_WORDS = Object.freeze(Object.assign({}, '
+                       'VOCAB.table("INTERFACE_KINDS", {')
+    end = text.index("\n  }), ", start)
+    keys = re.findall(r'^    ([a-z_]+): "', text[start:end], flags=re.M)
     assert tuple(keys) == INTERFACE_KINDS
 
 

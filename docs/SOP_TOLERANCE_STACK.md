@@ -656,11 +656,10 @@ the chain bands that surface:
   keeps its size band and carries `dimension.form` = `{"kind": "modifier",
   "zone": ..., "node": <the face's node>, "source_ref": ...}`; a zone wider than
   the band does not load. **v0 does not fold a modifier**: the total uses the
-  size band as it is, the DAG marks the node, and the gap list says the callout
-  is not folded.
+  size band as it is, and the gap list says the callout is not folded.
 
-The DAG draws a rough-surface squiggle on the edge's bar for an element and
-beside the node for a modifier (`docs/DAG_TOPOLOGY.md`, "Joint glyphs").
+The gap list is where a form callout shows on the page: the map draws no form
+mark (the rails' squiggle retired with them, 2026-11-17).
 
 ### A gap edge's `interface`
 

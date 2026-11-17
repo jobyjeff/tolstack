@@ -164,7 +164,7 @@ DAG"), never a fold.
 `interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance | revolute | fastener_pattern`.
 
 Optional in v0 and refused on a structural edge. What each word draws is the
-table in "Joint glyphs" below; a joint that states none leaves its ends plain
+table in "Joint symbols" below; a joint that states none leaves its ends plain
 dots and puts a "contact kind not stated" row on the gap list.
 
 `interface` on a node two parts share is one of `pin_in_bore | spherical | cylindrical_slide | thread | revolute | fastener_pattern`.
@@ -275,7 +275,7 @@ linkage solver's sweeps already name and the DAG had no way to know:
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 
-### Bodies on the DAG
+### Bodies in the walk and on the map
 
 Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
 
@@ -290,120 +290,66 @@ Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symb
   body's edge at a joint node, is deferred and walked from its node once the
   body is done (`scripts/build_topology_projection.py`, `serialize_topology`).
   Each row carries `body`; `layout.bodies` lists each body's block as
-  `{body, start, end, lo, hi}`. Column order still minimises the crossing count
-  (`layout_crossings`), over a walk in which each body is contiguous.
+  `{body, start, end, lo, hi}`. The walk is no longer drawn (the rails retired
+  with Classic, 2026-11-17, below); it is the grid's row order.
 - **A model may read in its authored order** (2026-11-08,
   `the_end_stop_model_names_its_datums_right_and_folds_its_riders`).
   `"walk_order": "authored"` starts the walk on the first body's first part,
   takes a node's edges by the `parts` order of the part each leads into, and
   after a body is done crosses into the earliest authored body not yet drawn
-  -- so the author re-orders the page by re-ordering `bodies[]` and `parts`.
-  It only breaks ties the walk leaves open, and it is not the default: on v1 it
-  widens the walk and raises its crossings, and no order of v1's lists
-  reproduces the walk v1 draws today.
-- **Drawn as one container.** A rounded field behind the body's block, in the
-  body's own muted tint — assigned, one per body (`VA.bodyTint`;
-  `docs/DESIGN_TYPE_AND_COLOUR.md` says where the tints live). Where the walk
-  puts a body's parts in two components, or a lit study's band splits it, the
-  body is still one container: its fields are joined by a thin bridge in its
-  tint (`VA.bodyBridges`) and its name is drawn once, on the field in the band
-  or else its first (2026-11-04, `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`).
-  A body none of whose edges the current study lights is a flat outline.
-  Since 2026-11-05 (`the_dag_is_coloured_by_a_chosen_attribute_and_spaced_to_taste`)
-  every group — a body, a **part** (each run of a part's rows inside its body,
-  `VA.partSpans`), a study — is a thin border in its kind's hue with no fill;
-  the view's group fill adds a solid fill to parts, or a fill to every kind.
-  A body's other blocks carry a muted repeat of its name, and the bridge
-  between them is drawn in the body border's hue.
-- **Collapsible.** Clicking a body's name folds it to one wide node with its
-  name and its joint-node count; the edges that leave it attach to that node's
-  rim. A body in two blocks folds to a pill in each — one row per block, since
-  a node id is one row — drawn as one bridged group, named once. A node a lit edge outside the body stands on stays drawn. The page
-  remembers each body's state per reader.
-- **A sub-stack is a container inside its body.** On a kinematic page, the
-  chain a `study_ref` names is a dashed field around its edges, folded to one
-  bar with the study's title and its folded interval (shown, never reused — the
-  chain rule enters the sub-study's terms one by one). It opens and closes with
-  the grid's header row for it (the_kinematic_grid_is_a_stack_of_sub_stacks).
+  -- so the author re-orders the grid by re-ordering `bodies[]` and `parts`.
+  It only breaks ties the walk leaves open, and it is not the default.
+- **On the map a body is a district** in its own ink, assigned one per body
+  (`VA.bodyTint`; `docs/DESIGN_TYPE_AND_COLOUR.md` says where the inks live),
+  and in the grid a bracket over its rows ("The map", below).
+- **A sub-stack is a header row in the grid.** On a kinematic page, the chain
+  a `study_ref` names is a header row over its terms, folded to one row with
+  the study's title and its folded interval (shown, never reused — the chain
+  rule enters the sub-study's terms one by one), opened and closed from that
+  row (the_kinematic_grid_is_a_stack_of_sub_stacks).
 
-### A part with many interfaces is a block with pins
+### One part, one run in the grid
 
-Since 2026-11-06 (handoff `a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`;
-Jeff: "model the part in the dag similar to a component in a circuit diagram,
-as a rectangle with nodes along the perimeter for each interface"). Display
-only: the projection's walk, its columns and `layout_crossings` are untouched,
-and the page re-arranges what it draws (`apps/viewer/topology.js`).
+Since 2026-11-06 (handoff `a_part_with_many_interfaces_is_drawn_as_a_component_with_pins`),
+when the rails drew such a part as a block with pins; since 2026-11-17 the
+grid's order alone. The page gathers each part's rows to where the walk first
+reaches the part and re-lays the walk (`VA.gatherParts`): a node on one part
+is that part's pin, a contact face on two parts the pin of the one with more
+faces (`VA.partPins`), and a part's edges between two of its own pins (its
+chords) and its other edges -- a dimension on its drawing that ends on another
+part's pin, like the hub's two to the tangential-link mount on v2 -- follow
+its pins. So a part the depth-first walk visited three times is one run of
+grid rows under one bracket. An edge moves only to where one of its nodes is
+above it, so a part with an edge that cannot move up yet is held back, whole,
+until all of them can. A study's lit rows are then made one band, with the
+rest of the walk above and below it (`VA.bandLayout`); a kinematic page's band
+keeps its stack order. The re-laid walk's columns are still searched for the
+fewest crossings (`VA.layoutCrossings`), which breaks ties in the row order
+the grid shows; nothing draws the columns.
 
-- **Pins.** A node on one part is that part's pin. A contact face on two parts
-  is a pin of the one with more faces (the pitch plate, not the washer on it),
-  the first listed on a tie. A part with two pins or more is a **block**; its
-  edges between two of its own pins are its **chords** (`VA.partPins`).
-- **One part, one run.** The page gathers each block part's pins and chords to
-  where the walk first reaches the part and re-lays the walk
-  (`VA.gatherParts`), without the chords, which need no column. So a part the
-  depth-first walk visited three times is drawn once. A part's other edges --
-  a dimension on its drawing that ends on another part's pin, like the hub's
-  two to the tangential-link mount on v2 -- follow its pins and chords, and a
-  part that is no block gathers its edges the same way (since 2026-11-15,
-  `the_hub_is_one_part_in_the_grid_and_the_dag`). An edge moves only to where
-  one of its nodes is above it, so a part with an edge that cannot move up yet
-  is held back, whole, until all of them can. The grid is built off
-  the drawn walk, as it always was, so its rows and the leaders follow; a
-  kinematic page's band keeps its stack order, and a part that order visits
-  twice is two blocks there.
-- **Drawn in a strip.** Each run is a rectangle right of the spine
-  (`VA.blockLayout`, `VA.railGeometry`'s `blocks`). A pin anything else meets
-  is on the block's rail side, joined level to the column its rails reach it
-  on (a stub); a pin only its own chords meet is on the far side. Every pin
-  has a height of its own, in walk order, so the leaders' one premise
-  (`VA.leaderGeometry`) holds. A chord is a curve from pin to pin inside the
-  block. A block's width follows its pin count (`VA.BLOCK_ASPECT`).
-- **Its body is its part's.** A block is on the body the topology's `bodies`
-  give its part (`VA.bodyOfPart`), and that body's field is widened to wrap
-  it. Its first row's body is not used: a contact face's row is on its first
-  listed part's body, which can be the other part's.
-- **Length modes.** Uniform, a chord takes no height and a block is near
-  square. Scaled, two pins a chord joins are the chord's drawn length apart,
-  so the block stretches and the aspect gives: the length is the claim, the
-  shape is a convenience.
-- **Columns.** The re-laid walk's columns, and a band's, are searched for the
-  fewest crossings the blocks will draw (`VA.blockColumns`), every column the
-  trunk's included.
-- **A View setting** (`VA.PART_DRAWINGS`): Blocks, or On the rails (the walk
-  exactly as the builder laid it).
-
-### Joint glyphs — the joint is the node
+### Joint symbols — what a joint is drawn as
 
 Since 2026-11-04 (handoff `the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit`,
-Jeff's mock-up C) **a node that is an end of a joint edge is drawn as that
-joint's glyph**, in the node's own ink and at the row pitch; every other node is
-the plain dot, and no glyph is drawn on an edge. Both ends of a joint wear its
-glyph. A node at the end of joints of two kinds wears the higher of
-`VA.NODE_GLYPH_PRECEDENCE` (a ball, then a slide, a rotary joint, a pin, a
-thread, a fastener pattern, flat faces, a clearance: a joint that moves says
-more about the interface than a seat). `VA.nodeJointKinds` is the one place
-that decides it, read off the edges and, since 2026-11-17, off a node two
-parts share that states its own word. One SVG `<symbol>` per word in
-`apps/viewer/interface_glyphs.js`, enumerated against `INTERFACE_KINDS` by
-`tests/test_topology_projection.py`.
+Jeff's mock-up C) a joint is drawn as the contact it is; since 2026-11-17 that
+drawing is the map's (the rails' glyphs, `apps/viewer/interface_glyphs.js`,
+retired with them). Each `interface` word is one symbol on the map, drawn on
+the connector between the joint's two pins (`VA.MAP_SYMBOLS`, "The map" below
+has its table); a node two parts share that states its own word (since
+2026-11-17) is drawn as that word, and one that states none is the seat. The
+words are printed in everyday words wherever the page names one
+(`VA.INTERFACE_KIND_WORDS` in `apps/viewer/topology.js`, enumerated against
+`INTERFACE_KINDS` by `tests/test_topology_projection.py`).
 
-**An edge says only lit or unlit.** A bar is one neutral ink at one of two
-weights — lit (every edge, when nothing is lit) or unlit — and a gap is dashed.
-Nothing else rides the stroke: an edge's confidence is the grid's SOURCING chip
-and its band the grid's MIN/MAX. Hover and selection still spend width.
-
-| `interface` | glyph | one edge that wears it |
-| --- | --- | --- |
-| `planar` | one solid bar | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
-| `pin_in_bore` | a ring with its axis through it | `gas_spring_rod_to_pitch_plate` |
-| `spherical` | a ring with a centre dot | `pitch_arm_link_joint` |
-| `cylindrical_slide` | a hollow bar with a double-headed arrow along the slide | `hub_to_pitch_plate_spindle_coaxiality` |
-| `thread` | a hollow block crossed by the flanks | none on a committed topology yet |
-| `clearance` | two bars with a gap between them | `end_stop_clearance` |
-| `revolute` (a reader's "rotary") | the pin in its bore with a turning arrow over it | the node `hub_blade1_root_bearing_bore` |
-| `fastener_pattern` | a ring of six dots on a ring | the nodes `pitch_arm_blade_root_clocking` (v1) and `tan_link_mount_fastener_clocking` (v2) |
-| form `element` | a rough-surface squiggle beside the edge's bar | none on a committed topology yet (fixture: `tests/test_topology.py`'s form-rule cases) |
-| form `modifier` | the same squiggle beside the node the callout is on | none on a committed topology yet |
+| `interface` | one element that states it |
+| --- | --- |
+| `planar` | none on a committed topology yet: a face-to-face seat is one node, not a gap edge (see "What a hard contact is *not*") |
+| `pin_in_bore` | `gas_spring_rod_to_pitch_plate` |
+| `spherical` | `pitch_arm_link_joint` |
+| `cylindrical_slide` | `hub_to_pitch_plate_spindle_coaxiality` |
+| `thread` | none on a committed topology yet |
+| `clearance` | `end_stop_clearance` |
+| `revolute` (a reader's "rotary") | the node `hub_blade1_root_bearing_bore` |
+| `fastener_pattern` | the nodes `pitch_arm_blade_root_clocking` (v1) and `tan_link_mount_fastener_clocking` (v2) |
 
 linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
 `LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
@@ -418,7 +364,7 @@ of an edge are concentric features — a spindle and the plate that slides on
 it, a bore and the bushing in it, a ball and its seat — the scene draws one
 dot for all of them, and the edges between them (a bushing's thickness, a
 clearance to a fastener, a coaxiality) are **2D-only**: they have no length
-to show, and the DAG and the grid keep them apart exactly as before. Edges
+to show, and the map and the grid keep them apart exactly as before. Edges
 leaving the joint attach to its one dot, and every member's 2D node leads to
 it. **A node with nothing to place it on is absent from the scene, never drawn
 at the origin**; the scene's head line counts them. Which features count as
@@ -464,7 +410,7 @@ drawing-checker's container tree does (OR within an axis, AND across).
   the file not on disk nothing is checked, and the projection build says so
   once. Axis values are free strings, as forge has them.
 * **The variant rule.** Selecting a value on the variant axis dims every body
-  tagged with a *different* value of it -- the rails and rows of their parts,
+  tagged with a *different* value of it -- the rows of their parts,
   stated on the surface as "other variant" -- and hides the studies tagged the
   other way. A body or study with no variant tag is shared and stays lit.
   This is the lit-set rule's second dimming reason; "off the study's path" is
@@ -605,32 +551,45 @@ stripped so the number is said once (Jeff, 2026-10-20: a label carries the
 everyday name beside its number, because numbers get renumbered and nobody
 memorises them).
 
-### The map — a second drawing of the same model (2026-11-16)
+### The map — the DAG region's drawing (2026-11-16; the only one since 2026-11-17)
 
 Since handoff `the_map_draws_the_end_stop_model` (Jeff, 2026-11-10: *"Yes I
-like your tube map"*, with his own sketch) the DAG's region has two drawings
-of the one model and a **Map · Classic** switch in its own header. **The map
-is a second drawing of the same model and never a second model**: it reads
-the model view above (`model`) and one authored layout file beside the model,
-`docs/topologies/map_<model id>.json`, and nothing from the present DAG's
-`layout {columns, rows, rails}`. The present DAG is unchanged underneath
-("Classic") and retires in a later handoff, on Jeff's yes.
+like your tube map"*, with his own sketch) the DAG's region draws the model as
+a map, and since 2026-11-17 (handoff
+`the_map_is_the_only_drawing_and_classic_retires`; Jeff: *"I really like the
+new subway map style dag/graph, let's go ahead and make it permanent"*) it is
+the region's only drawing, for every model: the rails drawing beside it
+("Classic"), the switch between the two, the respine animation, the leaders
+across the seam to the 3D pane and the view controls only the rails used are
+gone. **The map is a drawing of the model and never a second model**: it
+reads the model view above (`model`) and the model's layout -- an authored
+file, `docs/topologies/map_<model id>.json`, or the places the builder
+computes where there is none -- and nothing from the walk's
+`layout {columns, rows, rails}`, which is the grid's row order and nothing
+drawn.
 
-**What is authored** is one thing: a part's place on a coarse grid —
+**What is placed** is one thing: a part's place on a coarse grid —
 `places: {<part>: [column, row]}`, one entry per top-level part. A child part
-(a bearing in its link) may have no entry and sits in its parent's cell.
-What a joint is drawn as is never authored here: it is the interface's kind,
-from the model (since 2026-11-17 a shared node states its own, so the
-`symbols` override that named the clocking a pattern until then is gone, and
-the builder refuses a file that still carries one). The builder ships the file verbatim as
-the topology's `map` and refuses one that leaves a top-level part unplaced or
-places a part the model has not (`build_topology_projection.load_topology_map`):
-the map's whole claim is that nothing in the model is left undrawn. A model
-with no file (v1) has no map; its region draws Classic and the switch says
-*No map*. The file is not named `topology_<id>.map.json` because every reader
-of the directory globs `topology_*.json` for the models.
+(a bearing in its link) has no entry and sits in its parent's cell. **A model
+with no layout file has its places computed** (`computed_map_places`): each
+body a column, in the order the model declares its bodies, its top-level
+parts stacked down the column in tree order; a top-level part in no body
+takes one more column, and a model that declares no bodies is that one
+column. The projection marks such a layout `computed: true`. **An authored
+file overrides the computed places and nothing else changes**: what a joint
+is drawn as is never authored here: it is the interface's kind, from the
+model (since 2026-11-17 a shared node states its own, so the `symbols`
+override that named the clocking a pattern until then is gone, and the
+builder refuses a file that still carries one). The builder ships an authored
+file verbatim as the topology's `map` and refuses one that leaves a top-level
+part unplaced or places a part the model has not
+(`build_topology_projection.load_topology_map`): the map's whole claim is
+that nothing in the model is left undrawn. v1 has no file: its parts sit one column
+per body, and its routes are not yet arranged by hand (a route drawn through a box it does not end on is a defect note of the
+layout's, `notes`). The file is not named `topology_<id>.map.json` because
+every reader of the directory globs `topology_*.json` for the models.
 
-**There is one arrangement, and it is tall** (Jeff, 2026-11-17: *"flip the
+**There is one arrangement per model, and v2's is tall** (Jeff, 2026-11-17: *"flip the
 map/dag to be portrait instead of landscape so it fits in the side-by-side
 view mode more nicely"*; handoff `the_map_is_portrait_as_jeff_drew_it`). v2's
 places follow his sketch of 2026-11-10: three columns by seven rows, the base
@@ -707,9 +666,9 @@ interface's kind and nothing else):
 | `spherical` | a cup and a ball, the cup open toward the far end |
 | `revolute` (a rotary joint) | the boss-in-hole circle and dot with a turning arrow round it, the rotary sibling of the slide's straight double arrow |
 | `fastener_pattern` | a ring of dots |
-| `cylindrical_slide` | the present design's hollow bar with the double arrow, large |
+| `cylindrical_slide` | a hollow bar with the double arrow along the slide |
 | `clearance` | two stops with the travel arrow between them |
-| `thread` | the present design's block crossed by the flanks, large |
+| `thread` | a hollow block crossed by the flanks |
 
 A gap edge that states no interface word is drawn as a bare connector; the
 gap list names it, as before.
@@ -725,9 +684,9 @@ opaque. Every curve takes `fill: none` in the markup and in the stylesheet.
 
 **Not drawn yet**, each a later handoff: a fold control on an assembly's
 outline (`ISSUE_20261114_assembly_folding_left_out_of_three_surfaces`); a
-study lit as a route; a layout for v1; the compound joints the model does not
-author yet (the map draws each as it is authored); and the retirement of
-Classic with its suites rewritten once.
+study lit as a route (`ISSUE_20261116_what_the_map_does_not_draw_yet`); a
+hand arrangement of v1's routes; and the compound joints the model does not
+author yet (the map draws each as it is authored).
 
 ### Naming a feature (2026-11-10)
 

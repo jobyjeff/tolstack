@@ -55,10 +55,11 @@ traced ratio" — never restate the rule elsewhere).
   2026-10-26) and v2 `topology_vpa_end_stop_v2.json`, the end stop alone,
   which reuses v1's ids (`docs/DAG_TOPOLOGY.md`, "Models") — and every study is
   a subset of one of them; which parts move as one rigid body is
-  declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies". Since 2026-11-06 the page
-  draws a part with two or more interfaces as one block with its interfaces as
-  pins, re-arranging only what it draws (same file, "A part with many
-  interfaces is a block with pins").
+  declared on it — `docs/DAG_TOPOLOGY.md`, "Bodies". Since 2026-11-17 the
+  DAG region draws one thing for every model, the map -- a box per part, pins
+  where parts meet, a district per body -- placed by an authored layout file
+  or, where a model has none, one column per body; the rails drawing
+  ("Classic") retired (same file, "The map").
 - **A stack element or topology edge whose physical feature is unresolved** →
   `docs/ANNOTATION_SURFACE.md`. The select-and-tag surface (2026-09-06):
   `apps/annotate/` is the shell's embedded 3D pane and has no page of its own
