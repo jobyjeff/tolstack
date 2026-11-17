@@ -4978,18 +4978,21 @@ async function testTheMap(browser, label, topologies) {
     await page.evaluate(() => document.getElementById("dag-fit").click());
     await settle(300);
     const railsRefit = await railsWidth();
+    // Fit's promise, not the first paint's width: a model taller than the
+    // pane (v2 since 2026-11-17, 40 edges) first paints at its natural size.
+    const railsRefitFits = await railsFitThePane();
     await wheelOverRails(2);
     const railsGrownAgain = await railsWidth();
     await page.keyboard.press("0");
     await settle(300);
     const railsRefitByKey = await railsWidth();
     console.log(`      [${label}] Classic after the map: rails ${Math.round(railsFit)} -> wheel ${Math.round(railsGrown)} -> Fit ` +
-      `${Math.round(railsRefit)} -> wheel ${Math.round(railsGrownAgain)} -> 0 ${Math.round(railsRefitByKey)}; mapFit on the pane: ` +
+      `${Math.round(railsRefit)} -> wheel ${Math.round(railsGrownAgain)} -> 0 ${Math.round(railsRefitByKey)}; Fit fits the pane ${railsRefitFits}; mapFit on the pane: ` +
       `${await page.evaluate(() => typeof document.getElementById("topopane").mapFit)}`);
     const railsFitAfterKey = await railsFitThePane();
     push("[real] after the map, Classic's Fit and 0 key are the rails' again on the same page: a wheel " +
       "grows the rails and Fit, then the 0 key, bring them back",
-      railsGrown > railsFit * 1.2 && railsRefit < railsGrown * 0.8 && Math.abs(railsRefit - railsFit) < 12 &&
+      railsGrown > railsFit * 1.2 && railsRefit < railsGrown * 0.8 && railsRefitFits &&
       railsGrownAgain > railsRefit * 1.1 && railsRefitByKey < railsGrownAgain * 0.8 && railsFitAfterKey);
     await page.reload({ waitUntil: "load" });
     await pickModel(page, MAP_TOPOLOGY);
