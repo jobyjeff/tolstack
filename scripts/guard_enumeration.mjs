@@ -346,7 +346,10 @@ export const DECLARED_GUARDS = {
   // its drawing, its lighting, its view and its switch. Every one carries a spec.
   // 2026-11-16, round 2 of the same handoff: +1, a Classic paint releases the
   // map's Fit (the review's B1). It carries a spec.
-  fast: { declared: 715, enrollable: 715, names: "045023c711fc" },
+  // 2026-11-17 (the_map_is_portrait_as_jeff_drew_it): +3 -- a part's name
+  // clear of its jumpers, a child beside a route out of its parent's bottom,
+  // and a right flank's label stepped below a level left one. Each carries a spec.
+  fast: { declared: 718, enrollable: 718, names: "7d4d95c8a9d8" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -698,7 +701,11 @@ export const DECLARED_GUARDS = {
   // with a spec; and one renamed -- the app suites' "says nothing about a
   // classic view" now counts the word everywhere but the DAG region's own
   // switch (the review's B2), still without a spec.
-  browser: { declared: 902, enrollable: 871, names: "95c61ff6ecd2" },
+  // 2026-11-17 (the_map_is_portrait_as_jeff_drew_it): +4 -- no jumper
+  // crosses a name on the real map, a still click inside a box selects its
+  // part, a press inside a box that moves pans, a district's field selects its
+  // body. Each carries a spec.
+  browser: { declared: 906, enrollable: 875, names: "c6eadc364e22" },
 };
 
 
