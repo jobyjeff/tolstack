@@ -1150,7 +1150,10 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     into_bore = {e.other_end("tan_link_mount_bore") for e in v2.incident("tan_link_mount_bore")
                  if e.part == "tan_link_mount_215175_002"}
     assert into_bore == {"tan_link_mount_hub_face", "tan_link_mount_pilot_bore",
-                         "tan_link_mount_fastener_clocking"}
+                         "tan_link_mount_fastener_clocking",
+                         # its joint with the gas-spring mount (2026-11-17)
+                         "tan_link_mount_gas_spring_pilot_bore",
+                         "gas_spring_mount_fastener_clocking"}
     for edge in v2.edges:
         assert edge.dimension is None, edge.id
         assert any(p in (edge.note or "") for p in ("Value to come", "What would close it")), edge.id
@@ -1194,11 +1197,13 @@ def test_model_v2_base_is_a_stack_hub_tan_link_mount_gas_spring_mount_cover():
                  if e.part == "gas_spring_mount_213668_002"}
     assert from_seat == {
         "gas_spring_mount_seat_to_bushing_bore": "gas_spring_mount_bushing_bore",
-        "gas_spring_mount_datum_a_to_end_stop": "endstop_feather_contact"}
+        "gas_spring_mount_datum_a_to_end_stop": "endstop_feather_contact",
+        # the boss that locates the seat radially (2026-11-17)
+        "gas_spring_mount_boss_to_seat": "gas_spring_mount_locating_boss"}
     into_flange = {e.other_end("piston_cover_mount_flange_seat")
                    for e in v2.incident("piston_cover_mount_flange_seat")
                    if e.part == "gas_spring_mount_213668_002"}
-    assert into_flange == {"endstop_feather_contact"}
+    assert into_flange == {"endstop_feather_contact", "gas_spring_mount_cover_locating_boss"}
 
 
 def test_walk_order_is_a_word_the_topology_checks():

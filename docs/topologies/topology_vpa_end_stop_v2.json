@@ -26,7 +26,7 @@
         "gas_spring_mount_213668_002",
         "piston_cover_214958_002"
       ],
-      "note": "The hub, the two mounts and the piston cover, as a stack: the tangential link mount seats on the hub, the gas-spring mount on the tangential link mount (`tan_link_mount_gas_spring_seat`; Jeff, 2026-11-10: 'mount on mount'), and the piston cover's flange on the gas-spring mount (`piston_cover_mount_flange_seat`). linkage's base lists the first three parts alone; the difference is declared beside the pairing test."
+      "note": "The hub, the two mounts and the piston cover, as a stack: the tangential link mount seats on the hub, the gas-spring mount on the tangential link mount (`tan_link_mount_gas_spring_seat`; Jeff, 2026-11-10: 'mount on mount'), and the piston cover's flange on the gas-spring mount (`piston_cover_mount_flange_seat`). Each of the three joints is a seat, a locating boss in a bore and a fastener pattern (Jeff, 2026-11-10: 'the same datum style with a flange, central locating boss, and fastener pattern for clocking'). linkage's base lists the first three parts alone; the difference is declared beside the pairing test."
     },
     {
       "id": "tan_link",
@@ -255,6 +255,43 @@
       "note": "The gas-spring mount's base face, its datum A, seated on the tangential link mount: mount on mount, with no seat on the hub (Jeff, 2026-11-10). Until 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model) v2 seated this face on the hub, as `gas_spring_mount_hub_face`; that node is gone from v2 and v1 keeps it."
     },
     {
+      "id": "gas_spring_mount_locating_boss",
+      "name": "locating boss",
+      "parts": [
+        "gas_spring_mount_213668_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "gas_spring_mount_213668_002",
+        "surface": "cylindrical"
+      },
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the spigot under the gas-spring mount's base face that locates it radially in the tangential link mount. On the 213668 mesh (`machined_213668`): two lands of one boss, faces 73/622 (z 126.55 to 127.55) and 81/624 (z 132.50 to 133.50), both diameter 220.370, with a 214.782 relief between. The mount carries the boss here, the opposite of the hub joint below it. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_mount_gas_spring_pilot_bore",
+      "name": "gas-spring mount pilot bore",
+      "parts": [
+        "tan_link_mount_215175_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_mount_215175_002",
+        "surface": "cylindrical"
+      },
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the bore at the top of the tangential link mount the gas-spring mount's locating boss sits in. On the 215175-001 mesh (`asm217755_215175_001`, the alias row's other hand): faces 687 and 909, two halves of one bore, diameter 220.421, z 125.98 to 133.14, coaxial with the boss. Named for the part it receives, as the pitch plate's pitch link bore is. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "gas_spring_mount_fastener_clocking",
+      "name": "gas-spring mount fastener pattern",
+      "parts": [
+        "gas_spring_mount_213668_002",
+        "tan_link_mount_215175_002"
+      ],
+      "kind": "mating_surface",
+      "interface": "fastener_pattern",
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the ring of fasteners through the gas-spring mount's flange into the tangential link mount, fixing its rotation about the boss. One node on both parts, as `tan_link_mount_fastener_clocking`. On the 213668 mesh (`machined_213668`): 10 holes diameter 5.000 on a 240.000 circle through the flange (z 134.4 to 137.6), faces 303 to 312 and 800 to 809. On the 215175-001 mesh (`asm217755_215175_001`, the alias row's other hand): 10 holes diameter 5.000 on a 240.000 circle under the seat (z 130.6 to 133.6), faces 72, 73, 161, 162, 169, 170, 175, 176, 179, 180, 1123, 1124, 1126, 1127, 1129 to 1132, 1351, 1352, with 6.693, 6.299 and 3.307 rings below them on the same centres. The two rings' centres are at the same ten angles (29.2, 44.2, 100.1, 115.1, 172.5, 187.5, 244.9, 259.9, 315.8, 330.8 degrees), the hub joint's angles too. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+    },
+    {
       "id": "gas_spring_mount_bushing_bore",
       "name": "bushing bores",
       "parts": [
@@ -277,6 +314,43 @@
       ],
       "kind": "mating_surface",
       "note": "Was named \"piston cover bottom flange against the mount flange\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+    },
+    {
+      "id": "gas_spring_mount_cover_locating_boss",
+      "name": "piston cover locating boss",
+      "parts": [
+        "gas_spring_mount_213668_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "gas_spring_mount_213668_002",
+        "surface": "cylindrical"
+      },
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the spigot above the gas-spring mount's top face that the piston cover's pilot bore sits on. On the 213668 mesh (`machined_213668`): two lands of one boss, faces 1061/1063 (z 203.19 to 204.27) and 1074/1075 (z 208.78 to 210.11), diameter 58.458. Named for the part it receives, beside the mount's own locating boss. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "piston_cover_pilot_bore",
+      "name": "pilot bore",
+      "parts": [
+        "piston_cover_214958_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "piston_cover_214958_002",
+        "surface": "cylindrical"
+      },
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the bore at the foot of the piston cover that locates it radially on the gas-spring mount's boss. On the 214958-002 mesh (`asm217755_214958_002`): faces 92 and 93, two halves of one bore, diameter 58.572, z 203.93 to 210.22, coaxial with the boss. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "piston_cover_fastener_clocking",
+      "name": "piston cover fastener pattern",
+      "parts": [
+        "piston_cover_214958_002",
+        "gas_spring_mount_213668_002"
+      ],
+      "kind": "mating_surface",
+      "interface": "fastener_pattern",
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the ring of fasteners through the piston cover's flange into the gas-spring mount, fixing its rotation about the boss. One node on both parts, as `tan_link_mount_fastener_clocking`. On the 214958-002 mesh (`asm217755_214958_002`): 5 holes diameter 5.000 on an 81.572 circle through the flange (z 202.19 to 207.19), faces 43 to 52 and 127 to 136. On the 213668 mesh (`machined_213668`): 5 holes diameter 4.750 on an 81.572 circle under the top face (z 198.19 to 202.19), faces 6, 27, 32, 33, 38, 39, 571, 586, 591, 592, 597, 598. The two rings' centres are at the same five unequal angles (36.7, 107.6, 180.0, 252.4, 323.3 degrees). The mount's ring of 10 holes diameter 2.510 on an 82.434 circle beside it is at other angles and is not this joint's. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_cover_end_stop_shoulder",
@@ -513,6 +587,51 @@
       "note": "Value to come from 215198-A sheet 1's drawing."
     },
     {
+      "id": "tan_link_mount_gas_spring_pilot_to_bore",
+      "name": "gas-spring mount pilot bore to attachment bore",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "tan_link_mount_gas_spring_pilot_bore",
+      "to": "tan_link_mount_bore",
+      "note": "Value to come from 215175-002's drawing."
+    },
+    {
+      "id": "tan_link_mount_gas_spring_fasteners_to_bore",
+      "name": "gas-spring mount fastener pattern to attachment bore",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "gas_spring_mount_fastener_clocking",
+      "to": "tan_link_mount_bore",
+      "note": "Value to come from 215175-002's drawing."
+    },
+    {
+      "id": "gas_spring_mount_boss_in_tan_link_mount_pilot",
+      "name": "locating boss in gas-spring mount pilot bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_mount_gas_spring_pilot_bore",
+      "to": "gas_spring_mount_locating_boss",
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the gas-spring mount's radial location. No value recorded. What would close it: 213668-002's boss and 215175-002's bore."
+    },
+    {
+      "id": "gas_spring_mount_boss_to_seat",
+      "name": "locating boss to gas-spring mount base face",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_locating_boss",
+      "to": "tan_link_mount_gas_spring_seat",
+      "note": "Value to come from 213668-002's drawing."
+    },
+    {
+      "id": "gas_spring_mount_boss_to_fasteners",
+      "name": "locating boss to gas-spring mount fastener pattern",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_locating_boss",
+      "to": "gas_spring_mount_fastener_clocking",
+      "note": "Value to come from 213668-002's drawing."
+    },
+    {
       "id": "gas_spring_mount_seat_to_bushing_bore",
       "name": "gas-spring mount base face to bushing bores",
       "kind": "structural",
@@ -540,6 +659,33 @@
       "note": "Value to come from 213668-002's drawing."
     },
     {
+      "id": "gas_spring_mount_cover_boss_to_flange",
+      "name": "piston cover locating boss to piston cover flange",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_cover_locating_boss",
+      "to": "piston_cover_mount_flange_seat",
+      "note": "Value to come from 213668-002's drawing."
+    },
+    {
+      "id": "gas_spring_mount_cover_boss_to_fasteners",
+      "name": "piston cover locating boss to piston cover fastener pattern",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_cover_locating_boss",
+      "to": "piston_cover_fastener_clocking",
+      "note": "Value to come from 213668-002's drawing."
+    },
+    {
+      "id": "gas_spring_mount_boss_in_piston_cover_pilot",
+      "name": "piston cover locating boss in pilot bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "gas_spring_mount_cover_locating_boss",
+      "to": "piston_cover_pilot_bore",
+      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the piston cover's radial location. No value recorded. What would close it: 213668-002's boss and 214958-002's bore."
+    },
+    {
       "id": "piston_cover_flange_to_end_stop",
       "name": "piston cover flange to end stop shoulder",
       "kind": "structural",
@@ -547,6 +693,24 @@
       "from": "piston_cover_mount_flange_seat",
       "to": "piston_cover_end_stop_shoulder",
       "note": "Value to come from 214958-002 A, sheet 3's drawing."
+    },
+    {
+      "id": "piston_cover_pilot_to_end_stop",
+      "name": "pilot bore to end stop shoulder",
+      "kind": "structural",
+      "part": "piston_cover_214958_002",
+      "from": "piston_cover_pilot_bore",
+      "to": "piston_cover_end_stop_shoulder",
+      "note": "Value to come from 214958-002's drawing."
+    },
+    {
+      "id": "piston_cover_fasteners_to_end_stop",
+      "name": "piston cover fastener pattern to end stop shoulder",
+      "kind": "structural",
+      "part": "piston_cover_214958_002",
+      "from": "piston_cover_fastener_clocking",
+      "to": "piston_cover_end_stop_shoulder",
+      "note": "Value to come from 214958-002's drawing."
     },
     {
       "id": "blade_root_bearing_to_pitch_arm_seat",

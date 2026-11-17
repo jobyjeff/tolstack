@@ -1207,8 +1207,8 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 15 parts, 25 interfaces, 30 edges, 7 branch points, 6 grounded
-loops, 8 gap edges. Studyless; no edge carries a dimension, and each says what
+The graph: 15 parts, 31 interfaces, 40 edges, 11 branch points, 10 grounded
+loops, 10 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
@@ -1254,6 +1254,23 @@ still starts at v1's hub seat. One blade, one pitch link and one tangential link
 each of those parts, and the link's two bearings, declares its `occurrence`,
 blade 1's and the tangential link the P2 sweep poses, with the placement
 recorded in the part's note.
+
+**Each joint up the base is a seat, a boss and a fastener pattern**
+(2026-11-17, handoff `the_base_stack_joints_are_seat_boss_and_pattern`; Jeff,
+2026-11-10: the three joints *"all have the same datum style with a flange,
+central locating boss, and fastener pattern for clocking"*). The hub joint was
+authored that way on 2026-11-08; the two above it now are too, each read off
+the two parts' meshes before it was written: a datum feature on each part and
+a `pin_in_bore` gap edge between them, one shared node with
+`interface: fastener_pattern`, and structural edges tying the new features to
+each part's own. The meshes decide which part carries the boss, and it is not
+the hub joint's way round: the gas-spring mount carries both bosses, a spigot
+under its base face into the tangential link mount's bore and one above its top
+face that the piston cover's pilot bore sits on. Each new node's `note` records
+the faces, the two diameters and the ring (hole count, hole diameter, circle);
+those are evidence that the feature is there, never values, and no edge gains a
+dimension. All the new ids are v2's own: v1 has neither joint's boss nor its
+pattern.
 
 ---
 

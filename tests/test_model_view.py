@@ -7,7 +7,11 @@ its_tree``. Three things are pinned here and nowhere else:
   (``dispatch/docs/strategy/drafts/mockups/tolstack_shell_20261109/template.html``,
   ``buildModel``): 5 bodies, 15 parts, 34 features (25 nodes, 9 on two parts),
   22 dimensions, 17 interfaces (9 contacts + 8 gaps), 8 between two bodies and
-  9 inside one (ground 5, pitch plate 3, blade 1);
+  9 inside one (ground 5, pitch plate 3, blade 1) -- and, since 2026-11-17
+  (handoff ``the_base_stack_joints_are_seat_boss_and_pattern``), the ground
+  stack's two upper joints with their bosses and fastener patterns: 42
+  features (31 nodes, 11 on two parts), 30 dimensions, 21 interfaces (11 + 10),
+  13 inside one body (ground 9);
 * **that the view writes no membership rule of its own**: every ``body``,
   ``bodies`` and ``within`` it emits is re-derived here from ``Topology``'s
   ``body_of`` / ``node_bodies`` / ``edge_body`` and compared;
@@ -65,38 +69,43 @@ def v1_view():
 # --- the counts the strategy session derived by hand --------------------------
 
 MODEL_V2_COUNTS = {
-    "bodies": 5, "parts": 15, "features": 34, "dimensions": 22,
-    "interfaces": 17, "contacts": 9, "gaps": 8,
-    "between_bodies": 8, "within_bodies": 9, "joints": 15,
+    "bodies": 5, "parts": 15, "features": 42, "dimensions": 30,
+    "interfaces": 21, "contacts": 11, "gaps": 10,
+    "between_bodies": 8, "within_bodies": 13, "joints": 15,
     # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
     # assembly holds its bearing, the 212956-005 assembly its two.
     "assemblies": 2,
 }
 
-#: Interfaces inside one body, per body: ground 5, pitch plate 3, blade 1.
-MODEL_V2_WITHIN = {"base": 5, "pitch_plate": 3, "blade": 1}
+#: Interfaces inside one body, per body: ground 9 (its three joints of three
+#: constraints each), pitch plate 3, blade 1.
+MODEL_V2_WITHIN = {"base": 9, "pitch_plate": 3, "blade": 1}
 
 
 def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert v2_view["counts"] == MODEL_V2_COUNTS
     assert len(v2_view["bodies"]) == 5
     assert len(v2_view["parts"]) == 15
-    assert len(v2_view["features"]) == 34
-    assert sum(1 for f in v2_view["features"] if f["shared"]) == 18, \
-        "9 nodes on two parts are 18 shared features, two each"
-    assert len(v2_view["dimensions"]) == 22
-    assert len(v2_view["interfaces"]) == 17
+    assert len(v2_view["features"]) == 42
+    assert sum(1 for f in v2_view["features"] if f["shared"]) == 22, \
+        "11 nodes on two parts are 22 shared features, two each"
+    assert len(v2_view["dimensions"]) == 30
+    assert len(v2_view["interfaces"]) == 21
 
 
 #: The base's parts, (features, dimensions) each, since the gas-spring mount
 #: moved onto the tangential link mount (2026-11-10, handoff ``the_gas_spring_
 #: mount_sits_on_the_tan_link_mount_in_the_end_stop_model``): the hub gave up
 #: the old seat and its dimension to it, so the totals above did not move.
+#: Since 2026-11-17 the two upper joints carry a boss in a bore and a fastener
+#: pattern each: the tangential link mount gains a bore, a pattern and two
+#: dimensions (5, 4 -> 7, 6), the gas-spring mount two bosses, two patterns and
+#: four (4, 3 -> 8, 7), the piston cover a bore, a pattern and two (2, 1 -> 4, 3).
 MODEL_V2_BASE_PARTS = {
     "hub": (4, 3),
-    "tan_link_mount_215175_002": (5, 4),
-    "gas_spring_mount_213668_002": (4, 3),
-    "piston_cover_214958_002": (2, 1),
+    "tan_link_mount_215175_002": (7, 6),
+    "gas_spring_mount_213668_002": (8, 7),
+    "piston_cover_214958_002": (4, 3),
 }
 
 
@@ -124,16 +133,31 @@ def test_model_v2_interfaces_inside_a_body_are_grounds_five_the_plates_three_the
             assert interface["bodies"] == [interface["within"]], interface["id"]
 
 
-def test_the_tan_link_mount_on_the_hub_is_one_joint_with_three_constraints(v2_view):
-    """Jeff, 2026-11-10: a seat, a pilot and a clocking are one joint."""
-    compound = [j for j in v2_view["joints"] if len(j["constraints"]) > 1]
-    assert len(compound) == 1
-    joint = compound[0]
-    assert joint["parts"] == ["hub", "tan_link_mount_215175_002"]
-    assert joint["within"] == "base"
-    assert set(joint["constraints"]) == {
+#: The ground stack's three joints, each a seat, a boss in a bore and a
+#: fastener pattern (Jeff, 2026-11-10: "the same datum style with a flange,
+#: central locating boss, and fastener pattern for clocking"; the two upper
+#: ones since 2026-11-17).
+MODEL_V2_STACK_JOINTS = {
+    ("hub", "tan_link_mount_215175_002"): {
         "tan_link_mount_hub_face", "tan_link_mount_fastener_clocking",
-        "hub_boss_in_tan_link_mount_pilot"}
+        "hub_boss_in_tan_link_mount_pilot"},
+    ("gas_spring_mount_213668_002", "tan_link_mount_215175_002"): {
+        "tan_link_mount_gas_spring_seat", "gas_spring_mount_fastener_clocking",
+        "gas_spring_mount_boss_in_tan_link_mount_pilot"},
+    ("gas_spring_mount_213668_002", "piston_cover_214958_002"): {
+        "piston_cover_mount_flange_seat", "piston_cover_fastener_clocking",
+        "gas_spring_mount_boss_in_piston_cover_pilot"},
+}
+
+
+def test_the_ground_stack_is_three_joints_with_three_constraints_each(v2_view):
+    """Jeff, 2026-11-10: a seat, a pilot and a clocking are one joint -- and
+    every joint up the ground stack has all three."""
+    compound = {tuple(j["parts"]): j for j in v2_view["joints"] if len(j["constraints"]) > 1}
+    assert set(compound) == set(MODEL_V2_STACK_JOINTS)
+    for parts, constraints in MODEL_V2_STACK_JOINTS.items():
+        assert compound[parts]["within"] == "base"
+        assert set(compound[parts]["constraints"]) == constraints, parts
     # Every interface names the joint it belongs to, and every joint's
     # constraints are interfaces between exactly its two parts.
     by_id = {i["id"]: i for i in v2_view["interfaces"]}
