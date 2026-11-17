@@ -132,19 +132,3 @@
 .map__connector--touched .map__connectorline { stroke: color-mix(in srgb, var(--accent) 55%, var(--ink)); stroke-opacity: 1; stroke-width: 4.5; }
 .map__pin--touched .map__pindot { fill: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke: var(--ink); stroke-width: 2; }
 .map__pin--touched .map__pinlabel { opacity: 1; }
-
-/* --- the region's header: Map . Classic ---------------------------------- */
-/* One two-way control at the region's top-right, quiet until hovered, over
-   whichever drawing the region shows. The pressed state is the settings
-   bar's (.tvview). */
-.tv__daghead {
-  position: absolute; top: 8px; right: 8px; z-index: 3;
-  display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 6px;
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
-}
-.tv__daghead button.ghost { border-radius: 0; border: none; background: transparent; color: var(--muted); }
-.tv__daghead button.ghost:hover { color: var(--ink); }
-.tv__daghead button.ghost[aria-pressed="true"] { color: var(--ink); background: #363b45; }
-.tv__daghead button.ghost[disabled] { color: var(--muted); opacity: .6; cursor: default; }
-.tv__daghead button.ghost:first-child { border-radius: 5px 0 0 5px; }
-.tv__daghead button.ghost:last-child { border-radius: 0 5px 5px 0; }

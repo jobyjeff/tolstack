@@ -84,24 +84,9 @@
     // the description moved to hover. A display preference like rowDensity,
     // not a fact about a topology, so selectTopology() never resets it either.
     edgeValueOnly: false,
-    // A VA.EDGE_LENGTH_MODES key (topology.js) — how much vertical extent a
-    // dimension bar gets — or null until the reader picks one, which draws
-    // the page's own default (VA.edgeLengthModeFor: contribution on a
-    // kinematic page, uniform elsewhere). A display preference like
-    // rowDensity, not a fact about a topology, so selectTopology() never
-    // resets it either.
-    edgeLengthMode: null,
-    // The DAG's zoom (VA.DAG_ZOOM, topology.js): per page state, never stored.
-    // 1 is the drawing at its own size; the wheel, Fit and `0` move it.
-    dagZoom: 1,
-    // "off" (the default since 2026-11-10: no leader is built) or "angled"
-    // (on: the leaders across the seam to the 3D scene). VA.LEADER_STYLES and
-    // VA.DEFAULT_LEADER_STYLE, topology.js. A display preference like the
-    // three above -- selectTopology() never resets it.
-    leaderStyle: VA.DEFAULT_LEADER_STYLE,
     // "dim" | "hide" -- what the DAG does with the model outside the page's
     // lit set (VA.UNLIT_STYLES, VA.DEFAULT_UNLIT_STYLE, topology.js). A
-    // display preference like the leader style, in-session like it, and kept
+    // display preference, in-session, and kept
     // across every page that has a lit set: a chain study and a kinematic
     // study alike.
     unlitStyle: VA.DEFAULT_UNLIT_STYLE,
@@ -113,16 +98,10 @@
     // the DAG, the chart's cursor and the 3D pane all read it; `?pose=<angle>`
     // carries it in the URL (VA.POSE_PARAM).
     kinematicPose: null,
-    // The DAG's view settings -- colour overlay, group fill, graph width
-    // (VA.readDagView, topology.js) -- remembered across sessions in one
-    // store entry, read at boot. Display preferences: selectTopology() never
-    // resets them.
+    // The view settings -- the palette (VA.readDagView, topology.js) --
+    // remembered across sessions in one store entry, read at boot. A display
+    // preference: selectTopology() never resets it.
     dagView: Object.assign({}, VA.DAG_VIEW_DEFAULTS),
-    // Map . Classic (VA.DAG_DRAWINGS): which drawing the DAG's region shows
-    // for a model that has a map. Remembered like the pane view; read at
-    // boot. The region draws Classic for a model with no layout whatever
-    // this says (VA.dagDrawingFor).
-    dagDrawing: VA.DEFAULT_DAG_DRAWING,
     // How wide the column right of the DAG is -- the settings bar, the grid
     // and the Preview under it -- in px, or null for "as wide as the grid"
     // (Jeff, 2026-09-15: "the right preview pane is resizable. It's too
@@ -271,7 +250,6 @@
     };
     applyDensity();
     state.dagView = VA.readDagView(widthStore());
-    VA.applyGraphWidth(state.dagView.graphWidth);
     applyPalette();
     state.sideWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
@@ -282,7 +260,6 @@
     state.paneView = (typeof window !== "undefined" && window.location &&
         VA.parsePaneViewParam(window.location.search)) ||
       VA.readStoredPaneView(widthStore()) || VA.DEFAULT_PANE_VIEW;
-    state.dagDrawing = VA.readStoredDagDrawing(widthStore()) || VA.DEFAULT_DAG_DRAWING;
     state.navWidth = VA.readStoredNavWidth(widthStore());
     applyNavWidth();
     wireDivider(nodes.navDivider, { kind: "nav" });
@@ -332,27 +309,15 @@
       // An anchor the pointer was on has gone with the scene.
       setHovered(null, "scene");
       syncPaneHandle();
-      // The leaders go with the scene; it is told everything again on reopen.
-      // Its anchors too: a closed panel's canvas has no size, and what it
-      // posted describes a box that is no longer there.
+      // The scene is told everything again on reopen.
       sceneModelPosted = null;
       sceneSelectPosted = null;
       sceneInspectHeld = null;
-      forgetSeamAnchors(false);
-      // The page is back to the width the band was centred for.
-      if (state.landed) {
-        var g = beginGlide();
-        dropBandPad();
-        fitDagTo(true, true);
-        endGlide(g);
-      }
-      scheduleSeamDraw();
     });
     wirePageHover();
     wirePaneState();
     wirePreviewRelease();
-    wireSeam();
-    wireZoom();
+    wireFitKey();
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -853,13 +818,12 @@
     // terms: element and container keys for the DAG and the grid, row keys
     // for the tree, ids for the scene (syncPaneHover's `light`).
     if (VA.lightTopoKeys) VA.lightTopoKeys(VA.focusElementKeysOf(model, state.focus.hovered));
-    // ...and the map, by entity (views/map.js): a no-op while Classic is drawn.
+    // ...and the map, by entity (views/map.js).
     if (VA.lightMap) VA.lightMap(model, state.focus.hovered);
     if (VA.lightNavTree && nodes.navtree) VA.lightNavTree(nodes.navtree, model, state.focus.hovered);
     followHoverInPreview();
     syncPaneHover();
     syncSceneInspect();
-    if (!leadersOff()) scheduleSeamDraw();
   }
 
   // The open model's ONE model object (model.js), or null before the
@@ -977,12 +941,7 @@
 
   function onNavTopology(topologyId) {
     selectTopology(topologyId);
-    // Deselecting a study is the respine run backwards -- the whole walk gets
-    // its leaders and its full emphasis back (viewer_study_respine_animation).
-    // Same topology, so there is a previous store to animate from; a click
-    // that switches to a DIFFERENT topology is a different graph, and
-    // respine() falls through to a plain paint for it.
-    navigate(respine);
+    navigate(rewind);
   }
 
   function onNavStudy(topologyId, studyId) {
@@ -992,22 +951,17 @@
       selectTopology(topologyId);
     }
     state.studyId = studyId || null;
-    // Selecting a study RE-SPINES (viewer_study_respine_animation), and since
-    // viewer_respine_whole_walk a respine is no longer a view switch: the
-    // rails keep every node and edge of the walk, the non-members dim, the
-    // leaders retarget onto the chain and the grid drops to the chain's rows.
-    // The transition the animator runs is therefore the leaders' jog zone
-    // narrowing and the two blocks re-centring, not a second layout sliding
-    // in over the first. A study that REFUSED has no chain, so it leaves the
-    // walk exactly as it was -- and that is the same condition
-    // views/topology.js's `marking` tests, not a second rule here.
+    // Selecting a study drops the grid to the chain's rows. A study that
+    // REFUSED has no chain, so it leaves the grid exactly as it was -- and
+    // that is the same condition views/topology.js's `marking` tests, not a
+    // second rule here.
     setSelected(null);
     state.detailImage = null;
-    redrivePaneAfter(respine);
+    redrivePaneAfter(rewind);
   }
 
   // A navigation click, then the pane re-driven whether or not the paint ran
-  // (a respine to the same view paints nothing, and followSelection consumes
+  // (a paint of the same view, and followSelection consumes
   // the flag only when it does).
   function redrivePaneAfter(paint) {
     forcePaneFollow = true;
@@ -1052,7 +1006,7 @@
   function onNavKinematic(studyId) {
     selectKinematic(studyId);
     hideCrop();
-    redrivePaneAfter(respine);
+    redrivePaneAfter(rewind);
   }
 
   // A row's 3D control: the row's own selection, then the pane opened on it
@@ -1921,14 +1875,7 @@
   // `params` null (a stack page asks the pane for nothing) opens the annotator
   // on no element at all.
   function launchAnnotate(params) {
-    var g = beginGlide();
-    launchAnnotateNow(params);
-    endGlide(g);
-  }
-
-  function launchAnnotateNow(params) {
     if (!state.annotateMount) return;
-    dropBandPad();
     // An explicit launch -- a row's 3D control, the model row -- is what the
     // pane shows now. The selection it was launched FROM is marked followed,
     // so the paint after it does not re-drive the pane straight back to that
@@ -1941,12 +1888,7 @@
 
     // show(), not showModal(): the page beside the panel stays clickable, so
     // the nav and every row's 3D control keep driving the open panel.
-    if (!nodes.flyout.open) {
-      nodes.flyout.show();
-      // Closing dropped the anchors; the scene is asked for them again rather
-      // than waited on, since an unchanged scene posts nothing.
-      forgetSeamAnchors(true);
-    }
+    if (!nodes.flyout.open) nodes.flyout.show();
     // The scene is a column of the page's own row, between the nav and the
     // DAG (topology.css's `body.flyout-open`); the preview pane keeps its own
     // column to the right (2026-10-28). The class comes off again in the
@@ -1993,9 +1935,6 @@
       flyoutFrame.setAttribute("title", "3D annotation panel");
       flyoutFrame.addEventListener("load", function () {
         flyoutLoaded = true;
-        // A new document: the last one's anchors are points in a scene that
-        // is gone. This one posts its own after its first drawn frame.
-        forgetSeamAnchors(false);
       });
       flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
@@ -2105,11 +2044,6 @@
       }
       if (msg && msg.type === VA.SCENE_PICK_MESSAGE) {
         onScenePick(msg);
-        return;
-      }
-      if (msg && msg.type === VA.SCENE_ANCHORS_MESSAGE) {
-        seamAnchors = msg.nodes || {};
-        scheduleSeamDraw();
         return;
       }
       if (msg && msg.type === "annotate:status") {
@@ -2450,26 +2384,8 @@
     });
   }
 
-  // --- the leaders across the seam (leaders_follow_the_active_study_across_
-  // the_seam) -----------------------------------------------------------------
+  // --- what the scene was told ----------------------------------------------
   //
-  // One page-level SVG over the DAG and the scene draws a leader from each
-  // node of the active study's lit set to where the scene draws that node:
-  // the scene posts its anchors (`annotate:anchors`, in the iframe's own CSS
-  // pixels), the pane publishes its dots (VA.lastTopoRender.seam, in the rails
-  // SVG's), and this adds the two rects and draws (VA.seamLeaderGeometry).
-  // Re-drawn on every anchors message, every pane paint (a respine's frames
-  // included), every scroll and every resize -- one ResizeObserver, one
-  // measurement of the three rects per draw, at most one draw per frame.
-  //
-  // The DAG↔grid leaders stay in the rails SVG they are drawn in: they share
-  // that SVG's scroll exactly, and an overlay redrawn on a scroll event lags
-  // a compositor-scrolled pane by a frame. What makes the two one picture is
-  // the one selection rule (VA.selectedLeaderNodes) both read.
-  var seamAnchors = null;
-  var seamSvg = null;
-  var seamFrame = null;
-  var seamDraws = 0;
   // What the scene was last told, so a paint that changed nothing posts nothing.
   var sceneModelPosted = null;
   var sceneSelectPosted = null;
@@ -2482,35 +2398,8 @@
   var seamScrolledTo = null;
   var sceneTreeSelected = null;
 
-  function seamOverlay() {
-    if (seamSvg || typeof document === "undefined" || !document.body) return seamSvg;
-    seamSvg = VA.svg("svg", "seamleaders");
-    seamSvg.setAttribute("aria-hidden", "true");
-    document.body.appendChild(seamSvg);
-    return seamSvg;
-  }
-
-  // The page's copy of the scene's anchors goes, and every DAG->3D leader
-  // with it until the scene posts again -- a leader is drawn to the DAG only
-  // rather than to a point the scene no longer draws. `ask`: request that
-  // post now (the `model anchors` verb) instead of waiting for a frame whose
-  // numbers move.
-  function forgetSeamAnchors(ask) {
-    seamAnchors = null;
-    scheduleSeamDraw();
-    if (ask) postToPane(["model", "anchors"]);
-  }
-
-  function scheduleSeamDraw() {
-    if (seamFrame !== null) return;
-    var raf = (typeof window !== "undefined" && window.requestAnimationFrame)
-      ? window.requestAnimationFrame.bind(window)
-      : function (fn) { return setTimeout(fn, 16); };
-    seamFrame = raf(function () { seamFrame = null; drawSeamLeaders(); });
-  }
-
   // The page's lit set, as the pane emphasizes it: a kinematic study's own,
-  // a chain study's chain, or null (the whole walk -- no leader at all).
+  // a chain study's chain, or null (the whole walk).
   function pageLitSet() {
     var topoProj = currentTopology();
     if (state.mode === "kinematic") {
@@ -2518,19 +2407,6 @@
         topoProj);
     }
     return state.mode === "topology" ? VA.studyLitSet(currentStudy(), topoProj) : null;
-  }
-
-  // Leaders are a toolbar preference with an Off (VA.LEADER_STYLES): off,
-  // no leader is built on either tier and no scroll or resize re-measures
-  // for one -- the one selection and the one hover light the surfaces.
-  function leadersOff() {
-    return state.leaderStyle === "off";
-  }
-
-  // A leader runs from the DAG to the 3D scene, so it can be drawn only while
-  // both are on screen: the pane open and the view side by side.
-  function leadersDrawable() {
-    return !!(nodes.flyout && nodes.flyout.open && state.paneView === "both");
   }
 
   // --- side by side · 3D · DAG (VA.PANE_VIEWS) -------------------------------
@@ -2549,11 +2425,8 @@
     state.paneView = id;
     VA.writeStoredPaneView(widthStore(), id);
     writePaneViewUrl(id);
-    dropBandPad();
     applyPaneView();
-    // The leaders, the toolbar's pressed button and the DAG at its region's
-    // new width.
-    forgetSeamAnchors(true);
+    // The toolbar's pressed button and the map at its region's new width.
     render();
   }
 
@@ -2575,75 +2448,6 @@
   var repaintToolbarFn = null;
   function repaintToolbar() { if (repaintToolbarFn) repaintToolbarFn(); }
 
-  function drawSeamLeaders() {
-    var svg = seamOverlay();
-    if (!svg) return null;
-    var clock = typeof performance !== "undefined" && performance.now
-      ? function () { return performance.now(); } : function () { return Date.now(); };
-    var started = clock();
-    var drawn = VA.lastTopoRender;
-    var topoProj = currentTopology();
-    var rails = nodes.pane && nodes.pane.querySelector
-      ? nodes.pane.querySelector(".tv__hscroll svg.tv__rails") : null;
-    if (leadersOff() || !leadersDrawable() || !flyoutFrame || !seamAnchors ||
-        !rails || !drawn || !drawn.seam || !topoProj ||
-        drawn.topologyId !== topoProj.id || nodes.pane.style.display === "none") {
-      VA.clear(svg);
-      VA.lastSeamDraw = null;
-      return null;
-    }
-    // The dots are in the SVG's own pixels with the DAG's zoom already in
-    // them (VA.seamDots), and the SVG itself is never scaled.
-    var r = rails.getBoundingClientRect();
-    var f = flyoutFrame.getBoundingClientRect();
-    var p = nodes.pane.getBoundingClientRect();
-    var bottom = typeof window !== "undefined" && window.innerHeight ? window.innerHeight : Infinity;
-    var dots = {};
-    Object.keys(drawn.seam.dots).forEach(function (id) {
-      var d = drawn.seam.dots[id];
-      dots[id] = [r.left + d[0], r.top + d[1]];
-    });
-    var fx = f.left + (flyoutFrame.clientLeft || 0);
-    var fy = f.top + (flyoutFrame.clientTop || 0);
-    var anchors = {};
-    Object.keys(seamAnchors).forEach(function (id) {
-      var a = seamAnchors[id];
-      anchors[id] = a ? [fx + a[0], fy + a[1]] : null;
-    });
-    var geo = VA.seamLeaderGeometry({
-      dots: dots, anchors: anchors, bendX: r.left + drawn.seam.bend,
-      // Inside the pane, inside the window, and not under the pinned header.
-      dotClip: { left: p.left, right: p.right, top: Math.max(p.top, 0),
-                 bottom: Math.min(p.bottom, bottom) },
-      anchorClip: { left: f.left, right: f.right, top: Math.max(f.top, 0),
-                    bottom: Math.min(f.bottom, bottom) },
-    });
-    // The one hover's elements give the lighter emphasis (applyFocus).
-    // A leader across the seam is a node's: it lights for the hover's OWN
-    // tier (the hovered edge's two ends, a hovered node), never the touching
-    // one -- a touching gap's far end would fan leaders out from nodes the
-    // hovered thing does not name.
-    var hovered = VA.focusElementKeysOf(currentModel(), state.focus.hovered);
-    var states = VA.seamLeaderStates(geo.leaders.map(function (l) { return l.id; }),
-      state.selection, hovered.own, VA.topologyIndex(topoProj));
-    VA.renderSeamLeaders(svg, geo, states);
-    seamDraws++;
-    // For a harness: what was drawn, and what it cost.
-    VA.lastSeamDraw = { leaders: geo.leaders, crossings: geo.crossings,
-      skipped: geo.skipped, states: states, ms: clock() - started, draws: seamDraws };
-    return geo;
-  }
-
-  function rectOf(r) {
-    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-  }
-
-  // The scene is told the page's lit set and dim-or-hide word (its `model`
-  // verb), and a selected node is selected in its layer too -- an edge is
-  // highlighted through the `highlight` a kinematic page already posts
-  // (followSelection). Each only when it changed, and only to a loaded scene.
-  // A body's DAG ink as "#rrggbb", off topology.css's `--tv-body-ink-<n>`
-  // (VA.sceneTintCommand); null where the page has no computed style.
   function bodyInk(tint) {
     try {
       var v = window.getComputedStyle(document.documentElement)
@@ -2710,9 +2514,9 @@
   }
 
   // A selection made anywhere brings its grid row into view in the grid's
-  // region -- an edge's own row, a node's the row its seam is above -- and its
-  // mark on the DAG into view in the DAG's, each by its own scroller. Never the
-  // document, which does not scroll: `scrollIntoView` would also move every
+  // region -- an edge's own row, a node's the row its seam is above -- by the
+  // grid's own scroller (the map brings its own element into view,
+  // views/map.js). Never the document, which does not scroll: `scrollIntoView` would also move every
   // scrolled ancestor, sliding another row under a pointer that has not moved,
   // and that row's hover would take the scene's highlight off the selection.
   function scrollSelectionIntoView() {
@@ -2733,10 +2537,6 @@
       var head = grid.querySelector(".tv__head");
       bringIntoView(grid, row, head ? head.offsetHeight : 0);
     }
-    var dag = paneHscroll();
-    var mark = dag ? dag.querySelector('svg.tv__rails [data-row-kind="' + sel.kind +
-      '"][data-id="' + sel.id + '"]') : null;
-    if (mark) bringIntoView(dag, mark, 0);
   }
 
   // Scroll `box` the least that puts `node` inside it, under a `top` inset.
@@ -2790,30 +2590,17 @@
     selectFromScene(entity);
   }
 
-  // After every paint: the scene told, the grid row brought up, the leaders
-  // re-drawn.
+  // After every paint: the scene told, the grid row brought up.
   function followSeam() {
     syncSceneModel();
     scrollSelectionIntoView();
-    scheduleSeamDraw();
   }
 
-  // --- the DAG's zoom (the_dag_is_zoomable_and_a_length_mode_draws_to_scale) --
+  // --- Fit and the `0` key ------------------------------------------------------
   //
-  // One scale, VA.applyTopoZoom, with the drawing's own scroller moving it into
-  // place: the wheel over the DRAWING zooms about the pointer (a plain wheel
-  // anywhere else in the region scrolls it), Ctrl/Cmd+wheel and a trackpad
-  // pinch zoom from anywhere over the region, a drag on the drawing's empty
-  // space pans, Fit shows what is lit, and `0` is Fit. The scale lives in
-  // `state.dagZoom` and nowhere else.
-  //
-  // The drawing's scroller (`.tv__hscroll`, both ways) is the one thing a pan,
-  // a zoom's compensation or a landing moves -- the document never scrolls
-  // (the fixed shell, 2026-11-14).
-  function paneHscroll() {
-    return nodes.pane && nodes.pane.querySelector
-      ? nodes.pane.querySelector(".tv__hscroll") : null;
-  }
+  // The map owns its own view -- the wheel zooms it about the pointer and a
+  // drag pans it (views/map.js) -- and Fit fits the whole map to its region
+  // again (`mapFit`). `0` is Fit, from anywhere on the page but a field.
 
   // The grid's scroller, in its own region.
   function gridScroller() {
@@ -2821,433 +2608,21 @@
       ? nodes.topogrid.querySelector(".tv__gridscroll") : null;
   }
 
-  // Scroll the drawing by (dx, dy).
-  function scrollDag(dx, dy) {
-    var hscroll = paneHscroll();
-    if (!hscroll) return;
-    if (dx) hscroll.scrollLeft += dx;
-    if (dy) hscroll.scrollTop += dy;
-  }
-
-  function zoomBox() {
-    return nodes.pane && nodes.pane.querySelector
-      ? nodes.pane.querySelector(".tv__zoom") : null;
-  }
-
-  // Zoom to `to`, keeping the content point under (clientX, clientY) where it
-  // is. The content coordinate under the pointer is read BEFORE the scale
-  // changes and put back after, on both axes.
-  function zoomDagAt(to, clientX, clientY) {
-    settleTween();
-    var box = zoomBox();
-    var hscroll = paneHscroll();
-    if (!box || !hscroll) return;
-    var from = state.dagZoom;
-    to = VA.clampDagZoom(to);
-    if (to === from) return;
-    var before = box.getBoundingClientRect();
-    var cy = (clientY - before.top) / from;
-    state.dagZoom = to;
-    // A zoom repaints the pane (VA.applyTopoZoom), so the box is re-read.
-    VA.applyTopoZoom(nodes.pane, to, true);
-    var after = (zoomBox() || box).getBoundingClientRect();
-    // A zoom moves nothing the reader did not (the_wheel_the_column_and_fit_
-    // behave). The page's own scroll is never touched: a wheel is the reader's
-    // hand on the DRAWING, and a page that slides under it is the page being
-    // scrolled by the wheel. Sideways, the grid keeps the content at the pane's
-    // left edge -- anchoring on the pointer scrolled the grid UNDER the sticky
-    // rails, which is how COMPONENT came to sit beneath the DAG. Since
-    // 2026-10-29 the grid is not scaled at all, so its sideways scroll stays
-    // exactly where it was (the repaint carries it). Vertically the drawing's
-    // own scroller keeps the point under the pointer.
-    scrollDag(0, after.top + cy * to - clientY);
-    scheduleSeamDraw();
-  }
-
-  // Fit: the scale at which the lit set (the whole walk where nothing is lit)
-  // fills the visible pane, never past 1, and the page scrolled so it starts
-  // at the visible top. One step, from wherever the reader is. The control
-  // and the key also go back to the drawing's left edge; the framing a study
-  // arrival does (`keepSideways`) leaves the reader's sideways scroll where
-  // it was, as every other re-paint of this pane does.
   function fitDag() {
-    settleTween();
-    // The map fits itself (views/map.js's mapFit) when it is the drawing.
-    if (nodes.pane && typeof nodes.pane.mapFit === "function") { nodes.pane.mapFit(); return; }
-    fitDagTo(false, false);
+    if (nodes.pane && typeof nodes.pane.mapFit === "function") nodes.pane.mapFit();
   }
 
-  // Map . Classic (VA.DAG_DRAWINGS): the region's own switch. Remembered,
-  // and the page repaints -- the grid is unchanged, the region's drawing is
-  // the other one.
-  function setDagDrawing(id) {
-    if (!VA.isDagDrawing(id) || id === state.dagDrawing) return;
-    state.dagDrawing = id;
-    VA.writeStoredDagDrawing(widthStore(), id);
-    render();
-  }
-
-  // The reader's own hand on the drawing (a wheel, Fit) takes over from a
-  // transition in flight: it lands where it was going first, and the reader's
-  // change is made on that.
-  function settleTween() {
-    if (respineHandle && !respineHandle.done && respineHandle.finish) respineHandle.finish();
-  }
-
-  // `centre` is a study arrival's landing (the centre branch of fitDagTo); `keepSideways`
-  // is the older framing that only leaves the sideways scroll alone.
-  // The pad was worked out for one pane and window size; at another (a flyout
-  // opening, a resize) it would push the drawing off-centre the other way, so
-  // it is only drawn at the size it was made for.
-  function padKey() {
-    return [nodes.pane ? nodes.pane.clientWidth : 0,
-      typeof window !== "undefined" ? window.innerHeight : 0].join("x");
-  }
-
-  function livePad() {
-    return state.bandPad && state.bandPad.key === padKey() ? state.bandPad : null;
-  }
-
-  // The pane's width is about to change under the pad (the scene opening or
-  // closing beside it): the landing was centred for the old one, so it goes.
-  function dropBandPad() {
-    state.bandPad = null;
-    var sizer = zoomBox() && zoomBox().parentNode;
-    if (sizer && sizer.style) {
-      sizer.style.marginTop = "";
-      sizer.style.marginLeft = "";
-    }
-  }
-
-  // --- the landing as a frame (the_dag_holds_still_and_the_filter_bar_stays_put)
-  //
-  // What the reader sees of a study arrival is the DAG, the space put before it
-  // (bandPad) and where the page is scrolled. The transition used to move only
-  // the DAG: the pad was dropped on its first frame and the landing put it and
-  // the scroll back on its last, which is the snap left, the move, the snap
-  // back. So the landing is measured on the TARGET layout before the transition
-  // starts (VA.animateTopoPane's `landing`), and the pad and the scroll are
-  // interpolated with the transition: one continuous frame start to end.
-  function dagScrollY() {
-    var hs = paneHscroll();
-    return hs ? hs.scrollTop : 0;
-  }
-
-  function setDagScroll(y) {
-    var hs = paneHscroll();
-    if (hs) hs.scrollTop = y;
-  }
-
-  // The frame on screen right now, read off the drawing itself: its pad is what
-  // the sizer wears (not state.bandPad, which a transition in flight already
-  // holds at its target), its scroll is where the reader is.
-  function dagFrame() {
-    var box = zoomBox();
-    var sizer = box && box.parentNode;
-    var hs = paneHscroll();
-    var px = function (v) { return parseFloat(v) || 0; };
-    return {
-      pad: { top: sizer && sizer.style ? px(sizer.style.marginTop) : 0,
-             left: sizer && sizer.style ? px(sizer.style.marginLeft) : 0 },
-      scrollX: hs ? hs.scrollLeft : 0,
-      scrollY: dagScrollY(),
-    };
-  }
-
-  // The landing the arrival ends in, worked out on the target laid out at rest:
-  // the very landing fitDagTo does, run once, early. The frame the transition
-  // starts from is put back afterwards.
-  function measureLanding(start, lit) {
-    var hs = paneHscroll();
-    // A reader parked sideways stays parked (fitDagTo's own rule).
-    if (hs) hs.scrollLeft = start.scrollX;
-    var end = { pad: { top: 0, left: 0 }, scrollX: start.scrollX, scrollY: null };
-    if (lit) {
-      fitDagTo(true, true);
-      var pad = state.bandPad || { top: 0, left: 0 };
-      hs = paneHscroll();
-      end = { pad: { top: pad.top || 0, left: pad.left || 0 },
-              scrollX: hs ? hs.scrollLeft : 0, scrollY: dagScrollY() };
-      setDagScroll(start.scrollY);
-    }
-    if (hs) hs.scrollLeft = start.scrollX;
-    return end;
-  }
-
-  function lerp(a, b, e) { return a + (b - a) * e; }
-
-  // The window the drawing is looked at through: what the pane shows of the
-  // page, as fitDagTo measures it.
-  function viewport() {
-    var hs = paneHscroll();
-    if (!hs || !hs.getBoundingClientRect) return null;
-    return { topEdge: hs.getBoundingClientRect().top, visible: hs.clientHeight,
-             width: hs.clientWidth };
-  }
-
-  // The hooks VA.animateTopoPane calls (`landing`). `ctx` is this paint's own:
-  // the pad goes on it before each frame, the scroll is placed after it. A
-  // frame is named by its segment `w` ({ k, u }: how far through which leg of
-  // the camera's path), because a landing that has to pull back first has two
-  // legs -- start to the pulled-back frame, then on to the arrival -- and the
-  // pad and the scroll follow the same path the scale does.
-  function landingHooks(ctx, start, lit, known) {
-    var end = known || null;
-    var mid = null;
-    var legs = function (w) {
-      var path = mid ? [start, mid, end] : [start, end];
-      return [path[w.k], path[w.k + 1]];
-    };
-    var hooks = {
-      target: function () {
-        if (!known) end = measureLanding(start, lit);
-        // fitDagTo may have scaled the drawing down to fit the band.
-        ctx.zoom = state.dagZoom;
-        tweenLanded = true;
-        pendingLanding = hooks;
-      },
-      // The scale at which the lit set the reader is leaving AND the one they
-      // are arriving at are both in view -- when that is smaller than the
-      // lower of the two scales they would otherwise see, so that going
-      // straight there would take the one or the other out of the window
-      // part-way. Null when going straight is already in view.
-      waypoint: function (from, zoomFrom, zoomTo) {
-        var vp = viewport();
-        var to = VA.lastTopoRender;
-        if (!lit || !vp || !from || !from.span || !to || !to.span) return null;
-        var top = Math.min(from.span.top, to.span.top);
-        var bottom = Math.max(from.span.bottom, to.span.bottom);
-        var z = VA.dagFitScale(top, bottom, vp.visible, FIT_PAD);
-        var wide = Math.max(from.dagWidth || 0, to.dagWidth || 0);
-        if (wide > 0 && vp.width > 0) {
-          z = Math.min(z, VA.clampDagZoom((vp.width - FIT_PAD) / wide));
-        }
-        if (!(z < Math.min(zoomFrom, zoomTo) - VA.RESPINE.fitSlack)) return null;
-        mid = { pad: { top: lerp(start.pad.top, end.pad.top, 0.5),
-                       left: lerp(start.pad.left, end.pad.left, 0.5) },
-                scrollX: lerp(start.scrollX, end.scrollX, 0.5),
-                scrollY: lerp(start.scrollY, end.scrollY === null ? start.scrollY : end.scrollY, 0.5),
-                union: { top: top, bottom: bottom }, zoom: z };
-        return z;
-      },
-      // The pulled-back frame is on screen: scroll so the two lit sets' union
-      // is centred in the window, as far as the page can reach.
-      midRendered: function () {
-        var box = zoomBox();
-        var drawn = VA.lastTopoRender;
-        var vp = viewport();
-        if (!mid || !box || !drawn || !drawn.span || !vp) return;
-        var r = box.getBoundingClientRect();
-        var yCentre = (mid.union.top + mid.union.bottom) / 2;
-        var seen = r.top + drawn.span.at(mid.zoom).top + mid.zoom * (yCentre - drawn.span.top);
-        mid.scrollY = Math.max(0, dagScrollY() + seen - (vp.topEdge + vp.visible / 2));
-      },
-      frame: function (e, w) {
-        var l = legs(w || { k: 0, u: e });
-        var u = w ? w.u : e;
-        ctx.bandPad = { top: lerp(l[0].pad.top, l[1].pad.top, u),
-                        left: lerp(l[0].pad.left, l[1].pad.left, u) };
-      },
-      placed: function (e, w) {
-        var l = legs(w || { k: 0, u: e });
-        var u = w ? w.u : e;
-        var hs = paneHscroll();
-        if (hs) {
-          hs.scrollLeft = lerp(l[0].scrollX, l[1].scrollX, u);
-          // The ghost shows the same window as the live pane over it.
-          var ghost = nodes.pane.querySelector ? nodes.pane.querySelector(".tv__ghost .tv__hscroll") : null;
-          if (ghost) ghost.scrollLeft = hs.scrollLeft;
-        }
-        if (end.scrollY !== null) setDagScroll(lerp(l[0].scrollY, l[1].scrollY, u));
-        if (e >= 1 && pendingLanding === hooks) pendingLanding = null;
-      },
-      // A paint that is not a transition cut this one short: the scroll goes
-      // where the landing was going (the pad already did, through state).
-      finish: function () { if (end) hooks.placed(1, { k: mid ? 1 : 0, u: 1 }); },
-    };
-    return hooks;
-  }
-  // The breathing room Fit keeps at each end of the lit span.
-  var FIT_PAD = 12;
-  // Every other landing -- the 3D pane opening or closing beside the drawing --
-  // goes through the same transition a study change does. The change is made
-  // as it always was, synchronously, and the frame it left (`beginGlide`, taken
-  // BEFORE it) and the frame it arrived at (`endGlide`, after) are then
-  // travelled between instead of stepped across: pad, scroll and scale, on the
-  // keyframe tween, with no outgoing picture to fade (the rows are the same).
-  function beginGlide() {
-    settleTween();
-    return { from: VA.lastTopoRender, start: dagFrame() };
-  }
-
-  function endGlide(g) {
-    if (!g || !g.from || !g.from.positions || !paneCtx || !nodes.pane) return;
-    var end = dagFrame();
-    var moved = Math.abs(end.pad.top - g.start.pad.top) > 0.5 ||
-      Math.abs(end.pad.left - g.start.pad.left) > 0.5 ||
-      Math.abs(end.scrollX - g.start.scrollX) > 0.5 ||
-      Math.abs(end.scrollY - g.start.scrollY) > 0.5 ||
-      state.dagZoom !== g.from.zoom;
-    if (!moved) return;
-    var ctx = Object.assign({}, paneCtx, { zoom: state.dagZoom,
-      bandPad: state.bandPad ? { top: state.bandPad.top, left: state.bandPad.left } : null,
-      tween: null });
-    var hooks = landingHooks(ctx, g.start, true, end);
-    respineHandle = VA.animateTopoPane(nodes.pane, ctx, g.from, {
-      onError: renderCrash, landing: hooks, ghost: false });
-    tweenLanded = false;
-  }
-  // The context the pane was last painted from: a glide repaints from it.
+  // The context the pane was last painted from.
   var paneCtx = null;
-  var pendingLanding = null;
-  // Set when this paint's transition has taken the landing on itself.
-  var tweenLanded = false;
 
-  function fitDagTo(keepSideways, centre) {
-    var box = zoomBox();
-    var hscroll = paneHscroll();
-    var drawn = VA.lastTopoRender;
-    if (!box || !hscroll || !drawn || !drawn.span || !box.getBoundingClientRect) return;
-    var vp = viewport();
-    // The DAG's region is hidden (the 3D view, VA.PANE_VIEWS): there is no
-    // window to fit into, and the landing waits for one.
-    if (!vp || !(vp.visible > 0) || !(vp.width > 0)) return;
-    var topEdge = vp.topEdge;
-    var visible = vp.visible;
-    var pad = FIT_PAD;
-    // The DAG's lit span: only the DAG scales (2026-10-29), so the grid
-    // beside it is not part of what a scale can fit.
-    var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);
-    // Both axes: the DAG's own width must fit its region too. The grid has a
-    // region of its own (the fixed shell, 2026-11-14), so the whole width is
-    // the drawing's.
-    if (drawn.dagWidth > 0 && hscroll.clientWidth > 0) {
-      to = Math.min(to, VA.clampDagZoom((hscroll.clientWidth - pad) / drawn.dagWidth));
-    }
-    // A study's arrival only ever scales DOWN, and only when the band does not
-    // fit at the zoom the reader has: a zoom they chose is theirs until the
-    // next study change moves the band.
-    if (centre) to = Math.min(to, state.dagZoom);
-    state.dagZoom = to;
-    VA.applyTopoZoom(nodes.pane, to);
-    // A zoom repaints the pane: the box and the span are read off the new one.
-    box = zoomBox();
-    hscroll = paneHscroll();
-    drawn = VA.lastTopoRender;
-    if (!box || !hscroll || !drawn || !drawn.span) return;
-    var rect = box.getBoundingClientRect();
-    var spanAt = drawn.span.at(to);
-    if (!centre) {
-      scrollDag(keepSideways ? 0 : -hscroll.scrollLeft,
-        rect.top + spanAt.top - pad * to - topEdge);
-    } else {
-      // Centre the band's own box in the visible window, both axes. The page
-      // clamps what it cannot reach (a band near the top of a short drawing),
-      // so the centre is as close as the page's own extents allow.
-      var hr = hscroll.getBoundingClientRect();
-      // Sideways, the drawing stays at the strip's left edge, with the grid
-      // beside it: a band already on screen is not moved at all, and one
-      // off either edge (a reader zoomed in) is brought just inside it. It
-      // used to be centred in the pane, with space put before the drawing
-      // when the scroll could not reach -- which pushed the grid right by the
-      // same amount, up to two thirds of a 737px pane at 1600 wide
-      // (the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what).
-      var bandOffset = function () {
-        var r = box.getBoundingClientRect();
-        var dx = 0;
-        var dyBand = r.top + (spanAt.top + spanAt.bottom) / 2;
-        var bars = box.querySelectorAll ? box.querySelectorAll("line.rail__bar--on") : [];
-        if (bars.length) {
-          var x1 = Infinity, x2 = -Infinity, y1 = Infinity, y2 = -Infinity;
-          for (var i = 0; i < bars.length; i++) {
-            var br = bars[i].getBoundingClientRect();
-            x1 = Math.min(x1, br.left); x2 = Math.max(x2, br.right);
-            y1 = Math.min(y1, br.top); y2 = Math.max(y2, br.bottom);
-          }
-          if (x1 < hr.left + pad) dx = x1 - hr.left - pad;
-          else if (x2 > hr.right - pad) dx = Math.min(x2 - hr.right + pad, x1 - hr.left - pad);
-          dyBand = (y1 + y2) / 2;
-        }
-        return { dx: dx, dy: dyBand - (topEdge + visible / 2) };
-      };
-      // A reader parked sideways stays where they are (the 10-28 contract,
-      // carried across a respine): only the vertical half centres for them.
-      var parked = hscroll.scrollLeft > 0;
-      var off = bandOffset();
-      scrollDag(parked ? 0 : off.dx, off.dy);
-      // Whatever the scroll could not reach -- a band that sits above the
-      // centre with nothing further to scroll back to -- is taken up by space
-      // above the drawing. It is kept in state.bandPad so a repaint redraws
-      // it; the next study change drops it. Never space to its LEFT: that is
-      // space between the pane's edge and the grid too.
-      off = bandOffset();
-      var sizer = box.parentNode;
-      var top = off.dy < -0.5 ? -off.dy : 0;
-      var left = 0;
-      state.bandPad = { top: top, left: left, key: padKey() };
-      state.landed = true;
-      if (sizer && sizer.style) {
-        if (top) sizer.style.marginTop = top + "px";
-        if (left) sizer.style.marginLeft = left + "px";
-      }
-    }
-    scheduleSeamDraw();
-  }
+  // Wired once per document: a harness that boots the page a second time
+  // (every real-data probe does, to install fixtures) would otherwise stack
+  // a second copy of the listener, and one key would fit twice.
+  var fitKeyWired = false;
 
-  // Wired once per pane element and once per document: a harness that boots
-  // the page a second time (every real-data probe does, to install fixtures)
-  // would otherwise stack a second copy of each listener on the same node, and
-  // one wheel notch would zoom two steps and one drag pan twice as far.
-  var zoomWiredOn = null;
-  var zoomKeyWired = false;
-
-  function wireZoom() {
-    if (typeof window === "undefined" || !nodes.pane || !nodes.pane.addEventListener) return;
-    if (zoomWiredOn === nodes.pane) return;
-    zoomWiredOn = nodes.pane;
-    nodes.pane.addEventListener("wheel", function (event) {
-      var onDrawing = event.target && event.target.closest &&
-        event.target.closest("svg.tv__rails");
-      if (!onDrawing && !(event.ctrlKey || event.metaKey)) return;
-      event.preventDefault();
-      zoomDagAt(VA.dagZoomAfterWheel(state.dagZoom, event.deltaY),
-        event.clientX, event.clientY);
-    }, { passive: false });
-    // Pan: a drag that starts on the drawing's own empty space -- the SVG and
-    // its study fields, never a bar, dot, leader or container, which are the
-    // controls. A body's field was pan space until 2026-11-13: since the
-    // two-tier light made it SELECT the body (wireContainer), a pointerdown
-    // on its border must reach its click, and the pointer capture the pan
-    // takes here was retargeting the mouseup and the click to this section
-    // (review of 2026-11-13, B2 -- measured with a real pointer). Its
-    // interior was never pan space of its own: the field is drawn with
-    // `pointer-events: stroke`, so a drag inside it starts on the SVG.
-    var drag = null;
-    nodes.pane.addEventListener("pointerdown", function (event) {
-      if (event.button !== 0 || !event.target || !event.target.closest) return;
-      var t = event.target;
-      var empty = t.tagName === "svg" || (t.classList &&
-        t.classList.contains("tv__studyfield"));
-      if (!empty || !t.closest("svg.tv__rails")) return;
-      drag = { x: event.clientX, y: event.clientY };
-      nodes.pane.classList.add("tv__scroll--zoomgrab");
-      if (nodes.pane.setPointerCapture) {
-        try { nodes.pane.setPointerCapture(event.pointerId); } catch (err) { /* synthetic */ }
-      }
-    });
-    nodes.pane.addEventListener("pointermove", function (event) {
-      if (!drag) return;
-      scrollDag(drag.x - event.clientX, drag.y - event.clientY);
-      drag = { x: event.clientX, y: event.clientY };
-    });
-    var release = function () {
-      drag = null;
-      if (nodes.pane.classList) nodes.pane.classList.remove("tv__scroll--zoomgrab");
-    };
-    nodes.pane.addEventListener("pointerup", release);
-    nodes.pane.addEventListener("pointercancel", release);
-    if (zoomKeyWired) return;
-    zoomKeyWired = true;
+  function wireFitKey() {
+    if (typeof document === "undefined" || !document.addEventListener || fitKeyWired) return;
+    fitKeyWired = true;
     document.addEventListener("keydown", function (event) {
       if (event.key !== "0" || event.ctrlKey || event.metaKey || event.altKey) return;
       var t = event.target;
@@ -3256,28 +2631,6 @@
           (t && t.isContentEditable)) return;
       fitDag();
     });
-  }
-
-  function wireSeam() {
-    if (typeof window === "undefined" || !document.addEventListener) return;
-    // Every region's own scroll: captured, since a scroll does not bubble.
-    document.addEventListener("scroll", function () {
-      // Leaders off: nothing to re-measure (leadersOff).
-      if (!leadersOff()) scheduleSeamDraw();
-    }, true);
-    if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(function () {
-        // The pane's width moved with no repaint (the 3D pane opened or
-        // closed, a divider dragged): its zoom box's floor moves with it.
-        if (nodes.pane) VA.sizeTopoZoomBox(nodes.pane);
-        if (!leadersOff()) scheduleSeamDraw();
-      });
-      [nodes.pane, nodes.flyout, document.documentElement].forEach(function (n) {
-        if (n) observer.observe(n);
-      });
-    } else {
-      window.addEventListener("resize", scheduleSeamDraw);
-    }
   }
 
   // --- the two resize drags (viewer_leader_grid_legibility) ----------------
@@ -3662,28 +3015,6 @@
   }
 
   function paint() {
-    // A transition in flight renders the pane from the ctx it started with,
-    // so any paint that is not one of its own frames has to stop it first: a
-    // resize, a selection or a reload landing mid-respine would otherwise be
-    // painted over by the next frame of a state the page has already left.
-    // Claimed rather than read, so a respine that never reaches the pane (a
-    // paint in stack mode) does not leave one armed for a later one.
-    var respineStart = respineFrom;
-    respineFrom = null;
-    // The frame the reader is looking at, before anything below changes it: a
-    // transition starts from it (a pad of its own, not state.bandPad).
-    var startFrame = respineStart ? dagFrame() : null;
-    if (respineHandle) {
-      respineHandle.cancel();
-      respineHandle = null;
-      // Cut short by something that is not itself a transition: the landing
-      // still happens. Cut short by another transition, that one starts from
-      // the frame on screen instead.
-      if (pendingLanding && !respineStart) pendingLanding.finish();
-      pendingLanding = null;
-    }
-    if (serialisation() !== paintedSerialisation) { state.bandPad = null; state.landed = false; }
-
     VA.renderBanner(nodes.banner, bannerState(), {
       // Guarded: the banner only ever offers these when an FSA adapter exists,
       // but a no-adapter boot still renders a banner, and a button whose
@@ -3768,46 +3099,16 @@
     repaintDag = null;
     repaintToolbarFn = null;
     if (showDag) {
-      // Which containers are drawn (VA.GROUP_KINDS): the reader's own set for
-      // this topology, else every kind. Every study of the topology has a
-      // group to offer; the pane filters them by kind.
+      // Which of the grid's brackets are drawn (VA.GROUP_KINDS): the reader's
+      // own set for this topology, else every kind.
       var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
-      // The colour overlay's inputs beyond the topology: a kinematic page's
-      // contribution per edge at its stop (VA.kinematicContributions).
-      // ...at the live pose (VA.kinematicContributions), which the
-      // contribution length mode draws its bars from too.
-      var overlayOptions = {
-        contributions: showKinematic
-          ? VA.kinematicContributions(kinematicStudy, state.kinematicStop, livePoseIndex)
-          : null,
-        units: kinematicStudy ? kinematicStudy.units || null : null,
-      };
-      // ...and the contribution length mode's bars (VA.kinematicPoseLengths).
-      var poseLengths = showKinematic && livePoseIndex !== null
-        ? VA.kinematicPoseLengths(kinematicStudy, livePoseIndex) : null;
-      var lengthMode = VA.edgeLengthModeFor(state.edgeLengthMode, !!poseLengths);
       var ctx = {
-        // The grid's own region (VA.renderTopoPane): the DAG's is nodes.pane.
+        // The grid's own region (VA.renderTopoPane): the map's is nodes.pane.
         gridRoot: nodes.topogrid,
         groupKinds: groupKinds,
-        colourBy: state.dagView.colourBy,
-        groupFill: state.dagView.groupFill,
-        partDrawing: state.dagView.partDrawing,
-        contributions: overlayOptions.contributions,
-        contributionUnits: overlayOptions.units,
-        studyGroups: topoProj
-          ? VA.studyGroups(topoProj, state.kinematic,
-              showKinematic ? state.kinematicId : state.studyId) : [],
-        onOpenStudy: function (group) {
-          if (group.selected) return;
-          if (group.kind === "kinematic") onNavKinematic(group.id);
-          else onNavStudy(topoProj.id, group.id);
-        },
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
-        zoom: state.dagZoom,
-        bandPad: livePad(),
         // Where a contributor borrows its band from another edge, the
         // preview pane says so and links to it (VA.kinematicBandEdges).
         bandEdges: showKinematic ? VA.kinematicBandEdges(kinematicStudy) : null,
@@ -3816,21 +3117,8 @@
         kinematicStudy: showKinematic ? kinematicStudy : null,
         decimals: state.kinematic ? state.kinematic.display_decimals : undefined,
         unlitStyle: state.unlitStyle,
-        // The bodies the reader has folded, remembered per topology
-        // (VA.readCollapsedBodies), and the sub-stacks a kinematic page
-        // draws inside them with their shared open state.
-        // No projection published: the pane says so and draws no body.
-        collapsedBodies: topoProj ? VA.readCollapsedBodies(widthStore(), topoProj.id) : null,
-        onToggleBody: function (bodyId) {
-          if (!topoProj) return;
-          var collapsed = VA.readCollapsedBodies(widthStore(), topoProj.id);
-          if (collapsed[bodyId]) delete collapsed[bodyId];
-          else collapsed[bodyId] = true;
-          VA.writeCollapsedBodies(widthStore(), topoProj.id, collapsed);
-          render();
-        },
-        // The grid's folded assemblies, remembered per topology like the
-        // bodies (a_part_may_contain_parts): each is one rolled-up row.
+        // The grid's folded assemblies, remembered per topology
+        // (a_part_may_contain_parts): each is one rolled-up row.
         collapsedAssemblies: topoProj ? VA.readCollapsedAssemblies(widthStore(), topoProj.id) : null,
         onToggleAssembly: function (partId, open) {
           if (!topoProj) return;
@@ -3843,9 +3131,9 @@
         subStacks: showKinematic ? VA.kinematicSubStacks(kinematicStudy,
           state.kinematic && state.kinematic.display_decimals) : null,
         // The kinematic page's grid: its stack at the chosen stop
-        // (VA.kinematicStack), folded as this reader left it. The DAG's dashed
-        // field for a sub-study and the grid's header row for it read the one
-        // open state (`openSubStacks`, off the stack) and write the one store.
+        // (VA.kinematicStack), folded as this reader left it. The grid's
+        // header row for a sub-study reads the open state (`openSubStacks`,
+        // off the stack) and writes the one store.
         stack: kinematicStack,
         openSubStacks: VA.stackOpenMap(kinematicStack),
         onToggleSubStack: toggleSubStack,
@@ -3859,16 +3147,12 @@
         // containers (views/topology.js's selectedTier).
         selectedKeys: VA.focusElementKeysOf(currentModel(), state.focus.selected),
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
-        edgeLengthMode: lengthMode,
-        lengths: poseLengths,
         // The lit-set rule's second reason: parts of a body tagged with a
         // variant the reader did not select (VA.otherVariantParts).
         otherVariantParts: VA.otherVariantParts(topoProj, state.tagFilter,
           state.topologies && state.topologies.variant_axis),
-        // Which style a leader is drawn in (viewer_leader_grid_legibility).
         // The grid's column grips call back through onResizeStart/
         // onResizeNudge below.
-        leaderStyle: state.leaderStyle,
         onResizeStart: onResizeStart,
         onResizeNudge: onResizeNudge,
         // The grid's thumbnail column reads fetched crop PNGs out of this
@@ -3876,31 +3160,24 @@
         // itself is ensureThumbImages below, fired after this paint.
         cropImages: imageCache,
         onSelect: selectElement, onCropShow: showCrop,
-        // The leaders across the seam light with the pane's hover, and are
-        // re-drawn after every paint of it (a respine's frames included).
-        // ...and the Preview, which shows whatever is hovered or focused on
-        // any tier and returns to the frozen element when nothing is.
+        // The grid's hover, told to the page: the Preview shows whatever is
+        // hovered or focused on any tier and returns to the frozen element
+        // when nothing is.
         onHot: function (key) {
-          // A mark's or a row's element, or a part's or a body's container,
-          // as the entity it is (VA.focusKeyEntity); a rail's or a study
-          // group's key is no entity and reads as the pointer on nothing.
+          // A row's element, or a part's or a body's bracket, as the entity
+          // it is (VA.focusKeyEntity).
           setHovered(VA.focusKeyEntity(currentModel(), key), "dag");
         },
-        // The map (views/map.js, the_map_draws_the_end_stop_model): which
-        // drawing the region shows, the model it lights from, the selection
-        // as the entity it is, and its own pointer's entity -- the map draws
-        // every entity once, so it hovers and selects by entity rather than
-        // by element key. The switch is the region's own header, drawn by
-        // either drawing.
-        dagDrawing: VA.dagDrawingFor(state.dagDrawing, topoProj),
+        // The map (views/map.js, the_map_draws_the_end_stop_model): the model
+        // it lights from, the selection as the entity it is, and its own
+        // pointer's entity -- the map draws every entity once, so it hovers
+        // and selects by entity rather than by element key.
         model: currentModel(),
         selectedEntity: state.focus.selected,
         onHotEntity: function (entity) { setHovered(entity, "dag"); },
         onSelectEntity: selectEntity,
-        regionHead: function () { return VA.renderDagSwitch(state, topoProj, setDagDrawing); },
-        // A paint (a transition's frames included) rebuilt the marks: lit
-        // again from the one state, and the leaders re-drawn.
-        onPainted: function () { scheduleSeamDraw(); applyFocus(); },
+        // A paint rebuilt the marks: lit again from the one state.
+        onPainted: function () { applyFocus(); },
         // The hover reference cards (viewer_hover_cards_and_deep_links): the
         // crop trigger, the merged component cell and the confidence chip all
         // open one through this, into the same positioned popover node.
@@ -3922,29 +3199,20 @@
           VA.writeCollapsedAssemblies(widthStore(), topoProj.id, folded);
           render();
         },
-        // The length mode the pane draws, which is the page's default until
-        // the reader picks one (VA.edgeLengthModeFor).
-        edgeLengthMode: lengthMode,
-        // The view popover (VA.COLOUR_SCHEMES, VA.PALETTES, VA.GROUP_FILLS,
-        // VA.GRAPH_WIDTHS) and the overlay's key beside it.
-        dagView: Object.assign({}, state.dagView, {
-          schemes: VA.availableColourSchemes(overlayOptions),
-          legend: VA.dagOverlay(state.dagView.colourBy, topoProj, overlayOptions).legend,
-        }),
-        // Every setting re-renders: the width moves the leaders and the
-        // grid's seam, the overlay its key. The popover is put back open.
+        // The view popover (VA.PALETTES).
+        dagView: Object.assign({}, state.dagView),
+        // A setting re-renders, and the popover is put back open.
         onDagView: function (setting, value) {
           state.dagView[setting] = value;
           VA.writeDagView(widthStore(), state.dagView);
-          if (setting === "graphWidth") VA.applyGraphWidth(value);
           if (setting === "palette") applyPalette();
           render();
           var menu = typeof document !== "undefined" && document.getElementById &&
             document.getElementById("dag-view");
           if (menu && menu.setAttribute) menu.setAttribute("open", "");
         },
-        // One kind's checkbox: the pane repaints, nothing else on the page
-        // depends on which containers are drawn.
+        // One kind's checkbox: the grid repaints, nothing else on the page
+        // depends on which brackets are drawn.
         onGroupKind: function (kind, on) {
           groupKinds[kind] = on;
           VA.writeGroupKinds(widthStore(), topoProj.id, groupKinds);
@@ -3964,25 +3232,8 @@
           state.edgeValueOnly = !state.edgeValueOnly;
           render();
         },
-        // Edge-length scaling (viewer_edge_length_scaling): cycle through the
-        // modes in VA.EDGE_LENGTH_MODES' own `next` order (VA.nextEdgeLengthMode skips
-        // contribution on a page with no lengths to draw). Same
-        // reasoning as density again — WHICH rows are on screen never
-        // changes, only how tall the DAG's slots are — so render(), not
-        // rewind().
+        // Fit the map to its region (views/map.js's mapFit).
         onFit: fitDag,
-        onEdgeLength: function () {
-          state.edgeLengthMode = VA.nextEdgeLengthMode(lengthMode, !!poseLengths);
-          render();
-        },
-        // Leader style (viewer_leader_grid_legibility): same reasoning again
-        // -- only the path between a leader's two unchanged ends is redrawn,
-        // so render(), not rewind().
-        onLeaderStyle: function () {
-          var style = VA.LEADER_STYLES[state.leaderStyle];
-          state.leaderStyle = style ? style.next : VA.DEFAULT_LEADER_STYLE;
-          render();
-        },
         // Side by side · 3D · DAG (VA.PANE_VIEWS), while the pane is open.
         onPaneView: setPaneView,
         // "View in 3D" (study_3d_flyout): the toolbar builds the params
@@ -4001,12 +3252,11 @@
       // opens and closes between paints (repaintToolbar).
       repaintToolbarFn = function () {
         toolbarHandlers.paneOpen = !!(nodes.flyout && nodes.flyout.open);
-        toolbarHandlers.leadersDrawable = leadersDrawable();
         VA.renderTopoToolbar(nodes.toolbar, state, topoProj, toolbarHandlers);
       };
       repaintToolbarFn();
-      // The DAG's own repaint, for the controls that change only what the
-      // model draws (Unused, Groups): the pane (and, for Unused, its toolbar
+      // The region's and the grid's own repaint, for the controls that change
+      // only what they draw (Unused, Groups): the pane (and, for Unused, its toolbar
       // label and the 3D scene's copy of the word), never the results, the
       // nav or the preview -- the results are a different component and
       // re-rendering the page around them was what coupled the two.
@@ -4019,43 +3269,7 @@
       };
       if (showTopology) VA.renderTopoJoint(nodes.topojoint, topoProj, study);
       paneCtx = ctx;
-      // The map does not respine: it is not laid out from the walk, so a
-      // study arrival is one paint there.
-      if (respineStart && respineStart.topologyId === topoProj.id && ctx.dagDrawing !== "map") {
-        // `onError` puts an animation frame's throw on the SAME seam every
-        // other render on this page uses: a frame runs off a rAF callback,
-        // outside render()'s try/catch, so without this it would be an
-        // unhandled error with the pane frozen mid-transition.
-        var arrives = ctx.lit || VA.studyLitSet(ctx.study, topoProj);
-        tweenLanded = false;
-        respineHandle = VA.animateTopoPane(nodes.pane, ctx, respineStart, {
-          onError: renderCrash,
-          landing: landingHooks(ctx, startFrame, !!arrives),
-        });
-      } else {
-        VA.renderTopoPane(nodes.pane, ctx);
-      }
-      // Arriving at a study re-arranges the walk around it (VA.bandLayout),
-      // and the band is then framed (Fit) once the transition has settled:
-      // the point of the band is that the whole study is on screen without
-      // scrolling. Any other paint leaves the reader's zoom alone.
-      if (serialisation() !== paintedSerialisation && !tweenLanded &&
-          (ctx.lit || VA.studyLitSet(ctx.study, topoProj))) {
-        landingPending = true;
-      }
-      tweenLanded = false;
-      // Landing waits for a settled layout: a transition's own onSettled, or
-      // the first paint that is not mid-transition (a repaint that cancels the
-      // tween leaves the settled layout, and the landing must not be lost
-      // with it).
-      if (landingPending) {
-        var frame = function () {
-          landingPending = false;
-          fitDagTo(true, true);
-        };
-        if (respineHandle && !respineHandle.done) respineHandle.onSettled = frame;
-        else frame();
-      }
+      VA.renderTopoPane(nodes.pane, ctx);
       if (showTopology) {
         VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       }
@@ -4140,11 +3354,6 @@
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
-    // What this paint put on screen, for the no-op guard in respine() above.
-    // A transition's own frames do not come through paint(), so this stays
-    // the target's throughout one.
-    paintedSerialisation = serialisation();
-
     // The seam's tab, and an open pane following what was just selected --
     // after the paint, so the views' own state is settled.
     syncPaneHandle();
@@ -4154,8 +3363,6 @@
     // the hover kept only where the pointer still is (revalidateHover).
     revalidateHover();
     applyFocus();
-    // A kinematic DAG that moves with the pose builds its film while idle.
-    if (state.mode === "kinematic" && (!respineHandle || respineHandle.done)) prebuildFilm();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
@@ -4220,44 +3427,8 @@
   // controls that change WHICH rows or WHICH stack are on screen do this;
   // clicking a row also re-renders, and yanking the reader back to the top for
   // that would be its own bug (rewind's original comment, topology.js).
-  // --- the respine (viewer_study_respine_animation) -------------------------
-  //
-  // A rewind() whose pane paint is a TRANSITION rather than a repaint: the
-  // store the outgoing paint drew from is captured here, before anything is
-  // re-rendered, and paint() hands it to VA.animateTopoPane. Only the control
-  // that changes WHICH serialisation is on screen comes through here --
-  // picking or dropping a study in the nav, which since
-  // viewer_respine_whole_walk is the only one there is; everything else --
-  // density, length mode, leader style, a resize drag -- changes how the SAME
-  // rows are drawn and has always been a plain render.
-  //
-  // VA.lastTopoRender is the store the LAST pane paint drew from, which
-  // during a transition is that transition's own last frame: interrupting a
-  // respine with another one therefore picks up where the first one had got
-  // to instead of snapping back to where it began.
-  var respineFrom = null;
-  var respineHandle = null;
   // Set by each paint that draws the DAG, cleared by each that does not.
   var repaintDag = null;
-  var paintedSerialisation = null;
-  var landingPending = false;
-
-  // Which serialisation is on screen: the mode, the topology and the study.
-  // A respine is only a TRANSITION when one of those actually changed --
-  // clicking the nav row of the topology already open is a no-op, and
-  // animating a no-op would lay a fading ghost of the page over the identical
-  // page for a quarter of a second.
-  function serialisation() {
-    return [state.mode, state.topologyId, state.studyId, state.kinematicId]
-      .join(" / ");
-  }
-
-  function respine() {
-    respineFrom = serialisation() === paintedSerialisation
-      ? null
-      : (VA.lastTopoRender || null);
-    rewind();
-  }
 
   // A kinematic page's sub-stack opened or closed, from the DAG's label or the
   // grid's header row: the reader's choice for this study, remembered
@@ -4287,11 +3458,8 @@
   // with its own `seek`. A settled pose -- a typed angle, a slider's release,
   // a stop button, a pause -- is a plain render(). A MOVING one -- a drag, a
   // frame of play -- is livePose(): the grid's text rewritten in place
-  // (VA.applyStackText), the DAG eased between keyframes rendered off screen
-  // (VA.poseFilm), the control's marks moved (VA.syncPoseControl). No pane
-  // rebuild per frame: that is what the tween handoff measured and removed.
-  var poseFilm = null;
-  var poseFilmCtx = null;
+  // (VA.applyStackText) and the control's marks moved (VA.syncPoseControl).
+  // No pane rebuild per frame: the map does not move with the pose.
   var panePosePosted = null;
   // The URL as the page was opened, so a pose written into it can be taken
   // back out when the page leaves the study.
@@ -4356,81 +3524,6 @@
     if (postToPane(["seek", text])) panePosePosted = text;
   }
 
-  // The DAG's pose film for the pane on screen, built the first time a pose
-  // moves after a paint (VA.poseFilm), or false where this paint's DAG does
-  // not move with the pose or its keyframes would not pair.
-  function filmFor(study, topo, drawnStop, decimals, folds) {
-    if (poseFilm !== null && poseFilmCtx === paneCtx &&
-        (poseFilm === false || poseFilm.valid())) return poseFilm;
-    var builder = builderFor(study, topo, drawnStop, decimals, folds);
-    // A film not yet built is built one keyframe a frame, not all at once:
-    // rendering the rest in one frame stalls the pane's play for seconds on a
-    // loaded box (the page then shows poses the pane left long ago). The DAG
-    // joins the grid, the chart and the pane when the film is ready.
-    if (builder && builder.valid() && !builder.done()) {
-      try { builder.step(); } catch (err) { poseFilmCtx = paneCtx; poseFilm = false; return false; }
-      if (!builder.done()) return false;
-    }
-    poseFilmCtx = paneCtx;
-    poseFilm = builder && builder.valid() ? builder.finish() || false : false;
-    return poseFilm;
-  }
-
-  // The film's builder for the pane on screen (VA.poseFilmBuilder), made once
-  // per paint, or null where this paint's DAG does not move with the pose.
-  var poseFilmBuilder = null;
-  var poseFilmBuilderCtx = null;
-
-  function builderFor(study, topo, drawnStop, decimals, folds) {
-    if (poseFilmBuilderCtx === paneCtx) return poseFilmBuilder;
-    poseFilmBuilderCtx = paneCtx;
-    poseFilmBuilder = null;
-    var lengths = VA.EDGE_LENGTH_MODES[paneCtx.edgeLengthMode] || {};
-    var scheme = VA.colourScheme ? VA.colourScheme(paneCtx.colourBy) : null;
-    if (!lengths.contributions && !(scheme && scheme.available)) return null;
-    var count = VA.kinematicPoseCount(study);
-    var keys = [];
-    for (var k = 0; k < VA.KINEMATIC_POSE.filmKeys; k++) {
-      keys.push((count - 1) * k / (VA.KINEMATIC_POSE.filmKeys - 1));
-    }
-    var ctx = paneCtx;
-    poseFilmBuilder = VA.poseFilmBuilder(nodes.pane, function (index) {
-      var at = framePose(study, index, drawnStop);
-      var stack = VA.kinematicStack(study, topo, drawnStop, decimals, folds, at);
-      return Object.assign({}, ctx, {
-        stack: stack, openSubStacks: VA.stackOpenMap(stack),
-        contributions: VA.kinematicContributions(study, drawnStop, at),
-        lengths: VA.kinematicPoseLengths(study, at),
-        onPainted: null, onHot: null, tween: null,
-      });
-    }, keys);
-    return poseFilmBuilder;
-  }
-
-  // After a settled kinematic paint, the film's keyframes are rendered in
-  // idle time, one per idle slot, so Play and a drag start on a film that is
-  // already there (measured: twelve keyframes built at the first frame of
-  // play stalled it 3.3 s on a loaded box).
-  function prebuildFilm() {
-    var study = poseStudy();
-    var topo = currentTopology();
-    if (!study || !topo || !paneCtx || !paneCtx.stack) return;
-    var ctx = paneCtx;
-    var builder = builderFor(study, topo, paneCtx.stack.stop.id,
-      state.kinematic && state.kinematic.display_decimals,
-      VA.readSubStackFolds(widthStore(), study.id));
-    if (!builder) return;
-    var idle = typeof window !== "undefined" && window.requestIdleCallback
-      ? function (fn) { window.requestIdleCallback(fn, { timeout: 2000 }); }
-      : function (fn) { setTimeout(fn, 50); };
-    var next = function () {
-      if (paneCtx !== ctx || !builder.valid() || builder.done() || panePlaying) return;
-      try { builder.step(); } catch (err) { return; }
-      idle(next);
-    };
-    idle(next);
-  }
-
   // A pose for a frame: on a stop's point it is that stop only when the pane
   // on screen is drawn at it -- the two stops' stacks are different rows, and
   // a frame of play never changes rows. The settled render that follows does.
@@ -4451,16 +3544,11 @@
     var decimals = state.kinematic && state.kinematic.display_decimals;
     var folds = VA.readSubStackFolds(widthStore(), study.id);
     var stack = VA.kinematicStack(study, topo, drawnStop, decimals, folds, pose);
-    var film = filmFor(study, topo, drawnStop, decimals, folds);
     // The pane's own ctx follows, so a repaint mid-play draws this pose.
     paneCtx.stack = stack;
-    paneCtx.contributions = VA.kinematicContributions(study, drawnStop, pose);
-    paneCtx.lengths = VA.kinematicPoseLengths(study, pose);
-    if (film) film.apply(pose.index);
     // The rows are in the grid's own region (the fixed shell, 2026-11-14).
     VA.applyStackText(nodes.topogrid, stack);
     VA.syncPoseControl(nodes.detail, study, VA.kinematicPose(study, index), panePlaying);
-    scheduleSeamDraw();
     // The pane's own pose is not told back to it: it is the one moving it.
     if (!fromPane) syncPanePose(study, pose);
   }
@@ -4583,12 +3671,9 @@
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
   }
 
-  // The DAG's and the grid's scrollers back to their top: which rows are on
-  // screen changed.
+  // The grid's scroller back to its top: which rows are on screen changed.
   function scrollRegionsToTop() {
-    var hs = paneHscroll();
     var gs = gridScroller();
-    if (hs) hs.scrollTop = 0;
     if (gs) gs.scrollTop = 0;
   }
 

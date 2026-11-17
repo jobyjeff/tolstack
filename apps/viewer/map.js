@@ -1,11 +1,13 @@
 // The map's layout -- the tube map of a model, as pure functions
 // (the_map_draws_the_end_stop_model, 2026-11-15; Jeff, 2026-11-10: "Yes I
-// like your tube map", with his own sketch). The map is a SECOND DRAWING OF
-// THE SAME MODEL, never a second model: everything here is read off the
+// like your tube map", with his own sketch; the DAG region's one drawing for
+// every model since 2026-11-17, Jeff: "let's go ahead and make it
+// permanent"). The map is a drawing of the model, never a second model: everything here is read off the
 // model view (`topoProj.model`, tolerance_stack/model_view.py) and one
-// authored layout file beside the model (`topoProj.map`,
-// docs/topologies/map_<model id>.json), and nothing is read off the present
-// DAG's `layout {columns, rows, rails}`.
+// layout beside the model (`topoProj.map`: the authored
+// docs/topologies/map_<model id>.json, or -- for a model with none -- the
+// places the builder computes from its bodies, load_topology_map), and
+// nothing is read off the walk's `layout {columns, rows, rails}`.
 //
 // What is AUTHORED is a part's place on a coarse grid -- `places: {part:
 // [col, row]}`, one entry per top-level part. Everything else is computed:
@@ -28,57 +30,6 @@
 // the same reason every other file here is (file://).
 (function (VA, VOCAB) {
   "use strict";
-
-  // --- Map . Classic ------------------------------------------------------
-  //
-  // One two-way control in the DAG region's own header. The map is the
-  // default where the model has a layout; a model with none has no map, and
-  // the switch says so in two words (VA.NO_MAP_LABEL) rather than offering
-  // a drawing that does not exist. Remembered the way the pane view is
-  // (VA.PANE_VIEW_KEY): one key, read at boot.
-  VA.DAG_DRAWINGS = {
-    map: { label: "Map", title: "The model as a map: bodies as districts, a box round every part, pins where parts meet" },
-    classic: { label: "Classic", title: "The walk on its rails, as the page drew it before the map" },
-  };
-  VA.DAG_DRAWING_ORDER = ["map", "classic"];
-  VA.DEFAULT_DAG_DRAWING = "map";
-  VA.DAG_DRAWING_KEY = "tolstack.viewer.dagDrawing";
-  VA.NO_MAP_LABEL = "No map";
-
-  VA.isDagDrawing = function (id) {
-    return Object.prototype.hasOwnProperty.call(VA.DAG_DRAWINGS, id);
-  };
-
-  VA.readStoredDagDrawing = function (store) {
-    try {
-      var raw = store && store.getItem(VA.DAG_DRAWING_KEY);
-      return raw && VA.isDagDrawing(raw) ? raw : null;
-    } catch (err) {
-      return null;
-    }
-  };
-
-  VA.writeStoredDagDrawing = function (store, id) {
-    try {
-      if (store && VA.isDagDrawing(id)) store.setItem(VA.DAG_DRAWING_KEY, id);
-    } catch (err) {
-      // A browser that refuses to store it still switches for this session.
-    }
-  };
-
-  // Whether a projected topology ships a layout the map can draw from.
-  VA.topologyHasMap = function (topoProj) {
-    var doc = topoProj && topoProj.map;
-    return !!(doc && doc.places && Object.keys(doc.places).length && topoProj.model);
-  };
-
-  // The drawing the region shows: the reader's choice where the model has a
-  // map, Classic where it has none. That is data, not a branch on a model's
-  // shape -- v1 has no layout file today and draws Classic.
-  VA.dagDrawingFor = function (choice, topoProj) {
-    if (!VA.topologyHasMap(topoProj)) return "classic";
-    return VA.isDagDrawing(choice) ? choice : VA.DEFAULT_DAG_DRAWING;
-  };
 
   // --- the constants ------------------------------------------------------
   //

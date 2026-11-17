@@ -8,8 +8,10 @@ place on a coarse grid -- and computes everything else. This file pins the
 Python half of that:
 
 * the layout file is read by :func:`build_topology_projection.load_topology_map`
-  and carried on the topology's projection row as ``map``, verbatim, ``None``
-  for a model with no file (v1 today);
+  and carried on the topology's projection row as ``map``, verbatim; a model
+  with no file (v1 today) gets its places computed -- each body a column, its
+  top-level parts down it in tree order -- so every model draws a map
+  (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17);
 * a layout that places a part the model has not, or leaves a top-level part
   unplaced, is refused -- the map's claim is that nothing in the model is
   left undrawn, so a stale layout must not build;
@@ -62,9 +64,37 @@ def test_v2_ships_its_layout_verbatim(v2):
     assert doc["topology"] == v2.id
 
 
-def test_v1_has_no_layout_and_projects_none():
+def test_v1_has_no_layout_file_and_its_places_are_computed_from_its_bodies():
+    """Each body a column in declared order, its top-level parts down the
+    column in tree order; every top-level part placed exactly once, and no
+    two parts in one cell."""
     v1 = load_topology(MODEL_V1)
-    assert B.load_topology_map(TOPOLOGIES_DIR, v1) is None
+    assert not B.map_path(TOPOLOGIES_DIR, v1.id).is_file()
+    doc = B.load_topology_map(TOPOLOGIES_DIR, v1)
+    assert doc["computed"] is True and doc["schema"] == B.SCHEMA_MAP
+    assert doc["topology"] == v1.id
+    places = doc["places"]
+    assert set(places) == {p.id for p in v1.parts if p.parent is None}
+    assert len({tuple(v) for v in places.values()}) == len(places)
+    for column, body in enumerate(v1.bodies):
+        top = [p for p in v1.tree_order(body.parts) if v1.part(p).parent is None]
+        assert [places[p] for p in top] == [[column, row] for row in range(len(top))]
+
+
+def test_a_model_with_no_bodies_is_one_column(v2):
+    """No body declared: every top-level part in column 0, in model order."""
+    import dataclasses
+    bare = dataclasses.replace(v2, bodies=[])
+    places = B.computed_map_places(bare)
+    top = [p.id for p in v2.parts if p.parent is None]
+    assert [places[p] for p in top] == [[0, row] for row in range(len(top))]
+
+
+def test_an_authored_file_overrides_only_the_places(v2):
+    """v2's file is shipped verbatim; computed places would differ."""
+    doc = B.load_topology_map(TOPOLOGIES_DIR, v2)
+    assert "computed" not in doc
+    assert doc["places"] != B.computed_map_places(v2)
 
 
 def test_v2s_layout_places_every_top_level_part_and_nothing_else(v2):
@@ -90,7 +120,8 @@ def test_the_projection_row_carries_the_map():
     projection = B.build(TOPOLOGIES_DIR)
     by_id = {row["id"]: row for row in projection["topologies"]}
     assert by_id["vpa_end_stop_v2"]["map"]["places"]
-    assert by_id["vpa_pitch_linkage"]["map"] is None
+    assert by_id["vpa_pitch_linkage"]["map"]["computed"] is True
+    assert all(row["map"]["places"] for row in projection["topologies"])
 
 
 def _write(tmp_path: Path, v2, doc: dict) -> Path:

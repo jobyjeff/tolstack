@@ -1260,10 +1260,38 @@ def map_path(topologies_dir: Path, topology_id: str) -> Path:
     return topologies_dir / MAP_NAME.format(topology_id=topology_id)
 
 
-def load_topology_map(topologies_dir: Path, topology: Topology) -> Optional[Dict[str, Any]]:
-    """The model's authored map layout, verbatim, or ``None`` for a model with
-    none (v1 today): the page then draws Classic and its switch says "No
-    map". That is data, not a branch on a model's shape.
+def computed_map_places(topology: Topology) -> Dict[str, List[int]]:
+    """Every top-level part's place on the map's grid, for a model with no
+    layout file (the_map_is_the_only_drawing_and_classic_retires,
+    2026-11-17): each body a column, in the order the model declares its
+    bodies, and its top-level parts stacked down that column in tree order
+    (:meth:`Topology.tree_order`, the one order every surface walks a body).
+    A top-level part in no body takes one more column after the bodies'; a
+    model that declares no bodies is that one column. A child part is never
+    placed: the map sits it in its parent's cell.
+
+    A place only. Everything else the map draws is computed in the browser
+    from the model either way (``apps/viewer/map.js``), so an authored file
+    overrides these places and nothing else changes."""
+    places: Dict[str, List[int]] = {}
+    column = 0
+    for body in topology.bodies:
+        top = [p for p in topology.tree_order(body.parts) if topology.part(p).parent is None]
+        for row, part_id in enumerate(top):
+            places[part_id] = [column, row]
+        if top:
+            column += 1
+    loose = [p.id for p in topology.parts if p.parent is None and p.id not in places]
+    for row, part_id in enumerate(loose):
+        places[part_id] = [column, row]
+    return places
+
+
+def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any]:
+    """The model's map layout: the authored file beside it, verbatim, or --
+    where the model has none (v1 today) -- the places
+    :func:`computed_map_places` gives it, marked ``computed: true``. Every
+    model has a map; the file only decides where its parts sit.
 
     Present-but-wrong is refused, as :func:`load_hardware` refuses a register
     it cannot read: a layout that places a part the model has no part for, or
@@ -1274,7 +1302,8 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Optional[Dict
     """
     path = map_path(topologies_dir, topology.id)
     if not path.is_file():
-        return None
+        return {"schema": SCHEMA_MAP, "topology": topology.id, "computed": True,
+                "places": computed_map_places(topology)}
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("schema") != SCHEMA_MAP:
         raise ValueError(f"{path}: schema is {raw.get('schema')!r}, expected {SCHEMA_MAP!r}")
@@ -1876,8 +1905,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # `models` (every topology by id) keys a feature this model shares
         # with the one it reuses ids from under that one (`identity`).
         "model": model_view(topology, lambda part_id: mesh_fact(part_id, meshes, aliases), models),
-        # The map's authored layout beside the model, verbatim, or None for a
-        # model with none (load_topology_map): the region then draws Classic.
+        # The map's layout: the authored file beside the model, verbatim, or
+        # the places computed from its bodies where it has none
+        # (load_topology_map). Every model draws a map.
         "map": load_topology_map(path.parent, topology),
         "branch_nodes": branch_nodes,
         "layout": serialize_topology(topology).as_dict(),

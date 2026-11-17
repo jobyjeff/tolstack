@@ -1,5 +1,5 @@
 // The map, drawn (the_map_draws_the_end_stop_model, 2026-11-15): the DAG
-// region's second drawing of the one model -- bodies as districts, a box
+// region's drawing of the one model -- bodies as districts, a box
 // round every part, pins on the perimeter where parts meet, jumpers inside
 // a part for its dimensions, connectors between pins with the joint's symbol
 // drawn large on each, a joint's several constraints as a bundle. The
@@ -13,10 +13,11 @@
 // `fill: none` (the 2026-11-14 walk found SVG's default black fill under a
 // hover).
 //
-// The present DAG (views/topology.js's railsSvg) is untouched underneath:
-// renderTopoPane draws it and the grid, then hands the region to this file
-// when the page asks for the map (`ctx.dagDrawing === "map"`). It retires
-// in a later handoff, on Jeff's yes to the map.
+// The DAG region's one drawing, for every model (the_map_is_the_only_
+// drawing_and_classic_retires, 2026-11-17: the rails drawing beside it, and
+// the Map . Classic switch between the two, retired on Jeff's yes):
+// renderTopoPane builds the grid in its own region and hands this region
+// here.
 (function (VA) {
   "use strict";
 
@@ -70,12 +71,10 @@
   // onto both (VA.lightMap). The LAST render's, as VA.lastTopoHot is.
   VA.lastMapLight = null;
 
-  // A Classic paint on a region the map painted (renderTopoPane calls this
-  // after it clears the root): the map's Fit, view and resize watch go with
-  // its drawing, so Fit and the 0 key are the rails' again (the review of
-  // 2026-11-16 found them dead on Classic and on the legacy model after one
-  // map paint -- `innerHTML = ""` removes children, not expandos), and the
-  // page's light reaches no detached map. A map paint sets them again.
+  // A region the map painted, painted with no map (renderTopoPane's
+  // missing-projection message): the map's Fit, view and resize watch go
+  // with its drawing (`innerHTML = ""` removes children, not expandos), and
+  // the page's light reaches no detached map. A map paint sets them again.
   VA.releaseMap = function (root) {
     if (!root) return;
     root.mapFit = null;
@@ -203,8 +202,8 @@
   // has no jumpers, is wrapped here with the same estimate.
   // THE RENDER. `ctx` is renderTopoPane's context: `topoProj` (its `model`
   // block and its `map` file), `model` (the page's model object, for the
-  // light), `selectedEntity`, `onHotEntity`, `onSelectEntity`, `regionHead`
-  // (the Map . Classic switch), `onPainted`; `mapRegion` {width, height}
+  // light), `selectedEntity`, `onHotEntity`, `onSelectEntity`,
+  // `onPainted`; `mapRegion` {width, height}
   // stands in for the root's own size where there is no layout (the shim).
   VA.renderTopoMap = function (root, ctx) {
     var topoProj = ctx.topoProj;
@@ -216,7 +215,7 @@
     var geo = VA.mapLayout(modelView, topoProj && topoProj.map, M);
     if (!geo) {
       root.appendChild(VA.el("p", "muted", "This model has no map."));
-      if (ctx.regionHead) root.appendChild(ctx.regionHead());
+      if (ctx.onPainted) ctx.onPainted();
       return root;
     }
     var model = ctx.model || null;
@@ -462,8 +461,6 @@
       root.mapFit();
     });
 
-    // The region's own header: the Map . Classic switch.
-    if (ctx.regionHead) root.appendChild(ctx.regionHead());
     if (ctx.onPainted) ctx.onPainted();
     return root;
   };
@@ -592,29 +589,4 @@
     root.mapResizeObserver = observer;
   }
 
-  // --- the switch: Map . Classic ------------------------------------------
-  //
-  // One two-way control in the DAG region's own header, in every pane view
-  // that shows the region. A model with no layout has no map, and the Map
-  // button says so in two words and takes no click.
-  VA.renderDagSwitch = function (state, topoProj, onChoose) {
-    var head = VA.el("div", "tv__daghead");
-    head.setAttribute("id", "dag-drawing");
-    head.setAttribute("role", "group");
-    head.setAttribute("aria-label", "how the model is drawn");
-    var hasMap = VA.topologyHasMap(topoProj);
-    var current = VA.dagDrawingFor(state.dagDrawing, topoProj);
-    VA.DAG_DRAWING_ORDER.forEach(function (id) {
-      var spec = VA.DAG_DRAWINGS[id];
-      var unavailable = id === "map" && !hasMap;
-      var b = VA.el("button", "ghost tvpick__mode", unavailable ? VA.NO_MAP_LABEL : spec.label);
-      b.setAttribute("data-drawing", id);
-      b.setAttribute("title", unavailable ? "This model has no map layout yet" : spec.title);
-      b.setAttribute("aria-pressed", String(current === id));
-      if (unavailable) b.setAttribute("disabled", "");
-      b.onclick = function () { if (!unavailable && onChoose) onChoose(id); };
-      head.appendChild(b);
-    });
-    return head;
-  };
 })(window.ViewerApp = window.ViewerApp || {});
