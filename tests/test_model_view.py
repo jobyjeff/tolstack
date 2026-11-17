@@ -11,7 +11,11 @@ its_tree``. Three things are pinned here and nowhere else:
   (handoff ``the_base_stack_joints_are_seat_boss_and_pattern``), the ground
   stack's two upper joints with their bosses and fastener patterns: 42
   features (31 nodes, 11 on two parts), 30 dimensions, 21 interfaces (11 + 10),
-  13 inside one body (ground 9);
+  13 inside one body (ground 9) -- and, since the same day (handoff
+  ``the_blade_and_piston_joints_are_authored_as_what_the_parts_show``), the
+  blade's and the pitch plate's joints as their meshes show them: 55 features
+  (40 nodes, 15 on two parts), 43 dimensions, 28 interfaces (15 + 13), 20 inside
+  one body (blade 3, pitch plate 8), 16 joints;
 * **that the view writes no membership rule of its own**: every ``body``,
   ``bodies`` and ``within`` it emits is re-derived here from ``Topology``'s
   ``body_of`` / ``node_bodies`` / ``edge_body`` and compared;
@@ -69,28 +73,30 @@ def v1_view():
 # --- the counts the strategy session derived by hand --------------------------
 
 MODEL_V2_COUNTS = {
-    "bodies": 5, "parts": 15, "features": 42, "dimensions": 30,
-    "interfaces": 21, "contacts": 11, "gaps": 10,
-    "between_bodies": 8, "within_bodies": 13, "joints": 15,
+    "bodies": 5, "parts": 15, "features": 55, "dimensions": 43,
+    "interfaces": 28, "contacts": 15, "gaps": 13,
+    "between_bodies": 8, "within_bodies": 20, "joints": 16,
     # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
     # assembly holds its bearing, the 212956-005 assembly its two.
     "assemblies": 2,
 }
 
 #: Interfaces inside one body, per body: ground 9 (its three joints of three
-#: constraints each), pitch plate 3, blade 1.
-MODEL_V2_WITHIN = {"base": 9, "pitch_plate": 3, "blade": 1}
+#: constraints each), pitch plate 8 (the plate on the piston body three, each
+#: head on it two), blade 3 (since 2026-11-17, handoff ``the_blade_and_piston_
+#: joints_are_authored_as_what_the_parts_show``; 3 and 1 before it).
+MODEL_V2_WITHIN = {"base": 9, "pitch_plate": 8, "blade": 3}
 
 
 def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert v2_view["counts"] == MODEL_V2_COUNTS
     assert len(v2_view["bodies"]) == 5
     assert len(v2_view["parts"]) == 15
-    assert len(v2_view["features"]) == 42
-    assert sum(1 for f in v2_view["features"] if f["shared"]) == 22, \
-        "11 nodes on two parts are 22 shared features, two each"
-    assert len(v2_view["dimensions"]) == 30
-    assert len(v2_view["interfaces"]) == 21
+    assert len(v2_view["features"]) == 55
+    assert sum(1 for f in v2_view["features"] if f["shared"]) == 30, \
+        "15 nodes on two parts are 30 shared features, two each"
+    assert len(v2_view["dimensions"]) == 43
+    assert len(v2_view["interfaces"]) == 28
 
 
 #: The base's parts, (features, dimensions) each, since the gas-spring mount
@@ -118,7 +124,7 @@ def test_model_v2_base_parts_carry_their_features_and_dimensions(v2_view):
     assert not any("gas_spring_mount" in f for f in parts["hub"]["features"])
 
 
-def test_model_v2_interfaces_inside_a_body_are_grounds_five_the_plates_three_the_blades_one(v2_view):
+def test_model_v2_interfaces_inside_a_body_are_grounds_nine_the_plates_eight_the_blades_three(v2_view):
     within = {}
     for interface in v2_view["interfaces"]:
         if interface["within"] is not None:
@@ -149,15 +155,44 @@ MODEL_V2_STACK_JOINTS = {
         "gas_spring_mount_boss_in_piston_cover_pilot"},
 }
 
+#: The blade's and the pitch plate's joints, each with the constraints its two
+#: parts' meshes show (2026-11-17, handoff ``the_blade_and_piston_joints_are_
+#: authored_as_what_the_parts_show``). The plate's on the piston body is a seat,
+#: a boss and a pattern like the ground stack's; the blade's has a cross-pin
+#: hole for its clocking; the lower head is a plain ring, so its joint has no
+#: pattern; and the upper head is located and fastened on the piston body, not
+#: on the lower head it seats on -- so that seat stays a joint of one.
+MODEL_V2_INNER_JOINTS = {
+    ("blade_root", "pitch_arm"): {
+        "pitch_arm_root_seat", "pitch_arm_blade_root_clocking",
+        "blade_root_boss_in_pitch_arm_bore"},
+    ("gas_spring_piston_214700_002", "pitch_plate_215177_001"): {
+        "piston_body_plate_flange_seat", "gas_spring_piston_fastener_clocking",
+        "pitch_plate_pilot_in_piston"},
+    ("gas_spring_piston_214700_002", "piston_head_lower_214699_002"): {
+        "piston_body_head_seat", "piston_body_boss_in_lower_head_pilot"},
+    ("gas_spring_piston_214700_002", "piston_head_upper_214698_002"): {
+        "piston_head_upper_fastener_clocking", "piston_body_boss_in_upper_head_pilot"},
+}
+
+#: Which body each of those joints is inside.
+MODEL_V2_INNER_JOINT_BODY = {"blade_root": "blade", "gas_spring_piston_214700_002": "pitch_plate"}
+
 
 def test_the_ground_stack_is_three_joints_with_three_constraints_each(v2_view):
     """Jeff, 2026-11-10: a seat, a pilot and a clocking are one joint -- and
     every joint up the ground stack has all three."""
     compound = {tuple(j["parts"]): j for j in v2_view["joints"] if len(j["constraints"]) > 1}
-    assert set(compound) == set(MODEL_V2_STACK_JOINTS)
+    assert set(compound) == set(MODEL_V2_STACK_JOINTS) | set(MODEL_V2_INNER_JOINTS)
     for parts, constraints in MODEL_V2_STACK_JOINTS.items():
         assert compound[parts]["within"] == "base"
         assert set(compound[parts]["constraints"]) == constraints, parts
+    for parts, constraints in MODEL_V2_INNER_JOINTS.items():
+        assert compound[parts]["within"] == MODEL_V2_INNER_JOINT_BODY[parts[0]], parts
+        assert set(compound[parts]["constraints"]) == constraints, parts
+    heads = [j for j in v2_view["joints"]
+             if j["parts"] == ["piston_head_lower_214699_002", "piston_head_upper_214698_002"]]
+    assert [j["constraints"] for j in heads] == [["piston_heads_seat"]]
     # Every interface names the joint it belongs to, and every joint's
     # constraints are interfaces between exactly its two parts.
     by_id = {i["id"]: i for i in v2_view["interfaces"]}

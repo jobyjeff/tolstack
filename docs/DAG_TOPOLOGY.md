@@ -1207,8 +1207,8 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 15 parts, 31 interfaces, 40 edges, 13 branch points, 10 grounded
-loops, 10 gap edges. Studyless; no edge carries a dimension, and each says what
+The graph: 15 parts, 40 interfaces, 56 edges, 19 branch points, 17 grounded
+loops, 13 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
@@ -1271,6 +1271,31 @@ the faces, the two diameters and the ring (hole count, hole diameter, circle);
 those are evidence that the feature is there, never values, and no edge gains a
 dimension. All the new ids are v2's own: v1 has neither joint's boss nor its
 pattern.
+
+**The joints inside the blade and the pitch plate are what their parts show**
+(2026-11-17, handoff
+`the_blade_and_piston_joints_are_authored_as_what_the_parts_show`; Jeff,
+2026-11-10: they *"have variants of the same style"*). Each was read off its two
+parts' meshes by the method above, and each variant is what the meshes have:
+
+- **pitch plate ↔ piston body** is the ground stack's style whole: the piston
+  body's flange face (its datum A) on the plate, the existing pilot boss in
+  the body's bore, and a ring of five fasteners.
+- **blade ↔ pitch arm** is a seat, the arm's bore on a boss of the blade
+  root's fitting, and a clocking that is one radial hole through both parts
+  (two holes on a diameter), under v1's `pitch_arm_blade_root_clocking`.
+- **piston body ↔ each piston head**: one spigot on the piston body locates
+  both heads by their pilot bores. The lower head is a plain ring with no hole,
+  clamped between the body's shoulder and the upper head; the upper head's
+  three fasteners pass inside it into the piston body. So the two heads'
+  shared face stays a seat alone, and the upper head's boss-and-pattern joint
+  is with the piston body: a joint v2 did not have before.
+
+The piston body's flange seat is a new id although v1 has the face
+(`piston_body_plate_flange`): v1 states it on the body alone, and a shared id
+names the same parts in both models. What the meshes leave open is filed for
+Jeff rather than authored
+(`docs/issues/ISSUE_20261117_the_blade_and_piston_joints_leave_questions_for_jeff.md`).
 
 ---
 

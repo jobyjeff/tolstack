@@ -1167,7 +1167,9 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     assert {e.other_end("pitch_plate_spindle_bore_axis")
             for e in v2.incident("pitch_plate_spindle_bore_axis")} == {
         "pitch_plate_link_attach_bore", "pitch_plate_tan_link_attach_bore",
-        "pitch_plate_pilot_in_piston_id"}
+        "pitch_plate_pilot_in_piston_id",
+        # the piston body's flange seat and fastener pattern (2026-11-17)
+        "piston_body_plate_flange_seat", "gas_spring_piston_fastener_clocking"}
 
 
 def test_model_v2_base_is_a_stack_hub_tan_link_mount_gas_spring_mount_cover():
