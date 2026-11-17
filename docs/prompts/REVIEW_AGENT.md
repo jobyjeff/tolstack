@@ -613,6 +613,13 @@ Both measured; both have cost real sessions.
   `docs/`, the viewer tier goes `539/544`, with five `[real] … worksheet …`
   checks red ("worksheet must be readable"). That is the scratch root, not the
   diff (measured 2026-10-21).
+  **Never `git init` a scratch root, and do not reuse one that has a `.git`.**
+  Dispatch's edit guard then reads it as a main checkout and refuses every
+  edit, `git add` and `rm -rf` inside it, so it can never be deleted
+  (`data/scratch/bsj`, 1.7 GB, 2026-11-17, `ISSUE_20261117_a_scratch_root_with_its_own_git_init_cannot_be_deleted_by_any_agent.md`).
+  The `--data-root` recipe above needs no repo of its own: the builders run
+  from your worktree and stamp its sha, which `run_tests.cjs --repo` pairs
+  (2026-11-17: 721/721 with `[real]`, paired at the merge sha).
 
 ### Where the one full suite runs
 
@@ -5856,6 +5863,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       <scratch>`, about 1 min) put the split at `9b716956` on 11-10, which
       `docs/issues/` had already recorded. When the answer is "the data did
       it", bisect the data too, and grep the issues for the part's name first.
+- [ ] **A topology diff that grows v2 past the browser tier's 1700×1500 window
+      reddens checks in suites it never touched.** New 2026-11-17
+      (`the_base_stack_joints_are_seat_boss_and_pattern`, round 1 blocker):
+      30 → 40 edges made Classic taller than the pane. The author fixed the
+      one check its `--only` runs saw (the map suite's Fit width), and
+      `the model drawn alone and led`'s seam-leader check went red 3/3. It
+      scrolls `document.scrollingElement`, which does not move, so dots below
+      the pane are never reached. When a diff adds nodes or edges to a model,
+      run the whole browser tier (or every suite naming that model) before
+      approving, and grep the runner for `scrollingElement` and `innerHeight`
+      assumptions.
 - [ ] **A topology data change "fixed" by reordering its authored edges.**
       2026-11-10 (`the_gas_spring_mount_sits_on_...`): moving one seat made a
       `[real]` block-crossing guard red. The author reordered the hub's edges
