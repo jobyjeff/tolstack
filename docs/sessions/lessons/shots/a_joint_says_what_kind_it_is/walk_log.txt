@@ -1,0 +1,29 @@
+shot 01_map_whole.png
+connectors [{"id":"hub_blade1_root_bearing_bore","symbol":"revolute","box":[772,1403,21,26]},{"id":"tan_link_mount_hub_face","symbol":"contact","box":[467,1082,26,21]},{"id":"tan_link_mount_fastener_clocking","symbol":"fastener_pattern","box":[496,1082,26,21]},{"id":"tan_link_mount_gas_spring_seat","symbol":"contact","box":[496,520,26,21]},{"id":"piston_cover_mount_flange_seat","symbol":"contact","box":[496,184,26,21]},{"id":"endstop_feather_contact","symbol":"contact","box":[772,284,21,26]},{"id":"pitch_arm_root_seat","symbol":"contact","box":[1042,1295,26,21]},{"id":"piston_body_head_seat","symbol":"contact","box":[1042,411,26,21]},{"id":"piston_heads_seat","symbol":"contact","box":[1042,190,26,21]},{"id":"hub_boss_in_tan_link_mount_pilot","symbol":"pin_in_bore","box":[525,1082,26,21]},{"id":"pitch_plate_pilot_in_piston","symbol":"pin_in_bore","box":[1042,632,26,21]},{"id":"pitch_arm_link_joint","symbol":"spherical","box":[1042,1064,26,21]},{"id":"pitch_plate_link_joint","symbol":"spherical","box":[1042,843,26,21]},{"id":"tan_link_mount_joint","symbol":"spherical","box":[635,720,21,26]},{"id":"tan_link_plate_joint","symbol":"spherical","box":[908,740,21,26]},{"id":"pitch_plate_slide_bushings_to_piston_body","symbol":"cylindrical_slide","box":[734,443,34,34]},{"id":"travel_between_end_stops","symbol":"clearance","box":[772,77,21,26]}]
+shot 02_map_bearing_rotary.png
+shot 03_map_clocking_pattern.png
+shot 04_map_pilot_boss.png
+shot 05_map_slide.png
+shot 06_map_hub_mount_bundle.png
+hover bearing: preview chips ["mating_surface","rotary","2 edge(s)"]
+shot 07_map_hover_bearing.png
+bearing selected: tree on ["hub@hub_blade1_root_bearing_bore","blade_root@hub_blade1_root_bearing_bore","hub_blade1_root_bearing_bore","hub@hub_blade1_root_bearing_bore","blade_root@hub_blade1_root_bearing_bore"]
+shot 08_map_bearing_selected.png
+tree interface words [["hub_blade1_root_bearing_bore","rotary"],["endstop_feather_contact","contact"],["pitch_arm_link_joint","spherical"],["pitch_plate_link_joint","spherical"],["tan_link_mount_joint","spherical"],["tan_link_plate_joint","spherical"],["pitch_plate_slide_bushings_to_piston_body","cylindrical slide"],["travel_between_end_stops","clearance"]]
+shot 09_tree_joints.png
+tree after opening joints [["hub_blade1_root_bearing_bore","rotary"],["endstop_feather_contact","contact"],["pitch_arm_link_joint","spherical"],["pitch_plate_link_joint","spherical"],["tan_link_mount_joint","spherical"],["tan_link_plate_joint","spherical"],["pitch_plate_slide_bushings_to_piston_body","cylindrical slide"],["travel_between_end_stops","clearance"]]
+shot 10_tree_joints_opened.png
+hover clocking: preview chips ["mating_surface","fastener pattern","2 edge(s)"]
+clocking title tangential link mount fastener pattern — a fastener pattern
+shot 11_map_zoomed_on_clocking.png
+legend glyph line ["A joint's ends are drawn as the joint. A ring with a centre dot is a ball joint, a ring with a line through it a pin in a bore, the same with a turning arrow over it a rotary joint, a ring of dots a fastener pattern, a hollow bar with an arrow a slide, a solid bar flat faces, two bars a clearance. Every other interface is a plain dot."]
+shot 12_legend.png
+classic glyphs [{"kind":"pin_in_bore","node":"hub_spindle_bore_axis","box":[467,57,20,14]},{"kind":"revolute","node":"hub_blade1_root_bearing_bore","box":[468,80,18,16]},{"kind":"pin_in_bore","node":"tan_link_mount_pilot_bore","box":[467,213,20,14]},{"kind":"spherical","node":"tan_link_mount_bore","box":[470,239,14,14]},{"kind":"fastener_pattern","node":"tan_link_mount_fastener_clocking","box":[468,316,18,16]},{"kind":"cylindrical_slide","node":"gas_spring_mount_bushing_bore","box":[464,369,20,14]},{"kind":"clearance","node":"piston_cover_end_stop_shoulder","box":[429,539,16,12]},{"kind":"spherical","node":"tan_link_lower_sphere_centre","box":[470,617,14,14]},{"kind":"spherical","node":"tan_link_upper_sphere_centre","box":[470,643,14,14]},{"kind":"spherical","node":"pitch_plate_tan_link_attach_bore","box":[470,735,14,14]},{"kind":"pin_in_bore","node":"pitch_plate_spindle_bore_axis","box":[467,761,20,14]},{"kind":"spherical","node":"pitch_plate_link_attach_bore","box":[470,787,14,14]},{"kind":"pin_in_bore","node":"pitch_plate_pilot_in_piston_id","box":[467,865,20,14]},{"kind":"cylindrical_slide","node":"gas_spring_piston_body_od","box":[464,891,20,14]},{"kind":"clearance","node":"piston_head_upper_step_face","box":[449,1113,16,12]},{"kind":"spherical","node":"pitch_link_upper_sphere_centre","box":[470,1191,14,14]},{"kind":"spherical","node":"pitch_link_lower_sphere_centre","box":[470,1217,14,14]},{"kind":"spherical","node":"pitch_arm_link_bore","box":[470,1309,14,14]}]
+shot 13_classic_whole.png
+shot 14_classic_revolute.png
+shot 15_classic_fastener_pattern.png
+shot 16_classic_pin_in_bore.png
+shot 17_classic_spherical.png
+v1 classic glyphs (new kinds) [["revolute","hub_blade1_root_bearing_bore"],["fastener_pattern","pitch_arm_blade_root_clocking"]]
+v1 tree words []
+shot 18_v1_classic.png

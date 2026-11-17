@@ -44,3 +44,6 @@ than a fixed delay.
 Seen again: 1 of 3 consecutive `--only` runs of the kinematic study page suite failed
 `[real] picking a graph width in View ... survives a reload` and `[real] colouring by body ... survives a reload`
 (same code, no product change). Reproduces roughly 1 in 3 on an idle box.
+
+## Addendum 2026-11-17 (a_joint_says_what_kind_it_is)
+Seen again: the first of two `--only "kinematic study page"` runs on that branch failed the same two checks (`DAG width ... after a reload 420`); the rerun and an `integration` baseline, against the same scratch root, were 27/27.

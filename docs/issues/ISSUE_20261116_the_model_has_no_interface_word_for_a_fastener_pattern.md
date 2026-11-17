@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 area: topology/vocabulary
 reporter: agent
@@ -44,3 +44,13 @@ Options, for a strategy session:
 Recommendation: option 1 -- a clocking is a feature's nature, not a gap's
 kind, and the pattern binding already treats the feature as the unit.
 Reversible either way: the override is one line in one file.
+
+> **Resolved 2026-11-17** by handoff `a_joint_says_what_kind_it_is`. The
+> strategy session took **option 2**: a node two parts share may state an
+> `interface` word, and `fastener_pattern` and `revolute` joined
+> `INTERFACE_KINDS`. One mechanism covers both the clocking and the blade's
+> pitch bearing (which was drawn as a flat seat, the walk's S9), and no id
+> changes, so the bindings Jeff's log holds on both nodes keyed by `{topology_id,
+> part, node}` fold exactly as before. The four nodes state their words, the
+> map draws the ring of dots from the model, and the layout file's `symbols`
+> key is gone (the builder now refuses a file that carries one).
