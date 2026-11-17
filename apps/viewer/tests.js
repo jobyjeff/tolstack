@@ -16188,6 +16188,53 @@
         eq(Math.round(k2.x + k2.w / 2), Math.round(c2.x + c2.w / 2), "centred under a part with no bottom pin");
       });
 
+    await test("a joint between two parts of one column with a part between them leaves by the " +
+      "column's flank and runs beside that part, its constraints nested, so no route is drawn " +
+      "through a box it does not end on", function () {
+        // The upper piston head of model v2 since 2026-11-17: a fastener
+        // pattern and a pilot to the piston body, the lower head between,
+        // the body's boss also the lower head's pilot.
+        var m = mapColumn(false);
+        var f = function (part, nodeId) {
+          return { id: part + "@" + nodeId, part: part, node: nodeId, name: nodeId, kind: "mating_surface",
+                   shared: true, body: "one" };
+        };
+        var iface = function (id, kind, a, b, joint) {
+          return { id: id, name: id, kind: kind, source: "edge", ends: [a, b],
+                   parts: [a.split("@")[0], b.split("@")[0]], bodies: ["one"], within: "one", joint: joint };
+        };
+        m.features = m.features.concat([f("P", "ring"), f("P", "pilot"), f("Q", "bore"), f("R", "ring"), f("R", "boss")]);
+        m.parts[0].features = m.parts[0].features.concat(["P@ring", "P@pilot"]);
+        m.parts[1].features = m.parts[1].features.concat(["Q@bore"]);
+        m.parts[2].features = m.parts[2].features.concat(["R@ring", "R@boss"]);
+        m.interfaces = m.interfaces.concat([
+          iface("QRpilot", "pin_in_bore", "R@boss", "Q@bore", "QR"),
+          iface("PRring", "fastener_pattern", "P@ring", "R@ring", "PR"),
+          iface("PRpilot", "pin_in_bore", "R@boss", "P@pilot", "PR")]);
+        m.joints[1].constraints = ["QR", "QRpilot"];
+        m.joints.push({ id: "PR", parts: ["P", "R"], bodies: ["one"], within: "one", constraints: ["PRring", "PRpilot"] });
+        m.counts = { bodies: 1, parts: 3, features: 9, dimensions: 1, interfaces: 5 };
+        var geo = VA.mapLayout(m, mapDoc({ P: [0, 0], Q: [0, 1], R: [0, 2] }));
+        eq(geo.notes, [], "no route through the part between");
+        eq(VA.mapCounts(geo), VA.mapExpectedCounts(m));
+        var pin = function (id) { return geo.pins.filter(function (p) { return p.id === id; })[0]; };
+        eq(["P@ring", "P@pilot", "R@ring"].map(function (id) { return pin(id).side; }), ["right", "right", "right"],
+           "a feature whose every interface skips a part takes the flank");
+        eq(pin("R@boss").side, "top", "the boss also meets the part between, so it faces it");
+        var q = geo.boxes.filter(function (b) { return b.id === "Q"; })[0];
+        var lane = {};
+        ["PRring", "PRpilot"].forEach(function (id) {
+          var c = geo.connectors.filter(function (x) { return x.id === id; })[0];
+          for (var i = 1; i < c.points.length; i++) {
+            ok(!VA.mapSegmentHitsRect(c.points[i - 1], c.points[i], q), id + " clears the part between, leg " + i);
+          }
+          lane[id] = Math.max.apply(null, c.points.map(function (p) { return p.x; }));
+          ok(lane[id] > q.x + q.w, id + "'s lane is beside the part between");
+          ok(c.points.every(function (p) { return p.x <= geo.bounds.x + geo.bounds.w; }), id + " is inside the drawing");
+        });
+        ok(lane.PRring > lane.PRpilot, "the joint's earlier constraint takes the outer lane, so the two nest");
+      });
+
     await test("a right flank's pin label steps a line lower where a left flank's pin of the same " +
       "part is level with it, so the two lit labels never meet mid-box", function () {
         VA.forgetMapViews();

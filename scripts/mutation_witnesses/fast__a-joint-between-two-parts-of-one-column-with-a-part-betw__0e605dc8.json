@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a joint between two parts of one column with a part between them leaves by the column's flank and runs beside that part, its constraints nested, so no route is drawn through a box it does not end on",
+  "mutations": [
+    {
+      "contract": "A feature whose every interface is with a part in its own column beyond a part between them takes the column's outer flank.",
+      "note": "Declared with the guard by handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show (2026-11-17). Without the flank, the upper piston head of model v2 -- bolted and piloted on the piston body with the lower head between -- leaves its bottom straight into the lower head, and the map reports the two routes drawn through it.",
+      "file": "apps/viewer/map.js",
+      "find": "        side = flankOf(placeOf[f.part][0]);",
+      "replace": "        side = side;",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_blade_and_piston_joints_are_authored_as_what_the_parts_show.md"
+    }
+  ]
+}

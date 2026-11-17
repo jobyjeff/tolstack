@@ -674,7 +674,13 @@ out of its parent's bottom (below).
   square to its side, then a 45° leg for the shorter axis and a straight leg
   for the rest, with the **joint's symbol drawn large** where the route passes
   nearest the midpoint between its pins — the gap between two districts, never
-  a border. Heavier between two bodies than inside one.
+  a border. Heavier between two bodies than inside one. **Two parts of one
+  column with another part between them** (2026-11-17: the upper piston head
+  on the piston body, the lower head between) have no straight route that
+  misses it, so a feature whose every interface is such a pair takes the
+  column's outer flank, and its route runs out to a lane beside the boxes
+  between and back. A joint's earlier constraints take the outer lanes, so its
+  bundle nests (`detour`).
 - **A district per body**: the body's parts' boxes, padded, held inside the
   union of its cells inset — so two adjacent bodies' districts never touch and
   a body with one small part has a small district; named at its corner. **An

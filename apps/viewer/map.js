@@ -510,6 +510,25 @@
     var pinsOf = {};      // part -> side -> [pin]
     var marksOf = {};     // part -> [mark]
     var pinById = {};
+    // Two parts in one column with another part's cell between them: no
+    // straight route misses that part (2026-11-17, the upper piston head on
+    // the piston body with the lower head between). A feature whose every
+    // interface is such a pair takes the column's outer flank, and its route
+    // runs beside the parts between (`detour`, step 7).
+    var rowsIn = {};
+    Object.keys(placeOf).forEach(function (pid) {
+      if (!childless[pid]) (rowsIn[placeOf[pid][0]] = rowsIn[placeOf[pid][0]] || []).push(placeOf[pid][1]);
+    });
+    var lastColumn = Math.max.apply(null, Object.keys(placeOf).map(function (pid) { return placeOf[pid][0]; }));
+    var partBetween = function (p, q) {
+      if (!p || !q || p[0] !== q[0]) return false;
+      return (rowsIn[p[0]] || []).some(function (row) { return row > Math.min(p[1], q[1]) && row < Math.max(p[1], q[1]); });
+    };
+    var flankOf = function (column) { return column >= lastColumn - column ? "right" : "left"; };
+    var farPartOf = function (iface, fid) {
+      var other = (iface.ends || []).filter(function (e) { return e !== fid; })[0];
+      return other && features[other] ? features[other].part : null;
+    };
     (model.features || []).forEach(function (f) {
       if (!placeOf[f.part]) return;
       var ifaces = interfacesAt[f.id] || [];
@@ -518,10 +537,11 @@
         return;
       }
       var first = ifaces[0];
-      var farFid = (first.ends || []).filter(function (e) { return e !== f.id; })[0];
-      var far = farFid ? features[farFid] : null;
-      var farPart = far ? far.part : null;
+      var farPart = farPartOf(first, f.id);
       var side = farPart && placeOf[farPart] ? sideTowards(placeOf[f.part], placeOf[farPart]) : "bottom";
+      if (ifaces.every(function (i) { return partBetween(placeOf[f.part], placeOf[farPartOf(i, f.id)]); })) {
+        side = flankOf(placeOf[f.part][0]);
+      }
       var pin = {
         id: f.id, part: f.part, node: f.node, label: f.name, side: side,
         counterpart: farPart,
@@ -712,11 +732,31 @@
     //    its symbol at the middle. A joint's several constraints leave
     //    parallel pins and so run as a bundle.
     var connectors = [];
+    // Beside the parts between two in one column: square out of each pin,
+    // then along a lane past every box between and past both stubs, on the
+    // column's flank; a joint's earlier constraints take the outer lanes, so
+    // a bundle's legs nest rather than cross.
+    var detour = function (a, b, iface) {
+      var square = route(a, b, M);
+      var p1 = square[1], p2 = square[square.length - 2];
+      var out = flankOf(placeOf[a.part][0]) === "right" ? 1 : -1;
+      var lo = Math.min(p1.y, p2.y), hi = Math.max(p1.y, p2.y);
+      var lane = out * Math.max(out * p1.x, out * p2.x);
+      boxes.forEach(function (box) {
+        if (box.id === a.part || box.id === b.part || box.y > hi || box.y + box.h < lo ||
+            !placeOf[box.id] || placeOf[box.id][0] !== placeOf[a.part][0]) return;
+        lane = out * Math.max(out * lane, out * (box.x + (out > 0 ? box.w : 0)) + M.stub);
+      });
+      var joint = (model.joints || []).filter(function (j) { return j.id === iface.joint; })[0];
+      var later = (joint ? joint.constraints.length : 1) - 1 - (constraintIndex[iface.id] || 0);
+      lane = round(lane + out * later * M.pinPitch);
+      return [{ x: a.x, y: a.y }, p1, { x: lane, y: p1.y }, { x: lane, y: p2.y }, p2, { x: b.x, y: b.y }];
+    };
     (model.interfaces || []).forEach(function (iface) {
       var ends = iface.ends || [];
       var a = pinById[ends[0]], b = pinById[ends[1]];
       if (!a || !b) { notes.push("interface " + iface.id + " has an end the map did not place"); return; }
-      var pts = route(a, b, M);
+      var pts = partBetween(placeOf[a.part], placeOf[b.part]) ? detour(a, b, iface) : route(a, b, M);
       var symbol = VA.mapSymbolOf(iface);
       // A gap edge that states no interface word is a model gap (the gap
       // list names it), not a layout defect: its connector is drawn bare.
@@ -784,7 +824,10 @@
     });
 
     // 9. The drawing's extent.
-    var everything = bodies.concat(boxes, assemblies);
+    // A detour's lane may pass outside every district.
+    var everything = bodies.concat(boxes, assemblies, connectors.map(function (c) {
+      return union(c.points.map(function (p) { return { x: p.x, y: p.y, w: 0, h: 0 }; }));
+    }));
     var b = union(everything) || { x: 0, y: 0, w: 0, h: 0 };
     var bounds = inset(b, -M.margin);
 
