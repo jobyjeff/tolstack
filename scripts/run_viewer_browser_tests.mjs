@@ -16104,21 +16104,27 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       `window ${JSON.stringify(led.inner)}`);
     // A dot below the window has nothing to lead from (VA.seamLeaderGeometry's
     // offDag); every one on screen does. So the rest are scrolled to, and each
-    // must have its leader once its dot is on screen. An axis joint is never
-    // re-anchored at the skeleton's raw point to make up the count (c75d8fe3,
-    // reverted).
+    // must have its leader once its dot is on screen -- scrolled to by the
+    // DAG's own scroller, since the document never moves (v2 grown taller than
+    // the window put two dots below it, and scrolling the document reached
+    // neither). An axis joint is never re-anchored at the skeleton's raw point
+    // to make up the count (c75d8fe3, reverted).
     const offScreen = led.joint.filter((id) => led.onScreen.indexOf(id) === -1);
     const scrolledTo = {};
     for (const id of offScreen) {
       const y = led.where[id] ? led.where[id][1] : null;
       if (y === null) { scrolledTo[id] = false; continue; }
       const n = await page.evaluate(() => (window.ViewerApp.lastSeamDraw || {}).draws || 0);
-      await page.evaluate((dy) => { document.scrollingElement.scrollTop += dy; }, y - 750);
+      await page.evaluate((y) => {
+        const pane = document.getElementById("topopane").getBoundingClientRect();
+        document.querySelector("#topopane .tv__hscroll").scrollTop +=
+          y - (Math.max(pane.top, 0) + Math.min(pane.bottom, innerHeight)) / 2;
+      }, y);
       await until((n) => window.ViewerApp.lastSeamDraw && window.ViewerApp.lastSeamDraw.draws > n, n, 10000);
       await page.waitForTimeout(500);
       scrolledTo[id] = await page.evaluate((id) => [...document.querySelectorAll("svg.seamleaders path.seam__leader")]
         .some((p) => p.getAttribute("data-node-id") === id), id);
-      await page.evaluate(() => { document.scrollingElement.scrollTop = 0; });
+      await page.evaluate(() => { document.querySelector("#topopane .tv__hscroll").scrollTop = 0; });
     }
     if (offScreen.length) console.log(`      [${label}] scrolled to: ${JSON.stringify(scrolledTo)}`);
     push("[real] with the P2 run loaded and no study, every joint node the scene drew has its " +

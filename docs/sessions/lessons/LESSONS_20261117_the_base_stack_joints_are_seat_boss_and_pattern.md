@@ -131,6 +131,24 @@ shapes. Its declared mutation (Fit dead after a map paint) is still
 witnessed. The main checkout's baseline on the old model was 330 → 325 and
 passed, so the failure was this model, not a flake.
 
+**Round 2 (review B1): a second check assumed it too.** `[real] with the P2
+run loaded and no study, every joint node the scene drew has its leader
+across the seam` (suite "the model drawn alone and led") was red on the
+merge. Two joint dots, `pitch_link_lower_sphere_centre` and
+`pitch_link_upper_sphere_centre`, sat at y 1731 and 1679, below the
+1500-tall window. The check's recovery step scrolled
+`document.scrollingElement`, but the document never moves; the DAG scrolls
+in its own `#topopane .tv__hscroll`. So neither dot was reached. The check
+now scrolls that scroller to put the dot mid-pane, then resets it. The page
+was right: a dot below the window has nothing to lead from, and the leader
+appears once its dot is scrolled into view. With the fix, both dots are
+scrolled to and led.
+
+What I should have done in round 1: a data change that makes v2 taller
+than the window reaches every suite that loads v2, not only the suites the
+diff touched. The fix to the first check was the hint. I ran `--only` for
+the two suites I changed and stopped there.
+
 ## Feature-identity log
 
 The real log (`C:\workspace\tolstack\data\inbox\feature-identity\`) held 84
@@ -212,6 +230,27 @@ All runs were on this branch's tree.
   "none". "a pattern is bound as its like faces …" 11/11.
 - **Witness, one invocation with both guards:** 2/2 witnessed.
 
+### Round 2 (after review B1), at `f7b7c453`
+
+Scratch root `C:\workspace\tolstack\data\scratch\bsj2`, built with no
+`git init`. It is a `git archive` of the branch. `data/inbox`, `data/meshes`
+and `data/projections` were copied from the main checkout, and `venv-win`
+and `node_modules` are junctioned. The eight builders ran from the worktree
+with `--data-root`, and every stamp is `f7b7c453`.
+
+- **`--only "the model drawn alone and led"`, twice:** 23/23, then 23/23.
+  Both off-screen dots are scrolled to and led.
+- **Witness, `--only` the changed guard:** 1/1 witnessed, 6 m 30 s.
+- **The whole browser tier, once:** 48/48, 1829 s. Its ledger row was
+  recorded by the runner at the scratch root. The filed
+  suggestion-names-its-face flake did not show this run.
+- **Fast tiers:** viewer 721/721 (`--repo bsj2`), annotate 324/324.
+- **Pytest files that read the browser runner:** `test_app_type_scale`,
+  `test_architecture_inventory`, `test_mutation_witnesses` and
+  `test_viewer_js_suite`, run in the worktree. 67 passed, 1 failed: the
+  documented worktree red `test_viewer_js_suite_is_green`.
+- **Real feature-identity log:** 84 files, unchanged.
+
 ## Blocked actions
 
 - `rm -rf C:/workspace/tolstack/data/scratch/bsj` was meant to delete the
@@ -219,4 +258,6 @@ All runs were on this branch's tree.
   holds a nested `.git`, so the guard reads it as a main checkout. The root
   is gitignored, and its `venv-win` and `node_modules` junctions are already
   removed. Deleting the whole directory reaches nothing else and is safe any
-  time.
+  time. The review filed this as `needs: jeff`.
+- The round-2 scratch root `data/scratch/bsj2` has no `.git`. I left it in
+  place for the review's round 2. It is gitignored and safe to delete.
