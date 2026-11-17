@@ -6080,6 +6080,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       part's whole `subtreeOf` and a body's `allPartsOf`, so a re-derivation
       over `[HUB]` or `body.parts` false-reds the day a lit part gains a drawn
       child.
+- [ ] **A "swallow the next click" flag set at release and cleared only by
+      the click it expects.** New 2026-11-17 (`the_map_is_portrait_as_jeff_drew_it`,
+      nit): `views/map.js`'s `wireView` sets `swallow = true` on `pointerup`
+      *and* `pointercancel` after a pan, and only the capture-phase `click`
+      (or a pannable `pointerdown`) clears it. A cancel fires no click, so the
+      next click on a pin, jumper or connector is eaten. On any pan/drag
+      gesture that suppresses its trailing click, ask which release paths fire
+      no click, and whether the flag can outlive the gesture.
 
 ## Architectural errors to check
 
