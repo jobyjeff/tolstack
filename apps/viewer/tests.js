@@ -16069,6 +16069,27 @@
         eq(Math.round(k2.x + k2.w / 2), Math.round(c2.x + c2.w / 2), "centred under a part with no bottom pin");
       });
 
+    await test("a right flank's pin label steps a line lower where a left flank's pin of the same " +
+      "part is level with it, so the two lit labels never meet mid-box", function () {
+        VA.forgetMapViews();
+        var row = mapDoc({ A: [0, 0], B: [1, 0], C: [2, 0] });
+        var root = document.createElement("div");
+        VA.renderTopoMap(root, { topoProj: { id: "m", model: mapModel(), map: row }, model: null,
+          mapRegion: { width: 1600, height: 600 } });
+        var geo = VA.lastMapLight.geometry;
+        eq(geo.notes, []);
+        var pin = function (id) { return geo.pins.filter(function (p) { return p.id === id; })[0]; };
+        var labelY = function (id) {
+          var g = all(root, "g.map__pin").filter(function (el) { return el.getAttribute("data-map-id") === id; })[0];
+          return Number(all(g, "text.map__pinlabel")[0].getAttribute("y"));
+        };
+        var M = VA.MAP;
+        eq([pin("B@ball").side, pin("B@seat").side], ["right", "left"], "B has pins on both flanks, level");
+        eq(labelY("B@ball"), Math.round((pin("B@ball").y + 12 + M.font.pin * 2) * 1e6) / 1e6, "a line lower");
+        eq(labelY("C@ball"), Math.round((pin("C@ball").y + 12 + M.font.pin * 0.8) * 1e6) / 1e6,
+           "a left flank's label just below its pin, as ever");
+      });
+
     await test("the map is the default drawing for a model with a layout, Classic for one " +
       "without, the choice is remembered under its own key, and the region's switch presses " +
       "the drawing shown or says No map", function () {

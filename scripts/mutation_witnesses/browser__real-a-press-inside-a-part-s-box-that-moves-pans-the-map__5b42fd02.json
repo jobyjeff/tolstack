@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a press inside a part's box that moves pans the map by the drag, and selects nothing",
+  "mutations": [
+    {
+      "contract": "A press inside a box that moves past the slop is a pan.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_map_is_portrait_as_jeff_drew_it.md",
+      "note": "Takes the box's interior off the list a pan may start from, so a drag from inside the piston cover's box moves nothing.",
+      "file": "apps/viewer/views/map.js",
+      "find": "  var PANNABLE = [\"map__districthit\", \"map__districtfield\", \"map__boxhit\"];",
+      "replace": "  var PANNABLE = [\"map__districthit\", \"map__districtfield\"]; /* mutated */"
+    }
+  ]
+}

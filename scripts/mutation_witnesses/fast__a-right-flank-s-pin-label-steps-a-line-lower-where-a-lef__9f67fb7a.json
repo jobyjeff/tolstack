@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a right flank's pin label steps a line lower where a left flank's pin of the same part is level with it, so the two lit labels never meet mid-box",
+  "mutations": [
+    {
+      "contract": "A right flank's label steps a line lower where a left flank's pin is level with it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_map_is_portrait_as_jeff_drew_it.md",
+      "note": "Writes every right flank's label just below its pin, so the tangential link's two lit labels run into each other mid-box.",
+      "file": "apps/viewer/views/map.js",
+      "find": "        return { x: pin.x - o, y: pin.y + o + M.font.pin * (level ? 2 : 0.8), anchor: \"end\" };",
+      "replace": "        return { x: pin.x - o, y: pin.y + o + M.font.pin * 0.8, anchor: \"end\" }; /* mutated */"
+    }
+  ]
+}

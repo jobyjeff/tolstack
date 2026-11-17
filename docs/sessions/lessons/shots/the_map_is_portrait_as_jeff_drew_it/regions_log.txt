@@ -1,0 +1,13 @@
+== the six regions
+3840x2160 both: region 1201x2160, zoom 0.933, smallest label 15px, symbol 9px, inside true, clipped none, counts {"bodies":5,"parts":15,"features":34,"dimensions":22,"interfaces":17}
+  shot region_3840x2160_both.png
+3840x2160 dag: region 2390x2160, zoom 0.933, smallest label 15px, symbol 9px, inside true, clipped none, counts {"bodies":5,"parts":15,"features":34,"dimensions":22,"interfaces":17}
+  shot region_3840x2160_dag.png
+5120x2160 both: region 1841x2160, zoom 0.933, smallest label 15px, symbol 9px, inside true, clipped none, counts {"bodies":5,"parts":15,"features":34,"dimensions":22,"interfaces":17}
+  shot region_5120x2160_both.png
+5120x2160 dag: region 3670x2160, zoom 0.933, smallest label 15px, symbol 9px, inside true, clipped none, counts {"bodies":5,"parts":15,"features":34,"dimensions":22,"interfaces":17}
+  shot region_5120x2160_dag.png
+1920x1080 both: region 485x1080, zoom 0.378, smallest label 7px, symbol 4px, inside true, clipped none, counts {"bodies":5,"parts":15,"features":34,"dimensions":22,"interfaces":17}
+  shot region_1920x1080_both.png
+1920x1080 dag: region 958x1080, zoom 0.466, smallest label 8px, symbol 5px, inside true, clipped none, counts {"bodies":5,"parts":15,"features":34,"dimensions":22,"interfaces":17}
+  shot region_1920x1080_dag.png

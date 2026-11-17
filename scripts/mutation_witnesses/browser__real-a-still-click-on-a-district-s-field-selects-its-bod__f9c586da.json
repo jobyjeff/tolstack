@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] a still click on a district's field selects its body",
+  "mutations": [
+    {
+      "contract": "A still click on a district's field selects its body.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_map_is_portrait_as_jeff_drew_it.md",
+      "note": "Leaves the field's click selecting nothing.",
+      "file": "apps/viewer/views/map.js",
+      "find": "        if (ctx.onSelectEntity) ctx.onSelectEntity({ kind: VA.FOCUS_KINDS.body, id: body.id });",
+      "replace": "        /* mutated: the field selects nothing */"
+    }
+  ]
+}

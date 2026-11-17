@@ -374,7 +374,15 @@
       // A flank pin's label sits just below its pin, inside the box: level
       // with a mid-height pin it could touch a two-line name's second line.
       if (side === "left") return { x: pin.x + o, y: pin.y + o + M.font.pin * 0.8, anchor: "start" };
-      if (side === "right") return { x: pin.x - o, y: pin.y + o + M.font.pin * 0.8, anchor: "end" };
+      // A right flank's label steps a line lower where a left flank's pin of
+      // the same part is level with it: the two labels meet mid-box (the
+      // tangential link, once the map was drawn tall).
+      if (side === "right") {
+        var level = geo.pins.some(function (q) {
+          return q.part === pin.part && q.side === "left" && Math.abs(q.y - pin.y) < 2 * M.font.pin;
+        });
+        return { x: pin.x - o, y: pin.y + o + M.font.pin * (level ? 2 : 0.8), anchor: "end" };
+      }
       if (side === "top") return { x: pin.x, y: pin.y - o, anchor: "middle" };
       return { x: pin.x, y: pin.y + o + M.font.pin * 0.8, anchor: "middle" };
     };

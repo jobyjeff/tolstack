@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "expect_red": "[real] no jumper crosses a part's number or name on the map",
+  "mutations": [
+    {
+      "contract": "A part's name takes the first corner of its box that its jumpers, pins and marks leave clear.",
+      "issue": "docs/sessions/lessons/LESSONS_20261117_the_map_is_portrait_as_jeff_drew_it.md",
+      "note": "Takes the first corner whatever crosses it: on the real model five jumpers then strike through a number or a name.",
+      "file": "apps/viewer/map.js",
+      "find": "        if (!hit) return block;",
+      "replace": "        return block; /* mutated: the first corner, crossed or not */"
+    }
+  ]
+}
