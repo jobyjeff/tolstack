@@ -241,3 +241,7 @@ wedges the page 95.5 s, annotate rail holds still 91.8 s, leaders across the
 seam 84.0 s, a suggestion names its face 82.2 s. This is the fourth over-budget
 merge row today (1853 s, 1819 s, 1822 s, 1867 s), so the overrun is steady and
 not a one-off.
+
+## Measurement 2026-11-16 (second triage batch merge; found_by: dispatch/docs/sessions/lessons/LESSONS_20261116_triage_sweep.md)
+
+`node scripts/run_viewer_browser_tests.mjs`, main checkout at master `5584fbfe` (fast-forwarded from `68290d5a`, 20 commits, three handoffs), run alone with the slot free (`slot_wait_s: 1`): **48/48** suites passed, exit 0. That includes `the model drawn alone and led` 23/23 and the new `a window resize re-clamps the pane and the map` 3/3. Wall **1892 s** (runner row 1888 s), `suite-time record` printed **OVER BUDGET by 1m28s**. Top 8 of 48: the DAG zoom, Fit and the grid header 153.6 s, topology http 148.2 s, topology file:// 104.1 s, annotate rail holds still 96.8 s, 3D pane follows the selection 96.3 s, no nav click wedges the page 91.8 s, a suggestion names its face 91.2 s, leaders across the seam 89.5 s. Each new suite adds to an overrun that was already steady.
