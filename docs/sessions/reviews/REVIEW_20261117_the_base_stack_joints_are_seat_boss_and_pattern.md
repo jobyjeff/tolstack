@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261117_the_base_stack_joints_are_seat_boss_and_pattern.md
 reviewer: agent
 date: 2026-11-17
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_base_stack_joints_are_seat_boss_and_pattern (round 1)
@@ -145,3 +145,42 @@ from the review worktree using `--data-root`. Every stamp is
 - Overlay updated: a new Recurring-bugs entry (a model grown past the window
   reddens untouched suites), and the `git init` warning beside the scratch-root
   recipe.
+
+## Re-run 2026-11-17 (round 2) — APPROVE
+
+Round 1 was REQUEST CHANGES with one blocker (B1). B1 is closed.
+
+**The fix** (`f7b7c453`, plus the lesson at `5c38ff49`): the leader check's
+recovery step now scrolls the DAG's own scroller, `#topopane .tv__hscroll`,
+putting the dot mid-pane, and resets that scroller afterwards. The document
+is no longer scrolled. That is the one site B1 named and nothing else, and
+the check can still fail: a dot left unled after scrolling keeps
+`scrolledTo[id]` false. The lesson's round-2 account matches the code and my
+runs. Its "the page was right" also agrees with the check's own comment (a dot
+below the window has nothing to lead from). I asked for that either-or, and
+the author settled it.
+
+**Merge.** `integration` is still `3472d6db`. The handoff tip was merged into
+`review/…` (`65339f5d`). The scratch root is the author's `data/scratch/bsj2`
+(no `.git`, feature-identity inbox at 84). Every projection was rebuilt from the
+review worktree with `--data-root`, and every stamp is `65339f5d9350`.
+
+| command | result |
+| --- | --- |
+| `node apps/viewer/run_tests.cjs --repo <bsj2>` | **721/721**, paired at `65339f5d9350` |
+| `node apps/annotate/run_tests.cjs` | 324/324 |
+| `pytest -q tests/test_mutation_witnesses.py tests/test_app_type_scale.py tests/test_architecture_inventory.py` | 67 passed |
+| full `pytest -q`, review worktree | 1 failed, 2064 passed, 1 skipped, 4 deselected, 445 s, recorded `default` (inside budget). The failure is the documented worktree red; its tier ran armed on the viewer row. |
+| `--only "the model drawn alone and led"` | **23/23**; `scrolled to` both `true` |
+| whole browser tier | **46/48**, 1906 s (self-recorded `merge` row, over by 106 s, appended to `ISSUE_20261106_the_viewer_browser_tier_ran_51_minutes_against_the_merge_budget.md`). Red: `topology file://` 134/135 and `annotate rail holds still` 14/17. Both passed `--only` straight after on the same root (135/135 + 44/44, 17/17), passed in round 1's whole tier, and passed in the author's whole tier (48/48). The round-2 diff touches neither. Filed as `ISSUE_20261117_topology_file_reload_restore_of_column_width_flakes_in_the_whole_browser_tier.md` and `ISSUE_20261117_the_annotate_rail_holds_still_take_checks_flake_in_the_whole_browser_tier.md`. Round 1's suggestion-suite flake passed this time. |
+| witness gate `--changed-since master --budget-min 10` | **20/20 witnessed**, 20/55 reached, 9 m 44 s, 35 left to the sweep (budget), exit 0. The new fast entry `__4939ea28` was witnessed again. |
+| witness `--only __efee81d8 --only __fdb6eaa8` (the Fit check, left to the budget; the leader check) | **2/2 witnessed**, 9 m 49 s |
+
+Note for the witness gate: `__fdb6eaa8` (the leader check) was **not
+selected** by `--changed-since`, although its own scroll step changed. The
+hunk sits in the check's set-up, above the `push`, and is not near its anchor.
+By design, what a hunk leaves unselected is the sweep's, so this is not a
+finding; running it `--only` covered it.
+
+**Verdict: APPROVE**, 0 blockers. Round 1's nit and its two filed issues stand
+as written. Landed into `integration` by fast-forward.

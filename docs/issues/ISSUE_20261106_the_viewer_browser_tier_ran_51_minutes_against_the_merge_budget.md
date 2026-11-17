@@ -275,3 +275,25 @@ Whole tier, review worktree, `node scripts/run_viewer_browser_tests.mjs --repo C
      63.9s   11 checks  every study opens in 3D showing only its parts
      55.5s   22 checks  annotate model in the scene (anchors, lines, the sweep, the anchors message)
 ```
+
+## Measurement 2026-11-17 (review round 2, the_base_stack_joints_are_seat_boss_and_pattern)
+
+`node scripts/run_viewer_browser_tests.mjs --repo <scratch root>` on merge `65339f5d`: **1906 s** against the 1800 s merge budget (self-recorded `merge` row, `over: true`), slot wait 0 s, 46/48 (two flakes, each filed). Round 1 on `b5588d69` was 2217 s. Top 15 suites:
+
+```
+    154.2s   47 checks  the DAG zoom, Fit and the grid header
+    150.8s  181 checks  topology http
+    147.4s   17 checks  annotate rail holds still (bodies under Bodies, joint words, framing, the second face)
+     98.7s  135 checks  topology file://
+     97.3s   16 checks  no nav click wedges the page
+     95.6s   31 checks  3D pane follows the selection (sweep, bind, reload, hover)
+     89.6s    5 checks  a suggestion names its face and the mate ranks the other side (hover, Take, armed mates, nothing opposite)
+     85.9s   25 checks  leaders across the seam (synthetic anchors, the lit set, the selection triple, P2)
+     83.2s   34 checks  the map (Map . Classic, the counts, the one selection on four surfaces, the view)
+     83.1s   44 checks  topology file:// respine
+     74.2s   27 checks  kinematic study page (deep link, chart hover, contributors, no projection)
+     73.9s   23 checks  the model drawn alone and led (the end-stop model's parts only, a leader per placed node)
+     63.4s   11 checks  every study opens in 3D showing only its parts
+     57.4s   22 checks  annotate model in the scene (anchors, lines, the sweep, the anchors message)
+     55.7s   41 checks  annotate flyout (repo-root mount + file:// degradation)
+```
