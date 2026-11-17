@@ -4559,11 +4559,15 @@ async function testTheMap(browser, label, topologies) {
     const r = document.querySelector("#topopane svg.tv__rails");
     return r ? r.getBoundingClientRect().width : null;
   });
-  // Fit's promise on the rails: the whole walk inside the visible pane.
+  // Fit's promise on the rails: the whole walk inside the visible pane --
+  // the drawn shapes, not the svg's box, whose margin a walk as tall as the
+  // pane (v2 since 2026-11-17) carries a few pixels past it.
   const railsFitThePane = () => page.evaluate(() => {
-    const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+    const shapes = Array.from(document.querySelectorAll("#topopane svg.tv__rails :is(circle, line, path, rect)"))
+      .map((e) => e.getBoundingClientRect()).filter((b) => b.width > 0 || b.height > 0);
     const p = document.getElementById("topopane").getBoundingClientRect();
-    return r.height <= p.height + 2 && r.width <= p.width + 2;
+    return shapes.length > 0 && Math.max(...shapes.map((b) => b.bottom)) - Math.min(...shapes.map((b) => b.top)) <= p.height + 2 &&
+      Math.max(...shapes.map((b) => b.right)) - Math.min(...shapes.map((b) => b.left)) <= p.width + 2;
   });
   const wheelOverRails = async (notches) => {
     const c = await page.evaluate(() => {
