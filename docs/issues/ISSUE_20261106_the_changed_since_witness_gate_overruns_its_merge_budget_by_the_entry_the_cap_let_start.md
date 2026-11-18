@@ -158,3 +158,16 @@ five of the 40 were browser entries; the other 35 were fast and annotate.
       38s  annotate__a-picked-hole-offers-its-pattern-the-other-holes-of-one__5731da88#2
       38s  annotate__the-mate-a-flat-bound-opposite-ranks-the-flats-that-face__820d4a66
 ```
+
+## Measurement 2026-11-17, triage batch merge (found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since 445106241867444ee5d50f34aa67c42573d56101 --budget-min 30`, main checkout at master `1f8c6381` (fast-forwarded from `44510624`, 68 commits), run alone right after the whole browser tier: **89/90 witnessed, 90/220 reached in 31m00s; 130 left to the sweep**, exit 1 (one known decay, `ISSUE_20261105_the_mount_without_a_launcher_witness_stays_green.md`). Wall **1904 s**, `suite-time record` printed **OVER BUDGET by 1m44s**. The overshoot is again the entry the cap let start: one browser entry alone took 6m07s. Slowest entries:
+
+```
+    6m07s  browser__real-a-body-s-twisty-in-the-nav-folds-it-it-reads-closed__ee555635
+    1m07s  annotate__endsurfaceclass-reads-a-node-s-declared-face-before-its__922cbda5
+      47s  fast__a-block-holds-only-its-pins-and-the-chords-between-them__88bc4b05
+      34s  annotate__endsurfaceclass-reads-a-shared-node-s-stated-joint-kind__6d321b6d
+      34s  annotate__requiredsurfaceclass-reads-tests-fixtures-suggestion-rul__f8afcded
+      32s  fast__real-re-laying-the-product-model-s-walk-in-its-own-order__e8cbf7f8
+```
