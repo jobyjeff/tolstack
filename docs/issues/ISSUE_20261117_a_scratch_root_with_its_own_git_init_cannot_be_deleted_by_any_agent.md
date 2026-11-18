@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: Delete the 1.7 GB leftover review folder named bsj from tolstack's data scratch area
 found_by: docs/sessions/active/HANDOFF_20261117_the_base_stack_joints_are_seat_boss_and_pattern.md
+todo: 20261117T222300_v3ap1z
 ---
 
 # A scratch root with its own `git init` cannot be deleted by any agent
