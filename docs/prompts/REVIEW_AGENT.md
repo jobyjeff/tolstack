@@ -4746,6 +4746,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/debug_*.mjs` and both stylesheets for its classes too. No tier
       runs the hand probes, so they break without going red
       (`ISSUE_20261030_six_debug_probes_and_two_css_rules_still_drive_the_retired_topology_hover_cards.md`).
+      **Grep `scripts/*.mjs` as well, and say which hits `CLAUDE.md` names**
+      (2026-11-18, `the_map_is_the_only_drawing_and_classic_retires`).
+      `scripts/filmstrip.mjs` is the tool `CLAUDE.md` tells every viewer
+      handoff to film transitions with. Its `bootKinematic` waited for
+      `svg.tv__rails`, so every built-in scenario timed out once the rails
+      retired, and no tier runs it. Also look for helpers that lost their
+      last caller: `VA.blockColumns` and `VA.kinematicPoseLengths` did in
+      that diff. Count each name with `git grep -c "VA\.<name>\b"` on the
+      base tree and on HEAD.
 - [ ] **A claims-registry review re-derives from the registry's own report,
       not from the lesson.** New 2026-09-24. `PYTHONIOENCODING=utf-8
       venv-win/Scripts/python.exe -m tests.claims_registry` prints every
