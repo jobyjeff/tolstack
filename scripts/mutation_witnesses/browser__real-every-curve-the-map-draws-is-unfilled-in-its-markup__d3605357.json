@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] every curve the map draws is unfilled, in its markup and as the page computes it",
   "mutations": [
     {

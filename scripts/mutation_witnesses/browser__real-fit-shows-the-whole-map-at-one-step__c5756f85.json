@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] Fit shows the whole map at one step",
+  "mutations": [
+    {
+      "contract": "Fit's scale is the one that fits the whole drawing.",
+      "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/map.js",
+      "find": "    var k = Math.min(width / bounds.w, height / bounds.h, VA.MAP_ZOOM.fitMax);",
+      "replace": "    var k = Math.min(2 * width / bounds.w, 2 * height / bounds.h, VA.MAP_ZOOM.fitMax);"
+    }
+  ]
+}

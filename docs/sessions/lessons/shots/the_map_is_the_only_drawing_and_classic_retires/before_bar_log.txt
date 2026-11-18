@@ -1,0 +1,3 @@
+== the settings bar, v1 3840x2160 side by side
+bar: Map | Classic | Rows: Comfortable | Rows: labelled | Lengths: uniform | Fit | Leaders: off | Side by side | 3D | DAG | Groups (4 of 4) | View
+  shot before_bar.png

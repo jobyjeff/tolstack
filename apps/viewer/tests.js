@@ -7178,7 +7178,7 @@
             selection: { kind: "node", id: "base_datum" } }));
         });
         has(internal.textContent, "An internal interface");
-        has(internal.textContent, "no leader line is drawn");
+        has(internal.textContent, "belongs to one part");
         // A gap boundary names the clearance in plain words, not `null`.
         var gapSide = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({

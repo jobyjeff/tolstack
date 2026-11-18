@@ -2407,8 +2407,8 @@
   };
 
   // The one line an empty Preview carries.
-  VA.PREVIEW_EMPTY_TEXT = "Point at a dot, a bar or a row to preview it here; " +
-    "click to keep it.";
+  VA.PREVIEW_EMPTY_TEXT = "Point at a part, a pin, a line or a row to preview it " +
+    "here; click to keep it.";
 
   // What a pane's ctx hands the record builder: the same inputs the page
   // builds its records from (topology_app.js), so a fast-tier render and the
@@ -2464,12 +2464,10 @@
 
     // Whether this interface got a leader line, and why: the omission rule is
     // the component grouping, so the pane says which side of it this node is
-    // on rather than leaving a missing leader to read as a rendering gap.
+    // on.
     root.appendChild(VA.el("p", "detail__crop-reason", record.internal
-      ? "An internal interface: every dimension meeting here belongs to one " +
-        "part, so no leader line is drawn — leaders mark component " +
-        "boundaries only."
-      : "A component boundary: its leader line marks that seam in the grid."));
+      ? "An internal interface: every dimension meeting here belongs to one part."
+      : "A component boundary: the grid starts another part's rows here."));
     if (record.note) root.appendChild(VA.el("div", "detail__note", record.note));
 
     if (record.citation) {

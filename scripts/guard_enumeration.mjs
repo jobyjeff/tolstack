@@ -352,7 +352,13 @@ export const DECLARED_GUARDS = {
   // 2026-11-17 (a_joint_says_what_kind_it_is): +2 -- a connector's symbol is
   // its interface's kind alone, and a shared node's joint kind in words on the
   // tree, the Preview and Classic. Each carries a spec.
-  fast: { declared: 722, enrollable: 722, names: "e21cf8384169" },
+  // 2026-11-17 (the_map_is_the_only_drawing_and_classic_retires): -121 --
+  // Classic retired, and with it the rails' geometry, the leaders, the
+  // respine, the zoom box, the length modes, the overlays, the blocks, the
+  // groups as drawn, the seam leaders and the switch: every guard of those
+  // deleted with its spec. 26 renamed where the claim survives on the grid or
+  // the map (the lesson's suite table), each spec following its guard.
+  fast: { declared: 601, enrollable: 601, names: "1ba750b8006f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -712,7 +718,13 @@ export const DECLARED_GUARDS = {
   // body. Each carries a spec.
   // 2026-11-17 (a_joint_says_what_kind_it_is): +1 -- the hub to blade joint
   // is the rotary joint on the real map and in the tree. It carries a spec.
-  browser: { declared: 907, enrollable: 876, names: "5c33b9d3bb4b" },
+  // 2026-11-17 (the_map_is_the_only_drawing_and_classic_retires): -133 --
+  // three suites deleted whole (the respine, the leaders across the seam,
+  // parts as blocks) and every rails-only check of the rest, each with its
+  // spec; the checks that still hold re-pointed at the map and the grid, many
+  // renamed, each spec following its guard (twenty with a new mutation, the
+  // old anchor having gone with the rails). The lesson carries the table.
+  browser: { declared: 774, enrollable: 747, names: "0c6fb15ac827" },
 };
 
 

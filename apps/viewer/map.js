@@ -816,8 +816,11 @@
   //
   // A view is {k, tx, ty}: world * k + t = screen. The page fits the drawing
   // to its region on the first paint and pans and zooms it from there; the
-  // view outlives a repaint but not the page (like the DAG's own zoom).
-  VA.MAP_ZOOM = Object.freeze({ min: 0.1, max: 4, step: 1.15, fitMax: 2 });
+  // view outlives a repaint but not the page. `min` is low enough that Fit
+  // shows a whole model of many bodies in a narrow region: v1's computed
+  // map, one column per body, is too wide to fit a side-by-side region at
+  // 0.1 (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).
+  VA.MAP_ZOOM = Object.freeze({ min: 0.04, max: 4, step: 1.15, fitMax: 2 });
 
   VA.mapFitView = function (bounds, width, height) {
     if (!bounds || !(width > 0) || !(height > 0) || !(bounds.w > 0) || !(bounds.h > 0)) {

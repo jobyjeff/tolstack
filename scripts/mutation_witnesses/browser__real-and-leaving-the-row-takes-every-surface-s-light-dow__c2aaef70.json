@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
   "expect_red": "[real] ...and leaving the row takes every surface's light down, the scene back to rest",
   "mutations": [
     {

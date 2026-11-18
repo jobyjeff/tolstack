@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
   "expect_red": "[real] with no sweep loaded the same hover reaches the 3D pane: the hub glows at its resting look, every other part goes faint, and nothing is opaque",
   "mutations": [
     {

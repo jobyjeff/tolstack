@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] a feature's row clicked in the tree selects its pin on the map, with the connector it ends touched",
   "mutations": [
     {

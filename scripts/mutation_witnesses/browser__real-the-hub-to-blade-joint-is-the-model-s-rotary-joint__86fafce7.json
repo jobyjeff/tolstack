@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] the hub to blade joint is the model's rotary joint: the map draws its rotary symbol, its hover says so, and the tree's joint row reads rotary",
   "mutations": [
     {

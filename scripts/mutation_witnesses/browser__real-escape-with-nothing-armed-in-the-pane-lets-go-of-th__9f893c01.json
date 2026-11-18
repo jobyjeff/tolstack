@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
   "expect_red": "[real] Escape with nothing armed in the pane lets go of the selection, pressed controls and all",
   "mutations": [
     {

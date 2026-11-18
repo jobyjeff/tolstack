@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] a grid row hovered lights its jumper on the map, and the two pins it measures between",
   "mutations": [
     {

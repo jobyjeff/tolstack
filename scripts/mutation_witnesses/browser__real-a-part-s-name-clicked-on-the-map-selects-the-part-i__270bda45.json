@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] a part's name clicked on the map selects the part: its row is on in the tree, its dimensions' rows are selected in the grid, its box and pins wear the accent and its neighbours' interfaces are touched on the map, and the scene's light is the selection's",
   "mutations": [
     {

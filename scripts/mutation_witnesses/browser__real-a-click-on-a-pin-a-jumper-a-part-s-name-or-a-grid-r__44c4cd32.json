@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] a click on a pin, a jumper, a part's name or a grid row never moves the map: its view stays exactly as it was",
+  "mutations": [
+    {
+      "contract": "The map's view outlives a repaint.",
+      "issue": null,
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/views/map.js",
+      "find": "    var view = views[geo.topologyId];",
+      "replace": "    var view = null;"
+    }
+  ]
+}

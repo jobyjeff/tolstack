@@ -4,12 +4,12 @@
   "expect_red": "[real] Fit puts the whole drawing inside the visible window, vertically",
   "mutations": [
     {
-      "contract": "Fit leaves the drawing inside the window under the topbar.",
+      "contract": "Fit centres the drawing in its region's height.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). Scrolls the page 300px past where Fit frames the drawing. Re-aimed 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): with the grid unscaled the +300 scroll is caught by the top-of-pane check alone; Fit that never scales the DAG down runs it past the window's bottom, which is this check's own claim.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "    var to = VA.dagFitScale(drawn.span.top, drawn.span.bottom, visible, pad);",
-      "replace": "    var to = 1;"
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/map.js",
+      "find": "      ty: (height - bounds.h * k) / 2 - bounds.y * k,",
+      "replace": "      ty: height - bounds.y * k,"
     }
   ]
 }

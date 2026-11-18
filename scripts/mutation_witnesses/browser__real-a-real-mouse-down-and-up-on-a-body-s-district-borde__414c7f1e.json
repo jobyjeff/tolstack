@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
+  "expect_red": "[real] a real mouse down and up on a body's district border on the map selects the body -- the up and the click land on the district, not on the drawing a pan captures for -- and it lights as the tree's row click did",
+  "mutations": [
+    {
+      "contract": "A press that does not move is a click, not a pan.",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/views/map.js",
+      "find": "               moved: false, pointerId: event.pointerId };",
+      "replace": "               moved: true, pointerId: event.pointerId };"
+    }
+  ]
+}

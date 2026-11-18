@@ -4,12 +4,12 @@
   "expect_red": "[mock] a repaint puts each region back where the reader left it",
   "mutations": [
     {
-      "contract": "A repaint carries the DAG's vertical scroll.",
+      "contract": "A repaint carries the grid's scroll.",
       "issue": null,
-      "note": "Declared with the guard by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The drawing's scroll is dropped on repaint.",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
       "file": "apps/viewer/views/topology.js",
-      "find": "    if (carried.top) hscroll.scrollTop = carried.top;\n",
-      "replace": ""
+      "find": "    if (carriedGrid.top) gridScroll.scrollTop = carriedGrid.top;",
+      "replace": "    /* mutated: the grid's scroll is not carried */"
     }
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] the kinematic page's model is the map, in the DAG's region, and the document does not scroll",
+  "mutations": [
+    {
+      "contract": "The DAG's region box does not scroll; its drawing's scroller does.",
+      "issue": null,
+      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14). The region box itself becomes the scroller, the bounded pane the region model replaced.",
+      "file": "apps/viewer/topology.css",
+      "find": "  flex: 1 1 0; min-width: 0; min-height: 0;\n  position: relative; overflow: hidden;",
+      "replace": "  flex: 1 1 0; min-width: 0; min-height: 0;\n  position: relative; overflow: auto;"
+    }
+  ]
+}

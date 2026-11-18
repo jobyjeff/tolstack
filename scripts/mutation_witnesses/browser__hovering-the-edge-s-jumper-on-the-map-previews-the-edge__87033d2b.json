@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "hovering the edge's jumper on the map previews the edge's record",
+  "mutations": [
+    {
+      "contract": "A map mark under the pointer tells the page its entity, which the Preview shows.",
+      "issue": "docs/issues/ISSUE_20261021_hoverrailbar_throws_so_a_bar_with_no_hit_path_aborts_the_topology_suite.md",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/views/map.js",
+      "find": "      if (ctx.onHotEntity) ctx.onHotEntity(entity);\n      else VA.lightMap(ctx.model || null, entity);",
+      "replace": "      VA.lightMap(ctx.model || null, entity);"
+    }
+  ]
+}

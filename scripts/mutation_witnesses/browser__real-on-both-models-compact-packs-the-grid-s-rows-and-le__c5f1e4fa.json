@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on both models Compact packs the grid's rows and leaves the map as it was",
+  "mutations": [
+    {
+      "contract": "Compact moves the grid's row height.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/topology.js",
+      "find": "    VA.RAIL_METRICS.rowHeight = preset.rowHeight;",
+      "replace": "    VA.RAIL_METRICS.rowHeight = 26;"
+    }
+  ]
+}

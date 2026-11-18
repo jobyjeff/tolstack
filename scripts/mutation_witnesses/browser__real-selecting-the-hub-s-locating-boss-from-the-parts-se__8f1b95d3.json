@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the model drawn alone and led (the end-stop model's parts only, a leader per placed node)",
+  "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
   "expect_red": "[real] selecting the hub's locating boss from the Parts section opens the folds down to the pilot interface it is an end of -- the Interfaces group, the hub-mount joint, the interface itself -- lights that row fainter with the pilot bore across it, and scrolls it into view",
   "mutations": [
     {

@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] a still click inside a part's box, clear of its name, pins and jumpers, selects the part on all four surfaces, as a click on its name does",
   "mutations": [
     {

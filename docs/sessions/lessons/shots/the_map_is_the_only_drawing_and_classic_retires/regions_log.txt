@@ -1,0 +1,11 @@
+== the regions, 3840x2160
+v2 both (pane open): region 1201x2160, map true, zoom 0.897, counts {"bodies":5,"parts":15,"features":55,"dimensions":43,"interfaces":28} vs the model's {"bodies":5,"parts":15,"features":55,"dimensions":43,"interfaces":28}, box overlaps 0, defect notes 0 (routed through a box: 0), slowest of four repaints 652 ms
+  shot v2_3840_both.png
+v2 dag (pane open): region 2390x2160, map true, zoom 0.925, counts {"bodies":5,"parts":15,"features":55,"dimensions":43,"interfaces":28} vs the model's {"bodies":5,"parts":15,"features":55,"dimensions":43,"interfaces":28}, box overlaps 0, defect notes 0 (routed through a box: 0), slowest of four repaints 953 ms
+  shot v2_3840_dag.png
+v1 both (pane open): region 1201x2160, map true, zoom 0.219, counts {"bodies":13,"parts":35,"features":113,"dimensions":82,"interfaces":51} vs the model's {"bodies":13,"parts":35,"features":113,"dimensions":82,"interfaces":51}, box overlaps 0, defect notes 63 (routed through a box: 59), slowest of four repaints 1231 ms
+    notes: part hub's box (270 x 316) outgrows its cell | part pitch_plate_215177_001's box (270 x 316) outgrows its cell | interface piston_cover_mount_flange_seat is routed through spherical_bearing_tan_link_ms14103_3 | interface piston_cover_mount_flange_seat is routed through bolt_nas6403u11d | interface hub_vpa_mount is routed through blade_root | interface hub_vpa_mount is routed through pitch_link
+  shot v1_3840_both.png
+v1 dag (pane open): region 2390x2160, map true, zoom 0.436, counts {"bodies":13,"parts":35,"features":113,"dimensions":82,"interfaces":51} vs the model's {"bodies":13,"parts":35,"features":113,"dimensions":82,"interfaces":51}, box overlaps 0, defect notes 63 (routed through a box: 59), slowest of four repaints 1010 ms
+    notes: part hub's box (270 x 316) outgrows its cell | part pitch_plate_215177_001's box (270 x 316) outgrows its cell | interface piston_cover_mount_flange_seat is routed through spherical_bearing_tan_link_ms14103_3 | interface piston_cover_mount_flange_seat is routed through bolt_nas6403u11d | interface hub_vpa_mount is routed through blade_root | interface hub_vpa_mount is routed through pitch_link
+  shot v1_3840_dag.png

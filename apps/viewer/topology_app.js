@@ -1641,15 +1641,18 @@
 
   // A click on the model's empty canvas lets go too: on the pane, anywhere
   // that is not a mark, a row or a control, and not the end of a drag (the
-  // pane pans under a pressed pointer).
-  var PREVIEW_KEEPERS = "[data-row-kind], .rail__leaderhit, button, a, input, select, " +
+  // map pans under a pressed pointer). Both listeners are on the CAPTURE
+  // phase: the map stops a mark's click and its own pan press at the SVG
+  // (views/map.js), so a bubbling listener here would keep the press before
+  // the last one and read the next empty click as a pan.
+  var PREVIEW_KEEPERS = "[data-row-kind], [data-map-kind], button, a, input, select, " +
     "label, summary, th, [role=\"button\"], [role=\"separator\"], .tvgrip, tr";
   function wirePreviewRelease() {
     if (!nodes.pane || !nodes.pane.addEventListener) return;
     var down = null;
     nodes.pane.addEventListener("pointerdown", function (event) {
       down = { x: event.clientX, y: event.clientY };
-    });
+    }, true);
     nodes.pane.addEventListener("click", function (event) {
       var moved = down && (Math.abs(event.clientX - down.x) > VA.PREVIEW_CLICK_SLOP_PX ||
         Math.abs(event.clientY - down.y) > VA.PREVIEW_CLICK_SLOP_PX);
@@ -1658,7 +1661,7 @@
       var target = event.target;
       if (target && target.closest && target.closest(PREVIEW_KEEPERS)) return;
       unfreeze();
-    });
+    }, true);
   }
 
   // --- crops: the grid's inline thumbnails (viewer_leader_line_grid) ---------
@@ -2805,22 +2808,14 @@
     return Math.max(0, room - taken);
   }
 
-  // How much of that has to be left for the page: the DAG DRAWING's own width.
-  //
-  // `svg.tv__rails` and not `#topopane`, and that distinction is the whole of
-  // the review's blocker (2026-09-16): measuring the region reported 300px of
-  // clearance over a diagram that was 100% covered. The grid has its own
-  // column now (2026-11-14), so it is no part of what the scene must leave.
-  //
-  // 0 where nothing is drawn -- stack mode, a pre-layout call, the DAG's
-  // region hidden -- which VA.clampFlyoutWidth reads as "nothing measured" and
-  // answers with its own floor.
+  // How much of that has to be left for the page beyond the clamp's own
+  // floor: nothing. The DAG region draws the map, which fits itself to
+  // whatever region it is given (views/map.js, VA.mapFitView), so it has no
+  // width of its own to protect; VA.clampFlyoutWidth reads 0 as "nothing
+  // measured" and keeps its reserve (VA.FLYOUT_WIDTH.reserve) for the region.
+  // Until the rails retired (2026-11-17) this measured their SVG's width.
   function graphNeed() {
-    var rails = nodes.pane && nodes.pane.querySelector
-      ? nodes.pane.querySelector("svg.tv__rails") : null;
-    var box = rails && rails.getBoundingClientRect
-      ? rails.getBoundingClientRect() : null;
-    return box && box.width > 0 ? Math.round(box.width) : 0;
+    return 0;
   }
 
   // The remembered flyout width onto the dialog, or nothing at all -- same

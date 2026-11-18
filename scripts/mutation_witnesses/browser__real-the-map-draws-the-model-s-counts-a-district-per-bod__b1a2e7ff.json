@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] the map draws the model's counts: a district per body, a box per part, a pin per feature, a jumper per dimension and a connector per interface, each once, and the layout reports no defect",
   "mutations": [
     {

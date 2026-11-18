@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
+  "expect_red": "[real] a part hovered in the tree lights the same thing on all four surfaces, in two tiers: its own rows, pins, jumpers and box strong and its interfaces faint; in the scene its mesh glows at its resting look with its bound faces harder, every other part faint, nothing opaque",
+  "mutations": [
+    {
+      "contract": "A part's bound faces are overlaid harder than the part (Jeff: \"even more prominently than the entire part\").",
+      "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. The face drawn no harder than the part.",
+      "file": "apps/annotate/scene.js",
+      "find": "  hover: { color: HOVER_COLOR, own: { part: 0.22, face: 0.6 }, touching: { part: 0.08, face: 0.25 } },",
+      "replace": "  hover: { color: HOVER_COLOR, own: { part: 0.6, face: 0.6 }, touching: { part: 0.08, face: 0.25 } },"
+    },
+    {
+      "contract": "A part hovered lights its bound interface partners in the touching tier: a partner whose face is overlaid ghosts behind that face, every other part goes faint -- the check's expectation is derived from the standing bindings, so it bites in both directions.",
+      "issue": "docs/issues/ISSUE_20261115_the_model_drawn_alone_and_led_two_hover_lighting_checks_red_on_integration.md",
+      "note": "Declared by handoff the_model_drawn_alone_and_led_hub_hover_check_goes_green. A touching face no longer makes its part near, so the bound blade stays faint where the bindings say it ghosts.",
+      "file": "apps/annotate/commands.js",
+      "find": "      r.touching.faces.forEach(function (f) { add(near, f.sha256); });",
+      "replace": "      r.touching.faces.forEach(function (f) { void f; });"
+    }
+  ]
+}

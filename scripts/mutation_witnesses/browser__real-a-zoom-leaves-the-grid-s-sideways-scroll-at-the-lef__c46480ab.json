@@ -4,12 +4,12 @@
   "expect_red": "[real] a zoom leaves the grid's sideways scroll at the left edge",
   "mutations": [
     {
-      "contract": "A zoom does not scroll the grid sideways under the DAG.",
+      "contract": "A wheel over the map moves the map alone.",
       "issue": null,
-      "note": "Re-pointed by handoff the_page_is_a_fixed_layout_and_nothing_scrolls_the_document (2026-11-14): the zoom compensation scrolls the drawing's own region now, so the mutation makes it nudge the grid's sideways scroll instead. Declared with the guard by handoff the_wheel_the_column_and_fit_behave (2026-10-29). A zoom that nudges the grid sideways, as the old pointer anchoring did. Re-aimed 2026-10-30 (a_leader_starts_at_the_mark_it_names_on_every_tier): the grid is no longer scaled, so the wheel moves it sideways by nothing at all.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "    scrollDag(0, after.top + cy * to - clientY);\n",
-      "replace": "    scrollDag(0, after.top + cy * to - clientY);\n    if (gridScroller()) gridScroller().scrollLeft = 40;\n"
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/views/map.js",
+      "find": "      setView(VA.mapZoomAt(current(), event.deltaY, event.clientX - r.left, event.clientY - r.top), true);",
+      "replace": "      setView(VA.mapZoomAt(current(), event.deltaY, event.clientX - r.left, event.clientY - r.top), true);\n      var gs = document.querySelector(\"#topogrid .tv__gridscroll\"); if (gs) gs.scrollLeft += 60;"
     }
   ]
 }

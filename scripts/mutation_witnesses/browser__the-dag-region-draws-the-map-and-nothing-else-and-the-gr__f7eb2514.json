@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "the DAG region draws the map and nothing else, and the grid is whole",
+  "mutations": [
+    {
+      "contract": "The grid holds every row of the walk.",
+      "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/views/topology.js",
+      "find": "        tbody.appendChild(row);",
+      "replace": "        if (group.start + i > 0) tbody.appendChild(row);"
+    }
+  ]
+}

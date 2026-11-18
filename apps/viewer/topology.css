@@ -674,15 +674,9 @@ body { display: flex; flex-direction: column; }
   background: var(--panel); border-bottom: 1px solid var(--line);
   pointer-events: auto;
 }
-/* The box holding the drawing, inside the DAG's own scroller
-   (views/topology.js). It is never scaled: the DAG's zoom is drawn inside the
-   rails SVG (2026-10-29), and since the fixed shell (2026-11-14) the grid and
-   its header are in a region of their own, at the page's own pixels. The
-   sizer keeps the space a study arrival puts before the drawing. */
-.tv__zoomsizer { position: relative; }
-.tv__zoom { position: relative; width: max-content; }
+
 .tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
-.tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
+
 /* The rails scroll WITH the grid (the_grid_fits_the_screen_and_its_brackets_
    say_what_nests_in_what). They were `position: sticky; left: 0` from
    2026-09-09, for a grid that was always wider than the pane; the cost was
@@ -701,183 +695,11 @@ body { display: flex; flex-direction: column; }
    a grid wider than its region scrolls sideways rather than clipping. */
 .tv__rows { flex: 1 1 auto; min-width: 0; }
 
-/* The respine's outgoing frame (viewer_study_respine_animation): the previous
-   paint, re-parented here and faded out while the incoming one moves into
-   place. Absolute, so it takes the pane's own box out of the flow it left and
-   the incoming frame lays out as if it were alone; inert, because it is a
-   picture of a state the reader has already left -- a click landing on a
-   ghost dot would select a row that is on its way off the page. Clipped to
-   the pane so a taller outgoing DAG cannot paint over the summary pane below
-   while it fades. Lives for one transition; nothing renders it at rest. */
-.tv__ghost {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  overflow: hidden; pointer-events: none;
-}
-.tv__ghost .tv__hscroll { overflow: hidden; }
+/* --- a body's ink --------------------------------------------------------- */
 
-/* --- the rails ---------------------------------------------------------- */
-
-/* The line weights (the_demo_path_reads_cleanly_on_a_projector, 2026-11-09:
-   Jeff, "line weights are still very thin", read at 1920 for a projector): a
-   bar 4 (--edge-lit-w) > a rail 3 > a leader 2, either kind > a body's
-   container 2 > a part's 1.5 -- and each hover, lead and selected state one
-   step above its own base, so it still reads as a change. */
-.rail { stroke-width: 3; }
-.rail--even { stroke: var(--rail-even); }
-.rail--odd { stroke: var(--rail-odd); }
-.rail__link { fill: none; stroke: var(--rail-even); stroke-width: 3; }
-.rail__link--close { stroke: var(--rail-dim); stroke-dasharray: 3 3; }
-
-/* An edge's bar IS the dimension: a segment spanning exactly its row. It says
-   ONE thing, lit or unlit, and says it by weight -- `--edge-lit-w` for an edge
-   the page lights (every edge, when nothing is lit), `--edge-unlit-w` for the
-   rest -- in one neutral ink, and a gap is dashed. Nothing else rides the
-   stroke (the_joint_is_the_node_and_an_edge_says_only_lit_or_unlit): its
-   confidence is the grid's SOURCING chip and its band the grid's MIN/MAX.
-   Hover and selection are the one exception, and they spend width. */
-.rail__bar { stroke: var(--edge-ink); stroke-width: var(--edge-lit-w);
-  stroke-linecap: butt; cursor: pointer; fill: none; }
-/* The whole-edge hover/click target (deliverable 3, viewer_error_surface_and_
-   layout, 2026-09-09): solid and wider than the visible bar, so a dashed
-   gap stroke's own gaps (rail__bar--gap, below) never leave a real portion
-   of the edge's length unresponsive. Invisible on purpose -- the visible bar
-   above keeps its one ink, its weight and its dash unchanged; `pointer-events: stroke` is what makes a
-   `stroke: transparent` line still hoverable/clickable. */
-.rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; fill: none; }
-/* A gap crosses between parts and has no lane of its own — dashed, because it
-   is the one edge kind no rail belongs to. A derived gap is a gap, and draws as
-   one: that it carries no value is the grid's to say. */
-.rail__bar--gap { stroke: var(--edge-gap-ink); stroke-dasharray: var(--edge-gap-dash); }
-
-/* A colour overlay (VA.COLOUR_SCHEMES, the view's "colour by"): a mark with
-   `ovl` wears `--ovl` -- its scheme token's ink -- on the stroke of a bar or
-   a dot and the ink of a glyph. Weight, the gap dash, dimming, hover and the
-   selection outline are unchanged. Text never wears it. */
-.ovl-b0 { --ovl-base: var(--tv-body-ink-0); --ovl: var(--ovl-base); }
-.ovl-b1 { --ovl-base: var(--tv-body-ink-1); --ovl: var(--ovl-base); }
-.ovl-b2 { --ovl-base: var(--tv-body-ink-2); --ovl: var(--ovl-base); }
-.ovl-b3 { --ovl-base: var(--tv-body-ink-3); --ovl: var(--ovl-base); }
-.ovl-b4 { --ovl-base: var(--tv-body-ink-4); --ovl: var(--ovl-base); }
-.ovl-b5 { --ovl-base: var(--tv-body-ink-5); --ovl: var(--ovl-base); }
-.ovl-b6 { --ovl-base: var(--tv-body-ink-6); --ovl: var(--ovl-base); }
-.ovl-b7 { --ovl-base: var(--tv-body-ink-7); --ovl: var(--ovl-base); }
-.ovl-b8 { --ovl-base: var(--tv-body-ink-8); --ovl: var(--ovl-base); }
-.ovl-b9 { --ovl-base: var(--tv-body-ink-9); --ovl: var(--ovl-base); }
-.ovl-b10 { --ovl-base: var(--tv-body-ink-10); --ovl: var(--ovl-base); }
-.ovl-b11 { --ovl-base: var(--tv-body-ink-11); --ovl: var(--ovl-base); }
-.ovl-b12 { --ovl-base: var(--tv-body-ink-12); --ovl: var(--ovl-base); }
-.ovl-b13 { --ovl-base: var(--tv-body-ink-13); --ovl: var(--ovl-base); }
-.ovl-b14 { --ovl-base: var(--tv-body-ink-14); --ovl: var(--ovl-base); }
-.ovl-b15 { --ovl-base: var(--tv-body-ink-15); --ovl: var(--ovl-base); }
-/* The part scheme: a body's hue in three shades (VA.PART_SHADES), so the
-   parts of one body differ while the body still reads as one hue. */
-.ovl-s1 { --ovl: color-mix(in srgb, var(--ovl-base) 62%, #ffffff); }
-.ovl-s2 { --ovl: color-mix(in srgb, var(--ovl-base) 70%, var(--bg)); }
-.ovl-i0 { --ovl: var(--ovl-if-0); }
-.ovl-i1 { --ovl: var(--ovl-if-1); }
-.ovl-i2 { --ovl: var(--ovl-if-2); }
-.ovl-i3 { --ovl: var(--ovl-if-3); }
-.ovl-i4 { --ovl: var(--ovl-if-4); }
-.ovl-i5 { --ovl: var(--ovl-if-5); }
-.ovl-seq-0 { --ovl: var(--ovl-seq-0); }
-.ovl-seq-1 { --ovl: var(--ovl-seq-1); }
-.ovl-seq-2 { --ovl: var(--ovl-seq-2); }
-.ovl-seq-3 { --ovl: var(--ovl-seq-3); }
-.ovl-seq-4 { --ovl: var(--ovl-seq-4); }
-/* The sourcing scheme: the provenance palette itself, the grid chip's colours. */
-.ovl-conf--traced { --ovl: var(--traced); }
-.ovl-conf--inferred { --ovl: var(--inferred); }
-.ovl-conf--untraced { --ovl: var(--untraced); }
-.ovl-conf--no_source_ref { --ovl: var(--nocite); }
-.ovl-src-gap { --ovl: var(--edge-gap-ink); }
-.ovl-src-none { --ovl: var(--muted); }
-.rail__bar.ovl { stroke: var(--ovl); }
-.rail__dot.ovl { stroke: var(--ovl); }
-.rail__dot.ovl.rail__dot--on { fill: color-mix(in srgb, var(--ovl) 35%, var(--panel)); }
-.rail__dot.ovl.rail__dot--selected { stroke: var(--accent); }
-.rail__node.ovl { color: var(--ovl); }
-.rail__node.ovl.rail__node--on { fill: color-mix(in srgb, var(--ovl) 35%, var(--panel)); }
-.rail__node.ovl.rail__node--selected { color: var(--accent); }
-
-/* A joint node (interface_glyphs.js, VA.nodeJointKinds): the joint's glyph in
-   the node's own ink and fill, through the same states a plain dot has
-   (`rail__node--*` mirrors `rail__dot--*`, below). The shapes read the ink as
-   `currentColor` and the fill by inheritance. The dot under it is unpainted
-   and stays the target, so the glyph takes no pointer. */
-.rail__node { color: var(--rail-odd); fill: var(--panel); stroke-width: 2;
-  pointer-events: none; overflow: visible; }
-.rail__node--branch { color: var(--accent); stroke-width: 2.5; }
-.rail__node--on { color: var(--accent); fill: var(--on); }
-.rail__node--selected { color: var(--accent); stroke-width: 3; }
-.rail__node--off, .rail__node--other-variant { opacity: .28; }
-.rail__node--hot { stroke-width: 3; }
-.rail__node--lead { stroke-width: 3.5; }
-.glyph__ring { fill: inherit; stroke: currentColor; }
-.glyph__solid { fill: currentColor; stroke: none; }
-.glyph__line { fill: none; stroke: currentColor; stroke-linecap: round; }
-.glyph__mask { stroke: none; }
-.rail__dot.rail__dot--joint { fill: transparent; stroke: transparent; }
-
-/* The form mark (interface_glyphs.js's VA.FORM_GLYPH): a muted squiggle
-   beside the node or the bar it is about, never on the stroke. It carries its
-   edge's preview and click. */
-.rail__glyph { fill: none; stroke: var(--muted); stroke-width: 1.4;
-  stroke-linecap: round; pointer-events: all; cursor: pointer; overflow: visible; }
-.rail__glyph--form { stroke: var(--muted); }
-.rail__glyph--off, .rail__glyph--other-variant { opacity: .28; }
-
-/* The groups (docs/DAG_TOPOLOGY.md, "Bodies on the DAG"): two nested layers,
-   always. A body is an outer container in its own ink, named top-left in the
-   same ink; each part inside it is an inner container -- a block when it has
-   many interfaces (VA.blockLayout), a field otherwise -- in a lighter step of
-   that ink, named with its drawing number (the_dag_and_grid_nest_coloured_
-   bodies_and_compact_means_denser_rows, 2026-11-08). A study's group is a
-   border in its kind's hue. Whether any group is also FILLED is the view's
-   group fill (VA.GROUP_FILLS): the fills are separate rects in one layer
-   under every border (.tv__groupfill), so a border always draws on top. A
-   body the current study does not reach is a dim border. pointer-events
-   off: a field is wayfinding, and since 2026-11-12 its border is a control
-   too (it selects the body, like a part's field; the body's NAME folds it).
-   The weights are modest -- Jeff ranked contrast above weight. */
-.tv__bodyfield { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 2;
-  pointer-events: stroke; cursor: pointer; }
-.tv__bodyfield--flat { stroke-opacity: .35; }
-.tv__partfield, .tv__block { fill: none; stroke-width: 1.5; pointer-events: stroke; cursor: pointer;
-  stroke: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
-.tv__partfield--flat, .tv__block--flat { stroke-opacity: .35; }
-/* A part's name: its drawing number (or display name), top-left inside it.
-   Since 2026-11-12 it is the part's control too -- the pointer on it hovers
-   the part, a click selects it -- like the border it sits in. */
-.tv__partname { font-size: var(--t-micro); cursor: pointer;
-  fill: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
-  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
-.tv__partname--flat { opacity: .45; }
-/* --- a container lit, in two tiers (hover_and_select_light_the_same_things_
-   on_all_four_surfaces_and_nothing_goes_opaque, 2026-11-12) -------------------
-   A body's or a part's field, block or bracket is a drawn thing the one
-   resolver can light: `--lead` is the own tier (the thing hovered, and what
-   it contains), `--hot` the touching tier -- weight and brightness, like
-   every other hovered mark, never a hue. `--selected` is the own tier of the
-   SELECTION, in the accent; `--touched` its touching tier, the accent at
-   half strength. */
-.tv__bodyfield--hot { stroke-width: 3; stroke-opacity: .8; }
-.tv__bodyfield--lead { stroke-width: 4; stroke-opacity: 1; }
-.tv__partfield--hot, .tv__block--hot { stroke-width: 2.5; stroke: var(--fill-ink, var(--group-part)); }
-.tv__partfield--lead, .tv__block--lead { stroke-width: 3.5; stroke: var(--fill-ink, var(--group-part)); }
-.tv__partname--hot { fill: var(--fill-ink, var(--group-part)); }
-.tv__partname--lead { fill: var(--ink); }
-.tv__bodyfield--selected, .tv__partfield--selected, .tv__block--selected {
-  stroke: var(--accent); stroke-width: 3; stroke-opacity: 1; }
-.tv__bodyfield--touched, .tv__partfield--touched, .tv__block--touched {
-  stroke: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 2.5; stroke-opacity: 1; }
-.tv__partname--selected { fill: var(--accent); }
-.tv__partname--touched { fill: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
-/* A part with many interfaces is a component (VA.blockLayout): its chords are
-   bars drawn as curves, and a stub is its pin's piece of rail. */
-.rail__bar--chord, .rail__barhit--chord { fill: none; }
-.rail__stub { fill: none; stroke: var(--rail-even); }
-/* A body's ink, by its slot (VA.bodyTint): every container, name and fill of
-   that body wears the class and reads --fill-ink. */
+/* A body's ink, by its slot (VA.bodyTint): the map's district, box and name
+   and the grid's row and bracket of that body wear the class and read
+   --fill-ink. */
 .tv__fill--t0 { --fill-ink: var(--tv-body-ink-0); }
 .tv__fill--t1 { --fill-ink: var(--tv-body-ink-1); }
 .tv__fill--t2 { --fill-ink: var(--tv-body-ink-2); }
@@ -894,117 +716,6 @@ body { display: flex; flex-direction: column; }
 .tv__fill--t13 { --fill-ink: var(--tv-body-ink-13); }
 .tv__fill--t14 { --fill-ink: var(--tv-body-ink-14); }
 .tv__fill--t15 { --fill-ink: var(--tv-body-ink-15); }
-.tv__groupfill { stroke: none; pointer-events: none; }
-.tv__groupfill--body { fill: color-mix(in srgb, var(--fill-ink) var(--tv-body-tint), transparent); }
-/* A part's fill is a tint of its body's ink: enough to read as that body's
-   colour, little enough that the marks on it keep their contrast. */
-.tv__groupfill--part { fill: color-mix(in srgb, var(--fill-ink) var(--tv-part-tint), transparent); }
-.tv__groupfill--flat { opacity: .4; }
-.tv__groupfill--study { --study-hue: var(--group-chain);
-  fill: color-mix(in srgb, var(--study-hue) 9%, transparent); }
-.tv__groupfill--kinematic { --study-hue: var(--group-kinematic); }
-.tv__groupfill--thermal { --study-hue: var(--muted); }
-.tv__groupfill--selected { fill: color-mix(in srgb, var(--study-hue) 16%, transparent); }
-/* A collapsed body's pill is a node, so it keeps its tint whatever the fill. */
-.tv__bodyfield.tv__pill__shape { pointer-events: none;
-  fill: color-mix(in srgb, var(--fill-ink) var(--tv-part-tint), transparent); }
-/* A body is one container: where the walk splits it into fields, a bridge in
-   the body border's hue runs from each field to the next (VA.bodyBridges);
-   the body is named on one field and its others carry a muted repeat. */
-.tv__bodybridge { fill: none; stroke: var(--fill-ink, var(--group-body)); stroke-width: 2;
-  stroke-dasharray: 2 2; stroke-linecap: butt; pointer-events: none; }
-.tv__bodybridge--flat { stroke-opacity: .35; }
-.tv__bodyname { font-size: var(--t-micro); fill: var(--fill-ink, var(--muted)); cursor: pointer;
-  font-weight: 600;
-  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
-.tv__bodyname:hover, .tv__bodyname:focus { fill: var(--ink); outline: none; }
-.tv__bodyrepeat { font-size: var(--t-micro); fill: var(--fill-ink, var(--muted)); opacity: .6;
-  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
-
-/* A study's group (a_study_is_a_translucent_group_on_the_dag): a border in
-   the study kind's hue around its rows, over the body and part borders; the
-   selected study's is a step heavier. The field takes the pointer over its
-   whole box (its hover lights the study's rows); the title opens it. */
-.tv__studyfield { --study-hue: var(--group-chain); stroke-width: 1; fill: none;
-  pointer-events: all; stroke: color-mix(in srgb, var(--study-hue) 75%, transparent); }
-.tv__studyfield--kinematic { --study-hue: var(--group-kinematic); }
-.tv__studyfield--thermal { --study-hue: var(--muted); }
-.tv__studyfield--selected { stroke-width: 1.5; stroke: var(--study-hue); }
-.tv__studyname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
-  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
-.tv__studyname:hover, .tv__studyname:focus { fill: var(--ink); outline: none; }
-
-/* A sub-stack inside its bodies: a dashed field round each of its bars, the
-   study's title and folded interval once. Closed, its bars are one muted fold
-   the label stands for. */
-.tv__substack { fill: none; stroke: var(--muted); stroke-width: 1;
-  stroke-dasharray: 3 2; pointer-events: none; }
-.tv__substackname { font-size: var(--t-micro); fill: var(--muted); cursor: pointer;
-  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
-.tv__substackname:hover, .tv__substackname:focus { fill: var(--ink); outline: none; }
-.rail__bar.rail__bar--folded { stroke: var(--muted); stroke-width: 3; }
-
-/* The floor mark (viewer_edge_length_scaling): a drafting-style break — two
-   short panel-coloured slashes cutting the bar — on any bar drawn at the
-   minimum render length instead of its measured proportion under a scaled
-   length mode. pointer-events off so it never shadows the bar's own hit
-   path underneath it. */
-.rail__break { fill: none; stroke: var(--panel); stroke-width: 2; pointer-events: none; }
-
-.rail__dot { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 2; cursor: pointer; }
-.rail__dot--datum { fill: var(--rail-odd); }
-.rail__dot--branch { stroke: var(--accent); stroke-width: 2.5; }
-/* The grid has no node rows to wear a selection outline (viewer_leader_line_
-   grid), so a selected interface is marked on its dot and its leader. */
-.rail__dot--selected { stroke: var(--accent); stroke-width: 3; }
-/* The selection's TOUCHING tier (the one resolver's second tier): the accent
-   at half strength on a dot, a glyph, a bar or a row, so what meets the
-   selected thing is marked without being mistaken for it. */
-.rail__dot--touched { stroke: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 2.5; }
-.rail__node--touched { color: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 2.5; }
-.rail__bar--selected { stroke-width: 7; }
-.rail__bar--touched { stroke-width: 5; }
-
-/* --- the leaders (viewer_leader_line_grid, 2026-09-10) --------------------
-   One jogged, GD&T-ordinate-style line per NON-internal node: dot -> jog zone
-   -> the seam between the two grid rows the interface separates. Neutral and
-   light — a leader is wayfinding, not data, so it must never compete with a
-   bar's provenance colour. The hit path is the same invisible-but-wide trick
-   .rail__barhit uses, so a 2px line is still hoverable and clickable. */
-.rail__leader {
-  fill: none; stroke: var(--rail-dim); stroke-width: 2;
-  stroke-linejoin: round;
-}
-.rail__leaderhit {
-  fill: none; stroke: transparent; stroke-width: 10;
-  pointer-events: stroke; cursor: pointer;
-}
-.rail__leader--on { stroke: var(--leader-ink); }
-.rail__leader--selected { stroke: var(--accent); stroke-width: 2.5; }
-/* Something else is selected: this leader steps back (VA.selectedLeaderNodes,
-   the rule the leaders across the seam share). */
-.rail__leader--dim { opacity: .28; }
-
-/* --- the leaders across the seam (leaders_follow_the_active_study_across_
-   the_seam, 2026-10-27) -----------------------------------------------------
-   One page-level overlay over the DAG and the scene (topology_app.js's
-   drawSeamLeaders), lit set only. It takes no pointer and sits under the
-   topbar and the hover cards; above the scene column and the pane, so a
-   leader crossing the dimmed rest of the DAG is drawn over it. Neutral like
-   the DAG↔grid leaders; the accent only for the selection. */
-.seamleaders {
-  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-  pointer-events: none; z-index: 4; overflow: hidden;
-}
-.seam__leader {
-  fill: none; stroke: var(--leader-ink); stroke-width: 2;
-  stroke-linejoin: round;
-}
-/* Its end on the scene is outlined, like the DAG's own dots. */
-.seam__end { fill: var(--panel); stroke: var(--leader-ink); stroke-width: 2; }
-.seam__leader--hot, .seam__end--hot { stroke: var(--rail-hot); stroke-width: 3; }
-.seam__leader--selected, .seam__end--selected { stroke: var(--accent); stroke-width: 2.5; }
-.seam__leader--dim, .seam__end--dim { opacity: .28; }
 
 /* --- the resize grips (viewer_leader_grid_legibility) --------------------
    One per column, in the grid's column header, on that header cell's right
@@ -1053,67 +764,7 @@ body { display: flex; flex-direction: column; }
   z-index: 3; pointer-events: none;
 }
 
-/* Study highlighting. Binary, so no palette: on the path or off it. */
-.rail__bar--off, .rail__dot--off { opacity: .28; }
-/* The second reason a mark is dimmed: it belongs to a variant the reader did not
-   select. Same weight as "off the path" -- one dimming, two reasons. */
-.rail__bar--other-variant, .rail__dot--other-variant { opacity: .28; }
 .tvrow--other-variant { opacity: .5; }
-.rail__bar--on { stroke-width: var(--edge-lit-w); }
-.rail__bar--off { stroke-width: var(--edge-unlit-w); }
-.rail__dot--on { stroke: var(--accent); fill: var(--on); }
-
-/* --- one hover state, two surfaces --------------------------------------
-   (nav_tooltip_once_and_rail_hover_emphasis, 2026-09-30.) Two levels, set
-   from views/topology.js's setHot and never from `:hover`: `--lead` is the
-   thing the pointer is on and its counterpart on the other surface, `--hot`
-   is the whole connected line it sits on. Nothing is dimmed -- a reader is
-   tracing ONE line through the others, not hiding them.
-
-   WHAT HOVER MAY SPEND, and it is one thing: brightness and width. The accent
-   is selection and a branch fork; green/amber/red/magenta are provenance. A
-   pointer that could paint a bar the accent would be saying "selected", so the
-   hot bar keeps its citation HUE and spends weight instead, and the one
-   mark whose hot colour could collide with selection (a leader, which wears
-   the accent when its node is selected) declines the brightening and keeps
-   only the width.
-
-   THE GLOW IS THE HIT PATH, LIT. Every rail, link and bar already carries a
-   transparent 10-14px twin so a 2px line can be pointed at; when the line is
-   hot that twin is stroked at a low alpha instead, which is a soft halo for
-   nothing but a colour change and no extra element. A CSS `drop-shadow` was
-   the alternative and was dropped: these are VERTICAL LINES, whose object
-   bounding box is zero pixels wide, and a filter region derived from a
-   zero-width box is exactly where a drop shadow is least dependable. A dot is
-   the one mark with no twin, so it spends width alone -- it sits ON a rail
-   that is lighting up around it, which is most of what a reader needs. */
-.rail__hit, .rail__linkhit {
-  fill: none; stroke: transparent; pointer-events: stroke;
-}
-.rail__hit { stroke-width: 14; }
-.rail__linkhit { stroke-width: 10; }
-.rail__hit--hot, .rail__linkhit--hot, .rail__barhit--hot,
-.rail__leaderhit--hot { stroke: var(--rail-halo); }
-
-.rail--hot { stroke: var(--rail-hot); stroke-width: 4; }
-.rail__link--hot { stroke: var(--rail-hot); stroke-width: 4; }
-/* The bar keeps its one ink and its dash pattern; what moves is the
-   weight. `--on` (a lit edge) is `--edge-lit-w`, so hot sits above it and lead
-   above that, and a lit bar under the pointer still reads as both.
-
-   Its halo (`.rail__barhit--hot`, above) is painted OVER it -- the hit path
-   has to sit on top of the bar or a dashed stroke's own off-intervals would
-   go unhoverable, which is the whole reason it exists -- so a hot bar is also
-   lightened by the same neutral veil every other lit element wears. That is
-   brightness, which is what a pointer is allowed to spend; it is not a second
-   hue. */
-.rail__bar--hot { stroke-width: 6; }
-.rail__bar--lead { stroke-width: 8; }
-.rail__dot--hot { stroke-width: 3; }
-.rail__dot--lead { stroke-width: 3.5; }
-.rail__leader--hot:not(.rail__leader--selected) { stroke: var(--rail-hot); }
-.rail__leader--hot { stroke-width: 3; }
-.rail__leader--lead { stroke-width: 3.5; }
 
 /* Under Colour by Body a row wears its body's ink, faintly, as a cell
    IMAGE -- so the hover and lead tints below, which are cell COLOURS, layer
@@ -1408,7 +1059,6 @@ body { display: flex; flex-direction: column; }
    page and nothing on screen says it is (deliverable 4,
    viewer_nav_wedge_and_classic_retirement): from a reader's seat there is one
    viewer, and some entries simply have no DAG. */
-
 
 /* --- the preview pane --------------------------------------------------- */
 
@@ -1964,11 +1614,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    (views/topology.js's labelBounds), so the SVG does not clip on its left.
    Every other edge clips exactly as before: the right one is the grid's. */
 svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
-.rail__hoverlabel {
-  font-size: var(--t-micro); fill: var(--ink); dominant-baseline: central;
-  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
-  pointer-events: none;
-}
+
 /* One grid for every verdict, so the subjects, the margins and the limits
    line up in columns whatever width each verdict word's chip is. Its
    columns shrink and wrap inside the pane rather than widen it. */
@@ -2110,10 +1756,4 @@ svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 .tvview__label { color: var(--muted); }
 .tvview__item select { font: inherit; font-size: var(--t-dense); color: var(--ink);
   background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px; }
-/* The overlay's key: a swatch in the scheme's ink beside muted words. */
-.tvovl { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
-  font-size: var(--t-micro); flex-basis: 100%; }
-.tvovl__item { display: inline-flex; align-items: center; gap: 5px; max-width: 22ch; }
-.tvovl__item > .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tvovl__swatch { flex: none; width: 10px; height: 10px; border-radius: 2px;
-  background: var(--ovl); }
+

@@ -4,12 +4,12 @@
   "expect_red": "[real] the wheel away from the reader zooms out, and the DAG shrinks with it",
   "mutations": [
     {
-      "contract": "The DAG is drawn at the zoom.",
+      "contract": "A wheel away from the reader zooms out.",
       "issue": null,
-      "note": "Declared with the guard by handoff a_leader_starts_at_the_mark_it_names_on_every_tier (2026-10-30). The DAG drawn at 1 whatever the zoom.",
-      "file": "apps/viewer/views/topology.js",
-      "find": "    var dagTransform = leaderGeo.zoom !== 1",
-      "replace": "    var dagTransform = false"
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/map.js",
+      "find": "    var k = VA.clampMapZoom(view.k * Math.pow(VA.MAP_ZOOM.step, notches));",
+      "replace": "    var k = VA.clampMapZoom(view.k * Math.pow(VA.MAP_ZOOM.step, Math.abs(notches)));"
     }
   ]
 }

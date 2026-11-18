@@ -1,6 +1,6 @@
 {
   "tier": "browser",
-  "suite": "the map (Map . Classic, the counts, the one selection on four surfaces, the view)",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
   "expect_red": "[real] a part's row hovered in the tree lights its box, its name and its pins on the map as own, and the interfaces to its neighbours as touching",
   "mutations": [
     {

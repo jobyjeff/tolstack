@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the DAG zoom, Fit and the grid header",
+  "expect_red": "[real] on both models Parts off removes every part bracket in the grid, Bodies off every body bracket, and the map is drawn as before",
+  "mutations": [
+    {
+      "contract": "Groups decides which of the grid's brackets are drawn.",
+      "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      kinds: kindsOn ? { bodies: !!kindsOn.bodies, parts: !!kindsOn.parts } : null,",
+      "replace": "      kinds: null,"
+    }
+  ]
+}

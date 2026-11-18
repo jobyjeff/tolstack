@@ -4,12 +4,12 @@
   "expect_red": "[real] one wheel notch toward the reader zooms in one step",
   "mutations": [
     {
-      "contract": "A wheel notch toward the reader zooms in.",
+      "contract": "One notch is one step.",
       "issue": "docs/issues/ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md",
-      "note": "A sign flip zooms out where it should zoom in.",
-      "file": "apps/viewer/topology.js",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "file": "apps/viewer/map.js",
       "find": "    var notches = -deltaY / 100;",
-      "replace": "    var notches = deltaY / 100;"
+      "replace": "    var notches = -deltaY / 50;"
     }
   ]
 }

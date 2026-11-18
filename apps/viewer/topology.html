@@ -133,61 +133,41 @@
   </main>
   <div id="croppop" class="croppop"></div>
 
-  <!-- The rails legend, now a help affordance rather than always-on layout
+  <!-- The legend (the map and the grid since 2026-11-17), a help affordance rather than always-on layout
        (deliverable 2): the content is the same words the old <details class="tv__legend">
        carried, only the container changed from "always reserves a line of
        height" to "opens on request". -->
   <dialog id="legend-dialog" class="tv__legend-dialog">
     <div class="tv__legend-head">
-      <h2>How to read the rails</h2>
+      <h2>How to read the map and the grid</h2>
       <button id="legend-close" class="ghost">Close</button>
     </div>
     <ul>
-      <li><b>A dot is an interface, a bar is the dimension between two of
-        them.</b> The grid beside the diagram holds one row per <b>dimension</b>,
-        in the same walk order, grouped into components: the merged left cell
-        spans each part's own rows.</li>
-      <li><b>A leader line runs to the 3D scene.</b> With the 3D pane open
-        beside the diagram and Leaders on, each lit interface's dot is joined to
-        the point in the scene where that interface is.</li>
-      <li><b>A column is a branch, not a part.</b> The walk is depth-first from
-        the document's first node; a branch keeps its column until it rejoins or
-        ends, which is why a fork fans out sideways and a grounded loop closes
-        with a dashed curve back up to the interface it lands on. The walk's own
-        main line runs in the <b>rightmost</b> column, hard against the grid, and
-        each fork opens a new column to its left.</li>
-      <li><b>A bar is heavy when it is in the study, thin when it is not.</b>
-        That is all a bar says. Where each value comes from is the grid's
-        sourcing chip, and its band is the grid's min and max.</li>
-      <li><b>A dashed bar is a gap</b> — its two interfaces share no part, so it
-        crosses between lanes and has no rail of its own. A <b>DERIVED</b> gap
-        carries no value at all: it is the quantity a study computes, and a study
-        that puts it in its selection is refused.</li>
-      <li><b>A joint's ends are drawn as the joint.</b> A ring with a centre dot
-        is a ball joint, a ring with a line through it a pin in a bore, the same
-        with a turning arrow over it a rotary joint, a ring of dots a fastener
-        pattern, a hollow bar with an arrow a slide, a solid bar flat faces, two
-        bars a clearance. Every other interface is a plain dot.</li>
-      <li><b>A tinted field is a rigid body</b>, each body its own tint. A body
-        split across the drawing is joined by a thin strip of its tint and named
-        once.</li>
-      <li><b>Bar lengths are indicative, never measured.</b> The toolbar's
-        length setting draws every bar the same (uniform, the default), or
-        stretches each in proportion to its tolerance band or its nominal size.
-        In the scaled modes every bar keeps a minimum clickable length, and one
-        drawn at that floor wears a small break mark across it: read the break
-        as "too small — or unstated — to show to scale", never as a measured
-        proportion. Whatever the setting, the diagram is scaled to fit the
-        window — and where even the minimum lengths will not fit, every bar sits
-        at that minimum and the diagram scrolls rather than shrinking a bar out
-        of reach. The grid's rows stay evenly spaced through all of it, in the
-        grid's own column.</li>
-      <li><b>An accent-ringed dot marks a branch point.</b> A study reaching one
-        with two unconsumed
-        selected edges raises <code>BranchAmbiguity</code> and names both. Which
-        parallel path binds is a mechanics question this tool does not answer and
-        must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>, "Not a
-        solver".</li>
+      <li><b>A box is a part, a pin on its edge is a feature where it meets
+        another part.</b> A line inside a box is one of the part's dimensions,
+        between the two features it measures.</li>
+      <li><b>A line between two pins is an interface</b>, drawn with the
+        joint's symbol where it crosses: a cup and ball for a ball joint, a
+        circle and dot for a pin in a bore, the same with a turning arrow for a
+        rotary joint, a ring of dots for a fastener pattern, a bar with a double
+        arrow for a slide, two stops for a clearance, two plates for a seat.
+        Several constraints of one joint run side by side.</li>
+      <li><b>A dashed field is a rigid body</b>, each in its own ink, and an
+        outline round a part and the parts inside it is an assembly.</li>
+      <li><b>The grid beside the map holds one row per dimension</b>, each
+        part's rows together under its bracket, a body's parts under the body's.
+        Point at anything on either and the same thing lights on both, in the
+        tree and in the 3D pane.</li>
+      <li><b>The wheel zooms the map and a drag pans it;</b> Fit, or the 0 key,
+        shows the whole map again.</li>
+      <li><b>A gap</b> is a row described "across a clearance" — its two
+        interfaces share no part. A <b>DERIVED</b> gap carries no value at all: it is the quantity a study
+        computes, and a study that puts it in its selection is refused.</li>
+      <li><b>A study that reaches a branch point</b> with two unconsumed
+        selected edges raises <code>BranchAmbiguity</code> and names both.
+        Which parallel path binds is a mechanics question this tool does not
+        answer and must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>,
+        "Not a solver".</li>
       <li><b>Every study says whether it passes, and by how much.</b> Its
         answer is the last block of the grid, read like an invoice: a
         <b>totals</b> section under the members it totals, then one
