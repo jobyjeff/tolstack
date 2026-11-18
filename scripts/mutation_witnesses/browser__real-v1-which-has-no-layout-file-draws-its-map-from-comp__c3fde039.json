@@ -4,12 +4,12 @@
   "expect_red": "[real] v1, which has no layout file, draws its map from computed places: the model's counts, no two boxes overlapping, no rails, and in the DAG view Fit puts every part's box inside its region",
   "mutations": [
     {
-      "contract": "Every part the layout places is drawn.",
+      "contract": "A model with no layout file is drawn at the places the builder computed for it.",
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
       "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
-      "file": "apps/viewer/views/map.js",
-      "find": "    geo.boxes.forEach(function (box) {",
-      "replace": "    geo.boxes.slice(1).forEach(function (box) {"
+      "file": "apps/viewer/map.js",
+      "find": "      var own = doc.places[p.id];",
+      "replace": "      var own = doc.computed ? [0, 0] : doc.places[p.id];"
     }
   ]
 }

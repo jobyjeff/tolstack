@@ -4,12 +4,12 @@
   "expect_red": "...and a selected node still finds its grid row by the seam it is above",
   "mutations": [
     {
-      "contract": "A selected interface finds the grid row its seam is above.",
+      "contract": "The paint records, for every interface, the grid row its seam is above.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
       "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
       "file": "apps/viewer/views/topology.js",
-      "find": "        out[leader.id] = leader.beforeEdge || null;",
-      "replace": "        out[leader.id] = null;"
+      "find": "      boundaryEdge: plan.leaders.reduce(function (out, leader) {",
+      "replace": "      boundaryEdge: [].reduce(function (out, leader) {"
     }
   ]
 }

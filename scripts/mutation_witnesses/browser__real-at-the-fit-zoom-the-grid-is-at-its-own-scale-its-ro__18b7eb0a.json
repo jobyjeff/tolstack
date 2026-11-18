@@ -4,12 +4,12 @@
   "expect_red": "[real] at the Fit zoom the grid is at its own scale: its rows keep the pitch they have at zoom 1",
   "mutations": [
     {
-      "contract": "Fit fits the map and leaves the grid's rows alone.",
+      "contract": "Fit scales the map and never the grid.",
       "issue": "docs/issues/ISSUE_20261029_dag_only_zoom_needs_leaders_that_bridge_two_scales.md",
       "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
       "file": "apps/viewer/topology_app.js",
       "find": "    if (nodes.pane && typeof nodes.pane.mapFit === \"function\") nodes.pane.mapFit();",
-      "replace": "    if (nodes.pane && typeof nodes.pane.mapFit === \"function\") nodes.pane.mapFit();\n    VA.applyRowDensity(\"compact\"); render();"
+      "replace": "    if (nodes.pane && typeof nodes.pane.mapFit === \"function\") nodes.pane.mapFit();\n    var rowsBox = document.querySelector(\"#topogrid .tv__rows\"); if (rowsBox) rowsBox.style.zoom = \"0.8\";"
     }
   ]
 }
