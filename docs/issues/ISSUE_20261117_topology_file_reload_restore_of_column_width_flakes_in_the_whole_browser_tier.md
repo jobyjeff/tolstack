@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: tests/browser-truth
 class: browser_tier_flake
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_base_stack_joints_are_seat_boss_and_pattern.md
+defer_until: 2026-12-17
+resolution: triage 2026-11-17 -- low, deferred by default 30 days; class browser_tier_flake
 ---
 
 # `topology file://`'s reload restore of column width flakes in the whole browser tier
@@ -19,3 +21,7 @@ whole tier one round earlier, and nothing in the branch touches column widths,
 the Preview or storage. The check reads browser storage across a reload.
 Whether the whole tier's earlier suites leave storage or timing behind is the
 first thing to look at.
+
+## 2026-11-17 triage sweep
+
+Low, deferred by default. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_blade_and_piston_joints_are_authored_as_what_the_parts_show.md
+defer_until: 2026-12-17
+class: unreviewed_design_debt
+resolution: triage 2026-11-17 -- low, deferred by default 30 days; class unreviewed_design_debt
 ---
 
 # Design: a map detour lane runs outside its body's district
@@ -26,3 +29,7 @@ plate district) and `05_bundle_piston_upper_head.png`, both under
 What would fix it: grow the district by the lanes its own detours take, or
 reserve the lanes inside the district's padding. The map's layout file is not
 the place; the district is derived.
+
+## 2026-11-17 triage sweep
+
+Low, deferred by default. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

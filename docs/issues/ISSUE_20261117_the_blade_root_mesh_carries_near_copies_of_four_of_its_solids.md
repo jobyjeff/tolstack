@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: meshes
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_blade_and_piston_joints_are_authored_as_what_the_parts_show.md
+defer_until: 2026-12-17
+class: mesh_carries_duplicate_solids
+resolution: triage 2026-11-17 -- low, deferred by default 30 days; class mesh_carries_duplicate_solids
 ---
 
 # The blade root's mesh carries near-copies of four of its solids
@@ -37,3 +40,7 @@ copies in the new nodes' notes and binds neither.
 really carries the doubled bodies, the extraction is faithful and the question
 is which copy is the part. If it does not, rotorkit's extraction wrote them
 twice.
+
+## 2026-11-17 triage sweep
+
+Low, deferred by default. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

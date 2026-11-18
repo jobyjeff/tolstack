@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tolerance_stack/topology
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md
+handoff: docs/sessions/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md
 ---
 
 # `tolerance_stack/topology.py`'s comments name the retired joint-glyph file and section
@@ -26,3 +27,7 @@ still point at what is gone:
 
 Comment-only; no test reads either line. A one-line edit each for whichever
 handoff next touches `tolerance_stack/topology.py`.
+
+## 2026-11-17 triage sweep
+
+Folded into `docs/sessions/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md` (same cause, comment-only). Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

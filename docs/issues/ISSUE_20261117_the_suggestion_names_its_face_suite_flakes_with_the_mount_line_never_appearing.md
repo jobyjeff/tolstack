@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: browser TRUTH tier / a suggestion names its face
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/active/HANDOFF_20261117_a_joint_says_what_kind_it_is.md
+handoff: docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md
 ---
 
 # The "a suggestion names its face" suite flakes: the mount's suggestion line never appears
@@ -43,3 +44,7 @@ rebuilding, and a wait that should key on a settled tree rather than on a
 fixed timeout. Fix shape: wait for the part's row and the feature's twisty to
 be present and expanded before waiting for the line, and fail fast naming
 which of the two was missing.
+
+## 2026-11-17 triage sweep
+
+Staged as `docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md` together with the annotate-rail Take flake (same file; both read the tree after an action). Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

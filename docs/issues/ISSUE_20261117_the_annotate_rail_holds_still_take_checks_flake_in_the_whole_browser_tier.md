@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser-truth
 class: browser_tier_flake
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_base_stack_joints_are_seat_boss_and_pattern.md
+handoff: docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md
 ---
 
 # The "annotate rail holds still" Take checks flake in the whole browser tier
@@ -26,3 +27,7 @@ So it is order- or load-dependent, not this branch's. All three red checks
 read state that follows a Take, which suggests a wait that a slower box
 outruns. Not the cause of `ISSUE_20261108_the_rail_holds_still_browser_check_is_red_on_integration.md`
 (resolved; that one was data with nothing to Take).
+
+## 2026-11-17 triage sweep
+
+Staged as `docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md` together with the suggestion-line flake. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

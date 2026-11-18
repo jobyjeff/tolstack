@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/map
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page.md
+defer_until: 2026-12-17
+class: design_polish
+resolution: triage 2026-11-17 -- low, deferred by default 30 days; class design_polish
 ---
 
 # Small findings of the portrait map and joints walk (2026-11-17)
@@ -29,3 +32,7 @@ F2 is split out at `med`, `area: design`, as
 `ISSUE_20261117_design_a_joints_preview_prints_a_handoff_name_and_a_raw_kind_word.md`:
 it breaks two named rules (no history, no internal names on the surface), so
 it should not wait behind F1/F3's `low`. F1 and F3 stay here.
+
+## 2026-11-17 triage sweep
+
+Low, deferred by default. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

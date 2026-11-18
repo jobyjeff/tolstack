@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261117_the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page.md
+handoff: docs/sessions/HANDOFF_20261117_a_joints_preview_says_what_the_joint_is.md
 ---
 
 # Design: a joint's Preview prints a handoff's name, its rename history and a raw kind word
@@ -34,3 +35,7 @@ Two fixes, either sufficient for the surface: the Preview folds a node's
 `note` behind one collapsed line (the prose budget's rule for provenance),
 and renders `kind` through a label vocabulary; or the notes are rewritten
 to say what the feature is, with the history moved to git.
+
+## 2026-11-17 triage sweep
+
+Staged as `docs/sessions/HANDOFF_20261117_a_joints_preview_says_what_the_joint_is.md` (med, sonnet; depends on the filmstrip/residue handoff, which shares views/topology.js). Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

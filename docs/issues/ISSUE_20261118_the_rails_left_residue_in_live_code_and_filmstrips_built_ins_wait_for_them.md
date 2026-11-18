@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: viewer
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md
+handoff: docs/sessions/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md
 ---
 
 # The rails left residue in live code, and `scripts/filmstrip.mjs`'s built-in scenarios wait for them
@@ -63,3 +64,7 @@ them as history. The point is to decide once, not to repair each one.
 
 `git grep -n "tv__rails\|dagDrawing\|leaderGeometry\|respineX\|rowPositions" -- apps scripts tests`
 lists every site.
+
+## 2026-11-17 triage sweep
+
+Staged as `docs/sessions/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md` (med, sonnet). Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

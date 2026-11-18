@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/map
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md
+defer_until: 2026-12-17
+class: topology_layout
+resolution: triage 2026-11-17 -- low, deferred by default 30 days; class topology_layout
 ---
 
 # v1's fitted map draws past its region's left edge by a few pixels
@@ -32,3 +35,7 @@ projection built from that branch, or the map suite's v1 check.
 **Fix shape:** either fit to the rendered group's own box (one measure after
 paint), or pad `geo.bounds` by the widest hit stroke and the symbol's half
 size. Cosmetic at Fit's zoom; a reader wheeling in never sees it.
+
+## 2026-11-17 triage sweep
+
+Low, deferred by default. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

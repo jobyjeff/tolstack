@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/browser-tier
 reporter: agent
 class: wall_clock_dependence
 found_by: docs/sessions/active/HANDOFF_20261116_the_window_resize_reclamp_holds_on_a_cold_run.md
+defer_until: 2026-12-01
+resolution: triage 2026-11-17 -- med beyond budget (3/3 staged), deferred 14 days; class wall_clock_dependence
 ---
 
 # The popover suite's hover-intent corridor checks flake even when the suite runs alone, on integration as well
@@ -39,3 +41,7 @@ are both `resolved`, and this is red **alone**, which the second one ruled out.
 
 Not established: whether a product race (the corridor's timer) or only the
 check's pacing is behind it. A run with the page's clock stepped would settle it.
+
+## 2026-11-17 triage sweep
+
+Deferred: tolstack's 3 slots went to the filmstrip (it blocks every viewer handoff), the two tree-settling flakes, and the Preview prose. This flake needs a stepped page clock, which is a different fix from the settled-tree waits. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.
