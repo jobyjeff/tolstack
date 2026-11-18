@@ -356,7 +356,7 @@ export const DECLARED_GUARDS = {
   // Classic retired, and with it the rails' geometry, the leaders, the
   // respine, the zoom box, the length modes, the overlays, the blocks, the
   // groups as drawn, the seam leaders and the switch: every guard of those
-  // deleted with its spec. 26 renamed where the claim survives on the grid or
+  // deleted with its spec. 19 renamed where the claim survives on the grid or
   // the map (the lesson's suite table), each spec following its guard.
   fast: { declared: 601, enrollable: 601, names: "1ba750b8006f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_

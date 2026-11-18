@@ -35,6 +35,14 @@ section, "After Classic retired"
   `run_viewer_browser_tests.mjs` −4,574 (+866), viewer README −1,038 (+225).
   Witness specs 962 → 825 files.
 
+  > **Correction (review, 2026-11-18):** 962 → **824** files at `15fb19b8`
+  > (`git ls-tree --name-only HEAD scripts/mutation_witnesses/ | wc -l`, the
+  > README included both times). The 825 was counted before `15fb19b8` retired
+  > the pane-open spec. The fast-tier pin's comment in
+  > `scripts/guard_enumeration.mjs` said "26 renamed". A name diff of
+  > `enumerateGuards` between `f8f8df1e` and `HEAD` gives **19** fast renames
+  > and 121 deletions, as this lesson says, so the comment now reads 19.
+
 ## Decisions not in the handoff
 
 - **The walk stays as the grid's order source; only its drawing went.** The

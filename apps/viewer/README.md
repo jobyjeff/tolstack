@@ -5,7 +5,7 @@
 children, and every stack no topology re-expresses as a leaf beside them.
 **One system, one entry** — a stack a topology *does* re-express is offered as
 that topology and nowhere else, because the graph states everything the table
-did. Picking a topology or a study draws the rail diagram + grid; picking a
+did. Picking a topology or a study draws the map + grid; picking a
 leaf renders the elements table — folds, checks with verdicts, notes and gaps,
 coloured by where each value came from. Either way,
 clicking a row opens its full sourcing (citation, export provenance, drawing
@@ -160,7 +160,7 @@ semantics change as **breaking**, and change this section with it.
 | param | opens |
 |---|---|
 | `topology=<id>` | topology mode, that topology |
-| `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, the totals as that grid's own footer rows). Requires `topology`. |
+| `study=<id>` | …with that study selected (the grid on the chain's rows, the totals as that grid's own footer rows, the 3D pane's unlit parts dimmed). Requires `topology`. |
 | `edge=<id>` | …with that edge selected in the detail pane. Requires `topology` — or `kinematic`, where it selects an edge of that study's model on the study's own page. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
 | `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
