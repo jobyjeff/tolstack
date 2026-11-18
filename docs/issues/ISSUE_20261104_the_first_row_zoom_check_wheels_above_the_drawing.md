@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the check is deleted from `scripts/run_viewer_browser_tests.mjs`
 area: viewer/browser tier (the DAG zoom suite)
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261103_the_kinematic_grid_is_a_stack_of_sub_stacks.md
 class: guard_cannot_fail
 defer_until: 2026-11-19
-resolution: triage 2026-11-05: med beyond BUDGET=3 (3 staged: the seam/rail settled-state class, the annotator declared face, the one-band cylinder fit), deferred 14d; class row has no landed program, so a date; a test-only finding with no dated wrong outcome, unstageable under the 10-27 guard rule
 ---
 
 # The first-row zoom check wheels above the drawing, so it never zooms
@@ -54,3 +54,11 @@ bars end at 139, drawing starts at 269`. The wheel did not zoom at all (fit and
 max both 0.42), which is the fixed-aim shape this issue describes: the aim
 `y = max(139 + 60, 200) = 200` is above a drawing that starts at 269. It is
 not caused by that handoff.
+
+## 2026-11-17 triage sweep
+
+`grep 'whole under the pinned bars' scripts/run_viewer_browser_tests.mjs` finds nothing.
+
+The previous `resolution:` value (replaced) read: triage 2026-11-05: med beyond BUDGET=3 (3 staged: the seam/rail settled-state class, the annotator declared face, the one-band cylinder fit), deferred 14d; class row has no landed program, so a date; a test-only finding with no dated wrong outcome, unstageable under the 10-27 guard rule
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

@@ -93,3 +93,22 @@ brief's layout questions rather than in a new file:
   shared node, or keep the layout override. It touches `tolerance_stack/topology.py`'s
   vocabulary and the pattern binding of 2026-11-16, so it is a model decision first
   and a drawing one second.
+
+## 2026-11-17 triage sweep — four source issues closed as retired with the rails
+
+`the_map_is_the_only_drawing_and_classic_retires` (2026-11-17) removed the
+drawing these questions were asked of. Closed, each with `git grep` evidence
+in its file:
+
+- `ISSUE_20260915_the_grid_cross_fades_through_a_respine_instead_of_moving_its_rows.md` (Q6)
+- `ISSUE_20261027_on_the_kinematic_page_most_of_the_lit_sets_leaders_across_the_seam_are_out_of_view_at_rest.md` (Q4)
+- `ISSUE_20261027_the_travel_sub_stack_crosses_four_bodies_so_it_cannot_fold_into_one_bar_inside_one.md` (Q3)
+- `ISSUE_20261104_at_1600_wide_the_product_graphs_rails_leave_the_grid_a_59px_slit.md` (Q7)
+
+Still this brief's: Q8 (the spindle joint's fan from the origin at the
+as-modelled frame) and the map-era issues triaged here on 11-16, among them
+`ISSUE_20261116_what_the_map_does_not_draw_yet.md` and the product-graph
+column-search issue. A strategy session should re-read Q1 and Q5 for the map
+rather than for the rails.
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

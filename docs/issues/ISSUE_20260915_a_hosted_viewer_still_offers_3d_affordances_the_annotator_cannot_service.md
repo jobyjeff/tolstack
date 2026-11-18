@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
+resolution: answered by work (BRIEF_20260915_origin_posture_and_absent_feature_rule, consumed 2026-11-17): the 3D pane is one flyout that reads over HTTP, so a hosted reader can look; option 2 shipped
 area: apps/viewer
 reporter: agent
 audience: strategy
@@ -52,3 +53,9 @@ nobody has made:
 Option 2 is probably where this ends up, which is why option 1 should not be
 implemented reflexively first: the transport work would then have to undo it.
 Decide the two together.
+
+## 2026-11-17 triage sweep
+
+`docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md` was consumed by strategy burndown #4 as answered by work: since 2026-10-28 the 3D pane is one flyout that reads over HTTP (`docs/sessions/completed/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md`; `apps/annotate/storage/http.js`; browser suite `testScenePaneOverHttp`). That is this issue's option 2 (keep the affordances, because read is not write). On master `apps/annotate/app.js` hands the HTTP adapter to `chooseTransport` first, and only a page with nothing to read gets the hosted sentence. Nothing is left to withhold.
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

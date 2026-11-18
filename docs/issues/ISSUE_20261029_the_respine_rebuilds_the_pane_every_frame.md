@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): `VA.animateTopoPane` is deleted
 area: viewer/topology
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_the_rearrange_animates_and_centres_the_active_study.md
 class: unmeasured_cost
 defer_until: 2026-11-29
-resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # The respine tween rebuilds the whole pane on every frame
@@ -49,3 +49,11 @@ treat the range as an upper envelope rather than a profile. The browser check th
 witnesses "a study click animates" was made immune to this on that branch, so
 nothing in the suite will now notice if frame cost grows further. Source:
 `docs/sessions/lessons/LESSONS_20261102_the_browser_tier_is_green_on_trunk_again.md`.
+
+## 2026-11-17 triage sweep
+
+`git grep animateTopoPane` finds nothing on master.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-30: low, deferred by default to a date (class has no program)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

@@ -1,13 +1,15 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: deferred
 area: viewer/reader-facing-copy
 reporter: agent
-audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
 strategy: docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md
 needs: agent
+defer_until: 2026-12-17
+class: reading_surface_copy
+resolution: triage 2026-11-17 -- brief consumed without deciding this; low, deferred 30 days; class reading_surface_copy
 ---
 
 # The study summary renders record prose the banned-string guard would refuse, and is the one live surface the guard cannot reach
@@ -75,3 +77,7 @@ topology prints an internal id, …`, inside the `liveTopos` loop:
 ```
 
 Then `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack`.
+
+## 2026-11-17 triage sweep
+
+Its strategy brief was consumed 2026-11-17 (burndown #4) without deciding this point, so the question returns to tactical triage. `audience: strategy` was dropped; `strategy:` stays as the record. Still live: `TOPOLOGY_ONLY_EXEMPTIONS` is at apps/viewer/tests.js:13955, and the study summary is not scanned in the [real] walk. Same marked-block shape as the citation-notes issue; one handoff should take both. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

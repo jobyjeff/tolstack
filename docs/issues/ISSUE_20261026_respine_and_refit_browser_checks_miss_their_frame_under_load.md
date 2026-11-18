@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the respine suite and `catchFrame` are deleted
 area: tests/browser
 reporter: agent
 class: wall_clock_dependence
 found_by: docs/sessions/active/HANDOFF_20261026_pitch_system_folds_into_the_pitch_linkage_model.md
 defer_until: class:wall_clock_dependence
-resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3; respine half fixed 10-26, the [mock] re-fit check remains; re-classed timing_flake -> wall_clock_dependence (R5)
 ---
 
 # Respine and re-fit browser checks miss their frame when the box is loaded
@@ -71,3 +71,11 @@ inside `page.evaluate` and checks after every animation frame, so its rAF callba
 ahead of the transition's second frame. It cannot miss frame 1, however slow a frame is
 (measured at 0.1–1.2 s on the product graph). Results: 44/44 alone and 44/44 inside a
 full 39/40 tier run. The `[mock]` re-fit check is still open, and it is not touched there.
+
+## 2026-11-17 triage sweep
+
+`catchFrame` and the checks it served ('deselecting a study animates too', 'shrinking the window re-fits the DAG into it') are absent from `scripts/run_viewer_browser_tests.mjs`; the whole `topology file:// respine` suite was deleted and `fitDagTo` is gone. The issue also mentions `topology height budget` (20/21) without naming its failing sub-check; if that flakes it needs its own issue.
+
+The previous `resolution:` value (replaced) read: deferred 2026-10-27 (triage) -- med beyond BUDGET=3; respine half fixed 10-26, the [mock] re-fit check remains; re-classed timing_flake -> wall_clock_dependence (R5)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

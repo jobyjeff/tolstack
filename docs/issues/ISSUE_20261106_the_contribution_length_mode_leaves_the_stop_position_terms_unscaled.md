@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): length modes are deleted
 area: viewer/dag lengths
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_the_grid_and_the_dag_move_with_the_mechanism.md
 defer_until: 2026-12-06
 class: check_semantics
-resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
 ---
 
 # The contribution length mode draws the linkage to scale and floors the stop's own terms
@@ -46,3 +46,11 @@ stop's, the same at every pose, and they enter the stack only at their stop.
 - Draw everything on one yardstick with a much larger `maxRows` for this mode.
   The biggest stop bar becomes ~25 rows tall, and the smaller linkage terms
   still floor.
+
+## 2026-11-17 triage sweep
+
+`EDGE_LENGTH_MODES` has no definition on master (a comment in `views/kinematic.js` only) and `VA.kinematicPoseLengths` has no caller; nothing draws a bar to scale.
+
+The previous `resolution:` value (replaced) read: deferred 2026-11-06 (triage) -- low defers by default; 30 days
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

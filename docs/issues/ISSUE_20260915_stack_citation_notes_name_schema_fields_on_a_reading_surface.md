@@ -1,13 +1,15 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: deferred
 area: docs/authoring
 reporter: agent
-audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 strategy: docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md
 needs: agent
+defer_until: 2026-12-17
+class: reading_surface_copy
+resolution: triage 2026-11-17 -- brief consumed without deciding this; low, deferred 30 days; class reading_surface_copy
 ---
 
 # Seven stack citation notes name a schema field or a checksum, and the viewer renders them verbatim
@@ -64,3 +66,7 @@ for the same reason.
 
 Repro: open the topology page on `vpa_output_to_pitch_plate`, click the
 `fastener_grip` row, and read the citation note in the preview pane.
+
+## 2026-11-17 triage sweep
+
+Its strategy brief was consumed 2026-11-17 (burndown #4) without deciding this point, so the question returns to tactical triage. `audience: strategy` was dropped; `strategy:` stays as the record. Still live: 46 stack `note` strings name `source_ref` or `sha256`. Suggested shape: render `source_ref.note` as a marked 'citation's own words' block, then exempt that one class. Pair it with ISSUE_20260922_the_study_summary_renders_record_prose... (same block). Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

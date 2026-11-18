@@ -1,14 +1,14 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): graph width and colour overlays are deleted, and both sub-checks are gone
 area: tests/browser-tier
 reporter: agent
 audience: tactical
 class: flaky_check
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
 defer_until: 2026-12-09
-resolution: triage 2026-11-09 -- low, deferred by default; 30-day date
 ---
 
 # The kinematic page's "View settings survive a reload" checks are intermittent
@@ -54,3 +54,11 @@ Red once in a whole-tier run on tree `6026532151d5` ("[real] colouring by body
 puts the overlay's ink on the DAG's bars, and the choice survives a reload",
 26/27), then 27/27 on `--only "kinematic study page"` against the same scratch
 root. That diff touches only model v2 and the map, and this page draws v1's study.
+
+## 2026-11-17 triage sweep
+
+`grep 'picking a graph width' scripts/run_viewer_browser_tests.mjs` and `grep 'colouring by body puts' ...` find nothing; View keeps Palette only.
+
+The previous `resolution:` value (replaced) read: triage 2026-11-09 -- low, deferred by default; 30-day date
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

@@ -1,13 +1,13 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the respine tween and `respineX` are deleted
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below.md
 class: unreviewed_design_debt
 defer_until: 2026-11-28
-resolution: triage 2026-10-29: low, deferred by default (30 days)
 ---
 
 # A row the band moves sideways jumps to its new column on the first frame
@@ -24,3 +24,11 @@ rows came from several source columns), so it is a design question rather than a
 fix: either tween each mark's drawn column and draw rails as polylines through
 their marks during the transition, or accept the jump. Measured worst case: the
 kinematic study, whose band is 5 columns wide out of rows spread over 8 in the walk.
+
+## 2026-11-17 triage sweep
+
+`git grep respineX tweenPositions` finds only one stale comment in `apps/viewer/topology.js` (about line 3163); no tween exists.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-29: low, deferred by default (30 days)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

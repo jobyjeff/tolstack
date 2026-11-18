@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): Parts: Blocks and the seam leaders are deleted
 area: viewer/dag-layout
 reporter: agent
 class: dag_layout_policy
 found_by: docs/sessions/reviews/REVIEW_20261106_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
 defer_until: class:dag_layout_policy
-resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
 ---
 
 # A rail-side pin's leader crosses its own block's chords
@@ -47,3 +47,11 @@ Two ways out, neither taken by the handoff:
 Low priority: a leader is a thin, muted line, and the crossings are inside
 one part. Raised by the review of the handoff (finding 4), from the
 lesson's own table.
+
+## 2026-11-17 triage sweep
+
+The block drawing, its pin stubs and the leaders no longer exist (`git grep leaderGeometry` finds only comments); nothing draws a block or a leader to cross.
+
+The previous `resolution:` value (replaced) read: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

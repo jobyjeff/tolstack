@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the DAG body containers and the rails are deleted
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md
 class: topology_layout
 defer_until: 2026-12-09
-resolution: triage 2026-11-09 -- low, deferred by default; 30-day date
 ---
 
 # Design: a long body name runs past its DAG container's right edge, with rails drawn through it
@@ -31,3 +31,11 @@ a label that belongs to no box and has lines through it. Options: clip the body
 name to its field with `fitText` (the full name is already on its hover title),
 or widen the body field to its label. Clipping is the smaller change and matches
 the parts.
+
+## 2026-11-17 triage sweep
+
+`git grep CONTAINER_LABEL` finds nothing and no rails SVG is built; the map draws body names in its own boxes.
+
+The previous `resolution:` value (replaced) read: triage 2026-11-09 -- low, deferred by default; 30-day date
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

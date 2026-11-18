@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): `zoomDagAt`, `applyTopoZoom` and `topoRezoom` (the rails zoom) are deleted
 area: viewer/topology
 reporter: agent
 class: unmeasured_cost
 found_by: docs/sessions/HANDOFF_20261029_a_leader_starts_at_the_mark_it_names_on_every_tier.md
 defer_until: 2026-11-29
-resolution: triage 2026-10-30: low, deferred by default to a date (class has no program)
 ---
 
 # A wheel zoom repaints the whole topology pane on every wheel event, and nobody has timed it
@@ -33,3 +33,11 @@ or keep the in-SVG `g.tv__dag` transform update cheap. In the second option a
 zoom rewrites only the two layers' `transform` and the leaders' `d`, and runs a
 full paint only at rest. Start by timing `renderTopoPane` on P2
 (`topology_vpa_pitch_linkage`) at 1600x1000.
+
+## 2026-11-17 triage sweep
+
+`git grep zoomDagAt applyTopoZoom topoRezoom` finds nothing. The map owns its own view (`apps/viewer/map.js` wheel handling, `topology_app.js` about line 2604); if the map's wheel cost is ever worth timing, that is a new issue about the map.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-30: low, deferred by default to a date (class has no program)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

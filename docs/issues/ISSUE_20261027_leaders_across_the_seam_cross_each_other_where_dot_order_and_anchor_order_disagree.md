@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the seam leaders are deleted
 area: viewer/leaders across the seam
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
 class: seam_leader_coverage
 defer_until: 2026-11-26
-resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # Leaders across the seam cross each other where dot order and anchor order disagree
@@ -56,3 +56,11 @@ Two smaller things in the same picture (`docs/sessions/shots_20261026_leaders_ac
 
 Recommendation: decide with (a) and (c) together on a screenshot; (b) only if
 Jeff reads the bundles as noise.
+
+## 2026-11-17 triage sweep
+
+`git grep seamLeaderGeometry seamCrossings` finds nothing on master; the leaders overlay and the `annotate:anchors` listener were removed from the shell.
+
+The previous `resolution:` value (replaced) read: deferred 2026-10-27 (triage) -- low by default
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

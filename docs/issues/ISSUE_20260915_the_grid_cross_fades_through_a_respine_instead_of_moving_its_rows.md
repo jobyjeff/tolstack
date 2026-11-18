@@ -1,12 +1,12 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the respine (`animateTopoPane`, tween, ghost) is deleted, so there is no grid cross-fade
 area: viewer/topology
 reporter: agent
 audience: strategy
 needs: agent
-resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (views/topology.js and apps/viewer/README.md still say the grid cross-fades through a respine rather than moving its rows); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
 class: dag_layout_policy
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
@@ -58,3 +58,11 @@ down before someone starts:
 
 Nothing is broken. This is the next increment in fidelity, and it has no owner
 once `viewer_study_respine_animation` completes.
+
+## 2026-11-17 triage sweep
+
+`git grep -i respine -- apps scripts/run_viewer_browser_tests.mjs` finds only comments and a leftover env var; `animateTopoPane`, `tweenPositions` and `respineX` have no definition on master, and the browser suite `topology file:// respine` was deleted. This issue carries `strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md`; that brief should be annotated.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (views/topology.js and apps/viewer/README.md still say the grid cross-fades through a respine rather than moving its rows); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

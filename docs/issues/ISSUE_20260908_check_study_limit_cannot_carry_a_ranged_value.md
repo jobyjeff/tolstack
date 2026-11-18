@@ -1,7 +1,8 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: closed
+resolution: decided not built by BRIEF_20260909_check_study_limit_ranged_value (consumed 2026-11-17); the nine per-fastener study files are a correct workaround, re-file with the case if a second appears
 area: schema / tolerance_stack.topology
 reporter: agent
 audience: strategy
@@ -45,3 +46,9 @@ and `notes`, and `docs/DAG_TOPOLOGY.md`'s new
 `topology_rotor_fastener_length.json` section, for where this is recorded
 today (nine studies, working correctly) -- this issue is only about whether a
 future schema pass wants to collapse them into fewer documents.
+
+## 2026-11-17 triage sweep
+
+Strategy burndown #4 consumed `docs/strategy/BRIEF_20260909_check_study_limit_ranged_value.md` with the decision: not built. The nine per-fastener study files are a correct workaround and no second case has appeared in ten weeks. Closed with no action; re-file with the concrete case when one does.
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

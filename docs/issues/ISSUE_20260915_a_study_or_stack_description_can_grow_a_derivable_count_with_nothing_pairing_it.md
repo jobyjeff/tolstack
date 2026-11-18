@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: closed
+resolution: decided: no rule about a derivable count in a description (BRIEF_20260915_prose_field_rules_names_and_derivable_counts, consumed 2026-11-17)
 area: docs/sop
 reporter: agent
 audience: strategy
@@ -57,3 +58,9 @@ Route 1 is the cheap one and the one that fits "an unanswerable stack stated
 plainly beats a confident wrong one". Route 2 is real work with no demand yet.
 Filed for a strategy read rather than picked here: the handoff's brief was to
 measure and say what it found, and inventing an SOP rule is past that line.
+
+## 2026-11-17 triage sweep
+
+Strategy burndown #4 decided the derivable-count half of `docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md`: no rule. No stack or study has written such a count since the brief was filed (this issue's own measurement found zero hits across 21 studies and 7 stacks), and a rule for something nobody does is not built. Closed with no action.
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

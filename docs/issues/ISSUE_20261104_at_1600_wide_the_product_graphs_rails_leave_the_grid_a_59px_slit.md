@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the rails SVG is gone and the grid has a region of its own
 area: viewer/topology layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261104_the_browser_tier_reds_left_after_the_slide_re_author.md
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
-resolution: strategy 2026-11-05: routed into HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (Jeff's note 20261105T164140_sm8hkc) | review 2026-11-06: routed link removed -- that handoff made every row clickable and the grid never slides under the rails, but the whole walk still opens with 59px of grid at rest (see the update below)
 ---
 
 # At 1600×1000 the product graph's rails leave the grid a 59px slit, and no grid row can be clicked
@@ -117,3 +117,11 @@ walk's part cells, because they are outside the pane on the rails too.
 
 Option 1 above (fit the whole walk on its first paint) would fix both
 drawings, and blocks make it more pressing.
+
+## 2026-11-17 triage sweep
+
+`git grep -n tv__rails -- apps/viewer/views/topology.js` finds one comment only; `railsSvg` is deleted and `renderTopoPane` builds the grid alone. This issue carries `strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md`; that brief should be annotated.
+
+The previous `resolution:` value (replaced) read: strategy 2026-11-05: routed into HANDOFF_20261105_the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (Jeff's note 20261105T164140_sm8hkc) | review 2026-11-06: routed link removed -- that handoff made every row clickable and the grid never slides under the rails, but the whole walk still opens with 59px of grid at rest (see the update below)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

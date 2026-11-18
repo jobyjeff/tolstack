@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): `VA.tweenAlpha` and the respine it served are deleted
 area: viewer/respine
 reporter: agent
 audience: strategy
@@ -10,7 +11,6 @@ strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 needs: agent
 class: unreachable_machinery_kept_after_a_layout_change
 defer_until: 2026-12-15
-resolution: deferred 2026-10-15 (triage) -- the brief's item 2 (PARTIALLY CONSUMED 2026-09-30) decided re-columning on selection is not greenlit, so the fade stays unreachable and its retirement is a separate small chore; low, deferred by default | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- low defers by default
 ---
 
 # `VA.tweenAlpha`'s per-element fade can no longer be reached by any click — keep it, or retire it?
@@ -62,3 +62,11 @@ The honest alternatives are not equivalent:
 So the answer depends on a decision that has not been made yet, which is why
 this routes to strategy rather than to a tactical delete. Sequence it after the
 geometry brief.
+
+## 2026-11-17 triage sweep
+
+`git grep tweenAlpha` finds nothing on master; `animateTopoPane` and `tweenPositions` went with the respine.
+
+The previous `resolution:` value (replaced) read: deferred 2026-10-15 (triage) -- the brief's item 2 (PARTIALLY CONSUMED 2026-09-30) decided re-columning on selection is not greenlit, so the fade stays unreachable and its retirement is a separate small chore; low, deferred by default | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- low defers by default
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

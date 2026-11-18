@@ -1,12 +1,12 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the seam leaders are deleted
 area: viewer/leaders across the seam
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_leaders_follow_the_active_study_across_the_seam.md
-resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without proving this cured (the compact band makes the lit set contiguous, but the landing's centring pad is dropped when the scene flyout opens and nobody re-measured leaders drawn with the scene open); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
 class: dag_layout_policy
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
@@ -55,3 +55,11 @@ Both causes are layout, not the leaders:
 Recommendation: (d) or (b). (d) is one line and already measured (nine
 leaders, inside the expected range); (b) keeps the dimmed context but needs a
 scroll rule that competes with `scrollToGrid`.
+
+## 2026-11-17 triage sweep
+
+`git grep seamLeaderGeometry dotClip` finds nothing on master. This issue carries `strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md`; that brief should be annotated.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without proving this cured (the compact band makes the lit set contiguous, but the landing's centring pad is dropped when the scene flyout opens and nobody re-measured leaders drawn with the scene open); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

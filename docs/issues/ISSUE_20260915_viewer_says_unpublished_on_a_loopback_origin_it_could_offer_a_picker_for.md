@@ -1,13 +1,15 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: deferred
 area: apps/viewer
 reporter: agent
-audience: strategy
 found_by: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
 strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
 needs: agent
+defer_until: 2026-12-17
+class: absent_feature_posture
+resolution: triage 2026-11-17 -- brief consumed without deciding this; low, deferred 30 days; class absent_feature_posture
 ---
 
 # The viewer says "not published on this site" on a loopback origin, where a folder grant would in fact work
@@ -70,3 +72,7 @@ failing probe there are two honest answers — *this server publishes nothing*
 next to the repo, so here is a picker* — and which one a reviewer wants may
 depend on whether the served mount is expected to be up in dev. Decide that
 before spending the one line.
+
+## 2026-11-17 triage sweep
+
+Its strategy brief was consumed 2026-11-17 (burndown #4) without deciding this point, so the question returns to tactical triage. `audience: strategy` was dropped; `strategy:` stays as the record. `chooseAdapter` (apps/viewer/topology_app.js ~521) still passes no hostname. The brief calls this an unserved branch: the next pass should pass `hostname` or close it as won't-do, deliberately. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

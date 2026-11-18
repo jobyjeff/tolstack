@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the check is deleted from `scripts/run_viewer_browser_tests.mjs`
 area: tests/browser tier
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261103_the_kinematic_grid_is_a_stack_of_sub_stacks.md
 class: guard_cannot_fail
 defer_until: 2026-11-19
-resolution: triage 2026-11-05: med beyond BUDGET=3 (3 staged: the seam/rail settled-state class, the annotator declared face, the one-band cylinder fit), deferred 14d; class row has no landed program, so a date; a test-only finding with no dated wrong outcome, unstageable under the 10-27 guard rule
 ---
 
 # The "a click never moves the drawing sideways" check never clicks a grid row
@@ -35,3 +35,11 @@ grid-row click (or measure at a viewport tall enough to hold one), and require
 each named target to have been clicked at least once, instead of a count of 3
 across targets. Then witness it with a mutation that moves the drawing only on a
 grid-row click.
+
+## 2026-11-17 triage sweep
+
+`grep 'never moves the drawing sideways' scripts/run_viewer_browser_tests.mjs` finds nothing.
+
+The previous `resolution:` value (replaced) read: triage 2026-11-05: med beyond BUDGET=3 (3 staged: the seam/rail settled-state class, the annotator declared face, the one-band cylinder fit), deferred 14d; class row has no landed program, so a date; a test-only finding with no dated wrong outcome, unstageable under the 10-27 guard rule
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): `interface_glyphs.js` is deleted and body labels no longer sit on rails
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261026_the_dag_draws_bodies_as_containers_and_joints_as_symbols.md
 class: unreviewed_design_debt
 defer_until: 2026-11-26
-resolution: deferred 2026-10-27 (triage) -- low by default
 ---
 
 # Design: the planar and clearance glyphs read alike, and body names sit on the rails
@@ -40,3 +40,11 @@ following mock-up C. `planar` is one solid bar and `clearance` is two bars
 with a gap between them, at the row pitch (`apps/viewer/interface_glyphs.js`).
 Item 2, a body's name drawn over rails and dots, is unchanged. The name is now
 drawn once per body, so there are fewer labels to collide.
+
+## 2026-11-17 triage sweep
+
+`apps/viewer/interface_glyphs.js` is deleted (its words moved to `VA.INTERFACE_KIND_WORDS`), `INTERFACE_GLYPH_PX` and the rails' body label are gone; the map draws its own boxes and names.
+
+The previous `resolution:` value (replaced) read: deferred 2026-10-27 (triage) -- low by default
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

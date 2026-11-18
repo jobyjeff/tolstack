@@ -1,7 +1,8 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: closed
+resolution: name half decided 2026-11-05 and done by HANDOFF_20261105_stack_wording_drops_filler_and_the_hover_says_the_same_thing (BRIEF_20260915_prose_field_rules_names_and_derivable_counts, consumed 2026-11-17)
 area: docs/authoring
 reporter: agent
 audience: strategy
@@ -55,3 +56,9 @@ It is `low` and nothing depends on it. Re-triage it when someone next touches
 authoring conventions — the natural carrier is whichever handoff comes out of
 `docs/strategy/BRIEF_20260909_sop_full_topology_first_restructure.md`, since that
 is already an authoring-side restructure and would have the files open.
+
+## 2026-11-17 triage sweep
+
+`docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md` was consumed by strategy burndown #4. Its name half was decided 2026-11-05 (Jeff's note 20261105T164140_sm8hkc) and landed by `docs/sessions/completed/HANDOFF_20261105_stack_wording_drops_filler_and_the_hover_says_the_same_thing.md`: the rule is written into `docs/SOP_TOLERANCE_STACK.md` (Titling an artifact, the bullet list near line 395) and paired against the corpus by `tests/test_element_names_follow_the_rule.py`. Nothing is left to decide here.
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

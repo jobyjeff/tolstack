@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: issues/viewer
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md
+resolution: triage 2026-11-17 pass: 21 listed issues closed as retired with the rails (evidence in each), the rest checked and left (subject survives in the grid, tree, 3D pane, Preview, annotator, test tier or builder)
 ---
 
 # Open issues that name the retired rails, leaders, respine or Classic — for one triage pass
@@ -105,3 +106,7 @@ annotate issue about the scene's own leader is here too.
 | `ISSUE_20261117_leaders_across_the_seam_flakes_on_integration_in_three_different_sub_checks.md` | "Leaders across the seam" flakes on integration, in three different sub-checks |
 | `ISSUE_20261117_the_annotate_rail_holds_still_take_checks_flake_in_the_whole_browser_tier.md` | The "annotate rail holds still" Take checks flake in the whole browser tier |
 | `ISSUE_20261117_topology_file_reload_restore_of_column_width_flakes_in_the_whole_browser_tier.md` | `topology file://`'s reload restore of column width flakes in the whole browser tier |
+
+## 2026-11-17 triage sweep
+
+Done in one pass. Closed: the respine and cross-fade issues, the seam-leader issues, the rails' zoom, glyph and block issues, and the retired-check flakes, plus the 11-17 seam-leaders flake. Each closed file names its `git grep` evidence. Left open on purpose: the grid run repeats, `by reach` sort, the builder's column search and per-study layout, scene-side anchors, partly-surviving grip/density checks, and `livePose`. The `annotate:anchors` posting noted above was not touched; it stays the next annotate handoff's call. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

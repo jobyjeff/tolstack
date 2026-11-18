@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): `dotClip` and the seam are deleted, and the witness specs are gone
 area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261028_the_active_study_is_a_compact_band_and_the_rest_of_the_model_hangs_above_and_below.md
 class: decayed_witness
 defer_until: 2026-11-29
-resolution: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
 ---
 
 # The seam's dot clip lost both of its witnesses when the band began fitting the box
@@ -40,3 +40,11 @@ leader set equals the in-view expected set (the harness already computes
 `expected` with the clip), and enroll a spec whose mutation is the old
 `dotClip: null` (or the bottom-edge drop). Re-point one of the two
 duplicate-mutation specs rather than adding a third if the check names allow.
+
+## 2026-11-17 triage sweep
+
+`git grep dotClip` finds nothing; `scripts/mutation_witnesses/` has no `47dcfe3f`, `48203faf` or `fce3b8e5` spec.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-29: med beyond the budget (3 staged), deferred 14 days | woke 2026-11-15 -- date trigger passed; re-triage | re-deferred 2026-11-15 (triage) -- med beyond budget (tolstack's 3 went to two highs and the fits.json rail)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

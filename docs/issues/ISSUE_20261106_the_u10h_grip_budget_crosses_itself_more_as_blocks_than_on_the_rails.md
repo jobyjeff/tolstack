@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): Parts: Blocks and the rails are both deleted
 area: viewer/dag-layout
 reporter: agent
 class: dag_layout_policy
 found_by: docs/sessions/HANDOFF_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
 defer_until: class:dag_layout_policy
-resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
 ---
 
 # The U10H grip budget crosses itself more as blocks than on the rails
@@ -32,3 +32,11 @@ columns. The likely fixes, cheapest first:
 
 Re-measure with the scratch script the lesson describes (VA.layoutCrossings
 over VA.blockLayout(VA.blockColumns(VA.bandLayout(VA.gatherParts(...)))).
+
+## 2026-11-17 triage sweep
+
+Neither drawing exists to compare; `VA.blockColumns` has no caller and the rails SVG is gone.
+
+The previous `resolution:` value (replaced) read: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

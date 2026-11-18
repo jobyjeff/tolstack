@@ -1,13 +1,15 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: deferred
 area: apps/viewer
 reporter: agent
-audience: strategy
 found_by: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
 needs: agent
+defer_until: 2026-12-17
+class: absent_feature_posture
+resolution: triage 2026-11-17 -- brief consumed without deciding this; low, deferred 30 days; class absent_feature_posture
 ---
 
 # `views/banner.js` renders `state.error` on an UNPUBLISHED bar, and nothing can ever set it there
@@ -61,3 +63,7 @@ If the answer is "delete it", the mutation entry above stays valid unchanged —
 the condition it mutates is in `topology_app.js`, not here — but the guard's
 comment in `scripts/run_viewer_browser_tests.mjs` names both halves of the
 mechanism and would need its second half updated.
+
+## 2026-11-17 triage sweep
+
+Its strategy brief was consumed 2026-11-17 (burndown #4) without deciding this point, so the question returns to tactical triage. `audience: strategy` was dropped; `strategy:` stays as the record. Still live: the dead line is at apps/viewer/views/banner.js:42. Fix: delete it and update the runner comment. It can ride with the no-FSA annotate fix. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

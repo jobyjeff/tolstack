@@ -1,13 +1,15 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: deferred
 area: apps/annotate
 reporter: agent
-audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20260915_annotate_hosted_page_posture.md
 strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
 needs: agent
+defer_until: 2026-12-01
+class: absent_feature_posture
+resolution: triage 2026-11-17 -- brief consumed without deciding this; med beyond budget (tolstack 3/3), deferred 14 days; class absent_feature_posture
 ---
 
 # A loopback page in a browser with no File System Access API still shows the whole bind workspace under a sentence saying it cannot annotate
@@ -68,3 +70,7 @@ browser has FSA, so it measures the ordinary pre-grant page, where showing the
 workspace is correct (a grant is one click away). If the test browser ever
 lost FSA the same sub-checks would be pinning this defect in place. Split the
 wait so the loopback half asserts which of the two states it is in.
+
+## 2026-11-17 triage sweep
+
+Its strategy brief was consumed 2026-11-17 (burndown #4) without deciding this point, so the question returns to tactical triage. `audience: strategy` was dropped; `strategy:` stays as the record. Still live: the `if (!picked.adapter)` branch at apps/annotate/app.js:7834 sets the banner and returns without hiding `el.workspace`; the hosted branch at :7635 hides it. Suggested fix: hide the workspace there, and split the loopback wait in `testAnnotateHostedPosture` so it asserts which state it is in. This is a small handoff and a good first pick at the next sweep. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.

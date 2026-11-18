@@ -1,12 +1,12 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the rails' body containers, sub-stack fold and body collapse are deleted
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261026_the_dag_draws_bodies_as_containers_and_joints_as_symbols.md
-resolution: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (the sub-stack is still four dashed fields over four bodies with a display-only fold; no synthetic edge or own block was chosen); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
 class: dag_layout_policy
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---
@@ -59,3 +59,11 @@ Recommendation: 3 when a second `study_ref` arrives; 1 until then.
 Not changed by the blocks layout. Blocks are per part, and this sub-stack is a
 chain across parts in four bodies, so it is still four dashed fields. Still
 open, still strategy's.
+
+## 2026-11-17 triage sweep
+
+The question was how the rails draw a `study_ref` sub-stack as one bar inside one body. The rails, body containers, study groups and body collapse are gone (`railsSvg` and `CONTAINER_LABEL` have no definition on master); `study_ref` survives only in the kinematic study data (`views/kinematic.js`, `build_kinematic_projection.py`). This issue carries `strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md`; that brief should be annotated.
+
+The previous `resolution:` value (replaced) read: triage 2026-10-30: brief BRIEF_20260914_dag_layout_geometry_tradeoffs consumed 2026-10-29 without curing this (the sub-stack is still four dashed fields over four bodies with a display-only fold; no synthetic edge or own block was chosen); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md

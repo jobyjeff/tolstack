@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: closed
+resolution: subject retired by the_map_is_the_only_drawing_and_classic_retires (2026-11-17): the DAG-to-3D seam leaders are deleted, so no missing leg is drawn (origin_posture brief consumed 2026-11-17)
 area: viewer/seam-leaders
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261029_a_leader_starts_at_the_mark_it_names_on_every_tier.md
 class: absent_feature_posture
 strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
-resolution: triage 2026-10-30: same question as the open origin_posture brief (does an absence show itself); appended as a dated addendum there rather than a new brief
 ---
 
 # Both of Jeff's leader screenshot rows still have one end with no leg into the scene
@@ -44,3 +44,11 @@ Options for a strategy session:
    then reads as an absence rather than a bug. The current rule is "no leader,
    no stub", so this changes it.
 3. Leave it as it is, and say so to Jeff.
+
+## 2026-11-17 triage sweep
+
+The DAG-to-3D leaders across the seam were deleted by `docs/sessions/completed/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md` (`git grep leaderGeometry seamLeaderGeometry dotClip -- apps` finds no live code). There is no leader whose missing end could read as an absence, and `docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md`, the brief this issue was appended to, was consumed 2026-11-17. The meshless parts' absence inside the scene itself stays the scene's own question (the deferred model-layer star issue).
+
+The previous `resolution:` value (replaced) read: triage 2026-10-30: same question as the open origin_posture brief (does an absence show itself); appended as a dated addendum there rather than a new brief
+
+found_by: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md
