@@ -177,3 +177,48 @@ interfaces), nothing is clipped, and the map sits inside its region.
 At 3840 Side by side the map is now width-bound (0.897 against 0.925 everywhere
 else). The upper head's two detour lanes widened it after the portrait handoff
 measured 0.933 (F3).
+
+## After Classic retired (handoff `the_map_is_the_only_drawing_and_classic_retires`, 2026-11-17)
+
+Your 11-17 yes ("let's go ahead and make it permanent") is in: the DAG region
+draws the map for **every** model, there is no Map · Classic switch, and the
+rails drawing is gone with everything only it used. The grid is unchanged:
+its rows, read as text, are **identical** before and after for v2, v1, and v1
+with three studies selected (`pitch_link_shank_out`,
+`pitch_system_blade_angle_worst`, `pitch_system_end_stop_minus7`).
+
+Shots: `docs/sessions/lessons/shots/the_map_is_the_only_drawing_and_classic_retires/`,
+taken with `tests/debug_classic_retired_20261117.mjs` against a projection
+built from this branch. Each was read by eye except the v2 DAG-view pair, which is measured only (the same drawing as Side by side, centred).
+
+| What | Shot | What it shows |
+|---|---|---|
+| v2, 3840 · Side by side | `v2_3840_both`, `v2_3840_both_region` | As the walk left it: zoom 0.897, every count equal to the model's (5 / 15 / 55 / 43 / 28), no box overlaps, no defect note. |
+| v2, 3840 · DAG view | `v2_3840_dag`, `v2_3840_dag_region` | The same, centred, zoom 0.925. |
+| v1, 3840 · Side by side | `v1_3840_both`, `v1_3840_both_region` | v1's first map. It has no layout file, so its parts are placed one column per body, in tree order. Every count equals the model's (13 / 35 / 113 / 82 / 51) and no two boxes overlap. At Fit it is a thumbnail (zoom 0.219), so a wheel-in is needed to read it. |
+| v1, 3840 · DAG view | `v1_3840_dag`, `v1_3840_dag_region` | Zoom 0.436: numbers and names read. The pitch-plate column runs thirteen parts tall. Long diagonal routes cross other bodies, and the layout reports 63 defect notes, 59 of them a route drawn through a box it does not end on. Two names collide at the top: the ground body's name over the hub's number, and a symbol on the lower piston head's district name. |
+| The bar, before | `before_bar` | Rows · Rows: labelled · Lengths · Fit · Leaders · Side by side / 3D / DAG · Groups (4 of 4) · View, and Map · Classic in the region's own header. |
+| The bar, after | `after_bar` | Rows · Rows: labelled · Fit · Side by side / 3D / DAG · Groups (2 of 2) · View. |
+
+**What went, and what each control became**
+
+| Control on `master` | Now | Why |
+|---|---|---|
+| Map · Classic (the region's header) | removed | The map is the region's drawing for every model. |
+| Rows: Comfortable / Compact | kept | The grid's row height. |
+| Rows: labelled / values only | kept | The grid's edge rows. |
+| Lengths | removed | It stretched the rails' bars. The map has no lengths to stretch. |
+| Fit, and the `0` key | re-pointed at the map | Fits the whole map to its region. |
+| Leaders | removed | It drew lines from the rails' dots to the 3D scene. |
+| Side by side · 3D · DAG | kept | The pane. |
+| Unused: dimmed / hidden (only with a study) | kept | It reaches the 3D scene's unlit look and the grid's band. |
+| Collapse assemblies · Expand all | kept | The grid. |
+| Groups | re-pointed at the grid | Bodies and Parts toggle the grid's brackets. The two study kinds were rails containers and are gone. |
+| View | kept, Palette only | Colour by, Group fill, Graph width and Parts drew the rails. The palette inks the map and the grid. |
+
+**For you to decide:** whether v1 wants a hand arrangement now. It draws
+whole and correctly. Its columns follow the model's body order, though, not a
+picture of the mechanism, and the 59 crossings read as noise at Fit. v2's
+layout file shows what an arrangement buys. The open rows of
+`ISSUE_20261116_what_the_map_does_not_draw_yet` (the fold control, a study as
+a route) are fenced out of this handoff and still to come.

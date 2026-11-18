@@ -3064,7 +3064,7 @@
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showStack ? "" : "none";
 
-    // The legend ("how to read the rails") is a topology-mode concept, always
+    // The legend ("how to read the map and the grid") is a topology-mode concept, always
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
     // through the identical field a stack's does, so the same toggle serves

@@ -2094,7 +2094,7 @@
     topologies: {
       name: "topologies",
       file: "topologies.json",
-      missing: "No topology projection — the rails, every study chain and " +
+      missing: "No topology projection — the map, every study chain and " +
         "every total come out of it, so without it there is nothing to draw.",
     },
   };

@@ -1,0 +1,94 @@
+== the click-around, v2, 3840x2160 side by side
+1. landing: zoom 0.925; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_01_landing.png
+2. hover a pin: zoom 0.925; map lead 1 hot 3 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 1 selected 0; preview "tangential link mount base face"; doc scroll 0
+  shot click_v2_02_hover_a_pin.png
+3. hover a jumper: zoom 0.925; map lead 3 hot 2 selected 0 touched 0; tree hot 0 on 0; grid lead 1 hot 2 selected 0; preview "locating boss to tangential link mount fastener pattern"; doc scroll 0
+  shot click_v2_03_hover_a_jumper.png
+4. hover a connector: zoom 0.925; map lead 3 hot 3 selected 0 touched 0; tree hot 1 on 0; grid lead 0 hot 3 selected 0; preview "blade 1 root bearing bore"; doc scroll 0
+  shot click_v2_04_hover_a_connector.png
+5. hover a box: zoom 0.925; map lead 10 hot 8 selected 0 touched 0; tree hot 1 on 0; grid lead 3 hot 4 selected 0; preview ""; doc scroll 0
+  shot click_v2_05_hover_a_box.png
+6. hover a district's name: zoom 0.925; map lead 66 hot 10 selected 0 touched 0; tree hot 5 on 0; grid lead 22 hot 25 selected 0; preview ""; doc scroll 0
+  shot click_v2_06_hover_a_district_s_name.png
+7. click a box: zoom 0.925; map lead 10 hot 8 selected 10 touched 8; tree hot 9 on 9; grid lead 3 hot 4 selected 3; preview ""; doc scroll 0
+  shot click_v2_07_click_a_box.png
+8. click a connector: zoom 0.925; map lead 3 hot 3 selected 3 touched 3; tree hot 5 on 5; grid lead 0 hot 3 selected 0; preview "blade 1 root bearing bore"; doc scroll 0
+  shot click_v2_08_click_a_connector.png
+9. click a pin: zoom 0.925; map lead 1 hot 3 selected 1 touched 3; tree hot 2 on 2; grid lead 0 hot 1 selected 0; preview "tangential link mount base face"; doc scroll 0
+  shot click_v2_09_click_a_pin.png
+10. hover a grid row: zoom 0.925; map lead 3 hot 5 selected 1 touched 3; tree hot 4 on 2; grid lead 1 hot 6 selected 0; preview "locating boss in pilot bore"; doc scroll 0
+  shot click_v2_10_hover_a_grid_row.png
+11. click a grid row: zoom 0.925; map lead 3 hot 5 selected 3 touched 5; tree hot 5 on 5; grid lead 1 hot 6 selected 1; preview "locating boss in pilot bore"; doc scroll 0
+  shot click_v2_11_click_a_grid_row.png
+12. click a tree part row: zoom 0.925; map lead 10 hot 8 selected 10 touched 8; tree hot 9 on 9; grid lead 3 hot 4 selected 3; preview ""; doc scroll 0
+  shot click_v2_12_click_a_tree_part_row.png
+13. Escape: zoom 0.925; map lead 10 hot 8 selected 0 touched 0; tree hot 9 on 0; grid lead 3 hot 4 selected 0; preview ""; doc scroll 0
+  shot click_v2_13_escape.png
+14. wheel in, three notches: zoom 1.407; map lead 12 hot 4 selected 0 touched 0; tree hot 1 on 0; grid lead 1 hot 3 selected 0; preview ""; doc scroll 0
+  shot click_v2_14_wheel_in_three_notches.png
+15. drag the empty space: zoom 1.407; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_15_drag_the_empty_space.png
+16. Fit: zoom 0.925; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_16_fit.png
+17. wheel out then the 0 key: zoom 0.925; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_17_wheel_out_then_the_0_key.png
+18. resize to 1920x1080: zoom 0.463; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_18_resize_to_1920x1080.png
+19. resize back to 3840x2160: zoom 0.925; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_19_resize_back_to_3840x2160.png
+20. the 3D pane opened beside it: zoom 0.897; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_20_the_3d_pane_opened_beside_it.png
+21. DAG view: zoom 0.925; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_21_dag_view.png
+22. Side by side again: zoom 0.897; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v2_22_side_by_side_again.png
+23. a study opened (v1) or the model row (v2): zoom 0.897; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0; no study on this model
+  shot click_v2_23_a_study_opened_v1_or_the_model_row_v2_.png
+== the click-around, v1, 3840x2160 side by side
+1. landing: zoom 0.436; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_01_landing.png
+2. hover a pin: zoom 0.436; map lead 1 hot 3 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 1 selected 0; preview "hydraulic brake mounted to the hub"; doc scroll 0
+  shot click_v1_02_hover_a_pin.png
+3. hover a jumper: zoom 0.436; map lead 1 hot 5 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 4 selected 0; preview "hub spindle bore axis"; doc scroll 0
+  shot click_v1_03_hover_a_jumper.png
+4. hover a connector: zoom 0.436; map lead 3 hot 2 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 2 selected 0; preview "hub blade-1 root bearing bore"; doc scroll 0
+  shot click_v1_04_hover_a_connector.png
+5. hover a box: zoom 0.436; map lead 24 hot 16 selected 0 touched 0; tree hot 1 on 0; grid lead 10 hot 11 selected 0; preview ""; doc scroll 0
+  shot click_v1_05_hover_a_box.png
+6. hover a district's name: zoom 0.436; map lead 24 hot 16 selected 0 touched 0; tree hot 1 on 0; grid lead 10 hot 11 selected 0; preview ""; doc scroll 0; THREW locator.hover: Timeout 5000ms exceeded.
+  shot click_v1_06_hover_a_district_s_name.png
+7. click a box: zoom 0.436; map lead 24 hot 16 selected 24 touched 16; tree hot 20 on 20; grid lead 10 hot 11 selected 10; preview ""; doc scroll 0
+  shot click_v1_07_click_a_box.png
+8. click a connector: zoom 0.436; map lead 3 hot 2 selected 3 touched 2; tree hot 5 on 5; grid lead 0 hot 2 selected 0; preview "hub blade-1 root bearing bore"; doc scroll 0
+  shot click_v1_08_click_a_connector.png
+9. click a pin: zoom 0.436; map lead 1 hot 3 selected 1 touched 3; tree hot 2 on 2; grid lead 0 hot 1 selected 0; preview "hydraulic brake mounted to the hub"; doc scroll 0
+  shot click_v1_09_click_a_pin.png
+10. hover a grid row: zoom 0.436; map lead 3 hot 0 selected 1 touched 3; tree hot 2 on 2; grid lead 1 hot 1 selected 0; preview "top bearing flange to top deck"; doc scroll 0
+  shot click_v1_10_hover_a_grid_row.png
+11. click a grid row: zoom 0.436; map lead 3 hot 0 selected 3 touched 0; tree hot 2 on 2; grid lead 1 hot 1 selected 1; preview "top bearing flange to top deck"; doc scroll 0
+  shot click_v1_11_click_a_grid_row.png
+12. click a tree part row: zoom 0.436; map lead 24 hot 16 selected 24 touched 16; tree hot 20 on 20; grid lead 10 hot 11 selected 10; preview ""; doc scroll 0
+  shot click_v1_12_click_a_tree_part_row.png
+13. Escape: zoom 0.436; map lead 24 hot 16 selected 0 touched 0; tree hot 20 on 0; grid lead 10 hot 11 selected 0; preview ""; doc scroll 0
+  shot click_v1_13_escape.png
+14. wheel in, three notches: zoom 0.663; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_14_wheel_in_three_notches.png
+15. drag the empty space: zoom 0.663; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_15_drag_the_empty_space.png
+16. Fit: zoom 0.436; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_16_fit.png
+17. wheel out then the 0 key: zoom 0.436; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_17_wheel_out_then_the_0_key.png
+18. resize to 1920x1080: zoom 0.175; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_18_resize_to_1920x1080.png
+19. resize back to 3840x2160: zoom 0.436; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_19_resize_back_to_3840x2160.png
+20. the 3D pane opened beside it: zoom 0.219; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_20_the_3d_pane_opened_beside_it.png
+21. DAG view: zoom 0.436; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_21_dag_view.png
+22. Side by side again: zoom 0.219; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 0; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0
+  shot click_v1_22_side_by_side_again.png
+23. a study opened (v1) or the model row (v2): zoom 0.219; map lead 0 hot 0 selected 0 touched 0; tree hot 0 on 1; grid lead 0 hot 0 selected 0; preview ""; doc scroll 0; study
+  shot click_v1_23_a_study_opened_v1_or_the_model_row_v2_.png

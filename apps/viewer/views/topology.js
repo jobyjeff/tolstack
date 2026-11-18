@@ -2117,7 +2117,7 @@
     root.className = "tvtotals";
     if (!study) {
       root.appendChild(VA.el("p", "muted tvtotals__empty",
-        "Pick a study to see a path highlighted on the rails and its totals here. " +
+        "Pick a study to see its chain in the grid and its totals here. " +
         "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
         "and never chooses one."));
       // The gap panel is a fact about the TOPOLOGY, not about the selected
