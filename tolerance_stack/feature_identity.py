@@ -383,8 +383,11 @@ class FeatureIdentityEvent:
     general_tol_regime: Optional[str] = None
     note: Optional[str] = None
     # The id of an earlier event on the SAME stack key that this one corrects.
-    # Optional and additive; the fold hides the named event and keeps it.
-    supersedes: Optional[str] = None
+    # Optional and additive; the fold hides the named event and keeps it. A v1
+    # event may name several (a tuple; a list on disk): a Keep or an Add a face
+    # over a feature holding more than one binding replaces them all in one
+    # event (handoff a_disagreement_is_settled_by_keep_or_let_go).
+    supersedes: Optional[str | Tuple[str, ...]] = None
     # A proposal's own fields (verdict=proposed only): how sure, why, the
     # face's surface class as tolerance_stack.feature_geometry.fit_face reads
     # it, and -- when the contact engine ranked it -- that rank.
@@ -395,8 +398,10 @@ class FeatureIdentityEvent:
     # The proposal a `bound` event accepts, or a `rejected` event turns down.
     ratifies: Optional[str] = None
     rejects: Optional[str] = None
-    # The standing `bound` event a `retracted` event takes back (an unbind).
-    retracts: Optional[str] = None
+    # The standing `bound` event a `retracted` event takes back (an unbind);
+    # on a v1 event, several, as `supersedes` may (an Unbind of a feature
+    # holding more than one binding is one event).
+    retracts: Optional[str | Tuple[str, ...]] = None
     # v1 only: the feature, and the faces a face verdict names.
     feature_key: Optional[FeatureKey] = None
     geometry_keys: Optional[Tuple[GeometryKey, ...]] = None
@@ -410,6 +415,16 @@ class FeatureIdentityEvent:
         """The key the per-subject fold groups on: an edge's (v0) or a
         feature's (v1). A correction, an unbind and an answer stay on one."""
         return self.feature_key.as_key() if self.feature_key is not None else self.stack_key.as_key()
+
+    @property
+    def superseded_ids(self) -> Tuple[str, ...]:
+        """Every id ``supersedes`` names: ``()`` for none."""
+        return _named_ids(self.supersedes)
+
+    @property
+    def retracted_ids(self) -> Tuple[str, ...]:
+        """Every id ``retracts`` names: ``()`` for none."""
+        return _named_ids(self.retracts)
 
     @property
     def faces(self) -> Tuple[GeometryKey, ...]:
@@ -444,13 +459,29 @@ class FeatureIdentityEvent:
         if self.supersedes is not None:
             if self.verdict != "bound":
                 raise ValueError(f"event {self.event_id!r}: only a bound event may carry supersedes")
-            if self.supersedes == self.event_id:
-                raise ValueError(f"event {self.event_id!r}: supersedes names itself")
+            self._check_named("supersedes")
         if self.gdt_modifier is not None and self.gdt_modifier not in GDT_MODIFIERS:
             raise ValueError(
                 f"event {self.event_id!r}: gdt_modifier must be one of {GDT_MODIFIERS} or absent, "
                 f"got {self.gdt_modifier!r}"
             )
+
+    def _check_named(self, field_name: str) -> None:
+        """``supersedes``/``retracts``: one id, or -- on a v1 event only -- a
+        non-empty tuple of distinct ids; never this event's own."""
+        name = f"event {self.event_id!r}"
+        value = getattr(self, field_name)
+        if isinstance(value, (list, tuple)):
+            if self.feature_key is None:
+                raise ValueError(f"{name}: only a v1 event may name several in {field_name}")
+            value = tuple(value)
+            if not value or not all(isinstance(v, str) and v for v in value):
+                raise ValueError(f"{name}: {field_name} names event ids")
+            if len(set(value)) != len(value):
+                raise ValueError(f"{name}: {field_name} names an event twice")
+            object.__setattr__(self, field_name, value)
+        if self.event_id in _named_ids(getattr(self, field_name)):
+            raise ValueError(f"{name}: {field_name} names itself")
 
     def _check_v1_faces(self) -> None:
         """A v1 face verdict names one or more distinct faces of ONE mesh (a
@@ -504,8 +535,7 @@ class FeatureIdentityEvent:
         if self.verdict == "retracted":
             if not self.retracts:
                 raise ValueError(f"{name}: verdict=retracted requires retracts, the binding it takes back")
-            if self.retracts == self.event_id:
-                raise ValueError(f"{name}: retracts names itself")
+            self._check_named("retracts")
         elif self.retracts is not None:
             raise ValueError(f"{name}: only a retracted event may carry retracts")
         if self.verdict in HUMAN_ONLY_VERDICTS and actor_kind(self.recorded_by) == AGENT_ACTOR:
@@ -577,7 +607,17 @@ class FeatureIdentityEvent:
                 out[key] = value
         if self.owner_path is not None:
             out["owner_path"] = self.owner_path.as_dict()
+        for key in ("supersedes", "retracts"):
+            if isinstance(out.get(key), tuple):
+                out[key] = list(out[key])
         return out
+
+
+def _named_ids(value: Optional[str | Tuple[str, ...]]) -> Tuple[str, ...]:
+    """``supersedes``/``retracts`` as a tuple of ids, whichever shape."""
+    if value is None:
+        return ()
+    return tuple(value) if isinstance(value, (list, tuple)) else (value,)
 
 
 def load_event(path: str | Path) -> FeatureIdentityEvent:
@@ -885,20 +925,18 @@ def build_projection(events: Iterable[FeatureIdentityEvent],
     projection.restated = restated
     hidden: Dict[str, str] = {}
     for event in events:
-        if event.supersedes is None:
-            continue
-        target = seen_ids.get(event.supersedes)
-        if target is None:
-            raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not in the log")
-        if not _same_thing(event, target, projection.read_through):
-            raise ValueError(
-                f"event {event.event_id!r} supersedes {event.supersedes!r}, which is on a different stack key"
-            )
-        if target.verdict != "bound":
-            raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not a bound event")
-        if position[target.event_id] >= position[event.event_id]:
-            raise ValueError(f"event {event.event_id!r} supersedes {event.supersedes!r}, which is not earlier")
-        hidden[restated.get(target.event_id, target.event_id)] = event.event_id
+        for named in event.superseded_ids:
+            what = f"event {event.event_id!r} supersedes {named!r}"
+            target = seen_ids.get(named)
+            if target is None:
+                raise ValueError(f"{what}, which is not in the log")
+            if not _same_thing(event, target, projection.read_through):
+                raise ValueError(f"{what}, which is on a different stack key")
+            if target.verdict != "bound":
+                raise ValueError(f"{what}, which is not a bound event")
+            if position[target.event_id] >= position[event.event_id]:
+                raise ValueError(f"{what}, which is not earlier")
+            hidden[restated.get(target.event_id, target.event_id)] = event.event_id
     retracted = _retracted_bindings(events, seen_ids, position, restated, hidden, projection.read_through)
     for event in events:
         key = event.subject
@@ -1156,22 +1194,23 @@ def _retracted_bindings(events: List[FeatureIdentityEvent],
     for event in events:
         if event.verdict != "retracted":
             continue
-        target = seen_ids.get(event.retracts)
-        what = f"event {event.event_id!r} retracts {event.retracts!r}"
-        if target is None:
-            raise ValueError(f"{what}, which is not in the log")
-        if not _same_thing(event, target, read):
-            raise ValueError(f"{what}, which is on a different stack key")
-        if target.verdict != "bound":
-            raise ValueError(f"{what}, which is not a bound event")
-        if position[target.event_id] >= position[event.event_id]:
-            raise ValueError(f"{what}, which is not earlier")
-        standing = restated.get(target.event_id, target.event_id)
-        if standing in hidden:
-            raise ValueError(f"{what}, which {hidden[standing]!r} already superseded")
-        if standing in out:
-            raise ValueError(f"{what}, which {out[standing]!r} already retracted")
-        out[standing] = event.event_id
+        for named in event.retracted_ids:
+            target = seen_ids.get(named)
+            what = f"event {event.event_id!r} retracts {named!r}"
+            if target is None:
+                raise ValueError(f"{what}, which is not in the log")
+            if not _same_thing(event, target, read):
+                raise ValueError(f"{what}, which is on a different stack key")
+            if target.verdict != "bound":
+                raise ValueError(f"{what}, which is not a bound event")
+            if position[target.event_id] >= position[event.event_id]:
+                raise ValueError(f"{what}, which is not earlier")
+            standing = restated.get(target.event_id, target.event_id)
+            if standing in hidden:
+                raise ValueError(f"{what}, which {hidden[standing]!r} already superseded")
+            if standing in out:
+                raise ValueError(f"{what}, which {out[standing]!r} already retracted")
+            out[standing] = event.event_id
     return out
 
 

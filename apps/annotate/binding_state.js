@@ -750,6 +750,70 @@
     return AA.buildBoundEvent(merged);
   };
 
+  // --- a feature's whole set, written as one event (handoff a_disagreement_
+  // is_settled_by_keep_or_let_go) --------------------------------------------
+  //
+  // A feature may hold more than one standing binding: two picks that
+  // disagree, or the same pick written twice. Keep, Add a face and Remove
+  // write the feature's whole new set; Unbind lets it all go. Each is ONE
+  // event naming EVERY binding it replaces -- `supersedes` / `retracts` is one
+  // id, or a list of them when there are several (the fold's VA.namedIds) --
+  // so after it the feature holds exactly what was written, or nothing.
+
+  // The distinct standing events of a list (an end lists a binding once per
+  // face it holds), in the order given.
+  AA.distinctEvents = function (list) {
+    var seen = {};
+    return (list || []).filter(function (b) {
+      if (!b || seen[b.event_id]) return false;
+      seen[b.event_id] = true;
+      return true;
+    });
+  };
+
+  // One id as itself, several as a list, none as null.
+  AA.namedOrOne = function (ids) {
+    if (!ids || !ids.length) return null;
+    return ids.length === 1 ? ids[0] : ids.slice();
+  };
+
+  // The set event: `standing` the feature's bindings (a feature record's
+  // `bindings`); `fields` as buildBoundEvent's, with `featureKey` and
+  // `geometryKeys`. Supersedes every feature-keyed binding standing; old
+  // edge-end bindings read through to the feature need no pointer, since any
+  // feature-keyed write replaces them. What was recorded about the feature
+  // (owner, modifier, regime, note) carries over from the newest of them.
+  AA.buildFeatureSetEvent = function (standing, fields) {
+    var own = AA.distinctEvents(standing).filter(function (b) { return b.feature_key; });
+    if (!own.length) return AA.buildBoundEvent(fields);
+    var event = AA.buildCorrectionEvent(own[own.length - 1], fields);
+    event.supersedes = AA.namedOrOne(own.map(function (b) { return b.event_id; }));
+    return event;
+  };
+
+  // The let-go event: one feature-keyed `retracted` naming every binding the
+  // feature holds -- its own, or old edge-end ones read through to it.
+  AA.buildLetGoEvent = function (featureKey, standing, fields) {
+    var all = AA.distinctEvents(standing);
+    if (!featureKey) throw new Error("an unbind names the feature it lets go");
+    if (!all.length) throw new Error("nothing is bound to let go");
+    if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {
+      throw new Error("an agent only proposes -- a human unbinds");
+    }
+    var event = {
+      schema: AA.EVENT_SCHEMA_V1,
+      event_id: fields.eventId,
+      seq: fields.seq,
+      created_at: fields.createdAt,
+      recorded_by: fields.recordedBy,
+      feature_key: featureKeyDict(featureKey),
+      verdict: "retracted",
+      retracts: AA.namedOrOne(all.map(function (b) { return b.event_id; })),
+    };
+    if (fields.note) event.note = fields.note;
+    return event;
+  };
+
   // --- every bind-mode write, planned once (review round 1, B1) -------------
   //
   // A binding is a feature's, so the bind form's Bind and Replace, and the

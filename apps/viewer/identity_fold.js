@@ -88,6 +88,13 @@
     return e.geometry_key ? [e.geometry_key] : [];
   };
 
+  // `supersedes` / `retracts` as a list of ids, whichever shape: a v1 event
+  // may name several (FeatureIdentityEvent.superseded_ids / retracted_ids).
+  VA.namedIds = function (value) {
+    if (value === null || value === undefined || value === "") return [];
+    return Array.isArray(value) ? value.slice() : [value];
+  };
+
   function take(list, eventId, into) {
     var kept = [];
     var found = false;
@@ -146,16 +153,18 @@
     if (event.verdict === "proposed") {
       row.proposals.push(event);
     } else if (event.verdict === "bound") {
-      if (event.supersedes) {
-        var sup = at(event.supersedes);
-        sup.bindings = take(sup.bindings, standingId(sup, event.supersedes), sup.superseded).kept;
+      VA.namedIds(event.supersedes).forEach(function (id) {
+        var sup = at(id);
+        sup.bindings = take(sup.bindings, standingId(sup, id), sup.superseded).kept;
         sup.state = VA.identityRecordState(sup);
-      }
+      });
       row.bindings.push(event);
     } else if (event.verdict === "retracted") {
-      var ret = at(event.retracts);
-      ret.bindings = take(ret.bindings, standingId(ret, event.retracts), ret.retracted).kept;
-      ret.state = VA.identityRecordState(ret);
+      VA.namedIds(event.retracts).forEach(function (id) {
+        var ret = at(id);
+        ret.bindings = take(ret.bindings, standingId(ret, id), ret.retracted).kept;
+        ret.state = VA.identityRecordState(ret);
+      });
     } else if (event.verdict === "owner_not_in_set") {
       row.owner_not_in_set.push(event);
     }
