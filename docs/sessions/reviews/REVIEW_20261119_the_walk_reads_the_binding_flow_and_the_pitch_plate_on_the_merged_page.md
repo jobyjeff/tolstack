@@ -152,3 +152,19 @@ worktree on `515694d6`:
   corpus), `tests/test_tolerance_stack.py`, `tests/test_provenance.py`,
   `tests/test_thermal_exception_list.py` and `tests/test_claims_registry.py`
   gave 222 passed.
+
+## Landing
+
+- **Integration:** fast-forwarded with
+  `git fetch . review/<slug>:integration`, `a7a05123..7ee8d5ff`. Integration
+  had not moved since the branch was cut.
+- **Branches:** neither `handoff/<slug>` nor `review/<slug>` was deleted.
+  Both are still checked out in their worktrees, which dispatch removes at
+  Complete.
+
+## Blocked actions
+
+- `git push origin integration` was refused by the auto-mode classifier
+  (`[Unsanctioned Communication]`). Local `integration` holds the landing.
+  The operator, or dispatch's next push, carries it to `origin`. Nothing else
+  depends on the push.
