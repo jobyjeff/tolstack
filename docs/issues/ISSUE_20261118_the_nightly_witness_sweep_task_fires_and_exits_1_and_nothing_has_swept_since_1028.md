@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: witness-sweep
 reporter: agent
 found_by: dispatch/docs/strategy/HANDOFF_20261117_strategy.md
+handoff: dispatch/docs/sessions/HANDOFF_20261119_the_witness_sweep_job_says_why_the_laptop_board_refuses_it.md
 ---
 
 # The nightly witness sweep task fires and exits 1, and nothing has swept since 10-28
