@@ -226,7 +226,8 @@ WALK_ORDERS = ("nearest_fork", "authored")
 #: What kind of contact a ``gap`` edge is, added 2026-10-26 (handoff
 #: ``the_dag_draws_bodies_as_containers_and_joints_as_symbols``) so the DAG can
 #: draw a joint as the contact it is rather than as one more dashed bar. Each
-#: word is one glyph, one SVG ``<symbol>`` in ``apps/viewer/interface_glyphs.js``:
+#: word is one symbol on the map (``VA.MAP_SYMBOLS``, ``apps/viewer/map.js``)
+#: and one everyday word (``VA.INTERFACE_KIND_WORDS``, ``apps/viewer/topology.js``):
 #:
 #: * ``planar`` -- two flat faces across a clearance (two parallel bars).
 #: * ``pin_in_bore`` -- a cylinder seated in a bore: a pin, a pressed race
@@ -251,7 +252,7 @@ WALK_ORDERS = ("nearest_fork", "authored")
 #: touches nothing. A node two parts share may state one too
 #: (:data:`SHARED_NODE_INTERFACES`); one that states none is a seat. A word,
 #: never an input: nothing folds it. Paired against ``docs/DAG_TOPOLOGY.md``,
-#: "Joint glyphs"; the linkage solver's joint types map onto it in
+#: "Joint symbols"; the linkage solver's joint types map onto it in
 #: ``tolerance_stack/kinematic.py``'s ``LINKAGE_JOINT_INTERFACES``.
 INTERFACE_KINDS = ("planar", "pin_in_bore", "spherical", "cylindrical_slide",
                    "thread", "clearance", "revolute", "fastener_pattern")

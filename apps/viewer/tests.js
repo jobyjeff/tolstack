@@ -5898,10 +5898,8 @@
         //   2. `#topopane` -- which is the drawing's horizontal SCROLLPORT, so
         //      it reported 300px of clearance over a diagram that was 100%
         //      covered (caught by review, 2026-09-16);
-        //   3. the drawing. `svg.tv__rails` is 90-262px wide across the 21 live
-        //      studies, sits at the pane's left edge, and is `position: sticky;
-        //      left: 0`, so no scroll position can move it out from under
-        //      anything. It is the thing that has to survive.
+        //   3. the drawing: the map, `svg.tv__map`. It is the thing that has to
+        //      survive.
         //
         // So `keep` is a measurement the caller passes in (topology_app.js's
         // graphNeed), and this is the arithmetic over it.

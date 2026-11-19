@@ -79,8 +79,7 @@
   // two pins (Jeff, 2026-11-10): planar / a seat = the capacitor mark,
   // boss-in-hole = a closed circle and a dot, spherical = cup and ball, a
   // fastener pattern (clocking) = a ring of dots. The model's other kinds
-  // keep the present design's pictures (apps/viewer/interface_glyphs.js) at
-  // the same large size. The INTERFACE_KINDS come through the generated
+  // keep their own pictures (below) at the same large size. The INTERFACE_KINDS come through the generated
   // vocabulary so a word added in Python and drawn nowhere throws at load;
   // `contact` is the model view's word for a node two parts share that
   // states none (model_view.CONTACT_KIND). Since 2026-11-17

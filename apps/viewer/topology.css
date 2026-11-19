@@ -29,17 +29,6 @@
 
 :root {
   --tv-row: 26px;
-  --rail-even: #59606f;
-  --rail-odd: #7b8494;
-  --rail-dim: #333844;
-  /* The ink of a lit leader across the tiers -- DAG to grid (.rail__leader--on)
-     and DAG to 3D (.seam__leader, .seam__end) -- one token for both (Jeff,
-     2026-11-03: "make the leaders ... slightly dimmed"). The edges' own ink is
-     --rail-odd; this is the dimmest ink of the same hue that still holds 3:1
-     against the page background (about 60% of its luminance: a half-luminance
-     ink would read 2.8:1, under the floor). A leader under the pointer or
-     selected is drawn at --rail-hot / the accent, as before. */
-  --leader-ink: #616a79;
   /* The hover emphasis (nav_tooltip_once_and_rail_hover_emphasis,
      2026-09-30). Jeff: "add an emphasis (bold/glow etc) to the edges when you
      hover over them, again makes it easier to trace them."
@@ -677,19 +666,6 @@ body { display: flex; flex-direction: column; }
 
 .tv__scroll--zoomgrab, .tv__scroll--zoomgrab * { cursor: grabbing; }
 
-/* The rails scroll WITH the grid (the_grid_fits_the_screen_and_its_brackets_
-   say_what_nests_in_what). They were `position: sticky; left: 0` from
-   2026-09-09, for a grid that was always wider than the pane; the cost was
-   Jeff's 2026-11-05 note, "Clicking and dragging the dag horizontally causes
-   the grid view to move horizontally, it can even move behind the dag
-   canvas". A sticky box cannot be panned, so a sideways drag on the DAG moved
-   only the grid, under it. Since the fixed shell (2026-11-14) the grid is not
-   in this scroller at all: the drawing pans sideways in the DAG's region and
-   the grid in its own, so neither can sit behind the other. */
-.tv__rails {
-  flex: none; display: block; position: relative; z-index: 1;
-  background: var(--bg);
-}
 /* The grid's rows, under the header in the grid's own scroller (the fixed
    shell, 2026-11-14); `max-content` above sizes it to the table it holds, so
    a grid wider than its region scrolls sideways rather than clipping. */
@@ -1605,15 +1581,6 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    are secondary, so muted; the older runs fold away (VA.renderOlderRuns). */
 .detail__runrev, .detail__runmark { color: var(--muted); }
 .detail__runlist { margin: 2px 0 4px; padding-left: 16px; font-size: var(--t-meta); }
-
-/* The one thing a hover draws on the DAG: its mark's name, one line, beside
-   it (VA.hoverLabelPlacement). A halo of the page's own background keeps it
-   legible over a rail, and it takes no pointer, so it can never stand between
-   the reader and the mark they are reaching for. */
-/* The label may run left of the rails SVG into the empty pane beside it
-   (views/topology.js's labelBounds), so the SVG does not clip on its left.
-   Every other edge clips exactly as before: the right one is the grid's. */
-svg.tv__rails { overflow: visible; clip-path: inset(0 0 0 -2000px); }
 
 /* One grid for every verdict, so the subjects, the margins and the limits
    line up in columns whatever width each verdict word's chip is. Its

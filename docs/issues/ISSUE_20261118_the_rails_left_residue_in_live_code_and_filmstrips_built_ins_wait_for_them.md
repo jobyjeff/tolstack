@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: viewer
 reporter: agent
+resolution: filmstrip re-pointed at the map (respine scenarios deleted), dead helpers, rule and comments removed, two uncited probes deleted; leftovers filed in ISSUE_20261118_rails_era_comments_and_assertions_remain_after_the_residue_sweep.md
 found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md
 handoff: docs/sessions/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md
 ---

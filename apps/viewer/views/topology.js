@@ -1,15 +1,8 @@
-// The three panes of the topology page: the rails (SVG), the grid, and the
-// preview. They are one view file because they are one correspondence
-// contract (viewer_leader_line_grid, 2026-09-10): the DAG's marks sit at
-// `VA.railY(layout row)`, the grid holds one row per EDGE at an inline height
-// of `VA.RAIL_METRICS.rowHeight`, and the jogged leader lines between them
-// are drawn from the SAME two numbers (VA.leaderGeometry), so a leader's two
-// ends land on its node's dot and its grid seam by construction. Splitting
-// these across files is how that stops being one set of numbers.
+// The panes of the topology page: the grid and the preview (the DAG region is
+// views/map.js's map, since the rails retired 2026-11-17).
 //
-// Nothing here computes a tolerance. The rail columns come out of the
-// projection, the folded numbers come out of the projection, and this file turns
-// row indices into pixels.
+// Nothing here computes a tolerance. The folded numbers come out of the
+// projection, and this file turns row indices into pixels.
 (function (VA) {
   "use strict";
 
@@ -795,10 +788,8 @@
   // then it was `#topopane`, which is the graph's SCROLLPORT and not the graph
   // -- and that is the version a review caught (2026-09-16), because it
   // reported 300px of clearance over a diagram that was 100% covered. The DAG
-  // drawing is one `svg.tv__rails`, it is 90-262px wide across all 21 live
-  // studies, it sits at the pane's left edge, and it is `position: sticky;
-  // left: 0` so no scroll position can move it out from under anything. It is
-  // the drawing that has to survive, so it is the drawing the caller measures.
+  // drawing is the map, `svg.tv__map`; it is the drawing that has to survive,
+  // so it is the drawing the caller measures.
   VA.FLYOUT_WIDTH = { min: 400, max: 2400, reserve: 320 };
 
   // `room` is the width the panel and the page's own content are dividing --
@@ -1593,10 +1584,9 @@
   // member rows above, and a separate table in the pane below would be a
   // second set of widths to keep in step with a column a reader can drag.
   //
-  // Nothing about the rails changes. These rows sit BELOW the last member row,
-  // so no leader's seam moves, and the grid block's own centring offset is
-  // computed from the plan's row count (VA.rowPositions), not from the
-  // table's rendered height.
+  // These rows sit BELOW the last member row, and the grid block's own centring
+  // offset is computed from the plan's row count, not from the table's rendered
+  // height.
   function totalsFoot(study) {
     if (!study || study.status !== "ok") return null;
     var totals = VA.studyTotalRows(study);

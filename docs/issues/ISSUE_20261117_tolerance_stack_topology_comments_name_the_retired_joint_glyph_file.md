@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tolerance_stack/topology
 reporter: agent
+resolution: both comments in tolerance_stack/topology.py now name VA.MAP_SYMBOLS, VA.INTERFACE_KIND_WORDS and "Joint symbols"
 found_by: docs/sessions/active/HANDOFF_20261117_the_map_is_the_only_drawing_and_classic_retires.md
 handoff: docs/sessions/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md
 ---

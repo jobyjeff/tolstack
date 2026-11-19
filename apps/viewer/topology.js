@@ -289,16 +289,6 @@
     });
   };
 
-  // The element a serialised row points at — a node or an edge, per row.kind.
-  // null when the projection names an id the topology does not declare, which
-  // cannot happen from a clean build and is reported rather than skipped.
-  VA.rowElement = function (index, row) {
-    if (!row) return null;
-    if (row.kind === "node") return index.nodes[row.id] || null;
-    if (row.kind === "edge") return index.edges[row.id] || null;
-    return null;
-  };
-
   // { edgeId: { ordinal, contribution } } for the selected study — what turns a
   // topology row into a chain row. The ordinal is 1-based and is the order the
   // SUM runs in, which is generally NOT the order the rows are in: a study
@@ -330,19 +320,11 @@
   // --- what a row says -----------------------------------------------------
 
   // The one description an edge shows on hover, wherever it is hidden as a
-  // label: the rail bar's own hit path (views/topology.js's railsSvg) and a
-  // value-only grid row (deliverable 4) both read this, rather than each
+  // label: a map mark's hit and a value-only grid row (deliverable 4) both
+  // read this, rather than each
   // inventing its own text -- "one hover surface, not two".
   VA.edgeHoverTitle = function (edge, id) {
     return edge ? edge.name : String(id);
-  };
-
-  // An edge's stored value, printed AS TRANSCRIBED — String(n), no toFixed, no
-  // band derived from the limits. Same rule as the stack viewer's element table.
-  VA.dimensionText = function (edge) {
-    var d = edge && edge.dimension;
-    if (!d) return "—";
-    return VA.fmt(d.nominal) + "  [" + VA.fmt(d.min) + " … " + VA.fmt(d.max) + "]";
   };
 
   // What a study's chain row multiplied this edge by, as the projection's own
@@ -358,8 +340,6 @@
     return head + (ratio === 1 ? "" : VA.fmt(ratio) + " × ");
   };
 
-  // A transform, as the sensitivity it is. `identity` is the default and says so
-  // rather than printing "× 1", which would read as a declared conversion.
   // How the Preview says an edge's own transform: nothing for one-to-one
   // (the usual case, and a row with nothing to say shows nothing), else the
   // ratio in its units -- `0.5 mm per deg`.
@@ -367,14 +347,6 @@
     if (!transform || transform.kind === "identity") return null;
     return "scaled " + VA.fmt(transform.ratio) + " " +
       (transform.units_out || "?") + " per " + (transform.units_in || "?");
-  };
-
-  VA.transformText = function (transform) {
-    if (!transform) return "—";
-    if (transform.kind === "identity") return "identity";
-    return VA.fmt(transform.ratio) + " " +
-      (transform.units_out || "?") + " per " + (transform.units_in || "?") +
-      " (" + transform.kind + ")";
   };
 
   // The rolled-up result, as ROWS OF THE CONTRIBUTIONS GRID rather than as a
@@ -2043,12 +2015,8 @@
   //      follow it, and a kinematic band's own stack order still wins.
   //   3. VA.blockLayout: the drawn walk with every run of one block's rows
   //      marked -- pins and chords -- and its rails and links re-derived
-  //      without the chords. railGeometry then draws each run as a rectangle
-  //      in the BLOCK STRIP, between the spine and the jog zone: a pin whose
-  //      part meets anything else faces the rails (left side) and is joined to
-  //      its column by a short stub; a pin only its own part touches is on the
-  //      right side. Every pin has its own height, in walk order, so the
-  //      leaders keep the one premise they rest on (VA.leaderGeometry).
+  //      without the chords. (The rails drawing that drew each run as a
+  //      rectangle retired 2026-11-17; the map draws a body as a district.)
   VA.BLOCK_MIN_PINS = 2;
   // A block's width over its height, at the uniform pitch: inside 1:2 to 2:1
   // for every pin count (the browser tier measures the drawn ones).
@@ -2160,44 +2128,6 @@
     }
     return best;
   }
-
-  // A drawn walk's columns searched for the fewest crossings it will draw
-  // with its blocks (improveColumns, scored through VA.blockLayout): what a
-  // band re-laid out of the gathered walk (VA.bandLayout) needs as much as the
-  // walk did. Memoised on the walk it was handed and the lit set's edges, so
-  // a repaint of the same page does not search again.
-  var searchMemo = { key: null, out: null };
-  VA.blockColumns = function (layout, topoProj, lit) {
-    if (!layout || !topoProj || !(layout.columns > 1)) return layout;
-    var key = [topoProj.id, layout.rows.length,
-               lit ? Object.keys(lit.edges || {}).sort().join(",") : "",
-               lit && lit.order ? lit.order.join(",") : "",
-               layout.rows.map(function (r) { return r.id; }).join(",")].join("|");
-    if (searchMemo.key === key) return searchMemo.out;
-    var pins = VA.partPins(topoProj);
-    var score = function (option) {
-      return VA.layoutCrossings(VA.blockLayout(option, topoProj, pins)).total;
-    };
-    // Two starts, the band's own columns and their mirror image: the search
-    // is local, and on the product model the second start is the better one
-    // for some studies (the lesson's table).
-    var start = { rows: layout.rows, rails: layout.rails, links: layout.links,
-                  columns: layout.columns };
-    var flipped = [];
-    for (var c = 0; c < layout.columns; c++) flipped.push(layout.columns - 1 - c);
-    var laid = null;
-    [start, relabel(start, flipped)].forEach(function (seed) {
-      var found = improveColumns(seed, score);
-      if (!laid || score(found) < score(laid)) laid = found;
-    });
-    var out = {};
-    Object.keys(layout).forEach(function (k) { out[k] = layout[k]; });
-    out.rows = laid.rows;
-    out.rails = laid.rails;
-    out.links = laid.links;
-    searchMemo = { key: key, out: out };
-    return out;
-  };
 
   // A walk laid out without its chords (`laid`), with them put back in
   // `order`'s places: every row renumbered, a close re-pointed at its node's
@@ -3159,12 +3089,6 @@
     return ids && ids.length ? ["isolate", "parts"].concat(ids) : ["isolate", "off"];
   };
 
-  // The jog zone, and therefore the width the SVG hands the grid: ONE owner
-  // of the sum, because VA.leaderGeometry above reports it and VA.respineX
-  // interpolates it, and a second copy of it is exactly the drift this repo
-  // calls its most-repeated defect. The rails end at the spine -- the last
-  // column, since viewer_dag_spine_layout mirrored the allocation -- and the
-  // zone runs from there to the grid, (leaders x lane pitch) wide.
   // --- loose stacks: the systems this page shows as a table, not a graph ---
   //
   // Most stacks in docs/tolerance_stacks/ have no topology document at all —
@@ -3634,17 +3558,6 @@
   };
 
   // --- the banner ----------------------------------------------------------
-
-  VA.topologyBuiltLine = function (topologies, crops) {
-    var parts = [];
-    parts.push(topologies && topologies.built_at
-      ? "topologies built " + topologies.built_at
-      : "topologies NOT BUILT");
-    parts.push(crops && crops.built_at
-      ? "crops built " + crops.built_at
-      : "crops NOT BUILT");
-    return parts.join(" · ");
-  };
 
   // What the page must not stay quiet about, over and above the shared
   // provenance alarms: a study whose topology is not in the projection at all.
