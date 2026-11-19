@@ -247,3 +247,16 @@ None.
   part is the NAS77A3-015A by its own nomenclature. But it is a v1 change the
   fence did not foresee, and an alias row keyed by a shared id reaches both
   models by construction.
+
+### Round 2 test record
+
+- **Default tier**, in this worktree, at 301bfa41:
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave 2372 passed, 1 failed, 1 skipped, 4 deselected, in 451 s (inside budget,
+  recorded). The one failure is `test_viewer_js_suite_is_green`, on the
+  worktree's skipped `[real]` tier, which is expected here; that tier is the
+  next line.
+- **Fast tiers** against a scratch root built from 301bfa41 (all eight
+  builders, projection paired at 301bfa41): viewer 605/605, annotate 331/331.
+- **Witness:** no guard or spec changed this round.
+- **Browser tier:** no suite changed this round, so none was run.
