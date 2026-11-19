@@ -316,7 +316,7 @@ Scratch root `C:/workspace/tolstack/data/scratch/ppr2`, built from
 `0717cb0d` with all eight builders and `--data-root`. Kinematic was rebuilt
 at `06cbfaa0` after a dirty stamp. Projection paired; the real log still
 holds 101 files.
-- **Browser, `--only`, at `d8a7b577`:** the model drawn alone 22/22, a
+- **Browser, `--only`, at `2560a437`:** the model drawn alone 22/22, a
   pattern is bound 11/11, the DAG zoom 35/35, 3D pane follows the selection
   31/31. Each run wrote its own `partial` ledger row.
 - **Fast tiers:** viewer 605/605, annotate 331/331.
@@ -328,7 +328,7 @@ holds 101 files.
   same suite, so I applied its mutation by hand and ran the map suite
   `--only`: its own check went red (28/30, where the clean run was 29/30).
   That run's ledger row is for the mutated tree.
-- **Default tier**, in this worktree, at `d8a7b577`:
+- **Default tier**, in this worktree, at `2560a437`:
   `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
   gave 2372 passed, 1 failed, 1 skipped, 4 deselected, in 440 s. The one
   failure is the expected worktree `test_viewer_js_suite_is_green`. The two
