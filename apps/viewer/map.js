@@ -905,17 +905,26 @@
   };
 
   // The least pan that puts the world rect `r` inside a region of
-  // width x height; the view unchanged when it already is.
+  // width x height, `pad` clear of its edges, panning only an axis the rect
+  // is off screen on; the view unchanged when it is wholly on screen. The pad
+  // is how far a pan brings it in, never what counts as in: at a fit the
+  // drawing's margin can be thinner than the pad (v2's map at 0.25, its 40
+  // world units 10px on screen), and a click on a box at the edge then moved
+  // the map it was clicked on (2026-11-19).
   VA.mapBringIntoView = function (view, r, width, height, pad) {
     if (!r) return view;
     var p = pad || 0;
     var x1 = r.x * view.k + view.tx, y1 = r.y * view.k + view.ty;
     var x2 = (r.x + r.w) * view.k + view.tx, y2 = (r.y + r.h) * view.k + view.ty;
     var dx = 0, dy = 0;
-    if (x1 < p) dx = p - x1;
-    else if (x2 > width - p) dx = Math.max(width - p - x2, p - x1);
-    if (y1 < p) dy = p - y1;
-    else if (y2 > height - p) dy = Math.max(height - p - y2, p - y1);
+    if (x1 < 0 || x2 > width) {
+      if (x1 < p) dx = p - x1;
+      else dx = Math.max(width - p - x2, p - x1);
+    }
+    if (y1 < 0 || y2 > height) {
+      if (y1 < p) dy = p - y1;
+      else dy = Math.max(height - p - y2, p - y1);
+    }
     if (!dx && !dy) return view;
     return VA.mapPan(view, dx, dy);
   };
