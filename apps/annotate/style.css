@@ -594,6 +594,11 @@ body {
   color: #e8e8e8; font: inherit; cursor: pointer; white-space: nowrap;
 }
 .an__offer-btn:hover, .an__offer-btn:focus { border-color: #5b8dd6; }
+/* A press that writes (app.js pressWrite): muted while it writes, the error
+   colour once it did not, the reason on hover. A pending Take stays shown. */
+.tree-row:not(:hover):not(:focus-within):not(.tree-row--armed) .tree-row__repick[data-pending] { visibility: visible; }
+.tree-row__repick[data-pending="writing"], .an__offer-btn[data-pending="writing"] { color: #9aa1ab; cursor: progress; }
+.tree-row__repick[data-pending="failed"], .an__offer-btn[data-pending="failed"] { color: #d65b5b; border-color: #d65b5b; }
 .an__sweep-back { margin: 4px 0 0; }
 .part-row--missing { color: #9aa1ab; }
 /* A feature row's second line: the surface that defines it, muted. */

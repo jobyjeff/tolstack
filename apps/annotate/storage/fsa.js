@@ -27,6 +27,36 @@
   function FsaAdapter() {
     this._state = AA.STATE.DISCONNECTED;
     this._rootHandle = null;
+    // What a write's reads keep (handoff a_bind_on_the_pitch_plate_writes_in_
+    // seconds_and_says_so_while_it_waits): the inbox is append-only and one
+    // file per event, never rewritten, so an event file read once is that
+    // event for the rest of the page -- by name, as the folder lists it. A
+    // write used to read the whole inbox three times (at the grant, for the
+    // next seq, and again to publish), 2025 folder calls on Jeff's 101-file
+    // log; now the listing is read each time and only a new name is opened.
+    this._events = {};
+    this._dirs = {};
+  }
+
+  // How many reads of an event folder run at once on a cold read (the
+  // first after the grant): sequential awaits were most of that read's
+  // seconds.
+  var PARALLEL_READS = 16;
+
+  // `work(item)` over `items`, `limit` at a time, results in order.
+  async function inParallel(items, limit, work) {
+    var out = new Array(items.length);
+    var next = 0;
+    async function lane() {
+      while (next < items.length) {
+        var i = next++;
+        out[i] = await work(items[i]);
+      }
+    }
+    var lanes = [];
+    for (var k = 0; k < Math.min(limit, items.length); k++) lanes.push(lane());
+    await Promise.all(lanes);
+    return out;
   }
 
   FsaAdapter.isSupported = function () {
@@ -94,6 +124,20 @@
     return this._readJson(AA.CONFIG.kinematicProjection);
   };
 
+  // The installed meshes' checksums: the meshes folder's directory names,
+  // listed with no file opened (listMeshes reads every provenance for its
+  // label, which the log does not carry).
+  FsaAdapter.prototype._meshShas = async function () {
+    AA.requireReady(this);
+    var dir = await this._dir(AA.CONFIG.meshesDir, false);
+    if (!dir) return [];
+    var out = [];
+    for await (var entry of dir.entries()) {
+      if (entry[1].kind === "directory") out.push(entry[0]);
+    }
+    return out.sort();
+  };
+
   FsaAdapter.prototype.listMeshes = async function () {
     AA.requireReady(this);
     var dir = await this._dir(AA.CONFIG.meshesDir, false);
@@ -159,19 +203,33 @@
   // Every event file's own `seq`. A file that does not parse throws: a write
   // numbered past a log this page cannot read could collide with it.
   FsaAdapter.prototype.listFeatureIdentityEventSeqs = async function () {
+    var seqs = [];
+    (await this._readEventFiles()).forEach(function (event) {
+      if (event && typeof event.seq === "number") seqs.push(event.seq);
+    });
+    return seqs;
+  };
+
+  // Every event file in the inbox, parsed, in the folder's listing order:
+  // the listing is read every time (an agent may have proposed since), a
+  // name already read is not opened again (this._events). A file that does
+  // not parse throws, as it always has, and is not kept.
+  FsaAdapter.prototype._readEventFiles = async function () {
     AA.requireReady(this);
-    var dir = await this._dir(AA.CONFIG.featureIdentityEventsDir, false);
+    var segs = AA.CONFIG.featureIdentityEventsDir;
+    var dir = await this._dir(segs, false);
     if (!dir) return [];
     var names = [];
     for await (var entry of dir.entries()) {
       if (entry[1].kind === "file" && /\.json$/i.test(entry[0])) names.push(entry[0]);
     }
-    var seqs = [];
-    for (var i = 0; i < names.length; i++) {
-      var event = await this._readJson(AA.CONFIG.featureIdentityEventsDir.concat([names[i]]));
-      if (event && typeof event.seq === "number") seqs.push(event.seq);
-    }
-    return seqs;
+    var self = this;
+    var fresh = names.filter(function (name) { return !Object.prototype.hasOwnProperty.call(self._events, name); });
+    var read = await inParallel(fresh, PARALLEL_READS, function (name) {
+      return self._readJson(segs.concat([name]));
+    });
+    fresh.forEach(function (name, i) { self._events[name] = read[i]; });
+    return names.map(function (name) { return self._events[name]; });
   };
 
   // Append-only: never overwrites. A target that already exists is bumped to
@@ -180,21 +238,10 @@
   // freshest source there is -- an agent's proposals land there with no
   // rebuild) and the installed meshes. The served log's shape.
   FsaAdapter.prototype.readFeatureIdentityLog = async function () {
-    AA.requireReady(this);
-    var dir = await this._dir(AA.CONFIG.featureIdentityEventsDir, false);
-    var events = [];
-    if (dir) {
-      var names = [];
-      for await (var entry of dir.entries()) {
-        if (entry[1].kind === "file" && /\.json$/i.test(entry[0])) names.push(entry[0]);
-      }
-      for (var i = 0; i < names.length; i++) {
-        var event = await this._readJson(AA.CONFIG.featureIdentityEventsDir.concat([names[i]]));
-        if (event && typeof event.event_id === "string") events.push(event);
-      }
-    }
-    var meshes = (await this.listMeshes()).map(function (m) { return m.sha256; }).sort();
-    return { schema: AA.SERVED_LOG_SCHEMA, events: events, installed_meshes: meshes };
+    var events = (await this._readEventFiles()).filter(function (event) {
+      return event && typeof event.event_id === "string";
+    });
+    return { schema: AA.SERVED_LOG_SCHEMA, events: events, installed_meshes: await this._meshShas() };
   };
 
   // Rewrite the served log (AA.CONFIG.servedIdentityLog). A copy of the
@@ -252,7 +299,14 @@
     }
   };
 
+  // A directory handle stays good for the page, so one found is kept by its
+  // path (this._dirs): every file read walked from the root, three or four
+  // folder calls before the one that mattered. A missing directory is not
+  // kept -- it may be created by the next write.
   FsaAdapter.prototype._dir = async function (segments, create) {
+    var dirs = this._dirs || (this._dirs = {});
+    var key = segments.join("/");
+    if (dirs[key] && dirs[key].root === this._rootHandle) return dirs[key].handle;
     var dir = this._rootHandle;
     for (var i = 0; i < segments.length; i++) {
       try {
@@ -261,6 +315,7 @@
         return null;
       }
     }
+    dirs[key] = { root: this._rootHandle, handle: dir };
     return dir;
   };
 

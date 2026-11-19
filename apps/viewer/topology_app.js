@@ -1938,6 +1938,8 @@
       flyoutFrame.setAttribute("title", "3D annotation panel");
       flyoutFrame.addEventListener("load", function () {
         flyoutLoaded = true;
+        // A pane that (re)loaded answers nothing it was asked before.
+        bodyWrite = null;
       });
       flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
@@ -2047,6 +2049,10 @@
       }
       if (msg && msg.type === VA.SCENE_PICK_MESSAGE) {
         onScenePick(msg);
+        return;
+      }
+      if (msg && msg.type === "annotate:result") {
+        onBodyWriteResult(msg);
         return;
       }
       if (msg && msg.type === "annotate:status") {
@@ -2194,7 +2200,7 @@
       // only for a suggestion they list.
       var plan = feature ? VA.featureBodyPlan(model, fid, state.topologyId, rows, sceneTree) : null;
       VA.renderFeatureBody(slots[i], rows, { send: sceneRail, plan: plan, command: bodyCommand,
-        hoverFace: faceHoverFor(fid) });
+        hoverFace: faceHoverFor(fid), write: bodyWrite });
     }
     if (!focus) return;
     var rows = nodes.navtree.querySelectorAll(".navtree__scene [data-scene-key]");
@@ -2209,8 +2215,44 @@
 
   // A body action, posted to the pane (VA.FEATURE_BODY_VERBS). Nothing here
   // writes: the pane writes the event and posts its record back.
+  //
+  // One that writes (VA.FEATURE_BODY_WRITE_VERBS) is the page's write in
+  // flight until the pane answers it by id (onBodyWriteResult): the pressed
+  // control reads pending and every writing control is disabled meanwhile
+  // (renderBodyPlan), and a failure stays on the control that failed. The
+  // button showed it at the press already; the repaint here keeps it so.
+  var bodyWrite = null;
+  var bodyWriteCount = 0;
   function bodyCommand(cmd) {
-    postToPane(cmd);
+    if (VA.FEATURE_BODY_WRITE_VERBS.indexOf(cmd[0]) === -1) {
+      postToPane(cmd);
+      return;
+    }
+    if (bodyWrite && bodyWrite.state === VA.WRITE_PRESS_STATES[0]) return;
+    var id = "body-write-" + (++bodyWriteCount);
+    if (!postToPaneWithId(cmd, id)) return;
+    bodyWrite = { key: VA.bodyCommandKey(cmd), id: id, state: VA.WRITE_PRESS_STATES[0], reason: null };
+    renderSceneSlot();
+  }
+
+  function postToPaneWithId(command, id) {
+    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return false;
+    flyoutFrame.contentWindow.postMessage(
+      { type: "annotate:exec", id: id, command: command }, window.location.origin);
+    return true;
+  }
+
+  // The pane's answer to the page's write: done (the record it posted first
+  // has already repainted the body), or not written -- an error, or the press
+  // dropped because a write of the pane's own was running.
+  function onBodyWriteResult(msg) {
+    if (!bodyWrite || msg.id !== bodyWrite.id) return;
+    var W = VA.FEATURE_BODY_WORDS;
+    var busy = msg.ok && msg.result && msg.result.action === "busy";
+    if (msg.ok && !busy) bodyWrite = null;
+    else bodyWrite = { key: bodyWrite.key, id: bodyWrite.id, state: VA.WRITE_PRESS_STATES[1],
+      reason: busy ? W.busy : String(msg.error || W.failed) };
+    renderSceneSlot();
   }
 
   function faceHoverFor(fid) {
@@ -2239,10 +2281,16 @@
     var meshesSame = !Array.isArray(msg.installedMeshes) ||
       JSON.stringify(msg.installedMeshes) === JSON.stringify(state.installedMeshes);
     if (state.identity && msg.eventIds.length === mine.length && meshesSame) return;
+    var started = typeof performance !== "undefined" ? performance.now() : 0;
     state.identity = msg.projection;
     if (Array.isArray(msg.installedMeshes)) state.installedMeshes = msg.installedMeshes;
     state.models = VA.buildModels(state.topologies, state.identity);
     renderNav();
+    // How long the page took to take the pane's record in (the bind-latency
+    // probe and the browser tier's timing line read it; nothing else does).
+    if (typeof window !== "undefined" && started) {
+      window.__identityApplied = { events: msg.eventIds.length, ms: Math.round(performance.now() - started) };
+    }
   }
 
   // Select reveals (rule 4, 2026-11-12): once per selection change

@@ -480,6 +480,11 @@ details[open] > .navtree__scenesummary .navtree__scenetwisty::before,
   border-radius: 4px; padding: 0 6px; cursor: pointer; }
 .navtree__scenebtn:hover, .navtree__scenebtn:focus-visible { border-color: var(--muted); outline: none; }
 .navtree__scenebtn[aria-pressed="true"] { border-color: var(--accent); }
+/* A press that writes: muted and still while it writes, the fail colour once
+   it did not (the reason on hover); the whole row stays readable. */
+.navtree__scenebtn[data-pending="writing"] { color: var(--muted); cursor: progress; }
+.navtree__scenebtn[data-pending="failed"] { color: var(--fail); border-color: var(--fail); }
+.navtree__scenebtn:disabled:not([data-pending]) { color: var(--muted); cursor: default; }
 /* The candidate rows' words wrap rather than clip. */
 .navtree__scenerow--wrap .navtree__scenename,
 .navtree__scenerow--wrap .navtree__scenesub { white-space: normal; overflow-wrap: anywhere; }

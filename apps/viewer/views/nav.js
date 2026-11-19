@@ -1049,12 +1049,41 @@
     takeSetTitle: "bind all of these faces to the feature, as one set",
     acceptTitle: "bind the suggested face to the feature",
     lookTitle: "click to turn the 3D view to it",
+    // A press that writes, on the pressed control from the press until the
+    // pane answers; then, if it did not write, what the control says, the
+    // reason on hover (the pane's AA.ARMED_PICK_WORDS says the same words).
+    writing: "writing…",
+    failed: "not written",
+    busy: "another write was still running",
   });
+
+  // The states a writing control is in, on its `data-pending` (the pane's
+  // WRITE_PRESS_STATES, apps/annotate/app.js).
+  VA.WRITE_PRESS_STATES = Object.freeze(["writing", "failed"]);
 
   // The pane verbs a body's actions post, each `<verb> <edge> <end>
   // <topology>` except `arm off` (apps/annotate/app.js registers them).
   VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip", keep: "keep",
     dropFace: "drop-face", accept: "accept", take: "take", camera: "camera" });
+
+  // The body verbs that write an event (the pane's AA.IDENTITY_WRITE_VERBS
+  // holds each): the pressed control shows it pending until the pane answers.
+  VA.FEATURE_BODY_WRITE_VERBS = Object.freeze([VA.FEATURE_BODY_VERBS.unbind, VA.FEATURE_BODY_VERBS.flip,
+    VA.FEATURE_BODY_VERBS.keep, VA.FEATURE_BODY_VERBS.dropFace, VA.FEATURE_BODY_VERBS.accept,
+    VA.FEATURE_BODY_VERBS.take]);
+
+  // One body command as one string: which control a pending write is on.
+  VA.bodyCommandKey = function (command) {
+    return (command || []).map(String).join(" ");
+  };
+
+  // A body control that writes, shown pending the moment it is pressed --
+  // before anything is posted, so the press reads as taken within the frame.
+  function markWriting(button) {
+    button.textContent = VA.FEATURE_BODY_WORDS.writing;
+    button.disabled = true;
+    button.setAttribute("data-pending", VA.WRITE_PRESS_STATES[0]);
+  }
 
   // The arm mode Add a face asks for (`arm <edge> <end> <topology> <part>
   // add`): the pane's AA.ARM_PICK_MODES[0], paired by tests/test_hole_pattern.py.
@@ -1246,22 +1275,39 @@
 
   // Draw a plan: each line (hovering a bound one lights its face through
   // opts.hoverFace), its own actions under it, then the plan's.
+  // `opts.write` is the page's write in flight or just failed ({key, state,
+  // reason}, VA.WRITE_PRESS_STATES): while one is writing every writing
+  // control is disabled (the pane writes one at a time) and the pressed one
+  // reads W.writing; a failed one reads W.failed, the reason on hover, and
+  // pressing it again tries again.
   function renderBodyPlan(slot, plan, opts) {
     var command = (opts && opts.command) || function () {};
     var hoverFace = (opts && opts.hoverFace) || function () {};
+    var write = (opts && opts.write) || null;
+    var S = VA.WRITE_PRESS_STATES;
     var body = VA.el("div", "navtree__featurebody");
     body.setAttribute("data-body-kind", plan.kind);
     var actsOf = function (list) {
       var acts = VA.el("div", "navtree__featureacts");
       list.forEach(function (a) {
+        var writes = VA.FEATURE_BODY_WRITE_VERBS.indexOf(a.command[0]) !== -1;
+        var mine = writes && write && write.key === VA.bodyCommandKey(a.command);
         var button = VA.el("button", "navtree__scenebtn", a.text);
         if (a.title) button.setAttribute("title", a.title);
         button.setAttribute("data-body-act", a.command[0] + (a.command[1] === "off" ? "-off" : ""));
+        if (writes && write && write.state === S[0]) button.disabled = true;
+        if (mine && write.state === S[0]) markWriting(button);
+        if (mine && write.state === S[1]) {
+          button.textContent = VA.FEATURE_BODY_WORDS.failed;
+          button.setAttribute("title", write.reason || VA.FEATURE_BODY_WORDS.failed);
+          button.setAttribute("data-pending", S[1]);
+        }
         button.onclick = function (event) {
           if (event) {
             if (event.preventDefault) event.preventDefault();
             if (event.stopPropagation) event.stopPropagation();
           }
+          if (writes) markWriting(button);
           command(a.command);
         };
         acts.appendChild(button);
@@ -1542,16 +1588,22 @@
     }
   }
 
+  // A control that writes (`spec.writes`, the pane's pressWrite) shows the
+  // pending word at its press, here, before the gesture crosses; the pane's
+  // next tree carries its state from then (`disabled`, `pending`).
   function sceneButton(row, spec, i, send) {
     var button = VA.el("button", "navtree__scenebtn", spec.text);
     if (spec.title) button.setAttribute("title", spec.title);
     if (spec.pressed) button.setAttribute("aria-pressed", "true");
+    if (spec.disabled) button.disabled = true;
+    if (spec.pending) button.setAttribute("data-pending", spec.pending);
     button.setAttribute("data-scene-part", "button-" + i);
     button.onclick = function (event) {
       if (event) {
         if (event.preventDefault) event.preventDefault();
         if (event.stopPropagation) event.stopPropagation();
       }
+      if (spec.writes) markWriting(button);
       send(row.key, VA.SCENE_ACTS.button, i);
     };
     return button;

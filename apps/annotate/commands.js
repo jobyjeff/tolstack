@@ -1405,6 +1405,14 @@
     AA.writeStoredOnOff(store, AA.PREF_KEYS.boundFaces, on);
   };
 
+  // The verbs that write a feature-identity event, one at a time (app.js's
+  // oneWriteAtATime). The pane runs them as soon as it has loaded, never
+  // behind the commands queued before them (ExecQueue.runAfterLoad); the
+  // shell's body shows each one pending from the press until it answers
+  // (VA.FEATURE_BODY_WRITE_VERBS, tests/test_bind_latency_vocabularies.py
+  // pairs the two).
+  AA.IDENTITY_WRITE_VERBS = Object.freeze(["accept", "take", "unbind", "keep", "drop-face", "group", "flip"]);
+
   // What the shell's feature body's Unbind and Flip say once written
   // (app.js's cmdUnbind / cmdFlip), as a toast.
   AA.BODY_VERB_WORDS = Object.freeze({

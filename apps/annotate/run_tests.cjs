@@ -5745,6 +5745,70 @@ check("an accept numbered against a folder ahead of the projection takes a seq n
   assertEqual(await bare.listFeatureIdentityEventSeqs(), []);
 });
 
+check("a write reads the identity inbox once per page: the next seq, the log and the next " +
+  "write's reads open only a file that is new since, and the installed meshes open no file", async () => {
+  // Jeff's 101-file log was read three times per write -- at the grant, for
+  // the next seq and to publish -- 2025 folder calls and 15-30 s on the pitch
+  // plate (handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_
+  // while_it_waits). Event files are append-only and never rewritten.
+  if (!AA.FsaAdapter) {
+    vm.runInContext(fs.readFileSync(path.join(here, "storage", "fsa.js"), "utf8"), sandbox,
+      { filename: "storage/fsa.js" });
+  }
+  let opened = 0;
+  const counting = (tree) => ({
+    kind: "directory",
+    async getDirectoryHandle(name) {
+      const sub = tree[name];
+      if (!sub || typeof sub !== "object" || sub.__file) throw new Error("NotFoundError");
+      return counting(sub);
+    },
+    async getFileHandle(name) {
+      const leaf = tree[name];
+      if (!leaf || !leaf.__file) throw new Error("NotFoundError");
+      return { kind: "file", getFile: async () => { opened += 1; return { text: async () => leaf.text }; } };
+    },
+    async *entries() {
+      for (const name of Object.keys(tree)) yield [name, tree[name].__file ? { kind: "file" } : { kind: "directory" }];
+    },
+  });
+  const event = (seq) => ({ __file: true, text: JSON.stringify({ event_id: "e" + seq, seq }) });
+  const inbox = { "README.md": { __file: true, text: "# not an event" } };
+  for (let seq = 1; seq <= 5; seq++) inbox[String(seq).padStart(4, "0") + "_e.json"] = event(seq);
+  const fsa = new AA.FsaAdapter();
+  fsa._state = AA.STATE.READY;
+  fsa._rootHandle = counting({ data: { inbox: { "feature-identity": inbox },
+    meshes: { bb: { "provenance.json": { __file: true, text: "{}" } }, aa: {} } } });
+  assertEqual((await fsa.listFeatureIdentityEventSeqs()).sort(), [1, 2, 3, 4, 5]);
+  assertEqual(opened, 5, "the first read opens each event once");
+  const log = await fsa.readFeatureIdentityLog();
+  assertEqual([log.events.length, log.installed_meshes, opened], [5, ["aa", "bb"], 5],
+    "the log after it opens nothing: not an event again, not a mesh's provenance");
+  inbox["0006_e.json"] = event(6);
+  assertEqual((await fsa.listFeatureIdentityEventSeqs()).sort(), [1, 2, 3, 4, 5, 6]);
+  assertEqual(opened, 6, "an event written since is read, and only it");
+  assertEqual((await fsa.readFeatureIdentityLog()).events.map((e) => e.seq), [1, 2, 3, 4, 5, 6]);
+});
+
+check("ExecQueue: a write runs once the gate opens, never behind a command queued before it " +
+  "that has not finished", async () => {
+  // The pane opening its model (`isolate`) is one queue entry of 5-30 s; a
+  // Keep posted meanwhile waited the whole of it before it began.
+  const queue = new AA.ExecQueue();
+  const early = queue.runAfterLoad(() => "kept");
+  queue.enqueue(() => new Promise(() => {}));
+  queue.markLoaded();
+  const out = await Promise.race([early, new Promise((r) => setTimeout(() => r("waited"), 500))]);
+  assertEqual(out, { ok: true, result: "kept" });
+  const later = await Promise.race([queue.runAfterLoad(() => { throw new Error("no"); }),
+    new Promise((r) => setTimeout(() => r("waited"), 500))]);
+  assertEqual([later.ok, later.error && later.error.message], [false, "no"]);
+  const failed = new AA.ExecQueue();
+  const behind = failed.runAfterLoad(() => "ran");
+  failed.markLoadFailed(new Error("load failed: x"));
+  assertEqual((await behind).ok, false, "a load that failed fails the write loudly too");
+});
+
 // --- parts sit where the assembly puts them (handoff 2026-10-14) -------------
 
 // A directory handle in memory, shaped like the File System Access one the
