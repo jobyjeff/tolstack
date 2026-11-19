@@ -6,10 +6,10 @@
     {
       "contract": "An armed pick with a bound counterpart pre-lights the ranked faces.",
       "issue": "docs/sessions/lessons/LESSONS_20261115_a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates.md",
-      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Nothing is marked.",
+      "note": "Declared with the guard by handoff a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates (2026-11-15). Nothing is marked. Re-pointed 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): the line now also carries a set of faces; same mutation.",
       "file": "apps/annotate/app.js",
-      "find": "  a.mates.slice(0, AA.CANDIDATES_LISTED).forEach((r) => state.scene.markFace(r.sha256, r.faceId, \"suggested\"));",
-      "replace": "  a.mates.slice(0, 0).forEach((r) => state.scene.markFace(r.sha256, r.faceId, \"suggested\"));"
+      "find": "  a.mates.slice(0, AA.CANDIDATES_LISTED).forEach((r) => (r.faces || [r.faceId])",
+      "replace": "  a.mates.slice(0, 0).forEach((r) => (r.faces || [r.faceId])"
     }
   ]
 }

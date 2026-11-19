@@ -6,10 +6,10 @@
     {
       "contract": "Resting on a candidate row lights its face in the 3D pane.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
-      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Jeff's 'nothing is visibly hilighted' is exactly this wire cut: the row is there and the pointer on it does nothing.",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Jeff's 'nothing is visibly hilighted' is exactly this wire cut: the row is there and the pointer on it does nothing. Re-pointed 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): the row now names every face of a set.",
       "file": "apps/annotate/app.js",
-      "find": "    railExec(row ? [\"hover\", \"face\", row.sha256, String(row.faceId)] : [\"hover\", \"clear\"], null);",
-      "replace": "    railExec([\"hover\", \"clear\"], null);"
+      "find": "    railExec(row ? [\"hover\", \"face\", row.sha256].concat((row.faces || [row.faceId]).map(String))",
+      "replace": "    railExec(row ? [\"hover\", \"clear\"]"
     }
   ]
 }
