@@ -1007,7 +1007,10 @@
   //              Take accepts it (2026-11-15) -- and Pick a face
   //   mates      under an unbound or armed feature whose other side is bound,
   //              the faces that mate with it (the pane's `mates`), each with
-  //              why it is there and Take
+  //              why it is there and Take; led, when a pattern is bound
+  //              opposite, by the whole pattern on this part as one line
+  //              ("10 of 10 holes Ø5, coaxial within 0.003 mm") whose hover
+  //              lights the set and whose Take binds it (2026-11-18)
   //   neither    "not bound" and Pick a face, which arms the same pick
   //   armed      the pane's own armed line and Cancel, while a pick is armed
   //              at one of the feature's ends; Unbind too when the feature
@@ -1043,6 +1046,7 @@
     cancelTitle: "stop picking (Esc)",
     take: "Take",
     takeTitle: "bind this face to the feature",
+    takeSetTitle: "bind all of these faces to the feature, as one set",
     acceptTitle: "bind the suggested face to the feature",
     lookTitle: "click to turn the 3D view to it",
   });
@@ -1082,10 +1086,14 @@
     // each a line: the face, why it is there, Take.
     var mates = tree && tree.mates && tree.mates[fid];
     var mateLines = mates ? mates.rows.map(function (r) {
+      // A row for a set (the whole pattern) names every face: its hover, its
+      // look and its Take carry them all.
+      var ids = (r.faces || [r.faceId]).map(String);
       return { text: r.text, sub: r.reason, title: [r.text, r.reason, r.detail].filter(Boolean).join("\n"),
-        face: { sha256: r.sha256, faceId: r.faceId }, look: [V.camera, "face", r.sha256, String(r.faceId)],
-        actions: [{ text: W.take, title: W.takeTitle,
-          command: [V.take, mates.edgeId, mates.direction, r.sha256, String(r.faceId), topologyId] }] };
+        face: r.faces ? { sha256: r.sha256, faceId: r.faceId, faceIds: r.faces } : { sha256: r.sha256, faceId: r.faceId },
+        look: [V.camera, "face", r.sha256].concat(ids),
+        actions: [{ text: W.take, title: r.faces ? W.takeSetTitle : W.takeTitle,
+          command: [V.take, mates.edgeId, mates.direction, r.sha256, ids[0], topologyId].concat(ids.slice(1)) }] };
     }) : [];
     var record = model.featureRecord ? model.featureRecord(fid) : null;
     if (armed && ends.some(function (e) { return e.edgeId === armed.edgeId && e.end === armed.direction; })) {
@@ -1130,8 +1138,11 @@
           var f = g.faces[0];
           var text = g.faces.length === 1 ? fill(W.setFace, { face: f.face_id })
             : fill(W.groupFaces, { faces: g.faces.map(function (x) { return x.face_id; }).join(", ") });
-          return faceLine(f, text, [{ text: W.keep, title: W.keepTitle,
+          var line = faceLine(f, text, [{ text: W.keep, title: W.keepTitle,
             command: verb(V.keep, ends[0], f).concat(g.faces.slice(1).map(function (x) { return String(x.face_id); })) }]);
+          // The hover lights the set Keep would keep, not its first face.
+          if (g.faces.length > 1) line.face.faceIds = g.faces.map(function (x) { return x.face_id; });
+          return line;
         })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }, unbind(ends[0])] };
     }
     // Add a face: the same arm as Correct, in the mode that adds.
@@ -1205,7 +1216,7 @@
     // the proposal's line, its reason under it.
     if (head.face) {
       mateLines = mateLines.filter(function (l) {
-        if (l.face.sha256 !== head.face.sha256 || l.face.faceId !== head.face.faceId) return true;
+        if (l.face.faceIds || l.face.sha256 !== head.face.sha256 || l.face.faceId !== head.face.faceId) return true;
         head.sub = l.sub;
         head.title = head.title + "\n" + l.sub;
         return false;

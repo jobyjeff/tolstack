@@ -1786,7 +1786,9 @@ check("a candidate's reason names what the face is to the mating feature, for ev
 
 check("hover face takes a mesh and a whole face id, and the pane's candidate debounce is the " +
   "shell's pane-hover value", () => {
-  assertEqual(AA.parseHover("face", "hub", "3460"), { kind: "face", name: "hub", faceId: 3460 });
+  assertEqual(AA.parseHover("face", "hub", "3460"), { kind: "face", name: "hub", faceIds: [3460], faceId: 3460 });
+  assertEqual(AA.parseHover("face", "hub", "3460", "3461"),
+    { kind: "face", name: "hub", faceIds: [3460, 3461], faceId: 3460 });
   let threw = 0;
   try { AA.parseHover("face", "hub"); } catch (_) { threw++; }
   try { AA.parseHover("face", "hub", "3.5"); } catch (_) { threw++; }

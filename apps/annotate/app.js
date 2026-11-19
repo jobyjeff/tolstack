@@ -168,6 +168,9 @@ const state = {
   // Per mesh, the buffers a face's siblings are found with (AA.facesTouch):
   // {positions, ranges}, kept beside the classes they were classified from.
   faceBuffers: {},
+  // Per mesh, {solids: [solid id by face id], count}: which solid of the
+  // mesh each face is on (the manifest's), for a row that names one.
+  faceSolids: {},
   // The log's own events, as last read (the served copy or the inbox), and
   // the served log's `same_surface` -- what the feature fold is folded from
   // (handoff a_feature_is_bound_once_to_a_set_of_faces).
@@ -1225,6 +1228,9 @@ async function classifyFaces(sha256) {
     manifest.faces, positions, new Uint32Array(idxBuf),
     new Uint32Array(fidBuf));
   state.faceBuffers[sha256] = { positions, ranges: AA.faceVertexRanges(manifest.faces) };
+  const solids = [];
+  manifest.faces.forEach((f) => { solids[f.face_id] = f.solid_id; });
+  state.faceSolids[sha256] = { solids, count: new Set(manifest.faces.map((f) => f.solid_id)).size };
   return state.faceClasses[sha256];
 }
 
@@ -1343,11 +1349,49 @@ async function rankMatesAt(topology, ends, partId, view, placements) {
     .filter((r) => r.record && (!want || r.record.surface === want.surface));
   const ranked = AA.rankMatingFaces({ sha256: mesh.sha256, classes: own, placements: placements[mesh.sha256],
     references });
-  return ranked.map((m) => {
+  const rows = ranked.map((m) => {
     const reason = AA.mateReason(m, partNameOfMesh(topology, m.mateSha256));
     return { kind: AA.CANDIDATE_ROW_KINDS[2], sha256: m.sha256, faceId: m.faceId, surface: m.surface,
       radius: m.radius, reason, detail: AA.mateDetail(m), bound: false, mate: m };
   });
+  // A pattern bound opposite leads with one row: the whole pattern on this
+  // part, one cylinder per bound hole (AA.rankOppositePattern, 2026-11-18).
+  const solids = state.faceSolids[mesh.sha256] || null;
+  const pattern = AA.rankOppositePattern({ sha256: mesh.sha256, classes: own, placements: placements[mesh.sha256],
+    bound: references, solids: solids && solids.solids });
+  return pattern ? [patternRow(topology, pattern, solids ? solids.count : 1)].concat(rows) : rows;
+}
+
+// The opposite pattern as a candidate row (kind `pattern`): its faces, its
+// line ("10 of 10 holes Ø5, coaxial within 0.003 mm") and why it is there.
+function patternRow(topology, p, solidCount) {
+  return { kind: AA.CANDIDATE_ROW_KINDS[3], sha256: p.sha256, faceId: p.faces[0], faces: p.faces,
+    surface: "cylindrical", radius: p.radius, text: AA.oppositePatternLine(p),
+    reason: AA.oppositePatternReason(p, partNameOfMesh(topology, p.mateSha256), solidCount),
+    detail: AA.OPPOSITE_PATTERN_WORDS.faces.replace("{faces}", p.faces.join(", ")),
+    bound: false, pattern: p };
+}
+
+// The topology the rail lists: the sweep's, else the open one.
+function railTopology() {
+  return state.sweep ? sweepTopology() : state.currentTopology;
+}
+
+// The pattern row at one end of `topology` holding `faceId` of `sha256`, or
+// null: an armed click or a Take on one of its faces offers the whole set.
+function patternRowWith(topology, via, sha256, faceId) {
+  return mateRowsAt(topology, via).find((r) => r.kind === AA.CANDIDATE_ROW_KINDS[3] &&
+    r.sha256 === sha256 && r.faces.indexOf(faceId) !== -1) || null;
+}
+
+// The group offer's siblings when the picked face is a face of the pattern
+// row: the rest of that set, counted in holes, carried as the offer's
+// `opposite` -- else `siblings` as they were.
+function withOppositePattern(siblings, row, faceId) {
+  if (!row) return siblings;
+  const own = new Set([faceId].concat(siblings.swept, siblings.offered));
+  return Object.assign({}, siblings, { pattern: row.faces.filter((f) => !own.has(f)),
+    holes: row.pattern.holes, opposite: row });
 }
 
 // Every unbound feature of the open model with a bound side opposite it,
@@ -1430,8 +1474,11 @@ function candidatesWithMates(rows, topology, via) {
   if (!mates.length) return rows;
   const listed = new Set(rows.map((r) => r.sha256 + "|" + r.faceId));
   const proposed = rows.filter((r) => r.kind === AA.CANDIDATE_ROW_KINDS[0]);
-  const fresh = mates.filter((r) => !listed.has(r.sha256 + "|" + r.faceId));
-  const freshKeys = new Set(fresh.map((r) => r.sha256 + "|" + r.faceId));
+  // The pattern row is a set, never one face: it is kept whatever its first
+  // face is listed as.
+  const fresh = mates.filter((r) => r.kind === AA.CANDIDATE_ROW_KINDS[3] || !listed.has(r.sha256 + "|" + r.faceId));
+  const freshKeys = new Set(fresh.filter((r) => r.kind !== AA.CANDIDATE_ROW_KINDS[3])
+    .map((r) => r.sha256 + "|" + r.faceId));
   return proposed.concat(fresh, rows.filter((r) => r.kind !== AA.CANDIDATE_ROW_KINDS[0] &&
     !freshKeys.has(r.sha256 + "|" + r.faceId)));
 }
@@ -1443,7 +1490,8 @@ function paintArmedMates() {
   state.scene.clearMarks("suggested");
   const a = state.armed;
   if (!a || !a.mates) return;
-  a.mates.slice(0, AA.CANDIDATES_LISTED).forEach((r) => state.scene.markFace(r.sha256, r.faceId, "suggested"));
+  a.mates.slice(0, AA.CANDIDATES_LISTED).forEach((r) => (r.faces || [r.faceId])
+    .forEach((f) => state.scene.markFace(r.sha256, f, "suggested")));
   window.__armedMates = a.mates.map((r) => ({ sha256: r.sha256, faceId: r.faceId }));
 }
 
@@ -3687,11 +3735,14 @@ async function armedClickNow(pick, other, shift) {
   // not touch it, and the other holes of a pattern (2026-11-15), are offered
   // as a group, lit, and the bind waits for his word (`group all` / `group
   // one`).
-  const siblings = await surfaceSiblingsOf(full.sha256, full.faceId);
+  // A face of the whole opposite pattern (the armed end's pattern row,
+  // 2026-11-18) offers that set in place of the part's like holes.
+  const siblings = withOppositePattern(await surfaceSiblingsOf(full.sha256, full.faceId),
+    patternRowWith(a.topology, { edgeId: a.edgeId, direction: a.direction }, full.sha256, full.faceId), full.faceId);
   if (siblings.offered.length || siblings.pattern.length) {
     offerGroup(full, siblings, (more) => bindArmedFaces(full, more, plan));
     return { action: "offered", faceId: full.faceId, swept: siblings.swept, offered: siblings.offered,
-      pattern: siblings.pattern, holes: siblings.holes };
+      pattern: siblings.pattern, holes: siblings.holes, opposite: !!siblings.opposite };
   }
   return bindArmedFaces(full, siblings.swept, plan);
 }
@@ -3816,6 +3867,9 @@ AA.GROUP_OFFER_WORDS = Object.freeze({
   patternAll: "Take all {n} holes",
   patternAllTitle: "bind every lit hole as this one feature",
   patternOneTitle: "bind only the hole you clicked",
+  // The whole pattern on this part, read off the one bound opposite
+  // (2026-11-18): the row's own line, "7 of 10 holes Ø5, coaxial within ...".
+  oppositeAllTitle: "bind every lit hole as this one feature, one for each hole bound opposite",
 });
 
 // The group on offer, or null: {full, swept, offered, pattern, holes, bind}
@@ -3826,7 +3880,7 @@ let groupOffer = null;
 // Light the clicked face and every face on offer, and show the bar.
 function offerGroup(full, siblings, bind) {
   groupOffer = { full, swept: siblings.swept, offered: siblings.offered, pattern: siblings.pattern || [],
-    holes: siblings.holes || 0, bind };
+    holes: siblings.holes || 0, opposite: siblings.opposite || null, bind };
   const lit = [full.faceId].concat(siblings.swept, siblings.offered, groupOffer.pattern);
   const tinted = state.scene.highlightFaces(lit.map((faceId) => ({ sha256: full.sha256, faceId })));
   // What a harness reads: the faces on offer, and how many the scene tinted.
@@ -3849,10 +3903,13 @@ function showGroupOffer(offer) {
   const holes = offer.pattern.length ? offer.holes : 0;
   const line = document.createElement("span");
   line.className = "an__offer-line";
-  line.textContent = holes ? W.patternLine.replace("{n}", String(holes)) : W.line.replace("{n}", String(total));
+  line.textContent = offer.opposite ? offer.opposite.text
+    : holes ? W.patternLine.replace("{n}", String(holes)) : W.line.replace("{n}", String(total));
+  if (offer.opposite) line.title = [offer.opposite.text, offer.opposite.reason].join("
+");
   node.appendChild(line);
   [["all", holes ? W.patternAll.replace("{n}", String(holes)) : W.all.replace("{total}", String(total)),
-    holes ? W.patternAllTitle : W.allTitle],
+    offer.opposite ? W.oppositeAllTitle : holes ? W.patternAllTitle : W.allTitle],
     ["one", W.one, holes ? W.patternOneTitle : W.oneTitle]].forEach(([which, text, title]) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -3918,8 +3975,8 @@ function cmdSubjectView(visible, name) {
 // scene (AA.parseHover has the grammar). A viewing aid: it writes nothing,
 // tints nothing into a colour buffer, and an empty answer is ordinary (an
 // unbound feature, a part not opened).
-function cmdHover(what, name, extra) {
-  const target = AA.parseHover(what, name, extra);
+function cmdHover(what, name, extra, ...more) {
+  const target = AA.parseHover(what, name, extra, ...more);
   if (target.kind === "face") return hoverFace(target);
   if (!target.kind) {
     state.washToken++;
@@ -4014,7 +4071,8 @@ async function hoverFace(target) {
     renderPartsPanel();
     if (token !== state.washToken) return null;
   }
-  window.__lastWash = state.scene.washFace({ sha256: mesh.sha256, faceId: target.faceId });
+  window.__lastWash = state.scene.washFace({ sha256: mesh.sha256, faceId: target.faceId,
+    faceIds: target.faceIds });
   // ...and the face's part is what the scene is about while the pointer
   // rests there, in either mode: at its resting look, the rest faint
   // (applyLooks). The camera stays.
@@ -4425,7 +4483,8 @@ function candidateRow(end, row, surest) {
     take.onclick = (ev) => {
       ev.stopPropagation();
       railExec(surest ? ["accept", end.edgeId, end.direction]
-        : ["take", end.edgeId, end.direction, row.sha256, String(row.faceId)]);
+        : ["take", end.edgeId, end.direction, row.sha256, String(row.faceId)].concat(row.faces
+          ? [railTopology().id].concat(row.faces.slice(1).map(String)) : []));
     };
     li.appendChild(take);
   }
@@ -4466,7 +4525,8 @@ function scheduleCandidateWash(row) {
   if (candidateWashTimer !== null) clearTimeout(candidateWashTimer);
   candidateWashTimer = setTimeout(() => {
     candidateWashTimer = null;
-    railExec(row ? ["hover", "face", row.sha256, String(row.faceId)] : ["hover", "clear"], null);
+    railExec(row ? ["hover", "face", row.sha256].concat((row.faces || [row.faceId]).map(String))
+      : ["hover", "clear"], null);
   }, AA.CANDIDATE_HOVER_DEBOUNCE_MS);
 }
 
@@ -4954,7 +5014,7 @@ function identityOn(topology) {
     : AA.identityReadThrough(sessionIdentityProjection(), topology);
 }
 
-// take <edge> <from|to> <mesh> <face> [<topology>] -- a candidate row's Take (handoff
+// take <edge> <from|to> <mesh> <face> [<topology> [<face>...]] -- a candidate row's Take (handoff
 // a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there), in either
 // mode: that face bound at that end. It is an armed click with the face named
 // rather than clicked, planned the same way (AA.planArmedClick, then
@@ -4962,8 +5022,10 @@ function identityOn(topology) {
 // that proposal; any other face turns the end's open proposals down and binds
 // this one; the end's one standing binding is superseded; the face already
 // bound there writes nothing. An armed pick is ended first. One write path
-// (writeAnswer).
-async function cmdTake(edgeId, direction, meshId, faceText, topologyId) {
+// (writeAnswer). Faces after the topology (a pattern row's Take, 2026-11-18)
+// are bound with the named one, as one event, with no offer first: the row
+// already said the whole set.
+async function cmdTake(edgeId, direction, meshId, faceText, topologyId, ...moreText) {
   const topology = topologyId ? topologyNamed(topologyId) : (state.sweep ? sweepTopology() : state.currentTopology);
   if (!topology) throw new Error("no topology is open, so there is nothing to take");
   const edge = (topology.edges || []).find((e) => e.id === edgeId);
@@ -4982,6 +5044,11 @@ async function cmdTake(edgeId, direction, meshId, faceText, topologyId) {
     face = manifest && manifest.faces ? manifest.faces[faceId] || null : null;
   }
   if (!face) throw new Error("part \"" + meshId + "\" has no face " + faceText);
+  const named = moreText.map((t) => {
+    const f = parseInt(t, 10);
+    if (!isFinite(f) || String(f) !== String(t)) throw new Error("take's faces are whole face ids, got " + JSON.stringify(t));
+    return f;
+  });
   const record = AA.findBindingRecord(identityOn(topology), AA.topologyEdgeKey(topology.id, edge.id));
   const stackKey = identityWriteKey(topology, edge.id);
   const standing = AA.endBindings(record, direction);
@@ -5010,10 +5077,17 @@ async function cmdTake(edgeId, direction, meshId, faceText, topologyId) {
       ratifies: answer.accept ? answer.accept.event_id : null,
       rejects: answer.reject.map((p) => p.event_id), events: events.map((e) => e.event_id) };
   };
-  if (siblings.pattern.length) {
-    offerGroup(pick, siblings, take);
-    return { action: "offered", faceId, swept: siblings.swept, offered: siblings.offered,
-      pattern: siblings.pattern, holes: siblings.holes };
+  if (named.length) {
+    const own = new Set([faceId]);
+    return take(siblings.swept.concat(named).filter((f) => !own.has(f) && own.add(f)));
+  }
+  // A face of the whole opposite pattern offers that set (2026-11-18).
+  const offer = withOppositePattern(siblings, patternRowWith(topology, { edgeId: edge.id, direction },
+    mesh.sha256, faceId), faceId);
+  if (offer.pattern.length) {
+    offerGroup(pick, offer, take);
+    return { action: "offered", faceId, swept: offer.swept, offered: offer.offered,
+      pattern: offer.pattern, holes: offer.holes, opposite: !!offer.opposite };
   }
   return take(siblings.swept);
 }
@@ -7459,8 +7533,8 @@ function embedTree() {
 // ranking stands for its feature, bound or not (a Correct ranks too).
 function treeMates() {
   const out = {};
-  const say = (r) => ({ sha256: r.sha256, faceId: r.faceId, text: AA.candidateRowWords(r),
-    reason: r.reason, detail: r.detail });
+  const say = (r) => Object.assign({ sha256: r.sha256, faceId: r.faceId, text: AA.candidateRowWords(r),
+    reason: r.reason, detail: r.detail }, r.faces ? { faces: r.faces } : {});
   const put = (fid, topologyId, edgeId, direction, rows) => {
     out[fid] = { topologyId, edgeId, direction, n: rows.length,
       rows: rows.slice(0, AA.CANDIDATES_LISTED).map(say) };

@@ -1366,12 +1366,22 @@ export class AnnotateScene {
   // a face a LIST names rather than the one under the pointer -- so it asks
   // for no pick filter, sets no cursor, calls no onPreselect and moves no
   // camera. Every drawn occurrence of the part; null takes it down. A part
-  // that is not open washes nothing.
+  // that is not open washes nothing. `face.faceIds` (2026-11-18) washes a
+  // set -- a whole pattern a row offers -- as one wash.
   washFace(face) {
     const was = this._wash;
-    if (was && face && was.sha256 === face.sha256 && was.faceId === face.faceId) return this.washed();
+    const ids = face ? (face.faceIds && face.faceIds.length ? face.faceIds : [face.faceId]) : [];
+    if (was && face && was.sha256 === face.sha256 && was.faceIds.join(",") === ids.join(",")) return this.washed();
     this._disposeWash();
-    if (face && this.parts.has(face.sha256)) this._wash = this._drawWash(face.sha256, face.faceId);
+    if (face && this.parts.has(face.sha256)) {
+      const drawn = ids.map((id) => this._drawWash(face.sha256, id)).filter(Boolean);
+      if (drawn.length) {
+        this._wash = { sha256: face.sha256, faceId: drawn[0].faceId, faceIds: drawn.map((d) => d.faceId),
+          geometries: [].concat(...drawn.map((d) => d.geometries)),
+          materials: [].concat(...drawn.map((d) => d.materials)),
+          meshes: [].concat(...drawn.map((d) => d.meshes)) };
+      }
+    }
     this.requestRender();
     return this.washed();
   }
@@ -1382,7 +1392,7 @@ export class AnnotateScene {
     const p = this._wash;
     if (!p) return null;
     const fill = p.materials[0];
-    return { sha256: p.sha256, faceId: p.faceId,
+    return { sha256: p.sha256, faceId: p.faceId, faceIds: p.faceIds.slice(),
       overlays: p.meshes.filter((m) => m.parent).length,
       color: fill.color.getHex(), opacity: fill.opacity,
       preselectColor: PRESELECT_COLOR, preselectOpacity: PRESELECT_OPACITY };
