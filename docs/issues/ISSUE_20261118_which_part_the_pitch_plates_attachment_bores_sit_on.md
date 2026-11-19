@@ -40,3 +40,14 @@ bolt -- and so the bearing's ball -- is located by the bushing bores, and keep
 the plate's bores as the press- and transition-fit seats they now are. The
 re-key table is in
 `docs/sessions/lessons/LESSONS_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md`.
+
+## Addendum 2026-11-19 (walk `the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page`)
+
+The question is restated as D6 on Jeff's review page,
+`docs/sessions/lessons/REVIEW_20261118_the_binding_flow_and_the_pitch_plate.md`,
+with the walk's grounds. In a scratch copy, Keep on "faces 1380, 1381" settles
+the disagreement, but those faces are the plate's empty Ø8.520 bore, where the
+straight bushing (a transition fit, installed at the top level, per Jeff's
+11-17 note) sits. No bolt touches that bore. So pressing Keep on his own page
+before this is answered would bind the bushing's seat as the pitch link's
+bore. The page recommends (c), and Unbind first.

@@ -44,3 +44,20 @@ twice.
 ## 2026-11-17 triage sweep
 
 Low, deferred by default. Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.
+
+## Addendum 2026-11-19 (walk `the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page`)
+
+**The binding flow now binds both copies at once, and it ranks the copy
+first.** In a scratch copy of the log, with the pitch arm's bore bound, the
+blade root's locating-boss end listed its mates in this order: 6440, 6439
+(solid 17), 1061, 1060 (solid 2), then 6667, 6666. A Take on face 1060 wrote
+**one event holding four faces**: 1060, 1061, 6439 and 6440. The seat's Take
+on 1079 bound 1079 and 6432 the same way, and the offered cross-pin pattern
+bound faces in three solids. So the double-key risk this issue describes has
+become a different one: every blade-root feature is bound across both copies,
+and any fit or position read from it averages two bodies that are not
+identical. Shots `06b_blade_boss_mates_offered_crop` and
+`09a_blade_clocking_offer_crop` in
+`docs/sessions/lessons/shots/the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page/`.
+Jeff's real log has no blade-root binding yet apart from the bearing bore, so
+nothing on his page is affected today.

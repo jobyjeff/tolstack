@@ -41,3 +41,12 @@ neither does this walk's retry (`isolate` on the piston body's mesh, then
 `shots/the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page/q2_piston_body_top_isolated.png`).
 A shot that shows them would need the pick-armed isolation with both heads
 hidden. The face ids are the evidence until then.
+
+## Addendum 2026-11-19 (walk `the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page`)
+
+Both are still unanswered. They are copied again as D1 and D2 at the top of
+`docs/sessions/lessons/REVIEW_20261118_the_binding_flow_and_the_pitch_plate.md`.
+One new fact bears on Q1. With the arm's clamp face bound in a scratch copy,
+the blade root's end offers faces 1079 and 6432 as "against pitch arm,
+0.025 mm apart". So the page treats the seat as a contact, which is the
+reading Q1 asks Jeff to confirm or reject.

@@ -30,3 +30,13 @@ and `02_pitch_plate_district.png`):
 
 These are judgement calls, not named-rule violations. Neither one blocks
 anything.
+
+## Addendum 2026-11-19 (walk `the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page`)
+
+The tree has the same gap: under 215177-001 the two members read "flanged
+bushing, pitch link" and "flanged bushing, tangential link", with no number.
+Every sibling row leads with its number (215735-001, 214820-002). v2's
+`display_name` does carry "NAS77A3-015A flanged bushing, pitch link". The
+number is dropped because the part has no `drawing`, the same cause the map
+has. One fix, two surfaces. Shot `02a_attach_bore_two_sets_disagree_crop` in
+`docs/sessions/lessons/shots/the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page/`.

@@ -29,3 +29,23 @@ of the whole plate, read before a click is planned), then `nextEventSeq`'s
 folder listing, then `publishIdentity`'s served-log rewrite through the folder
 grant before the shell is told. A per-step timing of one click on this part is
 the first thing to take; the plate is the largest mesh in the pitch linkage.
+
+## Addendum 2026-11-19 (walk `the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page`)
+
+**Keep and Unbind have the same wait, and they show nothing while it runs.**
+Measured on the merged page (`integration` `a7a05123`, scratch copy of the
+log) at `pitch_plate_215177_001@pitch_plate_link_attach_bore`:
+
+| what | press → event on disk | press → the body changes |
+|---|---:|---:|
+| Keep on "faces 1380, 1381" | 23 s | about 27 s |
+| Unbind (after that Keep) | under 21 s | 21 s |
+
+In that window the only change on the page is the pressed button's focus
+ring (shots `02c_keep_just_pressed_crop`, `02e_unbind_1s_crop` in
+`docs/sessions/lessons/shots/the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page/`).
+The armed click got "reading face N…" from the keep-or-let-go handoff; Keep,
+Unbind, Take and Take all did not. This wait is what Jeff's "clicking 'keep'
+seemed to do nothing" describes: the five Keep events 0096–0100 in his log are
+five presses. Smaller parts are faster: 7–14 s to disk and 12–15 s more to the
+tree on the pitch arm, blade root and piston parts.
