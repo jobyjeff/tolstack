@@ -7,8 +7,8 @@
       "contract": "Only a human unbinds.",
       "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). An agent's actor is let write a retraction.",
       "file": "apps/annotate/binding_state.js",
-      "find": "      throw new Error(\"an agent only proposes -- a human unbinds\");",
-      "replace": "      void 0;",
+      "find": "    if (!binding || binding.verdict !== \"bound\") throw new Error(\"only a binding can be taken back\");\n    if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {\n      throw new Error(\"an agent only proposes -- a human unbinds\");",
+      "replace": "    if (!binding || binding.verdict !== \"bound\") throw new Error(\"only a binding can be taken back\");\n    if (AA.actorKind(fields.recordedBy) === AA.ACTOR_KINDS[1]) {\n      void 0;",
       "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
     }
   ]

@@ -358,7 +358,9 @@ export const DECLARED_GUARDS = {
   // groups as drawn, the seam leaders and the switch: every guard of those
   // deleted with its spec. 19 renamed where the claim survives on the grid or
   // the map (the lesson's suite table), each spec following its guard.
-  fast: { declared: 601, enrollable: 601, names: "1ba750b8006f" },
+  // 2026-11-18 (a_disagreement_is_settled_by_keep_or_let_go): +1 -- sets
+  // that disagree are a line each, Keep naming the whole set. It carries a spec.
+  fast: { declared: 602, enrollable: 602, names: "003fa99842d3" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -451,7 +453,10 @@ export const DECLARED_GUARDS = {
   // tests/test_hole_pattern.py answers on. Both carry a spec.
   // 2026-11-17 (a_joint_says_what_kind_it_is): +1 -- a shared node's stated
   // joint kind asks a cylinder of the shape rule. It carries a spec.
-  annotate: { declared: 324, enrollable: 324, names: "447969c10819" },
+  // 2026-11-18 (a_disagreement_is_settled_by_keep_or_let_go): +3 -- one Keep
+  // settles Jeff's bore, one Unbind lets it go, an Add over the same bind
+  // twice leaves one. Each carries a spec.
+  annotate: { declared: 327, enrollable: 327, names: "7303c384dfb3" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261112_a_feature_is_bound_once_to_a_set_of_faces.md",
       "note": "Declared with the guard by handoff a_feature_is_bound_once_to_a_set_of_faces (review round 2). The body offered Keep alone, so a reader who found neither face right had no pick to arm -- the end-stop suite's Escape-with-a-pick-armed check never armed on the hub's boss.",
       "file": "apps/viewer/views/nav.js",
-      "find": "      })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }] };",
-      "replace": "      })), actions: [] };"
+      "find": "        })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }, unbind(ends[0])] };",
+      "replace": "        })), actions: [] };"
     }
   ]
 }
