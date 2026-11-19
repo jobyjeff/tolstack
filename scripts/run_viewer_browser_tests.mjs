@@ -3345,12 +3345,37 @@ async function testTheMap(browser, label, topologies) {
       sceneReady && stillMap);
 
     // --- 5. hover, map -> tree, grid, scene -----------------------------------
+    // The pane runs the page's commands one at a time, in arrival order
+    // (AA.ExecQueue), and opening the model -- `isolate parts`, which opens
+    // the rest of the mesh store as faint context too -- is one entry that
+    // outlasts "a part is open" by tens of seconds on a busy box: a hover's
+    // light posted before it is answered is drawn after it, and a 5s wait
+    // read `pane null` (2026-11-18, the_map_pin_hover_lights_its_bound_face_
+    // in_the_scene). So the pane is settled when a command posted now, behind
+    // everything the page has posted, is answered -- and the wait below
+    // times the light alone.
+    const settledAt = Date.now();
+    const paneSettled = await page.evaluate((timeout) => new Promise((resolve) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      if (!w) { resolve(false); return; }
+      const id = "map-pane-settled-" + Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => { window.removeEventListener("message", on); resolve(false); }, timeout);
+      function on(e) {
+        if (!e.data || e.data.type !== "annotate:result" || e.data.id !== id) return;
+        clearTimeout(timer);
+        window.removeEventListener("message", on);
+        resolve(true);
+      }
+      window.addEventListener("message", on);
+      w.postMessage({ type: "annotate:exec", id, command: ["scene-view"] }, window.location.origin);
+    }), 180000);
+    const settledMs = Date.now() - settledAt;
     await hoverMap("feature", MAP_BOUND_FEATURE);
     let s = await surfaces();
     // The scene's light arrives by message; wait for a hover layer.
     await untilPane((w) => w.__lastLight && w.__lastLight.layers.some((l) => l.role === "hover"), null, 5000);
     s = await surfaces();
-    console.log(`      [${label}] pin hovered: tree hot ${JSON.stringify(s.treeHot)} holds ${JSON.stringify(s.treeHolds)}, grid hot ${JSON.stringify(s.gridHot)}, ` +
+    console.log(`      [${label}] pane settled ${paneSettled} after ${settledMs}ms; pin hovered: tree hot ${JSON.stringify(s.treeHot)} holds ${JSON.stringify(s.treeHolds)}, grid hot ${JSON.stringify(s.gridHot)}, ` +
       `map lead ${JSON.stringify(s.mapLead)}, pane ${JSON.stringify(s.paneLayers)}`);
     const dimsAtBoss = model.model.dimensions.filter((d) => d.from === MAP_BOUND_FEATURE || d.to === MAP_BOUND_FEATURE).map((d) => d.id);
     push("[real] a pin hovered on the map lights its feature's row in the tree (or the closed fold " +
