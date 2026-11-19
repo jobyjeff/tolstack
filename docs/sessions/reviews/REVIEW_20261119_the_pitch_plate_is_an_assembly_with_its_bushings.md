@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
 reviewer: agent
 date: 2026-11-19
-verdict: REQUEST CHANGES (round 2)
-blockers: 1
+verdict: APPROVE (round 3)
+blockers: 0
 ---
 
 # Review — the_pitch_plate_is_an_assembly_with_its_bushings
@@ -217,3 +217,119 @@ parts and 12 features, and the `[real]` browser suites read the model.
 
 The rest of round 1's verification stands: the drawing re-read, the bindings
 48 = 48, and the counts.
+
+## Re-run 2026-11-19 — round 3
+
+Round 2 was REQUEST CHANGES with 1 blocker: four `[real]` browser suites red
+on the merged tree. The fixes arrived as `0717cb0d`, `06cbfaa0`, `2560a437`,
+`51086501` and `7927d383`. **The blocker is closed**, and the verdict is
+APPROVE.
+
+### What changed, and whether it is right
+
+- **The model drawn alone: product and check, both fixed.**
+  - `AA.occurrencePins` now keeps a list of occurrences per mesh rather than
+    one. `AA.pinnedOccurrences` and the sweep's candidate filter read that
+    list. Before, the last part read won, so the second NAS77A3 bushing and
+    the second 214820-002 bushing were drawn nowhere. That was a real product
+    defect.
+  - I checked every other consumer of the pin table. `sweep.js:1393` tests
+    only `sha in occ.pinned`, and `occurrencesFor` passes the table through,
+    so both are unaffected by the change of value type. `[].concat(pins[sha])`
+    still takes a bare string, which the fast check's `lost` case uses.
+  - A rider part that declares an occurrence now rides only there. This
+    stops `bushing_214820_002` being refused as a tie.
+  - The check now counts meshes rather than parts, and requires each shared
+    mesh at every declared place. That is the right claim, because two parts
+    on one mesh are one mesh drawn twice. The posed check now accepts a
+    `carried` row by its mesh and declared occurrence, which matches how a
+    part recorded inside a placed occurrence is drawn.
+  - A fast check pins the two-parts-one-mesh case.
+- **The DAG zoom: product, fixed.** `VA.mapBringIntoView` used to pan a box
+  that was wholly on screen but inside the 24 px pad. At v2's fit, k = 0.25,
+  the drawing's margin is thinner than that pad, so a click on an edge box
+  moved the map. It now pans only an axis the rect is off screen on, and the
+  pad is how far it brings the rect in.
+  - Two fast cases pin it.
+  - The witness spec for "brought into view" (`…bd77c7ea`) anchors on the
+    caller, which did not change. The author applied that mutation by hand,
+    and it still reddens.
+  - `DAG_TOPOLOGY.md` says so.
+- **A pattern is bound…: not reproduced by the author; green here.** The
+  author added only a diagnostic, which prints the twisties and feature rows
+  when the counts disagree. It is 11/11 in my whole-tier run below, so I
+  accept that round 2's 10/11 was the tree-opening timing.
+- **3D pane follows the selection: not reproduced by the author; still
+  intermittent here.** See below. It is a filed, deferred flake, not this
+  branch's defect.
+- **Docs.** The `ANNOTATION_SURFACE.md` sentence is accurate: a shared mesh
+  is drawn at both places, and each part rides at its own.
+
+### Post-merge tiers (merged `7ae3124d`, tree `009b7119`)
+
+- **Merge:** `7927d383` merged with no conflict, and the tree has no conflict
+  markers. `integration` is still `433619e5`, an ancestor of the handoff tip.
+- **Projections:** all eight builders, `--data-root
+  data/scratch/rv_pitch_plate_1119/data`, from the merged tree, after
+  refreshing that root's `docs/` from the merged tree. Exit 0. The real log
+  still has 101 files.
+- **Default tier, in this worktree:** **2372 passed, 1 failed, 1 skipped, 4
+  deselected in 450 s.** The one failure is the expected worktree
+  `test_viewer_js_suite_is_green`. **Not on the ledger:** my hand-appended
+  row was refused by this session's permission classifier, so it is left to
+  the operator.
+- **Fast tiers, through `--repo`:** viewer **605/605**, annotate **331/331**.
+- **Whole browser tier:** **44/46 in 1823 s.** The runner's own ledger row
+  is `merge` at 2026-11-19T13:20:59Z, tree `009b7119`. It is 23 s over the
+  1800 s budget; the round-2 run was 1829 s.
+  - The model drawn alone **22/22**.
+  - A pattern is bound **11/11**.
+  - The DAG zoom **35/35**.
+  - The two reds:
+    - **The map 29/30**: the pin-hover check, which is red on integration and
+      filed as
+      `ISSUE_20261118_the_map_pin_hover_real_check_is_red_on_integration.md`.
+    - **3D pane 30/31**: "…and leaving it takes the light down".
+- **The 3D pane suite on its own.** Seven `--only` runs on the merged tree
+  plus the two whole tiers make 9 valid runs; a tenth failed at boot when the
+  pane never opened.
+  - "…leaving it takes the light down" was red 5 times in 9, and "resting on
+    a body row…" was red once.
+  - The `integration` export, run 3 times against `rv_opposite_1118`, was
+    green 3 of 3.
+  - The author ran it green 4 of 4 on their own root.
+  - Both sub-checks are filed and deferred:
+    `ISSUE_20261029_three_d_pane_nav_body_checks_fail_in_a_loaded_full_run.md`
+    names this exact sub-check, and
+    `ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`
+    is its product half.
+  - The branch changes nothing on that code path. The plausible link is that
+    v1's kinematic scene now draws the NAS77A3 bushing at eight more places,
+    which gives the hover more rebuild time to lose. I put a temporary
+    diagnostic on the check, which I have reverted. It never printed, because
+    the sub-check passed on all four runs that carried it.
+  - I appended the counts to the 10-29 issue as a sighting. A higher flake
+    rate on a filed flake is not a blocker.
+- **Witness gate,** `--changed-since integration --budget-min 10 --repo
+  <scratch>`: **14/14 witnessed, 14/25 reached in 8m13s, 11 left to the sweep
+  (budget), exit 0.** That is a pass.
+
+### Verdict
+
+**APPROVE (round 3).** Every finding from rounds 1 and 2 is closed. The
+branch resolves no open issue. Its five issue changes are four new ones and a
+sighting on a deferred one. No should-fix is left unfixed.
+
+### Inline edits in this round
+
+- Reviewer artifacts only: this report, and the sighting on
+  `ISSUE_20261029_three_d_pane_nav_body_checks_fail_in_a_loaded_full_run.md`.
+- I did not fix anything in the author's work.
+- **Re-check after writing this report:** I ran the 10 test files that read
+  `docs/issues/` or the reviews: **1178 passed, 1 failed**. The failure is
+  `test_mutation_witness_shadow_concurrency.py::test_two_different_repo_roots_both_still_succeed`.
+  Run on its own, it fails on `WinError 3` while copying long-named lesson
+  shots from earlier handoffs into a pytest temp directory. That is the
+  Windows path limit, made worse by this worktree's long path. None of those
+  shots is this branch's, and the test passed in the full default tier above.
+  So it is environmental, not a finding.

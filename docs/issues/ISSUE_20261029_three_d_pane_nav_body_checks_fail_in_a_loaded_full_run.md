@@ -43,3 +43,22 @@ false` 1 in 4 and `chip null` 2 in 5 beside pytest, then 0 in 11 after its
 precondition was held with a resting pointer. Its product half is filed as
 `ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`.
 Left `deferred` for triage to disposition.
+
+## Sighting 2026-11-19 (review of the_pitch_plate_is_an_assembly_with_its_bushings)
+
+`[real] ...and leaving it takes the light down` is red more often on that
+branch's merged tree than on `integration` (`433619e5`). The branch adds no
+code on this path, but its v2 alias row puts the NAS77A3 flanged bushing on
+v1's eight instances, so the kinematic scene the suite loads draws more meshes.
+
+| tree | runs | red on this sub-check | red on the body-lit sub-check |
+|---|---|---|---|
+| merged `009b7119` / `6108d27d` (two whole tiers, seven `--only`) | 9 | 5 | 1 |
+| `integration` export, `--only` | 3 | 0 | 0 |
+
+One more `--only` run failed at boot (the pane never opened) and is not
+counted. The author ran it 4 of 4 green on their own scratch root. All runs
+were on the same box and the same day, and nothing else was measured, so this
+shows a higher rate, not a cause. A temporary diagnostic in the check never
+printed, because the sub-check went green on every run that carried it.
+Left `deferred`.
