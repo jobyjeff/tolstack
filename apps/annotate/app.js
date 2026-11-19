@@ -2133,11 +2133,11 @@ async function anchorSweepBodies() {
         rows.push({ subject: subject.name, part: partId, state: "no-mesh" });
         continue;
       }
-      // A part the topology pins to one occurrence earns that one or none.
-      const pin = occurrences.pinned && occurrences.pinned[mesh.sha256];
+      // A part the topology pins to an occurrence earns a pinned one or none.
+      const pins = occurrences.pinned && occurrences.pinned[mesh.sha256];
       const candidateOccurrences = AA.sweepCandidateOccurrences(
         occurrences.byMesh[mesh.sha256], occurrences.all,
-        occurrences.productOf[mesh.sha256]).filter((o) => !pin || o.key === pin);
+        occurrences.productOf[mesh.sha256]).filter((o) => !pins || pins.indexOf(o.key) !== -1);
       if (!candidateOccurrences.length) {
         rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
           state: "no-occurrence" });

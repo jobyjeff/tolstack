@@ -1137,14 +1137,19 @@
   // the every-occurrence rule above, so a topology that declares none is
   // drawn exactly as before.
 
-  // {mesh sha256: occurrence key} for the topology's parts that declare one,
-  // each resolved to its mesh the way the scene resolves it.
+  // {mesh sha256: [occurrence key, ...]} for the topology's parts that
+  // declare one, each resolved to its mesh the way the scene resolves it. A
+  // list, because two parts may be one mesh at two places (v2's two NAS77A3
+  // flanged bushings, its two 214820-002 straight ones, 2026-11-19): one key
+  // per mesh kept the last part's and drew the other nowhere.
   AA.occurrencePins = function (topology, meshes, aliases) {
     var pins = {};
     ((topology && topology.parts) || []).forEach(function (part) {
       if (!part || typeof part.occurrence !== "string" || !part.occurrence) return;
       var mesh = AA.resolveMeshIdentifier(meshes, part.id, aliases);
-      if (mesh) pins[mesh.sha256] = part.occurrence;
+      if (!mesh) return;
+      var keys = pins[mesh.sha256] = pins[mesh.sha256] || [];
+      if (keys.indexOf(part.occurrence) === -1) keys.push(part.occurrence);
     });
     return pins;
   };
@@ -1179,7 +1184,7 @@
   };
 
   // The occurrence table (AA.readMeshOccurrences) with each pinned mesh cut
-  // to its one declared occurrence: its own record at that path, or -- when
+  // to its declared occurrences (one per part that declares it): its own record at that path, or -- when
   // the path is recorded on another mesh, as blade 1's design pitch link is
   // on the instrumented one's -- that record, drawn with this mesh. A path no
   // mesh records leaves the part with no position, which it then says.
@@ -1192,18 +1197,24 @@
     Object.keys(occ.byMesh || {}).forEach(function (sha) { byMesh[sha] = occ.byMesh[sha]; });
     var dropped = {};
     shas.forEach(function (sha) {
-      var key = pins[sha];
-      var mine = (byMesh[sha] || []).filter(function (o) { return o.key === key; });
-      if (!mine.length) {
-        var other = (occ.all || []).filter(function (o) { return o.key === key; })[0];
-        if (other) {
-          var copy = {};
-          Object.keys(other).forEach(function (f) { copy[f] = other[f]; });
-          copy.mesh = sha;
-          mine = [copy];
+      var keys = [].concat(pins[sha]);
+      var mine = [];
+      keys.forEach(function (key) {
+        var own = (byMesh[sha] || []).filter(function (o) { return o.key === key; });
+        if (!own.length) {
+          var other = (occ.all || []).filter(function (o) { return o.key === key; })[0];
+          if (other) {
+            var copy = {};
+            Object.keys(other).forEach(function (f) { copy[f] = other[f]; });
+            copy.mesh = sha;
+            own = [copy];
+          }
         }
-      }
-      (byMesh[sha] || []).forEach(function (o) { if (o.key !== key) dropped[sha + "|" + o.key] = true; });
+        mine = mine.concat(own);
+      });
+      (byMesh[sha] || []).forEach(function (o) {
+        if (keys.indexOf(o.key) === -1) dropped[sha + "|" + o.key] = true;
+      });
       byMesh[sha] = mine;
     });
     return {

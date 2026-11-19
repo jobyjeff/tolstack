@@ -13666,12 +13666,39 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       const w = document.querySelector("#annotate-flyout iframe").contentWindow;
       return w.AnnotateApp.exec(["scene-view"]).filter((r) => r.visible).length >= n;
     }, model.parts.length, 120000);
+    // The meshes the model's parts are, resolved as the scene resolves them
+    // (a mesh's own part id, then the alias table), and how many places each
+    // is declared at. Two parts may be one mesh at two places (the two NAS77A3
+    // flanged bushings, the two 214820-002 straight ones, 2026-11-19), so the
+    // count is of meshes, and each such mesh is drawn at both its places.
+    const aliasRows = index.aliases.aliases || index.aliases;
+    const meshOf = (id) => index.meshes.find((m) => m.part_id === id) ||
+      aliasRows.filter((a) => a.topology_part === id)
+        .map((a) => index.meshes.find((m) => m.part_id === a.mesh_part_id)).find(Boolean) || null;
+    const modelMeshes = {};
+    for (const part of model.parts || []) {
+      const mesh = meshOf(part.id);
+      if (!mesh) continue;
+      const at = modelMeshes[mesh.sha256] = modelMeshes[mesh.sha256] || { parts: [], declared: [] };
+      at.parts.push(part.id);
+      if (part.occurrence && at.declared.indexOf(part.occurrence) === -1) at.declared.push(part.occurrence);
+    }
+    const shared = Object.keys(modelMeshes).filter((sha) => modelMeshes[sha].parts.length > 1);
+    const drawsTheModel = (drawn) => {
+      const shas = drawn.map((r) => r.sha).sort().join();
+      return shas === Object.keys(modelMeshes).sort().join() && shared.every((sha) => {
+        const row = drawn.find((r) => r.sha === sha);
+        return !!row && (!modelMeshes[sha].declared.length ||
+          row.at === modelMeshes[sha].declared.length);
+      });
+    };
     const rest = await drawnSettled();
     const pinned = (model.parts || []).filter((p) => p.occurrence).length;
     console.log(`      [${label}] at rest: ${rest.length} meshes drawn for ${model.parts.length} parts ` +
-      `(${pinned} with a declared occurrence)`);
+      `(${pinned} with a declared occurrence; ${Object.keys(modelMeshes).length} meshes, ` +
+      `shared ${JSON.stringify(shared.map((sha) => [modelMeshes[sha].parts, (rest.find((r) => r.sha === sha) || {}).at]))})`);
     push("[real] the end-stop model at rest draws as many parts as it has, and no context",
-      rest.length === model.parts.length);
+      drawsTheModel(rest));
 
     // The P2 run, loaded with no study.
     const runId = study.sweep.run_id;
@@ -13710,7 +13737,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     // (hideOutsideModel, the skip that keeps a carried bolt shut, the frame's
     // `outside` term) are what keep the context out once the run poses it.
     push("[real] with the P2 run loaded the end-stop model still draws as many parts as it has, " +
-      "and no context", sweepDrawn.length === model.parts.length);
+      "and no context", drawsTheModel(sweepDrawn));
     // And every part of one of its rigid bodies is posed WITH that body: a
     // part the model folds into a body the run's own part list does not name
     // (the piston heads into the plate, the cover into the base) rides that
