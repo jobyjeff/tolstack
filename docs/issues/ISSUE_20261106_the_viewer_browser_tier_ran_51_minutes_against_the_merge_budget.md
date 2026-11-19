@@ -307,3 +307,15 @@ the deferred kinematic-reload flake (27/27 on `--only`). The four slowest
 suites: the DAG zoom, Fit and the grid header 162.2 s; topology http 157.7 s;
 topology file:// 103.0 s; 3D pane follows the selection 100.9 s. v2 grew 40 → 56
 edges in this diff.
+
+## Measurement, 2026-11-19 (triage batch merge, `dispatch/docs/sessions/lessons/LESSONS_20261119_triage_sweep.md`)
+
+`node scripts/run_viewer_browser_tests.mjs`, whole tier, main checkout at
+merged trunk `f510260e637d`: **1809 s** by the shell's clock (runner TOTAL
+1806.2 s) against the 1800 s budget; `suite-time record` answered `OVER BUDGET
+by 0m09s`. 45/46 suites, the one red the filed map pin-hover check
+(`ISSUE_20261118_the_map_pin_hover_real_check_is_red_on_integration.md`). The
+four slowest suites: the model drawn alone 194.1 s; topology http 149.5 s;
+topology file:// 128.0 s; annotate rail holds still 98.4 s. The 11-19 review
+runs of `the_pitch_plate_is_an_assembly_with_its_bushings` were 1829 s and
+1823 s, so the tier now sits at or just over the cap on every whole run.

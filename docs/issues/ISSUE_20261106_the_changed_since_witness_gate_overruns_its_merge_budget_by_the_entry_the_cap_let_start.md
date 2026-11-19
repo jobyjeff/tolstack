@@ -171,3 +171,12 @@ five of the 40 were browser entries; the other 35 were fast and annotate.
       34s  annotate__requiredsurfaceclass-reads-tests-fixtures-suggestion-rul__f8afcded
       32s  fast__real-re-laying-the-product-model-s-walk-in-its-own-order__e8cbf7f8
 ```
+
+## Measurement, 2026-11-19 (triage batch merge, `dispatch/docs/sessions/lessons/LESSONS_20261119_triage_sweep.md`)
+
+`node scripts/run_mutation_witness_tests.mjs --changed-since 9eb46002fd57913fa40e0dbdc5896783a8b0313f --budget-min 30`,
+main checkout at trunk `f510260e637d`: **1801 s** wall (runner: 60/119 reached
+in 29m11s, 60/60 witnessed, 59 left to the sweep, exit 0). `suite-time
+record` answered `OVER BUDGET by 0m01s`, the same overrun-by-the-last-entry
+shape this issue names. Slowest entry: `browser__real-a-bound-feature-s-body-is-one-line-naming-its-face__a2a7fb36`
+4m18s.
