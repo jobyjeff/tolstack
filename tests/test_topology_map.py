@@ -97,10 +97,17 @@ def test_an_authored_file_overrides_only_the_places(v2):
     assert doc["places"] != B.computed_map_places(v2)
 
 
+#: Children v2's layout places in cells of their own (2026-11-18,
+#: the_pitch_plate_is_an_assembly_with_its_bushings): the plate assembly's
+#: members in a row beside it. Every other child sits in its parent's cell.
+V2_PLACED_CHILDREN = {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a_tan_link"}
+
+
 def test_v2s_layout_places_every_top_level_part_and_nothing_else(v2):
     doc = B.load_topology_map(TOPOLOGIES_DIR, v2)
     top_level = {p.id for p in v2.parts if p.parent is None}
-    assert set(doc["places"]) == top_level
+    assert set(doc["places"]) == top_level | V2_PLACED_CHILDREN
+    assert all(v2.part(c).parent == "pitch_plate_215177_001" for c in V2_PLACED_CHILDREN)
     for place in doc["places"].values():
         assert isinstance(place, list) and len(place) == 2
         assert all(isinstance(v, int) and v >= 0 for v in place)

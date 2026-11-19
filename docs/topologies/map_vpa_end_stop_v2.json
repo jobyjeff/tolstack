@@ -4,7 +4,7 @@
   "description": "Where each part's box sits on the map's coarse grid, [column, row]. Everything else the map draws -- box sizes, pin sides, districts, outlines, routes and bundles -- is computed from the model (apps/viewer/map.js; docs/DAG_TOPOLOGY.md, \"The map\"). The map is a second drawing of the same model, never a second model.",
   "provenance": {
     "authored_by": "handoff the_map_draws_the_end_stop_model, 2026-11-16; re-placed tall by handoff the_map_is_portrait_as_jeff_drew_it, 2026-11-17",
-    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): three columns by seven rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body the right column in the same sense -- pitch plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle; the tangential link between its mount and the pitch plate; the pitch link, the pitch arm and the blade down the right below the plate, the hub to blade joint along the bottom. A bearing with no place of its own sits under its link, and the plate's machined detail and its two flanged bushings sit under the plate assembly. The two straight bushings, top-level parts (2026-11-18, handoff the_pitch_plate_is_an_assembly_with_its_bushings), take the free cells of the middle column beside the plate: the tangential link's above the tangential link, the pitch link's below it, each next to the joint it is in."
+    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): three columns by seven rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body the right column in the same sense -- pitch plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle; the tangential link between its mount and the pitch plate; the pitch link, the pitch arm and the blade down the right below the plate, the hub to blade joint along the bottom. A bearing with no place of its own sits under its link. The pitch plate assembly's members run in a row to the plate's right, two more columns (2026-11-18, handoff the_pitch_plate_is_an_assembly_with_its_bushings): the tangential link's flanged bushing, then the machined plate both attachments' bushings sit in, so the assembly's outline is one row and holds nothing else; the pitch link's flanged bushing has no place and sits under the plate, beside its route to the pitch link; the two straight bushings, top-level parts, sit above the row. Of every placement of the five in those two columns, these three were the only ones the map draws with no route through a box (the other two differ in the tangential link's straight bushing alone); every place of the sketch's arrangement is unchanged."
   },
   "places": {
     "piston_cover_214958_002": [0, 0],
@@ -19,7 +19,9 @@
     "pitch_arm": [2, 5],
     "blade_root": [2, 6],
     "tan_link_212956_005": [1, 3],
-    "straight_bushing_214820_002": [1, 2],
-    "bushing_214820_002": [1, 4]
+    "flanged_bushing_nas77a3_015a_tan_link": [3, 3],
+    "pitch_plate_215735_001": [4, 3],
+    "straight_bushing_214820_002": [4, 2],
+    "bushing_214820_002": [4, 1]
   }
 }

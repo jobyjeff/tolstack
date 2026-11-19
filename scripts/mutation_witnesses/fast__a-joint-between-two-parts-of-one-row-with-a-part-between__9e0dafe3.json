@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a joint between two parts of one row with a part between them leaves by the row's flank and runs under that part, so no route is drawn through a box it does not end on",
+  "mutations": [
+    {
+      "contract": "A feature whose every interface is with a part in its own row beyond a part between them takes the row's outer flank.",
+      "note": "Declared with the guard by handoff the_pitch_plate_is_an_assembly_with_its_bushings (2026-11-18). Without the row's flank, the pitch plate assembly's tangential-link flanged bushing -- pinned to the plate's attachment bore with the machined plate between them in model v2's row -- leaves its side straight into the machined plate.",
+      "file": "apps/viewer/map.js",
+      "find": "      else if (ways.every(function (w) { return w === \"row\"; })) side = rowFlankOf(placeOf[f.part][1]);",
+      "replace": "      else if (ways.every(function (w) { return w === \"row\"; })) side = side;",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md"
+    }
+  ]
+}

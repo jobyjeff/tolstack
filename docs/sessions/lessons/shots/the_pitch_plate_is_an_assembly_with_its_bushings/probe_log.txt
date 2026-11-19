@@ -1,0 +1,30 @@
+counts {"bodies":5,"parts":20,"features":67,"dimensions":49,"interfaces":36}
+boxes hub, tan_link_mount_215175_002, gas_spring_mount_213668_002, blade_root, pitch_arm, pitch_plate_215177_001, flanged_bushing_nas77a3_015a, pitch_plate_215735_001, flanged_bushing_nas77a3_015a_tan_link, bushing_214820_002, straight_bushing_214820_002, gas_spring_piston_214700_002, pitch_link, spherical_bearing_pitch_link, tan_link_212956_005, spherical_bearing_tan_link, spherical_bearing_tan_link_ms14103_3, piston_head_lower_214699_002, piston_head_upper_214698_002, piston_cover_214958_002
+assembly outlines , , 
+  pitch_link_flanged_bushing_press_fit: drawn as press_fit
+  pitch_link_straight_bushing_transition_fit: drawn as transition_fit
+  pitch_link_flanged_bushing_bore_to_attach_bore: drawn as pin_in_bore
+  pitch_link_straight_bushing_bore_to_flanged_bushing_bore: drawn as pin_in_bore
+  tan_link_flanged_bushing_press_fit: drawn as press_fit
+  tan_link_straight_bushing_transition_fit: drawn as transition_fit
+  tan_link_flanged_bushing_bore_to_attach_bore: drawn as pin_in_bore
+  tan_link_straight_bushing_bore_to_flanged_bushing_bore: drawn as pin_in_bore
+routes crossing a box (each is the box's own pin or a defect, read the shot): 
+    pitch_link_flanged_bushing_bore_to_attach_bore -> flanged_bushing_nas77a3_015a
+    pitch_link_straight_bushing_bore_to_flanged_bushing_bore -> flanged_bushing_nas77a3_015a_tan_link
+    tan_link_flanged_bushing_bore_to_attach_bore -> pitch_plate_215177_001
+    tan_link_straight_bushing_bore_to_flanged_bushing_bore -> flanged_bushing_nas77a3_015a_tan_link
+  shot 01_landing_3840_side_by_side.png
+  shot 02_pitch_plate_district.png
+3. hover pitch_link_flanged_bushing_press_fit: map hot 2, tree hot 0, grid lead 1
+4. hover pitch_link_straight_bushing_transition_fit: map hot 2, tree hot 0, grid lead 1
+5. hover pitch_link_flanged_bushing_bore_to_attach_bore: map hot 2, tree hot 0, grid lead 1
+6. hover pitch_link_straight_bushing_bore_to_flanged_bushing_bore: map hot 2, tree hot 0, grid lead 1
+7. hover tan_link_flanged_bushing_press_fit: map hot 2, tree hot 0, grid lead 1
+8. hover tan_link_straight_bushing_transition_fit: map hot 2, tree hot 0, grid lead 1
+9. hover tan_link_flanged_bushing_bore_to_attach_bore: map hot 2, tree hot 0, grid lead 1
+10. hover tan_link_straight_bushing_bore_to_flanged_bushing_bore: map hot 2, tree hot 0, grid lead 1
+11. select the pitch plate assembly in the tree: map selected 37, tree on 30
+   preview: Point at a part, a pin, a line or a row to preview it here; click to keep it.
+   tree parts: pitch_plate_215177_001 (215177-001 pitch plate assembly3 parts · 5 features) | pitch_plate_215735_001 (215735-001 pitch plate4 features) | flanged_bushing_nas77a3_015a (flanged bushing, pitch link2 features) | flanged_bushing_nas77a3_015a_tan_link (flanged bushing, tangential link2 features) | bushing_214820_002 (214820-002 straight bushing, pitch link2 features) | straight_bushing_214820_002 (214820-002 straight bushing, tangential link2 features)
+  shot 11_pitch_plate_selected.png

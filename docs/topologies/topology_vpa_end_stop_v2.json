@@ -1106,132 +1106,6 @@
       "note": "Value to come from 215177-001's drawing."
     },
     {
-      "id": "pitch_link_flanged_bushing_press_fit",
-      "name": "outer cylinder in pitch link flanged bushing bore",
-      "kind": "gap",
-      "interface": "press_fit",
-      "from": "pitch_link_flanged_bushing_od",
-      "to": "pitch_plate_link_flanged_bushing_bore",
-      "note": "The flanged bushing pressed into the plate: part of the 215177-001 assembly. No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B C and \u00d80.1 A, datum G (5X individually); NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event). The meshes are 7.965 in 7.950, an interference, never a value."
-    },
-    {
-      "id": "pitch_link_straight_bushing_transition_fit",
-      "name": "outer cylinder in pitch link straight bushing bore",
-      "kind": "gap",
-      "interface": "transition_fit",
-      "from": "pitch_link_straight_bushing_od",
-      "to": "pitch_plate_link_straight_bushing_bore",
-      "note": "The straight bushing in the plate's other bore: a transition fit, so it could fall out before the fastener is in, which is why it is installed at the top level (Jeff). No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually); 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/. The meshes are 8.506 in 8.520, never a value."
-    },
-    {
-      "id": "pitch_plate_link_bushing_bores_position",
-      "name": "pitch link flanged bushing bore to pitch link straight bushing bore",
-      "kind": "structural",
-      "part": "pitch_plate_215735_001",
-      "from": "pitch_plate_link_flanged_bushing_bore",
-      "to": "pitch_plate_link_straight_bushing_bore",
-      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually), against the flanged bore as its datum."
-    },
-    {
-      "id": "pitch_link_flanged_bushing_wall",
-      "name": "outer cylinder to bore",
-      "kind": "structural",
-      "part": "flanged_bushing_nas77a3_015a",
-      "from": "pitch_link_flanged_bushing_od",
-      "to": "pitch_link_flanged_bushing_bore",
-      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
-    },
-    {
-      "id": "pitch_link_straight_bushing_wall",
-      "name": "outer cylinder to bore",
-      "kind": "structural",
-      "part": "bushing_214820_002",
-      "from": "pitch_link_straight_bushing_od",
-      "to": "pitch_link_straight_bushing_bore",
-      "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
-    },
-    {
-      "id": "pitch_link_flanged_bushing_bore_to_attach_bore",
-      "name": "bore to pitch link bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "pitch_link_flanged_bushing_bore",
-      "to": "pitch_plate_link_attach_bore",
-      "note": "The pitch link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
-    },
-    {
-      "id": "pitch_link_straight_bushing_bore_to_attach_bore",
-      "name": "bore to pitch link bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "pitch_link_straight_bushing_bore",
-      "to": "pitch_plate_link_attach_bore",
-      "note": "The pitch link bolt in the straight bushing's bore, the other end of the bolt from the flanged bushing; as that edge. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
-    },
-    {
-      "id": "tan_link_flanged_bushing_press_fit",
-      "name": "outer cylinder in tangential link flanged bushing bore",
-      "kind": "gap",
-      "interface": "press_fit",
-      "from": "tan_link_flanged_bushing_od",
-      "to": "pitch_plate_tan_link_flanged_bushing_bore",
-      "note": "The flanged bushing pressed into the plate: part of the 215177-001 assembly. No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B, datum C; NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event). The meshes are 7.965 in 7.950, an interference, never a value."
-    },
-    {
-      "id": "tan_link_straight_bushing_transition_fit",
-      "name": "outer cylinder in tangential link straight bushing bore",
-      "kind": "gap",
-      "interface": "transition_fit",
-      "from": "tan_link_straight_bushing_od",
-      "to": "pitch_plate_tan_link_straight_bushing_bore",
-      "note": "The straight bushing in the plate's other bore: a transition fit, so it could fall out before the fastener is in, which is why it is installed at the top level (Jeff). No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually); 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/. The meshes are 8.506 in 8.520, never a value."
-    },
-    {
-      "id": "pitch_plate_tan_link_bushing_bores_position",
-      "name": "tangential link flanged bushing bore to tangential link straight bushing bore",
-      "kind": "structural",
-      "part": "pitch_plate_215735_001",
-      "from": "pitch_plate_tan_link_flanged_bushing_bore",
-      "to": "pitch_plate_tan_link_straight_bushing_bore",
-      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually), against the flanged bore as its datum."
-    },
-    {
-      "id": "tan_link_flanged_bushing_wall",
-      "name": "outer cylinder to bore",
-      "kind": "structural",
-      "part": "flanged_bushing_nas77a3_015a_tan_link",
-      "from": "tan_link_flanged_bushing_od",
-      "to": "tan_link_flanged_bushing_bore",
-      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
-    },
-    {
-      "id": "tan_link_straight_bushing_wall",
-      "name": "outer cylinder to bore",
-      "kind": "structural",
-      "part": "straight_bushing_214820_002",
-      "from": "tan_link_straight_bushing_od",
-      "to": "tan_link_straight_bushing_bore",
-      "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
-    },
-    {
-      "id": "tan_link_flanged_bushing_bore_to_attach_bore",
-      "name": "bore to tangential link bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "tan_link_flanged_bushing_bore",
-      "to": "pitch_plate_tan_link_attach_bore",
-      "note": "The tangential link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_tan_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
-    },
-    {
-      "id": "tan_link_straight_bushing_bore_to_attach_bore",
-      "name": "bore to tangential link bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "tan_link_straight_bushing_bore",
-      "to": "pitch_plate_tan_link_attach_bore",
-      "note": "The tangential link bolt in the straight bushing's bore, the other end of the bolt from the flanged bushing; as that edge. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
-    },
-    {
       "id": "pitch_plate_pilot_to_piston_flange",
       "name": "pilot boss to piston body flange face",
       "kind": "structural",
@@ -1437,6 +1311,132 @@
       "from": "piston_head_upper_step_face",
       "to": "piston_cover_end_stop_shoulder",
       "note": "Value to come from nothing: it is the quantity an end-stop study computes, the clearance at the -7 deg stop with the heads on the feather stop."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_press_fit",
+      "name": "outer cylinder in pitch link flanged bushing bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "pitch_link_flanged_bushing_od",
+      "to": "pitch_plate_link_flanged_bushing_bore",
+      "note": "The flanged bushing pressed into the plate: part of the 215177-001 assembly. No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B C and \u00d80.1 A, datum G (5X individually); NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event). The meshes are 7.965 in 7.950, an interference, never a value."
+    },
+    {
+      "id": "pitch_link_straight_bushing_transition_fit",
+      "name": "outer cylinder in pitch link straight bushing bore",
+      "kind": "gap",
+      "interface": "transition_fit",
+      "from": "pitch_link_straight_bushing_od",
+      "to": "pitch_plate_link_straight_bushing_bore",
+      "note": "The straight bushing in the plate's other bore: a transition fit, so it could fall out before the fastener is in, which is why it is installed at the top level (Jeff). No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually); 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/. The meshes are 8.506 in 8.520, never a value."
+    },
+    {
+      "id": "pitch_plate_link_bushing_bores_position",
+      "name": "pitch link flanged bushing bore to pitch link straight bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_link_flanged_bushing_bore",
+      "to": "pitch_plate_link_straight_bushing_bore",
+      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually), against the flanged bore as its datum."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "pitch_link_flanged_bushing_od",
+      "to": "pitch_link_flanged_bushing_bore",
+      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "pitch_link_straight_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "bushing_214820_002",
+      "from": "pitch_link_straight_bushing_od",
+      "to": "pitch_link_straight_bushing_bore",
+      "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_bore_to_attach_bore",
+      "name": "bore to pitch link bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_link_flanged_bushing_bore",
+      "to": "pitch_plate_link_attach_bore",
+      "note": "The pitch link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+    },
+    {
+      "id": "pitch_link_straight_bushing_bore_to_flanged_bushing_bore",
+      "name": "bore to flanged bushing bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_link_straight_bushing_bore",
+      "to": "pitch_link_flanged_bushing_bore",
+      "note": "The pitch link bolt runs through both bushings, so the straight bushing's bore is held coaxial with the flanged bushing's by the bolt; the bolt is not in this model. No value recorded. Value to come from both bores' bands and the bolt's shank."
+    },
+    {
+      "id": "tan_link_flanged_bushing_press_fit",
+      "name": "outer cylinder in tangential link flanged bushing bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "tan_link_flanged_bushing_od",
+      "to": "pitch_plate_tan_link_flanged_bushing_bore",
+      "note": "The flanged bushing pressed into the plate: part of the 215177-001 assembly. No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B, datum C; NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event). The meshes are 7.965 in 7.950, an interference, never a value."
+    },
+    {
+      "id": "tan_link_straight_bushing_transition_fit",
+      "name": "outer cylinder in tangential link straight bushing bore",
+      "kind": "gap",
+      "interface": "transition_fit",
+      "from": "tan_link_straight_bushing_od",
+      "to": "pitch_plate_tan_link_straight_bushing_bore",
+      "note": "The straight bushing in the plate's other bore: a transition fit, so it could fall out before the fastener is in, which is why it is installed at the top level (Jeff). No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually); 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/. The meshes are 8.506 in 8.520, never a value."
+    },
+    {
+      "id": "pitch_plate_tan_link_bushing_bores_position",
+      "name": "tangential link flanged bushing bore to tangential link straight bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_tan_link_flanged_bushing_bore",
+      "to": "pitch_plate_tan_link_straight_bushing_bore",
+      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually), against the flanged bore as its datum."
+    },
+    {
+      "id": "tan_link_flanged_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a_tan_link",
+      "from": "tan_link_flanged_bushing_od",
+      "to": "tan_link_flanged_bushing_bore",
+      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "tan_link_straight_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "straight_bushing_214820_002",
+      "from": "tan_link_straight_bushing_od",
+      "to": "tan_link_straight_bushing_bore",
+      "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
+    },
+    {
+      "id": "tan_link_flanged_bushing_bore_to_attach_bore",
+      "name": "bore to tangential link bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_flanged_bushing_bore",
+      "to": "pitch_plate_tan_link_attach_bore",
+      "note": "The tangential link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_tan_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+    },
+    {
+      "id": "tan_link_straight_bushing_bore_to_flanged_bushing_bore",
+      "name": "bore to flanged bushing bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_straight_bushing_bore",
+      "to": "tan_link_flanged_bushing_bore",
+      "note": "The tangential link bolt runs through both bushings, so the straight bushing's bore is held coaxial with the flanged bushing's by the bolt; the bolt is not in this model. No value recorded. Value to come from both bores' bands and the bolt's shank."
     }
   ],
   "notes": [

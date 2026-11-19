@@ -480,17 +480,32 @@
     // straight route misses that part (2026-11-17, the upper piston head on
     // the piston body with the lower head between). A feature whose every
     // interface is such a pair takes the column's outer flank, and its route
-    // runs beside the parts between (`detour`, step 7).
+    // runs beside the parts between (`detour`, step 7). Two parts in one ROW
+    // with a part between are the same case on its side (2026-11-18, the
+    // pitch plate assembly's bushings in a row beside it): the row's outer
+    // flank, top or bottom, and `rowDetour`.
     var rowsIn = {};
+    var columnsIn = {};
     Object.keys(placeOf).forEach(function (pid) {
-      if (!childless[pid]) (rowsIn[placeOf[pid][0]] = rowsIn[placeOf[pid][0]] || []).push(placeOf[pid][1]);
+      if (childless[pid]) return;
+      (rowsIn[placeOf[pid][0]] = rowsIn[placeOf[pid][0]] || []).push(placeOf[pid][1]);
+      (columnsIn[placeOf[pid][1]] = columnsIn[placeOf[pid][1]] || []).push(placeOf[pid][0]);
     });
     var lastColumn = Math.max.apply(null, Object.keys(placeOf).map(function (pid) { return placeOf[pid][0]; }));
+    var lastRow = Math.max.apply(null, Object.keys(placeOf).map(function (pid) { return placeOf[pid][1]; }));
+    var between = function (list, a, b) {
+      return (list || []).some(function (k) { return k > Math.min(a, b) && k < Math.max(a, b); });
+    };
+    // "column" or "row" for two cells in one column or one row with another
+    // part's cell between them, else false.
     var partBetween = function (p, q) {
-      if (!p || !q || p[0] !== q[0]) return false;
-      return (rowsIn[p[0]] || []).some(function (row) { return row > Math.min(p[1], q[1]) && row < Math.max(p[1], q[1]); });
+      if (!p || !q) return false;
+      if (p[0] === q[0] && between(rowsIn[p[0]], p[1], q[1])) return "column";
+      if (p[1] === q[1] && between(columnsIn[p[1]], p[0], q[0])) return "row";
+      return false;
     };
     var flankOf = function (column) { return column >= lastColumn - column ? "right" : "left"; };
+    var rowFlankOf = function (row) { return row >= lastRow - row ? "bottom" : "top"; };
     var farPartOf = function (iface, fid) {
       var other = (iface.ends || []).filter(function (e) { return e !== fid; })[0];
       return other && features[other] ? features[other].part : null;
@@ -505,9 +520,9 @@
       var first = ifaces[0];
       var farPart = farPartOf(first, f.id);
       var side = farPart && placeOf[farPart] ? sideTowards(placeOf[f.part], placeOf[farPart]) : "bottom";
-      if (ifaces.every(function (i) { return partBetween(placeOf[f.part], placeOf[farPartOf(i, f.id)]); })) {
-        side = flankOf(placeOf[f.part][0]);
-      }
+      var ways = ifaces.map(function (i) { return partBetween(placeOf[f.part], placeOf[farPartOf(i, f.id)]); });
+      if (ways.every(function (w) { return w === "column"; })) side = flankOf(placeOf[f.part][0]);
+      else if (ways.every(function (w) { return w === "row"; })) side = rowFlankOf(placeOf[f.part][1]);
       var pin = {
         id: f.id, part: f.part, node: f.node, label: f.name, side: side,
         counterpart: farPart,
@@ -718,11 +733,30 @@
       lane = round(lane + out * later * M.pinPitch);
       return [{ x: a.x, y: a.y }, p1, { x: lane, y: p1.y }, { x: lane, y: p2.y }, p2, { x: b.x, y: b.y }];
     };
+    // The same beside the parts between two in one row: a lane under (or
+    // over) every box between, on the row's flank.
+    var rowDetour = function (a, b, iface) {
+      var square = route(a, b, M);
+      var p1 = square[1], p2 = square[square.length - 2];
+      var out = rowFlankOf(placeOf[a.part][1]) === "bottom" ? 1 : -1;
+      var lo = Math.min(p1.x, p2.x), hi = Math.max(p1.x, p2.x);
+      var lane = out * Math.max(out * p1.y, out * p2.y);
+      boxes.forEach(function (box) {
+        if (box.id === a.part || box.id === b.part || box.x > hi || box.x + box.w < lo ||
+            !placeOf[box.id] || placeOf[box.id][1] !== placeOf[a.part][1]) return;
+        lane = out * Math.max(out * lane, out * (box.y + (out > 0 ? box.h : 0)) + M.stub);
+      });
+      var joint = (model.joints || []).filter(function (j) { return j.id === iface.joint; })[0];
+      var later = (joint ? joint.constraints.length : 1) - 1 - (constraintIndex[iface.id] || 0);
+      lane = round(lane + out * later * M.pinPitch);
+      return [{ x: a.x, y: a.y }, p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2, { x: b.x, y: b.y }];
+    };
     (model.interfaces || []).forEach(function (iface) {
       var ends = iface.ends || [];
       var a = pinById[ends[0]], b = pinById[ends[1]];
       if (!a || !b) { notes.push("interface " + iface.id + " has an end the map did not place"); return; }
-      var pts = partBetween(placeOf[a.part], placeOf[b.part]) ? detour(a, b, iface) : route(a, b, M);
+      var way = partBetween(placeOf[a.part], placeOf[b.part]);
+      var pts = way === "column" ? detour(a, b, iface) : way === "row" ? rowDetour(a, b, iface) : route(a, b, M);
       var symbol = VA.mapSymbolOf(iface);
       // A gap edge that states no interface word is a model gap (the gap
       // list names it), not a layout defect: its connector is drawn bare.

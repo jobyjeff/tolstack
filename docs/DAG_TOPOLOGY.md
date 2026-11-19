@@ -596,7 +596,7 @@ every reader of the directory globs `topology_*.json` for the models.
 **There is one arrangement per model, and v2's is tall** (Jeff, 2026-11-17: *"flip the
 map/dag to be portrait instead of landscape so it fits in the side-by-side
 view mode more nicely"*; handoff `the_map_is_portrait_as_jeff_drew_it`). v2's
-places follow his sketch of 2026-11-10: three columns by seven rows, the base
+places follow his sketch of 2026-11-10: three columns by seven rows (five since 2026-11-18, below), the base
 body a column on the left read upward as the hardware stacks (hub, tangential
 link mount, gas-spring mount, piston cover), the pitch plate body a column on
 the right in the same sense (pitch plate, piston body, lower head, upper
@@ -604,7 +604,11 @@ head), so the end-stop route runs across the top and the feather stop and the
 slide cross the middle; the tangential link between its mount and the pitch
 plate; the pitch link, the pitch arm and the blade down the right below the
 plate, the hub ↔ blade joint along the bottom. Side by side at 3840 × 2160 it
-fits the region's height. Nothing in the layout code assumes either shape: a
+fits the region's height. Since 2026-11-18 the pitch plate assembly's members
+run in a row to the plate's right (two more columns, rows 1 to 3, inside the
+pitch plate's district): the tangential link's flanged bushing, then the
+machined plate, with the pitch link's flanged bushing under the plate and the
+two straight bushings above the row; the sketch's places are unchanged. Nothing in the layout code assumes either shape: a
 pin's side is decided in cell units, a part's name takes whichever corner of
 its box its jumpers leave clear, and a child's row moves aside for a route
 out of its parent's bottom (below).
@@ -643,7 +647,11 @@ out of its parent's bottom (below).
   misses it, so a feature whose every interface is such a pair takes the
   column's outer flank, and its route runs out to a lane beside the boxes
   between and back. A joint's earlier constraints take the outer lanes, so its
-  bundle nests (`detour`).
+  bundle nests (`detour`). **Two parts of one row with another part between
+  them** are the same case on its side (2026-11-18: the pitch plate
+  assembly's bushings in a row beside it): the row's outer flank, the bottom
+  from the middle row down and the top above it, and a lane under or over the
+  boxes between (`rowDetour`).
 - **A district per body**: the body's parts' boxes, padded, held inside the
   union of its cells inset — so two adjacent bodies' districts never touch and
   a body with one small part has a small district; named at its corner. **An
@@ -1178,7 +1186,7 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 20 parts, 52 interfaces, 70 edges, 21 branch points, 19 grounded
+The graph: 20 parts, 52 interfaces, 70 edges, 23 branch points, 19 grounded
 loops, 21 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
@@ -1280,8 +1288,9 @@ At each of the two attachments (blade 1's pitch link and the drawn tangential
 link) the plate has two lug bores, 215735 A's Ø7.950 for the flanged bushing
 and Ø8.520 for the straight one; each bushing's outer cylinder sits in its
 bore by a `press_fit` or a `transition_fit` gap, its wall joins its outer
-cylinder to its bore, and each bore carries the bolt to the attachment's own
-bore by a `pin_in_bore`, since the bolt is not in the model. No edge gains a
+cylinder to its bore, and the bolt, which is not in the model, is two
+`pin_in_bore` gaps: the flanged bushing's bore to the attachment's own bore,
+and the straight bushing's bore to the flanged one's. No edge gains a
 dimension; each fit's note cites the bore's callout and names the bushing's
 band as a gap. Six NAS77A3 occurrences, the NAS77A4 and six 214820-002
 occurrences are at attachments the model does not draw and are left out.
