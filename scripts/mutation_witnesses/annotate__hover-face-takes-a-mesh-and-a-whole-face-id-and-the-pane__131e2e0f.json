@@ -6,10 +6,10 @@
     {
       "contract": "`hover face <mesh> <face>` carries the face it washes.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
-      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Dropping the parsed face id leaves a verb that validates and then washes nothing.",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Dropping the parsed face id leaves a verb that validates and then washes nothing. Re-pointed 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): the verb now parses several ids into faceIds, and faceId is the first.",
       "file": "apps/annotate/commands.js",
-      "find": "      out.faceId = faceId;",
-      "replace": "      void faceId;"
+      "find": "      out.faceId = out.faceIds[0];",
+      "replace": "      void out.faceIds;"
     }
   ]
 }
