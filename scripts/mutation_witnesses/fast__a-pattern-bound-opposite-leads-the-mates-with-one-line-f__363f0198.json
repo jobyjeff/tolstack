@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a pattern bound opposite leads the mates with one line for the whole set: its hover lights every face, its look frames them and its Take binds them all",
+  "mutations": [
+    {
+      "contract": "A pattern row's Take names every face of the set, so the pane binds the whole pattern as one event.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). Takes only the set's first face.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "          command: [V.take, mates.edgeId, mates.direction, r.sha256, ids[0], topologyId].concat(ids.slice(1)) }] };",
+      "replace": "          command: [V.take, mates.edgeId, mates.direction, r.sha256, ids[0], topologyId] }] };"
+    }
+  ]
+}
