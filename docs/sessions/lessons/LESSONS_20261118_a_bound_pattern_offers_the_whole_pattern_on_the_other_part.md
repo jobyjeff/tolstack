@@ -118,7 +118,41 @@ Shots: `docs/sessions/lessons/shots/a_bound_pattern_offers_the_whole_pattern_on_
 - `parseHover("face", …)` now always returns `faceIds`. The one fast check
   that pinned the old shape was updated.
 
-## Test record
+## Test record (worktree; real data read through `--repo C:/workspace/tolstack`)
 
-See the report in this session's hand-back. The counts are copied there from
-each run's own output.
+- `node apps/annotate/run_tests.cjs`: **331/331** (4 new checks).
+- `node apps/viewer/run_tests.cjs`: **504/504**. The node-fs `[real]` tier was
+  **skipped** because a worktree has no projection; it is the review's job.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "a bound pattern offers the whole pattern"`:
+  **4/4**, 29 s.
+- Witness, one run over the 11 added or changed guards with `--repo`: **8/11**
+  witnessed (4 annotate, 4 browser).
+  - The hover-face spec's anchor had moved, so I re-pointed it.
+  - The two viewer-fast specs were red on their clean run, for the provenance
+    reason the 11-15 lesson gives.
+  - All three again **without** `--repo`: **3/3**.
+- `pytest -q` caught three more specs whose anchors this change moved
+  (armed mates pre-lit, the wash's part guard, the rail Take). I re-pointed
+  each to the same mutation and ran them with the candidate-row hover spec:
+  **1/4** witnessed.
+  - The other three are **not witnessed here**: their suites' clean runs are
+    red ("hovering a suggestion line…" and "the topology-level rail shows a
+    suggestion…").
+  - Both fail identically on a `git archive` export of the branch point
+    044a2fe1, so they are pre-existing. They are filed as
+    `ISSUE_20261108_the_rail_suggestion_real_check_finds_…` and
+    `ISSUE_20261117_the_suggestion_names_its_face_suite_flakes_…`.
+  - Integration has since merged `the_suggestion_and_take_real_checks_wait_on_a_settled_tree`
+    for exactly these. The review's post-merge witness gate is where they get
+    proved; this branch merges cleanly with that integration (`git merge-tree`).
+- `PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rs`:
+  **2 failed, 2282 passed, 1 skipped, 4 deselected, 457 s**, recorded as
+  inside budget. The installed pytest has no xdist, so `-n 16` was refused.
+  - The failures were `test_viewer_js_suite_is_green` (the expected worktree
+    red) and `test_every_anchor_resolves_to_exactly_one_place` (the three
+    anchors above).
+  - After the re-point, `tests/test_mutation_witnesses.py` passes **49/49**.
+  - The skip is `test_fit_bound_features.py:433`, as on the predecessor.
+- Census pins: annotate 327 → 331, fast 603 → 604, and browser 774/747 →
+  779/752. One of the five browser names is the suite's literal-`true` skip
+  push, which no mutation can witness.
