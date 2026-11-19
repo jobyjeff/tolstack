@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: annotate / binding flow
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page.md
+defer_until: 2026-12-19
+class: walk_small_findings
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # Small findings of the binding-flow and pitch-plate walk (2026-11-19)

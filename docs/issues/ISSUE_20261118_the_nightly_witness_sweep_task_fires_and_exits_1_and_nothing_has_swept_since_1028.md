@@ -38,3 +38,15 @@ question belongs with the server laptop's flip
 Wanted: the reason for the refusal, read once; then either the sweep runs
 nightly on a current tree and its result is visible on the board, or the task
 is removed and the sweep is scheduled where the current tree lives.
+
+## 2026-11-19 triage sweep -- left open for dispatch's slot
+
+The defect is live (the task's last result was 1 on 11-18; the workstation
+has no `data/witness_sweeps.jsonl`, and the laptop's last row is 10-28). It
+has outcome evidence (a failed scheduled run, nightly), but nothing in it is
+tolstack's to change: the job is a `[[job]]` in dispatch's registry, the
+laptop host was set up by dispatch's `the_laptop_hosts_the_witness_sweep`
+(`dispatch/docs/machines/LXW-1R97Z33.md`), and `run_job.ps1` exit 1 is
+dispatch's board refusing the start. Routed to the sweep coordinator for a
+dispatch handoff; that handoff's path goes in `handoff:` here
+(`dispatch/docs/sessions/...`) when it is staged.

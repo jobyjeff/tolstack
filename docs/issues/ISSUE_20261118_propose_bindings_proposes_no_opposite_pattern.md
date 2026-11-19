@@ -1,11 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: closed
 area: scripts/propose_bindings
 reporter: agent
-audience: strategy
 found_by: docs/sessions/HANDOFF_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md
+resolution: closed 2026-11-19 (triage): below the brief bar (single-repo, reversible); triage takes the issue's own option (b) -- agents propose one hole and the pane's opposite-pattern row offers the whole set; reopen when an agent proposal run needs a whole pattern
 ---
 
 # propose_bindings.py does not propose the whole pattern opposite a bound one

@@ -1,10 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer shell / feature body candidate list
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page.md
+handoff: docs/sessions/HANDOFF_20261119_the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds.md
+class: ranked_mates_coverage_gap
 ---
 
 # A joint end's feature body in the tree shows none of the contact faces the pane holds for its edge

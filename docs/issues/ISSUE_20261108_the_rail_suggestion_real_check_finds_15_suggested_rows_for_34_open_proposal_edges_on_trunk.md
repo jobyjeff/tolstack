@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: high
-status: open
+status: resolved
 area: annotate/browser-tier
 reporter: agent
 class: browser_red_on_trunk
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261108_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261108_the_rail_suggestion_check_counts_what_the_rail_is_meant_to_show.md
+resolution: superseded by a0c7cc58 -- the 11-18 red does not reproduce on trunk: 19/19 on --only (30 rows suggested for 30 open-proposal edges) and green in the 11-19 batch merge whole tier
 ---
 
 # The rail-suggestion `[real]` check finds 15 suggested rows for 34 open-proposal edges on trunk
@@ -88,3 +89,17 @@ is still WITNESSED under `--changed-since master`.
 ## 2026-11-18 addendum (the_suggestion_and_take_real_checks_wait_on_a_settled_tree)
 
 Red again on `69c6f779`, scratch-free, against the main checkout's `data/projections/` via `--repo C:/workspace/tolstack`: `--only "annotate rail suggestion"` is 18/19, the failing sub-check `[real] the topology-level rail shows a suggestion on every edge with an open proposal`. Deterministic on three runs (whole tier, alone, and the unmodified baseline script), so it is data, not timing. This file is `resolved`; whoever picks the check up again should reopen it.
+
+## 2026-11-19 triage sweep -- not reproduced on trunk
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "annotate rail suggestion"`
+in the main checkout on trunk `a0c7cc58` (projections as the 11-19 batch merge
+rebuilt them): **19/19, PASS**, 34.7 s. The line it printed:
+`topology-level rail ("all 99 interfaces — no study scopes them"): 30 rows read suggested; vpa_pitch_linkage has 30 edges with 42 open ends`.
+The 11-19 batch merge's whole tier (45/46) had the map pin-hover check as its
+only red, so this suite was green there too. The 11-18 red's cause was not
+proved; between it and now the batch merge brought the settled-tree waits
+(`b3a32f63`, `d309589c`) and the shared-mesh place fixes (`0717cb0d`,
+`2560a437`) to trunk and the projections were rebuilt (34 open-proposal
+edges then, 30 now). Resolved as superseded; reopen if it reddens on a
+settled tree again.

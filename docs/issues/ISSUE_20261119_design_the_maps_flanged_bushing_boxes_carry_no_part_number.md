@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
+defer_until: 2026-12-19
+class: design_polish
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # Design: the map's two flanged bushing boxes carry no part number, and one bolt route cuts diagonally across the plate district

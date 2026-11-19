@@ -1,12 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser-truth
 class: browser_red_on_trunk
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md
-handoff: the_map_pin_hover_lights_its_bound_face_in_the_scene
+handoff: docs/sessions/HANDOFF_20261119_the_map_pin_hover_lights_its_bound_face_in_the_scene.md
 ---
 
 # The map suite's pin-hover `[real]` check is red on integration

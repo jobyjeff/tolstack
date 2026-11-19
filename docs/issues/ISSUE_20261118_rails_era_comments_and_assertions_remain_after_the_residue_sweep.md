@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: viewer
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_filmstrip_boots_on_the_map_and_the_rails_residue_goes.md
+defer_until: 2026-12-19
+class: dead_code_after_retirement
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # Rails-era names still sit in comments and unit-test fixtures

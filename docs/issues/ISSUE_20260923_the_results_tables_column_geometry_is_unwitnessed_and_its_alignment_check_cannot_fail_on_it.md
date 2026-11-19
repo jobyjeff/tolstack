@@ -6,8 +6,8 @@ area: viewer/stack-page
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
 class: guard_cannot_fail
-defer_until: 2026-11-18
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it | woke 2026-11-04 -- date trigger passed; re-triage | re-deferred 2026-11-04 (triage): med beyond this sweep's budget of 3; class has no program or its program already landed, so a date
+defer_until: 2026-12-03
+resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: deferred to 2026-11-04 -- med beyond this sweep's budget of 3; class program landed, so not re-deferrable onto it | woke 2026-11-04 -- date trigger passed; re-triage | re-deferred 2026-11-04 (triage): med beyond this sweep's budget of 3; class has no program or its program already landed, so a date | woke 2026-11-19 -- date trigger passed; re-triage | re-deferred 2026-11-19 (triage): med beyond budget of 3 (defect re-checked live on a0c7cc58)
 ---
 
 # The results table's column geometry is unwitnessed, and the browser check named for it cannot fail on it

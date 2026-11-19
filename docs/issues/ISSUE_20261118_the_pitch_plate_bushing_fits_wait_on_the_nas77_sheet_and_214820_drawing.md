@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: spec_library
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
+defer_until: 2026-12-19
+class: citation_authoring_gap
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # The pitch plate's four bushing fits wait on the NAS77 sheet and the 214820-002 drawing

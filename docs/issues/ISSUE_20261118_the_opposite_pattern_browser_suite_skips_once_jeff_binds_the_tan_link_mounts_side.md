@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: tests/browser (opposite pattern)
 class: real_check_bound_to_live_log_state
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md
+defer_until: 2026-12-03
+resolution: re-deferred 2026-11-19 (triage): med beyond budget of 3
 ---
 
 # The opposite-pattern browser suite stops running as soon as Jeff binds the tan link mount's side

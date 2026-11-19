@@ -1,12 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: topology/v2
 reporter: agent
-needs: jeff
-ask: Say whether the pitch arm seats on the blade root's shoulder, and what the piston body's top pockets are for
 found_by: docs/sessions/active/HANDOFF_20261117_the_blade_and_piston_joints_are_authored_as_what_the_parts_show.md
+audience: strategy
+strategy: dispatch/docs/strategy/HANDOFF_20261118_strategy.md
 ---
 
 # The blade and piston joints: two findings the meshes do not settle
@@ -50,3 +50,15 @@ One new fact bears on Q1. With the arm's clamp face bound in a scratch copy,
 the blade root's end offers faces 1079 and 6432 as "against pitch arm,
 0.025 mm apart". So the page treats the seat as a contact, which is the
 reading Q1 asks Jeff to confirm or reject.
+
+## 2026-11-19 triage sweep -- routed to strategy, off the task list
+
+The ask ("Say whether the pitch arm seats on the blade root's shoulder, and
+what the piston body's top pockets are for") asks for an answer an agent then
+authors from, so it fails the second half of the task-list test. `needs:` and
+`ask:` are dropped and the issue is `audience: strategy`. The strategy record
+`dispatch/docs/strategy/HANDOFF_20261118_strategy.md` already carries both
+questions as Needs-Jeff #96 (Q1, Q2), and they sit as D1 and D2 on
+`docs/sessions/lessons/REVIEW_20261118_the_binding_flow_and_the_pitch_plate.md`,
+the page Jeff reads. Whoever takes his answers authors the seat or the
+missing constraint and resolves this.

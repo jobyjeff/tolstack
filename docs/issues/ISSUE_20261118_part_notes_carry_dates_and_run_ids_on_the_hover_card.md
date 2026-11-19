@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: topologies/notes
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261117_a_joints_preview_says_what_the_joint_is.md
+defer_until: 2026-12-19
+class: internals_on_a_user_surface
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # Part notes in the pitch-linkage topology still carry dates, run ids and issue file names

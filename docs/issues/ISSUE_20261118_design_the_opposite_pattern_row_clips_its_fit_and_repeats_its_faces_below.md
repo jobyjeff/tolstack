@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md
+defer_until: 2026-12-19
+class: design_text_clipped
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # Design: the opposite-pattern row clips its fit, and its faces repeat below it

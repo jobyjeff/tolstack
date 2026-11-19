@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: topology/v2
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
+strategy: dispatch/docs/strategy/HANDOFF_20261118_strategy.md
 ---
 
 # Which part the pitch plate's two attachment bores sit on, now 215177 is an assembly
@@ -51,3 +52,13 @@ straight bushing (a transition fit, installed at the top level, per Jeff's
 11-17 note) sits. No bolt touches that bore. So pressing Keep on his own page
 before this is answered would bind the bushing's seat as the pitch link's
 bore. The page recommends (c), and Unbind first.
+
+## 2026-11-19 triage sweep -- routed to the strategy thread, no new brief
+
+This clears the brief bar (which part a feature belongs on is a domain call
+the meshes do not settle), but no open tolstack brief asks it and the
+question is already on Jeff's page as D6
+(`docs/sessions/lessons/REVIEW_20261118_the_binding_flow_and_the_pitch_plate.md`,
+recommendation (c)), inside the pitch-plate thread of
+`dispatch/docs/strategy/HANDOFF_20261118_strategy.md`. A second file would
+make it less decidable, not more. Linked there with `strategy:`.

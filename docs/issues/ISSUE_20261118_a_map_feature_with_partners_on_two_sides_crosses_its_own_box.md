@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: apps/viewer/map
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
+defer_until: 2026-12-19
+class: map_routing
+resolution: deferred 2026-11-19 (triage): low, deferred by default
 ---
 
 # A map feature whose interfaces go to two sides has one pin, and one route crosses its own box

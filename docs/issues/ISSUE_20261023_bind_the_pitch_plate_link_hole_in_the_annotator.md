@@ -41,3 +41,14 @@ first.
 
 The stake is small: at most +0.0019° at −7° and +0.0053° at +72° in worst case,
 with no verdict change, measured 2026-10-23.
+
+## 2026-11-19 triage sweep -- the ask still stands; its target waits on D6
+
+Left person-blocked: it is Jeff's click and it is done when he has bound it.
+Since this was filed Jeff has bound `pitch_plate_link_attach_bore` on the
+215177 assembly (events 0093-0100; it folds to a disagreement between faces
+1380/1381 and 1380/1381/1509/1510), and which part this bore finally sits on
+is now the open question
+`ISSUE_20261118_which_part_the_pitch_plates_attachment_bores_sit_on.md` (D6 on
+the 11-18 review page). The machined-plate face named in the ask is that
+issue's option (b).

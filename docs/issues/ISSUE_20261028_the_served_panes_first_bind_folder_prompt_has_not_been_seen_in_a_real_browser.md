@@ -1,13 +1,14 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: apps/annotate (HTTP transport, first-write grant)
 reporter: agent
 needs: jeff
 ask: In the viewer's 3D pane on port 8000, bind one face, pick the tolerance-stack folder when asked, and check the event file appears
 found_by: docs/sessions/HANDOFF_20261028_the_scene_pane_is_one_flyout_that_reads_over_http.md
 todo: 20261029T103459_anknms
+resolution: verified 2026-11-19 (triage): Jeff wrote 25 binds through the pane (events 0076-0100, 2026-11-12..18, recorded_by annotate-app:jeff); the folder grant in apps/annotate/storage/fsa.js is the only writer, so the first-bind prompt works in a real browser
 ---
 
 # The served pane's first-bind folder prompt has not been seen in a real browser
@@ -42,3 +43,12 @@ tolerance-stack folder in the picker, and confirm that a new file lands in
 `data/inbox/feature-identity/` and the pane's status word turns to "live".
 If the picker never opens, or the bind fails with an activation error, file
 the message here.
+
+## 2026-11-19 triage sweep -- seen, by use
+
+`data/inbox/feature-identity/` in the main checkout holds events 0076-0100,
+all `recorded_by: annotate-app:jeff`, written 2026-11-12 to 2026-11-18. The
+pane has one writer, the File System Access folder grant
+(`apps/annotate/storage/fsa.js`, `showDirectoryPicker`), so each of those
+files went through the path this issue said was unverified. Its todo
+(`20261029T103459_anknms`) is stale and can be withdrawn.
