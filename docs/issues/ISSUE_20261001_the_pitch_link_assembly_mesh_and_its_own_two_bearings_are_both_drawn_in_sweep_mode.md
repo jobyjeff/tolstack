@@ -53,3 +53,16 @@ is already drawing; or the row's evidence string says the overlap is accepted
 and why. Whichever way it goes, the `pitch_link` row's evidence answers the
 assembly-or-detail question in words, the way `pitch_plate_215177_001`'s row
 already does.
+
+## Addendum 2026-11-18 -- the class grew by three parts (the_pitch_plate_is_an_assembly_with_its_bushings)
+
+Model v2's 215177 pitch plate assembly now has children with their own mesh
+alias rows: the machined plate `pitch_plate_215735_001` (`asm217755_215735_001`,
+which is solid 0 of the assembly's `asm217755_215177_001` face for face) and two
+NAS77A3-015A flanged bushings (`asm217755_NAS77A3_015A` at NAS77C3-015.4 and
+.1, which are solids 4 and 1 of the same assembly mesh). Where the assembly and
+a child are both open, that solid is drawn twice in the same place. The
+handoff's suggestion -- a child naming a solid of its assembly's mesh rather
+than a mesh of its own -- is the fix shape this class has wanted since
+2026-10-01; the solids are known (provenance instance order = solid order on
+this mesh, measured).
