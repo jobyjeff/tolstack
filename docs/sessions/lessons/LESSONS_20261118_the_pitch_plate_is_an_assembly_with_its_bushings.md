@@ -199,3 +199,22 @@ Enovia children, which 215177 got for free from separate meshes.
 ## Blocked actions
 
 None.
+
+## Test record
+
+- **Default tier**, in this worktree:
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave 2371 passed, 2 failed, 1 skipped, 4 deselected, in 482 s (inside budget, recorded).
+  - `test_viewer_js_suite_is_green` failed on the worktree's skipped `[real]` tier,
+    which is expected here (CLAUDE.md). That tier was run separately against the scratch root, below.
+  - `test_mutation_witnesses.py::test_every_anchor_resolves_to_exactly_one_place`
+    failed because my map.js edit rotted the column-detour spec's anchor. I
+    re-pointed it, and the file then gave 49 passed.
+- **Fast tiers**, against a scratch root built from HEAD
+  (`C:/workspace/tolstack/data/scratch/ppab`, projection paired at 703984f6):
+  `node apps/viewer/run_tests.cjs --repo <it>` 605/605;
+  `node apps/annotate/run_tests.cjs --repo <it>` 331/331.
+- **Witness**, against the same root, `--only` both detour guards (the new row
+  guard, and the column guard whose anchor moved): 2/2 witnessed.
+- **Browser tier**: no browser suite was added or changed, so none was run.
+  The inspection probe is not a tier.
