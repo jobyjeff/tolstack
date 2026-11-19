@@ -93,7 +93,26 @@ All runs were in this worktree. The diff is docs only: the review page, this
 lesson, 20 shots and 7 issue files. No suite, guard or spec changed, so
 neither the browser runner nor the witness runner was run.
 
-(Results are filled in below from the runs' own output.)
+- **Default tier**, at `976888e4`:
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rs`
+  gave **1 failed, 2372 passed, 1 skipped, 4 deselected in 464.83 s**, single
+  process. It is recorded as `suite-time record --tier default --seconds 467`,
+  inside budget.
+  - The failure is the documented worktree red,
+    `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green` (the
+    node-fs tier finds no projection here). That tier was run armed (below).
+  - The skip is `tests/test_fit_bound_features.py:433` (the pitch-link
+    bearing's re-extraction is not installed), the same as the earlier walks'.
+- **Fast node tiers:**
+  - `node apps/viewer/run_tests.cjs`: 505/505, node-fs tier skipped (worktree).
+  - `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/walk1118`,
+    with a temporary `docs` junction into this worktree: **605/605**,
+    `[real]` armed. The junction was removed with `cmd /c rmdir` from
+    PowerShell, and the worktree's `docs` was checked to be intact.
+  - `node apps/annotate/run_tests.cjs`: **331/331**.
+- **Not run:** the browser runner and the witness runner, because no suite,
+  guard or spec changed. A review of a docs-only diff runs the two fast tiers
+  only.
 
 ## Found on arrival
 
