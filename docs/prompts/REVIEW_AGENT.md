@@ -6169,6 +6169,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       2026-11-18 v1 went from 26/35 to 27/35. Compare the builder's
       `parts with an installed mesh` line for BOTH models, before and after,
       whenever the alias file changes under a handoff fenced off v1.
+- [ ] **"A part is open" is not "the pane is settled".** The pane runs every
+      `annotate:exec` through one serial `AA.ExecQueue`, and `isolate parts`
+      (opening a model) loads the rest of the mesh store inside that one
+      entry, so a `light` posted after `listOpenParts().length > 0` can wait
+      tens of seconds. A `[real]` check asserting what the scene draws soon
+      after the pane opens settles first by posting a read-only command
+      (`scene-view`) through the queue and awaiting its `annotate:result`
+      (the map suite's pin hover, 2026-11-19). Ask it of any new short scene
+      wait that follows a pane open.
 
 ## Architectural errors to check
 

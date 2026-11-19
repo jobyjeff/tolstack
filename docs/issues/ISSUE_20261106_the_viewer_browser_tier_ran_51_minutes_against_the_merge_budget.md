@@ -319,3 +319,11 @@ four slowest suites: the model drawn alone 194.1 s; topology http 149.5 s;
 topology file:// 128.0 s; annotate rail holds still 98.4 s. The 11-19 review
 runs of `the_pitch_plate_is_an_assembly_with_its_bushings` were 1829 s and
 1823 s, so the tier now sits at or just over the cap on every whole run.
+
+## 2026-11-19 measurement (review, the_map_pin_hover_lights_its_bound_face_in_the_scene)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, review
+worktree at `c43c42a3` (tree `e85d36c8`): 46/46, 1850 s on the runner's own ledger
+row (`2026-11-19T22:19:34Z`), over the 1800 s budget by 50 s. Top suites: 3D pane
+follows the selection 237.5 s; every study opens in 3D 191.2 s; the model drawn
+alone 185.1 s; topology http 120.1 s; topology file:// 105.7 s.
