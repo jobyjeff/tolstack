@@ -364,7 +364,7 @@ export const DECLARED_GUARDS = {
   // both +1 from 601, so 603; names digest re-measured on the merge.
   // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): +1 --
   // a pattern bound opposite is one line whose Take names the set. It carries a spec.
-  fast: { declared: 604, enrollable: 604, names: "ad2da6e8776b" },
+  fast: { declared: 605, enrollable: 605, names: "de0f2d0d8c87" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
