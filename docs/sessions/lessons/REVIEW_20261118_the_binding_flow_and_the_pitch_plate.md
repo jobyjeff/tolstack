@@ -40,6 +40,15 @@ each one read before its row was written. Issues are cited by name.
   do nothing": your log holds five Keep events (0096–0100) from five presses.
   Filed: `ISSUE_20261118_a_bind_on_the_pitch_plate_takes_ten_to_forty_seconds_to_write`
   (addendum).
+
+  > **Correction, 2026-11-19 (review).** The wait is not why Keep "seemed to
+  > do nothing" on 11-17. On the page you used then, Keep wrote a plain bind
+  > with no `supersedes`, so it could never settle a disagreement however long
+  > you waited: your Keep events 0096–0100 carry no `supersedes`, and this
+  > walk's Keep (scratch 0101) supersedes all eight. That was fixed by
+  > `a_disagreement_is_settled_by_keep_or_let_go`, the cause its handoff
+  > traced. The 20–27 s with nothing on screen is real and still filed; it is
+  > the next thing a Keep press will feel like, not what happened on 11-17.
 - **The first end of every joint offers nothing.** The contact engine has the
   right faces for 20 of the model's 21 fits. For blade boss ↔ arm bore it has
   exactly 1060/1061 and 253/254. But the tree shows only "Pick a face", so you

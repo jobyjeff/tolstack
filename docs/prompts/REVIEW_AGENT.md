@@ -706,6 +706,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the clip was fixed, which it was (`4aef1610`). Re-shoot the demo phase on
       the merged tree (`node tests/debug_integration_walk_20261108.mjs --phase
       demo --shots <scratch>`, about 2 min), then read your shot against theirs.
+      **...and a walk's "that is why" about what Jeff saw is about trunk's
+      code at his event's `created_at`, not the merged code.** The 11-18 walk
+      blamed his "Keep seemed to do nothing" on a 23 s write it measured on
+      integration; his Keep events 0096–0100 carried no `supersedes` because the
+      code on master then wrote none (the cause the Keep handoff had already
+      traced). Diff his events' fields against the walk's, and date them against
+      `git reflog show master --date=iso`.
 
 - [ ] **An SVG `<path>` the diff draws, with no `fill` rule, fills black.**
       SVG's default fill is black, and only a `<line>` cannot show it. The

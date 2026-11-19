@@ -49,3 +49,11 @@ Unbind, Take and Take all did not. This wait is what Jeff's "clicking 'keep'
 seemed to do nothing" describes: the five Keep events 0096–0100 in his log are
 five presses. Smaller parts are faster: 7–14 s to disk and 12–15 s more to the
 tree on the pitch arm, blade root and piston parts.
+
+> **Correction, 2026-11-19 (review of the walk).** The sentence "This wait is
+> what Jeff's 'clicking keep seemed to do nothing' describes" is the wrong
+> cause. Jeff's Keeps 0096–0100 were written by the pre-fix `cmdKeep`, which
+> wrote a plain `bound` with no `supersedes` and so could not settle the
+> disagreement at any speed (traced in
+> `docs/sessions/completed/HANDOFF_20261118_a_disagreement_is_settled_by_keep_or_let_go.md`,
+> fixed by it). The latency measured above is still this issue's subject.
