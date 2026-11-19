@@ -7,7 +7,7 @@ class: browser_tier_flake
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261117_the_base_stack_joints_are_seat_boss_and_pattern.md
 handoff: docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md
-resolution: the Take checks read a nav snapshot taken after a fixed 300 ms and a fixed 1000 ms; they now wait on the Take button, the written event, the partner row selected with its layer on screen, and the bound body, each throwing a named error (the red order was not reproduced, so this cause is the inferred one -- see the lesson)
+resolution: the Take checks read a nav snapshot taken after a fixed 300 ms and a fixed 1000 ms; they now wait on the Take button, the written event, the partner row selected with its layer on screen, and the bound body, each printing a named MISSING line (the red order was not reproduced, so this cause is the inferred one -- see the lesson)
 ---
 
 # The "annotate rail holds still" Take checks flake in the whole browser tier

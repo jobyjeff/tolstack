@@ -30,11 +30,15 @@ Attribution for runs 1 and 2 is measured (run 2's pane dump) plus inferred
   every part it will) before the first click on a study's page.
 - `expand()` replaces `openBody`'s clicks: wait for the twisty, click it until
   `aria-expanded` reads `true` (re-read each time), throw naming it otherwise.
-- the line wait is 30 s and throws naming the part and feature; Take waits for
-  its button; the hover leaves and rests again up to four times until the
-  pane washes; a missing mount part throws after 60 s, not 180.
-- `need()` throws `missing: <what> (after N ms; pane {...})`; the suite's
-  catch is `reportAbortedSuite`, so a missing precondition ends it in seconds.
+- the line wait is 30 s and Take waits for its button; the hover leaves and
+  rests again up to four times until the pane washes; the mount part wait is
+  60 s, not 180.
+- `need()` prints `MISSING: <what> (after N ms; pane {...})` and returns false;
+  the checks that read it go red. **It does not throw**: the first version
+  threw, and the witness gate then reported `browser__real-after-a-take-the-faces-layer-follows-the-partner-en__fe6901ac`
+  as "the tier never reached the witness" (a mutated page aborted the suite
+  before the check was pushed). Soft waits: 6/6 witnessed. So a precondition
+  is named and bounded, not fatal; a red run is now ~1-2 min, not 250 s.
 
 `testAnnotateRailHoldsStill`: `need()` on the Take button on a listed face of
 the end, the written event, the partner row selected **with its layer drawn
