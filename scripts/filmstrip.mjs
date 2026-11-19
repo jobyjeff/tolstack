@@ -128,7 +128,7 @@ async function bootKinematic(page, base, dataRoot, study, pose) {
     VA.bootTopology();
   }, { topologies, results, crops, kinematic });
   await page.waitForSelector("div.kmverdict", { timeout: 15000 });
-  await page.waitForSelector("#topopane svg.tv__rails", { timeout: 15000 });
+  await page.waitForSelector("#topopane svg.tv__map", { timeout: 15000 });
   await settled(page);
 }
 
@@ -144,51 +144,33 @@ async function settled(page, ms = 500) {
 const STOPS = "vpa_pitch_linkage_blade_pitch_at_the_stops";
 const COTTER = "pitch_link_cotter_hole_clearance";
 
-// Where the lit band and the sizer are, in one sample: what a snap shows up as.
-function bandProbe() {
+// Where the map and its view are, in one sample: what a snap or a drift shows
+// up as. The world group's box is where the drawing really is; `data-zoom` and
+// the transform attribute are the view the page believes it has.
+function mapProbe() {
   // The live drawing's, not the fading ghost of the outgoing one's.
-  const live = Array.from(document.querySelectorAll("#topopane .tv__hscroll"))
+  const svg = Array.from(document.querySelectorAll("#topopane svg.tv__map"))
     .filter((n) => !n.closest(".tv__ghost"))[0];
-  const bars = live ? Array.from(live.querySelectorAll("line.rail__bar--on"))
-    .map((n) => n.getBoundingClientRect()) : [];
-  const sizer = live ? live.querySelector(".tv__zoomsizer") : null;
-  const hs = live;
+  const world = svg ? svg.querySelector("g.map__world") : null;
+  const box = world ? world.getBoundingClientRect() : null;
+  const frame = svg ? svg.getBoundingClientRect() : null;
   return {
-    bandLeft: bars.length ? Math.min(...bars.map((b) => b.left)) : null,
-    bandRight: bars.length ? Math.max(...bars.map((b) => b.right)) : null,
-    bandTop: bars.length ? Math.min(...bars.map((b) => b.top)) : null,
-    bandBottom: bars.length ? Math.max(...bars.map((b) => b.bottom)) : null,
-    marginLeft: sizer ? parseFloat(sizer.style.marginLeft) || 0 : null,
-    marginTop: sizer ? parseFloat(sizer.style.marginTop) || 0 : null,
-    scrollLeft: hs ? hs.scrollLeft : null,
-    // The drawing's own vertical scroll: the document never scrolls (the
-    // fixed shell, 2026-11-14).
-    scrollY: hs ? hs.scrollTop : null,
+    worldLeft: box ? box.left : null,
+    worldRight: box ? box.right : null,
+    worldTop: box ? box.top : null,
+    worldBottom: box ? box.bottom : null,
+    frameWidth: frame ? frame.width : null,
+    frameHeight: frame ? frame.height : null,
+    zoom: svg ? Number(svg.getAttribute("data-zoom")) : null,
+    transform: world ? world.getAttribute("transform") : null,
+    selected: svg ? svg.querySelectorAll("[class*='--selected']").length : null,
     tweening: !!(window.ViewerApp.lastTopoRender && window.ViewerApp.lastTopoRender.tweening),
   };
 }
 
 const BUILTINS = {
-  // Blade pitch at the stops -> the cotter-hole chain study: a study change.
-  respine: {
-    async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },
-    async trigger(page, h) { await h.click(page, h.navRow("study", COTTER)); },
-    probe: (page) => page.evaluate(bandProbe),
-  },
-  // ...and back to the kinematic study.
-  "respine-back": {
-    async setup(page, h) {
-      await h.bootKinematic(page, h.base, h.DATA, STOPS);
-      await page.locator(h.navRow("study", COTTER)).click();
-      await h.settled(page, 800);
-    },
-    async trigger(page, h) {
-      await h.click(page, h.navRow("kinematic", STOPS));
-    },
-    probe: (page) => page.evaluate(bandProbe),
-  },
-  // The 3D pane opening beside the drawing of a chain study (a landing that is
-  // not a study change): the band keeps its place as the page narrows.
+  // The 3D pane opening beside the map of a chain study (a landing that is not
+  // a study change): the frame narrows, and the map's view must not jump.
   "pane-open": {
     async setup(page, h) {
       await h.bootKinematic(page, h.base, h.DATA, STOPS);
@@ -196,21 +178,21 @@ const BUILTINS = {
       await h.settled(page, 1500);
     },
     async trigger(page, h) { await h.click(page, "#study-3d"); },
-    probe: (page) => page.evaluate(bandProbe),
+    probe: (page) => page.evaluate(mapProbe),
   },
-  // A click on a grid row: selection changes, the drawing must hold still.
+  // A click on a grid row: selection changes, the map must hold still.
   "row-click": {
     async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },
     async trigger(page, h) { await h.click(page, "#topogrid tr.tvrow--edge"); },
-    probe: (page) => page.evaluate(bandProbe),
+    probe: (page) => page.evaluate(mapProbe),
   },
-  // A click on a node of the kinematic page: the drawing must not move.
+  // A click on an interface's connector on the map: the map must not move.
   click: {
     async setup(page, h) { await h.bootKinematic(page, h.base, h.DATA, STOPS); },
     async trigger(page, h) {
-      await h.click(page, "#topopane svg.tv__rails circle.rail__dot--on:nth-of-type(2)");
+      await h.click(page, "#topopane svg.tv__map g.map__connector");
     },
-    probe: (page) => page.evaluate(bandProbe),
+    probe: (page) => page.evaluate(mapProbe),
   },
 };
 

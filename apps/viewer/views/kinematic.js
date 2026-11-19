@@ -501,36 +501,6 @@
     return out;
   };
 
-  // What the contribution length mode draws (VA.EDGE_LENGTH_MODES): each
-  // linkage term's contribution at the pose -- the part of the stack that
-  // moves with the linkage -- against ONE yardstick for the whole sweep, the
-  // largest contribution any of them reaches at any point, so a bar is the
-  // same length for the same contribution at every pose and the DAG's
-  // breathing is the contributions' own. The stop position's terms are the
-  // stop's, the same at every pose, and an order of magnitude larger on the
-  // live study (the cover's flange at ±0.864 deg against the largest linkage
-  // term's ±0.156): drawn on the same yardstick they would floor every
-  // linkage bar, so this mode leaves them unscaled -- floored and marked, as
-  // every bar with no length of its own is. Their contributions are in the
-  // grid and on the contribution colouring. { values: {edge: magnitude},
-  // max } or null.
-  VA.kinematicPoseLengths = function (study, pose) {
-    var at = VA.kinematicPoseArg(study, pose);
-    if (!at) return null;
-    var rows = VA.kinematicPoseRows(study, at);
-    var values = {};
-    Object.keys(rows).forEach(function (edge) {
-      if (typeof rows[edge].magnitude === "number") values[edge] = rows[edge].magnitude;
-    });
-    var max = 0;
-    (study.contributors || []).forEach(function (c) {
-      (c.by_point || []).forEach(function (p) {
-        if (typeof p.magnitude === "number" && p.magnitude > max) max = p.magnitude;
-      });
-    });
-    return { values: values, max: max };
-  };
-
   // A pose in reader words: the measure there ("23.0 deg"), at the field's
   // precision.
   VA.kinematicPoseWords = function (study, pose) {
