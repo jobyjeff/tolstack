@@ -982,13 +982,20 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
 #: declared differences are the tangential link's two bearings, as v1's, and
 #: the three piston parts v1 declares as riders, which v2 folds into the bodies
 #: they move with (2026-11-08, Jeff: "the piston head components are rigidly
-#: attached to the piston"; the cover is the base's).
+#: attached to the piston"; the cover is the base's). Since 2026-11-18 its
+#: pitch plate is the 215177 assembly's plate and flanged bushings and the two
+#: straight bushings beside them, at the two attachments the model draws
+#: (the_pitch_plate_is_an_assembly_with_its_bushings): linkage poses the
+#: assembly, whose mesh draws the plate and the flanged ones, and no bushing.
 BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY = {
     L2_TOPOLOGY.stem: BODY_PARTS_LINKAGE_DOES_NOT_LIST,
     MODEL_V2.stem: {
         "tan_link": BODY_PARTS_LINKAGE_DOES_NOT_LIST["tan_link"],
         "base": {"piston_cover_214958_002"},
-        "pitch_plate": {"piston_head_lower_214699_002", "piston_head_upper_214698_002"},
+        "pitch_plate": {"piston_head_lower_214699_002", "piston_head_upper_214698_002",
+                        "pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
+                        "flanged_bushing_nas77a3_015a_tan_link", "bushing_214820_002",
+                        "straight_bushing_214820_002"},
     },
 }
 
@@ -1089,8 +1096,11 @@ MODEL_V2_BODIES = {
              "piston_cover_214958_002"],
     "tan_link": ["tan_link_212956_005", "spherical_bearing_tan_link",
                  "spherical_bearing_tan_link_ms14103_3"],
-    "pitch_plate": ["pitch_plate_215177_001", "gas_spring_piston_214700_002",
-                    "piston_head_lower_214699_002", "piston_head_upper_214698_002"],
+    "pitch_plate": ["pitch_plate_215177_001", "flanged_bushing_nas77a3_015a",
+                    "pitch_plate_215735_001", "bushing_214820_002",
+                    "gas_spring_piston_214700_002",
+                    "piston_head_lower_214699_002", "piston_head_upper_214698_002",
+                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002"],
     "pitch_link": ["pitch_link", "spherical_bearing_pitch_link"],
     "blade": ["pitch_arm", "blade_root"],
 }
@@ -2914,7 +2924,15 @@ def test_children_and_the_tree_order_of_model_v2():
     assert topology.subtree("tan_link_212956_005") == [
         "tan_link_212956_005", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
     assert topology.tree_order(topology.body("tan_link").parts) == topology.subtree("tan_link_212956_005")
-    assert topology.children_of("pitch_plate_215177_001") == []
+    # 2026-11-18: the plate assembly holds its machined plate and the flanged
+    # bushings; the straight bushings are top-level (Jeff: "the straight
+    # bushings aren't assembled until the top level").
+    assert topology.children_of("pitch_plate_215177_001") == [
+        "pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
+        "flanged_bushing_nas77a3_015a_tan_link"]
+    for straight in ("bushing_214820_002", "straight_bushing_214820_002"):
+        assert topology.part(straight).parent is None, straight
+        assert straight in topology.body("pitch_plate").parts, straight
 
 
 def test_an_assemblys_roll_up_is_the_fold_of_its_subtrees_terms():

@@ -168,7 +168,8 @@
     // tolerance_stack/topology.py: INTERFACE_KINDS
     INTERFACE_KINDS: [
       "planar", "pin_in_bore", "spherical", "cylindrical_slide", "thread",
-      "clearance", "revolute", "fastener_pattern"
+      "clearance", "revolute", "fastener_pattern", "press_fit",
+      "transition_fit"
     ],
 
     // tolerance_stack/topology.py: FORM_KINDS

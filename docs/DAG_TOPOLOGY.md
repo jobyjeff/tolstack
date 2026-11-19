@@ -161,13 +161,13 @@ DAG"), never a fold.
 - `authored` — the document's `bodies[]` order, and each body's `parts` order
   inside it, is the order the page reads in.
 
-`interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance | revolute | fastener_pattern`.
+`interface` on a gap edge is one of `planar | pin_in_bore | spherical | cylindrical_slide | thread | clearance | revolute | fastener_pattern | press_fit | transition_fit`.
 
 Optional in v0 and refused on a structural edge. What each word draws is the
 table in "Joint symbols" below; a joint that states none leaves its ends plain
 dots and puts a "contact kind not stated" row on the gap list.
 
-`interface` on a node two parts share is one of `pin_in_bore | spherical | cylindrical_slide | thread | revolute | fastener_pattern`.
+`interface` on a node two parts share is one of `pin_in_bore | spherical | cylindrical_slide | thread | revolute | fastener_pattern | press_fit | transition_fit`.
 
 Since 2026-11-17 (handoff `a_joint_says_what_kind_it_is`). The two parts
 touch at such a node, so the two words for free space between them are
@@ -270,8 +270,9 @@ linkage solver's sweeps already name and the DAG had no way to know:
   (`topology.assembly_rollups`, carried as a study's `result.assemblies`), so
   the total is the same folded or open; the DAG draws a part inside an
   assembly as the assembly's. Model v2's pitch link and 212956-005 assemblies
-  hold their bearings; 215177 and 215175 stay single parts until their
-  bushings are separate solids; v1 declares no parent.
+  hold their bearings, and 215177 (2026-11-18) its plate and the two flanged
+  bushings the model reaches; 215175 stays a single part; v1 declares no
+  parent.
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 
@@ -350,6 +351,8 @@ words are printed in everyday words wherever the page names one
 | `clearance` | `end_stop_clearance` |
 | `revolute` (a reader's "rotary") | the node `hub_blade1_root_bearing_bore` |
 | `fastener_pattern` | the nodes `pitch_arm_blade_root_clocking` (v1) and `tan_link_mount_fastener_clocking` (v2) |
+| `press_fit` | `pitch_link_flanged_bushing_press_fit` (v2): a bushing held in its bore by interference |
+| `transition_fit` | `pitch_link_straight_bushing_transition_fit` (v2): a bushing whose fit may close either way, so it is held by the fastener |
 
 linkage's joint types suggest the word: `tolerance_stack/kinematic.py`'s
 `LINKAGE_JOINT_INTERFACES` maps each one, and an authored edge at a swept joint
@@ -473,8 +476,9 @@ page reopens on the model the reader last chose.
   cover the base's), as one blade, one pitch link and one tangential link,
   the two stops, and no tolerances yet. It declares `"walk_order": "authored"`,
   so its DAG and grid read in its `bodies[]` and `parts` order. It leaves out the gas spring, the VPA
-  and its piston, the ring gear, the hydraulic brake, every fastener, washer
-  and bushing, and blades 2 to 5.
+  and its piston, the ring gear, the hydraulic brake, every fastener and
+  washer, every bushing but the four at the pitch link's and the tangential
+  link's plate attachments, and blades 2 to 5.
 
 **`ids_from` — a model that reuses another's ids.** v2 declares
 `"ids_from": "vpa_pitch_linkage"`: every node and edge id it shares with v1
@@ -666,6 +670,8 @@ interface's kind and nothing else):
 | `spherical` | a cup and a ball, the cup open toward the far end |
 | `revolute` (a rotary joint) | the boss-in-hole circle and dot with a turning arrow round it, the rotary sibling of the slide's straight double arrow |
 | `fastener_pattern` | a ring of dots |
+| `press_fit` | the boss-in-hole circle with the boss filling it |
+| `transition_fit` | the boss-in-hole circle and dot with a faint ring between them |
 | `cylindrical_slide` | a hollow bar with the double arrow along the slide |
 | `clearance` | two stops with the travel arrow between them |
 | `thread` | a hollow block crossed by the flanks |
@@ -1172,8 +1178,8 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 15 parts, 40 interfaces, 56 edges, 19 branch points, 17 grounded
-loops, 13 gap edges. Studyless; no edge carries a dimension, and each says what
+The graph: 20 parts, 52 interfaces, 70 edges, 21 branch points, 19 grounded
+loops, 21 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
@@ -1261,6 +1267,24 @@ The piston body's flange seat is a new id although v1 has the face
 names the same parts in both models. What the meshes leave open is filed for
 Jeff rather than authored
 (`docs/issues/ISSUE_20261117_the_blade_and_piston_joints_leave_questions_for_jeff.md`).
+
+**The pitch plate is an assembly with its bushings** (2026-11-18, handoff
+`the_pitch_plate_is_an_assembly_with_its_bushings`; Jeff, 2026-11-17: the
+flanged bushings *"are part of the 215177 assembly and the straight bushings
+aren't assembled until the top level because they are a transition fit in the
+bore"*). `pitch_plate_215177_001` keeps its id, its features and Jeff's
+bindings, and holds the machined plate 215735-001 and the NAS77A3-015A flanged
+bushing at each attachment the model reaches as children; the 214820-002
+straight bushings are top-level parts of the pitch-plate body, under v1's ids.
+At each of the two attachments (blade 1's pitch link and the drawn tangential
+link) the plate has two lug bores, 215735 A's Ø7.950 for the flanged bushing
+and Ø8.520 for the straight one; each bushing's outer cylinder sits in its
+bore by a `press_fit` or a `transition_fit` gap, its wall joins its outer
+cylinder to its bore, and each bore carries the bolt to the attachment's own
+bore by a `pin_in_bore`, since the bolt is not in the model. No edge gains a
+dimension; each fit's note cites the bore's callout and names the bushing's
+band as a gap. Six NAS77A3 occurrences, the NAS77A4 and six 214820-002
+occurrences are at attachments the model does not draw and are left out.
 
 ---
 

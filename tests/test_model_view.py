@@ -73,30 +73,35 @@ def v1_view():
 # --- the counts the strategy session derived by hand --------------------------
 
 MODEL_V2_COUNTS = {
-    "bodies": 5, "parts": 15, "features": 55, "dimensions": 43,
-    "interfaces": 28, "contacts": 15, "gaps": 13,
-    "between_bodies": 8, "within_bodies": 20, "joints": 16,
+    "bodies": 5, "parts": 20, "features": 67, "dimensions": 49,
+    "interfaces": 36, "contacts": 15, "gaps": 21,
+    "between_bodies": 8, "within_bodies": 28, "joints": 24,
     # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
-    # assembly holds its bearing, the 212956-005 assembly its two.
-    "assemblies": 2,
+    # assembly holds its bearing, the 212956-005 assembly its two; since
+    # 2026-11-18 (the_pitch_plate_is_an_assembly_with_its_bushings) 215177
+    # its plate and two flanged bushings, with two straight bushings beside
+    # it: five parts, twelve features, six dimensions, eight fits.
+    "assemblies": 3,
 }
 
 #: Interfaces inside one body, per body: ground 9 (its three joints of three
 #: constraints each), pitch plate 8 (the plate on the piston body three, each
 #: head on it two), blade 3 (since 2026-11-17, handoff ``the_blade_and_piston_
-#: joints_are_authored_as_what_the_parts_show``; 3 and 1 before it).
-MODEL_V2_WITHIN = {"base": 9, "pitch_plate": 8, "blade": 3}
+#: joints_are_authored_as_what_the_parts_show``; 3 and 1 before it). The
+#: plate's 16 since 2026-11-18: the four bushings' fits and their bores' pins
+#: to the attachment bores, eight more.
+MODEL_V2_WITHIN = {"base": 9, "pitch_plate": 16, "blade": 3}
 
 
 def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert v2_view["counts"] == MODEL_V2_COUNTS
     assert len(v2_view["bodies"]) == 5
-    assert len(v2_view["parts"]) == 15
-    assert len(v2_view["features"]) == 55
+    assert len(v2_view["parts"]) == 20
+    assert len(v2_view["features"]) == 67
     assert sum(1 for f in v2_view["features"] if f["shared"]) == 30, \
         "15 nodes on two parts are 30 shared features, two each"
-    assert len(v2_view["dimensions"]) == 43
-    assert len(v2_view["interfaces"]) == 28
+    assert len(v2_view["dimensions"]) == 49
+    assert len(v2_view["interfaces"]) == 36
 
 
 #: The base's parts, (features, dimensions) each, since the gas-spring mount
@@ -124,7 +129,7 @@ def test_model_v2_base_parts_carry_their_features_and_dimensions(v2_view):
     assert not any("gas_spring_mount" in f for f in parts["hub"]["features"])
 
 
-def test_model_v2_interfaces_inside_a_body_are_grounds_nine_the_plates_eight_the_blades_three(v2_view):
+def test_model_v2_interfaces_inside_a_body_are_grounds_nine_the_plates_sixteen_the_blades_three(v2_view):
     within = {}
     for interface in v2_view["interfaces"]:
         if interface["within"] is not None:
@@ -268,8 +273,13 @@ def test_model_v2_puts_each_bearing_inside_its_link_assembly(v2_view):
     assert parts["spherical_bearing_pitch_link"]["parent"] == "pitch_link"
     assert parts["spherical_bearing_pitch_link"]["depth"] == 1
     assert parts["pitch_link"]["parent"] is None and parts["pitch_link"]["depth"] == 0
-    # 215177 and 215175 stay single parts until their bushings are solids.
-    assert parts["pitch_plate_215177_001"]["children"] == []
+    # 215177 holds its plate and the flanged bushings (2026-11-18); the
+    # straight bushings are top-level beside it. 215175 stays a single part.
+    assert parts["pitch_plate_215177_001"]["children"] == [
+        "pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
+        "flanged_bushing_nas77a3_015a_tan_link"]
+    assert parts["flanged_bushing_nas77a3_015a"]["depth"] == 1
+    assert parts["bushing_214820_002"]["parent"] is None
     assert parts["tan_link_mount_215175_002"]["children"] == []
     bodies = {b["id"]: b for b in v2_view["bodies"]}
     assert bodies["tan_link"]["parts"] == ["tan_link_212956_005"]

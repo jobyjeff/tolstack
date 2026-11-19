@@ -245,6 +245,13 @@ WALK_ORDERS = ("nearest_fork", "authored")
 #: * ``fastener_pattern`` -- a ring of fasteners through matching holes; it
 #:   fixes rotation about the joint's axis, the clocking (a ring of dots).
 #:   Added 2026-11-17, with ``revolute``.
+#: * ``press_fit`` -- a cylinder pressed into a bore, held by interference:
+#:   a flanged bushing in its lug (a ring filled by its disc). Added
+#:   2026-11-18 (handoff ``the_pitch_plate_is_an_assembly_with_its_bushings``).
+#: * ``transition_fit`` -- a cylinder in a bore whose bands may close either
+#:   way, so it can slide out until something holds it: a straight bushing
+#:   in its lug (a disc in a ring, with a faint ring between). Added with
+#:   ``press_fit``.
 #:
 #: Optional on a ``gap`` edge in v0 -- an edge that states none is drawn with
 #: the plain dash and listed by the gap list as "contact kind not stated" --
@@ -255,7 +262,8 @@ WALK_ORDERS = ("nearest_fork", "authored")
 #: "Joint symbols"; the linkage solver's joint types map onto it in
 #: ``tolerance_stack/kinematic.py``'s ``LINKAGE_JOINT_INTERFACES``.
 INTERFACE_KINDS = ("planar", "pin_in_bore", "spherical", "cylindrical_slide",
-                   "thread", "clearance", "revolute", "fastener_pattern")
+                   "thread", "clearance", "revolute", "fastener_pattern",
+                   "press_fit", "transition_fit")
 
 #: The ``interface`` words a node two parts SHARE may state (2026-11-17,
 #: handoff ``a_joint_says_what_kind_it_is``): the two parts touch there, so a

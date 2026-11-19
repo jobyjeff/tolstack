@@ -53,7 +53,8 @@ Vec = Tuple[float, float, float]
 #: a fastener: a thread is tessellated as its major-diameter cylinder, and every
 #: ``clearance`` edge in the linkage is a shank through a washer or a bushing.
 #: ``revolute`` is a journal in its bore and ``fastener_pattern`` a fastener
-#: in its hole (2026-11-17): both cylinder in cylinder.
+#: in its hole (2026-11-17): both cylinder in cylinder. ``press_fit`` and
+#: ``transition_fit`` are a bushing's barrel in its bore (2026-11-18).
 CONTACT_PAIRINGS: Dict[str, str] = {
     "planar": "plane_on_plane",
     "pin_in_bore": "cylinder_in_cylinder",
@@ -63,6 +64,8 @@ CONTACT_PAIRINGS: Dict[str, str] = {
     "spherical": "ball_in_seat",
     "revolute": "cylinder_in_cylinder",
     "fastener_pattern": "cylinder_in_cylinder",
+    "press_fit": "cylinder_in_cylinder",
+    "transition_fit": "cylinder_in_cylinder",
 }
 
 #: The pairing families :data:`CONTACT_PAIRINGS` and :data:`END_PAIRINGS` map

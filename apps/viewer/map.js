@@ -155,6 +155,22 @@
                             r: 3, "class": SOLID }];
       }).concat([["circle", { cx: 0, cy: 0, r: 12, "class": RING + " map__sym-faint" }]]),
     },
+    // a bushing held in its bore by interference: the boss fills the hole
+    press_fit: {
+      label: "a press fit",
+      mask: true,
+      shapes: [["circle", { cx: 0, cy: 0, r: 13, "class": RING }],
+               ["circle", { cx: 0, cy: 0, r: 10, "class": SOLID }]],
+    },
+    // a bushing whose fit may close either way: the boss in the hole with a
+    // faint ring for the band it may sit anywhere in
+    transition_fit: {
+      label: "a transition fit",
+      mask: true,
+      shapes: [["circle", { cx: 0, cy: 0, r: 13, "class": RING }],
+               ["circle", { cx: 0, cy: 0, r: 9.5, "class": RING + " map__sym-faint" }],
+               ["circle", { cx: 0, cy: 0, r: 6, "class": SOLID }]],
+    },
   });
   VA.MAP_SYMBOLS = Object.freeze(Object.assign({}, kinds, {
     contact: {

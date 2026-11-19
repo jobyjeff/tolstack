@@ -67,6 +67,8 @@
     clearance: "clearance",
     revolute: "rotary",
     fastener_pattern: "fastener pattern",
+    press_fit: "press fit",
+    transition_fit: "transition fit",
   }), { contact: "contact" }));
 
   // The word for `kind`, or "" for none. A kind with no row (a projection

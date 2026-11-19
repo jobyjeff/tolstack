@@ -51,11 +51,16 @@
       },
       "parts": [
         "pitch_plate_215177_001",
+        "flanged_bushing_nas77a3_015a",
+        "pitch_plate_215735_001",
+        "bushing_214820_002",
         "gas_spring_piston_214700_002",
         "piston_head_lower_214699_002",
-        "piston_head_upper_214698_002"
+        "piston_head_upper_214698_002",
+        "flanged_bushing_nas77a3_015a_tan_link",
+        "straight_bushing_214820_002"
       ],
-      "note": "The plate, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). The plate seats and is bolted on the piston body's flange about its pilot boss; one spigot on the piston body locates both heads, and the upper head is bolted to the piston body through the lower head's bore (2026-11-17, read off the meshes). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
+      "note": "The plate assembly (the plate and its two flanged bushings), the two straight bushings, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). The plate seats and is bolted on the piston body's flange about its pilot boss; one spigot on the piston body locates both heads, and the upper head is bolted to the piston body through the lower head's bore (2026-11-17, read off the meshes). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
     },
     {
       "id": "pitch_link",
@@ -117,10 +122,51 @@
     },
     {
       "id": "pitch_plate_215177_001",
-      "name": "215177-001 pitch plate",
+      "name": "215177-001 pitch plate assembly",
       "drawing": "215177-001",
+      "display_name": "pitch plate assembly",
+      "naming_note": "The lug thicknesses cite the released 215735 A; the superseded PRELIM 215197 survives only in the old ids pitch_plate_215197 and pitch_flange_215197.",
+      "note": "An assembly: the machined plate 215735-001 and the NAS77 flanged bushings pressed into it (Enovia: 215735-001 x1, NAS77A3-015A x8, NAS77A4-015A x1). Its mesh `asm217755_215177_001` is the plate and all nine bushings, 10 solids: solid 0 the plate, solids 1 to 8 NAS77C3-015.1 to .8 in instance order, solid 9 the NAS77A4. The model holds the two flanged bushings at the attachments it reaches; the straight bushings 214820-002 are not this assembly's, they go in at the top level (Jeff)."
+    },
+    {
+      "id": "pitch_plate_215735_001",
+      "name": "215735-001 pitch plate",
+      "drawing": "215735-001",
       "display_name": "pitch plate",
-      "naming_note": "The lug thicknesses cite the released 215735 A; the superseded PRELIM 215197 survives only in the old ids pitch_plate_215197 and pitch_flange_215197."
+      "parent": "pitch_plate_215177_001",
+      "note": "The machined plate inside the 215177-001 assembly, drawn 215735 A. Its mesh `asm217755_215735_001` (one solid, one instance, 215177-001.3/214538-001.1) is solid 0 of the assembly's mesh face for face: the same face ids, the same fits."
+    },
+    {
+      "id": "flanged_bushing_nas77a3_015a",
+      "name": "NAS77A3-015A flanged bushing",
+      "display_name": "NAS77A3-015A flanged bushing, pitch link",
+      "parent": "pitch_plate_215177_001",
+      "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/215177-001.3/NAS77C3-015.4",
+      "note": "Pressed into the plate's pitch link lug, at blade 1's attachment: occurrence NAS77C3-015.4, solid 4 of the 215177 mesh, at (77.9, -24.4, 103.0) in the plate's frame, beside the P2 sweep's upper pitch link ball (83.0, -25.0 there). Part of the 215177-001 assembly (Enovia). v1's part of the same id is the pitch link joint's flanged bushing."
+    },
+    {
+      "id": "flanged_bushing_nas77a3_015a_tan_link",
+      "name": "NAS77A3-015A flanged bushing",
+      "display_name": "NAS77A3-015A flanged bushing, tangential link",
+      "parent": "pitch_plate_215177_001",
+      "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/215177-001.3/NAS77C3-015.1",
+      "note": "Pressed into the plate's tangential link lug, at the attachment of the tangential link this model draws: occurrence NAS77C3-015.1, solid 1 of the 215177 mesh, at (74.4, 1.2, 103.0) in the plate's frame, beside the P2 sweep's plate-end ball (81.5, 1.4 there). Its own id: v1's `flanged_bushing_tan_link` is a candidate 214936-002, and the mesh puts a NAS77A3-015A here."
+    },
+    {
+      "id": "bushing_214820_002",
+      "name": "214820-002 plain bushing",
+      "drawing": "214820-002",
+      "display_name": "214820-002 straight bushing, pitch link",
+      "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/prd-e-03481962.1/NAS76A3-006P.1",
+      "note": "The straight bushing in the pitch link lug's other bore, at blade 1's attachment: occurrence prd-e-03481962.1, at (86.5, -25.4, 103.0) in the plate's frame, coaxial with the flanged bushing. Not part of 215177-001: a transition fit in its bore, it goes in at the top level with the fastener (Jeff), so it is not drawn by the plate's mesh. v1's part of the same id is the pitch link joint's plain bushing."
+    },
+    {
+      "id": "straight_bushing_214820_002",
+      "name": "214820-002 plain bushing",
+      "drawing": "214820-002",
+      "display_name": "214820-002 straight bushing, tangential link",
+      "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/prd-e-03300154.1/prd-e-02977127.1",
+      "note": "The straight bushing in the tangential link lug's other bore: occurrence prd-e-03300154.1, at (91.8, 1.8, 103.0) in the plate's frame, coaxial with the flanged bushing. Not part of 215177-001, as the pitch link's. v1's part of the same id is the tangential link joint's straight bushing."
     },
     {
       "id": "gas_spring_piston_214700_002",
@@ -465,6 +511,162 @@
         "pitch_plate_215177_001"
       ],
       "kind": "datum_feature"
+    },
+    {
+      "id": "pitch_plate_link_flanged_bushing_bore",
+      "name": "pitch link flanged bushing bore",
+      "parts": [
+        "pitch_plate_215735_001"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_plate_215735_001",
+        "surface": "cylindrical"
+      },
+      "note": "The plate's lug bore the pitch link flanged bushing is pressed into: 215735-A sheet 2, SECTION A-A: 5X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B C and \u00d80.1 A, datum G (5X individually). On the 215735-001 mesh (`asm217755_215735_001`) and solid 0 of the 215177 mesh: faces 1385 and 1386, diameter 7.950, 3.26 long. Named for the part it receives. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_plate_link_straight_bushing_bore",
+      "name": "pitch link straight bushing bore",
+      "parts": [
+        "pitch_plate_215735_001"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_plate_215735_001",
+        "surface": "cylindrical"
+      },
+      "note": "The plate's other lug bore, across the bearing from the flanged one, that the pitch link straight bushing sits in: 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually). On the 215735-001 mesh and solid 0 of the 215177 mesh: faces 1380 and 1381, diameter 8.520, 2.20 long; empty in the 215177 mesh, which has no straight bushing. Named for the part it receives. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_od",
+      "name": "outer cylinder",
+      "parts": [
+        "flanged_bushing_nas77a3_015a"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "flanged_bushing_nas77a3_015a",
+        "surface": "cylindrical"
+      },
+      "note": "The barrel pressed into the plate's pitch link flanged bushing bore. On the NAS77A3-015A mesh (`asm217755_NAS77A3_015A`): faces 8 and 9, diameter 7.965, 3.17 long; solid 4 of the 215177 mesh, faces 1515 and 1516. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_bore",
+      "name": "bore",
+      "parts": [
+        "flanged_bushing_nas77a3_015a"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "flanged_bushing_nas77a3_015a",
+        "surface": "cylindrical"
+      },
+      "note": "The bushing's bore the pitch link bolt passes through. On the NAS77A3-015A mesh: faces 2 and 3, diameter 4.826 (.1900 in), 3.86 long; solid 4 of the 215177 mesh, faces 1509 and 1510. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_straight_bushing_od",
+      "name": "outer cylinder",
+      "parts": [
+        "bushing_214820_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bushing_214820_002",
+        "surface": "cylindrical"
+      },
+      "note": "The straight bushing's outside, in the plate's pitch link straight bushing bore. On the 214820-002 mesh (`asm217755_214820_002`): faces 10 and 11, diameter 8.506, 4.25 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_straight_bushing_bore",
+      "name": "bore",
+      "parts": [
+        "bushing_214820_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bushing_214820_002",
+        "surface": "cylindrical"
+      },
+      "note": "The straight bushing's bore the pitch link bolt passes through. On the 214820-002 mesh: faces 4 and 5, diameter 4.826 (.1900 in), 3.16 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_plate_tan_link_flanged_bushing_bore",
+      "name": "tangential link flanged bushing bore",
+      "parts": [
+        "pitch_plate_215735_001"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_plate_215735_001",
+        "surface": "cylindrical"
+      },
+      "note": "The plate's lug bore the tangential link flanged bushing is pressed into: 215735-A sheet 2, SECTION A-A: 3X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B, datum C. On the 215735-001 mesh (`asm217755_215735_001`) and solid 0 of the 215177 mesh: faces 1375 and 1376, diameter 7.950, 3.26 long. Named for the part it receives. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_plate_tan_link_straight_bushing_bore",
+      "name": "tangential link straight bushing bore",
+      "parts": [
+        "pitch_plate_215735_001"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_plate_215735_001",
+        "surface": "cylindrical"
+      },
+      "note": "The plate's other lug bore, across the bearing from the flanged one, that the tangential link straight bushing sits in: 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually). On the 215735-001 mesh and solid 0 of the 215177 mesh: faces 1370 and 1371, diameter 8.520, 2.20 long; empty in the 215177 mesh, which has no straight bushing. Named for the part it receives. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_flanged_bushing_od",
+      "name": "outer cylinder",
+      "parts": [
+        "flanged_bushing_nas77a3_015a_tan_link"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "flanged_bushing_nas77a3_015a_tan_link",
+        "surface": "cylindrical"
+      },
+      "note": "The barrel pressed into the plate's tangential link flanged bushing bore. On the NAS77A3-015A mesh (`asm217755_NAS77A3_015A`): faces 8 and 9, diameter 7.965, 3.17 long; solid 1 of the 215177 mesh, faces 1458 and 1459. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_flanged_bushing_bore",
+      "name": "bore",
+      "parts": [
+        "flanged_bushing_nas77a3_015a_tan_link"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "flanged_bushing_nas77a3_015a_tan_link",
+        "surface": "cylindrical"
+      },
+      "note": "The bushing's bore the tangential link bolt passes through. On the NAS77A3-015A mesh: faces 2 and 3, diameter 4.826 (.1900 in), 3.86 long; solid 1 of the 215177 mesh, faces 1452 and 1453. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_straight_bushing_od",
+      "name": "outer cylinder",
+      "parts": [
+        "straight_bushing_214820_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "straight_bushing_214820_002",
+        "surface": "cylindrical"
+      },
+      "note": "The straight bushing's outside, in the plate's tangential link straight bushing bore. On the 214820-002 mesh (`asm217755_214820_002`): faces 10 and 11, diameter 8.506, 4.25 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_straight_bushing_bore",
+      "name": "bore",
+      "parts": [
+        "straight_bushing_214820_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "straight_bushing_214820_002",
+        "surface": "cylindrical"
+      },
+      "note": "The straight bushing's bore the tangential link bolt passes through. On the 214820-002 mesh: faces 4 and 5, diameter 4.826 (.1900 in), 3.16 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
     },
     {
       "id": "pitch_plate_pilot_in_piston_id",
@@ -904,6 +1106,132 @@
       "note": "Value to come from 215177-001's drawing."
     },
     {
+      "id": "pitch_link_flanged_bushing_press_fit",
+      "name": "outer cylinder in pitch link flanged bushing bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "pitch_link_flanged_bushing_od",
+      "to": "pitch_plate_link_flanged_bushing_bore",
+      "note": "The flanged bushing pressed into the plate: part of the 215177-001 assembly. No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B C and \u00d80.1 A, datum G (5X individually); NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event). The meshes are 7.965 in 7.950, an interference, never a value."
+    },
+    {
+      "id": "pitch_link_straight_bushing_transition_fit",
+      "name": "outer cylinder in pitch link straight bushing bore",
+      "kind": "gap",
+      "interface": "transition_fit",
+      "from": "pitch_link_straight_bushing_od",
+      "to": "pitch_plate_link_straight_bushing_bore",
+      "note": "The straight bushing in the plate's other bore: a transition fit, so it could fall out before the fastener is in, which is why it is installed at the top level (Jeff). No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually); 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/. The meshes are 8.506 in 8.520, never a value."
+    },
+    {
+      "id": "pitch_plate_link_bushing_bores_position",
+      "name": "pitch link flanged bushing bore to pitch link straight bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_link_flanged_bushing_bore",
+      "to": "pitch_plate_link_straight_bushing_bore",
+      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually), against the flanged bore as its datum."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "pitch_link_flanged_bushing_od",
+      "to": "pitch_link_flanged_bushing_bore",
+      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "pitch_link_straight_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "bushing_214820_002",
+      "from": "pitch_link_straight_bushing_od",
+      "to": "pitch_link_straight_bushing_bore",
+      "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_bore_to_attach_bore",
+      "name": "bore to pitch link bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_link_flanged_bushing_bore",
+      "to": "pitch_plate_link_attach_bore",
+      "note": "The pitch link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+    },
+    {
+      "id": "pitch_link_straight_bushing_bore_to_attach_bore",
+      "name": "bore to pitch link bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_link_straight_bushing_bore",
+      "to": "pitch_plate_link_attach_bore",
+      "note": "The pitch link bolt in the straight bushing's bore, the other end of the bolt from the flanged bushing; as that edge. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+    },
+    {
+      "id": "tan_link_flanged_bushing_press_fit",
+      "name": "outer cylinder in tangential link flanged bushing bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "tan_link_flanged_bushing_od",
+      "to": "pitch_plate_tan_link_flanged_bushing_bore",
+      "note": "The flanged bushing pressed into the plate: part of the 215177-001 assembly. No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 7.950 +0.015/0.000, \u2316 \u00d80.2 A B, datum C; NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event). The meshes are 7.965 in 7.950, an interference, never a value."
+    },
+    {
+      "id": "tan_link_straight_bushing_transition_fit",
+      "name": "outer cylinder in tangential link straight bushing bore",
+      "kind": "gap",
+      "interface": "transition_fit",
+      "from": "tan_link_straight_bushing_od",
+      "to": "pitch_plate_tan_link_straight_bushing_bore",
+      "note": "The straight bushing in the plate's other bore: a transition fit, so it could fall out before the fastener is in, which is why it is installed at the top level (Jeff). No value recorded. Value to come from the bore's band less the bushing's outside diameter band. The bore's band is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually); 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/. The meshes are 8.506 in 8.520, never a value."
+    },
+    {
+      "id": "pitch_plate_tan_link_bushing_bores_position",
+      "name": "tangential link flanged bushing bore to tangential link straight bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_tan_link_flanged_bushing_bore",
+      "to": "pitch_plate_tan_link_straight_bushing_bore",
+      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually), against the flanged bore as its datum."
+    },
+    {
+      "id": "tan_link_flanged_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a_tan_link",
+      "from": "tan_link_flanged_bushing_od",
+      "to": "tan_link_flanged_bushing_bore",
+      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "tan_link_straight_bushing_wall",
+      "name": "outer cylinder to bore",
+      "kind": "structural",
+      "part": "straight_bushing_214820_002",
+      "from": "tan_link_straight_bushing_od",
+      "to": "tan_link_straight_bushing_bore",
+      "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
+    },
+    {
+      "id": "tan_link_flanged_bushing_bore_to_attach_bore",
+      "name": "bore to tangential link bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_flanged_bushing_bore",
+      "to": "pitch_plate_tan_link_attach_bore",
+      "note": "The tangential link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_tan_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+    },
+    {
+      "id": "tan_link_straight_bushing_bore_to_attach_bore",
+      "name": "bore to tangential link bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_straight_bushing_bore",
+      "to": "pitch_plate_tan_link_attach_bore",
+      "note": "The tangential link bolt in the straight bushing's bore, the other end of the bolt from the flanged bushing; as that edge. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+    },
+    {
       "id": "pitch_plate_pilot_to_piston_flange",
       "name": "pilot boss to piston body flange face",
       "kind": "structural",
@@ -1114,7 +1442,7 @@
   "notes": [
     "Studyless by design for now: M2 adds one term per body and the end-stop study over them (dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md, '2026-11-08 -- the reset').",
     "No edge carries a dimension. Each says what would close it; an untraced zero would read as a measured one.",
-    "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener, washer and bushing, and blades 2 to 5. v1 keeps all of them.",
+    "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener and washer, every bushing but the four at the pitch link's and the tangential link's plate attachments, and blades 2 to 5. v1 keeps all of them.",
     "Named once, 2026-11-10 (handoff the_model_is_derived_once_and_the_left_column_is_its_tree): a feature's name says the feature and not the part it is nested under; a feature two parts share names the seated part; a dimension is <from> to <to> in those words; one spelling of each term (locating boss, end stop, tangential link).",
     "Edge order, 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the walk is authored, and the hub's edges read its joint with the tangential link mount before its blade bore, so the base reads up the stack from the hub. With the blade bore first the parts drawn as blocks crossed once more than the builder's walk."
   ]
