@@ -133,7 +133,37 @@ fast path now.
 
 ## Records
 
-(Test records are appended below once the runs finish.)
+- **Served page.** The DoD's "served page" is the probe's server: drawing-checker's
+  mount shape on a private port, with a scratch log and a fake folder grant.
+  It is what the keep-or-let-go and walk handoffs measured on. The real grant
+  cannot be driven headless.
+- **Fast tiers, worktree:** `node apps/annotate/run_tests.cjs` 333/333;
+  `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` 606/606.
+- **Default tier, worktree:** `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -rfs --durations=15`:
+  `2 failed, 2374 passed, 1 skipped, 4 deselected` in 362 s (inside budget,
+  recorded). The failures:
+  - `test_viewer_js_suite` is the deliberate worktree red, covered by the
+    `--repo` run above.
+  - `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`
+    fails because drawing-checker logged a sixth run of the 213668-002
+    export today (13:26). The diff does not touch it. Filed as
+    `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
+  - The skip: `test_fit_bound_features.py:433`, the 2026-10-01 pitch-link
+    bearing re-extraction is not installed.
+- **Browser, `--only`, worktree with `--repo C:/workspace/tolstack`:**
+  - The new suite, "a press that writes says so at once": 2/2. It prints
+    `press -> event 1201 ms, press -> body 1156 ms` on the in-memory store.
+    Its first run was red: the watcher observed the slot, which `renderNav`
+    replaces. Fixed to watch `#navtree`.
+  - Five existing suites whose write path changed: armed pick 18/18, the
+    suggestion's Take 5/5, pattern and Add a face 11/11, opposite pattern
+    4/4, 3D pane 31/31.
+  - The whole tier is the review's (this repo's table), so it was not run here.
+- **Witness, one run:** `--only` for each of the five new specs, 5/5
+  WITNESSED in 3m02s. The suite's `(skipped: ...)` push is `true` by
+  construction, so it has no spec. Its pin was raised and the reason written
+  in `scripts/guard_enumeration.mjs`.
+- **Jeff's log:** 101 files before, 101 after.
 
 ## Gotchas
 
