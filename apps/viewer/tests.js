@@ -12981,6 +12981,10 @@
         eq(VA.mapBringIntoView(view, { x: 10, y: 10, w: 50, h: 50 }, 500, 500, 0), view, "already in: unchanged");
         eq(VA.mapBringIntoView(view, { x: 600, y: 10, w: 50, h: 50 }, 500, 500, 0), { k: 1, tx: -150, ty: 0 });
         eq(VA.mapBringIntoView(view, { x: -100, y: -100, w: 50, h: 50 }, 500, 500, 10), { k: 1, tx: 110, ty: 110 });
+        eq(VA.mapBringIntoView(view, { x: 4, y: 4, w: 50, h: 50 }, 500, 500, 24), view,
+          "wholly on screen inside the pad: unchanged");
+        eq(VA.mapBringIntoView(view, { x: -4, y: 4, w: 50, h: 50 }, 500, 500, 24), { k: 1, tx: 28, ty: 0 },
+          "partly off on one axis: that axis brought the pad in, the other left");
         VA.forgetMapViews();
         var root = mapRoot();
         var first = root.mapView();

@@ -260,3 +260,77 @@ None.
   builders, projection paired at 301bfa41): viewer 605/605, annotate 331/331.
 - **Witness:** no guard or spec changed this round.
 - **Browser tier:** no suite changed this round, so none was run.
+
+## Re-run 2026-11-19 — review round 2 (REQUEST CHANGES)
+
+The post-merge browser tier found four `[real]` suites red on the new
+structure. I had run none: "no browser suite was added or changed" was the
+wrong test, because the suites read the model and the model grew 5 parts.
+**A stack-data change is a browser-test change.** For each suite, product or
+check:
+
+- **The model drawn alone — two product defects, one check assumption.**
+  - *Product:* `AA.occurrencePins` kept one occurrence per **mesh**. v2's two
+    NAS77A3 flanged bushings are one mesh at two places, and so are its two
+    214820-002 straight bushings, so the last part read won and the other was
+    drawn nowhere. It now keeps a list, read by `AA.pinnedOccurrences` and the
+    sweep's candidate filter. Measured: both shared meshes now draw at 2 places.
+  - *Product:* the sweep's rider loop chose among every recorded place of a
+    part's mesh. Once the pins kept both 214820 places, `bushing_214820_002`
+    was refused as a tie. Before that, it had "passed" by riding at the
+    straight bushing's place. A part that declares its occurrence now rides
+    there, and a second part on the same mesh is no longer skipped as already
+    placed.
+  - *Check:* "as many meshes as parts" assumed one mesh per part. It now
+    compares the drawn set with the meshes the parts resolve to (18 for 20
+    parts) and requires each shared mesh at every declared place. The posed
+    check read only rows named by topology part. 215735-001 and both NAS77A3
+    bushings are **carried** inside the plate assembly's occurrence, whose
+    row names the mesh. They do ride the plate, as the diagnostic row dump
+    showed (`carried`, keys under `215177-001.3`), so a carried row now counts
+    by mesh and declared occurrence.
+- **The DAG zoom — product.** A click on a part's name at the fit moved the
+  map by 1px. `VA.mapBringIntoView` counted anything inside its 24px pad as
+  off screen. At v2's new fit (k 0.25, wider since the column-4 places), the
+  drawing's 40-unit margin is 10px, so an edge box that was wholly visible
+  "needed" a pan. Bring-into-view now pans only an axis the rect is actually
+  off screen on, and the pad is how far it brings the rect in. A fast check
+  pins both cases. `DAG_TOPOLOGY.md` says so.
+- **A pattern is bound… (filter count 46 vs 38) — not reproduced.** It was
+  46 = 46 here twice at the tip, and once at the round-1 tip `ee6c5861`
+  against the same scratch root. That is the same code path the reviewer ran,
+  so it is timing: `openAll` gives up after four rounds of 2s-timeout clicks,
+  and v2 now nests one level deeper. I added a diagnostic that prints every
+  part twisty and feature row when the counts disagree, so a recurrence says
+  which rows were missing.
+- **3D pane follows the selection ("leaving it takes the light down") — not
+  reproduced.** It went 4 of 4 green at the tip and green at `ee6c5861`.
+  `integration` has not moved since this branch was cut (`433619e5`), so the
+  merged tree is this tree in `apps/`, `scripts/`, `tolerance_stack/` and
+  `docs/topologies/`. The reviewer's two reds came from their environment
+  (their root, or the load at the time), not from code that differs.
+
+### Round 3 test record
+
+Scratch root `C:/workspace/tolstack/data/scratch/ppr2`, built from
+`0717cb0d` with all eight builders and `--data-root`. Kinematic was rebuilt
+at `06cbfaa0` after a dirty stamp. Projection paired; the real log still
+holds 101 files.
+- **Browser, `--only`, at `2560a437`:** the model drawn alone 22/22, a
+  pattern is bound 11/11, the DAG zoom 35/35, 3D pane follows the selection
+  31/31. Each run wrote its own `partial` ledger row.
+- **Fast tiers:** viewer 605/605, annotate 331/331.
+- **Witness**, `--changed-since ee6c5861 --budget-min 30 --repo <scratch>`:
+  15 reached, 12 WITNESSED. The 3 on "the map" suite are "red before the
+  mutation", on its pin-hover check, which is red on `integration` too
+  (`ISSUE_20261118_the_map_pin_hover_real_check_is_red_on_integration.md`).
+  So the run exits 1. The bring-into-view spec (`…bd77c7ea`) lives on the
+  same suite, so I applied its mutation by hand and ran the map suite
+  `--only`: its own check went red (28/30, where the clean run was 29/30).
+  That run's ledger row is for the mutated tree.
+- **Default tier**, in this worktree, at `2560a437`:
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave 2372 passed, 1 failed, 1 skipped, 4 deselected, in 440 s. The one
+  failure is the expected worktree `test_viewer_js_suite_is_green`. The two
+  doc sentences landed mid-run, so the 14 test files that read the docs and
+  lessons were re-run after them: 1375 passed.

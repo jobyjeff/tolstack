@@ -2133,11 +2133,11 @@ async function anchorSweepBodies() {
         rows.push({ subject: subject.name, part: partId, state: "no-mesh" });
         continue;
       }
-      // A part the topology pins to one occurrence earns that one or none.
-      const pin = occurrences.pinned && occurrences.pinned[mesh.sha256];
+      // A part the topology pins to an occurrence earns a pinned one or none.
+      const pins = occurrences.pinned && occurrences.pinned[mesh.sha256];
       const candidateOccurrences = AA.sweepCandidateOccurrences(
         occurrences.byMesh[mesh.sha256], occurrences.all,
-        occurrences.productOf[mesh.sha256]).filter((o) => !pin || o.key === pin);
+        occurrences.productOf[mesh.sha256]).filter((o) => !pins || pins.indexOf(o.key) !== -1);
       if (!candidateOccurrences.length) {
         rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,
           state: "no-occurrence" });
@@ -2214,6 +2214,13 @@ async function anchorSweepBodies() {
   // a row -- the rest are the scene's own "no 3D model for these parts yet".
   // A part already recorded INSIDE a placed occurrence is carried below.
   const riders = AA.sweepRidingParts(sweepTopology());
+  // A part that declares its occurrence rides at that one: two parts may be
+  // one mesh at two places (v2's two 214820-002 bushings), and choosing
+  // among both places refused the pair as a tie (2026-11-19).
+  const declaredAt = {};
+  for (const part of ((sweepTopology() || {}).parts || [])) {
+    if (part && typeof part.occurrence === "string" && part.occurrence) declaredAt[part.id] = part.occurrence;
+  }
   for (const subject of subjects) {
     if (subject.link) continue;
     const listed = new Set(subject.parts);
@@ -2226,9 +2233,12 @@ async function anchorSweepBodies() {
     for (const partId of riders[subject.name] || []) {
       if (listed.has(partId)) continue;
       const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
-      const own = mesh ? (occurrences.byMesh[mesh.sha256] || []) : [];
+      const at = declaredAt[partId];
+      const own = (mesh ? (occurrences.byMesh[mesh.sha256] || []) : [])
+        .filter((o) => !at || o.key === at);
       if (!own.length) continue;
-      if (rows.some((r) => r.sha256 === mesh.sha256 && r.subject === subject.name)) continue;
+      if (rows.some((r) => r.sha256 === mesh.sha256 && r.subject === subject.name &&
+          (!at || (r.placements || []).some((p) => p.key === at)))) continue;
       if (own.every((o) => claims.some((c) => AA.occurrenceWithin(o.key, c.key)))) continue;
       const choice = AA.sweepRideChoice(own, claims);
       rows.push({ subject: subject.name, part: partId, sha256: mesh.sha256,

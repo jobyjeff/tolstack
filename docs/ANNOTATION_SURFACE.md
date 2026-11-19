@@ -239,8 +239,11 @@ geometry and material, so it costs a draw call and a matrix, not a copy.
   drawn with its own mesh at that placement (`AA.pinnedOccurrences`). In sweep
   mode such a part can earn only its declared occurrence, and a mesh only
   *carried* inside a moving occurrence is drawn where it is carried and not at
-  its other recorded places. Switching to a topology that declares none puts
-  every part back at every occurrence.
+  its other recorded places. Two parts may be one mesh at two places (v2's
+  two NAS77A3 flanged bushings, its two 214820-002 straight ones): the mesh is
+  drawn at both, and in sweep mode each part rides at its own (2026-11-19).
+  Switching to a topology that declares none puts every part back at every
+  occurrence.
 - **A model is drawn alone** (2026-11-08, handoff
   `the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader`).
   A topology that declares any occurrence draws its own parts and nothing

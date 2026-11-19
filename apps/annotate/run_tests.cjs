@@ -6022,7 +6022,7 @@ check("a part that declares an occurrence is drawn there alone -- its own record
     { id: "hub" },
   ] };
   const pins = AA.occurrencePins(topology, meshes, aliases);
-  assertEqual(pins, { arm: "r/b.1/arm.1", link: "r/link.1" }, "each declared part, by its mesh");
+  assertEqual(pins, { arm: ["r/b.1/arm.1"], link: ["r/link.1"] }, "each declared part, by its mesh");
   const pinned = AA.pinnedOccurrences(occ, pins);
   assertEqual(AA.restPlacements(pinned.byMesh.arm).placements, [P(10)], "the arm at blade 1 alone");
   assertEqual(AA.restPlacements(pinned.byMesh.link).placements, [P(30)],
@@ -6036,6 +6036,16 @@ check("a part that declares an occurrence is drawn there alone -- its own record
   const lost = AA.pinnedOccurrences(occ, { arm: "r/b.9/arm.1" });
   assertEqual(AA.assemblyPositionNote(AA.restPlacements(lost.byMesh.arm)),
     AA.ASSEMBLY_POSITION_WORDS.none, "a path nothing records is said, not drawn somewhere");
+  // Two parts that are one mesh at two places (v2's two NAS77A3 flanged
+  // bushings): both are pinned and both drawn, not the last one read.
+  const twins = { parts: [{ id: "arm_one", occurrence: "r/b.1/arm.1" },
+    { id: "arm_two", occurrence: "r/b.2/arm.1" }] };
+  const twinAliases = [{ topology_part: "arm_one", mesh_part_id: "m_arm" },
+    { topology_part: "arm_two", mesh_part_id: "m_arm" }];
+  const twinPins = AA.occurrencePins(twins, meshes, twinAliases);
+  assertEqual(twinPins, { arm: ["r/b.1/arm.1", "r/b.2/arm.1"] }, "one mesh, both its declared places");
+  assertEqual(AA.restPlacements(AA.pinnedOccurrences(occ, twinPins).byMesh.arm).placements,
+    [P(10), P(20)], "and the mesh drawn at both");
 });
 
 check("a topology that declares occurrences is drawn alone: its own parts' meshes, " +
