@@ -131,3 +131,24 @@ Added one line under the first "Recurring bugs" entry (the merged-page shot
 entry). A walk's "that is why" about what Jeff saw describes trunk's code at
 his event's timestamp, not the merged code. Diff his events against the
 walk's.
+
+## Post-merge suite
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rs`,
+single process (this venv has no xdist, so `-n 16` is refused), in this review
+worktree on `515694d6`:
+
+- **Result:** `1 failed, 2372 passed, 1 skipped, 4 deselected in 453.29s`.
+  These are the tactical record's counts exactly.
+- **The failure** is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+  the documented worktree red (no `data/projections/viewer/` here).
+- **The skip** is `tests/test_fit_bound_features.py:433`.
+- **Contention header:** this repo's conftest prints no contention header.
+- **Recorded:** `suite-time record --tier default --seconds 454`, which
+  printed `inside budget`.
+- **Data pollution:** the main checkout's `data/` top level is unchanged
+  after the run, and the real log still holds 101 files.
+- **Prose guards:** after my overlay edit (`docs/prompts/` is in the claims
+  corpus), `tests/test_tolerance_stack.py`, `tests/test_provenance.py`,
+  `tests/test_thermal_exception_list.py` and `tests/test_claims_registry.py`
+  gave 222 passed.
