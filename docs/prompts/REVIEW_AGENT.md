@@ -6149,6 +6149,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       condition, ask whether Jeff's next ordinary click flips it. If so, ask
       for a filtered copy of the log instead
       (`ISSUE_20261118_the_opposite_pattern_browser_suite_skips_once_jeff_binds_…`).
+- [ ] **A twin edge's note copied from its sibling states a fact true of only
+      one.** New 2026-11-18 (`the_pitch_plate_is_an_assembly_with_its_bushings`):
+      the `tan_link_` edge note said Jeff's binding stands on
+      `pitch_plate_tan_link_attach_bore`. Only the `pitch_link_` twin has one.
+      For every `pitch_link_`/`tan_link_` (or per-attachment) pair of notes,
+      re-check each claim about bindings, faces and callouts against that
+      twin's own log and drawing.
+- [ ] **A v2 alias row under a v1-shared id reaches v1 too.**
+      `part_mesh_aliases.json` is keyed by `topology_part` alone, so a row
+      added "for v2" under an id v2 reuses from v1 gives v1's part a mesh. On
+      2026-11-18 v1 went from 26/35 to 27/35. Compare the builder's
+      `parts with an installed mesh` line for BOTH models, before and after,
+      whenever the alias file changes under a handoff fenced off v1.
 
 ## Architectural errors to check
 
