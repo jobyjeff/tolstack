@@ -358,7 +358,7 @@ export const DECLARED_GUARDS = {
   // groups as drawn, the seam leaders and the switch: every guard of those
   // deleted with its spec. 19 renamed where the claim survives on the grid or
   // the map (the lesson's suite table), each spec following its guard.
-  fast: { declared: 601, enrollable: 601, names: "1ba750b8006f" },
+  fast: { declared: 602, enrollable: 602, names: "169bf3a7481b" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

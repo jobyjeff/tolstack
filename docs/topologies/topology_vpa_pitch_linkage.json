@@ -679,7 +679,7 @@
         "hub"
       ],
       "kind": "datum_feature",
-      "note": "Expected to be the CAD Z axis, and expected is the word: nothing in this repo states it, which is exactly why this node exists to be bound. Jeff, 2026-09-30: 'Might as well also select the hub/gas spring bores even though I'm fairly confident they're aligned with z and x axes.' Until 2026-11-03 this node was also named 'the gas-spring bushing bore'. Jeff: 'there is no joint between the hub spindle and the gas spring' -- the bushing bores are the gas-spring mount's (`gas_spring_mount_bushing_bore`), so that half of the name is gone from the hub, not moved to another hub node."
+      "note": "Expected to be the CAD Z axis, and expected is the word: nothing in this repo states it, which is exactly why this node exists to be bound. Jeff: 'Might as well also select the hub/gas spring bores even though I'm fairly confident they're aligned with z and x axes.' The gas-spring bushing bores are the gas-spring mount's (`gas_spring_mount_bushing_bore`), not the hub's. Jeff: 'there is no joint between the hub spindle and the gas spring'."
     },
     {
       "id": "hub_blade1_root_bearing_bore",
@@ -690,7 +690,7 @@
       ],
       "kind": "mating_surface",
       "interface": "revolute",
-      "note": "Expected to be the CAD X axis for blade 1, on the same evidence (none) as the spindle bore above. Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: revolute`: the blade turns in this bore about its pitch axis, the solver's revolute joint between the base and the blade."
+      "note": "Expected to be the CAD X axis for blade 1, on the same evidence (none) as the spindle bore above. The blade turns in this bore about its pitch axis: the base's rotary joint with the blade."
     },
     {
       "id": "pitch_arm_root_seat",
@@ -763,7 +763,7 @@
         "pitch_plate_215177_001"
       ],
       "kind": "datum_feature",
-      "note": "The plate's central axis, expected coaxial with the hub spindle bore and with CAD Z. It is a BOSS, not a bore -- Jeff, 2026-11-03: 'The tabs on the pitch plate have 4 surfaces that make up a broken 41.04mm diameter boss (both sides of both tabs), and the piston has an ID datum with a 41.072mm, those two features interface with each other and the two parts are bolted together with 5x fasteners' (both diameters his reading of the 2D drawings; `pitch_plate_pilot_in_piston_id`). So the face is on the plate and cylindrical, declared in `face` rather than read off the name, whose word 'bore' it used to be. In the installed `asm217755_215177_001` mesh the boss is faces 487/521 (r 20.520 about the assembly Z axis, z 102.97-105.67), and both fit `cylindrical` since 2026-11-05 (by their nodes: their facets tilt 3.46 degrees at the trimmed corners, `feature_geometry`'s `cylinder_node_ulps`), proposed for this node's five edges as events 0058-0062; the plate's convex r 16.5 faces 439/465 are not the boss. The id keeps the old word because linkage's `plate_slide` and `actuator` joins name it.",
+      "note": "The plate's central axis, expected coaxial with the hub spindle bore and with CAD Z. It is a BOSS, not a bore -- Jeff: 'The tabs on the pitch plate have 4 surfaces that make up a broken 41.04mm diameter boss (both sides of both tabs), and the piston has an ID datum with a 41.072mm, those two features interface with each other and the two parts are bolted together with 5x fasteners' (both diameters his reading of the 2D drawings; `pitch_plate_pilot_in_piston_id`). So the face is on the plate and cylindrical, declared in `face` rather than read off the name. In the installed `asm217755_215177_001` mesh the boss is faces 487/521 (r 20.520 about the assembly Z axis, z 102.97-105.67), and both fit `cylindrical` (by their nodes: their facets tilt 3.46 degrees at the trimmed corners, `feature_geometry`'s `cylinder_node_ulps`), proposed for this node's five edges as events 0058-0062; the plate's convex r 16.5 faces 439/465 are not the boss. The id says 'bore' because linkage's `plate_slide` and `actuator` joins name it.",
       "face": {
         "part": "pitch_plate_215177_001",
         "surface": "cylindrical"
@@ -813,7 +813,7 @@
         "surface": "cylindrical"
       },
       "hardware_ref": "GR04WB328AT11",
-      "note": "Jeff, 2026-11-03 (forge note 20261103T165357_43vf96): 'The two surfaces that control the pitch plate slide joint would be cylindrical surfaces of the gas spring mount (213668-002 ...) -- technically the bushings themselves are GR04WB328AT11 -- and piston body (214700-002) which is rigidly attached to the pitch plate.' The ground side of the pitch plate's slide: the two GR04WB328AT11 bushings (217755 A find 45, TRELLEBORG SLYDRING SIZE -328, qty 2, sheet 6 DETAIL W) sit in grooves in the mount, and the piston body's OD rides in them. The bushing is what the sliding face belongs to; the mount is the part, because the installed mesh `machined_213668` is the mount alone (one solid) and draws no bushing. So the bindable face is a groove floor: concave r 25.387, faces 53/610 (z 174.25-180.55) and 109/628 (z 202.31-208.61) at the mount's recorded occurrence, coaxial with the piston body's OD (r 23.787) at 0.000 mm. Until 2026-11-03 this node also listed `gas_spring` and the slide was authored to the hub (`gas_spring_bushing_coaxiality`); neither touches these bushings."
+      "note": "Jeff: 'The two surfaces that control the pitch plate slide joint would be cylindrical surfaces of the gas spring mount (213668-002 ...) -- technically the bushings themselves are GR04WB328AT11 -- and piston body (214700-002) which is rigidly attached to the pitch plate.' The ground side of the pitch plate's slide: the two GR04WB328AT11 bushings (217755 A find 45, TRELLEBORG SLYDRING SIZE -328, qty 2, sheet 6 DETAIL W) sit in grooves in the mount, and the piston body's OD rides in them. The bushing is what the sliding face belongs to; the mount is the part, because the installed mesh `machined_213668` is the mount alone (one solid) and draws no bushing. So the bindable face is a groove floor: concave r 25.387, faces 53/610 (z 174.25-180.55) and 109/628 (z 202.31-208.61) at the mount's recorded occurrence, coaxial with the piston body's OD (r 23.787) at 0.000 mm."
     },
     {
       "id": "gas_spring_piston_body_od",
@@ -826,7 +826,7 @@
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
       },
-      "note": "The moving side of the pitch plate's slide. Jeff, 2026-11-03: 'The piston's 47.574mm OD is what interfaces with the gas spring bushings' (his reading of the 2D drawing; 214700-002 is not in this repo's drawings inbox, so no band is cited). In the installed `asm217755_214700_002` mesh at its one occurrence it is faces 166/167, convex r 23.787, z 108.67-209.84."
+      "note": "The moving side of the pitch plate's slide. Jeff: 'The piston's 47.574mm OD is what interfaces with the gas spring bushings' (his reading of the 2D drawing; 214700-002 is not in this repo's drawings inbox, so no band is cited). In the installed `asm217755_214700_002` mesh at its one occurrence it is faces 166/167, convex r 23.787, z 108.67-209.84."
     },
     {
       "id": "pitch_plate_pilot_in_piston_id",
@@ -839,7 +839,7 @@
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
       },
-      "note": "The piston body's ID datum, which the plate's broken 41.04 mm boss (both sides of both tabs; `pitch_plate_spindle_bore_axis`) pilots into -- Jeff, 2026-11-03: the boss against the piston's 41.072 mm ID datum, the two bolted together 5X. A datum feature of the piston alone since 2026-11-04: it was authored as a mating surface of the plate and the piston, but no edge incident on it was the plate's, so the plate was a part it declared and nothing carried (the viewer's `[real]` check on declared parts, the_viewer_real_tier_follows_the_slide_re_author). The plate's side of the pilot is the boss node; an edge between the two would be the pilot clearance, and it is not authored because it closes a loop the layout pays for (close crossings 70 -> 89 when tried). Mesh: piston faces 33/34 (concave r 20.536), inside the plate's faces 487/521 (r 20.520, fit `cylindrical`). The id keeps its old word because tests and issues name it."
+      "note": "The piston body's ID datum, which the plate's broken 41.04 mm boss (both sides of both tabs; `pitch_plate_spindle_bore_axis`) pilots into -- Jeff: the boss against the piston's 41.072 mm ID datum, the two bolted together 5X. A datum feature of the piston alone: no edge incident on it is the plate's. The plate's side of the pilot is the boss node; an edge between the two would be the pilot clearance, and it is not authored because it closes a loop the layout pays for (close crossings 70 -> 89 when tried). Mesh: piston faces 33/34 (concave r 20.536), inside the plate's faces 487/521 (r 20.520, fit `cylindrical`)."
     },
     {
       "id": "tan_link_mount_bore",
@@ -929,7 +929,7 @@
         "gas_spring_mount_213668_002"
       ],
       "kind": "mating_surface",
-      "note": "The feather (72 deg) hard stop and the datum of the end-stop analysis: the lower head's lower face resting on the mount's end-stop surface. Settled 2026-10-20 against Jeff's section of the gas spring at 72 deg (docs/sessions/shots_20261020_strategy_stop_face/): the head stack sits at the bottom, on the mount's face, and the gap that is the travel is ABOVE the heads, up to the cover's internal shoulder. Until then this node read 'against the cover end stop'; the cover owns the other stop, not this one. 214699-002 A gives this face a flatness callout (0.05) and a parallelism callout, and no length. On the mesh, face 7 of `asm217755_214699_002` (normal -Z, z 234.169 in the part frame) is a plain plane: fit residual 0. The mount side is face 1080 of `machined_213668`. Since 2026-11-03 (handoff each_stop_is_its_own_stack, Jeff's ruling the same day) this face is also where the lower head seats on the piston body's shoulder, one plane (the worksheet's face order); that seat is its own interface, `piston_body_head_seat`, one flatness away, so at the feather stop the plate sits the body's shoulder-to-flange length above the mount's end-stop surface and the two heads' thicknesses do not enter."
+      "note": "The feather (72 deg) hard stop and the datum of the end-stop analysis: the lower head's lower face resting on the mount's end-stop surface. Settled against Jeff's section of the gas spring at 72 deg: the head stack sits at the bottom, on the mount's face, and the gap that is the travel is ABOVE the heads, up to the cover's internal shoulder. The cover owns the other stop, not this one. 214699-002 A gives this face a flatness callout (0.05) and a parallelism callout, and no length. On the mesh, face 7 of `asm217755_214699_002` (normal -Z, z 234.169 in the part frame) is a plain plane: fit residual 0. The mount side is face 1080 of `machined_213668`. This face is also where the lower head seats on the piston body's shoulder, one plane (the worksheet's face order); that seat is its own interface, `piston_body_head_seat`, one flatness away, so at the feather stop the plate sits the body's shoulder-to-flange length above the mount's end-stop surface and the two heads' thicknesses do not enter."
     },
     {
       "id": "piston_heads_seat",
@@ -948,7 +948,7 @@
         "piston_head_upper_214698_002"
       ],
       "kind": "datum_feature",
-      "note": "The step face at part-frame Z 243.216 (face 110 of `asm217755_214698_002`, +Z, assembly Z 219.882), named by Jeff 2026-10-20: highlighted on the head in its own frame and measured in his CAD section at 72 deg pitch, 64.465 mm to the cover's internal shoulder (Jeff corrected that to 64.440 the same day: his CATIA kinematic model has a 0.025 mm interference at the 72 deg rest and is coincident at -7 deg) (docs/sessions/shots_20261020_strategy_stop_face/). It is a node of its own, not one with `piston_cover_end_stop_shoulder`, because a hard contact is one node and this study measures the clearance. The head's other +Z planes (240.669, 245.375, 249.169) are not the stop. 214698-002 A does not dimension this face's height; the drawing defers to the model (note 5), so the height is a mesh fit, banded since 2026-10-22 by the drawing's general profile note 6."
+      "note": "The step face at part-frame Z 243.216 (face 110 of `asm217755_214698_002`, +Z, assembly Z 219.882), named by Jeff: highlighted on the head in its own frame and measured in his CAD section at 72 deg pitch, 64.465 mm to the cover's internal shoulder (Jeff corrected that to 64.440: his CATIA kinematic model has a 0.025 mm interference at the 72 deg rest and is coincident at -7 deg). It is a node of its own, not one with `piston_cover_end_stop_shoulder`, because a hard contact is one node and this study measures the clearance. The head's other +Z planes (240.669, 245.375, 249.169) are not the stop. 214698-002 A does not dimension this face's height; the drawing defers to the model (note 5), so the height is a mesh fit, banded by the drawing's general profile note 6."
     },
     {
       "id": "piston_cover_mount_flange_seat",
@@ -967,7 +967,7 @@
         "piston_cover_214958_002"
       ],
       "kind": "datum_feature",
-      "note": "The cover's internal shoulder: the surface the upper head's step face meets at the extend stop, 82.154 mm in from the cover's bottom flange face (214958-002 A sheet 3, SECTION CUT A-A). Until 2026-10-20 this node was named for the mount's end-stop surface; the section view shows that surface is where the heads rest at 72 deg (node `endstop_feather_contact`), and the shoulder is the cover's. No mesh of the cover exists."
+      "note": "The cover's internal shoulder: the surface the upper head's step face meets at the extend stop, 82.154 mm in from the cover's bottom flange face (214958-002 A sheet 3, SECTION CUT A-A). The mount's end-stop surface is where the heads rest at 72 deg (node `endstop_feather_contact`); the shoulder is the cover's. No mesh of the cover exists."
     },
     {
       "id": "hub_lower_bearing_flange",
@@ -1028,7 +1028,7 @@
         "pitch_plate_215177_001"
       ],
       "kind": "mating_surface",
-      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint the VPA-output topology models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
+      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint the VPA-output topology models axially in millimetres -- one interface, two topologies, at two different levels of the same system."
     },
     {
       "id": "pitch_arm_blade_root_clocking",
@@ -1039,7 +1039,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "The second branch point, and the one the brief names: from the blade roots a further branch runs to the ring gear (cyclic-only), while the blade's own OML and the blade-root-to-hub seat carry on. Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: fastener_pattern`: a ring of fasteners through matching holes, fixing rotation about the joint's axis."
+      "note": "The second branch point, and the one the brief names: from the blade roots a further branch runs to the ring gear (cyclic-only), while the blade's own OML and the blade-root-to-hub seat carry on. It is a fastener pattern: a ring of fasteners through matching holes, fixing rotation about the joint's axis."
     },
     {
       "id": "blade_root_oml",
@@ -1143,21 +1143,21 @@
       "name": "plain bushing face against the pitch-link eye (spherical bearing ball)",
       "parts": ["bushing_214820_002", "spherical_bearing_pitch_link"],
       "kind": "mating_surface",
-      "note": "Replaced `bushing_pitch_plate_face` on 2026-09-15 (handoff stack_fable_audit): that interface was a reading that reproduced the stack's then-incomplete arithmetic (the eye was omitted for want of any source) and its own note said it did not assert the bushing and the lug actually touch. They do not -- the eye and the flange sit between, same architecture as the tan-link joint."
+      "note": "The bushing and the lug do not touch -- the eye and the flange sit between, same architecture as the tan-link joint."
     },
     {
       "id": "eye_flange_face",
       "name": "pitch-link eye face against the flanged bushing's flange",
       "parts": ["spherical_bearing_pitch_link", "flanged_bushing_nas77a3_015a"],
       "kind": "mating_surface",
-      "note": "Added 2026-09-15 (stack_fable_audit); mirrors the tan-link take-2 topology's bearing_flanged_bushing_face."
+      "note": "Mirrors the tan-link take-2 topology's bearing_flanged_bushing_face."
     },
     {
       "id": "flange_lug_face",
       "name": "flanged bushing flange face against the pitch-plate lug",
       "parts": ["flanged_bushing_nas77a3_015a", "pitch_plate_215177_001"],
       "kind": "mating_surface",
-      "note": "Added 2026-09-15 (stack_fable_audit). The flange bears on the lug face; the bushing's barrel passes into the lug's bore (not modelled -- no bore-depth path in the referenced stack)."
+      "note": "The flange bears on the lug face; the bushing's barrel passes into the lug's bore (not modelled -- no bore-depth path in the referenced stack)."
     },
     {
       "id": "pitch_plate_washer_face",
@@ -1339,7 +1339,7 @@
         "gas_spring_piston_214700_002"
       ],
       "kind": "mating_surface",
-      "note": "The lower head seats on the body's shoulder (face 168 of `asm217755_214700_002`, +Z, part Z 234.169) with the same lower face it rests on the mount with at the feather stop (`endstop_feather_contact`): two interfaces on one face, whose offset is that face's flatness (`piston_head_lower_face_flatness`). Added 2026-11-03, handoff each_stop_is_its_own_stack."
+      "note": "The lower head seats on the body's shoulder (face 168 of `asm217755_214700_002`, +Z, part Z 234.169) with the same lower face it rests on the mount with at the feather stop (`endstop_feather_contact`): two interfaces on one face, whose offset is that face's flatness (`piston_head_lower_face_flatness`)."
     }
   ],
   "edges": [
@@ -1389,7 +1389,7 @@
       "part": "spherical_bearing_pitch_link",
       "from": "pitch_link_bearing_seat",
       "to": "pitch_link_bearing_ball_centre",
-      "note": "No value recorded. Nominally zero by the bearing's own construction -- a self-aligning spherical bearing's ball swivels about the centre of its race -- but no document in this repo states it, so this edge carries no dimension rather than an invented zero. What would close it: MS14101's own concentricity callout in the RBC catalog (pp. 21-22, not read for this), or this handoff's fit of the two spherical faces of `asm217755_MS14101_3_815597cb`."
+      "note": "No value recorded. Nominally zero by the bearing's own construction -- a self-aligning spherical bearing's ball swivels about the centre of its race -- but no document in this repo states it, so this edge carries no dimension rather than an invented zero. Value to come from MS14101's own concentricity callout in the RBC catalog (pp. 21-22, not read for this), or a fit of the two spherical faces of `asm217755_MS14101_3_815597cb`."
     },
     {
       "id": "pitch_link_bearing_bore_to_ball_centre",
@@ -1398,7 +1398,7 @@
       "part": "spherical_bearing_pitch_link",
       "from": "pitch_link_bearing_bore_axis",
       "to": "pitch_link_bearing_ball_centre",
-      "note": "No value recorded. The pair of features Jeff binds first, because both are on the one mesh of this linkage that is installed today: the ball (a spherical face) and the bore (a cylindrical one). What would close it: the same two sources as the sibling edge above."
+      "note": "No value recorded. The pair of features Jeff binds first, because both are on the one mesh of this linkage that is installed today: the ball (a spherical face) and the bore (a cylindrical one). Value to come from the same two sources as the sibling edge above."
     },
     {
       "id": "pitch_arm_radius",
@@ -1407,7 +1407,7 @@
       "part": "pitch_arm",
       "from": "pitch_arm_root_seat",
       "to": "pitch_arm_link_bore",
-      "note": "No value recorded. The lever arm that turns the pitch link's travel into blade pitch, and the quantity the solver most wants a number for. What would close it: 215071-001's own drawing, which this repo has not acquired, or a fit of the arm's mesh once rotorkit installs it. The 3DX sweep sheet does NOT give it -- the sheet's Pitch Arm Node is the joint centre, and the blade axis is not in it."
+      "note": "No value recorded. The lever arm that turns the pitch link's travel into blade pitch, and the quantity the solver most wants a number for. Value to come from 215071-001's own drawing, which this repo has not acquired, or a fit of the arm's mesh once rotorkit installs it. The 3DX sweep sheet does NOT give it -- the sheet's Pitch Arm Node is the joint centre, and the blade axis is not in it."
     },
     {
       "id": "blade_root_bearing_to_pitch_arm_seat",
@@ -1416,7 +1416,7 @@
       "part": "blade_root",
       "from": "hub_blade1_root_bearing_bore",
       "to": "pitch_arm_root_seat",
-      "note": "No value recorded. What would close it: 216332-001's own drawing. This edge is what makes the blade pitch axis and the pitch arm one chain rather than two components."
+      "note": "Value to come from 216332-001's own drawing. This edge is what makes the blade pitch axis and the pitch arm one chain rather than two components."
     },
     {
       "id": "hub_blade_axis_offset",
@@ -1425,7 +1425,7 @@
       "part": "hub",
       "from": "hub_spindle_bore_axis",
       "to": "hub_blade1_root_bearing_bore",
-      "note": "No value recorded. Expected to be zero -- the two axes are expected to intersect, Z and X -- and a zero written here on that expectation would be exactly the invented nominal this repo refuses. What would close it: 214373-002's own drawing, or a fit of the hub's two bores once rotorkit installs its mesh."
+      "note": "No value recorded. Expected to be zero -- the two axes are expected to intersect, Z and X -- and a zero written here on that expectation would be exactly the invented nominal this repo refuses. Value to come from 214373-002's own drawing, or a fit of the hub's two bores once rotorkit installs its mesh."
     },
     {
       "id": "pitch_plate_attach_radius",
@@ -1434,7 +1434,7 @@
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_link_attach_bore",
-      "note": "No value recorded. Radius and height (the sibling edge) are the two components of one offset, carried as two edges because a solver wants them separately. What would close it: 215177-001 or 215735-001's drawing, or a fit of the installed `asm217755_215177_001` mesh -- whose spindle bore and link bores are both there to be bound today."
+      "note": "No value recorded. Radius and height (the sibling edge) are the two components of one offset, carried as two edges because a solver wants them separately. Value to come from 215177-001 or 215735-001's drawing, or a fit of the installed `asm217755_215177_001` mesh -- whose spindle bore and link bores are both there to be bound today."
     },
     {
       "id": "pitch_plate_attach_height",
@@ -1452,7 +1452,7 @@
       "part": "pitch_plate_215177_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_gas_spring_bore",
-      "note": "No value recorded. What would close it: 215177-001's drawing, or a fit of the installed mesh."
+      "note": "Value to come from 215177-001's drawing, or a fit of the installed mesh."
     },
     {
       "id": "pitch_plate_tan_link_attach_radius",
@@ -1505,7 +1505,7 @@
       "part": "gas_spring",
       "from": "gas_spring_mount_flange",
       "to": "gas_spring_rod_end",
-      "note": "No value recorded, and it is a function of stroke rather than a fixed length: what a solver wants here is the installed length AT 72 degrees, which is the state the assembly STEP is in. What would close it: a PMF200521 vendor datasheet (none in data/inbox/specs/ as of 2026-09-30), or a fit of the installed `asm217755_PMF200521` mesh's two end bores. Re-pointed 2026-11-03 from `gas_spring_mount_bushing_bore`, which is the piston body's slide in the mount's bushings and no interface of the gas spring's: the gas spring's grounded end is its body flange on the mount."
+      "note": "No value recorded, and it is a function of stroke rather than a fixed length: what a solver wants here is the installed length AT 72 degrees, which is the state the assembly STEP is in. Value to come from a PMF200521 vendor datasheet (none in data/inbox/specs/), or a fit of the installed `asm217755_PMF200521` mesh's two end bores. The gas spring's grounded end is its body flange on the mount."
     },
     {
       "id": "pitch_arm_link_joint",
@@ -1527,7 +1527,7 @@
           "note": "PLACEHOLDER -- zero by assumption, added 2026-10-26 when pitch_system was folded into this document. pitch_system modelled this joint as one interface, which assumed the bearing's ball centre sits exactly on the pitch arm bore's axis. Folding its studies into this graph makes that assumption a term, and it is written as one -- a zero, `assumed` -- so they still chain through the joint and say they are incomplete here rather than hiding it. Every total is unchanged by it. What would replace it: the bearing's and the pitch arm lug's own fits."
         }
       },
-      "note": "Taken as closed (zero, assumed) since 2026-10-26, for the pitch studies that cross it. The lower joint's own closure: the ball centre sits on the arm bore's axis, and by how much it does not is the joint's play. What would close it: the bearing's and the lug's own fits, plus a clearance from 215071-001's drawing."
+      "note": "Taken as closed (zero, assumed), for the pitch studies that cross it. The lower joint's own closure: the ball centre sits on the arm bore's axis, and by how much it does not is the joint's play. Value to come from the bearing's and the lug's own fits, plus a clearance from 215071-001's drawing."
     },
     {
       "id": "pitch_plate_link_joint",
@@ -1549,7 +1549,7 @@
           "note": "PLACEHOLDER -- zero by assumption, added 2026-10-26 when pitch_system was folded into this document. pitch_system modelled this joint as one interface, which assumed the bearing's ball centre sits exactly on the pitch plate bore's axis. Folding its studies into this graph makes that assumption a term, and it is written as one -- a zero, `assumed` -- so they still chain through the joint and say they are incomplete here rather than hiding it. Every total is unchanged by it. What would replace it: the bearing's and the pitch plate lug's own fits."
         }
       },
-      "note": "Taken as closed (zero, assumed) since 2026-10-26, for the pitch studies that cross it. The upper joint's own closure, the mirror of the lower one."
+      "note": "Taken as closed (zero, assumed), for the pitch studies that cross it. The upper joint's own closure, the mirror of the lower one."
     },
     {
       "id": "hub_to_pitch_plate_spindle_coaxiality",
@@ -1567,7 +1567,7 @@
       "interface": "cylindrical_slide",
       "from": "gas_spring_mount_bushing_bore",
       "to": "gas_spring_piston_body_od",
-      "note": "No value recorded. The slide joint the pitch plate rides: the piston body's OD in the mount's two GR04WB328AT11 bushings. Jeff, 2026-11-03 (forge note 20261103T165357_43vf96): 'The two surfaces that control the pitch plate slide joint would be cylindrical surfaces of the gas spring mount (213668-002 ...) -- technically the bushings themselves are GR04WB328AT11 -- and piston body (214700-002) which is rigidly attached to the pitch plate.' Replaces `gas_spring_bushing_coaxiality` (hub spindle bore to the mount bushing bore), the joint Jeff said does not exist. What would close it: the bushing's ID band (a GR04WB328AT11 datasheet; none in data/inbox/specs/) and 214700-002's OD band -- their difference is the radial clearance the bushing-tipping term needs."
+      "note": "No value recorded. The slide joint the pitch plate rides: the piston body's OD in the mount's two GR04WB328AT11 bushings. Jeff: 'The two surfaces that control the pitch plate slide joint would be cylindrical surfaces of the gas spring mount (213668-002 ...) -- technically the bushings themselves are GR04WB328AT11 -- and piston body (214700-002) which is rigidly attached to the pitch plate.' Value to come from the bushing's ID band (a GR04WB328AT11 datasheet; none in data/inbox/specs/) and 214700-002's OD band -- their difference is the radial clearance the bushing-tipping term needs."
     },
     {
       "id": "piston_body_id_datum_to_od",
@@ -1576,7 +1576,7 @@
       "part": "gas_spring_piston_214700_002",
       "from": "pitch_plate_pilot_in_piston_id",
       "to": "gas_spring_piston_body_od",
-      "note": "No value recorded. How far the OD that rides the bushings is from coaxial with the ID datum the plate pilots into -- the piston body's own link between the plate and the slide. What would close it: 214700-002's drawing."
+      "note": "No value recorded. How far the OD that rides the bushings is from coaxial with the ID datum the plate pilots into -- the piston body's own link between the plate and the slide. Value to come from 214700-002's drawing."
     },
     {
       "id": "gas_spring_rod_to_pitch_plate",
@@ -1670,7 +1670,7 @@
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
       "to": "gas_spring_mount_bushing_bore",
-      "note": "No value recorded. What would close it: 213668-002's own drawing, or a fit of the installed `machined_213668` mesh -- the only part of this linkage whose mesh came from a single-part STEP export rather than from the assembly. Since 2026-11-03 its sidecar records the assembly occurrence rotorkit's run assembly_extract_20261001T022446Z found for it (identity; frame checked vertex for vertex), so a fit of it is placed like any other part's."
+      "note": "Value to come from 213668-002's own drawing, or a fit of the installed `machined_213668` mesh -- the only part of this linkage whose mesh came from a single-part STEP export rather than from the assembly. Its sidecar records the assembly occurrence (identity; frame checked vertex for vertex), so a fit of it is placed like any other part's."
     },
     {
       "id": "hub_spindle_to_gas_spring_mount_face",
@@ -1679,7 +1679,7 @@
       "part": "hub",
       "from": "hub_spindle_bore_axis",
       "to": "gas_spring_mount_hub_face",
-      "note": "No value recorded. What would close it: 214373-002's own drawing. topology_pitch_system.json carries this quantity under `gas_spring_mount_position`, with a drawing citation that is still `untraced` (its 2026-09-06 retrace) -- read that edge before re-tracing this one, and do not copy its band across: the two documents do not measure between the same pair of interfaces."
+      "note": "Value to come from 214373-002's own drawing. topology_pitch_system.json carries this quantity under `gas_spring_mount_position`, with a drawing citation that is still `untraced` -- read that edge before re-tracing this one, and do not copy its band across: the two documents do not measure between the same pair of interfaces."
     },
     {
       "id": "tan_link_mount_height",
@@ -1688,7 +1688,7 @@
       "part": "tan_link_mount_215175_002",
       "from": "tan_link_mount_hub_face",
       "to": "tan_link_mount_bore",
-      "note": "No value recorded. Phase 2. What would close it: 215198 sheet 1, whose `79.00 +/-0.10` was traced on 2026-09-10 and is the mount detail's own height -- but check the endpoints before copying it, because this edge is between THIS document's two interfaces and that trace was read for a different document's."
+      "note": "No value recorded. Phase 2. Value to come from 215198 sheet 1, whose `79.00 +/-0.10` is the mount detail's own height -- but check the endpoints before copying it, because this edge is between THIS document's two interfaces and that trace was read for a different document's."
     },
     {
       "id": "hub_spindle_to_tan_link_mount_face",
@@ -1697,7 +1697,7 @@
       "part": "hub",
       "from": "hub_spindle_bore_axis",
       "to": "tan_link_mount_hub_face",
-      "note": "No value recorded. Phase 2. What would close it: 214373-002's own drawing."
+      "note": "No value recorded. Phase 2. Value to come from 214373-002's own drawing."
     },
     {
       "id": "pitch_link_lower_centre_is_this_bearing",
@@ -1706,7 +1706,7 @@
       "interface": "pin_in_bore",
       "from": "pitch_link_bearing_ball_centre",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. What would close it: the press-fit clearance off 213861-002's housing bore and the bearing's own OD. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
+      "note": "No value recorded, and nominally zero: the link's lower joint centre IS this bearing's ball centre, at instance 213862-002.1/MS14101-3.1. The edge exists because the two are different KINDS of thing -- one is a piece part's own feature, the other is a location in the mechanism -- and because it is the only thing in this document that says which geometry a reader should click to bind that centre. Value to come from the press-fit clearance off 213861-002's housing bore and the bearing's own OD. Interface pin_in_bore: the centres are one point, so this is not a joint of the mechanism; the contact that makes them one is the bearing's race pressed into the link's housing bore, and that is what the glyph draws."
     },
     {
       "id": "pitch_link_upper_centre_is_this_bearing",
@@ -1937,7 +1937,7 @@
       "part": "gas_spring_mount_213668_002",
       "from": "gas_spring_mount_hub_face",
       "to": "piston_cover_mount_flange_seat",
-      "note": "No value recorded, and not part of any study. It ties the end-stop chain to the rest of the linkage so the graph stays one connected piece, which the viewer's rail needs. What would close it: 213668-002's own drawing, or a fit of `machined_213668` once the hub face and the cover flange face are both identified on the mesh."
+      "note": "No value recorded, and not part of any study. It ties the end-stop chain to the rest of the linkage so the graph stays one connected piece, which the viewer's rail needs. Value to come from 213668-002's own drawing, or a fit of `machined_213668` once the hub face and the cover flange face are both identified on the mesh."
     },
     {
       "id": "gas_spring_mount_datum_a_to_end_stop",
@@ -1996,7 +1996,7 @@
           "note": "Read by eye off the run's `page_1.png`, SECTION C-C, on 2026-10-22: the run extracted no dimensions (drawing-checker/docs/issues/ISSUE_20261022_the_gas_spring_mount_run_extracted_no_dimensions_from_sheets_that_print_many.md). Datum A is the part's wide base face (the flatness 0.1 frame on the side view carries it); this edge reads that face as `gas_spring_mount_hub_face`, the face the mount bolts to the hub by, which is a reading of the views and not a callout. The top face is where the feather-direction end stop hits (Jeff, forge note 20261020T171900_km22z6 (2026-10-20)). Recorded as a fact of the part, NOT a term of the end-stop travel study: Jeff, forge note 20261020T171900_km22z6 (2026-10-20), 'One option would be to add another tolerance from A-datum to piston cover mount flange, this would improve the absolute flat pitch end stop accuracy but lengthen the stack for total travel. Probably better to directly constrain the 8.667mm dimension since total travel is what is controlled in the ATS.'"
         }
       },
-      "note": "A real dimension of 213668-002: datum A, the mount's base face, to its top face, where the feather-direction stop hits (Jeff). Re-anchored 2026-11-03 (handoff each_stop_is_its_own_stack) from `gas_spring_mount_hub_face` to `tan_link_mount_gas_spring_seat`: the mount's datum A seats on the tangential link mount (Jeff, 2026-11-03: 'if the hub (blade root bore to tan link mount surface) or tan link mount thickness changes, then both housing end stops move the same amount'), which is the face `tan_link_mount_overall_height` reaches, so the feather stop's axial stack can walk from the hub through both mounts. The face is the same mount face it was, so a binding of this edge's `from` end is unchanged. `gas_spring_mount_hub_face` still says the mount bolts to the hub (the pre-2026-10 reading); that node is the open question, not this edge. The travel chain does not select this edge: it wants only the cover-seat-to-stop length."
+      "note": "A real dimension of 213668-002: datum A, the mount's base face, to its top face, where the feather-direction stop hits (Jeff). Anchored at `tan_link_mount_gas_spring_seat`: the mount's datum A seats on the tangential link mount (Jeff: 'if the hub (blade root bore to tan link mount surface) or tan link mount thickness changes, then both housing end stops move the same amount'), which is the face `tan_link_mount_overall_height` reaches, so the feather stop's axial stack can walk from the hub through both mounts. The travel chain does not select this edge: it wants only the cover-seat-to-stop length."
     },
     {
       "id": "hub_lower_to_top_bearing_flange",
@@ -2562,7 +2562,7 @@
           "note": "PLACEHOLDER. No source in this repo's pile states a numeric variation band for the gas spring's own internal mechanical-stroke length. S461-516/637 (validated, 'Gas Spring Mechanical Stroke') give only the nominal design stroke, 61.67 mm equivalent to 75 deg blade pitch travel -- a NOMINAL, not a tolerance. S461-613/663 (validated, 'Gas Spring Tolerances') cover the maximum resisting FORCE's tolerances (temperature variation, fill tolerance, leakage compensation) -- a different physical quantity, not a stroke-length band. WORKSHEET_end_stop_graft.md row 63 ('gas spring bushing clearance', identified as Trelleborg catalog p.239 by handoff endstop_retrace_acquired_docs) is a RADIAL bushing clearance feeding the bushing-tipping-backlash calculation (row 68), not an AXIAL stroke tolerance -- checked and ruled out, not merely unconsidered. 0.20 mm total width is a stand-in matching this document's other no-source placeholders (see `hub_top_deck_to_vpa_mount`, `hydraulic_brake_body_height`); it is not read off anything and should not be quoted."
         }
       },
-      "note": "Added by handoff mechanical_stroke_stack (2026-09-06), the first edge in this topology naming the gas spring's OWN mechanical stops (S461-616/617/638/639) rather than its external mounting/positional dimensions, which the pre-existing `gas_spring_body_height`/`gas_spring_mount_position` edges already covered."
+      "note": "Names the gas spring's OWN mechanical stops (S461-616/617/638/639) rather than its external mounting/positional dimensions, which `gas_spring_body_height` and `gas_spring_mount_position` cover."
     },
     {
       "id": "gas_spring_mount_position",
@@ -2724,7 +2724,7 @@
         "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
         "element": "pitch_link_eye"
       },
-      "note": "Added 2026-09-15 (stack_fable_audit). The referenced element is the repo's loudest placeholder -- MS14101-3's catalog band, `untraced`, awaiting the 213862-002 drawing -- and this edge inherits every caveat on it."
+      "note": "The referenced element is the repo's loudest placeholder -- MS14101-3's catalog band, `untraced`, awaiting the 213862-002 drawing -- and this edge inherits every caveat on it."
     },
     {
       "id": "flange_bushing_flange_pitch_link",
@@ -2736,8 +2736,7 @@
       "dimension_ref": {
         "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
         "element": "flange_bushing_flange"
-      },
-      "note": "Added 2026-09-15 (stack_fable_audit)."
+      }
     },
     {
       "id": "pitch_plate_flange",

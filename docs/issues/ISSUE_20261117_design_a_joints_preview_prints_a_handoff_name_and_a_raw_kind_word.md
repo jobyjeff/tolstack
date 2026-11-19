@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
+resolution: kind chip reads everyday words (VA.ELEMENT_KIND_WORDS); every node/edge note says what the feature is, history to git, pinned by tests/test_topology_prose_for_a_reader.py (a_joints_preview_says_what_the_joint_is)
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261117_the_walk_reads_the_portrait_map_and_the_joints_on_the_merged_page.md

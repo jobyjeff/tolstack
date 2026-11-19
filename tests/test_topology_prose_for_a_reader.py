@@ -85,6 +85,43 @@ BANNED_IN_RENDERED_PROSE = (
      "path; a reader of the hover card cannot open it"),
 )
 
+SESSIONS_DIR = REPO_ROOT / "docs" / "sessions"
+
+
+def handoff_slugs():
+    """Every handoff's slug, from the board's own file names.
+
+    ``HANDOFF_<date>_<slug>.md`` anywhere under ``docs/sessions/`` (staged,
+    active, completed). A slug is an internal name; a note that carries one
+    sends a reader to a file they cannot open.
+    """
+    slugs = set()
+    for path in SESSIONS_DIR.rglob("HANDOFF_*.md"):
+        match = re.fullmatch(r"HANDOFF_\d{8}_(.+)\.md", path.name)
+        if match and "_" in match.group(1):
+            slugs.add(match.group(1))
+    assert len(slugs) > 50, f"the handoff scan found only {len(slugs)} slugs"
+    return sorted(slugs, key=len, reverse=True)
+
+
+#: What a note must not say about its own past (a_joints_preview_says_what_the_
+#: joint_is). A note states what the feature IS; when it was named, what it
+#: replaced and which handoff did it are git's, and a reader of the Preview
+#: cannot use them. The slug pattern is built from the board, so a new handoff's
+#: name is banned the day its file exists.
+BANNED_AS_HISTORY = (
+    (re.compile(r"\b20\d\d-\d\d-\d\d\b"),
+     "an ISO date",
+     "'Was named ... until 2026-11-10', 'New in v2 (2026-11-17 ...)': history on "
+     "a reading surface"),
+    (re.compile(r"\bWas named\b|\bNew in\b|\bhandoff\b", re.I),
+     "a rename or provenance-of-the-edit phrase",
+     "the same history in words; the note says what the thing is now"),
+    (re.compile(r"\b(?:%s)\b" % "|".join(re.escape(s) for s in handoff_slugs())),
+     "a handoff slug",
+     "an internal name the reader cannot open"),
+)
+
 #: Long enough for a part number plus a short noun phrase with one qualifier
 #: (the longest authored name is 'actuator piston (output rod end)', 32, and
 #: '208510-007 variable pitch actuator', 34), short enough that the grid's
@@ -139,6 +176,40 @@ def test_a_rendered_string_is_written_for_a_reader(where, field, text):
             f"citation points at, or the element it belongs to in words -- "
             f"the fact stays, only who it is addressed to changes."
         )
+
+
+#: The Preview's own surface: a node's and an edge's note. A part's note is the
+#: component hover card's, and still carries its provenance (see
+#: docs/issues/ISSUE_20261118_part_notes_carry_dates_and_run_ids_on_the_hover_card.md).
+PREVIEW_PROSE = [(w, f, t) for w, f, t in PROSE
+                 if f == "note" and (":nodes/" in w or ":edges/" in w)]
+
+
+@pytest.mark.parametrize("where,field,text", PREVIEW_PROSE,
+                         ids=[f"{w}.{f}" for w, f, _ in PREVIEW_PROSE])
+def test_a_rendered_string_carries_no_history(where, field, text):
+    for pattern, what, why in BANNED_AS_HISTORY:
+        hit = pattern.search(text)
+        assert hit is None, (
+            f"{where}: {field} carries {what} ({hit.group(0)!r}).\n"
+            f"  {field}: {text!r}\n"
+            f"  why this is banned: {why}\n"
+            f"  The Preview renders this verbatim. Say what the feature is; "
+            f"the history is in git."
+        )
+
+
+def test_the_history_guard_sees_what_it_bans():
+    """A pattern that matches nothing passes against anything."""
+    assert len(PREVIEW_PROSE) > 100, len(PREVIEW_PROSE)
+    samples = {
+        "an ISO date": "Jeff, 2026-11-03: 'x'",
+        "a rename or provenance-of-the-edit phrase": "New in v2: the bore",
+        "a handoff slug": "Added by " + handoff_slugs()[0],
+    }
+    for pattern, what, _ in BANNED_AS_HISTORY:
+        assert pattern.search(samples[what]), what
+    assert BANNED_AS_HISTORY[1][0].search('Was named "x" until later')
 
 
 def test_the_four_pitch_link_parts_read_as_human_names():

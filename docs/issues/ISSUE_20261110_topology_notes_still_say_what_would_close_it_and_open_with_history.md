@@ -1,13 +1,13 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: topologies/notes
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261110_the_end_stop_models_notes_say_where_the_value_comes_from.md
 class: stale_doc_after_refactor
-resolution: triage 2026-11-11 -- low, deferred by default; class has no program; 30-day date
+resolution: node/edge notes lost their history openings and What-would-close-it became Value to come from; guard added (a_joints_preview_says_what_the_joint_is)
 handoff: docs/sessions/HANDOFF_20261117_a_joints_preview_says_what_the_joint_is.md
 ---
 

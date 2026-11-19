@@ -75,8 +75,24 @@
     if (!kind) return "";
     return VA.INTERFACE_KIND_WORDS[kind] || String(kind).replace(/_/g, " ");
   };
-  VA.FORM_KINDS = VOCAB.list("FORM_KINDS");
   VA.EDGE_KINDS = VOCAB.list("EDGE_KINDS");
+
+  // What a reader calls a node's or an edge's own kind, where the Preview's
+  // chip prints it: everyday words, never the stored spelling. Keyed through
+  // the generated vocabularies, so a kind added in Python and named nowhere
+  // here throws when the page loads.
+  VA.ELEMENT_KIND_WORDS = Object.freeze(Object.assign({}, VOCAB.table("NODE_KINDS", {
+    mating_surface: "mating surface",
+    datum_feature: "datum feature",
+  }), VOCAB.table("EDGE_KINDS", {
+    structural: "dimension",
+    gap: "gap",
+  })));
+  VA.elementKindWord = function (kind) {
+    if (!kind) return "";
+    return VA.ELEMENT_KIND_WORDS[kind] || String(kind).replace(/_/g, " ");
+  };
+  VA.FORM_KINDS = VOCAB.list("FORM_KINDS");
   VA.TRANSFORM_KINDS = VOCAB.list("TRANSFORM_KINDS");
 
   // Where an edge's value comes from. A total function with a loud fallback: the

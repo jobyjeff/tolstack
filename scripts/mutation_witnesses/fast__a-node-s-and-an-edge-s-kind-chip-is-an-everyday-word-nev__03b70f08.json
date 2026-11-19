@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a node's and an edge's kind chip is an everyday word, never the stored spelling",
+  "mutations": [
+    {
+      "contract": "The Preview's kind chip prints an everyday word for a node's and an edge's kind, never the stored spelling.",
+      "issue": null,
+      "note": "The word for a dimension edge is the one a reader would not guess from its stored kind, so a table that falls back to the stored word reads wrong here first.",
+      "file": "apps/viewer/topology.js",
+      "find": "    structural: \"dimension\",",
+      "replace": "    structural: \"structural\","
+    }
+  ]
+}

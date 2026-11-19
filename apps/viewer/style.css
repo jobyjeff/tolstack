@@ -242,6 +242,8 @@ main { display: flex; align-items: flex-start; gap: 0; }
    is metadata. */
 .chip__mark { color: var(--muted); font-weight: 400; }
 .chip--kind { color: var(--muted); font-family: ui-monospace, monospace; }
+/* A kind said in everyday words is prose, not an id. */
+.chip--kind.chip--word { font-family: inherit; }
 .chip--zero-width { color: var(--zero); border-color: var(--zero); border-style: dashed; }
 .chip--budget { color: var(--inferred); border-color: var(--inferred); font-weight: 600; }
 /* Both were accent-coloured until 2026-09-17 and neither is a state: a

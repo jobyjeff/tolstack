@@ -2417,9 +2417,9 @@
     root.appendChild(paneHead(record.title, record.id));
 
     var chips = VA.el("div", "detail__chips");
-    chips.appendChild(VA.chip("chip--kind", record.elementKind));
-    if (record.jointKind) chips.appendChild(VA.chip("chip--kind", VA.interfaceKindWord(record.jointKind)));
-    chips.appendChild(VA.chip("chip--kind", record.degree + " edge(s)"));
+    chips.appendChild(VA.chip("chip--kind chip--word", VA.elementKindWord(record.elementKind)));
+    if (record.jointKind) chips.appendChild(VA.chip("chip--kind chip--word", VA.interfaceKindWord(record.jointKind)));
+    chips.appendChild(VA.chip("chip--kind chip--word", record.degree + " edge(s)"));
     if (record.branch) {
       chips.appendChild(VA.chip("chip--branch", "BRANCH POINT",
         "a study reaching this node with two unconsumed selected edges raises " +
@@ -2592,8 +2592,8 @@
     var chips = VA.el("div", "detail__chips");
     chips.appendChild(VA.markGeneralNote(VA.chip(VA.confidenceClass(record.confidence),
       record.confidenceLabel), record.citation));
-    chips.appendChild(VA.chip("chip--kind", record.elementKind));
-    if (record.jointKind) chips.appendChild(VA.chip("chip--kind", VA.interfaceKindWord(record.jointKind)));
+    chips.appendChild(VA.chip("chip--kind chip--word", VA.elementKindWord(record.elementKind)));
+    if (record.jointKind) chips.appendChild(VA.chip("chip--kind chip--word", VA.interfaceKindWord(record.jointKind)));
     chips.appendChild(source
       ? VA.chip("chip--source", source.label, source.title)
       : VA.chip("chip--unlabelled", record.valueSource,

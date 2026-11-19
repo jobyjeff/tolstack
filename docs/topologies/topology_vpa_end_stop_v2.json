@@ -188,7 +188,7 @@
         "hub"
       ],
       "kind": "datum_feature",
-      "note": "Concentric by design with the main bearings the whole propeller turns on; those bearings and the shaft are not in this model. Was named \"hub locating-boss axis (tan-link mount pilot)\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "note": "Concentric by design with the main bearings the whole propeller turns on; those bearings and the shaft are not in this model."
     },
     {
       "id": "hub_blade1_root_bearing_bore",
@@ -199,7 +199,7 @@
       ],
       "kind": "mating_surface",
       "interface": "revolute",
-      "note": "Was named \"hub blade-1 root bearing bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\"). Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: revolute`: the blade turns in this bore about its pitch axis, the solver's revolute joint between the base and the blade."
+      "note": "The blade turns in this bore about its pitch axis: the base's rotary joint with the blade."
     },
     {
       "id": "tan_link_mount_hub_face",
@@ -208,8 +208,7 @@
         "tan_link_mount_215175_002",
         "hub"
       ],
-      "kind": "mating_surface",
-      "note": "Was named \"tangential link mount base face against the hub\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "mating_surface"
     },
     {
       "id": "tan_link_mount_pilot_bore",
@@ -222,7 +221,7 @@
         "part": "tan_link_mount_215175_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-08): the bore that locates the mount radially on the hub's circular boss. Was named \"tan-link mount pilot bore, on the hub's locating boss\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "note": "The bore that locates the mount radially on the hub's circular boss."
     },
     {
       "id": "tan_link_mount_fastener_clocking",
@@ -233,7 +232,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "New in v2 (2026-11-08): the fasteners round the mount's flange constrain its rotation about the boss. One node on both parts, as v1's `pitch_arm_blade_root_clocking`. Was named \"tan-link mount clocked to the hub by its perimeter fasteners\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\"). Since 2026-11-17 (handoff a_joint_says_what_kind_it_is) it states `interface: fastener_pattern`: a ring of fasteners through matching holes, fixing rotation about the joint's axis."
+      "note": "The ring of fasteners round the mount's flange through matching holes constrains its rotation about the boss. One node on both parts, as v1's `pitch_arm_blade_root_clocking`."
     },
     {
       "id": "tan_link_mount_bore",
@@ -241,8 +240,7 @@
       "parts": [
         "tan_link_mount_215175_002"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"tangential link mount attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "tan_link_mount_gas_spring_seat",
@@ -252,7 +250,7 @@
         "tan_link_mount_215175_002"
       ],
       "kind": "mating_surface",
-      "note": "The gas-spring mount's base face, its datum A, seated on the tangential link mount: mount on mount, with no seat on the hub (Jeff, 2026-11-10). Until 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model) v2 seated this face on the hub, as `gas_spring_mount_hub_face`; that node is gone from v2 and v1 keeps it."
+      "note": "The gas-spring mount's base face, its datum A, seated on the tangential link mount: mount on mount, with no seat on the hub."
     },
     {
       "id": "gas_spring_mount_locating_boss",
@@ -265,7 +263,7 @@
         "part": "gas_spring_mount_213668_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the spigot under the gas-spring mount's base face that locates it radially in the tangential link mount. On the 213668 mesh (`machined_213668`): two lands of one boss, faces 73/622 (z 126.55 to 127.55) and 81/624 (z 132.50 to 133.50), both diameter 220.370, with a 214.782 relief between. The mount carries the boss here, the opposite of the hub joint below it. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The spigot under the gas-spring mount's base face that locates it radially in the tangential link mount. On the 213668 mesh (`machined_213668`): two lands of one boss, faces 73/622 (z 126.55 to 127.55) and 81/624 (z 132.50 to 133.50), both diameter 220.370, with a 214.782 relief between. The mount carries the boss here, the opposite of the hub joint below it. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "tan_link_mount_gas_spring_pilot_bore",
@@ -278,7 +276,7 @@
         "part": "tan_link_mount_215175_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the bore at the top of the tangential link mount the gas-spring mount's locating boss sits in. On the 215175-001 mesh (`asm217755_215175_001`, the alias row's other hand): faces 687 and 909, two halves of one bore, diameter 220.421, z 125.98 to 133.14, coaxial with the boss. Named for the part it receives, as the pitch plate's pitch link bore is. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The bore at the top of the tangential link mount the gas-spring mount's locating boss sits in. On the 215175-001 mesh (`asm217755_215175_001`, the alias row's other hand): faces 687 and 909, two halves of one bore, diameter 220.421, z 125.98 to 133.14, coaxial with the boss. Named for the part it receives, as the pitch plate's pitch link bore is. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "gas_spring_mount_fastener_clocking",
@@ -289,7 +287,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the ring of fasteners through the gas-spring mount's flange into the tangential link mount, fixing its rotation about the boss. One node on both parts, as `tan_link_mount_fastener_clocking`. On the 213668 mesh (`machined_213668`): 10 holes diameter 5.000 on a 240.000 circle through the flange (z 134.4 to 137.6), faces 303 to 312 and 800 to 809. On the 215175-001 mesh (`asm217755_215175_001`, the alias row's other hand): 10 holes diameter 5.000 on a 240.000 circle under the seat (z 130.6 to 133.6), faces 72, 73, 161, 162, 169, 170, 175, 176, 179, 180, 1123, 1124, 1126, 1127, 1129 to 1132, 1351, 1352, with 6.693, 6.299 and 3.307 rings below them on the same centres. The two rings' centres are at the same ten angles (29.2, 44.2, 100.1, 115.1, 172.5, 187.5, 244.9, 259.9, 315.8, 330.8 degrees), the hub joint's angles too. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The ring of fasteners through the gas-spring mount's flange into the tangential link mount, fixing its rotation about the boss. One node on both parts, as `tan_link_mount_fastener_clocking`. On the 213668 mesh (`machined_213668`): 10 holes diameter 5.000 on a 240.000 circle through the flange (z 134.4 to 137.6), faces 303 to 312 and 800 to 809. On the 215175-001 mesh (`asm217755_215175_001`, the alias row's other hand): 10 holes diameter 5.000 on a 240.000 circle under the seat (z 130.6 to 133.6), faces 72, 73, 161, 162, 169, 170, 175, 176, 179, 180, 1123, 1124, 1126, 1127, 1129 to 1132, 1351, 1352, with 6.693, 6.299 and 3.307 rings below them on the same centres. The two rings' centres are at the same ten angles (29.2, 44.2, 100.1, 115.1, 172.5, 187.5, 244.9, 259.9, 315.8, 330.8 degrees), the hub joint's angles too. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "gas_spring_mount_bushing_bore",
@@ -302,8 +300,7 @@
         "part": "gas_spring_mount_213668_002",
         "surface": "cylindrical"
       },
-      "hardware_ref": "GR04WB328AT11",
-      "note": "Was named \"gas-spring mount bushing bores -- the two Slydring seats\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "hardware_ref": "GR04WB328AT11"
     },
     {
       "id": "piston_cover_mount_flange_seat",
@@ -312,8 +309,7 @@
         "piston_cover_214958_002",
         "gas_spring_mount_213668_002"
       ],
-      "kind": "mating_surface",
-      "note": "Was named \"piston cover bottom flange against the mount flange\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "mating_surface"
     },
     {
       "id": "gas_spring_mount_cover_locating_boss",
@@ -326,7 +322,7 @@
         "part": "gas_spring_mount_213668_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the spigot above the gas-spring mount's top face that the piston cover's pilot bore sits on. On the 213668 mesh (`machined_213668`): two lands of one boss, faces 1061/1063 (z 203.19 to 204.27) and 1074/1075 (z 208.78 to 210.11), diameter 58.458. Named for the part it receives, beside the mount's own locating boss. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The spigot above the gas-spring mount's top face that the piston cover's pilot bore sits on. On the 213668 mesh (`machined_213668`): two lands of one boss, faces 1061/1063 (z 203.19 to 204.27) and 1074/1075 (z 208.78 to 210.11), diameter 58.458. Named for the part it receives, beside the mount's own locating boss. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_cover_pilot_bore",
@@ -339,7 +335,7 @@
         "part": "piston_cover_214958_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the bore at the foot of the piston cover that locates it radially on the gas-spring mount's boss. On the 214958-002 mesh (`asm217755_214958_002`): faces 92 and 93, two halves of one bore, diameter 58.572, z 203.93 to 210.22, coaxial with the boss. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The bore at the foot of the piston cover that locates it radially on the gas-spring mount's boss. On the 214958-002 mesh (`asm217755_214958_002`): faces 92 and 93, two halves of one bore, diameter 58.572, z 203.93 to 210.22, coaxial with the boss. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_cover_fastener_clocking",
@@ -350,7 +346,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the ring of fasteners through the piston cover's flange into the gas-spring mount, fixing its rotation about the boss. One node on both parts, as `tan_link_mount_fastener_clocking`. On the 214958-002 mesh (`asm217755_214958_002`): 5 holes diameter 5.000 on an 81.572 circle through the flange (z 202.19 to 207.19), faces 43 to 52 and 127 to 136. On the 213668 mesh (`machined_213668`): 5 holes diameter 4.750 on an 81.572 circle under the top face (z 198.19 to 202.19), faces 6, 27, 32, 33, 38, 39, 571, 586, 591, 592, 597, 598. The two rings' centres are at the same five unequal angles (36.7, 107.6, 180.0, 252.4, 323.3 degrees). The mount's ring of 10 holes diameter 2.510 on an 82.434 circle beside it is at other angles and is not this joint's. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The ring of fasteners through the piston cover's flange into the gas-spring mount, fixing its rotation about the boss. One node on both parts, as `tan_link_mount_fastener_clocking`. On the 214958-002 mesh (`asm217755_214958_002`): 5 holes diameter 5.000 on an 81.572 circle through the flange (z 202.19 to 207.19), faces 43 to 52 and 127 to 136. On the 213668 mesh (`machined_213668`): 5 holes diameter 4.750 on an 81.572 circle under the top face (z 198.19 to 202.19), faces 6, 27, 32, 33, 38, 39, 571, 586, 591, 592, 597, 598. The two rings' centres are at the same five unequal angles (36.7, 107.6, 180.0, 252.4, 323.3 degrees). The mount's ring of 10 holes diameter 2.510 on an 82.434 circle beside it is at other angles and is not this joint's. Every mesh named here places its part at the identity, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_cover_end_stop_shoulder",
@@ -359,7 +355,7 @@
         "piston_cover_214958_002"
       ],
       "kind": "datum_feature",
-      "note": "The cover's -7 deg stop face: the internal shoulder the upper head's step face reaches at the low stop. Was named \"piston cover internal end-stop shoulder -- the extend stop\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "note": "The cover's -7 deg stop face: the internal shoulder the upper head's step face reaches at the low stop."
     },
     {
       "id": "endstop_feather_contact",
@@ -369,7 +365,7 @@
         "gas_spring_mount_213668_002"
       ],
       "kind": "mating_surface",
-      "note": "The feather (+72 deg) stop: the lower head's lower face on the gas-spring mount's end-stop face. One node, because the two touch there (DAG_TOPOLOGY.md, \"What a hard contact is not\"). Was named \"lower piston head lower face on the gas-spring mount's end-stop surface -- the main datum\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "note": "The feather (+72 deg) stop: the lower head's lower face on the gas-spring mount's end-stop face. One node, because the two touch there (DAG_TOPOLOGY.md, \"What a hard contact is not\")."
     },
     {
       "id": "pitch_arm_root_seat",
@@ -378,8 +374,7 @@
         "pitch_arm",
         "blade_root"
       ],
-      "kind": "mating_surface",
-      "note": "Was named \"pitch arm root clamp face against the blade root\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "mating_surface"
     },
     {
       "id": "pitch_arm_blade_root_bore",
@@ -392,7 +387,7 @@
         "part": "pitch_arm",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the bore of the pitch arm's ring that locates it radially on the blade root. On the 215071-001 mesh (`asm217755_215071_001`): faces 253 and 254, two halves of one bore, diameter 64.030, 15.9 long (-8.57 to 7.32 along the axis, measured from the bore's own axis point), coaxial with the blade's boss. Named for the part it receives. Measured about the pitch arm's bore axis, with both parts placed at the one occurrence the blade mesh records (blade slot prd-e-03372837.2); a measurement of a mesh, never a value."
+      "note": "The bore of the pitch arm's ring that locates it radially on the blade root. On the 215071-001 mesh (`asm217755_215071_001`): faces 253 and 254, two halves of one bore, diameter 64.030, 15.9 long (-8.57 to 7.32 along the axis, measured from the bore's own axis point), coaxial with the blade's boss. Named for the part it receives. Measured about the pitch arm's bore axis, with both parts placed at the one occurrence the blade mesh records (blade slot prd-e-03372837.2); a measurement of a mesh, never a value."
     },
     {
       "id": "blade_root_pitch_arm_locating_boss",
@@ -405,7 +400,7 @@
         "part": "blade_root",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the cylindrical land of the blade root's metal fitting the pitch arm's bore sits on. On the 216332-001 mesh (`asm217755_216332_001_bb3745d2`): faces 1060 and 1061 (solid 2), diameter 64.000, -8.96 to 8.00 along the axis; the mesh carries a second copy of the fitting, solid 17, whose faces 6439 and 6440 are the same boss. Named for the part it receives, as the gas-spring mount's piston cover locating boss is. Measured about the pitch arm's bore axis, with both parts placed at the one occurrence the blade mesh records (blade slot prd-e-03372837.2); a measurement of a mesh, never a value."
+      "note": "The cylindrical land of the blade root's metal fitting the pitch arm's bore sits on. On the 216332-001 mesh (`asm217755_216332_001_bb3745d2`): faces 1060 and 1061 (solid 2), diameter 64.000, -8.96 to 8.00 along the axis; the mesh carries a second copy of the fitting, solid 17, whose faces 6439 and 6440 are the same boss. Named for the part it receives, as the gas-spring mount's piston cover locating boss is. Measured about the pitch arm's bore axis, with both parts placed at the one occurrence the blade mesh records (blade slot prd-e-03372837.2); a measurement of a mesh, never a value."
     },
     {
       "id": "pitch_arm_blade_root_clocking",
@@ -416,7 +411,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "v1's id (`topology_vpa_pitch_linkage.json`), new in v2 2026-11-17 (handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the hole through the pitch arm's ring into the blade root that fixes the arm's rotation about the blade's pitch axis. v1 states `interface: fastener_pattern` and so does this node. On the meshes it is one radial hole line through both parts, not a ring: two holes diameter 6.350, 180 degrees apart (at 57.0 and 237.0 degrees about the axis), each at -0.51 along it and square to it within 0.04 degrees. Pitch arm (`asm217755_215071_001`): faces 266/267 and 271/272. Blade root (`asm217755_216332_001_bb3745d2`): the same line through solid 17 (faces 6403 to 6406), solid 19 (6572 to 6575) and the inner fitting, solid 15 (4558 to 4561); every hole axis crosses the pitch axis within 0.018. Measured about the pitch arm's bore axis, with both parts placed at the one occurrence the blade mesh records (blade slot prd-e-03372837.2); a measurement of a mesh, never a value."
+      "note": "The hole through the pitch arm's ring into the blade root that fixes the arm's rotation about the blade's pitch axis. A fastener pattern, as in v1, which uses the same id. On the meshes it is one radial hole line through both parts, not a ring: two holes diameter 6.350, 180 degrees apart (at 57.0 and 237.0 degrees about the axis), each at -0.51 along it and square to it within 0.04 degrees. Pitch arm (`asm217755_215071_001`): faces 266/267 and 271/272. Blade root (`asm217755_216332_001_bb3745d2`): the same line through solid 17 (faces 6403 to 6406), solid 19 (6572 to 6575) and the inner fitting, solid 15 (4558 to 4561); every hole axis crosses the pitch axis within 0.018. Measured about the pitch arm's bore axis, with both parts placed at the one occurrence the blade mesh records (blade slot prd-e-03372837.2); a measurement of a mesh, never a value."
     },
     {
       "id": "pitch_arm_link_bore",
@@ -424,8 +419,7 @@
       "parts": [
         "pitch_arm"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"pitch arm pitch-link attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "pitch_link_lower_sphere_centre",
@@ -433,8 +427,7 @@
       "parts": [
         "pitch_link"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"pitch link lower spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "pitch_link_upper_sphere_centre",
@@ -442,8 +435,7 @@
       "parts": [
         "pitch_link"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"pitch link upper spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "pitch_plate_spindle_bore_axis",
@@ -456,7 +448,7 @@
         "part": "pitch_plate_215177_001",
         "surface": "cylindrical"
       },
-      "note": "The gas-spring and piston axis: the plate's boss pilots into the piston body's ID (`pitch_plate_pilot_in_piston`). Was named \"pitch plate piston-locating boss axis\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "note": "The gas-spring and piston axis: the plate's boss pilots into the piston body's ID (`pitch_plate_pilot_in_piston`)."
     },
     {
       "id": "pitch_plate_link_attach_bore",
@@ -464,8 +456,7 @@
       "parts": [
         "pitch_plate_215177_001"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"pitch plate pitch-link attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "pitch_plate_tan_link_attach_bore",
@@ -473,8 +464,7 @@
       "parts": [
         "pitch_plate_215177_001"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"pitch plate tangential-link attachment bore\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "pitch_plate_pilot_in_piston_id",
@@ -486,8 +476,7 @@
       "face": {
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
-      },
-      "note": "Was named \"piston body ID datum -- the bore the pitch plate's pilot boss sits in\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      }
     },
     {
       "id": "piston_body_plate_flange_seat",
@@ -497,7 +486,7 @@
         "pitch_plate_215177_001"
       ],
       "kind": "mating_surface",
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the piston body's flange face, its datum A, seated on the pitch plate. On the 214700-002 mesh (`asm217755_214700_002`): face 109 (z 102.166, -Z). On the 215177-001 mesh (`asm217755_215177_001`): faces 922, 382 and 383 (z 102.166, +Z), one plane. v1 keeps this face as `piston_body_plate_flange`, a datum feature of the body alone and deliberately not an interface with the plate; v2 needs a node on both parts, and a shared id names the same parts in both models, so the seat has its own id. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The piston body's flange face, its datum A, seated on the pitch plate. On the 214700-002 mesh (`asm217755_214700_002`): face 109 (z 102.166, -Z). On the 215177-001 mesh (`asm217755_215177_001`): faces 922, 382 and 383 (z 102.166, +Z), one plane. v1 keeps this face as `piston_body_plate_flange`, a datum feature of the body alone and deliberately not an interface with the plate; v2 needs a node on both parts, and a shared id names the same parts in both models, so the seat has its own id. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "gas_spring_piston_fastener_clocking",
@@ -508,7 +497,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the ring of fasteners through the piston body's flange into the pitch plate, fixing its rotation about the pilot boss. On the 214700-002 mesh (`asm217755_214700_002`): 5 holes diameter 4.900 on a 72.000 circle through the flange (z 102.17 to 105.67), faces 110 to 119 (the drawing's 5X 4.900, VIEW C-C of 214700-002 A). On the 215177-001 mesh (`asm217755_215177_001`): 5 holes diameter 5.200 on a 72.000 circle (z 98.50 to 101.77), faces 2, 3, 553, 554, 559, 560, 565, 566, 571, 572, with 14.000 and 17.500 counterbores below them on the same centres. The two rings' centres are at the same five equal angles (14.0, 86.0, 158.0, 230.0, 302.0 degrees). The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The ring of fasteners through the piston body's flange into the pitch plate, fixing its rotation about the pilot boss. On the 214700-002 mesh (`asm217755_214700_002`): 5 holes diameter 4.900 on a 72.000 circle through the flange (z 102.17 to 105.67), faces 110 to 119 (the drawing's 5X 4.900, VIEW C-C of 214700-002 A). On the 215177-001 mesh (`asm217755_215177_001`): 5 holes diameter 5.200 on a 72.000 circle (z 98.50 to 101.77), faces 2, 3, 553, 554, 559, 560, 565, 566, 571, 572, with 14.000 and 17.500 counterbores below them on the same centres. The two rings' centres are at the same five equal angles (14.0, 86.0, 158.0, 230.0, 302.0 degrees). The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "gas_spring_piston_body_od",
@@ -520,8 +509,7 @@
       "face": {
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
-      },
-      "note": "Was named \"piston body outer cylindrical surface -- rides in the mount's bushings\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      }
     },
     {
       "id": "piston_body_head_seat",
@@ -530,8 +518,7 @@
         "piston_head_lower_214699_002",
         "gas_spring_piston_214700_002"
       ],
-      "kind": "mating_surface",
-      "note": "Was named \"lower piston head lower face on the piston body's shoulder\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "mating_surface"
     },
     {
       "id": "piston_body_head_locating_boss",
@@ -544,7 +531,7 @@
         "part": "gas_spring_piston_214700_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the spigot at the top of the piston body that both piston heads' pilot bores sit on. On the 214700-002 mesh (`asm217755_214700_002`): faces 4 and 5, two halves of one boss, diameter 40.000, z 211.64 to 214.84, above the head seat face (face 168, z 210.835). The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The spigot at the top of the piston body that both piston heads' pilot bores sit on. On the 214700-002 mesh (`asm217755_214700_002`): faces 4 and 5, two halves of one boss, diameter 40.000, z 211.64 to 214.84, above the head seat face (face 168, z 210.835). The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_head_lower_pilot_bore",
@@ -557,7 +544,7 @@
         "part": "piston_head_lower_214699_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the lower head's bore, which locates it radially on the piston body's spigot. On the 214699-002 mesh (`asm217755_214699_002`): faces 1 and 2, two halves of one bore, diameter 40.000, z 211.84 to 213.33, coaxial with the spigot. The head is a plain ring of ten faces: no holes, so no fastener pattern. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The lower head's bore, which locates it radially on the piston body's spigot. On the 214699-002 mesh (`asm217755_214699_002`): faces 1 and 2, two halves of one bore, diameter 40.000, z 211.84 to 213.33, coaxial with the spigot. The head is a plain ring of ten faces: no holes, so no fastener pattern. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_heads_seat",
@@ -566,8 +553,7 @@
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002"
       ],
-      "kind": "mating_surface",
-      "note": "Was named \"lower piston head upper face against the upper head lower face\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "mating_surface"
     },
     {
       "id": "piston_head_upper_pilot_bore",
@@ -580,7 +566,7 @@
         "part": "piston_head_upper_214698_002",
         "surface": "cylindrical"
       },
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the bore in the upper head's recess, which locates it radially on the piston body's spigot above the lower head. On the 214698-002 mesh (`asm217755_214698_002`): faces 114 and 115, two halves of one bore, diameter 40.000, z 213.83 to 214.94, so it takes the top 1.0 of the spigot. The upper head's other diameter at the joint, 56.784 (faces 108/109), is an outside diameter beside the lower head's 56.884 and locates nothing. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The bore in the upper head's recess, which locates it radially on the piston body's spigot above the lower head. On the 214698-002 mesh (`asm217755_214698_002`): faces 114 and 115, two halves of one bore, diameter 40.000, z 213.83 to 214.94, so it takes the top 1.0 of the spigot. The upper head's other diameter at the joint, 56.784 (faces 108/109), is an outside diameter beside the lower head's 56.884 and locates nothing. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_head_upper_fastener_clocking",
@@ -591,7 +577,7 @@
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the ring of fasteners through the upper head into the piston body, inside the lower head's bore, so the lower head is clamped between the two without a hole of its own. On the 214698-002 mesh (`asm217755_214698_002`): 3 holes diameter 5.200 on a 22.400 circle from the recess floor (z 215.94 to 224.84), faces 120, 121, 124, 125, 128, 129. On the 214700-002 mesh (`asm217755_214700_002`): 3 holes diameter 5.300 on a 22.400 circle through the top (z 207.84 to 215.84), faces 144 to 149. The two rings' centres are at the same three angles (35.4, 155.4, 275.4 degrees). The body's top face (face 1, z 215.835) is 0.100 below the recess floor (face 151, z 215.935), so it is not a seat. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The ring of fasteners through the upper head into the piston body, inside the lower head's bore, so the lower head is clamped between the two without a hole of its own. On the 214698-002 mesh (`asm217755_214698_002`): 3 holes diameter 5.200 on a 22.400 circle from the recess floor (z 215.94 to 224.84), faces 120, 121, 124, 125, 128, 129. On the 214700-002 mesh (`asm217755_214700_002`): 3 holes diameter 5.300 on a 22.400 circle through the top (z 207.84 to 215.84), faces 144 to 149. The two rings' centres are at the same three angles (35.4, 155.4, 275.4 degrees). The body's top face (face 1, z 215.835) is 0.100 below the recess floor (face 151, z 215.935), so it is not a seat. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "piston_head_upper_step_face",
@@ -600,7 +586,7 @@
         "piston_head_upper_214698_002"
       ],
       "kind": "datum_feature",
-      "note": "The upper head's moving side of the -7 deg stop. Was named \"upper piston head step face -- the extend stop's moving side\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "note": "The upper head's moving side of the -7 deg stop."
     },
     {
       "id": "tan_link_lower_sphere_centre",
@@ -608,8 +594,7 @@
       "parts": [
         "tan_link_212956_005"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"tangential link mount-end spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     },
     {
       "id": "tan_link_upper_sphere_centre",
@@ -617,8 +602,7 @@
       "parts": [
         "tan_link_212956_005"
       ],
-      "kind": "datum_feature",
-      "note": "Was named \"tangential link plate-end spherical-bearing centre\" until 2026-11-10; the name says the feature now (docs/DAG_TOPOLOGY.md, \"Naming a feature\")."
+      "kind": "datum_feature"
     }
   ],
   "edges": [
@@ -629,7 +613,7 @@
       "interface": "pin_in_bore",
       "from": "hub_spindle_bore_axis",
       "to": "tan_link_mount_pilot_bore",
-      "note": "New in v2 (2026-11-08): the mount's radial location. No value recorded. What would close it: 214373-002's boss and 215175-002's pilot bore."
+      "note": "The mount's radial location. Value to come from 214373-002's boss and 215175-002's pilot bore."
     },
     {
       "id": "hub_spindle_to_tan_link_mount_face",
@@ -719,7 +703,7 @@
       "interface": "pin_in_bore",
       "from": "tan_link_mount_gas_spring_pilot_bore",
       "to": "gas_spring_mount_locating_boss",
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the gas-spring mount's radial location. No value recorded. What would close it: 213668-002's boss and 215175-002's bore."
+      "note": "The gas-spring mount's radial location. Value to come from 213668-002's boss and 215175-002's bore."
     },
     {
       "id": "gas_spring_mount_boss_to_seat",
@@ -791,7 +775,7 @@
       "interface": "pin_in_bore",
       "from": "gas_spring_mount_cover_locating_boss",
       "to": "piston_cover_pilot_bore",
-      "note": "New in v2 (2026-11-17, handoff the_base_stack_joints_are_seat_boss_and_pattern): the piston cover's radial location. No value recorded. What would close it: 213668-002's boss and 214958-002's bore."
+      "note": "The piston cover's radial location. Value to come from 213668-002's boss and 214958-002's bore."
     },
     {
       "id": "piston_cover_flange_to_end_stop",
@@ -881,7 +865,7 @@
       "interface": "pin_in_bore",
       "from": "blade_root_pitch_arm_locating_boss",
       "to": "pitch_arm_blade_root_bore",
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the pitch arm's radial location on the blade root. No value recorded. What would close it: 216332-001's boss and 215071-001's bore."
+      "note": "The pitch arm's radial location on the blade root. Value to come from 216332-001's boss and 215071-001's bore."
     },
     {
       "id": "pitch_link_length",
@@ -944,7 +928,7 @@
       "interface": "pin_in_bore",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_pilot_in_piston_id",
-      "note": "New in v2. The plate's boss pilots into the piston body's ID and the two are bolted together, so it is a fit inside one body, not a joint; v1 joins the plate and the piston only through the bodies list. No value recorded. What would close it: 215177-001's boss and 214700-002's ID datum."
+      "note": "The plate's boss pilots into the piston body's ID and the two are bolted together, so it is a fit inside one body, not a joint; v1 joins the plate and the piston only through the bodies list. Value to come from 215177-001's boss and 214700-002's ID datum."
     },
     {
       "id": "piston_body_id_datum_to_od",
@@ -1007,7 +991,7 @@
       "interface": "pin_in_bore",
       "from": "piston_body_head_locating_boss",
       "to": "piston_head_lower_pilot_bore",
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the lower piston head's radial location. No value recorded. What would close it: 214700-002's boss and 214699-002's bore."
+      "note": "The lower piston head's radial location. Value to come from 214700-002's boss and 214699-002's bore."
     },
     {
       "id": "piston_body_boss_in_upper_head_pilot",
@@ -1016,7 +1000,7 @@
       "interface": "pin_in_bore",
       "from": "piston_body_head_locating_boss",
       "to": "piston_head_upper_pilot_bore",
-      "note": "New in v2 (2026-11-17, handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show): the upper piston head's radial location, on the same spigot as the lower head's. No value recorded. What would close it: 214700-002's boss and 214698-002's bore."
+      "note": "The upper piston head's radial location, on the same spigot as the lower head's. Value to come from 214700-002's boss and 214698-002's bore."
     },
     {
       "id": "piston_head_lower_face_flatness",
@@ -1079,7 +1063,7 @@
       "interface": "spherical",
       "from": "pitch_arm_link_bore",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "No value recorded. What would close it: the bearing's and the arm lug's fits (215071-001, MS14101-3)."
+      "note": "Value to come from the bearing's and the arm lug's fits (215071-001, MS14101-3)."
     },
     {
       "id": "pitch_plate_link_joint",
@@ -1088,7 +1072,7 @@
       "interface": "spherical",
       "from": "pitch_plate_link_attach_bore",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "No value recorded. What would close it: the bearing's and the plate lug's fits (215177-001, MS14101-3)."
+      "note": "Value to come from the bearing's and the plate lug's fits (215177-001, MS14101-3)."
     },
     {
       "id": "tan_link_mount_joint",
@@ -1097,7 +1081,7 @@
       "interface": "spherical",
       "from": "tan_link_mount_bore",
       "to": "tan_link_lower_sphere_centre",
-      "note": "No value recorded. What would close it: the bearing's and the mount lug's fits (215175-002, MS14101-3)."
+      "note": "Value to come from the bearing's and the mount lug's fits (215175-002, MS14101-3)."
     },
     {
       "id": "tan_link_plate_joint",
@@ -1106,7 +1090,7 @@
       "interface": "spherical",
       "from": "tan_link_upper_sphere_centre",
       "to": "pitch_plate_tan_link_attach_bore",
-      "note": "No value recorded. What would close it: the bearing's and the plate lug's fits (215177-001, MS14103-3)."
+      "note": "Value to come from the bearing's and the plate lug's fits (215177-001, MS14103-3)."
     },
     {
       "id": "pitch_plate_slide_bushings_to_piston_body",
@@ -1115,7 +1099,7 @@
       "interface": "cylindrical_slide",
       "from": "gas_spring_mount_bushing_bore",
       "to": "gas_spring_piston_body_od",
-      "note": "No value recorded. What would close it: the GR04WB328AT11 bushings' ID against 214700-002's OD."
+      "note": "Value to come from the GR04WB328AT11 bushings' ID against 214700-002's OD."
     },
     {
       "id": "travel_between_end_stops",
@@ -1124,7 +1108,7 @@
       "interface": "clearance",
       "from": "piston_head_upper_step_face",
       "to": "piston_cover_end_stop_shoulder",
-      "note": "No value recorded. What would close it: nothing: it is the quantity an end-stop study computes, the clearance at the -7 deg stop with the heads on the feather stop."
+      "note": "Value to come from nothing: it is the quantity an end-stop study computes, the clearance at the -7 deg stop with the heads on the feather stop."
     }
   ],
   "notes": [

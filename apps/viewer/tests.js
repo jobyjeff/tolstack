@@ -7116,7 +7116,7 @@
             selection: { kind: "node", id: "base_post_seat" } }));
         });
         has(root.textContent, "base / post seat");
-        has(root.textContent, "mating_surface");
+        has(root.textContent, "mating surface");
         has(root.textContent, "3 edge(s)");
         has(root.textContent, "BRANCH POINT");
         has(root.textContent, "base plate ⇔ post");
@@ -7920,7 +7920,7 @@
             selection: { kind: "node", id: "base_post_seat" } }));
         });
         has(root.textContent, "base / post seat");
-        has(root.textContent, "mating_surface");
+        has(root.textContent, "mating surface");
         // The parts' NAMES (VA.nodeSideLabels, 2026-09-15) -- this pane
         // printed their ids until then, which is the one thing it said that a
         // reader had no way to read.
@@ -10276,6 +10276,27 @@
         var oneSided = topo.nodes.filter(function (n) { return (n.parts || []).length === 1; })[0];
         eq(VA.elementRecord(topo, "node|" + oneSided.id, { crops: TOPOCROPS }).jointKind, null,
            "a node of one part joins nothing");
+      });
+
+    // --- the Preview's kind chip reads an everyday word (a_joints_preview_says_what_the_joint_is)
+    await test("a node's and an edge's kind chip is an everyday word, never the stored spelling",
+      function () {
+        eq(VA.elementKindWord("mating_surface"), "mating surface");
+        eq(VA.elementKindWord("datum_feature"), "datum feature");
+        eq(VA.elementKindWord("structural"), "dimension");
+        eq(VA.elementKindWord("gap"), "gap");
+        eq(VA.elementKindWord(null), "");
+        VA.NODE_KINDS.concat(VA.EDGE_KINDS).forEach(function (kind) {
+          ok(VA.ELEMENT_KIND_WORDS[kind] && VA.ELEMENT_KIND_WORDS[kind].indexOf("_") === -1,
+             kind + " has an everyday word");
+        });
+        var node = render(function (r) {
+          VA.renderTopoDetail(r, { topoProj: TOPO, previewKey: "node|base_post_seat", crops: TOPOCROPS });
+        });
+        var chips = all(node, ".chip--kind").map(function (c) { return c.textContent; });
+        ok(chips.indexOf("mating surface") !== -1 || chips.indexOf("datum feature") !== -1,
+           "the node chip: " + chips.join(" | "));
+        ok(!chips.some(function (c) { return c.indexOf("_") !== -1; }), "no stored spelling: " + chips.join(" | "));
       });
 
     // --- a binding shows the moment it is made and is corrected where it is

@@ -1860,7 +1860,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         const p = await preview();
         // The side's label says the number (`215197 base plate`, the one label
         // rule), so the record prints no second `drawing 215197` line under it.
-        return /215197 base plate ⇔ post/.test(p.body) && /mating_surface/.test(p.body) &&
+        return /215197 base plate ⇔ post/.test(p.body) && /mating surface/.test(p.body) &&
           !/drawing 215197/.test(p.body) &&
           await page.locator(".detail__previewbody div.detail__side img").count() === 1;
       })());
