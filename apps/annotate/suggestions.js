@@ -789,7 +789,7 @@
   // mate already has (AA.rankMatingFaces), not a second geometric rule.
   //
   // Several cylinders on one axis (a counterbore over a through hole, a
-  // bushing in a bore, the tan link mount's four rings on one set of
+  // bushing in a bore, the tan link mount's five rings on one set of
   // centres): the SIZE that answers the most bound holes is taken, and among
   // sizes answering as many, the one nearest the bound holes' own -- a
   // fastener's line through both parts, and one size, so the set fits as a

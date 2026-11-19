@@ -6139,6 +6139,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       bundle against the prose-budget rules and the three prohibitions; split
       any hit into its own `med`, `area: design` issue and grep for the
       older narrower one (here `ISSUE_20261110_topology_notes_still_say_…`).
+- [ ] **A `[real]` suite gated on live log state that the feature itself
+      invites Jeff to change.** New 2026-11-18
+      (`a_bound_pattern_offers_the_whole_pattern_on_the_other_part`):
+      `testOppositePattern` runs only while the tan link mount's side is
+      *unbound* in the served log. The feature makes binding it one click,
+      and then the suite falls through to a literal-`true` `(skipped: …)`
+      push and its four witnesses go vacuous. For every new `[real]` skip
+      condition, ask whether Jeff's next ordinary click flips it. If so, ask
+      for a filtered copy of the log instead
+      (`ISSUE_20261118_the_opposite_pattern_browser_suite_skips_once_jeff_binds_…`).
 
 ## Architectural errors to check
 
