@@ -224,6 +224,10 @@ const bodyOf = (page, fid) => page.evaluate((id) => {
 // shell's record), and the pane's lit (bound) faces on the plate's mesh.
 const sites = async (page) => ({
   body: await bodyOf(page, BORE),
+  // what the sweep rail's rows read: the pane's end view, at the bore's ends
+  endsBound: await frameOf(page).evaluate(() => (window.__endsBound ? window.__endsBound("vpa_pitch_linkage") : [])
+    .filter((e) => JSON.stringify(e).indexOf("pitch_plate_link_attach_bore") !== -1)
+    .map((e) => e.edge + ":" + e.end + "=" + JSON.stringify(e.face && (e.face.face_id || e.face.faceId || e.face)))),
   paneBoundMarks: await frameOf(page).evaluate(() => window.__scene
     ? window.__scene.listMarks("bound").filter((m) => String(m.sha256).startsWith("37e9f606")).map((m) => m.faceId).sort()
     : null),
@@ -279,9 +283,21 @@ async function doubleClick(page, armedShot, afterShot) {
   const x = box.x + canvas.x + canvas.w * hit.fx, y = box.y + canvas.y + canvas.h * hit.fy;
   await page.mouse.move(x, y);
   await page.waitForTimeout(500);
-  await page.mouse.down(); await page.mouse.up();
-  await page.waitForTimeout(60);
-  await page.mouse.down(); await page.mouse.up();
+  if (argv.includes("--direct")) {
+    // The scene's own release handler, twice before either has returned: what
+    // a second click does when it lands while the first is still being read.
+    log("two picks handed to the pane at once", await frameOf(page).evaluate((h) => {
+      const s = window.__scene;
+      const hit = s.pick(h.fx * 2 - 1, 1 - h.fy * 2);
+      s.onPick(hit, null, null, {});
+      s.onPick(hit, null, null, {});
+      return hit && hit.faceId;
+    }, hit));
+  } else {
+    await page.mouse.down(); await page.mouse.up();
+    await page.waitForTimeout(60);
+    await page.mouse.down(); await page.mouse.up();
+  }
   const t0 = Date.now();
   await page.waitForTimeout(800);
   log("while the click is read", await frameOf(page).evaluate(() => (window.__embedTree || {}).armedLine || null));
@@ -290,6 +306,9 @@ async function doubleClick(page, armedShot, afterShot) {
   log("the first click wrote after ms", Date.now() - t0);
   await page.waitForTimeout(8000);
   log("the double click wrote", newest(before).map(brief));
+  const t1 = Date.now();
+  const settled = await waitBody(page, (b) => b.kind === "bound", 120000);
+  log("the body reads bound after ms more", { ms: Date.now() - t1, kind: settled.kind });
   await shot(page, afterShot + "_after_double_click");
 }
 
@@ -340,6 +359,35 @@ if (only === "dbl") {
   const page = await open();
   await openBody(page, BORE);
   await doubleClick(page, "06", "07");
+  await page.close();
+}
+
+// Two Takes of face 1380 at the bore's end of the attach-radius edge, both
+// started before either returns -- what a double press on a mirrored row's
+// Take does: the shell's row gesture reaches the pane as a button click and
+// runs AA.exec directly, unqueued (app.js railGesture -> railExec).
+if (only === "take") {
+  freshScratch();
+  const page = await open();
+  const before = scratchFiles();
+  log("two takes at once", await frameOf(page).evaluate(async () => {
+    const AA = window.AnnotateApp, VA = window.ViewerApp;
+    const sha = "37e9f606341bfd194c2c51ae7517861ecdf1221bd4d262697f4d732b194d5801";
+    const topo = (await (await fetch("/tolstack/data/topologies.json")).json()).topologies
+      .find((t) => t.id === "vpa_pitch_linkage");
+    const end = ["from", "to"].find((d) => {
+      const k = VA.endFeatureKey(topo, "pitch_plate_attach_radius", d);
+      return k && k.node === "pitch_plate_link_attach_bore";
+    });
+    await AA.exec(["open-part", sha]);
+    const cmd = ["take", "pitch_plate_attach_radius", end, sha, "1380", "vpa_pitch_linkage"];
+    const out = await Promise.all([AA.exec(cmd), AA.exec(cmd)].map((p) => p.then(
+      (r) => (r && r.action) || r, (e) => "threw: " + e.message)));
+    return { end, out };
+  }));
+  await waitFiles(before.length + 1, 120000);
+  await page.waitForTimeout(15000);
+  log("the two takes wrote", newest(before).map(brief));
   await page.close();
 }
 

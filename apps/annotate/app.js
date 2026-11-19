@@ -3629,19 +3629,19 @@ function onPreselect(face) {
 }
 
 // One click while armed (AA.planArmedClick decides; this does). A click
-// that lands while the last one is still being decided or written is
-// dropped: both would count the same folder and write the same bind twice
-// (Jeff's events 0093 and 0094, 3 ms apart -- handoff a_disagreement_is_
-// settled_by_keep_or_let_go). One click writes one event.
+// that lands while a write is still being decided or written is dropped
+// (oneWriteAtATime, below): one click writes one event.
 async function armedClick(pick, other, shift) {
   const a = state.armed;
-  if (a.busy) return { action: "busy" };
+  if (identityWriteBusy || a.busy) return { action: "busy" };
+  identityWriteBusy = true;
   a.busy = true;
   const reading = pick ? AA.armedWords("reading", { face: pick.faceId }) : null;
   if (reading) setArmedLine(reading);
   try {
     return await armedClickNow(pick, other, shift);
   } finally {
+    identityWriteBusy = false;
     a.busy = false;
     // A click that ended without a line of its own (a group offered) goes
     // back to the resting line.
@@ -3754,18 +3754,6 @@ async function addArmedFace(pick, keep) {
 // (a Shift-click on a feature with nothing bound): the pick stays armed.
 async function bindArmedFaces(full, more, plan, opts) {
   const a = state.armed;
-  // The group offer's buttons call this outside a click's guard: a double
-  // press on "Take all" is one bind too.
-  if (!a || a.writing) return { action: "busy" };
-  a.writing = true;
-  try {
-    return await bindArmedFacesNow(a, full, more, plan, opts);
-  } finally {
-    a.writing = false;
-  }
-}
-
-async function bindArmedFacesNow(a, full, more, plan, opts) {
   hideGroupOffer();
   const record = AA.findBindingRecord(identityFor(a.topology),
     AA.topologyEdgeKey(a.topologyId, a.edgeId));
@@ -5610,13 +5598,13 @@ commands.register("light", cmdLight);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
-commands.register("accept", cmdAccept);
-commands.register("take", cmdTake);
-commands.register("unbind", cmdUnbind);
-commands.register("keep", cmdKeep);
-commands.register("drop-face", cmdDropFace);
-commands.register("group", cmdGroup);
-commands.register("flip", cmdFlip);
+commands.register("accept", oneWriteAtATime(cmdAccept));
+commands.register("take", oneWriteAtATime(cmdTake));
+commands.register("unbind", oneWriteAtATime(cmdUnbind));
+commands.register("keep", oneWriteAtATime(cmdKeep));
+commands.register("drop-face", oneWriteAtATime(cmdDropFace));
+commands.register("group", oneWriteAtATime(cmdGroup));
+commands.register("flip", oneWriteAtATime(cmdFlip));
 commands.register("bound-faces", cmdBoundFaces);
 AA.exec = (input) => commands.exec(input);
 
@@ -6433,6 +6421,28 @@ function nowIso() { return new Date().toISOString().replace(/\.\d+Z$/, "Z"); }
 
 function slugify(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+// ONE IDENTITY WRITE AT A TIME (handoff a_disagreement_is_settled_by_keep_
+// or_let_go). A write reads the part's faces first, which takes seconds on a
+// large part, and a second press meanwhile -- a double click on a mirrored
+// row's Take, which reaches AA.exec unqueued (railGesture -> railExec) --
+// waited on the same reading and resumed with it: both counted the folder
+// together and wrote the same bind twice under one seq (Jeff's events 0093
+// and 0094, 3 ms apart; reproduced on the pre-fix pane by two `take`s started
+// together). Every verb that writes, and an armed click, holds this flag;
+// one that arrives while it is held is dropped and says so in its result.
+let identityWriteBusy = false;
+function oneWriteAtATime(fn) {
+  return async (...args) => {
+    if (identityWriteBusy) return { action: "busy" };
+    identityWriteBusy = true;
+    try {
+      return await fn(...args);
+    } finally {
+      identityWriteBusy = false;
+    }
+  };
 }
 
 // The next event's seq: one past the highest in the projection, this
