@@ -11059,6 +11059,138 @@ async function testPatternAndAddAFace(browser, label, topologies) {
   return reportSuite(label, checks, errors);
 }
 
+// Handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part
+// (2026-11-18): Jeff bound the gas-spring mount's ten holes of
+// gas_spring_mount_fastener_clocking (event 0086) and not the tan link mount's.
+// That side's body leads with one line, the whole pattern; hovering it washes
+// the set; an armed click on one of its holes offers the set in the head bar;
+// Take writes one event holding every face. Writes go to the pane's mock.
+async function testOppositePattern(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V2 = "vpa_end_stop_v2";
+  const TAN = "9913d0cff39c81393aad6ff5f1c6e16a472167289ce06398cea84e1709065d6c";
+  const FID = "tan_link_mount_215175_002@gas_spring_mount_fastener_clocking";
+  const LINE = "10 of 10 holes Ø5, coaxial within 0.000 mm";
+  const servedLog = await readProjection("feature-identity/log.json");
+  const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
+  const events = (servedLog && servedLog.events) || [];
+  const boundAt = (part, node) => events.filter((e) => e.feature_key && e.feature_key.part === part &&
+    e.feature_key.node === node).pop();
+  const mount = boundAt("gas_spring_mount_213668_002", "gas_spring_mount_fastener_clocking");
+  const mine = boundAt("tan_link_mount_215175_002", "gas_spring_mount_fastener_clocking");
+  if (!v2 || !mount || mount.verdict !== "bound" || mine || !existsSync(join(DATA_REPO, "data", "meshes", TAN, "manifest.json"))) {
+    push("[real] a bound pattern offers the whole pattern on the other part (skipped: model v2, the tan link " +
+      "mount's mesh, or the gas-spring mount's side bound and the tan link mount's not in the served log -- " +
+      "build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const row = `#navtree [data-nav-kind="feature"][data-nav-id="${FID}"]`;
+  const slot = () => page.locator(row).locator("xpath=..").locator(".navtree__scene").first();
+  const patternLine = () => slot().locator(".navtree__featurestate", { hasText: LINE }).first();
+  const writes = () => inPane((w) => (w.__mockWrites || []).length);
+  const writtenSince = (n) => inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({
+    verdict: x.event.verdict, part: x.event.feature_key && x.event.feature_key.part,
+    faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id) })), n);
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V2, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    await until((w) => !!w.__embedTree, null, 120000);
+    if (!(await page.locator(row).count())) {
+      await page.locator('#navtree [data-nav-twisty="p:tan_link_mount_215175_002"]').first().click({ timeout: 5000 }).catch(() => {});
+    }
+    const twisty = page.locator(`#navtree [data-nav-twisty="f:${FID}"]`).first();
+    if (await twisty.count() && (await twisty.getAttribute("aria-expanded")) !== "true") {
+      await twisty.click({ timeout: 5000 }).catch(() => {});
+    }
+    await patternLine().waitFor({ timeout: 180000 }).catch(() => {});
+    const body = await slot().locator(".navtree__featurestate").evaluateAll((rows) => rows.map((r) => ({
+      words: (r.querySelector(".navtree__featurewords") || {}).textContent || "",
+      sub: (r.querySelector(".navtree__featuresub") || {}).textContent || "" }))).catch(() => []);
+    console.log(`    the tan link mount's body: ${JSON.stringify(body.slice(0, 3))}`);
+    push("[real] with the gas-spring mount's ten holes bound, the tan link mount's body leads with the whole " +
+      "pattern: \"10 of 10 holes Ø5, coaxial within 0.000 mm\", the other sizes named",
+      body.length >= 3 && body[1].words === LINE &&
+      /^the whole pattern bound on .* · Ø6\.69, Ø6\.3, Ø5\.8, Ø3\.31 on the same axes, each its own row$/.test(body[1].sub));
+
+    // The head offer: an armed click on one of the pattern's holes.
+    await slot().locator('button[data-body-act="arm"]').first().click({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__embedTree && w.__embedTree.armed && w.__scene.pickFilter(), null, 60000);
+    await until((w, s) => !!w.__scene.faceRecord(s, 72), TAN, 60000);
+    let before = await writes();
+    await inPane((w, s) => { w.__scene.onPick({ sha256: s, faceId: 1351 }, null, null, { shift: false }); return true; }, TAN);
+    await until((w) => !!w.document.querySelector("#an-offer.an__offer--on"), null, 120000);
+    const offer = await inPane((w) => {
+      const n = w.document.querySelector("#an-offer.an__offer--on");
+      return n ? { line: n.querySelector(".an__offer-line").textContent,
+        buttons: Array.from(n.querySelectorAll("button")).map((b) => b.textContent),
+        lit: w.__groupOffer ? w.__groupOffer.faces.length : null } : null;
+    });
+    console.log(`    an armed click on face 1351: ${JSON.stringify(offer)}`);
+    push("[real] an armed click on one of those holes offers the same set in the head bar, all twenty faces lit, " +
+      "writing nothing",
+      !!offer && offer.line === LINE && offer.buttons[0] === "Take all 10 holes" && offer.lit === 20 &&
+      (await writes()) === before);
+    await page.keyboard.press("Escape");
+    await until((w) => !w.__embedTree.armed && !w.document.querySelector("#an-offer.an__offer--on"), null, 15000);
+
+    // Hover lights the set.
+    await patternLine().waitFor({ timeout: 60000 }).catch(() => {});
+    await patternLine().hover({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__lastWash && (w.__lastWash.faceIds || []).length === 20, null, 15000);
+    const wash = await inPane((w) => w.__lastWash && { sha256: w.__lastWash.sha256, faceIds: w.__lastWash.faceIds,
+      overlays: w.__lastWash.overlays });
+    console.log(`    hovering the line washes ${JSON.stringify(wash && { n: wash.faceIds.length, overlays: wash.overlays })}`);
+    push("[real] hovering the line washes all twenty faces of the set in the pane",
+      !!wash && wash.sha256 === TAN && wash.faceIds.length === 20 && wash.overlays >= 40);
+    await page.mouse.move(5, 5);
+
+    // Take writes the set, one event.
+    before = await writes();
+    // A listed line carries its Take on itself (renderBodyPlan).
+    await patternLine().locator("button", { hasText: "Take" }).first().click({ timeout: 10000 }).catch(() => {});
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    await page.waitForTimeout(500);
+    const took = await writtenSince(before);
+    console.log(`    Take wrote ${JSON.stringify(took)}`);
+    push("[real] Take writes one bound event on the tan link mount holding all twenty faces",
+      took.length === 1 && took[0].verdict === "bound" && took[0].part === "tan_link_mount_215175_002" &&
+      took[0].faces.length === 20 && took[0].faces.indexOf(1351) !== -1);
+  } catch (err) {
+    errors.push(String(err));
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 function startDrawingCheckerMountServer() {
   const mounts = [
     ["/tolstack/viewer/", join(REPO, "apps", "viewer")],
@@ -14301,6 +14433,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testSuggestionNamesItsFace(browser, label, topologies)],
       ["a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)",
         (label) => testPatternAndAddAFace(browser, label, topologies)],
+      ["a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
+        (label) => testOppositePattern(browser, label, topologies)],
       ["the map (the counts on both models, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
       ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",

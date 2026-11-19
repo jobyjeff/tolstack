@@ -3905,8 +3905,7 @@ function showGroupOffer(offer) {
   line.className = "an__offer-line";
   line.textContent = offer.opposite ? offer.opposite.text
     : holes ? W.patternLine.replace("{n}", String(holes)) : W.line.replace("{n}", String(total));
-  if (offer.opposite) line.title = [offer.opposite.text, offer.opposite.reason].join("
-");
+  if (offer.opposite) line.title = [offer.opposite.text, offer.opposite.reason].join("\n");
   node.appendChild(line);
   [["all", holes ? W.patternAll.replace("{n}", String(holes)) : W.all.replace("{total}", String(total)),
     offer.opposite ? W.oppositeAllTitle : holes ? W.patternAllTitle : W.allTitle],
