@@ -10996,6 +10996,13 @@ async function testPatternAndAddAFace(browser, label, topologies) {
     const unbound0 = new Set(await rowsNotBound());
     const count0 = await filterCount();
     console.log(`    filter count ${count0}; feature rows not bound under Parts ${unbound0.size}`);
+    if (count0 !== unbound0.size) {
+      console.log("    DIAG rows: " + JSON.stringify(await page.evaluate(() => ({
+        twisties: Array.from(document.querySelectorAll('#navtree [data-nav-twisty^="p:"]'))
+          .map((b) => b.getAttribute("data-nav-twisty") + "=" + b.getAttribute("aria-expanded")),
+        features: Array.from(document.querySelectorAll('#navtree [data-nav-kind="feature"]'))
+          .map((r) => r.getAttribute("data-nav-id")) }))));
+    }
     push("[real] the Parts filter's count is the number of the model's features not bound",
       Number.isFinite(count0) && count0 === unbound0.size && count0 > 0);
     await page.locator('#navtree [data-nav-filter="unbound"]').first().click({ timeout: 5000 }).catch(() => {});
@@ -13743,13 +13750,30 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     // (the piston heads into the plate, the cover into the base) rides that
     // body's subject rather than standing at its assembly position. A link's
     // pressed-in bearings are carried inside the link's occurrence, which
-    // names no topology part, so links are left to the carried rows.
-    const posed = await inPane((w) => w.__sweep.bodies
-      .filter((r) => r.placements && r.placements.length).map((r) => r.subject + "/" + r.part));
+    // names no topology part, so links are left to the carried rows. A part
+    // recorded inside a placed occurrence (215177's plate and its flanged
+    // bushings, inside the plate assembly's) is carried there too: its row
+    // names its mesh, not the part, so it counts by its mesh and -- where the
+    // part declares one -- its occurrence (2026-11-19).
+    const sweepRows = await inPane((w) => w.__sweep.bodies
+      .filter((r) => r.placements && r.placements.length).map((r) => ({ subject: r.subject,
+        part: r.part, state: r.state, sha: r.sha256, keys: r.placements.map((p) => p.key) })));
+    const isPosed = (body, partId) => {
+      const part = (model.parts || []).find((p) => p.id === partId) || {};
+      const mesh = meshOf(partId);
+      return sweepRows.some((r) => r.subject === body && (r.part === partId ||
+        (r.state === "carried" && mesh && r.sha === mesh.sha256 &&
+          (!part.occurrence || r.keys.indexOf(part.occurrence) !== -1))));
+    };
     const unposed = (model.bodies || []).filter((b) => b.kind !== "link")
-      .flatMap((b) => b.parts.map((p) => b.id + "/" + p)).filter((id) => posed.indexOf(id) === -1);
+      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p)).map((p) => b.id + "/" + p));
     console.log(`      [${label}] P2: parts of the model's bodies not posed with their body: ` +
       `${unposed.join(", ") || "-"}`);
+    if (unposed.length) {
+      console.log(`      [${label}] P2 rows: ` + JSON.stringify(await inPane((w) => w.__sweep.bodies
+        .map((r) => [r.subject, r.part, r.state, (r.sha256 || "").slice(0, 8),
+          (r.placements || []).map((p) => p.key.split("/").slice(-2).join("/"))]))));
+    }
     push("[real] with the P2 run loaded every part of the end-stop model's bodies is posed with " +
       "its own body", (model.bodies || []).length > 0 && unposed.length === 0);
 
