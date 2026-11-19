@@ -62,13 +62,15 @@ his reactions.
      count as assemblies; which revision wins where STEP and Enovia disagree.
    - Whatever the pitch plate handoff's lesson left as a question (which part
      the attach bore sits on; any binding that would have to move).
-   - How a joint's play is carried for the first tolerance study: a gap edge
-     between the parts' own features beside the shared node, or a dimension on
-     the node (`LESSONS_20261117_a_joint_says_what_kind_it_is.md`, "When the
-     first tolerance study asks for a joint's play"). Strategy's recommendation
-     is the gap edge, because it keeps every value on an element that cites a
-     source; say whether the pitch plate's bushings, now authored that way,
-     bear it out.
+   - **Not a question any more — Jeff decided 2026-11-18:** a joint's play is
+     carried as a gap edge between the parts' own features, added beside the
+     shared node (`LESSONS_20261117_a_joint_says_what_kind_it_is.md`, "When the
+     first tolerance study asks for a joint's play", option a). Do not ask it
+     again. Instead give the next handoff its numbers: for each v2 joint that
+     has play (the hub ↔ blade bearing, each fastener pattern, the bushed
+     bores), the features and the gap it would need, which of them the pitch
+     plate handoff already authored that way, and which diameters have a cited
+     callout today.
 5. **Everything else the page does wrong that nobody asked about**, one line
    each, filed as issues with frontmatter and cited by name.
 
