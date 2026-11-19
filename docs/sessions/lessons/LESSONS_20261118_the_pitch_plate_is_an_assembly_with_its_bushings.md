@@ -218,3 +218,45 @@ None.
   guard, and the column guard whose anchor moved): 2/2 witnessed.
 - **Browser tier**: no browser suite was added or changed, so none was run.
   The inspection probe is not a tier.
+
+## Re-run 2026-11-19 — review round 1 (REQUEST CHANGES)
+
+- **The question is now on Jeff's review page, with the faces shown**
+  (blocker). Rows Q3 (pitch link) and Q4 (tangential link) are in
+  `REVIEW_20261117_the_portrait_map_and_the_joints.md`, each linking the issue.
+  Six shots `q_*.png` sit in this lesson's shots folder:
+  - each option's faces marked on the 215177 mesh, in the 3D pane, with the plate see-through: option (b) is the plate's Ø7.950 bore, option (c) the flanged bushing's Ø4.826 bore;
+  - Jeff's two disagreeing binds, on 1380/1381 alone and with 1509/1510.
+
+  `tests/debug_pitch_plate_assembly_20261118.mjs --questions` takes them. What it
+  took to get a face-level shot, for the next person:
+  - arm a pick on the attachment's joint end (`arm <edge> <end> <topology> <part>`, which isolates the part and writes nothing without a click);
+  - wait until `__scene.renderCount` stops moving, because the arm's and the sweep's own framing land seconds later and undo any camera set before them;
+  - hide the other parts, ghost the plate, then place the camera yourself, radially out from the hub's axis and above, so blade 1 is not between the camera and the plate.
+
+  `camera face` alone framed from a fixed direction straight through blade 1.
+- **The tangential link's bore-to-attachment note no longer claims a binding**
+  (should-fix). The sentence had been copied from the pitch link's twin; no
+  event names `pitch_plate_tan_link_attach_bore`.
+- **The tangential link's flanged bore note quotes datum F too** (nit 4).
+- **v1 is reached through the alias table** (nit 3, stated rather than
+  changed). The new `flanged_bushing_nas77a3_015a` row is keyed by an id v1
+  also has. v1's builder line went from 26/35 to 27/35 parts with an installed
+  mesh, and v1's flanged bushing is now drawn at all eight NAS77A3 instances
+  (v1's part declares no `occurrence`). The mapping is physically right: v1's
+  part is the NAS77A3-015A by its own nomenclature. But it is a v1 change the
+  fence did not foresee, and an alias row keyed by a shared id reaches both
+  models by construction.
+
+### Round 2 test record
+
+- **Default tier**, in this worktree, at 301bfa41:
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave 2372 passed, 1 failed, 1 skipped, 4 deselected, in 451 s (inside budget,
+  recorded). The one failure is `test_viewer_js_suite_is_green`, on the
+  worktree's skipped `[real]` tier, which is expected here; that tier is the
+  next line.
+- **Fast tiers** against a scratch root built from 301bfa41 (all eight
+  builders, projection paired at 301bfa41): viewer 605/605, annotate 331/331.
+- **Witness:** no guard or spec changed this round.
+- **Browser tier:** no suite changed this round, so none was run.
