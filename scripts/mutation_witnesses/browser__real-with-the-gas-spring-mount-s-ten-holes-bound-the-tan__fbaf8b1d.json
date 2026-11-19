@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
+  "expect_red": "[real] with the gas-spring mount's ten holes bound, the tan link mount's body leads with the whole pattern: \"10 of 10 holes Ø5, coaxial within 0.000 mm\", the other sizes named",
+  "mutations": [
+    {
+      "contract": "A pattern bound opposite leads the mates with the whole pattern on this part.",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). The pattern row is never listed.",
+      "file": "apps/annotate/app.js",
+      "find": "  return pattern ? [patternRow(topology, pattern, solids ? solids.count : 1)].concat(rows) : rows;",
+      "replace": "  return rows;",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md"
+    }
+  ]
+}

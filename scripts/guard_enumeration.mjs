@@ -736,7 +736,11 @@ export const DECLARED_GUARDS = {
   // spec; the checks that still hold re-pointed at the map and the grid, many
   // renamed, each spec following its guard (twenty with a new mutation, the
   // old anchor having gone with the rails). The lesson carries the table.
-  browser: { declared: 774, enrollable: 747, names: "0c6fb15ac827" },
+  // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): +5
+  // -- the opposite pattern's line, head offer, hover and Take, each with a
+  // spec, and the suite's `[real] ... (skipped: ...)` push, whose condition is
+  // the literal `true`, so no mutation can redden it.
+  browser: { declared: 779, enrollable: 752, names: "52943eb9be94" },
 };
 
 

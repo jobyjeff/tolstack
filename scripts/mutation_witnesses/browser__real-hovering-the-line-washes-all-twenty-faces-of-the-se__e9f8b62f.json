@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
+  "expect_red": "[real] hovering the line washes all twenty faces of the set in the pane",
+  "mutations": [
+    {
+      "contract": "A set's hover washes every face of it.",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). The wash draws the first face only.",
+      "file": "apps/annotate/scene.js",
+      "find": "    const ids = face ? (face.faceIds && face.faceIds.length ? face.faceIds : [face.faceId]) : [];",
+      "replace": "    const ids = face ? [face.faceId] : [];",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md"
+    }
+  ]
+}
