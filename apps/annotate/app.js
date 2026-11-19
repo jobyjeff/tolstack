@@ -3621,7 +3621,8 @@ function setArmedHover(text) {
 
 function onPreselect(face) {
   const a = state.armed;
-  if (!a) return;
+  // A click being read keeps its line until it lands.
+  if (!a || a.busy) return;
   const classes = face ? state.faceClasses[face.sha256] : null;
   setArmedLine(face ? AA.preselectWords(face.faceId, classes ? classes[face.faceId] : null)
     : armedIdleLine(a));
@@ -3636,10 +3637,15 @@ async function armedClick(pick, other, shift) {
   const a = state.armed;
   if (a.busy) return { action: "busy" };
   a.busy = true;
+  const reading = pick ? AA.armedWords("reading", { face: pick.faceId }) : null;
+  if (reading) setArmedLine(reading);
   try {
     return await armedClickNow(pick, other, shift);
   } finally {
     a.busy = false;
+    // A click that ended without a line of its own (a group offered) goes
+    // back to the resting line.
+    if (reading && state.armed === a && a.line === reading) setArmedLine(armedIdleLine(a));
   }
 }
 
