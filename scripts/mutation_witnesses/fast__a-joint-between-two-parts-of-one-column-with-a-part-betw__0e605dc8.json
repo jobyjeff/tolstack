@@ -5,10 +5,10 @@
   "mutations": [
     {
       "contract": "A feature whose every interface is with a part in its own column beyond a part between them takes the column's outer flank.",
-      "note": "Declared with the guard by handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show (2026-11-17). Without the flank, the upper piston head of model v2 -- bolted and piloted on the piston body with the lower head between -- leaves its bottom straight into the lower head, and the map reports the two routes drawn through it.",
+      "note": "Declared with the guard by handoff the_blade_and_piston_joints_are_authored_as_what_the_parts_show (2026-11-17). Without the flank, the upper piston head of model v2 -- bolted and piloted on the piston body with the lower head between -- leaves its bottom straight into the lower head, and the map reports the two routes drawn through it. Re-pointed 2026-11-18 (the_pitch_plate_is_an_assembly_with_its_bushings), when the flank choice learnt rows too.",
       "file": "apps/viewer/map.js",
-      "find": "        side = flankOf(placeOf[f.part][0]);",
-      "replace": "        side = side;",
+      "find": "      if (ways.every(function (w) { return w === \"column\"; })) side = flankOf(placeOf[f.part][0]);",
+      "replace": "      if (ways.every(function (w) { return w === \"column\"; })) side = side;",
       "issue": "docs/sessions/lessons/LESSONS_20261117_the_blade_and_piston_joints_are_authored_as_what_the_parts_show.md"
     }
   ]
