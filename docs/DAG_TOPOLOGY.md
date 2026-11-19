@@ -660,7 +660,9 @@ out of its parent's bottom (below).
 - **The view**: fitted to the region on the first paint, never past a cap,
   then the reader's wheel zooms about the pointer, a drag pans, Fit and the
   `0` key re-fit; a selection made elsewhere is panned into view when it is
-  off the region. The view outlives a repaint, not the page.
+  off the region, and only then -- a box wholly on screen at the fit's edge
+  does not move the map it was clicked on (2026-11-19). The view outlives a
+  repaint, not the page.
 - **The pointer**: a whole box is its part's control -- border, interior and
   name -- and a district's field selects its body on a click but lights
   nothing as the pointer crosses it. A press on a box's interior, a
