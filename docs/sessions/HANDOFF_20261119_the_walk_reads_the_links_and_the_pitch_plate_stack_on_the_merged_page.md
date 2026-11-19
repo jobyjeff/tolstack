@@ -1,14 +1,14 @@
 ---
 priority: high
-depends_on: [the_viewer_says_nothing_about_itself]
+depends_on: [an_open_dimension_says_where_its_drawing_stands]
 model: opus
 hitl: false
 ---
 
 # HANDOFF 2026-11-19 — the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page: walk the merged page against Jeff's 11-19 note and write his review page
 
-Source: Jeff's note `20261119T142516_ci28ci` (2026-11-19) and the six
-handoffs it staged. This is the chain's last link and Jeff's review point:
+Source: Jeff's note `20261119T142516_ci28ci` (2026-11-19) and the seven
+handoffs staged ahead of this one. This is the chain's last link and Jeff's review point:
 he reads one page and decides what is next. No code changes here; a defect
 you find is an issue, cited by name on the page.
 
@@ -82,7 +82,7 @@ His screenshots, to set beside yours:
 `C:\workspace\forge\data\inbox\atomic-notes\attachments\20261119T142516_ci28ci\paste-20261119T134821.png`,
 `…\paste-20261119T141226.png`, `…\paste-20261119T141321.png`.
 
-Baseline: `integration` with all six links merged. Scope: docs only —
+Baseline: `integration` with all seven links merged. Scope: docs only —
 `docs/sessions/lessons/REVIEW_20261119_the_links_and_the_pitch_plate_stack.md`,
 its shots, your lesson, issues. Serve the merged tree the way the 11-18 walk
 did (a scratch data root with a **copy** of Jeff's log, a port of your own;
@@ -110,7 +110,12 @@ on the page).
    that need a re-pick with the two or three clicks each takes.
 4. **What the end-stop study still needs**, the 11-18 page's table brought
    up to date against the new model: per joint, ends bound on his log, and
-   whether any value is cited. Then the table from link 4's lesson: each v1
+   whether any value is cited. For every dimension still without a value, say
+   where its drawing stands, from the projection's per-dimension status
+   (`an_open_dimension_says_where_its_drawing_stands`): read, read under
+   another dash, not read, no drawing. Print the list of drawings that
+   are read and uncited, by count. The 11-18 page called this step
+   acquisition; say what it is now. Then the table from link 4's lesson: each v1
    id the kinematic study uses and the v2 chain that now stands for it.
    This is what the first tolerance study on v2 is written from, so say
    what is missing for it in one short list.

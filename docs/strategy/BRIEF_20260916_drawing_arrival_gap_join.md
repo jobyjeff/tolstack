@@ -1,5 +1,7 @@
 # STRATEGY BRIEF 2026-09-16 — nothing notices when a drawing an open gap is waiting on lands in drawing-checker
 
+> **CONSUMED 2026-11-19 — promoted to `docs/sessions/HANDOFF_20261119_an_open_dimension_says_where_its_drawing_stands.md`: every dimension with no value says whether its drawing is read in drawing-checker, read under another dash, not read, or has no drawing. Measured the same day: 24 of v2's 49 open dimensions sit on a drawing drawing-checker has already read.** (Burndown #5.)
+
 > **Routing note.** Filed by the triage sweep of 2026-09-16 from
 > `docs/issues/ISSUE_20260915_nothing_notices_when_a_requested_drawing_lands_in_drawing_checker.md`
 > (feature, med, `audience: strategy`), which was filed off

@@ -1,5 +1,7 @@
 # BRIEF 2026-09-14 — the `[real]` tier couples per-worktree fixtures to one shared projection, so parallel handoffs redden each other
 
+> **CONSUMED 2026-11-19 — answered in practice: every session builds a private scratch projection (`--data-root` + `--repo`, `docs/prompts/REVIEW_AGENT.md`), the main checkout's is written at the merge, and handoffs now run one at a time in a chain. No red caused by another handoff's projection since 2026-10-22. What is left is issue-sized: `rebuild_projections.ps1` takes no data root (ISSUE_20261110, ISSUE_20261115).** (Burndown #5.)
+
 > Routed here by the triage sweep of 2026-09-14/15 from
 > `docs/issues/ISSUE_20260914_two_active_handoffs_each_turn_the_others_real_tier_red.md`
 > (`type: bug`, `priority: med`, `audience: strategy`). This is an architecture
