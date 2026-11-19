@@ -3,7 +3,7 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
 reviewer: agent
 date: 2026-11-19
-verdict: REQUEST CHANGES
+verdict: REQUEST CHANGES (round 2)
 blockers: 1
 ---
 
@@ -134,3 +134,86 @@ the faces. A small false statement in one edge note goes back with it.
   browser tier and `--changed-since integration --budget-min 10`.
 - **Overlay.** I added two entries under "Recurring bugs": twin notes copied
   across attachments, and v2 alias rows that reach v1.
+
+## Re-run 2026-11-19 — round 2
+
+Round 1 was REQUEST CHANGES with 1 blocker, 1 should-fix and 2 nits. The
+fixes arrived as `301bfa41` and `ee6c5861`, and **all four are closed**:
+
+- **Blocker (closed):** Jeff's review page has new rows Q3 and Q4, each
+  linking the issue. The six `q_*.png` shots are new. I read the two for the
+  pitch link: (b) lights the plate's larger Ø7.950 bore, (c) the bushing's
+  smaller Ø4.826 bore.
+- **Should-fix (closed):** the tangential-link note no longer claims a
+  binding.
+- **Nits (closed):** the datum F quote is added, and the lesson now states
+  the v1 alias reach.
+
+I merged `ee6c5861` into this branch (no conflict, no marker lines) and ran
+the post-merge tiers. **They found four regressions that no earlier run
+covered**: the tactical record says "no browser suite was added or changed,
+so none was run" on both rounds. This overlay's "a stack-data change is a
+viewer-test change" entry exists for exactly this case. The model gained 5
+parts and 12 features, and the `[real]` browser suites read the model.
+
+### Post-merge tiers (merged tree `6108d27d`)
+
+- **Projections:** all eight builders, `--data-root
+  data/scratch/rv_pitch_plate_1119/data`, exit 0. The real log still has 101
+  files, and the main checkout is clean.
+- **Default tier, in this worktree:**
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  gave **2372 passed, 1 failed, 1 skipped, 4 deselected in 446 s**. It is
+  recorded on the ledger (inside budget). The one failure is the expected
+  worktree `test_viewer_js_suite_is_green`. This repo's conftest prints no
+  `concurrent pytest processes` or `full-suite lock` header lines.
+- **Fast tiers, through `--repo`:** viewer **605/605**, annotate **331/331**.
+- **Whole browser tier,** `node scripts/run_viewer_browser_tests.mjs --repo
+  <scratch>`: **41/46**. Each red suite was re-run `--only` from a
+  `git archive integration` export against
+  `data/scratch/rv_opposite_1118`, which was built from `586e6d93`, a tree
+  identical to integration in `apps/`, `scripts/`, `tolerance_stack/` and
+  `docs/topologies/`:
+
+| suite | merged tree | integration | verdict |
+|---|---|---|---|
+| the model drawn alone | 19/22 | 22/22 | **regression** |
+| a pattern is bound as its like faces | 10/11 | 11/11 | **regression** |
+| the DAG zoom, Fit and the grid header | 34/35 (twice) | 35/35 | **regression** |
+| 3D pane follows the selection | 30/31 (twice) | 31/31 | **regression** |
+| the map | 29/30 | 29/30 | pre-existing, already filed as `ISSUE_20261118_the_map_pin_hover_real_check_is_red_on_integration.md` (on integration) |
+
+- **Witness gate:** not run, because the verdict is REQUEST CHANGES again.
+
+### Blocker (round 2)
+
+1. **Four `[real]` browser suites go red on the new structure.** These are
+   deliverable 6: "the 3D pane's part list … read the new structure". What
+   the runs log:
+   - **The model drawn alone.** "at rest: **18 meshes drawn for 20 parts**";
+     integration draws 15 for 15. The two parts that share the NAS77A3 mesh,
+     and the two that share 214820, appear to draw once each, even though
+     each declares its own `occurrence`. Then, with the P2 run loaded: "parts
+     of the model's bodies not posed with their body:
+     `pitch_plate/flanged_bushing_nas77a3_015a`,
+     `pitch_plate/pitch_plate_215735_001`,
+     `pitch_plate/flanged_bushing_nas77a3_015a_tan_link`,
+     `pitch_plate/straight_bushing_214820_002`". So in the sweep these four
+     stand at their assembly position instead of riding the pitch plate.
+   - **A pattern is bound….** "filter count 46; feature rows not bound under
+     Parts **38**". The 8 rows missing are the same number as the features on
+     215177's three children (the plate's 4 bores, and 2 on each flanged
+     bushing). So either the tree does not show a nested child's features
+     under Parts, or the count includes rows the tree never draws.
+   - **The DAG zoom….** "a click on a pin, a jumper, a part's name or a grid
+     row never moves the map: its view stays exactly as it was" is red.
+   - **3D pane follows the selection.** "…and leaving it takes the light
+     down" is red.
+
+   **Fix:** decide, for each one, whether the product or the check is wrong
+   for an assembly whose children share a mesh. A check that only assumed one
+   mesh per part may be updated, saying why. Then run the browser runner
+   `--only` for each of the four suites, and record those runs.
+
+The rest of round 1's verification stands: the drawing re-read, the bindings
+48 = 48, and the counts.
