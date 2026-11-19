@@ -1043,6 +1043,37 @@ v1 edges; it is picked once and every one of those ends reads it.
   feature an old event reads through to the page works out from the topology
   projection; `tests/test_identity_fold_is_paired.py` folds one log both ways.
 
+### Keep settles a disagreement, and any feature can be let go (2026-11-18)
+
+Handoff `a_disagreement_is_settled_by_keep_or_let_go`, from Jeff's note of
+2026-11-17: the pitch plate's link bore read "6 faces disagree", Keep "seemed
+to do nothing", and nothing let the faces go. In his log one bind had been
+written twice (events 0093 and 0094, one seq, 3 ms apart); Add a face wrote a
+third plain binding beside them, so two sets disagreed; and each Keep wrote one
+more plain binding, which only joined the set it repeated.
+
+- **One event names every binding it replaces.** On a v1 event `supersedes`
+  and `retracts` may each name a list of ids where there are several (one id
+  stays a string, so every earlier event reads as before). Each id is held to
+  the rule one id is -- in the log, earlier, the same feature, standing --
+  and a list is never empty, never repeats an id, and is never on a v0 event.
+- **Keep, Add a face and Remove write the whole set**, superseding every
+  feature-keyed binding the feature holds (`AA.buildFeatureSetEvent`), so the
+  feature holds exactly the set written: a Keep leaves nothing disagreeing,
+  and an Add over the same pick written twice leaves one binding, not three.
+- **Unbind lets the feature go** whatever it holds -- one face, a set, or sets
+  that disagree: one `retracted` event naming every binding
+  (`AA.buildLetGoEvent`). The disagree body offers it beside Pick a face, and
+  an armed body offers it beside Cancel when the feature holds faces.
+- **Sets that disagree are a line each**, "faces 1380, 1381" with Keep naming
+  the whole set (`keep <edge> <end> <topology> <mesh> <face> [<face> ...]`):
+  a set and the same set with a face added share faces, so a face alone
+  cannot say which is kept. Single faces read as before ("2 faces disagree").
+- **One click writes one event.** An armed click, or a press of the group
+  offer's Take, that lands while the last is still being decided or written
+  is dropped, and the page reserves every seq it hands out, so no two of its
+  writes share one.
+
 ### A hole pattern (2026-11-15)
 
 Handoff `a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added`, from

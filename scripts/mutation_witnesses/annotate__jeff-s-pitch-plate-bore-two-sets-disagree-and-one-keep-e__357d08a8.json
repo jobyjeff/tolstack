@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Jeff's pitch plate bore: two sets disagree, and ONE Keep event superseding every standing binding leaves the kept set bound and nothing disagreeing",
+  "mutations": [
+    {
+      "contract": "A Keep supersedes every feature-keyed binding the feature holds, so nothing disagrees after it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_disagreement_is_settled_by_keep_or_let_go.md",
+      "note": "Declared with the guard by handoff a_disagreement_is_settled_by_keep_or_let_go (2026-11-18). Superseding only the newest leaves the other sets standing: Keep 'seemed to do nothing' (Jeff, 2026-11-17).",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    event.supersedes = AA.namedOrOne(own.map(function (b) { return b.event_id; }));",
+      "replace": "    event.supersedes = own[own.length - 1].event_id;"
+    }
+  ]
+}

@@ -273,6 +273,18 @@ def _feature_log():
         _new("c2", 17, "pitch_plate_215177_001", "pitch_plate_spindle_bore_axis", "bound", (1, 2), supersedes="c1"),
         # an old event whose edge is gone
         _old("gone", 18, _V1, "no_such_edge", "bound", "from", 1),
+        # Jeff's pitch plate bore (events 0093-0100, 2026-11-18): one bind
+        # written twice under one seq, the set with faces added as a plain
+        # bind -- two sets disagree -- settled by ONE Keep naming all three
+        _new("j1", 19, "pitch_plate_215177_001", "pitch_plate_link_attach_bore", "bound", (6, 7)),
+        _new("j2", 19, "pitch_plate_215177_001", "pitch_plate_link_attach_bore", "bound", (6, 7)),
+        _new("j3", 20, "pitch_plate_215177_001", "pitch_plate_link_attach_bore", "bound", (6, 7, 8, 9)),
+        _new("jk", 21, "pitch_plate_215177_001", "pitch_plate_link_attach_bore", "bound", (6, 7),
+             supersedes=("j1", "j2", "j3")),
+        # ...and the same shape let go by ONE Unbind: the tan link's accepted
+        # set, a second bind beside it, both retracted in one event
+        _new("t2", 22, "tan_link_212956_005", "tan_link_lower_sphere_centre", "bound", (6,)),
+        _new("lg", 23, "tan_link_212956_005", "tan_link_lower_sphere_centre", "retracted", retracts=("a1", "t2")),
     ]
 
 
@@ -339,6 +351,12 @@ def test_the_browser_feature_fold_equals_pythons_feature_for_feature():
     assert (rows["pitch_link_upper_sphere_centre"]["outcome"], _ids(rows["pitch_link_upper_sphere_centre"]["bindings"])) \
         == (one, ["keep"])
     assert rows["tan_link_lower_sphere_centre"]["accepted_proposals"] == ["p1"]
+    bore = rows["pitch_plate_link_attach_bore"]
+    assert (bore["state"], bore["outcome"], _ids(bore["bindings"]), faces(bore["faces"]), bore["disagreement"]) \
+        == ("bound", a_set, ["jk"], ["cdcd:6", "cdcd:7"], []), "one Keep settles the two sets"
+    assert _ids(bore["superseded"]) == ["j1", "j2", "j3"], "and history keeps what it replaced"
+    let_go = rows["tan_link_lower_sphere_centre"]
+    assert (let_go["state"], _ids(let_go["retracted"]), let_go["faces"]) == ("unbound", ["a1", "t2"], [])
     assert _ids(rows["tan_link_upper_sphere_centre"]["rejected_proposals"]) == ["p2"]
     assert _ids(rows["tan_link_upper_sphere_centre"]["proposals"]) == ["p3"]
     assert python["orphans"] == [{"event_id": "gone", "reason": "no_edge"}]
@@ -374,7 +392,12 @@ const proposal = { verdict: "proposed", event_id: "p", feature_key: key, geometr
   { source_step_sha256: "cd".repeat(32), face_id: 7, area_native2: 1, centroid_native: [0, 0, 0] }] };
 const accept = AA.buildAcceptEvent(proposal, Object.assign(f("w4", 5), { geometryKeys: [face(8)] }));
 const reject = AA.buildRejectEvent(Object.assign({}, proposal, { event_id: "q" }), f("w5", 7));
-process.stdout.write(JSON.stringify([bound, fix, unbind, accept, reject]));
+// Two standing beside the accept, settled by one Keep, then let go by one Unbind.
+const again = AA.buildBoundEvent(Object.assign(f("w6", 8), { featureKey: key, geometryKeys: [face(8)] }));
+const keep = AA.buildFeatureSetEvent([accept, again], Object.assign(f("w7", 9), { featureKey: key,
+  geometryKeys: [face(8)] }));
+const go = AA.buildLetGoEvent(key, [keep], f("w8", 10));
+process.stdout.write(JSON.stringify([bound, fix, unbind, accept, reject, again, keep, go]));
 """
     node = shutil.which("node")
     assert node
@@ -384,13 +407,46 @@ process.stdout.write(JSON.stringify([bound, fix, unbind, accept, reject]));
     assert all(e.feature_key is not None for e in written)
     proposals = [_new("p", 4, "hub", "hub_spindle_bore_axis", "proposed", (7,)),
                  _new("q", 6, "hub", "hub_spindle_bore_axis", "proposed", (9,))]
-    projection = build_projection(written + proposals)
+    projection = build_projection(written[:5] + proposals)
     (record,) = projection.by_feature_subject.values()
     assert [e.event_id for e in record.superseded] == ["w1"]
     assert [e.event_id for e in record.retracted] == ["w2"]
     assert [e.event_id for e in record.bindings] == ["w4"]
     assert [f.face_id for f in record.bindings[0].faces] == [7, 8], "the proposed face first, the pick's beside it"
     assert [e.event_id for e in record.rejected_proposals] == ["q"]
+    # the Keep names both standing bindings, the Unbind the Keep: lists only
+    # where there are several, and the bytes round-trip
+    keep, go = written[6], written[7]
+    assert (keep.supersedes, go.retracts) == (("w4", "w6"), "w7")
+    assert keep.as_dict()["supersedes"] == ["w4", "w6"]
+    assert FeatureIdentityEvent.from_dict(keep.as_dict()) == keep
+    settled = build_projection(written[:7] + proposals).by_feature_subject
+    (record,) = settled.values()
+    assert ([e.event_id for e in record.bindings], [e.event_id for e in record.superseded]) == (["w7"], ["w1", "w4", "w6"])
+    (record,) = build_projection(written + proposals).by_feature_subject.values()
+    assert (record.bindings, [e.event_id for e in record.retracted]) == ([], ["w2", "w7"])
+
+
+def test_a_list_in_supersedes_or_retracts_is_checked_id_by_id():
+    """A v1 event may name several bindings (one Keep, one Unbind); each is
+    held to the rule one id is, and a list is never empty, repeated, or on a
+    v0 event."""
+    import pytest
+
+    with pytest.raises(ValueError, match="names an event twice"):
+        _new("k", 3, "hub", "hub_spindle_bore_axis", "bound", (1,), supersedes=("a", "a"))
+    with pytest.raises(ValueError, match="names itself"):
+        _new("k", 3, "hub", "hub_spindle_bore_axis", "retracted", retracts=("a", "k"))
+    with pytest.raises(ValueError, match="only a v1 event"):
+        _old("k", 3, _V1, "pitch_link_length", "bound", "from", 1, supersedes=("a", "b"))
+    with pytest.raises(ValueError, match="names event ids"):
+        _new("k", 3, "hub", "hub_spindle_bore_axis", "bound", (1,), supersedes=())
+    a = _new("a", 1, "hub", "hub_spindle_bore_axis", "bound", (1,))
+    with pytest.raises(ValueError, match="'k' supersedes 'zz', which is not in the log"):
+        build_projection([a, _new("k", 2, "hub", "hub_spindle_bore_axis", "bound", (1,), supersedes=("a", "zz"))])
+    with pytest.raises(ValueError, match="'u' retracts 'a', which 'k' already superseded"):
+        build_projection([a, _new("k", 2, "hub", "hub_spindle_bore_axis", "bound", (1,), supersedes=("a",)),
+                          _new("u", 3, "hub", "hub_spindle_bore_axis", "retracted", retracts=("k", "a"))])
 
 
 _BIND_MODE_JS = r"""

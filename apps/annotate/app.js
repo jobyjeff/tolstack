@@ -3350,62 +3350,70 @@ function bodyTarget(verb, edgeId, direction, topologyId) {
   return { topology, edge, record, standing: AA.endBindings(record, direction), names };
 }
 
-// unbind <edge> <from|to> [<topology>] -- take back every standing binding at
-// that end: one `retracted` event each (AA.buildRetractEvent). The fold hides
-// them and history keeps them; the face is unbound everywhere at once.
+// unbind <edge> <from|to> [<topology>] -- let the feature that end IS go:
+// ONE `retracted` event naming every binding the feature holds
+// (AA.buildLetGoEvent) -- one, a set, or several that disagree. The fold
+// hides them and history keeps them; the feature is unbound everywhere at
+// once. Until 2026-11-18 this took back the END's bindings, one event each,
+// and a feature whose faces disagree reads nothing bound at its ends, so
+// there was no way to let one go (handoff a_disagreement_is_settled_by_keep_
+// or_let_go).
 async function cmdUnbind(edgeId, direction, topologyId) {
   const t = bodyTarget("unbind", edgeId, direction, topologyId);
-  if (!t.standing.length) throw new Error("nothing is bound at " + (t.names[direction] || direction));
+  const key = endFeature(t.topology, t.edge.id, direction);
+  const record = key ? window.ViewerApp.featureRecordOf(sessionIdentityProjection(), key) : null;
+  const standing = AA.distinctEvents((record && record.bindings) || []);
+  if (!standing.length) throw new Error("nothing is bound at " + (t.names[direction] || direction));
   if (state.armed) disarmPick("cancel");
   const seq = await nextEventSeq();
-  const base = "annotate-" + Date.now() + "-" + slugify(t.edge.id) + "-unbind";
-  // An end reads its feature's binding once per face it holds: one
-  // retraction per standing EVENT.
-  const standing = t.standing.filter((b, i, all) => all.findIndex((x) => x.event_id === b.event_id) === i);
-  const events = standing.map((b, i) => AA.buildRetractEvent(b, { eventId: base + (i ? "-" + i : ""),
-    seq: seq + i, createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) }));
+  const event = AA.buildLetGoEvent(key, standing, { eventId: "annotate-" + Date.now() + "-" + slugify(t.edge.id) +
+    "-unbind", seq, createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) });
   const toast = AA.BODY_VERB_WORDS.unbound.replace("{end}", t.names[direction] || direction);
-  for (const event of events) {
-    await writeIdentityEvent(AA.eventFilename(event.seq, slugify(t.edge.id) + "_unbound"), event, toast);
-  }
+  await writeIdentityEvent(AA.eventFilename(event.seq, slugify(t.edge.id) + "_unbound"), event, toast);
   showToast(toast);
   renderSweepRail();
-  return { retracted: standing.map((b) => b.event_id), events: events.map((e) => e.event_id) };
+  postEmbedTree(false);
+  return { retracted: standing.map((b) => b.event_id), events: [event.event_id] };
 }
 
-// The feature an end names, its record, and the face a body verb names on it.
-function featureTarget(verb, edgeId, direction, topologyId, sha256, faceText) {
+// The feature an end names, its record, and the face a body verb names on it
+// (`faceIds`: that face, then any more the verb names -- Keep's whole group).
+function featureTarget(verb, edgeId, direction, topologyId, sha256, faceText, ...more) {
   const t = bodyTarget(verb, edgeId, direction, topologyId);
   const key = endFeature(t.topology, t.edge.id, direction);
   const record = key ? window.ViewerApp.featureRecordOf(sessionIdentityProjection(), key) : null;
   if (!record) throw new Error("nothing is recorded for the feature at " + (t.names[direction] || direction));
-  const faceId = parseInt(faceText, 10);
-  if (!sha256 || !isFinite(faceId)) throw new Error(verb + " needs <edge> <end> <topology> <mesh> <face id>");
-  return Object.assign(t, { key, record, sha256, faceId });
+  const faceIds = [faceText].concat(more).map((f) => parseInt(f, 10));
+  const faceId = faceIds[0];
+  if (!sha256 || !faceIds.every((f) => isFinite(f))) {
+    throw new Error(verb + " needs <edge> <end> <topology> <mesh> <face id>");
+  }
+  return Object.assign(t, { key, record, sha256, faceId, faceIds });
 }
 
-// keep <edge> <from|to> <topology> <sha256> <face> -- settle a feature whose
-// faces disagree: the disagreement group holding that face is the feature's
-// binding, written as one feature-keyed event; every face read through to it
-// before stays in history, replaced.
-async function cmdKeep(edgeId, direction, topologyId, sha256, faceText) {
-  const t = featureTarget("keep", edgeId, direction, topologyId, sha256, faceText);
-  const group = (t.record.disagreement || []).find((g) => g.faces.some(
-    (f) => f.source_step_sha256 === t.sha256 && f.face_id === t.faceId));
-  if (!group) throw new Error("face " + t.faceId + " is not one of the faces that disagree here");
+// keep <edge> <from|to> <topology> <sha256> <face> [<face> ...] -- settle a
+// feature whose faces disagree: the group named is the feature's binding,
+// written as ONE feature-keyed event that supersedes every feature-keyed
+// binding standing (AA.buildFeatureSetEvent), so nothing disagrees after it;
+// faces read through to it before stay in history, replaced. Naming the
+// group's every face picks it among groups that share a face (a set and the
+// same set with a face added); one face names the first group holding it.
+async function cmdKeep(edgeId, direction, topologyId, sha256, faceText, ...more) {
+  const t = featureTarget("keep", edgeId, direction, topologyId, sha256, faceText, ...more);
+  const named = (f) => f.source_step_sha256 === t.sha256 && t.faceIds.indexOf(f.face_id) !== -1;
+  const groups = t.record.disagreement || [];
+  const group = t.faceIds.length > 1
+    ? groups.find((g) => g.faces.length === t.faceIds.length && g.faces.every(named))
+    : groups.find((g) => g.faces.some(named));
+  if (!group) throw new Error("face " + t.faceIds.join(", ") + " is not one of the sets that disagree here");
   if (state.armed) disarmPick("cancel");
-  const seq = await nextEventSeq();
-  const event = AA.buildBoundEvent({
-    eventId: "annotate-" + Date.now() + "-" + slugify(t.key.node) + "-keep", seq, createdAt: nowIso(),
-    recordedBy: AA.humanActor(AA.CONFIG.reviewer), featureKey: t.key,
-    geometryKeys: group.faces.map((f) => ({ sourceStepSha256: f.source_step_sha256, faceId: f.face_id,
-      areaNative2: f.area_native2, centroidNative: f.centroid_native })),
-  });
   const toast = AA.BODY_VERB_WORDS.kept.replace("{face}", String(t.faceId));
-  await writeIdentityEvent(AA.eventFilename(seq, slugify(t.key.node) + "_kept"), event, toast);
+  const event = await writeFeatureSet(t.key, t.record, group.faces.map(heldFaceFields), "keep", "_kept", toast);
   showToast(toast);
   renderSweepRail();
-  return { kept: group.faces.map((f) => f.face_id), event: event.event_id };
+  postEmbedTree(false);
+  return { kept: group.faces.map((f) => f.face_id), event: event.event_id,
+    supersedes: window.ViewerApp.namedIds(event.supersedes) };
 }
 
 // drop-face <edge> <from|to> <topology> <sha256> <face> -- take one face out
@@ -3432,16 +3440,16 @@ function heldFaceFields(f) {
     areaNative2: f.area_native2, centroidNative: f.centroid_native };
 }
 
-// THE ONE SHAPE a changed set is written in (Remove, Add a face, a
-// Shift-click): one event carrying the whole new set -- a correction of the
-// feature's one feature-keyed binding, or a fresh binding over faces read
-// through to it.
+// THE ONE SHAPE a changed set is written in (Keep, Remove, Add a face, a
+// Shift-click): one event carrying the whole new set, superseding every
+// feature-keyed binding the feature holds (AA.buildFeatureSetEvent) -- so a
+// feature holding two (the same pick written twice) holds one after it, not
+// three -- or a fresh binding over faces read through to it.
 async function writeFeatureSet(key, record, faces, idWord, fileWord, toast) {
   const seq = await nextEventSeq();
   const fields = { eventId: "annotate-" + Date.now() + "-" + slugify(key.node) + "-" + idWord, seq,
     createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer), featureKey: key, geometryKeys: faces };
-  const own = ((record && record.bindings) || []).filter((b) => b.feature_key);
-  const event = own.length === 1 ? AA.buildCorrectionEvent(own[0], fields) : AA.buildBoundEvent(fields);
+  const event = AA.buildFeatureSetEvent((record && record.bindings) || [], fields);
   await writeIdentityEvent(AA.eventFilename(seq, slugify(key.node) + fileWord), event, toast);
   return event;
 }
@@ -3463,7 +3471,7 @@ async function cmdFlip(edgeId, direction, topologyId) {
     throw new Error((t.names[other] || other) + " already has a face, so this one cannot move there");
   }
   const binding = t.standing[0];
-  const seq = await nextEventSeq();
+  const seq = await nextEventSeq(2);
   // The face belongs to the other end's FEATURE: bound there with the same
   // faces, taken back here (AA.planFeatureWrite, the bind form's planner too).
   const events = AA.planFeatureWrite({
@@ -3613,14 +3621,35 @@ function setArmedHover(text) {
 
 function onPreselect(face) {
   const a = state.armed;
-  if (!a) return;
+  // A click being read keeps its line until it lands.
+  if (!a || a.busy) return;
   const classes = face ? state.faceClasses[face.sha256] : null;
   setArmedLine(face ? AA.preselectWords(face.faceId, classes ? classes[face.faceId] : null)
     : armedIdleLine(a));
 }
 
-// One click while armed (AA.planArmedClick decides; this does).
+// One click while armed (AA.planArmedClick decides; this does). A click
+// that lands while a write is still being decided or written is dropped
+// (oneWriteAtATime, below): one click writes one event.
 async function armedClick(pick, other, shift) {
+  const a = state.armed;
+  if (identityWriteBusy || a.busy) return { action: "busy" };
+  identityWriteBusy = true;
+  a.busy = true;
+  const reading = pick ? AA.armedWords("reading", { face: pick.faceId }) : null;
+  if (reading) setArmedLine(reading);
+  try {
+    return await armedClickNow(pick, other, shift);
+  } finally {
+    identityWriteBusy = false;
+    a.busy = false;
+    // A click that ended without a line of its own (a group offered) goes
+    // back to the resting line.
+    if (reading && state.armed === a && a.line === reading) setArmedLine(armedIdleLine(a));
+  }
+}
+
+async function armedClickNow(pick, other, shift) {
   const a = state.armed;
   // Adding (the body's Add a face, or Shift on any armed pick): the face
   // joins the feature's set. Shift keeps the pick armed; an adding plain
@@ -4995,7 +5024,7 @@ async function cmdTake(edgeId, direction, meshId, faceText, topologyId) {
 // numbered file. The sweep rail's Accept, an armed pick's click and the bind
 // bar's Accept and Reject all come here; none of them builds an event itself.
 async function writeAnswer(plan, edgeId, banner) {
-  const seq = await nextEventSeq();
+  const seq = await nextEventSeq(1 + ((plan && plan.reject) || []).length);
   const events = AA.buildAnswerEvents(plan, {
     eventId: "annotate-" + Date.now() + "-" + slugify(edgeId),
     seq,
@@ -5569,13 +5598,13 @@ commands.register("light", cmdLight);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
-commands.register("accept", cmdAccept);
-commands.register("take", cmdTake);
-commands.register("unbind", cmdUnbind);
-commands.register("keep", cmdKeep);
-commands.register("drop-face", cmdDropFace);
-commands.register("group", cmdGroup);
-commands.register("flip", cmdFlip);
+commands.register("accept", oneWriteAtATime(cmdAccept));
+commands.register("take", oneWriteAtATime(cmdTake));
+commands.register("unbind", oneWriteAtATime(cmdUnbind));
+commands.register("keep", oneWriteAtATime(cmdKeep));
+commands.register("drop-face", oneWriteAtATime(cmdDropFace));
+commands.register("group", oneWriteAtATime(cmdGroup));
+commands.register("flip", oneWriteAtATime(cmdFlip));
 commands.register("bound-faces", cmdBoundFaces);
 AA.exec = (input) => commands.exec(input);
 
@@ -6394,13 +6423,43 @@ function slugify(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+// ONE IDENTITY WRITE AT A TIME (handoff a_disagreement_is_settled_by_keep_
+// or_let_go). A write reads the part's faces first, which takes seconds on a
+// large part, and a second press meanwhile -- a double click on a mirrored
+// row's Take, which reaches AA.exec unqueued (railGesture -> railExec) --
+// waited on the same reading and resumed with it: both counted the folder
+// together and wrote the same bind twice under one seq (Jeff's events 0093
+// and 0094, 3 ms apart; reproduced on the pre-fix pane by two `take`s started
+// together). Every verb that writes, and an armed click, holds this flag;
+// one that arrives while it is held is dropped and says so in its result.
+let identityWriteBusy = false;
+function oneWriteAtATime(fn) {
+  return async (...args) => {
+    if (identityWriteBusy) return { action: "busy" };
+    identityWriteBusy = true;
+    try {
+      return await fn(...args);
+    } finally {
+      identityWriteBusy = false;
+    }
+  };
+}
+
 // The next event's seq: one past the highest in the projection, this
 // session's own events and the events the folder holds right now
 // (AA.nextEventSeq) -- the folder is listed on every write, because the
 // projection is a snapshot and an agent may have proposed since. Re-reads the
 // folder's projection first when the served transport has not been granted
 // write yet.
-async function nextEventSeq() {
+//
+// `count` seqs are reserved (a write of two events takes seq and seq + 1),
+// and none is handed out twice by this page: two writes started before
+// either landed both counted the same folder, which is how one bind became
+// events 0093 and 0094 with one seq between them (handoff a_disagreement_is_
+// settled_by_keep_or_let_go). The reservation is taken synchronously after
+// the last await, so it holds however the writes interleave.
+let reservedSeq = 0;
+async function nextEventSeq(count) {
   beginWrite();
   // Reading over HTTP, the first write asks for the folder HERE -- inside the
   // click that wrote, before a number is counted -- and the projection the
@@ -6412,7 +6471,9 @@ async function nextEventSeq() {
     renderPaneStatus();
   }
   const onDisk = await state.storage.listFeatureIdentityEventSeqs();
-  return AA.nextEventSeq(state.identityProjection, state.sessionEvents, onDisk);
+  const seq = Math.max(AA.nextEventSeq(state.identityProjection, state.sessionEvents, onDisk), reservedSeq + 1);
+  reservedSeq = seq + Math.max(1, count || 1) - 1;
+  return seq;
 }
 
 // The bind form, horizontal since 2026-09-21 -- it is the bottom of a bar
@@ -6467,7 +6528,7 @@ function buildBindForm(edge, pick, bind, onChoose) {
       // into (AA.planFeatureWrite: one feature-keyed binding, replacing the
       // feature's own or taking a corrected one back where it was).
       const swept = (await surfaceSiblingsOf(pick.sha256, pick.faceId)).swept;
-      const seq = await nextEventSeq();
+      const seq = await nextEventSeq(2);
       const eventId = "annotate-" + Date.now() + "-" + slugify(edge.id);
       const events = AA.planFeatureWrite({
         target: bind.target || null,
@@ -6689,7 +6750,7 @@ function buildBindingsBlock(edge, bind, canWrite) {
             }
             // The face belongs to the other end's FEATURE: bound there with
             // the same faces, taken back here (AA.planFeatureWrite).
-            const seq = await nextEventSeq();
+            const seq = await nextEventSeq(2);
             const events = AA.planFeatureWrite({
               target: live,
               featureKey: endFeature(state.currentTopology, edge.id, other),

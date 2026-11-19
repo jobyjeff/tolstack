@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Add a face over a feature holding the same bind twice writes one event that leaves one binding, the union -- where it used to leave three standing and two sets disagreeing",
+  "mutations": [
+    {
+      "contract": "A set write over several standing feature-keyed bindings replaces them all.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_disagreement_is_settled_by_keep_or_let_go.md",
+      "note": "Declared with the guard by handoff a_disagreement_is_settled_by_keep_or_let_go (2026-11-18). The pre-fix rule: a correction only over exactly one standing binding, else a plain bind beside them -- how event 0095 made a second set.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (!own.length) return AA.buildBoundEvent(fields);",
+      "replace": "    if (own.length !== 1) return AA.buildBoundEvent(fields);"
+    }
+  ]
+}

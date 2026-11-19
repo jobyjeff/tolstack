@@ -996,9 +996,11 @@
   //              what the pane read the set as when it is a hole pattern
   //              ("10 holes Ø5.5 on a Ø240 circle", the tree's `fits`), and
   //              lists each face (hoverable) with Remove
-  //   disagree   "2 faces disagree", each face hoverable with Keep: nothing
-  //              is bound until one is kept (the feature reads suggested);
-  //              Pick a face, for when neither is the feature's face
+  //   disagree   "2 faces disagree" (or "2 sets of faces disagree"), each
+  //              face or set hoverable with Keep: nothing is bound until one
+  //              is kept (the feature reads suggested); Pick a face, for when
+  //              none is the feature's face; Unbind, to let them all go
+  //              (2026-11-18)
   //   suggested  the pane's candidate rows, as before; with none (the run does
   //              not carry the feature) the suggestion's line -- naming its
   //              face: hovering lights it, a click turns the pane to it,
@@ -1008,7 +1010,8 @@
   //              why it is there and Take
   //   neither    "not bound" and Pick a face, which arms the same pick
   //   armed      the pane's own armed line and Cancel, while a pick is armed
-  //              at one of the feature's ends
+  //              at one of the feature's ends; Unbind too when the feature
+  //              holds faces
   //
   // Every action is a pane verb (VA.FEATURE_BODY_VERBS), posted by the page;
   // the words are this table's.
@@ -1019,8 +1022,10 @@
     remove: "Remove",
     removeTitle: "take this face out of the feature's set",
     disagree: "{n} faces disagree",
+    disagreeSets: "{n} sets of faces disagree",
+    groupFaces: "faces {faces}",
     keep: "Keep",
-    keepTitle: "this is the feature's face; the others are let go",
+    keepTitle: "keep this as the feature's binding; the others are let go",
     none: "not bound",
     noMesh: "not bound · no 3D model of this part",
     suggested: "suggested · {confidence}",
@@ -1031,7 +1036,7 @@
     addFace: "Add a face",
     addFaceTitle: "pick another face of this feature; it joins the set (Shift-click keeps picking)",
     unbind: "Unbind",
-    unbindTitle: "take this binding back; the record keeps it",
+    unbindTitle: "let this feature go: nothing bound; the record keeps what it held",
     flip: "Flip",
     flipTitle: "this face is the dimension's other end",
     cancel: "Cancel",
@@ -1082,12 +1087,17 @@
         actions: [{ text: W.take, title: W.takeTitle,
           command: [V.take, mates.edgeId, mates.direction, r.sha256, String(r.faceId), topologyId] }] };
     }) : [];
+    var record = model.featureRecord ? model.featureRecord(fid) : null;
     if (armed && ends.some(function (e) { return e.edgeId === armed.edgeId && e.end === armed.direction; })) {
+      // A feature that holds faces can be let go from here too: the pick is
+      // cancelled and the feature unbound, one click.
+      var holds = record && (record.bindings || []).length;
       return { kind: K.armed, lines: [{ text: String(tree.armedLine || "") }].concat(mateLines),
-        actions: [{ text: W.cancel, title: W.cancelTitle, command: [V.arm, "off"] }] };
+        actions: [{ text: W.cancel, title: W.cancelTitle, command: [V.arm, "off"] }].concat(holds
+          ? [{ text: W.unbind, title: W.unbindTitle, command: [V.unbind, armed.edgeId, armed.direction, topologyId] }]
+          : []) };
     }
     var status = model.status(fid);
-    var record = model.featureRecord ? model.featureRecord(fid) : null;
     var disagree = record && record.state === VA.FEATURE_STATES[1];
     // The pane's rows already carry its mates (app.js candidatesWithMates), so
     // a feature with rows draws them; the mate lines below are for a feature
@@ -1106,13 +1116,23 @@
     var faceLine = function (face, text, actions) {
       return { text: text, face: { sha256: face.source_step_sha256, faceId: face.face_id }, actions: actions };
     };
+    // Unbind lets the feature go whatever it holds -- one face, a set, or
+    // sets that disagree (the pane retracts every binding in one event).
+    var unbind = function (e) { return { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, e) }; };
     if (disagree && ends.length) {
-      var faces = [];
-      record.disagreement.forEach(function (g) { faces = faces.concat(g.faces); });
-      return { kind: K.disagree, lines: [{ text: fill(W.disagree, { n: faces.length }) }].concat(faces.map(function (f) {
-        return faceLine(f, fill(W.setFace, { face: f.face_id }),
-          [{ text: W.keep, title: W.keepTitle, command: verb(V.keep, ends[0], f) }]);
-      })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }] };
+      // One line per set that disagrees, its Keep naming every face of it: a
+      // set and the same set with a face added share faces, so a face alone
+      // cannot say which is kept (Jeff's pitch plate bore, 2026-11-17).
+      var groups = record.disagreement;
+      var single = groups.every(function (g) { return g.faces.length === 1; });
+      return { kind: K.disagree, lines: [{ text: fill(single ? W.disagree : W.disagreeSets, { n: groups.length }) }]
+        .concat(groups.map(function (g) {
+          var f = g.faces[0];
+          var text = g.faces.length === 1 ? fill(W.setFace, { face: f.face_id })
+            : fill(W.groupFaces, { faces: g.faces.map(function (x) { return x.face_id; }).join(", ") });
+          return faceLine(f, text, [{ text: W.keep, title: W.keepTitle,
+            command: verb(V.keep, ends[0], f).concat(g.faces.slice(1).map(function (x) { return String(x.face_id); })) }]);
+        })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }, unbind(ends[0])] };
     }
     // Add a face: the same arm as Correct, in the mode that adds.
     var addFace = function (e) {

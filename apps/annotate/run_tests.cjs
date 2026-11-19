@@ -459,6 +459,93 @@ check("an unbind is a retracted event naming the binding it takes back, carrying
   try { AA.buildRetractEvent({ verdict: "proposed" }, { recordedBy: "annotate-app:r" }); } catch (err) { refused = err.message; }
   assertEqual(/only a binding/.test(refused || ""), true, "only a binding is taken back: " + refused);
 });
+// --- Keep settles, Unbind lets go, Add a face leaves one (handoff a_
+// disagreement_is_settled_by_keep_or_let_go): Jeff's events 0093-0100 --------
+const BORE_KEY = { topology_id: "vpa_pitch_linkage", part: "pitch_plate_215177_001",
+  node: "pitch_plate_link_attach_bore" };
+const BORE_SHA = "37e9f606341bfd194c2c51ae7517861ecdf1221bd4d262697f4d732b194d5801";
+const BORE_TOPOLOGIES = [{ id: "vpa_pitch_linkage", edges: [], nodes: [] }];
+function boreFaces(ids) {
+  return ids.map((faceId) => ({ sourceStepSha256: BORE_SHA, faceId, areaNative2: 29.4, centroidNative: [0, 0, faceId] }));
+}
+function boreBind(id, seq, faces, at) {
+  return AA.buildBoundEvent({ eventId: id, seq, createdAt: at || "2026-11-18T06:37:" + String(seq).padStart(2, "0") + "Z",
+    recordedBy: AA.humanActor("jeff"), featureKey: BORE_KEY, geometryKeys: boreFaces(faces) });
+}
+// The log's shape: one bind written twice (same seq, same second), Add a
+// face as a plain bind, then five Keeps that each bound the four faces again.
+function boreLog() {
+  const two = [1380, 1381], four = [1380, 1381, 1509, 1510];
+  return [boreBind("e93", 93, two, "2026-11-18T06:37:08Z"), boreBind("e94", 93, two, "2026-11-18T06:37:08Z"),
+    boreBind("e95", 95, four)].concat([96, 97, 98, 99, 100].map((s) => boreBind("e" + s, s, four)));
+}
+function boreRecord(events) {
+  return VA.featureRecordOf(AA.foldEvents(events, { topologies: BORE_TOPOLOGIES }), BORE_KEY);
+}
+check("Jeff's pitch plate bore: two sets disagree, and ONE Keep event superseding every standing binding " +
+  "leaves the kept set bound and nothing disagreeing", () => {
+  const log = boreLog();
+  const before = boreRecord(log);
+  assertEqual([before.state, before.disagreement.map((g) => g.faces.map((f) => f.face_id))],
+    ["disagreement", [[1380, 1381], [1380, 1381, 1509, 1510]]]);
+  const kept = before.disagreement[0];
+  const keep = AA.buildFeatureSetEvent(before.bindings, { eventId: "keep", seq: 101, createdAt: "t",
+    recordedBy: AA.humanActor("jeff"), featureKey: BORE_KEY,
+    geometryKeys: kept.faces.map((f) => ({ sourceStepSha256: f.source_step_sha256, faceId: f.face_id })) });
+  assertEqual(keep.supersedes, ["e93", "e94", "e95", "e96", "e97", "e98", "e99", "e100"],
+    "the Keep names every standing binding");
+  const after = boreRecord(log.concat([keep]));
+  assertEqual([after.state, after.outcome, after.bindings.map((b) => b.event_id), after.disagreement.length],
+    ["bound", "set", ["keep"], 0]);
+  assertEqual(after.faces.map((f) => f.face_id), [1380, 1381]);
+  assertEqual(after.superseded.length, 8, "the earlier events stay, as history");
+  // Keeping the other set, likewise.
+  const other = AA.buildFeatureSetEvent(before.bindings, { eventId: "keep4", seq: 101, createdAt: "t",
+    recordedBy: AA.humanActor("jeff"), featureKey: BORE_KEY, geometryKeys: boreFaces([1380, 1381, 1509, 1510]) });
+  assertEqual(boreRecord(log.concat([other])).faces.map((f) => f.face_id), [1380, 1381, 1509, 1510]);
+});
+check("Unbind lets a feature whose faces disagree go: one retracted event naming every binding, and " +
+  "the feature reads unbound", () => {
+  const log = boreLog();
+  const before = boreRecord(log);
+  const go = AA.buildLetGoEvent(BORE_KEY, before.bindings, { eventId: "go", seq: 101, createdAt: "t",
+    recordedBy: AA.humanActor("jeff") });
+  assertEqual([go.verdict, go.retracts.length, go.geometry_keys, go.feature_key.node],
+    ["retracted", 8, undefined, BORE_KEY.node]);
+  const after = boreRecord(log.concat([go]));
+  assertEqual([after.state, after.bindings.length, after.retracted.length, after.faces.length],
+    ["unbound", 0, 8, 0]);
+  // One binding: `retracts` is that id, as before 2026-11-18.
+  const one = [boreBind("b1", 1, [7])];
+  const single = AA.buildLetGoEvent(BORE_KEY, boreRecord(one).bindings, { eventId: "u", seq: 2, createdAt: "t",
+    recordedBy: AA.humanActor("jeff") });
+  assertEqual(single.retracts, "b1");
+  assertEqual(boreRecord(one.concat([single])).state, "unbound");
+  let refused = null;
+  try { AA.buildLetGoEvent(BORE_KEY, [], { recordedBy: AA.humanActor("jeff") }); } catch (err) { refused = err.message; }
+  assertEqual(/nothing is bound/.test(refused || ""), true, refused);
+  refused = null;
+  try { AA.buildLetGoEvent(BORE_KEY, before.bindings, { recordedBy: "agent:x" }); } catch (err) { refused = err.message; }
+  assertEqual(/an agent only proposes/.test(refused || ""), true, refused);
+});
+check("Add a face over a feature holding the same bind twice writes one event that leaves one binding, " +
+  "the union -- where it used to leave three standing and two sets disagreeing", () => {
+  const log = boreLog().slice(0, 2);
+  const before = boreRecord(log);
+  assertEqual([before.state, before.bindings.length], ["bound", 2]);
+  const add = AA.buildFeatureSetEvent(before.bindings, { eventId: "add", seq: 95, createdAt: "t",
+    recordedBy: AA.humanActor("jeff"), featureKey: BORE_KEY, geometryKeys: boreFaces([1380, 1381, 1509, 1510]) });
+  assertEqual(add.supersedes, ["e93", "e94"]);
+  const after = boreRecord(log.concat([add]));
+  assertEqual([after.state, after.bindings.map((b) => b.event_id), after.faces.length], ["bound", ["add"], 4]);
+  // One standing: a plain correction, `supersedes` the one id.
+  const once = AA.buildFeatureSetEvent([log[0]], { eventId: "c", seq: 95, createdAt: "t",
+    recordedBy: AA.humanActor("jeff"), featureKey: BORE_KEY, geometryKeys: boreFaces([1380]) });
+  assertEqual(once.supersedes, "e93");
+  // None feature-keyed: a fresh binding, no pointer.
+  assertEqual(AA.buildFeatureSetEvent([], { eventId: "f", seq: 1, createdAt: "t", recordedBy: AA.humanActor("jeff"),
+    featureKey: BORE_KEY, geometryKeys: boreFaces([1]) }).supersedes, undefined);
+});
 check("the bound marks are every standing binding on an open part, each face once", () => {
   const identity = { stack_keys: [
     { bindings: [boundFixture("a", 1, 110, "from"), boundFixture("b", 2, 110, "to")] },
