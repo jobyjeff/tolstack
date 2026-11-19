@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261026_a_binding_may_be_superseded.md",
       "note": "Without the move a corrected binding keeps standing and the row shows both ends bound. The fold moved to apps/viewer/identity_fold.js on 2026-11-12 (one fold for both apps); AA.addEventToRecord delegates to it. Since 2026-11-12 (a_feature_is_bound_once_to_a_set_of_faces) the superseded binding may sit in another record (a feature's correction of an edge end's binding), so the take is on `sup`, the record the named event was folded into.",
       "file": "apps/viewer/identity_fold.js",
-      "find": "        sup.bindings = take(sup.bindings, standingId(sup, event.supersedes), sup.superseded).kept;",
-      "replace": "        take(sup.bindings, standingId(sup, event.supersedes), sup.superseded);"
+      "find": "        sup.bindings = take(sup.bindings, standingId(sup, id), sup.superseded).kept;",
+      "replace": "        take(sup.bindings, standingId(sup, id), sup.superseded);"
     }
   ]
 }

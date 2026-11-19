@@ -7242,10 +7242,12 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="armed"]'));
     }, chainFeature, { timeout: 10000 }).catch(() => {});
     const armedBody = await featureBody(chainFeature);
+    // The feature is bound, so the armed body offers Unbind beside Cancel
+    // (2026-11-18, a_disagreement_is_settled_by_keep_or_let_go).
     push("[real] ...and its Correct arms the pick in bind mode, at one of the feature's own ends, " +
       "and the body says so with a Cancel",
       !!armedAt && chainEnds.indexOf(armedAt) !== -1 && !!armedBody && armedBody.kind === "armed" &&
-      armedBody.acts.join() === "Cancel" && await inPane((w) => !w.__sweep && !!w.__scene.pickFilter()));
+      armedBody.acts.join() === "Cancel,Unbind" && await inPane((w) => !w.__sweep && !!w.__scene.pickFilter()));
     await page.locator(`${chainFeature} ~ .navtree__scene button[data-body-act="arm-off"]`).first()
       .click({ timeout: 5000 }).catch(() => {});
     await page.waitForFunction((sel) => {

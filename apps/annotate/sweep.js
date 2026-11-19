@@ -2381,6 +2381,9 @@
     added: "added face {face} · {n} faces",
     alreadyHeld: "face {face} is already in the feature",
     disagree: "the feature's faces disagree -- keep one first",
+    //: A click being read and written (it can take seconds on a large part);
+    //: a click that lands meanwhile is dropped, and the line stays.
+    reading: "reading face {face}…",
   });
 
   //: The modes an arm can be asked for beside a plain pick (`arm <edge> <end>

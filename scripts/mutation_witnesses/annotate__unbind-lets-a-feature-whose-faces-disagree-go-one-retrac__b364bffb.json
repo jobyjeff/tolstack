@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "Unbind lets a feature whose faces disagree go: one retracted event naming every binding, and the feature reads unbound",
+  "mutations": [
+    {
+      "contract": "One Unbind retracts every binding the feature holds, so the feature reads unbound.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_disagreement_is_settled_by_keep_or_let_go.md",
+      "note": "Declared with the guard by handoff a_disagreement_is_settled_by_keep_or_let_go (2026-11-18). Retracting one binding of several leaves the rest standing and the feature still bound or disagreeing.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      retracts: AA.namedOrOne(all.map(function (b) { return b.event_id; })),",
+      "replace": "      retracts: all[0].event_id,"
+    }
+  ]
+}

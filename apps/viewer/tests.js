@@ -10448,7 +10448,40 @@
         eq(plan.lines.slice(1).map(function (l) { return l.actions[0].command; }), [
           ["keep", "g1", "from", "mini", "aa", "3460"], ["keep", "g1", "from", "mini", "bb", "144"]]);
         eq(plan.actions.map(function (a) { return [a.text, a.command]; }),
-           [[W.pick, ["arm", "g1", "from", "mini", "hub"]]]);
+           [[W.pick, ["arm", "g1", "from", "mini", "hub"]], [W.unbind, ["unbind", "g1", "from", "mini"]]],
+           "Unbind lets the faces that disagree all go");
+      });
+
+    await test("sets of faces that disagree are one line each, and Keep names the whole set -- a set and " +
+      "the same set with faces added share a face (Jeff's pitch plate bore, events 0093-0100)", function () {
+        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
+        var f = function (id) { return { source_step_sha256: "37e9", face_id: id }; };
+        var record = { state: VA.FEATURE_STATES[1], bindings: [{ event_id: "a" }, { event_id: "b" }],
+          disagreement: [{ faces: [f(1380), f(1381)] }, { faces: [f(1380), f(1381), f(1509), f(1510)] }] };
+        var model = {
+          feature: function () { return { part: "pitch_plate_215177_001" }; },
+          endsOf: function () { return [{ edgeId: "pitch_plate_attach_radius", end: "from" }]; },
+          status: function () { return VA.FEATURE_STATUSES.suggested; },
+          featureRecord: function () { return record; },
+          part: function () { return { number: "215177-001" }; },
+        };
+        var plan = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [], null);
+        eq(plan.kind, K.disagree);
+        eq(plan.lines.map(function (l) { return l.text; }),
+           ["2 sets of faces disagree", "faces 1380, 1381", "faces 1380, 1381, 1509, 1510"]);
+        eq(plan.lines.slice(1).map(function (l) { return l.actions[0].command; }), [
+          ["keep", "pitch_plate_attach_radius", "from", "vpa", "37e9", "1380", "1381"],
+          ["keep", "pitch_plate_attach_radius", "from", "vpa", "37e9", "1380", "1381", "1509", "1510"]]);
+        eq(plan.lines[1].actions[0].text, W.keep);
+        // Armed at the feature's end: Cancel, and Unbind since it holds faces.
+        var armed = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [],
+          { armedEnd: { edgeId: "pitch_plate_attach_radius", direction: "from" }, armedLine: "pick a face" });
+        eq(armed.actions.map(function (a) { return [a.text, a.command]; }), [[W.cancel, ["arm", "off"]],
+          [W.unbind, ["unbind", "pitch_plate_attach_radius", "from", "vpa"]]]);
+        record = { state: VA.FEATURE_STATES[4], bindings: [] };
+        armed = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [],
+          { armedEnd: { edgeId: "pitch_plate_attach_radius", direction: "from" }, armedLine: "pick a face" });
+        eq(armed.actions.map(function (a) { return a.text; }), [W.cancel], "nothing held, nothing to unbind");
       });
 
     await test("a feature holding a set says how many faces, Correct, Add a face and Unbind; " +

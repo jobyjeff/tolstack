@@ -24,7 +24,10 @@ element means.
    decision 4). The field is optional and additive: schema stays `v0`, no new
    verdict. The same rule is meant for every append-only stream here; the spec
    library adopts the field the first time a parse event needs correcting, not
-   before.
+   before. Since 2026-11-18 a feature-keyed (v1) event's `supersedes` — and a
+   `retracted` event's `retracts` — may be a list of ids, each held to the same
+   rule, so one Keep or one Unbind replaces every binding a feature holds
+   (`docs/ANNOTATION_SURFACE.md`, "Keep settles a disagreement").
 2. **Contents are gitignored** (forge data convention). This README is the
    tracked skeleton. **Unlike** `docs/spec_library/events/`, these events are
    *not* additionally committed under `docs/` — they are generated

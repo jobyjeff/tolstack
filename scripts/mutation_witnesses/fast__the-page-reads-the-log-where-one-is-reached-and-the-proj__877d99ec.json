@@ -7,8 +7,8 @@
       "contract": "An unbind takes its binding out of the standing list.",
       "note": "Declared with the guard by handoff a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown (2026-11-12). The retraction is recorded and the binding still stands. Since 2026-11-12 the retracted binding may sit in another record (a feature's unbind of an edge end's binding): `ret`.",
       "file": "apps/viewer/identity_fold.js",
-      "find": "      ret.bindings = take(ret.bindings, standingId(ret, event.retracts), ret.retracted).kept;",
-      "replace": "      take(ret.bindings, standingId(ret, event.retracts), ret.retracted);",
+      "find": "        ret.bindings = take(ret.bindings, standingId(ret, id), ret.retracted).kept;",
+      "replace": "        take(ret.bindings, standingId(ret, id), ret.retracted);",
       "issue": "docs/sessions/lessons/LESSONS_20261112_a_binding_shows_the_moment_it_is_made_and_is_corrected_where_it_is_shown.md"
     },
     {

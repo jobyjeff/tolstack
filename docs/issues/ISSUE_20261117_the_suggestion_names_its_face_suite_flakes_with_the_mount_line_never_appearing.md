@@ -48,3 +48,12 @@ which of the two was missing.
 ## 2026-11-17 triage sweep
 
 Staged as `docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md` together with the annotate-rail Take flake (same file; both read the tree after an action). Source: dispatch/docs/sessions/lessons/LESSONS_20261117_triage_sweep.md.
+
+## 2026-11-18 — a_disagreement_is_settled_by_keep_or_let_go
+
+Another shape, measured three times against one scratch root built from that
+branch's tree: the mount's line DOES appear ("names face 134; surest proposal
+proposal-0048-tan_link_mount_height-from"), and `[real] hovering a suggestion
+line in the tree lights its face in the pane` is red, 4/5. Red twice on the
+branch and once on an `integration` export run against the same root, so it is
+not that branch's. The staged handoff above owns it.
