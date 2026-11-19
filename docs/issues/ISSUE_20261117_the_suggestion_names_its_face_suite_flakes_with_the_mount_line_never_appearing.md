@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: browser TRUTH tier / a suggestion names its face
 reporter: agent
 class: timing_assertion_under_load
 found_by: docs/sessions/active/HANDOFF_20261117_a_joint_says_what_kind_it_is.md
 handoff: docs/sessions/HANDOFF_20261117_the_suggestion_and_take_real_checks_wait_on_a_settled_tree.md
+resolution: the suite clicked twisties and hovered a nav that was still repainting while the sweep opened its parts, and read back nothing; it now waits out the sweep, clicks each twisty until the page reports it expanded, re-hovers until the pane washes, and prints what is missing and lets its checks go red (measured red 4 of 5 baseline runs in three places, green 3 of 3 after)
 ---
 
 # The "a suggestion names its face" suite flakes: the mount's suggestion line never appears

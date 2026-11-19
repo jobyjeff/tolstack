@@ -84,3 +84,7 @@ Verified in the main checkout's data, running the worktree's runner:
 
 The guard's mutation (`browser__real-the-topology-level-rail-shows-a-suggestion-on-every__f2976b67`)
 is still WITNESSED under `--changed-since master`.
+
+## 2026-11-18 addendum (the_suggestion_and_take_real_checks_wait_on_a_settled_tree)
+
+Red again on `69c6f779`, scratch-free, against the main checkout's `data/projections/` via `--repo C:/workspace/tolstack`: `--only "annotate rail suggestion"` is 18/19, the failing sub-check `[real] the topology-level rail shows a suggestion on every edge with an open proposal`. Deterministic on three runs (whole tier, alone, and the unmodified baseline script), so it is data, not timing. This file is `resolved`; whoever picks the check up again should reopen it.
