@@ -8022,11 +8022,14 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       return true;
     } catch { return false; }
   };
-  // A precondition the Take checks read: when it is missing the suite ends at
-  // once and names it, instead of reading a tree that is still moving.
+  // A precondition the Take checks read: a missing one is printed by name and
+  // the checks that read it go red -- never thrown, which would abort the suite
+  // before they are pushed (and the witness runner would report a guard it
+  // never reached).
   const need = async (what, fn, arg, timeout) => {
-    if (await until(fn, arg, timeout)) return;
-    throw new Error(`missing: ${what} (after ${timeout} ms)`);
+    if (await until(fn, arg, timeout)) return true;
+    console.log(`    MISSING: ${what} (after ${timeout} ms)`);
+    return false;
   };
   // The nav's mirrored rows: key, words, state, and where each sits.
   const nav = () => page.evaluate(() => {
@@ -10744,11 +10747,14 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   const paneState = () => inPane((w) => ({
     open: w.__scene ? w.__scene.listOpenParts().length : null,
     sweepBodies: w.__sweep && w.__sweep.bodies ? w.__sweep.bodies.length : null })).catch((e) => String(e));
-  // A precondition the checks stand on: when it is missing the suite ends at
-  // once and says which, instead of waiting on state that is never coming.
+  // A precondition the checks stand on. A missing one is printed by name with
+  // the pane's state and the checks that read it go red -- never thrown: a
+  // thrown error aborts the suite before those checks are pushed, and the
+  // mutation-witness runner then reports a guard it never reached.
   const need = async (what, fn, arg, timeout) => {
-    if (await until(fn, arg, timeout)) return;
-    throw new Error(`missing: ${what} (after ${timeout} ms; pane ${JSON.stringify(await paneState())})`);
+    if (await until(fn, arg, timeout)) return true;
+    console.log(`    MISSING: ${what} (after ${timeout} ms; pane ${JSON.stringify(await paneState())})`);
+    return false;
   };
   // A twisty is clicked until the page reports it expanded: a click on a tree
   // that is still repainting lands on a node that is then replaced, so the
@@ -10756,14 +10762,14 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   const expand = async (key, what) => {
     const sel = `#navtree [data-nav-twisty="${key}"]`;
     const isOpen = (s) => { const t = document.querySelector(s); return !!t && t.getAttribute("aria-expanded") === "true"; };
-    await page.waitForSelector(sel, { state: "attached", timeout: 30000 })
-      .catch(() => { throw new Error(`missing: the twisty of ${what} (${key}) is not in the tree`); });
+    const there = await page.waitForSelector(sel, { state: "attached", timeout: 30000 }).then(() => true, () => false);
+    if (!there) return console.log(`    MISSING: the twisty of ${what} (${key}) is not in the tree`);
     for (let i = 0; i < 5; i++) {
       if (await page.evaluate(isOpen, sel)) return;
       await page.evaluate((s) => { const t = document.querySelector(s); if (t) t.click(); }, sel);
       await page.waitForFunction(isOpen, sel, { timeout: 3000 }).catch(() => {});
     }
-    if (!(await page.evaluate(isOpen, sel))) throw new Error(`missing: ${what} (${key}) never expanded`);
+    if (!(await page.evaluate(isOpen, sel))) console.log(`    MISSING: ${what} (${key}) never expanded`);
   };
   const openBody = async (fid) => {
     await expand(`p:${fid.split("@")[0]}`, `the part of ${fid}`);
@@ -10791,18 +10797,17 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
     await openPage("kinematic=" + KINEMATIC, true);
     await openBody(MOUNT_FACE);
     const line = slotOf(MOUNT_FACE).locator(".navtree__featurestate[data-look]").first();
-    await line.waitFor({ timeout: 30000 }).catch(() => {
-      throw new Error("missing: the mount's suggestion line, with its part and feature both expanded");
-    });
-    const face = Number(await line.getAttribute("data-face"));
+    await line.waitFor({ timeout: 30000 }).catch(() =>
+      console.log("    MISSING: the mount's suggestion line, with its part and feature both expanded"));
+    const face = Number(await line.getAttribute("data-face", { timeout: 1000 }).catch(() => NaN));
     const surest = events.filter((e) => e.verdict === "proposed" &&
       faceKeys(e).some((k) => k.face_id === face)).find((e) => e.confidence === "high");
     console.log(`    the mount's suggestion line names face ${face}; surest proposal ${surest && surest.event_id}`);
     // The sweep opens its parts one by one after the tree is up, and only an
     // open part washes in sweep mode: hover once the mount is drawn.
     const mountSha = surest && faceKeys(surest)[0].source_step_sha256;
-    if (!surest) throw new Error(`missing: a high-confidence proposal in the log for face ${face}`);
-    await need("the mount's part drawn in the pane", (w, s) => w.__scene && w.__scene.listOpenParts().indexOf(s) !== -1, mountSha, 60000);
+    if (!surest) console.log(`    MISSING: a high-confidence proposal in the log for face ${face}`);
+    else await need("the mount's part drawn in the pane", (w, s) => w.__scene && w.__scene.listOpenParts().indexOf(s) !== -1, mountSha, 60000);
     // A hover that lands while the line is being replaced lights nothing: leave
     // and rest on it again until the pane washes the face.
     let washed = false;
@@ -10815,7 +10820,7 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
       Number.isFinite(face) && washed);
     const before = await inPane((w) => (w.__mockWrites || []).length);
     const take = slotOf(MOUNT_FACE).locator("button", { hasText: "Take" }).first();
-    await take.waitFor({ timeout: 15000 }).catch(() => { throw new Error("missing: the Take button under the mount's line"); });
+    await take.waitFor({ timeout: 15000 }).catch(() => console.log("    MISSING: the Take button under the mount's line"));
     await take.click({ timeout: 5000 }).catch(() => {});
     await until((w, n) => (w.__mockWrites || []).length > n, before, 30000);
     await page.waitForTimeout(500);
