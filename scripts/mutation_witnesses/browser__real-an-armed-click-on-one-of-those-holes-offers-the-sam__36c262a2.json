@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
+  "expect_red": "[real] an armed click on one of those holes offers the same set in the head bar, all twenty faces lit, writing nothing",
+  "mutations": [
+    {
+      "contract": "A click on a hole of the opposite pattern offers that set in the head bar.",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). The offer ignores the pattern row: the tan link mount's like holes are offered instead.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (!row) return siblings;",
+      "replace": "  if (true) return siblings;",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
+  "expect_red": "[real] Take writes one bound event on the tan link mount holding all twenty faces",
+  "mutations": [
+    {
+      "contract": "A Take naming several faces binds them all, as one event.",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). The named faces are dropped: Take binds the first hole only.",
+      "file": "apps/annotate/app.js",
+      "find": "    return take(siblings.swept.concat(named).filter((f) => !own.has(f) && own.add(f)));",
+      "replace": "    return take(siblings.swept);",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md"
+    }
+  ]
+}

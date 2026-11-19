@@ -1924,9 +1924,11 @@
 
   //: The kinds of row on an end's candidate list: an agent's proposal, the
   //: contact engine's face, and (2026-11-15, app.js's rankMatesAt) a face
-  //: that mates with the one bound on the other side. Listed proposals
-  //: first, then mates, then contact.
-  AA.CANDIDATE_ROW_KINDS = Object.freeze(["proposed", "contact", "mate"]);
+  //: that mates with the one bound on the other side; (2026-11-18) the whole
+  //: pattern on this part when a pattern is bound on the other side
+  //: (AA.rankOppositePattern), one row for the set, leading the mates.
+  //: Listed proposals first, then mates, then contact.
+  AA.CANDIDATE_ROW_KINDS = Object.freeze(["proposed", "contact", "mate", "pattern"]);
 
   // An end's candidate list (handoff a_joint_end_lists_its_candidate_faces_
   // and_says_why_each_is_there): the agent's open proposals at the end,
@@ -1984,6 +1986,8 @@
   // pre-selection's own words, so the list and the armed pick name a face
   // the same way.
   AA.candidateRowWords = function (row) {
+    // A set says itself: "10 of 10 holes Ø5, coaxial within 0.003 mm".
+    if (row.kind === AA.CANDIDATE_ROW_KINDS[3] && row.text) return row.text;
     return AA.preselectWords(row.faceId, row.surface ? { surface: row.surface, radius: row.radius || 0 } : null);
   };
 

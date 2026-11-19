@@ -776,6 +776,184 @@
       .replace("{offset}", mm(row.offsetMm)).replace("{reach}", mm(row.reachMm));
   };
 
+  // --- the whole pattern on the other part (2026-11-18) ----------------------
+  //
+  // Handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part. Jeff:
+  // "once a hole pattern on one side of an interface is found, it should be
+  // trivial to suggest the entire pattern on the other side (all the
+  // concentric cylinders on the opposite part)". The like-holes offer
+  // (AA.surfaceSiblings) reads one part and fails exactly where the two sides
+  // differ -- another diameter, a counterbore, a bushing on another solid. So
+  // this reads the BOUND side's holes and asks, hole by hole, which of the
+  // other part's cylinders sit on that hole's axis -- the coaxiality test the
+  // mate already has (AA.rankMatingFaces), not a second geometric rule.
+  //
+  // Several cylinders on one axis (a counterbore over a through hole, a
+  // bushing in a bore, the tan link mount's four rings on one set of
+  // centres): the SIZE that answers the most bound holes is taken, and among
+  // sizes answering as many, the one nearest the bound holes' own -- a
+  // fastener's line through both parts, and one size, so the set fits as a
+  // pattern (AA.holePattern refuses a mix). The other sizes stay their own
+  // rows. A hole the taken size does not answer is left out and counted
+  // ("7 of 10"), never filled.
+  //
+  // The same fence as the mate: it ranks and colours, writes nothing and
+  // produces no value.
+
+  //: The row's words. {n} holes answered of the {m} bound, the taken size,
+  //: and the worst axis offset among them; the reason names the bound part;
+  //: `others` the sizes left on the same axes; `solid` the solids the taken
+  //: faces are on when that is not the part's own (a bushing, an insert).
+  AA.OPPOSITE_PATTERN_WORDS = Object.freeze({
+    line: "{n} of {m} holes Ø{d}, coaxial within {offset}",
+    reason: "the whole pattern bound on {mate}",
+    others: "Ø{d} on the same axes, each its own row",
+    solid: "in solid {solids} of {count}",
+    solids: "in solids {solids} of {count}",
+    faces: "faces {faces}",
+  });
+
+  function sizeWords(radius) { return String(Number((2 * radius).toFixed(2))); }
+
+  // The bound holes, from the faces bound on ONE other part: the part whose
+  // cylindrical faces are most of them, grouped into holes (AA.surfaceGroups).
+  function boundHoles(bound) {
+    var byPart = {};
+    (bound || []).forEach(function (r) {
+      if (!r || !r.record || r.record.surface !== "cylindrical") return;
+      (byPart[r.sha256] = byPart[r.sha256] || []).push(r);
+    });
+    var best = null;
+    Object.keys(byPart).forEach(function (sha) {
+      if (!best || byPart[sha].length > byPart[best].length) best = sha;
+    });
+    if (!best) return null;
+    var refs = byPart[best];
+    var groups = AA.surfaceGroups(refs.map(function (r) { return r.record; }));
+    return { sha256: best, holes: groups.map(function (g) {
+      return refs.filter(function (r) { return g.indexOf(r.record) !== -1; });
+    }) };
+  }
+
+  // THE OPPOSITE PATTERN, or null:
+  //
+  //   opts.sha256      the part being offered
+  //   opts.classes     its face records (face_geometry.js), by face id
+  //   opts.placements  [placement] -- where the open model draws it
+  //   opts.bound       [{sha256, faceId, record, placements}] -- the faces
+  //                    bound on the other side (any part; the one holding
+  //                    most cylinders is read)
+  //   opts.solids      [solid id by face id] (optional)
+  //   opts.tolerances  overrides for AA.MATE_TOLERANCES
+  //
+  // Null unless the bound side is two holes or more and at least one is
+  // answered. Otherwise {sha256, faces, holes, of, radius, boundRadius,
+  // offsetMm, angleDeg, others: [radius], solids: [solid id off the part's
+  // own], mateSha256,
+  // axes: [{faces: [id] | null, sizes: [radius]}]} -- `axes` one per bound
+  // hole, in the bound side's order.
+  AA.rankOppositePattern = function (opts) {
+    var o = opts || {};
+    var bound = boundHoles(o.bound);
+    if (!bound || bound.holes.length < 2) return null;
+    var classes = o.classes || [];
+    var whole = AA.PATTERN.wholeArcDeg;
+    var boundRadius = 0, n = 0;
+    bound.holes.forEach(function (h) { h.forEach(function (r) { boundRadius += r.record.radius; n += 1; }); });
+    boundRadius /= n;
+    // Per bound hole: the cylinders on its axis, as surfaces, each whole.
+    var axes = bound.holes.map(function (hole) {
+      var rows = AA.rankMatingFaces({ sha256: o.sha256, classes: classes, placements: o.placements,
+        references: hole, tolerances: o.tolerances }).filter(function (m) { return m.relation === "coaxial"; });
+      var byFace = {};
+      rows.forEach(function (m) { byFace[m.faceId] = m; });
+      var records = rows.map(function (m) { return classes[m.faceId]; }).filter(Boolean);
+      return AA.surfaceGroups(records).map(function (g) {
+        var ids = g.map(function (r) { return r.faceId; }).sort(function (a, b) { return a - b; });
+        return { faces: ids,
+          radius: g.reduce(function (s, r) { return s + r.radius; }, 0) / g.length,
+          arc: g.reduce(function (s, r) { return s + (r.arcDeg || 0); }, 0),
+          offsetMm: Math.max.apply(null, ids.map(function (f) { return byFace[f].offsetMm; })),
+          angleDeg: Math.max.apply(null, ids.map(function (f) { return byFace[f].angleDeg; })) };
+      }).filter(function (s) { return s.arc >= whole; });
+    });
+    // Sizes, each one radius within the pattern rule's fraction, and the
+    // axes each answers.
+    var sizes = [];
+    axes.forEach(function (surfaces, i) {
+      surfaces.forEach(function (s) {
+        var size = sizes.filter(function (z) {
+          return Math.abs(z.radius - s.radius) <= AA.PATTERN.radiusFraction * Math.max(z.radius, s.radius);
+        })[0];
+        if (!size) { size = { radius: s.radius, axes: {} }; sizes.push(size); }
+        (size.axes[i] = size.axes[i] || []).push(s);
+      });
+    });
+    if (!sizes.length) return null;
+    var count = function (z) { return Object.keys(z.axes).length; };
+    sizes.sort(function (a, b) {
+      return (count(b) - count(a)) || (Math.abs(a.radius - boundRadius) - Math.abs(b.radius - boundRadius)) ||
+        (a.radius - b.radius);
+    });
+    var taken = sizes[0];
+    var faces = [], offset = 0, angle = 0, radius = 0, k = 0;
+    var perAxis = axes.map(function (surfaces, i) {
+      var mine = taken.axes[i] || null;
+      if (mine) mine.forEach(function (s) {
+        faces = faces.concat(s.faces);
+        offset = Math.max(offset, s.offsetMm);
+        angle = Math.max(angle, s.angleDeg);
+        radius += s.radius;
+        k += 1;
+      });
+      return { faces: mine ? [].concat.apply([], mine.map(function (s) { return s.faces; })) : null,
+        sizes: surfaces.map(function (s) { return s.radius; }) };
+    });
+    faces.sort(function (a, b) { return a - b; });
+    // The solids the taken faces are on, other than the part's own -- the
+    // one most of its faces are on: a bushing's bore, an insert.
+    var solids = [];
+    if (o.solids) {
+      var held = {};
+      o.solids.forEach(function (s) { if (s !== undefined && s !== null) held[s] = (held[s] || 0) + 1; });
+      var main = Object.keys(held).sort(function (a, b) { return held[b] - held[a]; })[0];
+      faces.forEach(function (f) {
+        var s = o.solids[f];
+        if (s !== undefined && s !== null && String(s) !== main && solids.indexOf(s) === -1) solids.push(s);
+      });
+    }
+    solids.sort(function (a, b) { return a - b; });
+    return { sha256: o.sha256, faces: faces, holes: count(taken), of: bound.holes.length,
+      radius: radius / k, boundRadius: boundRadius, offsetMm: offset, angleDeg: angle,
+      others: sizes.slice(1).map(function (z) { return z.radius; }).sort(function (a, b) { return b - a; }),
+      solids: solids, mateSha256: bound.sha256, axes: perAxis };
+  };
+
+  // The row's line: "10 of 10 holes Ø5, coaxial within 0.003 mm".
+  AA.oppositePatternLine = function (p) {
+    if (!p) return "";
+    return AA.OPPOSITE_PATTERN_WORDS.line.replace("{n}", String(p.holes)).replace("{m}", String(p.of))
+      .replace("{d}", sizeWords(p.radius)).replace("{offset}", mm(p.offsetMm));
+  };
+
+  // Why it is there, under the line: the bound part, the solid when the part
+  // is several (`solidCount`, the mesh's), the sizes left on the same axes.
+  // Solids are counted from 1, as a reader counts.
+  AA.oppositePatternReason = function (p, mateName, solidCount) {
+    if (!p) return "";
+    var W = AA.OPPOSITE_PATTERN_WORDS;
+    var parts = [W.reason.replace("{mate}", mateName || "the other part")];
+    if (solidCount > 1 && p.solids.length) {
+      parts.push((p.solids.length === 1 ? W.solid : W.solids)
+        .replace("{solids}", p.solids.map(function (s) { return String(s + 1); }).join(", "))
+        .replace("{count}", String(solidCount)));
+    }
+    if (p.others.length) {
+      parts.push(W.others.replace("{d}", p.others.map(sizeWords).join(", Ø")));
+    }
+    return parts.join(" · ");
+  };
+
   // --- contact suggestions: the faces of two parts that touch ----------------
   //
   // Handoff an_interface_suggests_the_faces_that_touch (2026-10-28). A gap

@@ -1565,8 +1565,11 @@
   // hover face <mesh> <face id> -- a joint end's candidate row (handoff
   // a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there): that one
   // face in the pre-selection's wash, in either mode. `clear` takes it down too.
+  // More ids after the first (2026-11-18) wash the set as one: a whole
+  // pattern a row offers, before its Take.
   AA.HOVER_TARGETS = Object.freeze(["body", "part", "joint", "feature", "contributor", "face", "clear"]);
   AA.parseHover = function (what, name, extra) {
+    var more = Array.prototype.slice.call(arguments, 3);
     if (AA.HOVER_TARGETS.indexOf(what) === -1) {
       throw new Error("hover takes " + AA.HOVER_TARGETS.join(", ") + ", got " + JSON.stringify(what));
     }
@@ -1582,11 +1585,14 @@
       out.direction = extra === undefined ? null : extra;
     }
     if (what === "face") {
-      var faceId = parseInt(extra, 10);
-      if (!isFinite(faceId) || String(faceId) !== String(extra)) {
-        throw new Error("hover face needs <mesh> <face id>, got face " + JSON.stringify(extra));
-      }
-      out.faceId = faceId;
+      out.faceIds = [extra].concat(more).map(function (text) {
+        var faceId = parseInt(text, 10);
+        if (!isFinite(faceId) || String(faceId) !== String(text)) {
+          throw new Error("hover face needs <mesh> <face id>..., got face " + JSON.stringify(text));
+        }
+        return faceId;
+      });
+      out.faceId = out.faceIds[0];
     }
     return out;
   };

@@ -10430,6 +10430,27 @@
         eq(rows[1].querySelectorAll("button").length, 1, "Take sits on the ranked face's line");
       });
 
+    await test("a pattern bound opposite leads the mates with one line for the whole set: its " +
+      "hover lights every face, its look frames them and its Take binds them all", function () {
+        var model = VA.buildModel(bodiedProj(), boundIdentity());
+        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
+          { sha256: "aa", faceId: 72, faces: [72, 73, 161, 162], text: "2 of 2 holes Ø5, coaxial within 0.000 mm",
+            reason: "the whole pattern bound on gas-spring mount", detail: "faces 72, 73, 161, 162" },
+          { sha256: "aa", faceId: 72, text: "face 72 · round · r 2.5000 mm", reason: "coaxial with gas-spring mount" }] } } };
+        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
+        eq(plan.lines[1].text, "2 of 2 holes Ø5, coaxial within 0.000 mm", "the set leads");
+        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "72", "mini", "73", "161", "162"],
+           "Take names every face of the set");
+        eq(plan.lines[1].look, ["camera", "face", "aa", "72", "73", "161", "162"]);
+        var hovered = [];
+        var slot = document.createElement("div");
+        VA.renderFeatureBody(slot, [], { plan: plan, command: function () {},
+          hoverFace: function (f) { hovered.push(f); } });
+        slot.querySelectorAll(".navtree__featurestate")[1].onmouseenter();
+        eq(hovered, [{ sha256: "aa", faceId: 72, faceIds: [72, 73, 161, 162] }], "the hover carries the set");
+        eq(plan.lines[2].face, { sha256: "aa", faceId: 72 }, "a single face's line is one face");
+      });
+
     await test("a feature whose faces disagree says so, lists each face with Keep, and offers " +
       "Pick a face for when neither is its face", function () {
         var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
@@ -10473,6 +10494,8 @@
           ["keep", "pitch_plate_attach_radius", "from", "vpa", "37e9", "1380", "1381"],
           ["keep", "pitch_plate_attach_radius", "from", "vpa", "37e9", "1380", "1381", "1509", "1510"]]);
         eq(plan.lines[1].actions[0].text, W.keep);
+        // Each set's line lights the set Keep would keep (2026-11-18).
+        eq(plan.lines[2].face.faceIds, [1380, 1381, 1509, 1510], "the hover carries the whole set");
         // Armed at the feature's end: Cancel, and Unbind since it holds faces.
         var armed = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [],
           { armedEnd: { edgeId: "pitch_plate_attach_radius", direction: "from" }, armedLine: "pick a face" });

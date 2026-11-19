@@ -2223,7 +2223,8 @@
   function bodyHoverFace(face, fid) {
     if (face) {
       setHovered({ kind: VA.FOCUS_KINDS.feature, id: fid }, "tree");
-      postToPane(["hover", "face", face.sha256, String(face.faceId)]);
+      // A line for a set lights every face of it (`hover face` takes several).
+      postToPane(["hover", "face", face.sha256].concat((face.faceIds || [face.faceId]).map(String)));
       return;
     }
     postToPane(HOVER_CLEAR);

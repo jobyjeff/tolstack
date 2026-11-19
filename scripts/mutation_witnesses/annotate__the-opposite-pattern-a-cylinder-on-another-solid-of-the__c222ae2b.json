@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the opposite pattern: a cylinder on another solid of the mesh is taken like any other, and the row names the solid",
+  "mutations": [
+    {
+      "contract": "A taken face on a solid other than the part's own names that solid.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). Names no solid.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "        if (s !== undefined && s !== null && String(s) !== main && solids.indexOf(s) === -1) solids.push(s);",
+      "replace": "        if (false) solids.push(s);"
+    }
+  ]
+}

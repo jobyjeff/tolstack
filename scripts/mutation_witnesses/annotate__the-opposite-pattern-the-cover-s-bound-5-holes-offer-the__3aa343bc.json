@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the opposite pattern: the cover's bound Ø5 holes offer the gas-spring mount's Ø4.75 -- another diameter is taken, whatever it is",
+  "mutations": [
+    {
+      "contract": "A cylinder on a bound hole's axis is a candidate whatever its diameter.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). Only a cylinder of the bound size is a candidate.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "      }).filter(function (s) { return s.arc >= whole; });",
+      "replace": "      }).filter(function (s) { return s.arc >= whole && Math.abs(s.radius - hole[0].record.radius) < 1e-3 * s.radius; });"
+    }
+  ]
+}

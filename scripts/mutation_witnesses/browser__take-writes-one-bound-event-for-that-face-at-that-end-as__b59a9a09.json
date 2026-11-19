@@ -6,10 +6,10 @@
     {
       "contract": "Take binds the face its own row names.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
-      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). An off-by-one face id binds the neighbouring face, which is a real face of the same part and reads as a successful bind.",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). An off-by-one face id binds the neighbouring face, which is a real face of the same part and reads as a successful bind. Re-pointed 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): the line now also carries a set of faces; same mutation.",
       "file": "apps/annotate/app.js",
-      "find": ": [\"take\", end.edgeId, end.direction, row.sha256, String(row.faceId)]);",
-      "replace": ": [\"take\", end.edgeId, end.direction, row.sha256, String(row.faceId + 1)]);"
+      "find": "        : [\"take\", end.edgeId, end.direction, row.sha256, String(row.faceId)].concat(row.faces",
+      "replace": "        : [\"take\", end.edgeId, end.direction, row.sha256, String(row.faceId + 1)].concat(row.faces"
     }
   ]
 }

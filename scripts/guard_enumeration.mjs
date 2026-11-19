@@ -362,7 +362,9 @@ export const DECLARED_GUARDS = {
   // that disagree are a line each, Keep naming the whole set. It carries a spec.
   // Review merge with a_joints_preview_says_what_the_joint_is (2026-11-18):
   // both +1 from 601, so 603; names digest re-measured on the merge.
-  fast: { declared: 603, enrollable: 603, names: "80ad6ded4982" },
+  // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): +1 --
+  // a pattern bound opposite is one line whose Take names the set. It carries a spec.
+  fast: { declared: 604, enrollable: 604, names: "ad2da6e8776b" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -458,7 +460,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-18 (a_disagreement_is_settled_by_keep_or_let_go): +3 -- one Keep
   // settles Jeff's bore, one Unbind lets it go, an Add over the same bind
   // twice leaves one. Each carries a spec.
-  annotate: { declared: 327, enrollable: 327, names: "7303c384dfb3" },
+  // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part):
+  // +4 -- the opposite pattern on real v2 records: the size taken from five,
+  // another diameter, 7 of 10, another solid. Each carries a spec.
+  annotate: { declared: 331, enrollable: 331, names: "5876b5af892f" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -731,7 +736,11 @@ export const DECLARED_GUARDS = {
   // spec; the checks that still hold re-pointed at the map and the grid, many
   // renamed, each spec following its guard (twenty with a new mutation, the
   // old anchor having gone with the rails). The lesson carries the table.
-  browser: { declared: 774, enrollable: 747, names: "0c6fb15ac827" },
+  // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): +5
+  // -- the opposite pattern's line, head offer, hover and Take, each with a
+  // spec, and the suite's `[real] ... (skipped: ...)` push, whose condition is
+  // the literal `true`, so no mutation can redden it.
+  browser: { declared: 779, enrollable: 752, names: "52943eb9be94" },
 };
 
 

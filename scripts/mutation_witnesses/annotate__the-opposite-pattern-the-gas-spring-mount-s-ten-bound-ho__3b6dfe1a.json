@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the opposite pattern: the gas-spring mount's ten bound holes offer the tan link mount's ten, one row -- Ø5 taken from the five sizes on each axis, the nearest the bound Ø5",
+  "mutations": [
+    {
+      "contract": "Among sizes answering as many holes, the one nearest the bound holes' is taken.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). Takes the farthest size instead.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "      return (count(b) - count(a)) || (Math.abs(a.radius - boundRadius) - Math.abs(b.radius - boundRadius)) ||",
+      "replace": "      return (count(b) - count(a)) || (Math.abs(b.radius - boundRadius) - Math.abs(a.radius - boundRadius)) ||"
+    }
+  ]
+}

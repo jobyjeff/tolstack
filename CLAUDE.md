@@ -98,7 +98,10 @@ traced ratio" — never restate the rule elsewhere).
   and ranking only, never a value. Since 2026-11-16 a hole of a pattern
   offers the whole pattern, a set of holes fits as a pattern (never one
   cylinder), and **Add a face** or a Shift-click grows a set (same document,
-  "A hole pattern", and the gesture table).
+  "A hole pattern", and the gesture table). Since 2026-11-18 a pattern bound
+  on one side offers the whole pattern on the other as one row, a cylinder
+  per bound hole on that hole's axis, whatever its size or solid (same
+  section).
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

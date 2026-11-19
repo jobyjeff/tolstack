@@ -1786,7 +1786,9 @@ check("a candidate's reason names what the face is to the mating feature, for ev
 
 check("hover face takes a mesh and a whole face id, and the pane's candidate debounce is the " +
   "shell's pane-hover value", () => {
-  assertEqual(AA.parseHover("face", "hub", "3460"), { kind: "face", name: "hub", faceId: 3460 });
+  assertEqual(AA.parseHover("face", "hub", "3460"), { kind: "face", name: "hub", faceIds: [3460], faceId: 3460 });
+  assertEqual(AA.parseHover("face", "hub", "3460", "3461"),
+    { kind: "face", name: "hub", faceIds: [3460, 3461], faceId: 3460 });
   let threw = 0;
   try { AA.parseHover("face", "hub"); } catch (_) { threw++; }
   try { AA.parseHover("face", "hub", "3.5"); } catch (_) { threw++; }
@@ -4418,6 +4420,104 @@ check("the mate: a flat bound opposite ranks the flats that face it, within reac
       record: { faceId: 9, surface: "planar", normal: [0, 0, 1], point: [0, 0, 10], extent: 120 } }] });
   assertEqual(rows.map((r) => r.faceId), [5, 1], "the flats against the bound one, smallest gap first");
   assertEqual(AA.mateReason(rows[1], "the hub"), "against the hub, 0.050 mm apart", "the reason a reader sees");
+});
+
+// --- the whole pattern on the other part (handoff a_bound_pattern_offers_
+// the_whole_pattern_on_the_other_part, 2026-11-18): real v2 records ---------
+const OPPOSITE = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "tests", "fixtures",
+  "opposite_pattern_cases.json"), "utf8"));
+function oppositeCase(node, opts) {
+  const c = OPPOSITE.cases.find((x) => x.node === node);
+  const o = opts || {};
+  const drop = new Set(o.drop || []);
+  const classes = [];
+  c.other.faces.forEach((r) => { if (!drop.has(r.faceId)) classes[r.faceId] = r; });
+  const bound = c.bound.faces.map((r) => ({ sha256: "b".repeat(64), faceId: r.faceId, record: r,
+    placements: c.bound.placements }));
+  return { c, classes, p: AA.rankOppositePattern({ sha256: "a".repeat(64), classes,
+    placements: c.other.placements, bound, solids: o.solids || null }) };
+}
+// The faces of the other part on the axes of the first `k` bound holes, of
+// the given diameter (null: every size), from a full run.
+function facesOnAxes(full, k, diameter, classes) {
+  const out = [];
+  const bound = full.c.bound.faces;
+  const holes = AA.surfaceGroups(bound);
+  holes.slice(0, k).forEach((hole) => {
+    const rows = AA.rankMatingFaces({ sha256: "a".repeat(64), classes, placements: full.c.other.placements,
+      references: hole.map((r) => ({ sha256: "b".repeat(64), faceId: r.faceId, record: r,
+        placements: full.c.bound.placements })) });
+    rows.forEach((m) => {
+      if (diameter === null || (2 * classes[m.faceId].radius).toFixed(3) === diameter) out.push(m.faceId);
+    });
+  });
+  return out;
+}
+
+check("the opposite pattern: the gas-spring mount's ten bound holes offer the tan link mount's " +
+  "ten, one row -- Ø5 taken from the five sizes on each axis, the nearest the bound Ø5", () => {
+  const { p, classes } = oppositeCase("gas_spring_mount_fastener_clocking");
+  assertEqual([p.holes, p.of, p.faces.length], [10, 10, 20], "holes answered, bound, faces taken");
+  assertEqual((2 * p.radius).toFixed(3), "5.000", "the size taken");
+  assertEqual(p.others.map((r) => (2 * r).toFixed(3)), ["6.693", "6.299", "5.800", "3.307"],
+    "the sizes left on the same axes, largest first");
+  assertEqual(p.axes.every((a) => a.faces && a.faces.length === 2 && a.sizes.length === 5), true,
+    "every bound hole answered by one hole of two halves, out of five sizes");
+  assertEqual(AA.oppositePatternLine(p), "10 of 10 holes Ø5, coaxial within 0.000 mm", "the row's line");
+  assertEqual(AA.oppositePatternReason(p, "gas-spring mount", 40),
+    "the whole pattern bound on gas-spring mount · Ø6.69, Ø6.3, Ø5.8, Ø3.31 on the same axes, each its own row",
+    "why it is there");
+  // The taken set fits as a pattern: one size, so feature_geometry's fit
+  // reads it as the holes it is.
+  assertEqual(AA.patternWords(AA.holePattern(p.faces.map((f) => classes[f]))), "10 holes Ø5 on a Ø240 circle",
+    "the taken set's fit");
+});
+
+check("the opposite pattern: the cover's bound Ø5 holes offer the gas-spring mount's Ø4.75 -- " +
+  "another diameter is taken, whatever it is", () => {
+  const { p } = oppositeCase("piston_cover_fastener_clocking");
+  assertEqual(AA.oppositePatternLine(p), "5 of 5 holes Ø4.75, coaxial within 0.001 mm", "the row's line");
+  assertEqual(p.others, [], "one size on those axes");
+  assertEqual(p.faces, [6, 27, 32, 33, 38, 39, 571, 586, 591, 592, 597, 598],
+    "the mount's faces Jeff bound by hand (event 0088)");
+});
+
+check("the opposite pattern: holes the other part lacks are left out and counted -- 7 of 10, " +
+  "never filled -- and a size missing on some axes loses to one on all of them", () => {
+  const full = oppositeCase("gas_spring_mount_fastener_clocking");
+  // Every size gone from three axes: seven holes answer.
+  const seven = oppositeCase("gas_spring_mount_fastener_clocking",
+    { drop: facesOnAxes(full, 3, null, full.classes) });
+  assertEqual([seven.p.holes, seven.p.of, seven.p.faces.length], [7, 10, 14], "seven of ten, two halves each");
+  assertEqual(AA.oppositePatternLine(seven.p), "7 of 10 holes Ø5, coaxial within 0.000 mm", "the row says it");
+  assertEqual(seven.p.axes.filter((a) => a.faces === null).length, 3, "three bound holes unanswered");
+  // Only the Ø5 gone from three axes: the Ø5.8 answers all ten, so it is
+  // the size taken (the most holes first, then the nearest size).
+  const sized = oppositeCase("gas_spring_mount_fastener_clocking",
+    { drop: facesOnAxes(full, 3, "5.000", full.classes) });
+  assertEqual([sized.p.holes, (2 * sized.p.radius).toFixed(3)], [10, "5.800"], "the size on every axis wins");
+  // One bound hole is no pattern: no row.
+  const c = OPPOSITE.cases[0];
+  const one = AA.surfaceGroups(c.bound.faces)[0];
+  assertEqual(AA.rankOppositePattern({ sha256: "a".repeat(64), classes: full.classes,
+    placements: c.other.placements, bound: one.map((r) => ({ sha256: "b".repeat(64), faceId: r.faceId,
+      record: r, placements: c.bound.placements })) }), null, "a single bound hole offered a pattern");
+});
+
+check("the opposite pattern: a cylinder on another solid of the mesh is taken like any other, " +
+  "and the row names the solid", () => {
+  const full = oppositeCase("gas_spring_mount_fastener_clocking");
+  // Two of the taken holes moved onto solid 6 (bushings, say); every other
+  // face on the part's own solid 0.
+  const solids = [];
+  full.c.other.faces.forEach((r) => { solids[r.faceId] = 0; });
+  const bushed = full.p.axes[0].faces.concat(full.p.axes[1].faces);
+  bushed.forEach((f) => { solids[f] = 6; });
+  const { p } = oppositeCase("gas_spring_mount_fastener_clocking", { solids });
+  assertEqual([p.holes, p.solids], [10, [6]], "every hole taken, the other solid named");
+  assertEqual(AA.oppositePatternReason(p, "gas-spring mount", 8).split(" · ")[1], "in solid 7 of 8",
+    "the solid, counted from one");
+  assertEqual(full.p.solids, [], "no solids known, none named");
 });
 
 check("the mate stage runs before anything the part says about itself, and with no placements " +

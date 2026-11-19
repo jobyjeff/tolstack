@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the opposite pattern: holes the other part lacks are left out and counted -- 7 of 10, never filled -- and a size missing on some axes loses to one on all of them",
+  "mutations": [
+    {
+      "contract": "The size answering the most bound holes is taken first.",
+      "issue": "docs/sessions/lessons/LESSONS_20261118_a_bound_pattern_offers_the_whole_pattern_on_the_other_part.md",
+      "note": "Declared with the guard by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part (2026-11-18). Ranks by nearest size alone, ignoring how many holes answer.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "      return (count(b) - count(a)) || (Math.abs(a.radius - boundRadius) - Math.abs(b.radius - boundRadius)) ||",
+      "replace": "      return (Math.abs(a.radius - boundRadius) - Math.abs(b.radius - boundRadius)) ||"
+    }
+  ]
+}

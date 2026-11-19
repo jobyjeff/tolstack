@@ -1111,6 +1111,28 @@ on the same plane (or nearly the same plane)".
   "... not on a circle". A measurement of a mesh, never a tolerance; a drawing
   callout still wins. `scripts/fit_bound_features.py` writes the pattern
   through the rebuild rail, its centres placed per occurrence.
+- **A pattern bound on one side offers the whole pattern on the other
+  (2026-11-18).** Handoff `a_bound_pattern_offers_the_whole_pattern_on_the_
+  other_part`. Once one side of an interface holds two holes or more, the
+  other side's suggestions lead with one row: for each bound hole, the
+  cylinders of this part on that hole's axis where the model places both
+  parts (`AA.rankOppositePattern`, which asks the mate's own coaxiality test,
+  `AA.rankMatingFaces`, hole by hole). Whatever their diameter, and on any
+  solid of the mesh. The row reads "10 of 10 holes Ø5, coaxial within
+  0.000 mm"; under it, the bound part, the solid when the faces are not on the
+  part's own, and the other sizes found on the same axes. Hovering it washes
+  every face; **Take** binds the set as one event. A click (or a Take) on one
+  of its holes offers the same set in the bar, in place of the like holes.
+  - **Several cylinders on one axis** (a counterbore over a through hole, a
+    bushing in a bore, the tan link mount's five rings on one set of centres):
+    the size that answers the most bound holes is taken; among sizes answering
+    as many, the one nearest the bound holes' own. One size, so the set fits
+    as a pattern. The other sizes stay their own rows.
+  - **Fewer answer than were bound:** the row says "7 of 10" and offers the
+    seven; a missing hole is never filled.
+  - It reaches the feature body in the shell, the pane's candidate list and
+    the armed pick (pre-lit, and the bar). `scripts/propose_bindings.py`
+    proposes one face per row and does not carry it.
 - **Left alone.** The grid and the DAG show nothing about a pattern's fit,
   and `scripts/propose_bindings.py` proposes no pattern.
 

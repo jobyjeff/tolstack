@@ -1,0 +1,4769 @@
+{
+ "about": "Real v2 face records (face_geometry.js's classifier over data/meshes, rounded to 6 places) for apps/annotate/run_tests.cjs's opposite-pattern checks: the side Jeff bound and, on the other part, every cylinder coaxial with a bound hole plus like-sized ones that are not. Built 2026-11-18 by handoff a_bound_pattern_offers_the_whole_pattern_on_the_other_part.",
+ "cases": [
+  {
+   "node": "gas_spring_mount_fastener_clocking",
+   "bound_part": "gas_spring_mount_213668_002",
+   "other_part": "tan_link_mount_215175_002",
+   "event": "0086_gas_spring_mount_boss_to_fasteners.json",
+   "bound": {
+    "placements": [
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+     ]
+    ],
+    "faces": [
+     {
+      "faceId": 809,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913415,
+       -108.663812,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 179.999972
+     },
+     {
+      "faceId": 808,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       -108.663813,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 303,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.77363,
+       58.502019,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 180.000041
+     },
+     {
+      "faceId": 304,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.77363,
+       58.502021,
+       136
+      ],
+      "radius": 2.500002,
+      "arcDeg": 179.999847
+     },
+     {
+      "faceId": 305,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.97352,
+       15.662106,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 180.000094
+     },
+     {
+      "faceId": 306,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973519,
+       15.662106,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.99988
+     },
+     {
+      "faceId": 307,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062118,
+       83.626022,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.999969
+     },
+     {
+      "faceId": 308,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       83.626023,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.999888
+     },
+     {
+      "faceId": 309,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       118.138545,
+       136
+      ],
+      "radius": 2.5,
+      "arcDeg": 179.99997
+     },
+     {
+      "faceId": 310,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       118.138546,
+       136
+      ],
+      "radius": 2.5,
+      "arcDeg": 179.999993
+     },
+     {
+      "faceId": 311,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       108.663813,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 312,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913415,
+       108.663812,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 179.999972
+     },
+     {
+      "faceId": 800,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.77363,
+       -58.502019,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 180.000041
+     },
+     {
+      "faceId": 801,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.77363,
+       -58.502021,
+       136
+      ],
+      "radius": 2.500002,
+      "arcDeg": 179.999847
+     },
+     {
+      "faceId": 802,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.97352,
+       -15.662106,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 180.000094
+     },
+     {
+      "faceId": 803,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973519,
+       -15.662106,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.99988
+     },
+     {
+      "faceId": 804,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062118,
+       -83.626022,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.999969
+     },
+     {
+      "faceId": 805,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       -83.626023,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.999888
+     },
+     {
+      "faceId": 806,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       -118.138545,
+       136
+      ],
+      "radius": 2.5,
+      "arcDeg": 179.99997
+     },
+     {
+      "faceId": 807,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       -118.138546,
+       136
+      ],
+      "radius": 2.5,
+      "arcDeg": 179.999993
+     }
+    ]
+   },
+   "other": {
+    "placements": [
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+     ]
+    ],
+    "faces": [
+     {
+      "faceId": 6,
+      "surface": "cylindrical",
+      "axis": [
+       -0.171715,
+       0.985147,
+       -0.000004
+      ],
+      "axisPoint": [
+       -110.564813,
+       -19.525601,
+       122.033097
+      ],
+      "radius": 3.299995,
+      "arcDeg": 45.000067
+     },
+     {
+      "faceId": 8,
+      "surface": "cylindrical",
+      "axis": [
+       -0.00016,
+       -0.001655,
+       0.999999
+      ],
+      "axisPoint": [
+       -110.077369,
+       -21.97245,
+       98.501868
+      ],
+      "radius": 3.231397,
+      "arcDeg": 92.273861
+     },
+     {
+      "faceId": 10,
+      "surface": "cylindrical",
+      "axis": [
+       -0.171708,
+       0.985148,
+       -0.000004
+      ],
+      "axisPoint": [
+       -110.564862,
+       -19.525578,
+       69.46692
+      ],
+      "radius": 3.300039,
+      "arcDeg": 44.999426
+     },
+     {
+      "faceId": 18,
+      "surface": "cylindrical",
+      "axis": [
+       0.000094,
+       -0.000036,
+       1
+      ],
+      "axisPoint": [
+       -106.724682,
+       -34.369501,
+       94.750528
+      ],
+      "radius": 3.298831,
+      "arcDeg": 85.021985
+     },
+     {
+      "faceId": 24,
+      "surface": "cylindrical",
+      "axis": [
+       -0.329043,
+       0.944179,
+       -0.016004
+      ],
+      "axisPoint": [
+       -105.831203,
+       -36.893552,
+       119.632825
+      ],
+      "radius": 3.300408,
+      "arcDeg": 45.311405
+     },
+     {
+      "faceId": 26,
+      "surface": "cylindrical",
+      "axis": [
+       -0.003124,
+       -0.000773,
+       0.999995
+      ],
+      "axisPoint": [
+       -118.982367,
+       15.695681,
+       131.496857
+      ],
+      "radius": 15.065272,
+      "arcDeg": 21.315198
+     },
+     {
+      "faceId": 30,
+      "surface": "cylindrical",
+      "axis": [
+       0.980381,
+       0.19711,
+       -0.000572
+      ],
+      "axisPoint": [
+       -118.442098,
+       -23.796041,
+       127.199143
+      ],
+      "radius": 3.30012,
+      "arcDeg": 90.039748
+     },
+     {
+      "faceId": 37,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000142,
+       0.001562,
+       0.999999
+      ],
+      "axisPoint": [
+       -110.081076,
+       21.970506,
+       98.501767
+      ],
+      "radius": 3.235167,
+      "arcDeg": 92.147109
+     },
+     {
+      "faceId": 50,
+      "surface": "cylindrical",
+      "axis": [
+       0.504937,
+       0.500653,
+       -0.703126
+      ],
+      "axisPoint": [
+       -118.748094,
+       -15.399638,
+       128.355176
+      ],
+      "radius": 3.257039,
+      "arcDeg": 19.518538
+     },
+     {
+      "faceId": 52,
+      "surface": "cylindrical",
+      "axis": [
+       0.171715,
+       0.985147,
+       -0.000004
+      ],
+      "axisPoint": [
+       -110.564813,
+       19.525601,
+       69.466903
+      ],
+      "radius": 3.299995,
+      "arcDeg": 45.000067
+     },
+     {
+      "faceId": 58,
+      "surface": "cylindrical",
+      "axis": [
+       0.001817,
+       -0.00047,
+       0.999998
+      ],
+      "axisPoint": [
+       -118.978773,
+       -15.681622,
+       58.754032
+      ],
+      "radius": 15.079782,
+      "arcDeg": 21.302299
+     },
+     {
+      "faceId": 60,
+      "surface": "cylindrical",
+      "axis": [
+       0.980384,
+       -0.197097,
+       0.000537
+      ],
+      "axisPoint": [
+       -118.029201,
+       23.713052,
+       64.300833
+      ],
+      "radius": 3.300129,
+      "arcDeg": 90.040953
+     },
+     {
+      "faceId": 61,
+      "surface": "cylindrical",
+      "axis": [
+       0.79726,
+       -0.603637,
+       -0.000004
+      ],
+      "axisPoint": [
+       -67.172957,
+       -89.716489,
+       119.633097
+      ],
+      "radius": 3.299987,
+      "arcDeg": 45.000215
+     },
+     {
+      "faceId": 68,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -116.001565,
+       20.809786,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 179.999828
+     },
+     {
+      "faceId": 69,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -116.001566,
+       20.809787,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000188
+     },
+     {
+      "faceId": 70,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -121.945476,
+       10.514425,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 179.999947
+     },
+     {
+      "faceId": 71,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -121.945475,
+       10.514424,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000104
+     },
+     {
+      "faceId": 72,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000796,
+       -0.000388,
+       1
+      ],
+      "axisPoint": [
+       -118.973618,
+       -15.662021,
+       132.152258
+      ],
+      "radius": 2.499872,
+      "arcDeg": 180.016578
+     },
+     {
+      "faceId": 73,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001654,
+       -0.000135,
+       0.999999
+      ],
+      "axisPoint": [
+       -118.973464,
+       -15.662295,
+       132.102207
+      ],
+      "radius": 2.499793,
+      "arcDeg": 180.06109
+     },
+     {
+      "faceId": 131,
+      "surface": "cylindrical",
+      "axis": [
+       0.171708,
+       0.985148,
+       -0.000008
+      ],
+      "axisPoint": [
+       -110.564873,
+       19.525574,
+       122.033075
+      ],
+      "radius": 3.300049,
+      "arcDeg": 44.999312
+     },
+     {
+      "faceId": 135,
+      "surface": "cylindrical",
+      "axis": [
+       0.329039,
+       0.944181,
+       -0.015994
+      ],
+      "axisPoint": [
+       -105.831134,
+       36.893503,
+       71.367139
+      ],
+      "radius": 3.300326,
+      "arcDeg": 45.312614
+     },
+     {
+      "faceId": 138,
+      "surface": "cylindrical",
+      "axis": [
+       0.002041,
+       -0.002483,
+       0.999995
+      ],
+      "axisPoint": [
+       104.800888,
+       -58.480301,
+       131.496846
+      ],
+      "radius": 15.065144,
+      "arcDeg": 21.315369
+     },
+     {
+      "faceId": 142,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001681,
+       -0.002742,
+       0.999995
+      ],
+      "axisPoint": [
+       -21.025209,
+       -118.157012,
+       131.496849
+      ],
+      "radius": 15.065521,
+      "arcDeg": 21.314859
+     },
+     {
+      "faceId": 146,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000208,
+       0.003211,
+       0.999995
+      ],
+      "axisPoint": [
+       -50.948046,
+       108.662099,
+       131.496858
+      ],
+      "radius": 15.065318,
+      "arcDeg": 21.315143
+     },
+     {
+      "faceId": 150,
+      "surface": "cylindrical",
+      "axis": [
+       0.002968,
+       0.001247,
+       0.999995
+      ],
+      "axisPoint": [
+       86.04917,
+       83.658205,
+       131.496859
+      ],
+      "radius": 15.065302,
+      "arcDeg": 21.315172
+     },
+     {
+      "faceId": 153,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -121.945476,
+       -10.514425,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 179.999947
+     },
+     {
+      "faceId": 154,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -121.945475,
+       -10.514424,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000104
+     },
+     {
+      "faceId": 155,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -116.001565,
+       -20.809786,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 179.999828
+     },
+     {
+      "faceId": 156,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -116.001566,
+       -20.809787,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000188
+     },
+     {
+      "faceId": 157,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.082459,
+       -64.4057,
+       131.927658
+      ],
+      "radius": 1.255002,
+      "arcDeg": 179.9997
+     },
+     {
+      "faceId": 158,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.082458,
+       -64.405697,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 180.000029
+     },
+     {
+      "faceId": 159,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       105.464805,
+       -52.59834,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000052
+     },
+     {
+      "faceId": 160,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       105.464804,
+       -52.598339,
+       131.927658
+      ],
+      "radius": 1.255002,
+      "arcDeg": 179.999831
+     },
+     {
+      "faceId": 161,
+      "surface": "cylindrical",
+      "axis": [
+       0.000857,
+       -0.000167,
+       1
+      ],
+      "axisPoint": [
+       104.773682,
+       -58.502183,
+       132.152265
+      ],
+      "radius": 2.499838,
+      "arcDeg": 180.018611
+     },
+     {
+      "faceId": 162,
+      "surface": "cylindrical",
+      "axis": [
+       0.001407,
+       -0.000879,
+       0.999999
+      ],
+      "axisPoint": [
+       104.773698,
+       -58.501834,
+       132.102208
+      ],
+      "radius": 2.499794,
+      "arcDeg": 180.060927
+     },
+     {
+      "faceId": 163,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -26.859767,
+       -119.414424,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.0001
+     },
+     {
+      "faceId": 164,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -26.85977,
+       -119.414427,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000209
+     },
+     {
+      "faceId": 165,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -15.248865,
+       -116.862665,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.00012
+     },
+     {
+      "faceId": 166,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -15.248866,
+       -116.862665,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000012
+     },
+     {
+      "faceId": 167,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       80.603797,
+       85.979289,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000127
+     },
+     {
+      "faceId": 168,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       80.603799,
+       85.979288,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000042
+     },
+     {
+      "faceId": 169,
+      "surface": "cylindrical",
+      "axis": [
+       -0.00063,
+       0.001535,
+       0.999999
+      ],
+      "axisPoint": [
+       -50.913577,
+       108.663702,
+       132.102208
+      ],
+      "radius": 2.499793,
+      "arcDeg": 180.060906
+     },
+     {
+      "faceId": 170,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000599,
+       0.000636,
+       1
+      ],
+      "axisPoint": [
+       -50.913359,
+       108.663975,
+       132.152265
+      ],
+      "radius": 2.499837,
+      "arcDeg": 180.018682
+     },
+     {
+      "faceId": 171,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -46.905744,
+       113.053542,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 179.999742
+     },
+     {
+      "faceId": 172,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -46.905743,
+       113.053542,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000257
+     },
+     {
+      "faceId": 173,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -54.921083,
+       104.274086,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 179.999671
+     },
+     {
+      "faceId": 174,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -54.921084,
+       104.274084,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 180.000111
+     },
+     {
+      "faceId": 175,
+      "surface": "cylindrical",
+      "axis": [
+       0.000405,
+       0.000773,
+       1
+      ],
+      "axisPoint": [
+       86.06229,
+       83.626025,
+       132.152265
+      ],
+      "radius": 2.499839,
+      "arcDeg": 180.018524
+     },
+     {
+      "faceId": 176,
+      "surface": "cylindrical",
+      "axis": [
+       0.001245,
+       0.001097,
+       0.999999
+      ],
+      "axisPoint": [
+       86.061964,
+       83.62614,
+       132.102208
+      ],
+      "radius": 2.499795,
+      "arcDeg": 180.060833
+     },
+     {
+      "faceId": 177,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       91.520444,
+       81.272756,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000128
+     },
+     {
+      "faceId": 178,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       91.52044,
+       81.272758,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000221
+     },
+     {
+      "faceId": 179,
+      "surface": "cylindrical",
+      "axis": [
+       0.000123,
+       -0.000865,
+       1
+      ],
+      "axisPoint": [
+       -21.054454,
+       -118.138647,
+       132.152265
+      ],
+      "radius": 2.499839,
+      "arcDeg": 180.01851
+     },
+     {
+      "faceId": 180,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000371,
+       -0.001617,
+       0.999999
+      ],
+      "axisPoint": [
+       -21.05412,
+       -118.13855,
+       132.102208
+      ],
+      "radius": 2.499793,
+      "arcDeg": 180.060972
+     },
+     {
+      "faceId": 202,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913412,
+       108.663816,
+       58
+      ],
+      "radius": 2.900002,
+      "arcDeg": 179.9999
+     },
+     {
+      "faceId": 203,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       108.663814,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 180.000002
+     },
+     {
+      "faceId": 204,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062122,
+       83.626022,
+       58
+      ],
+      "radius": 2.899998,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 205,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062117,
+       83.626022,
+       58
+      ],
+      "radius": 2.899999,
+      "arcDeg": 180.000068
+     },
+     {
+      "faceId": 206,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       -58.502021,
+       58
+      ],
+      "radius": 2.899998,
+      "arcDeg": 180.000116
+     },
+     {
+      "faceId": 207,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       -58.502017,
+       58
+      ],
+      "radius": 2.899998,
+      "arcDeg": 180.000044
+     },
+     {
+      "faceId": 208,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973519,
+       -15.662105,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 180.000007
+     },
+     {
+      "faceId": 209,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973521,
+       -15.662104,
+       58
+      ],
+      "radius": 2.899999,
+      "arcDeg": 180.000069
+     },
+     {
+      "faceId": 210,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       -118.138544,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 179.999995
+     },
+     {
+      "faceId": 211,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       -118.138543,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 180.000056
+     },
+     {
+      "faceId": 214,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001527,
+       0.000336,
+       0.999999
+      ],
+      "axisPoint": [
+       -54.23669,
+       -98.280114,
+       98.501552
+      ],
+      "radius": 3.235435,
+      "arcDeg": 92.138926
+     },
+     {
+      "faceId": 248,
+      "surface": "cylindrical",
+      "axis": [
+       0.000101,
+       -0.001873,
+       0.999998
+      ],
+      "axisPoint": [
+       -50.933561,
+       108.662926,
+       58.754031
+      ],
+      "radius": 15.079826,
+      "arcDeg": 21.302244
+     },
+     {
+      "faceId": 252,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001738,
+       -0.000708,
+       0.999998
+      ],
+      "axisPoint": [
+       86.054687,
+       83.644777,
+       58.754031
+      ],
+      "radius": 15.079819,
+      "arcDeg": 21.302266
+     },
+     {
+      "faceId": 256,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001175,
+       0.001461,
+       0.999998
+      ],
+      "axisPoint": [
+       104.789622,
+       -58.489416,
+       58.754039
+      ],
+      "radius": 15.079635,
+      "arcDeg": 21.302497
+     },
+     {
+      "faceId": 260,
+      "surface": "cylindrical",
+      "axis": [
+       0.000997,
+       0.001588,
+       0.999998
+      ],
+      "axisPoint": [
+       -21.037511,
+       -118.14934,
+       58.754036
+      ],
+      "radius": 15.080018,
+      "arcDeg": 21.301978
+     },
+     {
+      "faceId": 269,
+      "surface": "cylindrical",
+      "axis": [
+       0.79726,
+       0.603636,
+       -0.000001
+      ],
+      "axisPoint": [
+       -67.172945,
+       89.716483,
+       71.366896
+      ],
+      "radius": 3.299975,
+      "arcDeg": 45.000478
+     },
+     {
+      "faceId": 275,
+      "surface": "cylindrical",
+      "axis": [
+       0.48439,
+       0.874852,
+       -0.000572
+      ],
+      "axisPoint": [
+       -58.503791,
+       -105.698102,
+       127.199143
+      ],
+      "radius": 3.300119,
+      "arcDeg": 90.039778
+     },
+     {
+      "faceId": 285,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000063,
+       -0.00019,
+       1
+      ],
+      "axisPoint": [
+       115.223295,
+       -4.401728,
+       128.867163
+      ],
+      "radius": 3.299876,
+      "arcDeg": 45.25263
+     },
+     {
+      "faceId": 305,
+      "surface": "cylindrical",
+      "axis": [
+       -0.108663,
+       0.994078,
+       -0.000537
+      ],
+      "axisPoint": [
+       -13.096905,
+       119.673189,
+       64.300834
+      ],
+      "radius": 3.30013,
+      "arcDeg": 90.040958
+     },
+     {
+      "faceId": 309,
+      "surface": "cylindrical",
+      "axis": [
+       0.904002,
+       0.427528,
+       -0.000537
+      ],
+      "axisPoint": [
+       108.82423,
+       51.482891,
+       64.300835
+      ],
+      "radius": 3.300131,
+      "arcDeg": 90.040923
+     },
+     {
+      "faceId": 312,
+      "surface": "cylindrical",
+      "axis": [
+       -0.668557,
+       0.743661,
+       0.000537
+      ],
+      "axisPoint": [
+       80.497366,
+       -89.517457,
+       64.30084
+      ],
+      "radius": 3.300136,
+      "arcDeg": 90.040818
+     },
+     {
+      "faceId": 316,
+      "surface": "cylindrical",
+      "axis": [
+       0.484378,
+       0.874859,
+       0.000537
+      ],
+      "axisPoint": [
+       -58.29981,
+       -105.329642,
+       64.300833
+      ],
+      "radius": 3.300129,
+      "arcDeg": 90.040961
+     },
+     {
+      "faceId": 323,
+      "surface": "cylindrical",
+      "axis": [
+       0.887074,
+       -0.461628,
+       0.000005
+      ],
+      "axisPoint": [
+       -52.052605,
+       -99.480448,
+       122.033086
+      ],
+      "radius": 3.300021,
+      "arcDeg": 44.999694
+     },
+     {
+      "faceId": 329,
+      "surface": "cylindrical",
+      "axis": [
+       0.831016,
+       0.556248,
+       -0.000003
+      ],
+      "axisPoint": [
+       62.841839,
+       -92.801677,
+       119.63311
+      ],
+      "radius": 3.299956,
+      "arcDeg": 45.000686
+     },
+     {
+      "faceId": 330,
+      "surface": "cylindrical",
+      "axis": [
+       0.999438,
+       -0.033515,
+       0.000005
+      ],
+      "axisPoint": [
+       3.154996,
+       112.032604,
+       119.633092
+      ],
+      "radius": 3.300003,
+      "arcDeg": 45.000039
+     },
+     {
+      "faceId": 334,
+      "surface": "cylindrical",
+      "axis": [
+       0.904008,
+       -0.427516,
+       0.000572
+      ],
+      "axisPoint": [
+       109.204947,
+       -51.662963,
+       127.199142
+      ],
+      "radius": 3.300121,
+      "arcDeg": 90.039756
+     },
+     {
+      "faceId": 343,
+      "surface": "cylindrical",
+      "axis": [
+       0.10865,
+       0.99408,
+       -0.000572
+      ],
+      "axisPoint": [
+       -13.142688,
+       -120.091848,
+       127.199143
+      ],
+      "radius": 3.30012,
+      "arcDeg": 90.039794
+     },
+     {
+      "faceId": 352,
+      "surface": "cylindrical",
+      "axis": [
+       0.668547,
+       0.74367,
+       0.000572
+      ],
+      "axisPoint": [
+       80.778948,
+       89.830639,
+       127.199136
+      ],
+      "radius": 3.300128,
+      "arcDeg": 90.039609
+     },
+     {
+      "faceId": 362,
+      "surface": "cylindrical",
+      "axis": [
+       -0.48439,
+       0.874852,
+       0.000572
+      ],
+      "axisPoint": [
+       -58.503791,
+       105.698102,
+       127.199143
+      ],
+      "radius": 3.300119,
+      "arcDeg": 90.039778
+     },
+     {
+      "faceId": 389,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       115.223267,
+       -4.401689,
+       61.133999
+      ],
+      "radius": 3.299831,
+      "arcDeg": 45.226693
+     },
+     {
+      "faceId": 410,
+      "surface": "cylindrical",
+      "axis": [
+       0.002968,
+       -0.001247,
+       0.999995
+      ],
+      "axisPoint": [
+       86.04917,
+       -83.658205,
+       131.496859
+      ],
+      "radius": 15.065302,
+      "arcDeg": 21.315172
+     },
+     {
+      "faceId": 415,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001681,
+       0.002742,
+       0.999995
+      ],
+      "axisPoint": [
+       -21.025209,
+       118.157012,
+       131.496849
+      ],
+      "radius": 15.065521,
+      "arcDeg": 21.314859
+     },
+     {
+      "faceId": 416,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000063,
+       0.00019,
+       1
+      ],
+      "axisPoint": [
+       115.223304,
+       4.401732,
+       128.867163
+      ],
+      "radius": 3.299886,
+      "arcDeg": 45.252456
+     },
+     {
+      "faceId": 418,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       80.603797,
+       -85.979289,
+       131.927658
+      ],
+      "radius": 1.255,
+      "arcDeg": 180.000127
+     },
+     {
+      "faceId": 419,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       80.603799,
+       -85.979288,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000042
+     },
+     {
+      "faceId": 420,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       91.52044,
+       -81.272758,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000221
+     },
+     {
+      "faceId": 421,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       91.520444,
+       -81.272756,
+       131.927658
+      ],
+      "radius": 1.254999,
+      "arcDeg": 180.000128
+     },
+     {
+      "faceId": 423,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -54.921083,
+       -104.274086,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 179.999671
+     },
+     {
+      "faceId": 424,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -54.921084,
+       -104.274084,
+       131.927658
+      ],
+      "radius": 1.255001,
+      "arcDeg": 180.000111
+     },
+     {
+      "faceId": 541,
+      "surface": "cylindrical",
+      "axis": [
+       0.002041,
+       0.002483,
+       0.999995
+      ],
+      "axisPoint": [
+       104.800888,
+       58.480301,
+       131.496846
+      ],
+      "radius": 15.065144,
+      "arcDeg": 21.315369
+     },
+     {
+      "faceId": 729,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000208,
+       -0.003211,
+       0.999995
+      ],
+      "axisPoint": [
+       -50.948046,
+       -108.662099,
+       131.496858
+      ],
+      "radius": 15.065318,
+      "arcDeg": 21.315143
+     },
+     {
+      "faceId": 1123,
+      "surface": "cylindrical",
+      "axis": [
+       0.000123,
+       0.000865,
+       1
+      ],
+      "axisPoint": [
+       -21.054454,
+       118.138647,
+       132.152265
+      ],
+      "radius": 2.499839,
+      "arcDeg": 180.01851
+     },
+     {
+      "faceId": 1124,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000374,
+       0.001621,
+       0.999999
+      ],
+      "axisPoint": [
+       -21.054112,
+       118.138544,
+       132.102174
+      ],
+      "radius": 2.499791,
+      "arcDeg": 180.061645
+     },
+     {
+      "faceId": 1126,
+      "surface": "cylindrical",
+      "axis": [
+       0.000857,
+       0.000167,
+       1
+      ],
+      "axisPoint": [
+       104.773682,
+       58.502183,
+       132.152265
+      ],
+      "radius": 2.499838,
+      "arcDeg": 180.018611
+     },
+     {
+      "faceId": 1127,
+      "surface": "cylindrical",
+      "axis": [
+       0.001409,
+       0.000882,
+       0.999999
+      ],
+      "axisPoint": [
+       104.773696,
+       58.501825,
+       132.102175
+      ],
+      "radius": 2.499791,
+      "arcDeg": 180.061574
+     },
+     {
+      "faceId": 1129,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000599,
+       -0.000636,
+       1
+      ],
+      "axisPoint": [
+       -50.913359,
+       -108.663975,
+       132.152265
+      ],
+      "radius": 2.499837,
+      "arcDeg": 180.018682
+     },
+     {
+      "faceId": 1130,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000629,
+       -0.001539,
+       0.999999
+      ],
+      "axisPoint": [
+       -50.913581,
+       -108.663692,
+       132.102174
+      ],
+      "radius": 2.49979,
+      "arcDeg": 180.061612
+     },
+     {
+      "faceId": 1131,
+      "surface": "cylindrical",
+      "axis": [
+       0.000405,
+       -0.000773,
+       1
+      ],
+      "axisPoint": [
+       86.06229,
+       -83.626025,
+       132.152265
+      ],
+      "radius": 2.499839,
+      "arcDeg": 180.018524
+     },
+     {
+      "faceId": 1132,
+      "surface": "cylindrical",
+      "axis": [
+       0.001249,
+       -0.001098,
+       0.999999
+      ],
+      "axisPoint": [
+       86.061953,
+       -83.626141,
+       132.102174
+      ],
+      "radius": 2.499792,
+      "arcDeg": 180.06155
+     },
+     {
+      "faceId": 1143,
+      "surface": "cylindrical",
+      "axis": [
+       0.000101,
+       0.001874,
+       0.999998
+      ],
+      "axisPoint": [
+       -50.933577,
+       -108.662925,
+       58.754032
+      ],
+      "radius": 15.079811,
+      "arcDeg": 21.302272
+     },
+     {
+      "faceId": 1147,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001738,
+       0.000708,
+       0.999998
+      ],
+      "axisPoint": [
+       86.054687,
+       -83.644777,
+       58.754031
+      ],
+      "radius": 15.079819,
+      "arcDeg": 21.302266
+     },
+     {
+      "faceId": 1151,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001174,
+       -0.00146,
+       0.999998
+      ],
+      "axisPoint": [
+       104.789539,
+       58.489481,
+       58.754034
+      ],
+      "radius": 15.079739,
+      "arcDeg": 21.302328
+     },
+     {
+      "faceId": 1154,
+      "surface": "cylindrical",
+      "axis": [
+       0.000997,
+       -0.001588,
+       0.999998
+      ],
+      "axisPoint": [
+       -21.03749,
+       118.149355,
+       58.754038
+      ],
+      "radius": 15.079993,
+      "arcDeg": 21.302012
+     },
+     {
+      "faceId": 1256,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062117,
+       -83.626022,
+       58
+      ],
+      "radius": 2.899999,
+      "arcDeg": 180.000068
+     },
+     {
+      "faceId": 1257,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062122,
+       -83.626022,
+       58
+      ],
+      "radius": 2.899998,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 1258,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       58.502017,
+       58
+      ],
+      "radius": 2.899998,
+      "arcDeg": 180.000044
+     },
+     {
+      "faceId": 1259,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       58.502021,
+       58
+      ],
+      "radius": 2.899998,
+      "arcDeg": 180.000116
+     },
+     {
+      "faceId": 1260,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973521,
+       15.662104,
+       58
+      ],
+      "radius": 2.899999,
+      "arcDeg": 180.000069
+     },
+     {
+      "faceId": 1261,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973519,
+       15.662105,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 180.000007
+     },
+     {
+      "faceId": 1262,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       118.138543,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 180.000056
+     },
+     {
+      "faceId": 1263,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       118.138544,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 179.999995
+     },
+     {
+      "faceId": 1265,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913412,
+       -108.663816,
+       58
+      ],
+      "radius": 2.900002,
+      "arcDeg": 179.9999
+     },
+     {
+      "faceId": 1266,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       -108.663814,
+       58
+      ],
+      "radius": 2.9,
+      "arcDeg": 180.000002
+     },
+     {
+      "faceId": 1351,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000787,
+       0.000379,
+       1
+      ],
+      "axisPoint": [
+       -118.973658,
+       15.662004,
+       132.152265
+      ],
+      "radius": 2.499838,
+      "arcDeg": 180.018482
+     },
+     {
+      "faceId": 1352,
+      "surface": "cylindrical",
+      "axis": [
+       -0.001657,
+       0.000134,
+       0.999999
+      ],
+      "axisPoint": [
+       -118.973457,
+       15.662301,
+       132.102174
+      ],
+      "radius": 2.49979,
+      "arcDeg": 180.061725
+     },
+     {
+      "faceId": 1361,
+      "surface": "cylindrical",
+      "axis": [
+       0.001817,
+       0.00047,
+       0.999998
+      ],
+      "axisPoint": [
+       -118.978773,
+       15.681622,
+       58.754032
+      ],
+      "radius": 15.079782,
+      "arcDeg": 21.302299
+     },
+     {
+      "faceId": 1389,
+      "surface": "cylindrical",
+      "axis": [
+       -0.003124,
+       0.000773,
+       0.999995
+      ],
+      "axisPoint": [
+       -118.982367,
+       -15.695681,
+       131.496857
+      ],
+      "radius": 15.065272,
+      "arcDeg": 21.315198
+     },
+     {
+      "faceId": 1612,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       58.50202,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 179.999986
+     },
+     {
+      "faceId": 1613,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       58.50202,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 179.999989
+     },
+     {
+      "faceId": 1618,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000497,
+       0.000005,
+       1
+      ],
+      "axisPoint": [
+       104.773611,
+       58.501895,
+       126.817397
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019602
+     },
+     {
+      "faceId": 1619,
+      "surface": "cylindrical",
+      "axis": [
+       0.000496,
+       -0.000005,
+       1
+      ],
+      "axisPoint": [
+       104.773651,
+       58.502143,
+       126.817397
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019636
+     },
+     {
+      "faceId": 1628,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773631,
+       58.502018,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 179.999993
+     },
+     {
+      "faceId": 1629,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773631,
+       58.502019,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 179.999963
+     },
+     {
+      "faceId": 1639,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062119,
+       83.626021,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 179.999936
+     },
+     {
+      "faceId": 1640,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.06212,
+       83.626023,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 180.000068
+     },
+     {
+      "faceId": 1645,
+      "surface": "cylindrical",
+      "axis": [
+       0.000253,
+       0.000428,
+       1
+      ],
+      "axisPoint": [
+       86.062023,
+       83.626101,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019579
+     },
+     {
+      "faceId": 1646,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000253,
+       -0.000427,
+       1
+      ],
+      "axisPoint": [
+       86.062214,
+       83.625945,
+       126.817397
+      ],
+      "radius": 3.346352,
+      "arcDeg": 180.019527
+     },
+     {
+      "faceId": 1655,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       83.626021,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 180.000095
+     },
+     {
+      "faceId": 1656,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       83.626022,
+       129.712601
+      ],
+      "radius": 3.149601,
+      "arcDeg": 179.999917
+     },
+     {
+      "faceId": 1766,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       -108.663813,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 1767,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       -108.663813,
+       126.512203
+      ],
+      "radius": 1.653539,
+      "arcDeg": 179.999877
+     },
+     {
+      "faceId": 1772,
+      "surface": "cylindrical",
+      "axis": [
+       0.000406,
+       0.000286,
+       1
+      ],
+      "axisPoint": [
+       -50.913469,
+       -108.663703,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019622
+     },
+     {
+      "faceId": 1773,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000406,
+       -0.000286,
+       1
+      ],
+      "axisPoint": [
+       -50.913358,
+       -108.663924,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019523
+     },
+     {
+      "faceId": 1782,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913414,
+       -108.663812,
+       129.712601
+      ],
+      "radius": 3.149601,
+      "arcDeg": 180.000047
+     },
+     {
+      "faceId": 1783,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913414,
+       -108.663813,
+       129.712601
+      ],
+      "radius": 3.149599,
+      "arcDeg": 179.999957
+     },
+     {
+      "faceId": 1793,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054318,
+       -118.138544,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 179.999907
+     },
+     {
+      "faceId": 1794,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       -118.138544,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 180.000034
+     },
+     {
+      "faceId": 1799,
+      "surface": "cylindrical",
+      "axis": [
+       0.000044,
+       -0.000494,
+       1
+      ],
+      "axisPoint": [
+       -21.054193,
+       -118.138552,
+       126.817397
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019591
+     },
+     {
+      "faceId": 1800,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000044,
+       0.000495,
+       1
+      ],
+      "axisPoint": [
+       -21.05444,
+       -118.138537,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019539
+     },
+     {
+      "faceId": 1809,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       -118.138543,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 180
+     },
+     {
+      "faceId": 1810,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054319,
+       -118.138543,
+       129.712601
+      ],
+      "radius": 3.149601,
+      "arcDeg": 179.999917
+     },
+     {
+      "faceId": 1920,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.97352,
+       15.662105,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 180.000133
+     },
+     {
+      "faceId": 1921,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.97352,
+       15.662105,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 179.999893
+     },
+     {
+      "faceId": 1926,
+      "surface": "cylindrical",
+      "axis": [
+       0.000395,
+       -0.0003,
+       1
+      ],
+      "axisPoint": [
+       -118.973432,
+       15.662191,
+       126.817397
+      ],
+      "radius": 3.346352,
+      "arcDeg": 180.019615
+     },
+     {
+      "faceId": 1927,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000396,
+       0.000301,
+       1
+      ],
+      "axisPoint": [
+       -118.973608,
+       15.662019,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019481
+     },
+     {
+      "faceId": 1936,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973521,
+       15.662104,
+       129.712601
+      ],
+      "radius": 3.149599,
+      "arcDeg": 180.000022
+     },
+     {
+      "faceId": 1937,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973521,
+       15.662105,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 180.000013
+     },
+     {
+      "faceId": 1947,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.959208,
+       -15.664178,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 180.000081
+     },
+     {
+      "faceId": 1948,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.959209,
+       -15.664177,
+       126.512203
+      ],
+      "radius": 1.653538,
+      "arcDeg": 180.000021
+     },
+     {
+      "faceId": 1953,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000458,
+       -0.000192,
+       1
+      ],
+      "axisPoint": [
+       -118.959177,
+       -15.664297,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019551
+     },
+     {
+      "faceId": 1954,
+      "surface": "cylindrical",
+      "axis": [
+       0.000458,
+       0.000192,
+       1
+      ],
+      "axisPoint": [
+       -118.959238,
+       -15.664057,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019608
+     },
+     {
+      "faceId": 1963,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.959206,
+       -15.664178,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 180.000017
+     },
+     {
+      "faceId": 1964,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.959206,
+       -15.664178,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 179.999988
+     },
+     {
+      "faceId": 2074,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054318,
+       118.138544,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 179.999907
+     },
+     {
+      "faceId": 2075,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       118.138544,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 180.000034
+     },
+     {
+      "faceId": 2080,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000167,
+       -0.000468,
+       1
+      ],
+      "axisPoint": [
+       -21.054206,
+       118.138485,
+       126.817397
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019697
+     },
+     {
+      "faceId": 2081,
+      "surface": "cylindrical",
+      "axis": [
+       0.000167,
+       0.000467,
+       1
+      ],
+      "axisPoint": [
+       -21.054427,
+       118.138605,
+       126.817396
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019579
+     },
+     {
+      "faceId": 2090,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       118.138543,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 180
+     },
+     {
+      "faceId": 2091,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054319,
+       118.138543,
+       129.712601
+      ],
+      "radius": 3.149601,
+      "arcDeg": 179.999917
+     },
+     {
+      "faceId": 2101,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       108.663813,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 2102,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       108.663813,
+       126.512203
+      ],
+      "radius": 1.653539,
+      "arcDeg": 179.999877
+     },
+     {
+      "faceId": 2107,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000322,
+       0.000379,
+       1
+      ],
+      "axisPoint": [
+       -50.91352,
+       108.663748,
+       126.817397
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019611
+     },
+     {
+      "faceId": 2108,
+      "surface": "cylindrical",
+      "axis": [
+       0.000321,
+       -0.000378,
+       1
+      ],
+      "axisPoint": [
+       -50.913308,
+       108.66388,
+       126.817397
+      ],
+      "radius": 3.34635,
+      "arcDeg": 180.019606
+     },
+     {
+      "faceId": 2117,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913414,
+       108.663812,
+       129.712601
+      ],
+      "radius": 3.149601,
+      "arcDeg": 180.000047
+     },
+     {
+      "faceId": 2118,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913414,
+       108.663813,
+       129.712601
+      ],
+      "radius": 3.149599,
+      "arcDeg": 179.999957
+     },
+     {
+      "faceId": 2228,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062119,
+       -83.626021,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 179.999936
+     },
+     {
+      "faceId": 2229,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.06212,
+       -83.626023,
+       126.512203
+      ],
+      "radius": 1.653541,
+      "arcDeg": 180.000068
+     },
+     {
+      "faceId": 2234,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000137,
+       0.000478,
+       1
+      ],
+      "axisPoint": [
+       86.061999,
+       -83.626039,
+       126.817397
+      ],
+      "radius": 3.346353,
+      "arcDeg": 180.019448
+     },
+     {
+      "faceId": 2235,
+      "surface": "cylindrical",
+      "axis": [
+       0.000138,
+       -0.000478,
+       1
+      ],
+      "axisPoint": [
+       86.062239,
+       -83.626006,
+       126.817397
+      ],
+      "radius": 3.346353,
+      "arcDeg": 180.019507
+     },
+     {
+      "faceId": 2244,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       -83.626021,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 180.000095
+     },
+     {
+      "faceId": 2245,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       -83.626022,
+       129.712601
+      ],
+      "radius": 3.149601,
+      "arcDeg": 179.999917
+     },
+     {
+      "faceId": 2255,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       -58.50202,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 179.999986
+     },
+     {
+      "faceId": 2256,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773632,
+       -58.50202,
+       126.512203
+      ],
+      "radius": 1.65354,
+      "arcDeg": 179.999989
+     },
+     {
+      "faceId": 2261,
+      "surface": "cylindrical",
+      "axis": [
+       0.000482,
+       -0.000119,
+       1
+      ],
+      "axisPoint": [
+       104.773678,
+       -58.501905,
+       126.817397
+      ],
+      "radius": 3.346351,
+      "arcDeg": 180.019527
+     },
+     {
+      "faceId": 2262,
+      "surface": "cylindrical",
+      "axis": [
+       -0.000482,
+       0.00012,
+       1
+      ],
+      "axisPoint": [
+       104.773582,
+       -58.502136,
+       126.817397
+      ],
+      "radius": 3.346349,
+      "arcDeg": 180.019707
+     },
+     {
+      "faceId": 2271,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773631,
+       -58.502018,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 179.999993
+     },
+     {
+      "faceId": 2272,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.773631,
+       -58.502019,
+       129.712601
+      ],
+      "radius": 3.1496,
+      "arcDeg": 179.999963
+     }
+    ]
+   }
+  },
+  {
+   "node": "piston_cover_fastener_clocking",
+   "bound_part": "piston_cover_214958_002",
+   "other_part": "gas_spring_mount_213668_002",
+   "event": "0092_piston_cover_fasteners_to_end_stop.json",
+   "bound": {
+    "placements": [
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+     ]
+    ],
+    "faces": [
+     {
+      "faceId": 133,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.7862,
+       -0.000356,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.305162
+     },
+     {
+      "faceId": 45,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.7862,
+       0.000357,
+       204.692993
+      ],
+      "radius": 2.500001,
+      "arcDeg": 143.322422
+     },
+     {
+      "faceId": 46,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.78618,
+       0.000349,
+       204.692993
+      ],
+      "radius": 2.499978,
+      "arcDeg": 36.677832
+     },
+     {
+      "faceId": 134,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.786185,
+       -0.00035,
+       204.692993
+      ],
+      "radius": 2.499983,
+      "arcDeg": 36.662444
+     },
+     {
+      "faceId": 43,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710955,
+       -24.36202,
+       204.692993
+      ],
+      "radius": 2.500006,
+      "arcDeg": 36.677421
+     },
+     {
+      "faceId": 44,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       -24.362015,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.322531
+     },
+     {
+      "faceId": 47,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336249,
+       38.875842,
+       204.692993
+      ],
+      "radius": 2.500001,
+      "arcDeg": 143.322441
+     },
+     {
+      "faceId": 48,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336255,
+       38.875801,
+       204.692993
+      ],
+      "radius": 2.499961,
+      "arcDeg": 36.678101
+     },
+     {
+      "faceId": 49,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710971,
+       24.362022,
+       204.692993
+      ],
+      "radius": 2.50002,
+      "arcDeg": 36.677168
+     },
+     {
+      "faceId": 50,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       24.362014,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.322456
+     },
+     {
+      "faceId": 51,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336251,
+       -38.875841,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.322478
+     },
+     {
+      "faceId": 52,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336242,
+       -38.875833,
+       204.692993
+      ],
+      "radius": 2.499988,
+      "arcDeg": 36.677655
+     },
+     {
+      "faceId": 127,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336249,
+       -38.875842,
+       204.692993
+      ],
+      "radius": 2.500001,
+      "arcDeg": 143.322441
+     },
+     {
+      "faceId": 128,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336255,
+       -38.875801,
+       204.692993
+      ],
+      "radius": 2.499961,
+      "arcDeg": 36.678101
+     },
+     {
+      "faceId": 129,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       24.362015,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.322531
+     },
+     {
+      "faceId": 130,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710955,
+       24.36202,
+       204.692993
+      ],
+      "radius": 2.500006,
+      "arcDeg": 36.677421
+     },
+     {
+      "faceId": 131,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336242,
+       38.875833,
+       204.692993
+      ],
+      "radius": 2.499988,
+      "arcDeg": 36.677655
+     },
+     {
+      "faceId": 132,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.336251,
+       38.875841,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.322478
+     },
+     {
+      "faceId": 135,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       -24.362014,
+       204.692993
+      ],
+      "radius": 2.5,
+      "arcDeg": 143.322456
+     },
+     {
+      "faceId": 136,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710971,
+       -24.362022,
+       204.692993
+      ],
+      "radius": 2.50002,
+      "arcDeg": 36.677168
+     }
+    ]
+   },
+   "other": {
+    "placements": [
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+     ]
+    ],
+    "faces": [
+     {
+      "faceId": 6,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.78618,
+       -0.000366,
+       200.192993
+      ],
+      "radius": 2.375021,
+      "arcDeg": 36.668082
+     },
+     {
+      "faceId": 27,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.7862,
+       -0.000354,
+       200.192993
+      ],
+      "radius": 2.374999,
+      "arcDeg": 143.314478
+     },
+     {
+      "faceId": 32,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.335912,
+       38.875948,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 179.999956
+     },
+     {
+      "faceId": 33,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.335912,
+       38.875948,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 180.000011
+     },
+     {
+      "faceId": 38,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       24.362016,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 179.999959
+     },
+     {
+      "faceId": 39,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       24.362014,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 179.99998
+     },
+     {
+      "faceId": 43,
+      "surface": "cylindrical",
+      "axis": [
+       0.202207,
+       0.979343,
+       0
+      ],
+      "axisPoint": [
+       -30.265582,
+       6.708492,
+       196.193011
+      ],
+      "radius": 1.999982,
+      "arcDeg": 90.00098
+     },
+     {
+      "faceId": 50,
+      "surface": "cylindrical",
+      "axis": [
+       0.979347,
+       -0.202187,
+       0.000359
+      ],
+      "axisPoint": [
+       -45.969727,
+       19.702526,
+       186.49823
+      ],
+      "radius": 1.99934,
+      "arcDeg": 90.227841
+     },
+     {
+      "faceId": 165,
+      "surface": "cylindrical",
+      "axis": [
+       0.848926,
+       -0.175645,
+       0.498471
+      ],
+      "axisPoint": [
+       -74.099442,
+       25.619568,
+       172.471712
+      ],
+      "radius": 2.005419,
+      "arcDeg": 82.476467
+     },
+     {
+      "faceId": 169,
+      "surface": "cylindrical",
+      "axis": [
+       0.998616,
+       0.052589,
+       0.000362
+      ],
+      "axisPoint": [
+       -117.410193,
+       24.757026,
+       139.99946
+      ],
+      "radius": 1.999076,
+      "arcDeg": 90.129188
+     },
+     {
+      "faceId": 171,
+      "surface": "cylindrical",
+      "axis": [
+       0.94464,
+       0.0525,
+       -0.323882
+      ],
+      "axisPoint": [
+       -112.114538,
+       25.166249,
+       141.846309
+      ],
+      "radius": 2.006302,
+      "arcDeg": 26.782832
+     },
+     {
+      "faceId": 174,
+      "surface": "cylindrical",
+      "axis": [
+       0.841508,
+       -0.173767,
+       0.511536
+      ],
+      "axisPoint": [
+       -78.080474,
+       19.693819,
+       170.822007
+      ],
+      "radius": 2.002013,
+      "arcDeg": 90.260632
+     },
+     {
+      "faceId": 227,
+      "surface": "cylindrical",
+      "axis": [
+       0.202207,
+       0.979343,
+       0
+      ],
+      "axisPoint": [
+       -30.265591,
+       6.708494,
+       184.099996
+      ],
+      "radius": 1.999992,
+      "arcDeg": 90.000492
+     },
+     {
+      "faceId": 232,
+      "surface": "cylindrical",
+      "axis": [
+       0.906218,
+       0.42281,
+       -0.000359
+      ],
+      "axisPoint": [
+       48.636815,
+       11.656137,
+       186.498229
+      ],
+      "radius": 1.999339,
+      "arcDeg": 90.227939
+     },
+     {
+      "faceId": 240,
+      "surface": "cylindrical",
+      "axis": [
+       0.664671,
+       0.747136,
+       -0.000359
+      ],
+      "axisPoint": [
+       25.099295,
+       43.260036,
+       186.49823
+      ],
+      "radius": 1.999341,
+      "arcDeg": 90.227823
+     },
+     {
+      "faceId": 242,
+      "surface": "cylindrical",
+      "axis": [
+       0.953404,
+       -0.301695,
+       -0.000722
+      ],
+      "axisPoint": [
+       10.765457,
+       33.275756,
+       186.754904
+      ],
+      "radius": 2.252501,
+      "arcDeg": 30.993552
+     },
+     {
+      "faceId": 244,
+      "surface": "cylindrical",
+      "axis": [
+       -0.10348,
+       0.994631,
+       -0.000359
+      ],
+      "axisPoint": [
+       4.876493,
+       49.775748,
+       186.498229
+      ],
+      "radius": 1.99934,
+      "arcDeg": 90.227895
+     },
+     {
+      "faceId": 245,
+      "surface": "cylindrical",
+      "axis": [
+       -0.488931,
+       0.872322,
+       -0.000359
+      ],
+      "axisPoint": [
+       -32.683757,
+       37.857328,
+       186.498227
+      ],
+      "radius": 1.999338,
+      "arcDeg": 90.227993
+     },
+     {
+      "faceId": 255,
+      "surface": "cylindrical",
+      "axis": [
+       0.872312,
+       0.48895,
+       0
+      ],
+      "axisPoint": [
+       -15.548447,
+       26.818932,
+       196.193011
+      ],
+      "radius": 1.999983,
+      "arcDeg": 90.000976
+     },
+     {
+      "faceId": 257,
+      "surface": "cylindrical",
+      "axis": [
+       0.994634,
+       0.10346,
+       0
+      ],
+      "axisPoint": [
+       -2.759354,
+       30.877099,
+       196.193011
+      ],
+      "radius": 1.999982,
+      "arcDeg": 90.001
+     },
+     {
+      "faceId": 263,
+      "surface": "cylindrical",
+      "axis": [
+       0.74715,
+       -0.664655,
+       0
+      ],
+      "axisPoint": [
+       20.266051,
+       23.458399,
+       196.193011
+      ],
+      "radius": 1.999983,
+      "arcDeg": 90.000981
+     },
+     {
+      "faceId": 265,
+      "surface": "cylindrical",
+      "axis": [
+       -0.422792,
+       0.906227,
+       0
+      ],
+      "axisPoint": [
+       28.280468,
+       12.697416,
+       196.193011
+      ],
+      "radius": 1.999983,
+      "arcDeg": 90.000975
+     },
+     {
+      "faceId": 271,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -29.669087,
+       9.597556,
+       190.1465
+      ],
+      "radius": 2,
+      "arcDeg": 90.000018
+     },
+     {
+      "faceId": 303,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.77363,
+       58.502019,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 180.000041
+     },
+     {
+      "faceId": 304,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       104.77363,
+       58.502021,
+       136
+      ],
+      "radius": 2.500002,
+      "arcDeg": 179.999847
+     },
+     {
+      "faceId": 305,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.97352,
+       15.662106,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 180.000094
+     },
+     {
+      "faceId": 306,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -118.973519,
+       15.662106,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.99988
+     },
+     {
+      "faceId": 307,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062118,
+       83.626022,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.999969
+     },
+     {
+      "faceId": 308,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       86.062121,
+       83.626023,
+       136
+      ],
+      "radius": 2.500001,
+      "arcDeg": 179.999888
+     },
+     {
+      "faceId": 309,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054316,
+       118.138545,
+       136
+      ],
+      "radius": 2.5,
+      "arcDeg": 179.99997
+     },
+     {
+      "faceId": 310,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -21.054317,
+       118.138546,
+       136
+      ],
+      "radius": 2.5,
+      "arcDeg": 179.999993
+     },
+     {
+      "faceId": 311,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913413,
+       108.663813,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 180.000135
+     },
+     {
+      "faceId": 312,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -50.913415,
+       108.663812,
+       136
+      ],
+      "radius": 2.499999,
+      "arcDeg": 179.999972
+     },
+     {
+      "faceId": 314,
+      "surface": "cylindrical",
+      "axis": [
+       0.785765,
+       0.366197,
+       -0.498471
+      ],
+      "axisPoint": [
+       74.731551,
+       23.712548,
+       172.471712
+      ],
+      "radius": 2.005418,
+      "arcDeg": 82.476536
+     },
+     {
+      "faceId": 318,
+      "surface": "cylindrical",
+      "axis": [
+       0.575928,
+       0.647946,
+       -0.49847
+      ],
+      "axisPoint": [
+       44.125125,
+       64.807944,
+       172.47173
+      ],
+      "radius": 2.00545,
+      "arcDeg": 82.474402
+     },
+     {
+      "faceId": 320,
+      "surface": "cylindrical",
+      "axis": [
+       0.5711,
+       0.642009,
+       -0.511536
+      ],
+      "axisPoint": [
+       50.857468,
+       62.433353,
+       170.822005
+      ],
+      "radius": 2.002006,
+      "arcDeg": 90.260922
+     },
+     {
+      "faceId": 323,
+      "surface": "cylindrical",
+      "axis": [
+       0.788966,
+       0.522144,
+       0.32388
+      ],
+      "axisPoint": [
+       74.884168,
+       87.151454,
+       141.846291
+      ],
+      "radius": 2.006246,
+      "arcDeg": 26.783971
+     },
+     {
+      "faceId": 325,
+      "surface": "cylindrical",
+      "axis": [
+       0.832307,
+       0.554314,
+       -0.000362
+      ],
+      "axisPoint": [
+       79.375767,
+       89.986396,
+       139.999455
+      ],
+      "radius": 1.999071,
+      "arcDeg": 90.129402
+     },
+     {
+      "faceId": 327,
+      "surface": "cylindrical",
+      "axis": [
+       0.769494,
+       0.638653,
+       -0.000362
+      ],
+      "axisPoint": [
+       108.952244,
+       50.273971,
+       139.999461
+      ],
+      "radius": 1.999077,
+      "arcDeg": 90.129113
+     },
+     {
+      "faceId": 329,
+      "surface": "cylindrical",
+      "axis": [
+       0.726257,
+       0.606341,
+       0.323885
+      ],
+      "axisPoint": [
+       104.949473,
+       46.782661,
+       141.846313
+      ],
+      "radius": 2.006308,
+      "arcDeg": 26.782038
+     },
+     {
+      "faceId": 332,
+      "surface": "cylindrical",
+      "axis": [
+       0.778694,
+       0.363272,
+       -0.511536
+      ],
+      "axisPoint": [
+       74.384931,
+       30.842975,
+       170.822008
+      ],
+      "radius": 2.002015,
+      "arcDeg": 90.260511
+     },
+     {
+      "faceId": 347,
+      "surface": "cylindrical",
+      "axis": [
+       -0.089335,
+       0.862291,
+       -0.498471
+      ],
+      "axisPoint": [
+       2.008738,
+       78.377641,
+       172.471712
+      ],
+      "radius": 2.00542,
+      "arcDeg": 82.476549
+     },
+     {
+      "faceId": 349,
+      "surface": "cylindrical",
+      "axis": [
+       -0.424185,
+       0.756038,
+       -0.498471
+      ],
+      "axisPoint": [
+       -46.831813,
+       62.879816,
+       172.471715
+      ],
+      "radius": 2.005423,
+      "arcDeg": 82.476398
+     },
+     {
+      "faceId": 360,
+      "surface": "cylindrical",
+      "axis": [
+       -0.088881,
+       0.854652,
+       -0.511536
+      ],
+      "axisPoint": [
+       -4.843528,
+       80.38001,
+       170.822006
+      ],
+      "radius": 2.002007,
+      "arcDeg": 90.260796
+     },
+     {
+      "faceId": 363,
+      "surface": "cylindrical",
+      "axis": [
+       -0.335743,
+       0.884521,
+       0.323883
+      ],
+      "axisPoint": [
+       -9.920839,
+       114.475258,
+       141.846316
+      ],
+      "radius": 2.006326,
+      "arcDeg": 26.782275
+     },
+     {
+      "faceId": 365,
+      "surface": "cylindrical",
+      "axis": [
+       -0.352152,
+       0.935943,
+       -0.000362
+      ],
+      "axisPoint": [
+       -11.91252,
+       119.399144,
+       139.999461
+      ],
+      "radius": 1.999077,
+      "arcDeg": 90.129081
+     },
+     {
+      "faceId": 367,
+      "surface": "cylindrical",
+      "axis": [
+       -0.251917,
+       0.967749,
+       -0.000362
+      ],
+      "axisPoint": [
+       -59.109497,
+       104.422848,
+       139.999461
+      ],
+      "radius": 1.999078,
+      "arcDeg": 90.129194
+     },
+     {
+      "faceId": 369,
+      "surface": "cylindrical",
+      "axis": [
+       -0.235676,
+       0.916273,
+       0.323883
+      ],
+      "axisPoint": [
+       -57.897954,
+       99.251434,
+       141.846284
+      ],
+      "radius": 2.006167,
+      "arcDeg": 26.784367
+     },
+     {
+      "faceId": 372,
+      "surface": "cylindrical",
+      "axis": [
+       0.420152,
+       -0.749535,
+       0.511536
+      ],
+      "axisPoint": [
+       -42.387721,
+       68.466692,
+       170.822007
+      ],
+      "radius": 2.002012,
+      "arcDeg": 90.260508
+     },
+     {
+      "faceId": 468,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -18.121775,
+       25.376546,
+       190.1465
+      ],
+      "radius": 2,
+      "arcDeg": 90.000002
+     },
+     {
+      "faceId": 470,
+      "surface": "cylindrical",
+      "axis": [
+       0.872312,
+       0.48895,
+       0
+      ],
+      "axisPoint": [
+       -15.548451,
+       26.81894,
+       184.099997
+      ],
+      "radius": 1.999992,
+      "arcDeg": 90.000489
+     },
+     {
+      "faceId": 472,
+      "surface": "cylindrical",
+      "axis": [
+       0.994634,
+       0.10346,
+       0
+      ],
+      "axisPoint": [
+       -2.759355,
+       30.877108,
+       184.099996
+      ],
+      "radius": 1.999991,
+      "arcDeg": 90.000513
+     },
+     {
+      "faceId": 474,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       0.174815,
+       31.182322,
+       190.1465
+      ],
+      "radius": 1.999998,
+      "arcDeg": 90.000054
+     },
+     {
+      "faceId": 475,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       18.061974,
+       25.419146,
+       190.1465
+      ],
+      "radius": 2.000001,
+      "arcDeg": 89.999963
+     },
+     {
+      "faceId": 477,
+      "surface": "cylindrical",
+      "axis": [
+       0.74715,
+       -0.664655,
+       0
+      ],
+      "axisPoint": [
+       20.266057,
+       23.458406,
+       184.099997
+      ],
+      "radius": 1.999992,
+      "arcDeg": 90.000494
+     },
+     {
+      "faceId": 479,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       29.527718,
+       10.024051,
+       190.1465
+      ],
+      "radius": 1.999998,
+      "arcDeg": 90.000056
+     },
+     {
+      "faceId": 481,
+      "surface": "cylindrical",
+      "axis": [
+       -0.422792,
+       0.906227,
+       0
+      ],
+      "axisPoint": [
+       28.280476,
+       12.69742,
+       184.099997
+      ],
+      "radius": 1.999992,
+      "arcDeg": 90.000488
+     },
+     {
+      "faceId": 526,
+      "surface": "cylindrical",
+      "axis": [
+       0.951816,
+       -0.306671,
+       0
+      ],
+      "axisPoint": [
+       9.505859,
+       29.503313,
+       196.19301
+      ],
+      "radius": 1.999984,
+      "arcDeg": 90.000909
+     },
+     {
+      "faceId": 532,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       13.531988,
+       28.206128,
+       191.3965
+      ],
+      "radius": 1.999999,
+      "arcDeg": 90.000044
+     },
+     {
+      "faceId": 534,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       5.47974,
+       30.800526,
+       191.3965
+      ],
+      "radius": 1.999999,
+      "arcDeg": 90.000024
+     },
+     {
+      "faceId": 536,
+      "surface": "cylindrical",
+      "axis": [
+       0.951816,
+       -0.306671,
+       0
+      ],
+      "axisPoint": [
+       9.505862,
+       29.503321,
+       186.599998
+      ],
+      "radius": 1.999993,
+      "arcDeg": 90.000422
+     },
+     {
+      "faceId": 543,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       1,
+       0
+      ],
+      "axisPoint": [
+       30.996883,
+       0,
+       196.193012
+      ],
+      "radius": 1.999981,
+      "arcDeg": 90.001043
+     },
+     {
+      "faceId": 547,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       30.996899,
+       4.907368,
+       191.3965
+      ],
+      "radius": 1.999998,
+      "arcDeg": 90.000106
+     },
+     {
+      "faceId": 551,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       1,
+       0
+      ],
+      "axisPoint": [
+       30.996892,
+       0,
+       186.599995
+      ],
+      "radius": 1.999991,
+      "arcDeg": 90.000556
+     },
+     {
+      "faceId": 554,
+      "surface": "cylindrical",
+      "axis": [
+       0.590574,
+       0.806984,
+       0
+      ],
+      "axisPoint": [
+       -25.013975,
+       18.305954,
+       196.193009
+      ],
+      "radius": 1.999984,
+      "arcDeg": 90.000898
+     },
+     {
+      "faceId": 560,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -22.274836,
+       22.048849,
+       191.3965
+      ],
+      "radius": 2,
+      "arcDeg": 89.999979
+     },
+     {
+      "faceId": 571,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.78618,
+       0.000366,
+       200.192993
+      ],
+      "radius": 2.375021,
+      "arcDeg": 36.668082
+     },
+     {
+      "faceId": 586,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -40.7862,
+       0.000354,
+       200.192993
+      ],
+      "radius": 2.374999,
+      "arcDeg": 143.314478
+     },
+     {
+      "faceId": 591,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.335912,
+       -38.875948,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 179.999956
+     },
+     {
+      "faceId": 592,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       -12.335912,
+       -38.875948,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 180.000011
+     },
+     {
+      "faceId": 597,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       -24.362016,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 179.999959
+     },
+     {
+      "faceId": 598,
+      "surface": "cylindrical",
+      "axis": [
+       0,
+       0,
+       1
+      ],
+      "axisPoint": [
+       32.710951,
+       -24.362014,
+       200.192993
+      ],
+      "radius": 2.375,
+      "arcDeg": 179.99998
+     }
+    ]
+   }
+  }
+ ]
+}
