@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: resolved
+status: open
 area: annotate/browser-tier
 reporter: agent
 class: browser_red_on_trunk
