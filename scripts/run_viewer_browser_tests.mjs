@@ -8022,6 +8022,12 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       return true;
     } catch { return false; }
   };
+  // A precondition the Take checks read: when it is missing the suite ends at
+  // once and names it, instead of reading a tree that is still moving.
+  const need = async (what, fn, arg, timeout) => {
+    if (await until(fn, arg, timeout)) return;
+    throw new Error(`missing: ${what} (after ${timeout} ms)`);
+  };
   // The nav's mirrored rows: key, words, state, and where each sits.
   const nav = () => page.evaluate(() => {
     const box = document.getElementById("navtree");
@@ -8261,6 +8267,16 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     // The end's list is under the feature row with no disclosure of its own
     // (2026-11-10): its faces are there as soon as the row is open.
     await listed(UPPER);
+    // The Take is on the end's face row once the end's candidates are drawn: wait
+    // for the button, not for the clock.
+    if (target && target.joint) {
+      await need("a Take button on a listed face of the end to take", (src) =>
+        Array.from(document.querySelectorAll(".navtree__scene [data-scene-key]")).some((n) =>
+          new RegExp(src).test(n.getAttribute("data-scene-key")) && /face=/.test(n.getAttribute("data-scene-key")) &&
+          Array.from(n.querySelectorAll(":scope > .navtree__sceneacts > .navtree__scenebtn, " +
+            ":scope ~ .navtree__featureacts > .navtree__scenebtn")).some((b) => b.textContent === "Take")),
+      UPPER.source, 30000);
+    }
     // The feature row near the top of the nav, scrolled there by hand.
     await page.evaluate((sel) => {
       const box = document.getElementById("navtree");
@@ -8271,14 +8287,22 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
     const before = await nav();
     const take = before.rows.find((r) => UPPER.test(r.key) && /face=/.test(r.key) && r.buttons.indexOf("Take") !== -1);
     if (take) await click(take.key, ".navtree__scenebtn");
-    await until(() => (document.querySelector("#annotate-flyout iframe").contentWindow.__mockWrites || []).length > 0);
+    if (take) await need("the Take's event written", () =>
+      (document.querySelector("#annotate-flyout iframe").contentWindow.__mockWrites || []).length > 0, null, 30000);
     // The pane selects the partner end next (nextEndToPick); the page follows
     // its selection to that end's node, so the faces layer moves to the
     // partner's feature row, which is brought on screen.
     const partnerNode = target && target.from ? target.from.feature : null;
-    await until((node) => !!document.querySelector('#navtree [data-nav-kind="feature"][data-node-id="' + node +
-      '"].navtree__row--on'), partnerNode, 15000);
-    await page.waitForTimeout(1000);
+    // Settled is the whole of what the next check reads: the partner's row
+    // selected, its layer drawn beneath it, and the row scrolled on screen.
+    if (take && partnerNode) await need("the partner end's feature row selected and on screen with the pane's rows beneath", (node) => {
+      const row = document.querySelector('#navtree [data-nav-kind="feature"][data-node-id="' + node + '"].navtree__row--on');
+      const slot = row && row.parentNode.querySelector(".navtree__scene");
+      const nav = document.getElementById("navtree").getBoundingClientRect();
+      const r = row && row.getBoundingClientRect();
+      return !!slot && slot.querySelectorAll('[data-scene-key*="feature=' + node + '"]').length > 0 &&
+        r.top >= nav.top - 1 && r.bottom <= nav.bottom + 1;
+    }, partnerNode, 20000);
     const followed = await page.evaluate((node) => {
       const row = document.querySelector('#navtree [data-nav-kind="feature"][data-node-id="' + node + '"].navtree__row--on');
       const slot = row && row.parentNode.querySelector(".navtree__scene");
@@ -8293,6 +8317,12 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       !!take && followed.on && followed.layer && followed.visible);
     // The partner end opens and is selected in the pane's own rail (the nav
     // shows the selected feature's end alone).
+    if (take) await need("the partner end selected in the pane with its candidate faces listed", (args) => {
+      const w = document.querySelector("#annotate-flyout iframe").contentWindow;
+      const li = Array.from(w.document.querySelectorAll('#sweep-tree li.tree-row[data-edge][data-direction]'))
+        .find((n) => n.dataset.edge === args.edge && n.dataset.direction === args.direction);
+      return !!li && li.classList.contains("selected") && li.querySelectorAll(":scope > .tree-cands .tree-cand[data-face]").length > 0;
+    }, { edge: TAKE_EDGE, direction: target && target.from ? target.from.direction : "from" }, 15000);
     const partner = await inPane((w, args) => {
       const li = Array.from(w.document.querySelectorAll('#sweep-tree li.tree-row[data-edge][data-direction]'))
         .find((n) => n.dataset.edge === args.edge && n.dataset.direction === args.direction);
@@ -8427,7 +8457,7 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       return face ? face.face_id : null;
     });
     if (takeFeatureSel) await selectFeature(toPartId, target.to.feature).catch(() => {});
-    await until((sel) => {
+    if (take) await need("the taken end's body reading bound", (sel) => {
       const row = document.querySelector(sel);
       return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
     }, takeFeatureSel, 15000);
@@ -10710,24 +10740,47 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
       return false;
     }
   };
+  // What the pane holds, named in the message of every precondition that is missing.
+  const paneState = () => inPane((w) => ({
+    open: w.__scene ? w.__scene.listOpenParts().length : null,
+    sweepBodies: w.__sweep && w.__sweep.bodies ? w.__sweep.bodies.length : null })).catch((e) => String(e));
+  // A precondition the checks stand on: when it is missing the suite ends at
+  // once and says which, instead of waiting on state that is never coming.
+  const need = async (what, fn, arg, timeout) => {
+    if (await until(fn, arg, timeout)) return;
+    throw new Error(`missing: ${what} (after ${timeout} ms; pane ${JSON.stringify(await paneState())})`);
+  };
+  // A twisty is clicked until the page reports it expanded: a click on a tree
+  // that is still repainting lands on a node that is then replaced, so the
+  // state is read back, never assumed. A click that never takes is the error.
+  const expand = async (key, what) => {
+    const sel = `#navtree [data-nav-twisty="${key}"]`;
+    const isOpen = (s) => { const t = document.querySelector(s); return !!t && t.getAttribute("aria-expanded") === "true"; };
+    await page.waitForSelector(sel, { state: "attached", timeout: 30000 })
+      .catch(() => { throw new Error(`missing: the twisty of ${what} (${key}) is not in the tree`); });
+    for (let i = 0; i < 5; i++) {
+      if (await page.evaluate(isOpen, sel)) return;
+      await page.evaluate((s) => { const t = document.querySelector(s); if (t) t.click(); }, sel);
+      await page.waitForFunction(isOpen, sel, { timeout: 3000 }).catch(() => {});
+    }
+    if (!(await page.evaluate(isOpen, sel))) throw new Error(`missing: ${what} (${key}) never expanded`);
+  };
   const openBody = async (fid) => {
-    const part = fid.split("@")[0];
-    const row = `#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`;
-    if (!(await page.locator(row).count())) {
-      await page.locator(`#navtree [data-nav-twisty="p:${part}"]`).first().click({ timeout: 5000 }).catch(() => {});
-    }
-    const twisty = page.locator(`#navtree [data-nav-twisty="f:${fid}"]`).first();
-    if (await twisty.count() && (await twisty.getAttribute("aria-expanded")) !== "true") {
-      await twisty.click({ timeout: 5000 }).catch(() => {});
-    }
+    await expand(`p:${fid.split("@")[0]}`, `the part of ${fid}`);
+    await expand(`f:${fid}`, `the feature ${fid}`);
   };
   const slotOf = (fid) => page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`)
     .locator("xpath=..").locator(".navtree__scene").first();
-  const openPage = async (query) => {
+  // `settled`: a study's page opens its parts one by one after the tree is up,
+  // and each repaint of the tree can replace the nodes a click or a hover just
+  // found, so the sweep is waited out (it has opened every part it will) before
+  // the first click.
+  const openPage = async (query, settled) => {
     await page.goto(url + "/apps/viewer/topology.html?" + query, { waitUntil: "load" });
     await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
     await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
-    await until((w) => !!w.__embedTree, null, 120000);
+    await need("the pane's embedded tree", (w) => !!w.__embedTree, null, 120000);
+    if (settled) await need("the sweep to finish opening its parts", (w) => !!(w.__sweep && w.__sweep.bodies), null, 180000);
   };
   try {
     // 1. The mount's base face where Jeff met it, on the kinematic page: the
@@ -10735,24 +10788,35 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
     // tree's own line is its body. The line names the surest proposal's face.
     // (On v2 with no study the pane lists a row for it, and the body is that
     // row, its mates among the row's candidates -- the 2026-11-15 review's B1.)
-    await openPage("kinematic=" + KINEMATIC);
+    await openPage("kinematic=" + KINEMATIC, true);
     await openBody(MOUNT_FACE);
     const line = slotOf(MOUNT_FACE).locator(".navtree__featurestate[data-look]").first();
-    await line.waitFor({ timeout: 60000 }).catch(() => {});
-    const face = Number(await line.getAttribute("data-face").catch(() => NaN));
+    await line.waitFor({ timeout: 30000 }).catch(() => {
+      throw new Error("missing: the mount's suggestion line, with its part and feature both expanded");
+    });
+    const face = Number(await line.getAttribute("data-face"));
     const surest = events.filter((e) => e.verdict === "proposed" &&
       faceKeys(e).some((k) => k.face_id === face)).find((e) => e.confidence === "high");
     console.log(`    the mount's suggestion line names face ${face}; surest proposal ${surest && surest.event_id}`);
     // The sweep opens its parts one by one after the tree is up, and only an
     // open part washes in sweep mode: hover once the mount is drawn.
     const mountSha = surest && faceKeys(surest)[0].source_step_sha256;
-    await until((w, s) => w.__scene && w.__scene.listOpenParts().indexOf(s) !== -1, mountSha, 180000);
-    await line.hover({ timeout: 5000 }).catch(() => {});
+    if (!surest) throw new Error(`missing: a high-confidence proposal in the log for face ${face}`);
+    await need("the mount's part drawn in the pane", (w, s) => w.__scene && w.__scene.listOpenParts().indexOf(s) !== -1, mountSha, 60000);
+    // A hover that lands while the line is being replaced lights nothing: leave
+    // and rest on it again until the pane washes the face.
+    let washed = false;
+    for (let i = 0; i < 4 && !washed; i++) {
+      await page.mouse.move(2, 2);
+      await line.hover({ timeout: 5000 }).catch(() => {});
+      washed = await until((w, f) => w.__lastWash && w.__lastWash.faceId === f, face, 4000);
+    }
     push("[real] hovering a suggestion line in the tree lights its face in the pane",
-      Number.isFinite(face) && !!surest &&
-      await until((w, f) => w.__lastWash && w.__lastWash.faceId === f, face, 15000));
+      Number.isFinite(face) && washed);
     const before = await inPane((w) => (w.__mockWrites || []).length);
-    await slotOf(MOUNT_FACE).locator("button", { hasText: "Take" }).first().click({ timeout: 5000 }).catch(() => {});
+    const take = slotOf(MOUNT_FACE).locator("button", { hasText: "Take" }).first();
+    await take.waitFor({ timeout: 15000 }).catch(() => { throw new Error("missing: the Take button under the mount's line"); });
+    await take.click({ timeout: 5000 }).catch(() => {});
     await until((w, n) => (w.__mockWrites || []).length > n, before, 30000);
     await page.waitForTimeout(500);
     const written = (await inPane((w, n) => (w.__mockWrites || []).slice(n)
@@ -10806,13 +10870,13 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
     push("[real] arming a side with nothing bound opposite ranks nothing, lights nothing and lists only the pick's line",
       armedLone && !!lone && lone.mates === 0 && lone.lit === 0 && lone.inTree.indexOf(LONE) === -1 && loneLines === 1);
     await page.keyboard.press("Escape");
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    errors.push(String(err));
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
     server.close();
   }
-  return reportSuite(label, checks, errors);
 }
 
 // A pattern is bound as its like faces, and a face can be added (handoff
