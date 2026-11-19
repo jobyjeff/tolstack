@@ -10998,14 +10998,17 @@ async function testAPressThatWritesSaysSo(browser, label, topologies) {
       keep.click();
       window.__pressT0 = performance.now();
       window.__bodyAt = null;
+      // The nav is rebuilt whole when the record lands, so the row is found
+      // again on every change rather than held.
       const obs = new MutationObserver(() => {
-        const body = slot.querySelector(".navtree__featurebody");
+        const r = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+        const body = r && r.parentElement.querySelector(".navtree__scene .navtree__featurebody");
         if (window.__bodyAt === null && body && body.getAttribute("data-body-kind") === "bound") {
           window.__bodyAt = performance.now();
           obs.disconnect();
         }
       });
-      obs.observe(slot, { subtree: true, childList: true, attributes: true });
+      obs.observe(document.getElementById("navtree"), { subtree: true, childList: true, attributes: true });
       await new Promise((r) => requestAnimationFrame(() => r()));
       const now = slot.querySelector("[data-pending]") || keep;
       return { text: now.textContent, disabled: !!now.disabled, pending: now.getAttribute("data-pending"),
