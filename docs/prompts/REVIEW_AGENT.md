@@ -6190,6 +6190,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       runs is *dropped* as `busy`, not run after it. A new sender that posts
       two writes back to back loses the second. Ask how it waits for the
       first `annotate:result`, the way the shell's `bodyWrite` does.
+- [ ] **"v2's map has zero notes" only proves the notes are quiet on v2.** A
+      map routing rule is tuned against one model, and the notes count only
+      what that model showed. Load `apps/viewer/vocab.gen.js` and `map.js`
+      into a node `vm` and run `VA.mapLayout` on the real projection with
+      `interfaces` shuffled, base against branch. Then build one crowded
+      synthetic model: a parent with 2–3 bottom partners and a joined child.
+      On 2026-11-19 that model put a route through the drop's symbol and a pin
+      half a pitch from another, with no note
+      (`ISSUE_20261119_a_map_route_can_run_through_another_connectors_symbol_with_no_note.md`).
+      Check also that `DAG_TOPOLOGY.md` "The map" does not describe a rule
+      the lesson says was removed as dead code.
 
 ## Architectural errors to check
 
