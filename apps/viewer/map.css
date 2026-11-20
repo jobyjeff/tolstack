@@ -18,6 +18,13 @@
 .tv__scroll--zoomgrab .tv__map { cursor: grabbing; }
 .tv__map path, .tv__map polyline { fill: none; }
 .tv__map text { font-family: inherit; }
+/* The Groups popover's kinds switched off (views/map.js): a body's
+   district -- border, field and name --, an assembly's outline and a part's
+   box and name are hidden in place; pins, symbols and routes stay put. */
+.tv__map--no-bodies .map__layer--districts,
+.tv__map--no-bodies .map__layer--districtnames,
+.tv__map--no-assemblies .map__layer--assemblies,
+.tv__map--no-parts .map__layer--boxes { visibility: hidden; }
 
 /* A body's district: a dashed field in the body's ink, barely tinted, named
    once at its corner. Its interior pans on a drag and selects the body on a

@@ -1865,14 +1865,17 @@
     return laid ? result(laid) : layout;
   };
 
-  // The kinds of bracket the grid can draw (Jeff, 2026-10-29, for the DAG's
-  // containers; the grid's since the rails retired, 2026-11-17): the
-  // bodies and the parts. Each is its own checkbox in the toolbar's Groups
-  // popover. A stored choice for a kind no longer here (the two study kinds
-  // the rails drew) is read as nothing.
+  // The kinds of container the map and the grid draw (Jeff, 2026-10-29, for
+  // the DAG's containers; the grid's since the rails retired, 2026-11-17;
+  // the map's and the assemblies since 2026-11-19): the bodies, the
+  // assemblies and the parts. Each is its own checkbox in the toolbar's
+  // Groups popover. The store keeps the kinds switched OFF, so a choice
+  // stored before a kind existed reads as that kind on, and one for a kind
+  // no longer here (the two study kinds the rails drew) as nothing.
   VA.GROUP_KINDS = [
-    { id: "bodies",    label: "Bodies" },
-    { id: "parts",     label: "Parts" },
+    { id: "bodies",     label: "Bodies" },
+    { id: "assemblies", label: "Assemblies" },
+    { id: "parts",      label: "Parts" },
   ];
 
   VA.GROUP_KINDS_KEY = "tolstack.viewer.groupKinds";
@@ -1909,6 +1912,49 @@
       store.setItem(VA.GROUP_KINDS_KEY, JSON.stringify(all));
     } catch (err) {
       // A browser that refuses to store it still filters for this session.
+    }
+  };
+
+  // The grid's outermost bracket is a body or a top-level assembly, never
+  // both (Jeff's fallback in the_groups_switches_reach_the_map_and_the_grid_
+  // brackets_an_assembly_in_two_bodies, 2026-11-19): an assembly in two
+  // bodies bracketed inside each of them said its name once per body, or
+  // not at all where a part inside it took the row. With both switched on,
+  // the grid draws the one switched on last (VA.GRID_OUTER_KEY, per
+  // topology; bodies until one is), and the map draws both.
+  VA.GRID_OUTER_KINDS = Object.freeze(["bodies", "assemblies"]);
+  VA.GRID_OUTER_KEY = "tolstack.viewer.gridOuter";
+
+  VA.gridGroupKinds = function (on, outer) {
+    var out = {};
+    VA.GROUP_KINDS.forEach(function (k) { out[k.id] = !on || on[k.id] !== false; });
+    if (out.bodies && out.assemblies) {
+      out[outer === VA.GRID_OUTER_KINDS[1] ? VA.GRID_OUTER_KINDS[0] : VA.GRID_OUTER_KINDS[1]] = false;
+    }
+    return out;
+  };
+
+  VA.readGridOuter = function (store, topologyId) {
+    try {
+      var raw = store && store.getItem(VA.GRID_OUTER_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      var kind = all && typeof all === "object" ? all[topologyId] : null;
+      return VA.GRID_OUTER_KINDS.indexOf(kind) >= 0 ? kind : VA.GRID_OUTER_KINDS[0];
+    } catch (err) {
+      return VA.GRID_OUTER_KINDS[0];
+    }
+  };
+
+  VA.writeGridOuter = function (store, topologyId, kind) {
+    try {
+      if (!store || VA.GRID_OUTER_KINDS.indexOf(kind) < 0) return;
+      var raw = store.getItem(VA.GRID_OUTER_KEY);
+      var all = raw ? JSON.parse(raw) : {};
+      if (!all || typeof all !== "object" || Array.isArray(all)) all = {};
+      all[topologyId] = kind;
+      store.setItem(VA.GRID_OUTER_KEY, JSON.stringify(all));
+    } catch (err) {
+      // A browser that refuses to store it still draws it for this session.
     }
   };
 
@@ -2769,10 +2815,17 @@
   //   level  how deep it nests, 0 = outermost -- what the inset is made of;
   //   start, end  plan row indices, inclusive; `end` may run past the plan's
   //          rows into the foot (the study's brace holds its totals);
-  //   label  a body's name, a part's number (VA.gridPartLabel);
-  //          a study and a sub-stack are titled by their own header rows;
-  //   body   on a part, the body brace it sits in (absent where Bodies are
-  //          switched off, or the part has no body).
+  //   label  a body's name, a part's or an assembly's number
+  //          (VA.gridPartLabel); a study and a sub-stack are titled by their
+  //          own header rows;
+  //   body   on a part or an assembly, the body brace it sits in (absent
+  //          where Bodies are switched off, or the part has no body);
+  //   outer  on a part or an assembly, the outermost brace it sits in: its
+  //          body's, else its top-level assembly's (`outermost`, whose name
+  //          takes the body's strip);
+  //   named  on an assembly, whether its label is drawn (VA.gridBraces).
+  // `said` and `folds` are the rows whose part's number, and whose
+  // assembly's fold, a brace carries -- the row's own cell draws neither.
   //
   // What nests (the_dag_and_grid_nest_coloured_bodies_and_compact_means_
   // denser_rows, 2026-11-08): the study (when there is one) > a sub-stack and
@@ -2782,10 +2835,15 @@
   // inside of it, so it should be two nested sets of braces." A body that
   // crosses a sub-stack boundary is two runs, one per sub-stack.
   //
-  // `opts.kinds` is the Groups popover ({bodies, parts}: false drops that
-  // kind), `opts.topoProj` names the labels and the inks. Pure: the geometry
-  // is views/topology.js's.
-  VA.GRID_BRACE_KINDS = Object.freeze(["kinematic", "chain", "body", "part"]);
+  // An assembly (2026-11-19) holds its own rows and every row on a part
+  // inside it, wherever the bodies put them: a body ⊃ an assembly ⊃ a part
+  // where it nests, and an assembly whose parts sit in two bodies is one
+  // bracket per run of its rows, inside each body.
+  //
+  // `opts.kinds` is the grid's Groups ({bodies, assemblies, parts}: false
+  // drops that kind; VA.gridGroupKinds), `opts.topoProj` names the labels and
+  // the inks. Pure: the geometry is views/topology.js's.
+  VA.GRID_BRACE_KINDS = Object.freeze(["kinematic", "chain", "body", "assembly", "part"]);
 
   // A part's bracket label in the grid: the PART column's own number
   // (VA.partColumns), said there and nowhere else on the row -- the rows it
@@ -2826,7 +2884,7 @@
     var kinds = opts.kinds || {};
     var topo = opts.topoProj || null;
     var braces = [];
-    if (!rows.length) return { braces: braces, cover: {} };
+    if (!rows.length) return { braces: braces, cover: {}, said: {}, folds: {} };
     var base = 0;
     if (opts.study) {
       braces.push({ kind: opts.study, id: "study", level: 0, start: 0,
@@ -2865,7 +2923,17 @@
     var partsById = {};
     ((topo && topo.parts) || []).forEach(function (p) { partsById[p.id] = p; });
     var bodyOfPart = topo ? VA.bodyOfPart(topo) : {};
-    // Bodies, then parts, inside the innermost sub-stack each row sits in.
+    var assemblies = VA.assemblyIds(topo);
+    var showAssemblies = kinds.assemblies !== false;
+    // Each row's part, its group's: a folded assembly's one row is the
+    // assembly's.
+    var partAt = {};
+    groups.forEach(function (g) {
+      if (g.header) return;
+      for (var r = g.start; r < g.start + g.count; r++) partAt[r] = g.part;
+    });
+    // Bodies, then assemblies, then parts, inside the innermost sub-stack
+    // each row sits in.
     var bodyAt = {};
     var i = 0;
     while (i < rows.length) {
@@ -2884,28 +2952,97 @@
       }
       i = j;
     }
+    // The assemblies (the_groups_switches_reach_the_map_and_the_grid_
+    // brackets_an_assembly_in_two_bodies, 2026-11-19): an assembly holds the
+    // rows on it and on every part inside it, so one whose parts sit in two
+    // bodies holds rows in both. Each maximal run of them inside one body
+    // bracket and one sub-stack is one bracket, and every run is named the
+    // assembly; the fold is the part's, so folding one folds them all. With
+    // no body bracket round it, a top-level assembly is the outermost
+    // bracket and its name takes the body's strip (`outermost`). An
+    // assembly in one body wears its ink; one in none, no body's.
+    var outerAt = {};
+    var assemblyDepth = function (part) { return VA.partDepth(partsById, part); };
+    if (showAssemblies) {
+      var openRun = {};
+      rows.forEach(function (row, r) {
+        if (row.header) return;
+        var chain = [];
+        var seen = {};
+        for (var at = partAt[r]; at && !seen[at]; at = partsById[at] && partsById[at].parent) {
+          seen[at] = true;
+          if (assemblies[at]) chain.unshift(at);
+        }
+        chain.forEach(function (a) {
+          var run = openRun[a];
+          if (run && run.end === r - 1 && (bodyAt[r] || null) === run.body &&
+              containerOf(rows[run.start]) === containerOf(row)) {
+            run.end = r;
+          } else {
+            var depth = assemblyDepth(a);
+            var within = bodyAt[r] || null;
+            var outermost = !within && depth === 0;
+            var own = bodyOfPart[a];
+            run = { kind: "assembly", id: "part:" + a, part: a, depth: depth,
+                    level: (within ? within.level + 1 : levelIn(containerOf(row))) + depth,
+                    start: r, end: r, gap: false,
+                    label: VA.gridPartLabel(partsById[a] || { id: a }),
+                    tint: own !== undefined ? VA.bodyTint(topo, own) : null,
+                    body: within, outer: within || (outermost ? null : outerAt[r] || null),
+                    outermost: outermost,
+                    // Its name is on its first row where that row is its own
+                    // or it is the outermost bracket; a part's number already
+                    // takes the strip on a row a part inside it starts.
+                    named: outermost || partAt[r] === a,
+                    assembly: "open" };
+            openRun[a] = run;
+            braces.push(run);
+          }
+          if (rows[r].rollup && rows[r].rollup.part === a) run.assembly = "closed";
+          if (run.outermost) outerAt[r] = run;
+        });
+      });
+    }
     if (kinds.parts !== false) {
-      var assemblies = VA.assemblyIds(topo);
       groups.forEach(function (g) {
         if (g.header || g.part === null || g.part === undefined || !g.count) return;
+        // Where assemblies are bracketed, an assembly's own rows are its
+        // bracket's.
+        if (showAssemblies && assemblies[g.part]) return;
         var at = bodyAt[g.start];
+        var outer = at || outerAt[g.start] || null;
         var record = partsById[g.part] || { id: g.part };
         var own = rows[g.start].body;
+        var depth = VA.partDepth(partsById, g.part);
         braces.push({ kind: "part", id: "part:" + g.part, part: g.part,
-                      level: at ? at.level + 1 : levelIn(containerOf(rows[g.start])),
+                      level: (at ? at.level + 1 : levelIn(containerOf(rows[g.start]))) +
+                        (showAssemblies ? depth : 0),
                       start: g.start, end: g.start + g.count - 1, gap: false,
                       label: VA.gridPartLabel(record),
                       tint: VA.bodyTint(topo, own !== null && own !== undefined ? own
                                                 : bodyOfPart[g.part]),
-                      body: at || null,
+                      body: at || null, outer: outer,
                       // Its place in the part tree: a nested part's number is
                       // indented, and an assembly's bracket carries its fold
                       // (open, or folded into one rolled-up row).
-                      depth: VA.partDepth(partsById, g.part),
+                      depth: depth,
                       assembly: assemblies[g.part]
                         ? (rows[g.start].rollup ? "closed" : "open") : null });
       });
     }
+    // The rows whose part's number a bracket says (so the row's own cell
+    // does not), and those whose assembly's fold a bracket carries.
+    var said = {};
+    var folds = {};
+    braces.forEach(function (b) {
+      if (b.kind !== "part" && b.kind !== "assembly") return;
+      for (var r = b.start; r <= b.end; r++) {
+        if (b.kind === "part" || partAt[r] === b.part) {
+          if (b.kind === "part" ? !!b.label : b.named) said[r] = true;
+          if (b.assembly) folds[r] = true;
+        }
+      }
+    });
     braces.sort(function (a, b) { return a.level - b.level || a.start - b.start; });
     // How many brackets hold each row.
     var cover = {};
@@ -2914,7 +3051,7 @@
         cover[r] = Math.max(cover[r] || 0, b.level + 1);
       }
     });
-    return { braces: braces, cover: cover };
+    return { braces: braces, cover: cover, said: said, folds: folds };
   };
 
   // A row's one sourcing mark (deliverable 3): the pill cluster's worst word,

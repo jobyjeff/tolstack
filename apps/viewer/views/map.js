@@ -225,7 +225,13 @@
     VA.lastMapLight = reg;
 
     var hscroll = VA.el("div", "tv__hscroll tv__hscroll--map");
-    var svg = VA.svg("svg", "tv__map", { width: "100%", height: "100%" });
+    // A kind of container the Groups popover switches off (VA.GROUP_KINDS)
+    // is hidden by a class on the drawing, so nothing it holds moves and the
+    // counts still find a district per body and a box per part.
+    var hidden = (VA.GROUP_KINDS || []).filter(function (k) {
+      return ctx.groupKinds && ctx.groupKinds[k.id] === false;
+    }).map(function (k) { return " tv__map--no-" + k.id; }).join("");
+    var svg = VA.svg("svg", "tv__map" + hidden, { width: "100%", height: "100%" });
     svg.setAttribute("data-topology", geo.topologyId);
     svg.appendChild(VA.mapSymbolDefs());
     var world = VA.svg("g", "map__world");

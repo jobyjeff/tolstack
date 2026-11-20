@@ -835,6 +835,10 @@ body { display: flex; flex-direction: column; }
 .tvbrace--body.tvbrace--top { border-width: 2px 2px 0 2px; }
 .tvbrace--body.tvbrace--bottom { border-width: 0 2px 2px 2px; }
 .tvbrace--part { color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+/* An assembly's brace (2026-11-19) is drawn as the map draws its outline:
+   dotted, in its body's ink where it has one body, its name in italic. */
+.tvbrace--assembly { color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
+  border-style: dotted; }
 /* The labels, in the gutter at the PART column's left: a body's name in its
    ink, wrapping down its rows; a part's number on its first row. Inert: they
    lie over the PART cells, which are click targets, so a clipped part label
@@ -844,9 +848,11 @@ body { display: flex; flex-direction: column; }
   font-size: var(--t-micro); pointer-events: none;
   white-space: nowrap; text-overflow: ellipsis;
 }
-.tvbrace__label--body { color: var(--fill-ink, var(--muted)); font-weight: 600;
-  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; }
+.tvbrace__label--body { color: var(--fill-ink, var(--muted)); font-weight: 600; }
+.tvbrace__label--wide { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; }
 .tvbrace__label--part {
+  color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+.tvbrace__label--assembly { font-style: italic;
   color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
 /* An assembly's fold in the grid (a_part_may_contain_parts): the one control
    among the brackets, so it alone takes the pointer; quiet until hovered. */

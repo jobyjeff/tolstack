@@ -3143,13 +3143,16 @@
     repaintDag = null;
     repaintToolbarFn = null;
     if (showDag) {
-      // Which of the grid's brackets are drawn (VA.GROUP_KINDS): the reader's
-      // own set for this topology, else every kind.
+      // Which containers the map and the grid draw (VA.GROUP_KINDS): the
+      // reader's own set for this topology, else every kind; and which of a
+      // body and an assembly the grid's outermost bracket is where both are
+      // on (VA.gridGroupKinds).
       var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
       var ctx = {
         // The grid's own region (VA.renderTopoPane): the map's is nodes.pane.
         gridRoot: nodes.topogrid,
         groupKinds: groupKinds,
+        gridOuter: topoProj ? VA.readGridOuter(widthStore(), topoProj.id) : null,
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
@@ -3255,11 +3258,16 @@
             document.getElementById("dag-view");
           if (menu && menu.setAttribute) menu.setAttribute("open", "");
         },
-        // One kind's checkbox: the grid repaints, nothing else on the page
-        // depends on which brackets are drawn.
+        // One kind's checkbox: the map and the grid repaint, nothing else on
+        // the page depends on which containers are drawn. A body or an
+        // assembly switched on becomes the grid's outermost bracket.
         onGroupKind: function (kind, on) {
           groupKinds[kind] = on;
           VA.writeGroupKinds(widthStore(), topoProj.id, groupKinds);
+          if (on && VA.GRID_OUTER_KINDS.indexOf(kind) >= 0) {
+            ctx.gridOuter = kind;
+            VA.writeGridOuter(widthStore(), topoProj.id, kind);
+          }
           repaintDag(false);
         },
         // Density changes how tall the rows already on screen are, not WHICH

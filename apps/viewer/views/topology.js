@@ -1233,18 +1233,14 @@
     // group's top and bottom edge are row counts, and nothing a leader's seam
     // reads moves. A row's first words start inside its innermost bracket.
     var study = !marking ? null : ctx.stack ? "kinematic" : ctx.study ? "chain" : null;
-    var kindsOn = ctx.groupKinds || null;
     var braces = VA.gridBraces(plan, {
       study: study, foot: foot ? foot.childNodes.length : 0, topoProj: ctx.topoProj,
-      kinds: kindsOn ? { bodies: !!kindsOn.bodies, parts: !!kindsOn.parts } : null,
+      kinds: VA.gridGroupKinds(ctx.groupKinds, ctx.gridOuter),
     });
     var braceGeo = VA.braceGeometry(braces, M.rowHeight, tableWidth());
-    // The rows whose part's bracket says its number: their cell does not.
-    var numbered = {};
-    braces.braces.forEach(function (b) {
-      if (b.kind !== "part" || !b.label) return;
-      for (var r = b.start; r <= b.end; r++) numbered[r] = true;
-    });
+    // The rows whose part's number, or whose assembly's fold, a bracket
+    // carries: their cell does not.
+    var numbered = braces.said;
     var tbody = VA.el("tbody");
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
@@ -1254,9 +1250,9 @@
           ? subStackRow(planRow, ctx, hot, indent)
           : planRow.rollup
             ? assemblyRow(planRow, group, index, marking, ctx, hot, indent,
-                          !!numbered[group.start + i])
+                          !!numbered[group.start + i], !!braces.folds[group.start + i])
             : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent,
-                      !!numbered[group.start + i]);
+                      !!numbered[group.start + i], !!braces.folds[group.start + i]);
         tbody.appendChild(row);
       }
     });
@@ -1303,11 +1299,15 @@
     var rows = function (b) { return b.end - b.start + 1; };
     model.braces.forEach(function (b) {
       var right = 2 + b.level * g.inset;
-      var x = b.kind === "part" && b.body ? lefts[model.braces.indexOf(b.body)] + g.body
+      // A part's, and an assembly's inside a body or another assembly, in
+      // the part strip; an outermost assembly's where a body's would be.
+      var inStrip = b.kind === "part" || (b.kind === "assembly" && !b.outermost);
+      var outer = b.outer || b.body;
+      var x = inStrip && outer ? lefts[model.braces.indexOf(outer)] + g.body
         : 2 + b.level * g.inset;
       // A part inside an assembly is indented `nest` a level: its bracket,
       // and so its number (only the part column moves).
-      var nested = b.kind === "part" ? (b.depth || 0) * g.nest : 0;
+      var nested = inStrip ? (b.depth || 0) * g.nest : 0;
       x += nested;
       lefts.push(x);
       var w = Math.max(0, width - x - right);
@@ -1323,21 +1323,22 @@
       caps.push(Object.assign({ side: "bottom", top: y1 - curl }, cap));
       // Where a held row's words start: right of this brace's label strip
       // (a body's or a part's), or just inside its stub.
-      var strip = b.kind === "body" ? g.body : b.kind === "part" ? g.part - nested : g.inset;
+      var wide = b.kind === "body" || (b.kind === "assembly" && b.outermost);
+      var strip = wide ? g.body : inStrip ? g.part - nested : g.inset;
       for (var r = b.start; r <= b.end; r++) indent[r] = Math.max(indent[r] || 4, x + strip);
       // An assembly's fold sits at its label's head, on its first row.
-      var caret = b.kind === "part" && b.assembly ? g.caret : 0;
+      var caret = (b.kind === "part" || b.kind === "assembly") && b.assembly ? g.caret : 0;
       if (caret) {
         carets.push({ part: b.part, open: b.assembly === "open", tint: b.tint,
                       left: x + 3, top: b.start * rowHeight, width: caret, height: rowHeight });
       }
       // A label starts on its brace's first row, on that row's text line;
       // a body's wraps down as many lines as its rows hold, a part's is one.
-      if (b.label && (b.kind === "body" || b.kind === "part")) {
+      if (b.label && (b.kind === "body" || b.kind === "part" || (b.kind === "assembly" && b.named))) {
         var line = Math.min(g.line, rowHeight - 2);
-        var lines = b.kind === "body"
+        var lines = wide
           ? Math.max(1, Math.floor((rows(b) * rowHeight - (rowHeight - line)) / g.line)) : 1;
-        labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label,
+        labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label, wide: wide,
                       left: x + 5 + caret, width: strip - 8 - caret, line: line, lines: lines,
                       top: b.start * rowHeight + (rowHeight - line) / 2,
                       height: lines === 1 ? line : lines * g.line });
@@ -1363,16 +1364,20 @@
     // part's controls; the grid's rows are the rows'. A study's bracket is
     // neither lit nor a control.
     var container = function (node, kind, braceId, cls) {
-      if (kind !== "body" && kind !== "part") return node;
-      // A part's brace id is `part:<part>` (VA.gridBraces); a body's is the
-      // body's own id. The entity is the part or the body.
-      var id = kind === "part" ? String(braceId).replace(/^part:/, "") : String(braceId);
-      node.className += tierClasses(ctx, cls, kind, id);
+      if (kind !== "body" && kind !== "part" && kind !== "assembly") return node;
+      // A part's or an assembly's brace id is `part:<part>` (VA.gridBraces);
+      // a body's is the body's own id. The entity is the part or the body.
+      var entity = kind === "body" ? "body" : "part";
+      var id = entity === "part" ? String(braceId).replace(/^part:/, "") : String(braceId);
+      node.className += tierClasses(ctx, cls, entity, id);
       node.setAttribute("data-brace-kind", kind);
       node.setAttribute("data-brace-entity", id);
       hotRegister(hot, { el: node, base: node.getAttribute("class"),
-        self: [hotKey(kind, id)], hot: cls + "--hot", lead: cls + "--lead" });
+        self: [hotKey(entity, id)], hot: cls + "--hot", lead: cls + "--lead" });
       return node;
+    };
+    var ink = function (tint) {
+      return tint !== undefined && tint !== null ? " tv__fill--t" + tint : "";
     };
     var place = function (node, box) {
       node.style.left = box.left + "px";
@@ -1383,17 +1388,18 @@
     };
     geo.caps.forEach(function (cap) {
       var node = VA.el("div", "tvbrace tvbrace--" + cap.side + " tvbrace--" + cap.kind +
-        (cap.tint !== undefined ? " tv__fill--t" + cap.tint : "") +
-        (cap.gap ? " tvbrace--gap" : ""));
+        ink(cap.tint) + (cap.gap ? " tvbrace--gap" : ""));
       node.setAttribute("data-brace", cap.id);
-      if (cap.kind !== "body" && cap.kind !== "part") node.setAttribute("aria-hidden", "true");
+      if (cap.kind !== "body" && cap.kind !== "part" && cap.kind !== "assembly") {
+        node.setAttribute("aria-hidden", "true");
+      }
       place(container(node, cap.kind, cap.id, "tvbrace"), cap);
     });
     // A label the strip clips keeps its whole text as a title for tools; a
     // reader's hover reaches the PART cell under it, whose title names the part.
     geo.labels.forEach(function (label) {
       var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
-        " tv__fill--t" + label.tint, label.text);
+        (label.wide ? " tvbrace__label--wide" : "") + ink(label.tint), label.text);
       node.setAttribute("data-brace-label", label.id);
       container(node, label.kind, label.id, "tvbrace__label");
       node.setAttribute("title", label.text);
@@ -1406,7 +1412,7 @@
     (geo.carets || []).forEach(function (c) {
       var node = assemblyCaret(c.part, c.open, ctx);
       if (!node) return;
-      node.className += " tvbrace__caret tv__fill--t" + c.tint;
+      node.className += " tvbrace__caret" + ink(c.tint);
       place(node, c);
     });
     return layer;
@@ -1753,7 +1759,7 @@
   // bracket's label (`bracketed`), so the cell prints none. Whatever the
   // column clips is on hover, and the Preview of any of its rows has the
   // part's name, drawing and picture.
-  function partCells(el, group, first, indent, index, bracketed, ctx, folded) {
+  function partCells(el, group, first, indent, index, bracketed, ctx, folded, foldDrawn) {
     var words = first ? VA.partColumns(group.part === null ? null
       : (index.parts[group.part] || { id: group.part })) : null;
     var number = VA.el("td", "tvcell tvcell--part");
@@ -1763,7 +1769,7 @@
     var depth = group.part === null ? 0 : VA.partDepth(index.parts, group.part);
     number.style.paddingLeft = (indent + (bracketed ? 0 : depth * VA.GRID_BRACE.nest)) + "px";
     if (words && !bracketed) {
-      if (ctx && VA.assemblyIds(ctx.topoProj)[group.part]) {
+      if (ctx && !foldDrawn && VA.assemblyIds(ctx.topoProj)[group.part]) {
         var caret = assemblyCaret(group.part, !folded, ctx);
         if (caret) number.appendChild(caret);
       }
@@ -1779,7 +1785,8 @@
     el.appendChild(description);
   }
 
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent, bracketed) {
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent, bracketed,
+                   foldDrawn) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
     var term = planRow.term || null;
@@ -1809,7 +1816,7 @@
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
     else if (isTouched(ctx, "edge", planRow.id)) el.className += " tvrow--touched";
 
-    partCells(el, group, first, indent, index, bracketed, ctx, false);
+    partCells(el, group, first, indent, index, bracketed, ctx, false, foldDrawn);
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -1965,7 +1972,7 @@
   // the totals' columns: centre, worst-case min and max, ± half), so the
   // stack's total reads the same folded or open; on the whole walk nothing
   // is totalled, and nor is this. Its mark is the worst its rows wear.
-  function assemblyRow(planRow, group, index, marking, ctx, hot, indent, bracketed) {
+  function assemblyRow(planRow, group, index, marking, ctx, hot, indent, bracketed, foldDrawn) {
     var partId = planRow.rollup.part;
     var edges = planRow.rollup.edges;
     var el = baseRow("part", ctx, partId);
@@ -1976,7 +1983,7 @@
     }
     if (isSelected(ctx, "part", partId)) el.className += " tvrow--selected";
     else if (isTouched(ctx, "part", partId)) el.className += " tvrow--touched";
-    partCells(el, group, true, indent, index, bracketed, ctx, true);
+    partCells(el, group, true, indent, index, bracketed, ctx, true, foldDrawn);
     el.appendChild(VA.el("td", "tvcell tvcell--ord"));
     var names = edges.map(function (id) { return index.edges[id] ? index.edges[id].name : id; });
     var words = edges.length + (edges.length === 1 ? " dimension" : " dimensions");

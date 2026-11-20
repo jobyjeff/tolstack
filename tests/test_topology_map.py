@@ -257,3 +257,19 @@ def test_the_fast_tiers_two_body_model_is_the_model_views_own():
     end = source.index("// END twoBodyModel")
     literal = source[start:end].split("var TWO_BODY_MODEL = ", 1)[1].rsplit(";", 1)[0]
     assert json.loads(literal) == model_view(load_topology(TWO_BODIES, identity_path=None))
+
+
+def test_the_fast_tiers_two_body_projection_is_the_builders_own():
+    """Its sibling with a dimension on each race
+    (``topology_assembly_in_two_bodies_rows.json``) rides as a whole
+    projection between its own markers for the grid's checks -- the walk an
+    assembly in three bodies is bracketed over -- held to the builder's
+    output the same way."""
+    source = (REPO_ROOT / "apps" / "viewer" / "tests.js").read_text(encoding="utf-8")
+    start = source.index("// BEGIN raceRowsProjection")
+    end = source.index("// END raceRowsProjection")
+    literal = source[start:end].split("var RACE_ROWS_PROJECTION = ", 1)[1].rsplit(";", 1)[0]
+    rows = TWO_BODIES.with_name("topology_assembly_in_two_bodies_rows.json")
+    raw = json.loads(rows.read_text(encoding="utf-8"))
+    topology = load_topology(rows, identity_path=None)
+    assert json.loads(literal) == B.project_topology(rows, raw, topology, [])
