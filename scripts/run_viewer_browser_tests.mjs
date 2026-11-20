@@ -4530,9 +4530,9 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     console.log(`      groups: ${JSON.stringify([groupsBoth, noBodies, noParts])}`);
     push("[real] each Groups checkbox hides exactly its own kind's brackets in the grid, the map " +
       "is drawn as before, and the popover stays open while it is ticked",
-      groupsBoth.button === "Groups (2 of 2)" && groupsBoth.bodies > 0 && groupsBoth.parts > 0 &&
+      groupsBoth.button === "Groups (3 of 3)" && groupsBoth.bodies > 0 && groupsBoth.parts > 0 &&
       noBodies.bodies === 0 && noBodies.parts === groupsBoth.parts &&
-      noParts.parts === 0 && noParts.button === "Groups (0 of 2)" &&
+      noParts.parts === 0 && noParts.button === "Groups (1 of 3)" &&
       noParts.map === groupsBoth.map &&
       await page.locator("#group-kinds").getAttribute("open") !== null);
     await tick("bodies"); await tick("parts");
