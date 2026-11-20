@@ -364,7 +364,10 @@ export const DECLARED_GUARDS = {
   // both +1 from 601, so 603; names digest re-measured on the merge.
   // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): +1 --
   // a pattern bound opposite is one line whose Take names the set. It carries a spec.
-  fast: { declared: 605, enrollable: 605, names: "de0f2d0d8c87" },
+  // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits): +1 -- a body press that writes reads pending in its own click.
+  // It carries a spec.
+  fast: { declared: 606, enrollable: 606, names: "3ece2d9d5aa7" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -463,7 +466,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part):
   // +4 -- the opposite pattern on real v2 records: the size taken from five,
   // another diameter, 7 of 10, another solid. Each carries a spec.
-  annotate: { declared: 331, enrollable: 331, names: "5876b5af892f" },
+  // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits): +2 -- the inbox is read once per page, and a write runs once the
+  // gate opens rather than behind the queue. Each carries a spec.
+  annotate: { declared: 333, enrollable: 333, names: "bf9d0b3c71b4" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -740,7 +746,11 @@ export const DECLARED_GUARDS = {
   // -- the opposite pattern's line, head offer, hover and Take, each with a
   // spec, and the suite's `[real] ... (skipped: ...)` push, whose condition is
   // the literal `true`, so no mutation can redden it.
-  browser: { declared: 779, enrollable: 752, names: "52943eb9be94" },
+  // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits): +3 -- the pitch plate's Keep reads pending in the frame and the
+  // others wait; it writes one event and leaves nothing pending (each with a
+  // spec); and the suite's `(skipped: ...)` push, the literal `true` again.
+  browser: { declared: 782, enrollable: 755, names: "3433004110e2" },
 };
 
 

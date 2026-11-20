@@ -2399,6 +2399,14 @@
     //: A click being read and written (it can take seconds on a large part);
     //: a click that lands meanwhile is dropped, and the line stays.
     reading: "reading face {face}…",
+    //: Any other press that writes (Take, Take all, Keep, Unbind, ...), on
+    //: the pressed control from the press until the write lands; then, if it
+    //: did not, what the control says, the reason on hover. The shell's body
+    //: says the same words (VA.FEATURE_BODY_WORDS, paired by tests/test_bind_
+    //: latency_vocabularies.py).
+    writing: "writing…",
+    failed: "not written",
+    busy: "another write was still running",
   });
 
   //: The modes an arm can be asked for beside a plain pick (`arm <edge> <end>

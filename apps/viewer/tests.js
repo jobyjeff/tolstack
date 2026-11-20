@@ -10392,6 +10392,53 @@
         eq(posted, [["camera", "face", "bb", "134", "135"]], "clicking the line turns the pane to it");
       });
 
+    // --- a bind on the pitch plate writes in seconds and says so while it
+    // waits (handoff 2026-11-19): the press is shown taken in the click itself.
+    await test("a body press that writes reads pending in the click itself, before the pane " +
+      "answers; while it writes every writing control waits; a failure stays on its control", function () {
+        var model = VA.buildModel(bodiedProj(), boundIdentity());
+        var W = VA.FEATURE_BODY_WORDS, S = VA.WRITE_PRESS_STATES;
+        var plan = VA.featureBodyPlan(model, "p1@n2", "mini", [], null);
+        var posted = [];
+        // The writer never answers: what the control shows is the click's own doing.
+        var never = function (c) { posted.push(c); return new Promise(function () {}); };
+        var slot = document.createElement("div");
+        VA.renderFeatureBody(slot, [], { plan: plan, command: never });
+        var byAct = function (act) {
+          return Array.prototype.slice.call(slot.querySelectorAll("button")).filter(function (b) {
+            return b.getAttribute("data-body-act") === act;
+          })[0];
+        };
+        var unbind = byAct("unbind");
+        unbind.onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        eq([unbind.textContent, !!unbind.disabled, unbind.getAttribute("data-pending")], [W.writing, true, S[0]],
+           "Unbind reads writing and is disabled before the pane has answered anything");
+        eq(posted, [["unbind", "d1", "to", "mini"]], "and the command went");
+        // The page's repaint while it writes: the pressed one still pending, the
+        // other writer (Flip) waiting, a non-writing control (Correct) free.
+        var writing = { key: VA.bodyCommandKey(["unbind", "d1", "to", "mini"]), state: S[0] };
+        VA.renderFeatureBody(slot, [], { plan: plan, command: never, write: writing });
+        eq([byAct("unbind").textContent, !!byAct("unbind").disabled], [W.writing, true]);
+        eq(!!byAct("flip").disabled, true, "another write waits for this one");
+        eq(!!byAct("arm").disabled, false, "Correct writes nothing, so it is free");
+        // Not written: the reason on the control, which is pressable again.
+        VA.renderFeatureBody(slot, [], { plan: plan, command: never,
+          write: { key: writing.key, state: S[1], reason: "the folder was not granted" } });
+        eq([byAct("unbind").textContent, byAct("unbind").getAttribute("title"), !!byAct("unbind").disabled,
+          byAct("unbind").getAttribute("data-pending")], [W.failed, "the folder was not granted", false, S[1]]);
+        // A mirrored row's control that writes (the pane's candidate Take) does
+        // the same at its own press, before the gesture crosses to the pane.
+        var sent = [];
+        VA.renderFeatureBody(slot, [{ key: "k", text: "end", buttons: [{ text: "Take", writes: true },
+          { text: "Pick on the other part" }] }], { send: function (k, act, i) { sent.push([k, act, i]); } });
+        var buttons = slot.querySelectorAll("button");
+        buttons[0].onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        eq([buttons[0].textContent, !!buttons[0].disabled], [W.writing, true]);
+        buttons[1].onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        eq(buttons[1].textContent, "Pick on the other part", "a control that writes nothing is left as it is");
+        eq(sent.map(function (s) { return s[2]; }), [0, 1]);
+      });
+
     await test("an unbound feature with the other side bound lists the pane's ranked mates, each " +
       "with its reason and Take; armed, they are listed under the pick's line", function () {
         var model = VA.buildModel(bodiedProj(), boundIdentity());

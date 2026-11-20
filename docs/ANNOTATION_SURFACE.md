@@ -149,10 +149,14 @@ in `apps/viewer/identity_fold.js` (`VA.foldIdentityEvents`, one file for both
 apps; `tests/test_identity_fold_is_paired.py` folds one log in Python and in
 it and compares every record). With the folder granted, the pane reads the
 inbox itself, which is fresher still: an agent's proposal lands there with no
-rebuild. After **every event it writes**, the pane rewrites the served log
-from the folder through the grant, repaints its bound faces, and posts its
-merged record to the shell (`annotate:identity`, below), so the tree changes
-at once and a reload, with or without a grant, shows the write. `bindings.json`
+rebuild. After **every event it writes**, the pane repaints its bound faces
+and posts its merged record to the shell (`annotate:identity`, below) at
+once, so the tree changes as soon as the event is on disk; then, behind the
+press and one rewrite at a time, it rewrites the served log from the folder
+through the grant, so a reload, with or without a grant, shows the write
+(2026-11-19: the press used to wait for that rewrite). Through the grant an
+event file is read once per page -- the inbox is append-only -- and a later
+read opens only the files that are new since. `bindings.json`
 is still what the fitter and every Python reader use, and the rebuild rail
 still refreshes it; a page reads it only where no log is reached.
 
@@ -1076,6 +1080,28 @@ more plain binding, which only joined the set it repeated.
   offer's Take, that lands while the last is still being decided or written
   is dropped, and the page reserves every seq it hands out, so no two of its
   writes share one.
+
+### A press that writes says so at once (2026-11-19)
+
+Handoff `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`:
+on the pitch plate a Keep took 23 s to reach the disk and 27 s to change the
+body, and the only thing that moved meanwhile was the button's focus ring.
+
+- **Every press that writes reads `writing…` and is disabled in its own
+  click**: the body's Keep, Unbind, Take, Flip and Remove, a candidate row's
+  Take, and the group offer's two answers. While it writes, the body's other
+  writing controls wait too. If it was not written, the control reads
+  `not written`, the reason on hover, and pressing it again tries again. An
+  armed click keeps its `reading face N…` line. The words are the pane's
+  `AA.ARMED_PICK_WORDS` and the shell's `VA.FEATURE_BODY_WORDS`, one wording
+  (`tests/test_bind_latency_vocabularies.py`).
+- **A write does not wait behind the pane opening its model.** The pane runs
+  an identity write (`AA.IDENTITY_WRITE_VERBS`) once it has loaded, never
+  queued behind the commands posted before it (`ExecQueue.runAfterLoad`).
+- **What a write still costs** is one read of the inbox, the first time the
+  folder is granted in a page: an event's seq is only in its file, so every
+  file is opened once. `window.__writeSteps` is the last write's clock, step
+  by step, and `tests/debug_bind_latency_20261119.mjs` prints it per press.
 
 ### A hole pattern (2026-11-15)
 

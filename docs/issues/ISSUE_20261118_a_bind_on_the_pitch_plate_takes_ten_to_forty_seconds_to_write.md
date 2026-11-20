@@ -7,6 +7,7 @@ reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_a_disagreement_is_settled_by_keep_or_let_go.md
 handoff: docs/sessions/HANDOFF_20261119_a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits.md
 class: annotate_write_latency
+resolution: "verified 2026-11-19 by handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits, probe tests/debug_bind_latency_20261119.mjs on a scratch copy of the log. Pitch plate Keep, press -> disk 29.4 s -> 2.7-3.0 s (settled page; 9.7-10.7 s while the page still loads meshes), press -> body 40.4 s -> 3.3-3.5 s. Unbind 21.7-24.5 s -> 2.0-2.3 s to disk. Armed click 5.6 s -> 0.6 s to disk, 15.5 s -> 0.6 s to body. Take 0.17 s / 0.35 s. Every write press reads writing... in its own click. The remaining first-write cold read is filed as ISSUE_20261119_the_first_write_of_a_page_still_opens_every_event_file_to_find_the_next_seq.md"
 ---
 
 # A bind on the pitch plate takes 10–40 seconds to write, and the tree reads it 5–13 seconds after that
@@ -59,3 +60,24 @@ tree on the pitch arm, blade root and piston parts.
 > disagreement at any speed (traced in
 > `docs/sessions/completed/HANDOFF_20261118_a_disagreement_is_settled_by_keep_or_let_go.md`,
 > fixed by it). The latency measured above is still this issue's subject.
+
+## Resolution 2026-11-19 (handoff `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`)
+
+Measured per step before changing anything (the lesson has the table). The
+time was the log **read three times per write** through the grant (at the
+grant, for the next seq, to rewrite the served log: 2 025 folder calls), and
+a write **queued behind the pane opening its model** (5.5-8.8 s). Face
+classification was free. Cut: event files are read once per page; writes run
+after the load gate and skip the queue; the shell is told the moment the event
+is on disk, with the served-log rewrite behind the press. Same probe, scratch
+log, ms:
+
+| press | before: disk / body | after: disk / body |
+|---|---:|---:|
+| Keep, first write | 29 359 / 40 359 | 2 747-2 951 / 3 256-3 512 settled; 9 684-10 708 / 11 156-11 319 loading |
+| Unbind, first write | 21 663-24 546 / 32 103-34 970 | 1 995-2 302 / 2 556-3 057 |
+| armed click | 5 550 / 15 495 | 582-720 / 632 |
+| Take (grant held) | not measured | 129-172 / 354 |
+
+Each write press reads `writing…` and is disabled from its own click
+(shots in `docs/sessions/lessons/shots/a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits/`).

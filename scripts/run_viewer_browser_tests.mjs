@@ -10911,6 +10911,144 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   }
 }
 
+// A press that writes says so at once (handoff a_bind_on_the_pitch_plate_
+// writes_in_seconds_and_says_so_while_it_waits, 2026-11-19), on model v1 with
+// the real served log and the real meshes -- writes go to the pane's
+// in-memory store, never to the folder. The pitch plate's link bore holds two
+// sets that disagree (Jeff's events 0093-0100); Keep on "faces 1380, 1381"
+// reads pending in the frame of the press, writes one event, and the body
+// reads bound. The press -> event and press -> body times are PRINTED, never
+// asserted: this tier runs under load (the per-step table is the probe's,
+// tests/debug_bind_latency_20261119.mjs, on a scratch copy of the folder).
+async function testAPressThatWritesSaysSo(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V1 = "vpa_pitch_linkage";
+  const BORE = "pitch_plate_215177_001@pitch_plate_link_attach_bore";
+  const servedLog = await readProjection("feature-identity/log.json");
+  const events = (servedLog && servedLog.events) || [];
+  const faceKeys = (e) => (e.geometry_keys || (e.geometry_key ? [e.geometry_key] : []));
+  const boreSets = new Set(events.filter((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === "pitch_plate_215177_001" && e.feature_key.node === "pitch_plate_link_attach_bore")
+    .map((e) => faceKeys(e).map((k) => k.face_id).sort((a, b) => a - b).join(",")));
+  const v1 = topologies && (topologies.topologies || []).find((t) => t.id === V1);
+  if (!v1 || !boreSets.has("1380,1381") || boreSets.size < 2) {
+    push("[real] a press that writes says so at once (skipped: model v1, or the pitch plate bore's " +
+      "two disagreeing sets in the served log, is not on disk -- build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // A twisty is clicked until the page reports it expanded (a repaint can
+  // replace the node a click found); an absent one is printed, never thrown.
+  const expand = async (key) => {
+    const sel = `#navtree [data-nav-twisty="${key}"]`;
+    const isOpen = (s) => { const t = document.querySelector(s); return !!t && t.getAttribute("aria-expanded") === "true"; };
+    if (!(await page.locator(sel).count())) return;
+    for (let i = 0; i < 5; i++) {
+      if (await page.evaluate(isOpen, sel)) return;
+      await page.evaluate((s) => { const t = document.querySelector(s); if (t) t.click(); }, sel);
+      await page.waitForFunction(isOpen, sel, { timeout: 3000 }).catch(() => {});
+    }
+  };
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V1, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    if (!(await until((w) => !!w.__embedTree, null, 120000))) console.log("    MISSING: the pane's embedded tree");
+    for (const key of ["bi:pitch_plate", "p:pitch_plate_215177_001", `f:${BORE}`]) await expand(key);
+    const disagree = await page.waitForFunction((id) => {
+      const row = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+      return !!(row && row.parentElement.querySelector('.navtree__featurebody[data-body-kind="disagree"]'));
+    }, BORE, { timeout: 30000 }).then(() => true, () => false);
+    if (!disagree) console.log("    MISSING: the bore's body reading its two sets disagreeing");
+    const before = (await inPane((w) => (w.__mockWrites || []).length)) || 0;
+    // Pressed in the page, and read one frame later: the frame a reader sees.
+    const atOnce = await page.evaluate(async (id) => {
+      const row = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+      const slot = row && row.parentElement.querySelector(".navtree__scene");
+      const line = slot && Array.from(slot.querySelectorAll(".navtree__featurestate"))
+        .find((l) => (l.querySelector(".navtree__featurewords") || {}).textContent === "faces 1380, 1381");
+      const acts = line && line.nextElementSibling;
+      const keep = acts && Array.from(acts.querySelectorAll("button")).find((b) => b.textContent === "Keep");
+      if (!keep) return null;
+      keep.click();
+      window.__pressT0 = performance.now();
+      window.__bodyAt = null;
+      // The nav is rebuilt whole when the record lands, so the row is found
+      // again on every change rather than held.
+      const obs = new MutationObserver(() => {
+        const r = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+        const body = r && r.parentElement.querySelector(".navtree__scene .navtree__featurebody");
+        if (window.__bodyAt === null && body && body.getAttribute("data-body-kind") === "bound") {
+          window.__bodyAt = performance.now();
+          obs.disconnect();
+        }
+      });
+      obs.observe(document.getElementById("navtree"), { subtree: true, childList: true, attributes: true });
+      await new Promise((r) => requestAnimationFrame(() => r()));
+      const now = slot.querySelector("[data-pending]") || keep;
+      return { text: now.textContent, disabled: !!now.disabled, pending: now.getAttribute("data-pending"),
+        others: Array.from(slot.querySelectorAll('button[data-body-act="keep"], button[data-body-act="unbind"]'))
+          .filter((b) => b !== now).map((b) => !!b.disabled) };
+    }, BORE);
+    console.log(`    one frame after Keep: ${JSON.stringify(atOnce)}`);
+    push("[real] Keep on the pitch plate's link bore reads writing and is disabled in the frame of the " +
+      "press, and the other writing controls wait",
+      !!atOnce && atOnce.text === "writing…" && atOnce.disabled && atOnce.pending === "writing" &&
+      atOnce.others.length > 0 && atOnce.others.every(Boolean));
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 120000);
+    const wroteAt = await page.evaluate(() => performance.now() - window.__pressT0);
+    await page.waitForFunction(() => window.__bodyAt !== null, null, { timeout: 60000 }).catch(() => {});
+    const timing = await page.evaluate(() => ({ body: window.__bodyAt === null ? null : Math.round(window.__bodyAt - window.__pressT0) }));
+    const written = (await inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({ verdict: x.event.verdict,
+      faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id) })), before)) || [];
+    const steps = await inPane((w) => w.__writeSteps || null);
+    console.log(`    TIMING pitch plate Keep: press -> event ${Math.round(wroteAt)} ms, press -> body ` +
+      `${timing.body} ms (in-memory store; printed, not asserted); steps ${JSON.stringify(steps && steps.steps)}`);
+    const body = await page.evaluate((id) => {
+      const row = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+      const slot = row && row.parentElement.querySelector(".navtree__scene");
+      return slot ? { kind: (slot.querySelector(".navtree__featurebody") || { getAttribute: () => null }).getAttribute("data-body-kind"),
+        pending: slot.querySelectorAll("[data-pending]").length + slot.querySelectorAll("button:disabled").length } : null;
+    }, BORE);
+    push("[real] ...it writes one event holding faces 1380 and 1381, the body then reads bound, and " +
+      "nothing is left pending",
+      written.length === 1 && written[0].verdict === "bound" &&
+      JSON.stringify(written[0].faces.slice().sort((a, b) => a - b)) === "[1380,1381]" &&
+      !!body && body.kind === "bound" && body.pending === 0 && timing.body !== null);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
 // A pattern is bound as its like faces, and a face can be added (handoff
 // a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added, 2026-11-15),
 // on model v2 with the real served log and the real meshes -- writes go to
@@ -14580,6 +14718,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testPatternAndAddAFace(browser, label, topologies)],
       ["a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
         (label) => testOppositePattern(browser, label, topologies)],
+      ["a press that writes says so at once (the pitch plate's Keep: pending in the frame, one event, the body, the time)",
+        (label) => testAPressThatWritesSaysSo(browser, label, topologies)],
       ["the map (the counts on both models, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
       ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",

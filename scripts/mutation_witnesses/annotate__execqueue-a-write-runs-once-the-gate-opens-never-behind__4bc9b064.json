@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "ExecQueue: a write runs once the gate opens, never behind a command queued before it that has not finished",
+  "mutations": [
+    {
+      "contract": "An identity write runs once the pane has loaded, not behind the commands queued before it: the pane opening its model is one queue entry of 5-30 s, and a Keep pressed meanwhile waited for all of it before it began.",
+      "issue": "docs/issues/ISSUE_20261118_a_bind_on_the_pitch_plate_takes_ten_to_forty_seconds_to_write.md",
+      "note": "Puts the write back in the chain -- the shape every write had before 2026-11-19.",
+      "file": "apps/annotate/exec_queue.js",
+      "find": "  ExecQueue.prototype.runAfterLoad = function (run) {\n    return this._gate.then(",
+      "replace": "  ExecQueue.prototype.runAfterLoad = function (run) {\n    return this.enqueue(run);\n    return this._gate.then("
+    }
+  ]
+}
