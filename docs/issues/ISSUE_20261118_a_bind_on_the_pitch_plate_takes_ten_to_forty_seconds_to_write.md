@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: annotate / armed pick and Take write path
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_a_disagreement_is_settled_by_keep_or_let_go.md
 handoff: docs/sessions/HANDOFF_20261119_a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits.md
 class: annotate_write_latency
+resolution: handoff completed 2026-11-19 -- closed automatically by dispatch when handoff `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits` moved to completed/; not independently verified.
 ---
 
 # A bind on the pitch plate takes 10–40 seconds to write, and the tree reads it 5–13 seconds after that
