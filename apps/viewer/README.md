@@ -251,8 +251,8 @@ of the part cannot disagree about it. An adjacent edge with no part is a
 **clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
 is never a crop *of the interface itself*: an interface is a location, not a
 value. The pane printed the authored `parts` list until handoff
-`surfaces_that_state_something_false`, which is 102 of the
-147 live nodes answering differently hovered and clicked (both models; 37 of 79 then) — one surface and one
+`surfaces_that_state_something_false`, which is 110 of the
+157 live nodes answering differently hovered and clicked (both models; 37 of 79 then) — one surface and one
 record now.
 
 A part with no drawing of its own is identified by the documents its own rows
