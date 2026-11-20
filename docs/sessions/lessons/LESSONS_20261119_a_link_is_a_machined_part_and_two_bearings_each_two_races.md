@@ -302,7 +302,51 @@ mesh.
   rows far down the long nav. It now opens each distinct closed key once,
   dispatched in the page.
 
-TEST_RECORD
+## The test record
+
+Everything ran from this worktree. The `[real]` tiers ran against a scratch
+root, `data/scratch/lnk` in the main checkout. It held copies of inbox, meshes
+and projections and a `git archive` of the tree. Every builder was then run
+from this worktree with `--data-root <root>/data`; the first run needed
+`--allow-older-tree` once, because the archive's first build was stamped from
+the main checkout's git. The last rebuild was from `49c952b3`, and later
+commits changed only browser checks, the probe, shots and this lesson. The
+shared `data/` was never written. The real feature-identity log is 100 events
+before and after. The scratch root is left in place for the review, and is
+gitignored.
+
+- **Default tier**, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+  on `9e780777`: **2488 passed, 2 failed, 1 skipped**, 518 s (ledger row
+  recorded, inside budget). The two failures:
+  - `test_viewer_js_suite_is_green`: the worktree has no `data/`. The tier
+    below was run instead.
+  - `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`:
+    pre-existing, already filed as
+    `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
+- **Viewer fast tier with `[real]`**, `node apps/viewer/run_tests.cjs --repo <scratch root>`:
+  **618/618**.
+- **Annotate fast tier**, `node apps/annotate/run_tests.cjs --repo <scratch root>`:
+  **334/334**.
+- **Browser**, `--repo <scratch root>`, one `--only` per suite, for every
+  suite that reads v2:
+  - `the map (the counts on both models`: 32/32.
+  - `the Groups switches`: 11/11.
+  - `the model drawn alone`: 22/22.
+  - `the DAG zoom, Fit and the grid header`: 35/35.
+  - `a suggestion names its face`: 5/5. It failed 3/5 once inside a
+    back-to-back batch, then passed alone, unchanged.
+  - `a pattern is bound as its like faces`: 11/11.
+  - `a bound pattern offers the whole pattern`: 4/4, after its fold clicks
+    were dispatched in the page.
+  - `the first end of a joint lists`: 2/2.
+
+  The last three browser edits came after the last batch. Each changed suite
+  was re-run alone after its edit.
+- **Witness**: one run with the two new specs, `--only` each, **3/3
+  mutations witnessed** in 9m36s. No existing spec changed, and the one
+  browser guard whose name I first changed is back to its name, so its spec
+  stands (`tests/test_mutation_witnesses.py` 49 passed). Pins: viewer fast
+  `618 / 618` (+1, with a spec). The pytest guard is not censused.
 
 ## Found on arrival
 
