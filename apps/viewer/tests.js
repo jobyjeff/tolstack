@@ -13487,6 +13487,17 @@
         void cls;
       });
 
+    await test("the map's drawn transform keeps the fit's scale, so a fitted drawing stays inside " +
+      "its region", function () {
+        // v2's map at 1700 x 1500 Side by side, 2026-11-20: a fit of 0.27588
+        // drawn as scale(0.28) ran 2 px past the pane's right edge.
+        var bounds = { x: -43, y: 54, w: 3034, h: 3394 };
+        var fit = VA.mapFitView(bounds, 837, 1500);
+        var drawn = Number(/scale\(([^)]+)\)/.exec(VA.mapTransform(fit))[1]);
+        ok(Math.abs(drawn - fit.k) < 1e-4, "scale " + drawn + " for a fit of " + fit.k);
+        ok(bounds.w * drawn <= 837 + 0.5, "drawn " + bounds.w * drawn + " wide in 837");
+      });
+
     await test("the map's view fits the drawing to its region never past the cap, zooms about " +
       "the pointer, pans by the least that brings a rect in, and is kept across a repaint", function () {
         var bounds = { x: 0, y: 0, w: 2000, h: 1000 };

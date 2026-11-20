@@ -378,7 +378,9 @@ export const DECLARED_GUARDS = {
   // kind switched off. Each carries a spec.
   // 2026-11-20 (a_link_is_a_machined_part_and_two_bearings_each_two_races): +1 --
   // an assembly's dimension ends at its members' features. It carries a spec.
-  fast: { declared: 618, enrollable: 618, names: "0afa27e20bf8" },
+  // 2026-11-20 (the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack): +1 --
+  // the map's drawn transform keeps the fit's scale. It carries a spec.
+  fast: { declared: 619, enrollable: 619, names: "17850bac9211" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

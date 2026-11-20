@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map's drawn transform keeps the fit's scale, so a fitted drawing stays inside its region",
+  "mutations": [
+    {
+      "contract": "The map's drawn scale is the fit's, so a fitted drawing stays inside its region.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack.md",
+      "note": "Rounds the scale to two decimals again, the rule before 2026-11-20: a fit of 0.27588 draws as 0.28 and the map runs past the pane.",
+      "file": "apps/viewer/map.js",
+      "find": "      Math.round(view.k * 100000) / 100000 + \")\";",
+      "replace": "      round(view.k) + \")\";"
+    }
+  ]
+}

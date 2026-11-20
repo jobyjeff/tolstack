@@ -1385,8 +1385,12 @@
     return VA.mapPan(view, dx, dy);
   };
 
+  // The scale keeps five decimals: at a fit of 0.276 a scale rounded to
+  // two (0.28) drew v2's seven-column map 1.5% wider than its region and
+  // past the pane's edge (2026-11-20, the first width-bound fit).
   VA.mapTransform = function (view) {
-    return "translate(" + round(view.tx) + " " + round(view.ty) + ") scale(" + round(view.k) + ")";
+    return "translate(" + round(view.tx) + " " + round(view.ty) + ") scale(" +
+      Math.round(view.k * 100000) / 100000 + ")";
   };
 
   // --- what an entity lights on the map -------------------------------------
