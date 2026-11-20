@@ -11824,13 +11824,17 @@ async function testOppositePattern(browser, label, topologies) {
     await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
     await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
     await until((w) => !!w.__embedTree, null, 120000);
-    if (!(await page.locator(row).count())) {
-      await page.locator('#navtree [data-nav-twisty="p:tan_link_mount_215175_002"]').first().click({ timeout: 5000 }).catch(() => {});
-    }
-    const twisty = page.locator(`#navtree [data-nav-twisty="f:${FID}"]`).first();
-    if (await twisty.count() && (await twisty.getAttribute("aria-expanded")) !== "true") {
-      await twisty.click({ timeout: 5000 }).catch(() => {});
-    }
+    // The two folds are clicked in the page: Playwright's scroll-into-view
+    // stalled on the nav while the pane opened v2's meshes (2026-11-20,
+    // a_link_is_a_machined_part_...), and a stalled click left the body unopened.
+    const openFold = (key) => page.evaluate((key) => {
+      const b = document.querySelector(`#navtree [data-nav-twisty="${key}"]`);
+      if (b && b.getAttribute("aria-expanded") !== "true") b.click();
+      return !!b;
+    }, key).catch(() => false);
+    if (!(await page.locator(row).count())) await openFold("p:tan_link_mount_215175_002");
+    await page.waitForSelector(row, { timeout: 30000 }).catch(() => {});
+    await openFold(`f:${FID}`);
     await patternLine().waitFor({ timeout: 180000 }).catch(() => {});
     const body = await slot().locator(".navtree__featurestate").evaluateAll((rows) => rows.map((r) => ({
       words: (r.querySelector(".navtree__featurewords") || {}).textContent || "",

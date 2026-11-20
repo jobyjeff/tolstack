@@ -198,7 +198,49 @@ shipped has none:
 Every place above row 4 is the sketch's. The hub, the blade root and the
 pitch arm moved down.
 
-SHOTS_AND_CLICKAROUND
+### The shots and the click-around
+
+The shots are in `shots/a_link_is_a_machined_part_and_two_bearings_each_two_races/`.
+They were taken by `tests/debug_links_20261120.mjs` against a scratch root
+(below), and were read before this section was written.
+
+- `map_3840_side_by_side.png` and `map_1536_side_by_side.png`, with crops of
+  each link (`map_*_tangential_link.png`, `map_*_pitch_link.png`). The probe
+  measured all four bearings at both widths: each draws its named dotted
+  outline, both its races, and a spherical symbol between the two races. The
+  layout has no notes. The drawn counts equal the model's (5 bodies, 31 parts,
+  83 features, 59 dimensions, 44 interfaces).
+- `map_3840_links_{bodies,assemblies,parts}_off.png`: the Groups switches over
+  the links. Nothing moves.
+- What the shots showed that no check asked about:
+  - The tangential link's outline is a large rectangle round its Z, and it
+    crosses into ground's district and the pitch plate's. That is the rule
+    (an outline may cross a district's border), but it is a lot of dotted line
+    for five boxes.
+  - The mount-end inner race is joined to the mount by a long vertical route
+    past two empty cells.
+  - The hub's three joints to the mount detour by the base column's left flank
+    past that race.
+- `tree_pitch_link_open.png`: the nav with the pitch link open. Each link
+  body lists its machined part and outer races. The Parts section lists
+  `213862-002 pitch link` whole: machined part, two bearings, four races. So
+  every race is listed twice (filed; below).
+- `pane_outer_race_selected.png`: the 3D pane, Side by side, with the lower
+  outer race's cylinder selected after it was bound (below).
+- **One race feature bound end to end**, on the scratch copy of the log. The
+  feature was `pitch_link_lower_outer_race@pitch_link_lower_outer_race_od`,
+  unbound at rest. **Pick a face** armed it. The pick of face 0 of the
+  bearing's mesh went through the scene's `onPick`, because the probe's
+  screen scan found no point on the face at that camera. It swept in the
+  cylinder's other three arcs and wrote event `0101` in 2 ms, keyed
+  `vpa_end_stop_v2:pitch_link_lower_outer_race@pitch_link_lower_outer_race_od`,
+  with faces 0, 1, 20 and 21 of `815597cb`. The body then read
+  "bound · 4 faces of outer race, pitch arm end". The real log was 100
+  events before and after.
+- The four moved centres' bodies read "bound · face 104 of outer race, pitch
+  arm end" and so on. The face is on the link assembly's mesh, but the line
+  names the part the feature is on. That is the existing wording; question 6
+  is the real question here.
 
 ## 3D
 
@@ -214,7 +256,51 @@ SHOTS_AND_CLICKAROUND
   all open: the assembly mesh, the machined part's mesh and the bearings'.
   This is measured, not hidden, as 215177's is.
 - `ISSUE_20261120_an_assembly_in_no_body_is_listed_twice_in_the_nav_and_posed_by_nothing_in_3d.md`
-  is now reachable. ADDENDUM_NAV
+  is now reachable, in the nav and in 3D. Its addendum says how. It is still a
+  design call and is not touched here.
+
+## Decisions the handoff left open
+
+- **Body part order is the walk's.** v2's walk is `authored`, so it enters a
+  body at the earliest-listed part that an incoming edge reaches. With the
+  inner races listed last, the pitch plate was entered by the feather stop
+  and the blade by the hub (`test_model_v2_reads_in_its_authored_body_and_part_order`
+  caught it). Each link now reads from the end the walk enters it by. Each
+  inner race is listed where its link enters the mating body: first in the
+  blade and the plate, with the pitch link's beside its attachment's
+  bushings. The first rows are unchanged.
+- **The outer race carries a dimension** from its cylinder to its seat's
+  centre (above).
+- **The races declare no occurrence** (under "3D").
+
+## The browser checks this model change moved
+
+These are the CLAUDE.md lesson of 11-18 again: a stack-data change is a
+browser-test change. Every one below was a check written against v2 before
+v2 had an outline, a two-body assembly or a bound feature on another part's
+mesh.
+
+- `the map`: the counts check counted boxes only. A part is its box *or its
+  outline* (`VA.mapCounts` and DAG_TOPOLOGY already said so), so it now
+  counts `rect.map__outline` too.
+- `the model drawn alone`, four checks:
+  - The 3D pane's Bodies list appends the run's own link parts (the link
+    assemblies linkage poses) to the model's. The expected count now adds
+    those, where the model puts them in no body.
+  - An inner race is drawn by its bearing's mesh, which the link carries.
+    It is exempt from "posed with its own body" (pointing at the filed
+    issue).
+  - A bound interface partner ghosts the mesh *its bound face* is on. The
+    tangential link's centres are bound on the assembly mesh, not on the
+    race's.
+  - The locating-boss row's interface no longer fits on screen with the
+    boss's own row. Ground lists one more part, and the page keeps the own row
+    on screen (`revealLitRows`). The check now asks for that.
+- `a pattern is bound as its like faces`, the Parts filter: its opener
+  clicked every closed fold. A race listed twice shares one fold key, so a
+  pass toggled it twice, and Playwright's scroll-into-view stalled on the
+  rows far down the long nav. It now opens each distinct closed key once,
+  dispatched in the page.
 
 TEST_RECORD
 

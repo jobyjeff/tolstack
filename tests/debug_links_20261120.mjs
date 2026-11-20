@@ -490,7 +490,7 @@ if (!argv.includes("--skip-map")) {
       return all.slice(Math.max(0, at - 6), at + 6).map((r) => r.getAttribute("data-id") + " | " + r.textContent.replace(/\s+/g, " ").trim().slice(0, 120));
     });
     log("grid rows round the lower ball joint", rows);
-    await clipShot(page, "grid_pitch_link_lower_bearing", await boxOf(page, ["#topopane table"]), 0);
+    await clipShot(page, "grid_pitch_link_lower_bearing", await boxOf(page, ["#topogrid"]), 0);
   } else {
     log("grid", "no row for pitch_link_lower_ball_joint");
   }
