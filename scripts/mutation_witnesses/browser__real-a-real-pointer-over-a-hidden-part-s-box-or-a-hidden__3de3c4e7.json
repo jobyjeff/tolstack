@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "[real] a real pointer over a hidden part's box or a hidden body's district finds nothing there: it lights neither and a click selects neither",
+  "mutations": [
+    {
+      "contract": "A kind switched off is not there for the pointer: its hits stop taking it, so a hidden box or district neither hovers nor selects.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "The shape that shipped first and the review measured: visibility alone, which SVG's all/fill/stroke hits ignore -- the hub's empty box lit and selected the part, ground's empty district selected the body.",
+      "file": "apps/viewer/map.css",
+      "find": ".tv__map--no-bodies .map__layer--districts *,\n.tv__map--no-bodies .map__layer--districtnames *,\n.tv__map--no-assemblies .map__layer--assemblies *,\n.tv__map--no-parts .map__layer--boxes * { pointer-events: none; }",
+      "replace": ".tv__map--no-assemblies .map__layer--assemblies * { pointer-events: none; }"
+    }
+  ]
+}

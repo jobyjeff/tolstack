@@ -771,7 +771,9 @@ export const DECLARED_GUARDS = {
   // the Groups switches on v2's page and the race-rows fixture: eight checks with a spec each;
   // the suite's `(skipped: ...)` push, the literal `true`; and "nothing threw on the Groups
   // page", which every one of the eight mutations leaves green and no plausible one reddens alone.
-  browser: { declared: 798, enrollable: 769, names: "bc70e662c630" },
+  // Round 2 of the same handoff: +2 -- a real pointer over a hidden box or district finds nothing,
+  // and the fixture's hidden outline is not hit. Each carries a spec.
+  browser: { declared: 800, enrollable: 771, names: "18f4e108cede" },
 };
 
 
