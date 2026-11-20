@@ -39,3 +39,12 @@ until they nudge the mouse. Worth knowing:
 - whether the page should re-post the hover for the row under the pointer after
   a rebuild (it knows which key was hovered), rather than wait for the browser's
   next boundary event.
+
+## Sighting 2026-11-20 -- review of a_link_is_a_machined_part_and_two_bearings_each_two_races
+
+Whole browser tier on the merged tree (`f7b119dd`, scratch root, 2416 s): 48/49
+suites, the one red `[real] resting on a body row in the nav lights that body in
+the scene` (kinematic study, body `base`). The DIAG showed the light standing in
+every sample (own partOverlays 2, about 5, nothing opaque, none faint) beside two
+`locator.hover` 2000 ms timeouts. The same suite `--only` on the same tree:
+31/31. The diff under review does not touch v1 or the hover path.

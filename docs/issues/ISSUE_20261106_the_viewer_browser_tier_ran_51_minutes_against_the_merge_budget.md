@@ -366,3 +366,13 @@ annotate rail holds still 113.2, the map 112.3, the DAG zoom 104.9, a suggestion
 face 102.4, kinematic study page 84.3, every study opens in 3D 73.8, a pattern is bound as
 its like faces 67.4, annotate model in the scene 59.7, annotate flyout 57.6, the scene pane
 reads over HTTP 55.8. The Groups switches suite took 45.8 s.
+
+## Measurement 2026-11-20 -- review of a_link_is_a_machined_part_and_two_bearings_each_two_races
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/lnk`
+on the merged tree `f7b119dd`: 2413 s recorded (budget 1800 s, OVER by 10m13s),
+49 suites, slot wait 1 s, so the time is the suites' own. Slowest: `topology http`
+257 s, `topology file://` 216 s, `the model drawn alone` 210 s, `no nav click
+wedges the page` 136 s, `the map` 121 s, `3D pane follows the selection` 121 s,
+`the DAG zoom, Fit and the grid header` 114 s, `annotate rail holds still` 113 s,
+`a suggestion names its face` 104 s, `kinematic study page` 84 s.

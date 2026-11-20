@@ -11,6 +11,12 @@ body) and its outer race (in the link's body).
 - **`docs/topologies/topology_vpa_end_stop_v2.json`**: 11 parts (the two
   machined links, the pitch link's second bearing, eight races), 20 nodes and
   22 edges; v1's four joint edges out. 31 parts, 68 interfaces, 88 edges.
+
+  > **Review correction, 2026-11-20:** "20 nodes" is 16 new nodes (per link,
+  > two machined bores and, per bearing, the outer cylinder, the inner bore and
+  > the ball centre) plus the four sphere centres moved onto the outer races:
+  > 52 + 16 = 68. The 22 edges are all new (11 per link), less v1's four:
+  > 70 + 22 - 4 = 88.
   - The link bodies are each machined part and its two outer races. The inner
     races are in `blade`, `base` and `pitch_plate` (twice). The two link
     assemblies and the four bearings are in no body.

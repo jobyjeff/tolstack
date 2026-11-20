@@ -6234,6 +6234,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       interactive, grep the hidden layer's `pointer-events`, then probe it
       with a real `mouse.move`/`down`/`up` and `elementFromPoint` at a point
       the hidden element owns. The point must not be on a jumper or a pin.
+- [ ] **A part that loses its last feature becomes an outline, and its map
+      place goes dead silently.** New 2026-11-20
+      (`a_link_is_a_machined_part_and_two_bearings_each_two_races`, nit).
+      `layoutOnce` (`apps/viewer/map.js`) skips an outlined part's place with
+      no note, so `pitch_link` and `tan_link_212956_005` kept places in
+      `map_vpa_end_stop_v2.json` that share a cell with a race and draw
+      nothing. When a model change moves features off an assembly, grep the
+      layout file for that assembly's id and ask whether its place still
+      means anything.
+- [ ] **A feature moved onto a member reads the source model's record**
+      (`feature_identity_key`, since 2026-11-19). Its `identity.part` is the
+      source's part, not `feature.part`. So any reader that compares
+      `feature.part` with a key's part, or labels a bound face with
+      `feature.part`, is wrong for those four link centres. `git grep -n
+      "\.part ===\|part === k" -- apps` on any diff that reads a binding.
 
 ## Architectural errors to check
 
