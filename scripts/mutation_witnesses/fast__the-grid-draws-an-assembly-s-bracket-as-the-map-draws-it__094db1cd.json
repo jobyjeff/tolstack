@@ -4,12 +4,12 @@
   "expect_red": "the grid draws an assembly's bracket as the map draws its outline, its name once on each run's first row it can take, and its fold there",
   "mutations": [
     {
-      "contract": "An assembly's fold is drawn once, on its bracket, where its bracket carries it; its own row's cell draws none.",
+      "contract": "A top-level assembly that is the grid's outermost bracket is named in the strip a body's name uses, wrapping down its rows as a body's does.",
       "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
-      "note": "The cell draws its fold whatever the bracket does: the link assembly's own row carries a second fold beside the bracket's.",
+      "note": "The outermost assembly's name drawn as a part's one-line label: it no longer wears the body strip's wrapping class, and a long assembly name is cut to one line. (First written against the cell's fold suppression, which the fixture cannot reach: the link assembly's own row is said by its bracket, so its cell draws neither number nor fold -- measured NOT WITNESSED on this branch, 2026-11-20.)",
       "file": "apps/viewer/views/topology.js",
-      "find": "      if (ctx && !foldDrawn && VA.assemblyIds(ctx.topoProj)[group.part]) {",
-      "replace": "      if (ctx && VA.assemblyIds(ctx.topoProj)[group.part]) {"
+      "find": "        (label.wide ? \" tvbrace__label--wide\" : \"\") + ink(label.tint), label.text);",
+      "replace": "        ink(label.tint), label.text);"
     }
   ]
 }

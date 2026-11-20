@@ -4,12 +4,12 @@
   "expect_red": "[real] with any switch off, and all three, every pin is where it was to the pixel",
   "mutations": [
     {
-      "contract": "A kind switched off is hidden in place: the layout is the model's whole, so nothing it holds moves.",
+      "contract": "A kind switched off is hidden in place: the view the map was fitted to is kept, so nothing it holds moves.",
       "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
-      "note": "The tempting wrong shape: Bodies off lays the map out with no bodies, so the parts are placed again and every pin moves.",
+      "note": "The tempting wrong shape: a switch refits the map to what is still drawn -- with the districts hidden, the boxes' extent -- so the drawing zooms and every pin moves. (First written as a layout with no bodies, which an authored layout places the same way: another check reddened, not this one, 2026-11-20.)",
       "file": "apps/viewer/views/map.js",
-      "find": "    var geo = VA.mapLayout(modelView, topoProj && topoProj.map, M);\n    if (!geo) {",
-      "replace": "    if (ctx.groupKinds && ctx.groupKinds.bodies === false && modelView) {\n      modelView = Object.assign({}, modelView, { bodies: [] });\n    }\n    var geo = VA.mapLayout(modelView, topoProj && topoProj.map, M);\n    if (!geo) {"
+      "find": "    if (!view || (view.auto && (view.size.width !== size.width || view.size.height !== size.height))) {",
+      "replace": "    if (hidden && geo.boxes.length) {\n      var bx0 = Math.min.apply(null, geo.boxes.map(function (b) { return b.x; }));\n      var by0 = Math.min.apply(null, geo.boxes.map(function (b) { return b.y; }));\n      var bx1 = Math.max.apply(null, geo.boxes.map(function (b) { return b.x + b.w; }));\n      var by1 = Math.max.apply(null, geo.boxes.map(function (b) { return b.y + b.h; }));\n      view = Object.assign(VA.mapFitView({ x: bx0, y: by0, w: bx1 - bx0, h: by1 - by0 }, size.width, size.height),\n                           { auto: true, size: size, selectedKey: null });\n    }\n    if (!view || (view.auto && (view.size.width !== size.width || view.size.height !== size.height))) {"
     }
   ]
 }
