@@ -3100,8 +3100,9 @@ def test_children_and_the_tree_order_of_model_v2():
         assert topology.body_of(bearing) is None
         assert topology.body_of(outer).kind == "link", bearing
         assert topology.body_of(inner).kind == "body", bearing
-    # The link body's parts, walked as a tree, are the machined part then each
-    # outer race; the inner races are listed in their mating parts' bodies.
+    # The link body's parts, walked as a tree, keep the body's listed order:
+    # their assemblies are in no body, so each is top-level here. The inner
+    # races are listed in their mating parts' bodies.
     assert topology.tree_order(topology.body("tan_link").parts) == [
         "tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"]
     # 2026-11-18: the plate assembly holds its machined plate and the flanged
