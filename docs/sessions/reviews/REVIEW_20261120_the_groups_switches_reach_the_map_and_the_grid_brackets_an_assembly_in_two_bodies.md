@@ -260,3 +260,14 @@ into `review/…` as `98168d83`.
 the design issue (the popover ticks both kinds while the grid draws one), the
 author's folded-assembly issue, the pattern-suite flake, and the browser-tier
 budget.
+
+### Landing, and a blocked action
+
+- Landed by fast-forward, `git fetch . review/…:integration`
+  (`6a3b983b..860fdfa8`). The handoff branch is contained in `integration`.
+- **Blocked:** `git push origin integration`. It was to publish the landed
+  `integration` to GitHub, and the auto-mode classifier refused it
+  ([Sensitive Information Leakage]). I did not retry it. The local
+  `integration` is the landing dispatch reads, and `origin/integration` is an
+  ancestor of it, so the push is a plain fast-forward whenever the operator
+  runs it. It touches only the remote branch and reaches no other session.
