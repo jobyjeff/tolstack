@@ -394,6 +394,7 @@
   // The points a jumper's path passes through, for a clearance test: its
   // straight line, or its bow sampled.
   function jumperSamples(j) {
+    if (j.via) return [j.a].concat(j.via, [j.b]);
     var out = [];
     for (var i = 0; i <= 24; i++) {
       var t = i / 24, s = 1 - t;
@@ -820,12 +821,36 @@
       });
       return list.slice();
     };
-    // A part's jumpers: one per dimension, between the two ends it measures.
-    // Two ends on one side bow into the box so the line is not lost in it.
-    var jumpersOf = function (pid, ends) {
+    // A child's box (step 4-6) has no room to place its name clear of a
+    // jumper, so a jumper between two of its sides runs inside the border,
+    // through the corner between them -- or, between opposite sides, the two
+    // corners of a flank.
+    var CORNER_IN = 4;
+    var cornerOf = function (box, s1, s2) {
+      var sides = [s1, s2];
+      return { x: round(sides.indexOf("left") !== -1 ? box.x + CORNER_IN : box.x + box.w - CORNER_IN),
+               y: round(sides.indexOf("top") !== -1 ? box.y + CORNER_IN : box.y + box.h - CORNER_IN) };
+    };
+    var viaBorder = function (box, a, b) {
+      var across = { top: "bottom", bottom: "top", left: "right", right: "left" };
+      if (across[a.side] !== b.side) return [cornerOf(box, a.side, b.side)];
+      var flank = a.side === "top" || a.side === "bottom" ? "right" : "bottom";
+      return [cornerOf(box, a.side, flank), cornerOf(box, b.side, flank)];
+    };
+    // A part's jumpers: one per dimension, between the two ends it measures
+    // -- of a feature with a pin per partner, the pin nearest the other end
+    // (the first such by interface id). Two ends on one side bow into the
+    // box so the line is not lost in it.
+    var jumpersOf = function (pid, ends, box) {
       var out = [];
       (dimsOf[pid] || []).forEach(function (d) {
-        var a = ends[d.from], b = ends[d.to];
+        var a = null, b = null, best = Infinity;
+        (ends[d.from] || []).forEach(function (pa) {
+          (ends[d.to] || []).forEach(function (pb) {
+            var dist = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+            if (dist < best - 0.01) { best = dist; a = pa; b = pb; }
+          });
+        });
         if (!a || !b) return;
         var j = { id: d.id, part: d.part, name: d.name, from: d.from, to: d.to,
                   a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, ctrl: null,
@@ -835,6 +860,9 @@
           var bow = Math.max(24, Math.hypot(b.x - a.x, b.y - a.y) * 0.35);
           j.ctrl = { x: round((a.x + b.x) / 2 - n[0] * bow), y: round((a.y + b.y) / 2 - n[1] * bow) };
           j.d = "M" + a.x + " " + a.y + " Q" + j.ctrl.x + " " + j.ctrl.y + " " + b.x + " " + b.y;
+        } else if (box && box.child && a.side && b.side) {
+          j.via = viaBorder(box, a, b);
+          j.d = pathD([a].concat(j.via, [b]));
         } else {
           j.d = pathD([a, b]);
         }
@@ -843,13 +871,13 @@
       return out;
     };
 
-    // A part's ends, for its jumpers: each feature once -- a feature with a
-    // pin per partner measures from the pin of its first interface by id, so
-    // the order of `edges[]` never moves a jumper.
+    // A part's ends, for its jumpers: each feature's pins and marks, in
+    // interface id order, so the order of `edges[]` never moves a jumper.
     var endsOf = function (list) {
       var ends = {};
-      list.forEach(function (q) {
-        if (!ends[q.id] || (q.iface && ends[q.id].iface && q.iface < ends[q.id].iface)) ends[q.id] = q;
+      list.forEach(function (q) { (ends[q.id] = ends[q.id] || []).push(q); });
+      Object.keys(ends).forEach(function (id) {
+        ends[id].sort(function (u, v) { return (u.iface || "") < (v.iface || "") ? -1 : (u.iface || "") > (v.iface || "") ? 1 : 0; });
       });
       return ends;
     };
@@ -923,7 +951,7 @@
           ownPins.push(q);
         });
         ownMarks = marksAlong(box);
-        ownJumpers = jumpersOf(p.id, endsOf(ownPins.concat(ownMarks)));
+        ownJumpers = jumpersOf(p.id, endsOf(ownPins.concat(ownMarks)), box);
         name = placeName(box, ownJumpers, ownPins.concat(ownMarks), M);
         if (name) break;
       }
@@ -946,7 +974,7 @@
         boxOf[k.box.id] = k.box;
         Array.prototype.push.apply(pins, k.pins);
         Array.prototype.push.apply(marks, k.marks);
-        Array.prototype.push.apply(jumpers, jumpersOf(k.box.id, endsOf(k.pins.concat(k.marks))));
+        Array.prototype.push.apply(jumpers, jumpersOf(k.box.id, endsOf(k.pins.concat(k.marks)), k.box));
       });
     });
     // A dimension whose ends the map did not place on its own part is a
