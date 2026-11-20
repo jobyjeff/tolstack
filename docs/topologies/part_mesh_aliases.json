@@ -107,7 +107,7 @@
     {
       "topology_part": "tan_link_212956_005",
       "mesh_part_id": "asm217755_212956_005",
-      "evidence": "Exact drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 212956-005; the mesh's provenance.json (data/meshes/8f519ff443a2fe0ff02124dcc5382528d84c553310911243cc9028217d872b36) records product_name '212956-005' at XCAF label 0:1:1:1434, four solids, three instances -- matching 217755-001 A.1 find 25's qty 3. NOTE what this mesh is: the whole link ASSEMBLY, four solids -- the body, an MS14101-3, an MS14103-3 and a bolt -- not the bare link, which is installed separately as `asm217755_213863_004`."
+      "evidence": "Exact drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 212956-005; the mesh's provenance.json (data/meshes/8f519ff443a2fe0ff02124dcc5382528d84c553310911243cc9028217d872b36) records product_name '212956-005' at XCAF label 0:1:1:1434, four solids, three instances -- matching 217755-001 A.1 find 25's qty 3. NOTE what this mesh is: the whole link ASSEMBLY, four solids -- solid 0 the MS14103-3 (one solid), solids 1 and 2 the MS14101-3's outer and inner race, solid 3 the machined link (read off each face's fit and solid_id, 2026-11-20; an earlier reading of this row named a bolt, and there is none) -- not the bare link, which is installed separately as `asm217755_213863_004`."
     },
     {
       "topology_part": "tan_link_mount_215175_002",
