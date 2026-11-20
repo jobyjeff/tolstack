@@ -1009,7 +1009,7 @@ the tree read none at all. What changed:
 Jeff, 2026-11-10: "agreed, once per feature"; and "we will need to support
 multi-surface features". A binding attaches to a part's FEATURE -- the model
 view's `<part>@<node>`, keyed under the model whose ids it is
-(`tolerance_stack.topology.feature_identity_topology_id`, written on every
+(`tolerance_stack.topology.feature_identity_key`, written on every
 feature as `model.features[].identity`) -- not to a dimension's end. The hub's
 locating boss is the start of three v2 dimensions, the v2 pilot fit and four
 v1 edges; it is picked once and every one of those ends reads it.
@@ -1050,6 +1050,35 @@ v1 edges; it is picked once and every one of those ends reads it.
   one feature that are one surface, because a page has no meshes' fits. Which
   feature an old event reads through to the page works out from the topology
   projection; `tests/test_identity_fold_is_paired.py` folds one log both ways.
+
+### A feature on a member (2026-11-19)
+
+Handoff `a_link_is_a_machined_part_and_two_bearings_each_two_races`. A model
+that reuses another's ids may state a shared node on a part **inside** the part
+the other model puts it on (`docs/DAG_TOPOLOGY.md`, "Models"): v2's four link
+sphere centres sit on the bearings' outer races, where v1 puts them on the link
+assemblies. It is still the other model's feature, so it keeps that model's
+key: `tolerance_stack.topology.feature_identity_key` answers
+`<source model>:<the source's part>@<node>` -- for v2's outer race,
+`vpa_pitch_linkage:pitch_link@pitch_link_lower_sphere_centre` -- and the
+projection writes that key as the feature's `identity`. So:
+
+- **A binding made on either model is the one record both read.** v2's outer
+  race reads Jeff's bindings on v1's link feature, the same faces, with no
+  event written; a bind, Correct, Keep or Remove made on v2 is written under
+  v1's key. `scripts/fit_bound_features.py` fits that one record, so the
+  centres linkage reads are unchanged.
+- **The faces are where they were picked.** Jeff picked each centre on its
+  link assembly's mesh, which draws both races; the face is the ball's, the
+  inner race's solid, concentric with the outer race's seat to 0.001 mm.
+  Nothing re-homes a face onto the race's own mesh.
+- **A reader matches the whole key**, never the part alone: an end is a
+  feature's when its key (`VA.endFeatureKey`) is that feature's `identity`
+  (the annotator's `featureEnds`, `featureAt`). A dimension's end is the
+  feature its view row names (`model.dimensions[].from`/`to`), so the link's
+  length, a dimension of the assembly, reads at its outer races' centres.
+- **A feature the source model does not have** -- every race's own bore,
+  cylinder and ball -- is keyed to the finer model, as any new feature is.
 
 ### Keep settles a disagreement, and any feature can be let go (2026-11-18)
 

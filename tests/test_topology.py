@@ -76,6 +76,7 @@ from tolerance_stack.topology import (
     check_shared_ids,
     assembly_rollups,
     check_study,
+    feature_identity_key,
     identity_topology_id,
     in_model_order,
     load_study,
@@ -1341,6 +1342,33 @@ def test_a_shared_id_has_one_identity_key_the_source_models():
     v2_live = live[load_topology(MODEL_V2).id]
     assert identity_topology_id(v2_live, "pitch_link_length", live) == v2_live.ids_from
     assert identity_topology_id(v2_live, "pitch_plate_pilot_in_piston", live) == v2_live.id
+
+
+def test_a_feature_moved_onto_a_member_keeps_the_source_models_key():
+    """``feature_identity_key`` (2026-11-19, a_link_is_a_machined_part_and_two_
+    bearings_each_two_races): v2's link sphere centres sit on the outer races,
+    where v1 puts them on the link assemblies, and stay v1's features -- keyed
+    under v1's part, so Jeff's bindings on v1's are the one record both read.
+    A node only v2 has, and v1's node on the same part, keep their own rule."""
+    live = {t.id: t for t in (load_topology(p) for p in topology_files())}
+    v2 = live[load_topology(MODEL_V2).id]
+    v1_id = v2.ids_from
+    moved = {"pitch_link_lower_sphere_centre": ("pitch_link_lower_outer_race", "pitch_link"),
+             "pitch_link_upper_sphere_centre": ("pitch_link_upper_outer_race", "pitch_link"),
+             "tan_link_lower_sphere_centre": ("tan_link_lower_outer_race", "tan_link_212956_005"),
+             "tan_link_upper_sphere_centre": ("tan_link_upper_outer_race", "tan_link_212956_005")}
+    from tolerance_stack.model_view import model_view  # noqa: PLC0415 -- as the other model-view checks here
+    view = {f["id"]: f["identity"] for f in model_view(v2, None, live)["features"]}
+    for node, (race, assembly) in moved.items():
+        assert v2.node(node).parts == (race,)
+        assert feature_identity_key(v2, race, node, live) == (v1_id, assembly)
+        assert view[f"{race}@{node}"] == {"topology_id": v1_id, "part": assembly, "node": node}
+    assert feature_identity_key(v2, "pitch_link_lower_inner_race", "pitch_link_lower_ball_centre",
+                                live) == (v2.id, "pitch_link_lower_inner_race")
+    assert feature_identity_key(v2, "hub", "hub_spindle_bore_axis", live) == (v1_id, "hub")
+    assert feature_identity_key(v2, "pitch_link_lower_outer_race", "pitch_link_lower_sphere_centre",
+                                {v2.id: v2}) == (v2.id, "pitch_link_lower_outer_race"), \
+        "source absent: never a guess"
 
 
 @pytest.mark.parametrize("bad", ["", "v2", 7])

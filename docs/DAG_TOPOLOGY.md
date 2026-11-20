@@ -644,7 +644,16 @@ fits the region's height. Since 2026-11-18 the pitch plate assembly's members
 run in a row to the plate's right (two more columns, rows 1 to 3, inside the
 pitch plate's district): the tangential link's flanged bushing, then the
 machined plate, with the pitch link's flanged bushing under the plate and the
-two straight bushings above the row; the sketch's places are unchanged. Nothing in the layout code assumes either shape: a
+two straight bushings above the row; the sketch's places are unchanged.
+Since 2026-11-19 (handoff `a_link_is_a_machined_part_and_two_bearings_each_two_races`)
+each link is five boxes -- its machined part, two outer races in its district
+and an inner race at each end in the neighbour's district beside its outer
+race, so each bearing's outline straddles the border -- and since a district
+and a link's outline are each one rectangle, the five are laid where they
+enclose no other box: the tangential link as a Z under the mount's row, the
+pitch link down a fifth column, and the blade, the pitch arm and the hub along
+a bottom row, five columns by nine rows (the file's `provenance.arrangement`).
+Nothing in the layout code assumes either shape: a
 pin's side is decided in cell units, a part's name takes whichever corner of
 its box its jumpers leave clear, and a child's row moves aside for a route
 out of its parent's bottom (below).

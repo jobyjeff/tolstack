@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: open
+status: resolved
 area: feature-identity
 reporter: agent
 audience: strategy
@@ -41,3 +41,18 @@ is); (c) write a `supersedes` across keys -- refused by the fold today, by
 design. Recommendation: (a) until link 4 says which members get meshes, then
 (b) for the members that have none. Needs a decision before link 4 moves a
 bound feature.
+
+## Addendum 2026-11-20 -- resolved by a_link_is_a_machined_part_and_two_bearings_each_two_races
+
+Link 4 moved v2's four link sphere centres onto the bearings' outer races and
+took a variant of option (b) that needs no read-through rule of its own: the
+moved feature keeps the source model's key, part included
+(`tolerance_stack.topology.feature_identity_key` returns
+`(source model, the source's part)` when this model's part is inside the
+source's part), and the projection writes that as `model.features[].identity`.
+So v2's outer race reads v1's record and a bind on v2 writes to it: one record,
+no `supersedes` across keys. On Jeff's log the four centres read bound to the
+same four faces and `fits.json` is unchanged (that handoff's lesson). The faces
+stay on the link assembly meshes, which draw both races, so the mesh concern
+above does not arise for these four. `docs/ANNOTATION_SURFACE.md`, "A feature
+on a member".

@@ -13134,6 +13134,21 @@
     //     grid (the_groups_switches_reach_the_map_and_the_grid_brackets_an_
     //     assembly_in_two_bodies, 2026-11-19) --------------------------------
 
+    // An assembly's dimension (the link's centre to centre) is an end of
+    // its members' features, never of the assembly, which owns none
+    // (a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19:
+    // v2's two link lengths). Before then a dimension's end was its `part`'s.
+    await test("an assembly's dimension ends at the features its view row names, on the races, " +
+      "and at neither race's other side of the shared node", function () {
+        var model = VA.buildModel(raceRowsProjection(), null);
+        eq(model.endsOf("outer_a@ball_a"), [{ edgeId: "link_centres", end: "from" },
+                                            { edgeId: "outer_a_ball_to_seat", end: "from" }]);
+        eq(model.endsOf("outer_b@ball_b"), [{ edgeId: "link_centres", end: "to" },
+                                            { edgeId: "outer_b_seat_to_ball", end: "to" }]);
+        eq(model.endsOf("inner_a@ball_a"), [{ edgeId: "inner_a_seat_to_ball", end: "to" }],
+           "the inner race's side of the ball is not the length's end");
+      });
+
     // The rows' fixture's grid model under `kinds`, folding `collapsed`.
     function twoBodyBraces(kinds, collapsed) {
       var topo = raceRowsProjection();
