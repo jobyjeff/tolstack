@@ -376,7 +376,9 @@ export const DECLARED_GUARDS = {
   // an assembly in two bodies bracketed once per run, each switch its own kind and the grid's
   // outermost bracket, the assembly's bracket drawn with its fold, and the map's class per
   // kind switched off. Each carries a spec.
-  fast: { declared: 617, enrollable: 617, names: "897e76afbc84" },
+  // 2026-11-20 (a_link_is_a_machined_part_and_two_bearings_each_two_races): +1 --
+  // an assembly's dimension ends at its members' features. It carries a spec.
+  fast: { declared: 618, enrollable: 618, names: "0afa27e20bf8" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

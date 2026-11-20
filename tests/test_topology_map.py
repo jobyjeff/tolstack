@@ -86,7 +86,13 @@ def test_a_model_with_no_bodies_is_one_column(v2):
     import dataclasses
     bare = dataclasses.replace(v2, bodies=[])
     places = B.computed_map_places(bare)
-    top = [p.id for p in v2.parts if p.parent is None]
+    # An outline is never placed: its parts are, in its place in the order
+    # (since 2026-11-19 v2's two links and their bearings are outlines).
+    outlined = set(B.outlined_assemblies(bare))
+    top = [p for p in bare.tree_order([p.id for p in v2.parts])
+           if B._needs_place(bare, p, outlined)]
+    assert outlined and not outlined & set(places)
+    assert list(places) == top
     assert [places[p] for p in top] == [[0, row] for row in range(len(top))]
 
 
@@ -97,17 +103,32 @@ def test_an_authored_file_overrides_only_the_places(v2):
     assert doc["places"] != B.computed_map_places(v2)
 
 
-#: Children v2's layout places in cells of their own (2026-11-18,
-#: the_pitch_plate_is_an_assembly_with_its_bushings): the plate assembly's
-#: members in a row beside it. Every other child sits in its parent's cell.
-V2_PLACED_CHILDREN = {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a_tan_link"}
+#: Children v2's layout places in cells of their own: the plate assembly's
+#: members in a row beside it (2026-11-18,
+#: the_pitch_plate_is_an_assembly_with_its_bushings), and since 2026-11-19
+#: (a_link_is_a_machined_part_and_two_bearings_each_two_races) every part of
+#: the two link outlines -- each machined link and its four races, a bearing's
+#: two races in two adjacent cells across its link's district border. Every
+#: other child sits in its parent's cell.
+V2_PLACED_CHILDREN = {
+    "pitch_plate_215177_001": {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a_tan_link"},
+    "pitch_link": {"pitch_link_213861_002",
+                   "pitch_link_lower_outer_race", "pitch_link_lower_inner_race",
+                   "pitch_link_upper_outer_race", "pitch_link_upper_inner_race"},
+    "tan_link_212956_005": {"tan_link_213863_004",
+                            "tan_link_lower_outer_race", "tan_link_lower_inner_race",
+                            "tan_link_upper_outer_race", "tan_link_upper_inner_race"},
+}
 
 
 def test_v2s_layout_places_every_top_level_part_and_nothing_else(v2):
     doc = B.load_topology_map(TOPOLOGIES_DIR, v2)
     top_level = {p.id for p in v2.parts if p.parent is None}
-    assert set(doc["places"]) == top_level | V2_PLACED_CHILDREN
-    assert all(v2.part(c).parent == "pitch_plate_215177_001" for c in V2_PLACED_CHILDREN)
+    children = set().union(*V2_PLACED_CHILDREN.values())
+    assert set(doc["places"]) == top_level | children
+    assert "computed_places" not in doc
+    for top, kids in V2_PLACED_CHILDREN.items():
+        assert all(v2.within(c, top) and c != top for c in kids), top
     for place in doc["places"].values():
         assert isinstance(place, list) and len(place) == 2
         assert all(isinstance(v, int) and v >= 0 for v in place)
@@ -197,10 +218,14 @@ def two_bodies():
     return load_topology(TWO_BODIES, identity_path=None)
 
 
-def test_an_assembly_with_no_feature_is_an_outline_and_the_committed_models_have_none(two_bodies, v2):
+def test_an_assembly_with_no_feature_is_an_outline_and_v2s_links_and_bearings_are(two_bodies, v2):
     assert B.outlined_assemblies(two_bodies) == ["base_asm", "link_asm", "bearing_a", "bearing_b"]
-    # v2's 215177 and both links still own nodes, so v2's map is unchanged.
-    assert B.outlined_assemblies(v2) == []
+    # v2's 215177 still owns nodes; since 2026-11-19 its two links and their
+    # four bearings own none (every feature is on a member), so each is an
+    # outline.
+    assert B.outlined_assemblies(v2) == [
+        "pitch_link", "spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper",
+        "tan_link_212956_005", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
     assert B.outlined_assemblies(load_topology(MODEL_V1)) == []
 
 

@@ -64,7 +64,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .topology import Edge, Node, Part, Topology, feature_identity_topology_id
+from .topology import Edge, Node, Part, Topology, feature_identity_key
 
 __all__ = [
     "CONTACT_KIND",
@@ -179,6 +179,7 @@ def model_view(topology: Topology,
         shared = len(node.parts) > 1
         for part_id in node.parts:
             fid = feature_id(part_id, node.id)
+            key_model, key_part = feature_identity_key(topology, part_id, node.id, topologies or {})
             features.append({
                 "id": fid,
                 "part": part_id,
@@ -188,8 +189,8 @@ def model_view(topology: Topology,
                 "shared": shared,
                 "body": body_of[part_id],
                 "identity": {
-                    "topology_id": feature_identity_topology_id(topology, part_id, node.id, topologies or {}),
-                    "part": part_id,
+                    "topology_id": key_model,
+                    "part": key_part,
                     "node": node.id,
                 },
             })

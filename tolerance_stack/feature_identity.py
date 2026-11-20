@@ -985,10 +985,10 @@ def edge_end_feature(topologies: Dict[str, Any], stack_key: StackKey,
     The rule is the model view's (:func:`tolerance_stack.model_view.
     end_feature`): the end's node, on the edge's part -- a dimension's own
     part, a gap edge's end node's first part -- keyed under the model whose
-    ids it is (:func:`tolerance_stack.topology.feature_identity_topology_id`).
+    ids it is (:func:`tolerance_stack.topology.feature_identity_key`).
     """
     from tolerance_stack.model_view import end_feature  # noqa: PLC0415 -- model_view imports nothing of ours
-    from tolerance_stack.topology import feature_identity_topology_id  # noqa: PLC0415
+    from tolerance_stack.topology import feature_identity_key  # noqa: PLC0415
 
     if stack_key.kind != "topology_edge" or direction not in DIRECTIONS:
         return None, ORPHAN_REASONS[2]
@@ -1000,7 +1000,8 @@ def edge_end_feature(topologies: Dict[str, Any], stack_key: StackKey,
     except Exception:  # noqa: BLE001 -- topology raises its own error for a missing id
         return None, ORPHAN_REASONS[1]
     part, node = end_feature(topology, edge, direction)
-    return FeatureKey(feature_identity_topology_id(topology, part, node, topologies), part, node), None
+    key_model, key_part = feature_identity_key(topology, part, node, topologies)
+    return FeatureKey(key_model, key_part, node), None
 
 
 def read_through(events: Iterable[FeatureIdentityEvent], topologies: Dict[str, Any]

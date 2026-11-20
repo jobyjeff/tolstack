@@ -24,7 +24,8 @@
         "hub",
         "tan_link_mount_215175_002",
         "gas_spring_mount_213668_002",
-        "piston_cover_214958_002"
+        "piston_cover_214958_002",
+        "tan_link_lower_inner_race"
       ],
       "note": "The hub, the two mounts and the piston cover, as a stack: the tangential link mount seats on the hub, the gas-spring mount on the tangential link mount (`tan_link_mount_gas_spring_seat`; Jeff, 2026-11-10: 'mount on mount'), and the piston cover's flange on the gas-spring mount (`piston_cover_mount_flange_seat`). Each of the three joints is a seat, a locating boss in a bore and a fastener pattern (Jeff, 2026-11-10: 'the same datum style with a flange, central locating boss, and fastener pattern for clocking'). linkage's base lists the first three parts alone; the difference is declared beside the pairing test."
     },
@@ -36,11 +37,11 @@
         "component": "propeller-system"
       },
       "parts": [
-        "tan_link_212956_005",
-        "spherical_bearing_tan_link",
-        "spherical_bearing_tan_link_ms14103_3"
+        "tan_link_lower_outer_race",
+        "tan_link_213863_004",
+        "tan_link_upper_outer_race"
       ],
-      "note": "The 212956-005 assembly and its two bearings. Both bearings are pressed into the 212956-005 assembly, so they move with it and name it as their `parent` (2026-11-14, a_part_may_contain_parts); linkage lists the assembly alone because its mesh already draws them -- the difference v1 declares."
+      "note": "The machined link 213863-004 and its two bearings' outer races, swaged into its bores (Jeff's note 20261119T142516_ci28ci; handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19). The 212956-005 assembly and its two bearings are in no body: each bearing's inner race moves with the part it is fixed to. linkage lists the assembly alone, because its mesh draws all of it -- the difference is declared beside the pairing test."
     },
     {
       "id": "pitch_plate",
@@ -50,10 +51,12 @@
         "component": "propeller-system"
       },
       "parts": [
+        "tan_link_upper_inner_race",
         "pitch_plate_215177_001",
         "flanged_bushing_nas77a3_015a",
         "pitch_plate_215735_001",
         "bushing_214820_002",
+        "pitch_link_upper_inner_race",
         "gas_spring_piston_214700_002",
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002",
@@ -70,10 +73,11 @@
         "component": "propeller-system"
       },
       "parts": [
-        "pitch_link",
-        "spherical_bearing_pitch_link"
+        "pitch_link_upper_outer_race",
+        "pitch_link_213861_002",
+        "pitch_link_lower_outer_race"
       ],
-      "note": "The 213862-002 assembly and its bearing, which names it as its `parent` (2026-11-14, a_part_may_contain_parts): the bearing is in the link assembly and in the link's body, and its tolerances come from its datasheet (Jeff)."
+      "note": "The machined link 213861-002 and its two bearings' outer races, swaged into its bores (Jeff's note 20261119T142516_ci28ci; handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19). The 213862-002 assembly and its two MS14101-3 bearings are in no body: each bearing's inner race moves with the part it is fixed to. A two-force member: the distance between the two outer races' centres is the assembly's one length. The bearings' tolerances come from their datasheet (Jeff)."
     },
     {
       "id": "blade",
@@ -83,6 +87,7 @@
         "component": "propeller-system"
       },
       "parts": [
+        "pitch_link_lower_inner_race",
         "pitch_arm",
         "blade_root"
       ],
@@ -183,9 +188,56 @@
       "note": "Drawn once, at blade 1's link: its lower ball is at (83.000, -44.550, -22.700), the sheet's pitch-arm node; recorded on the instrumented link's mesh, as the alias row says. placement_world (row-major 3x4, read off `asm217755_546293_002`'s provenance.json): [0.999826, 0.001381, 0.018606, 83, -0.006147, 0.965959, 0.258621, -44.550326, -0.017616, -0.25869, 0.9658, -22.699525]."
     },
     {
+      "id": "pitch_link_213861_002",
+      "name": "213861-002 machined pitch link",
+      "drawing": "213861-002",
+      "parent": "pitch_link",
+      "occurrence": "217755-001/prd-e-03478612.1/213862-002.1",
+      "note": "The machined link inside 213862-002 (Enovia: 213861-002 x1 and MS14101-3 x2, docs/sessions/lessons/REVIEW_20261117_the_models_parts_against_the_product_structure.md; its mesh's product is 213861-002 too). Its mesh `asm217755_213861_002` (one solid) records four instances, blades 2 to 5, each named 213861-001.1 and each at the identity inside its 213862-002. Blade 1's is inside the instrumented 546293-002, so it is drawn where its assembly is drawn at blade 1 -- the occurrence, recorded on `asm217755_546293_002` -- as `pitch_link` is. Its two bores hold the two outer races; the distance between the races' centres is the assembly's `pitch_link_length`."
+    },
+    {
       "id": "spherical_bearing_pitch_link",
       "name": "pitch-link spherical bearing",
-      "parent": "pitch_link"
+      "parent": "pitch_link",
+      "display_name": "MS14101-3 spherical bearing, pitch arm end",
+      "occurrence": "217755-001/prd-e-03478612.1/213862-002.1/MS14101-3.1",
+      "note": "MS14101-3 at the pitch arm end: instance MS14101-3.1 of `asm217755_MS14101_3_815597cb`, at (83.0, -44.55, -22.70), the sweep's pitch-arm ball. Two bodies joined by the ball (Jeff's note 20261119T142516_ci28ci): its outer race moves with the link, its inner race with the blade, so the bearing is in no body. v1's part of the same id is both of the link's bearings."
+    },
+    {
+      "id": "pitch_link_lower_outer_race",
+      "name": "MS14101-3 outer race",
+      "display_name": "MS14101-3 outer race, pitch arm end",
+      "parent": "spherical_bearing_pitch_link",
+      "note": "Solid 0 of `asm217755_MS14101_3_815597cb` (26 faces): its outside cylinder (r 7.141) and its concave seat (r 5.198), read off each face's fit, 2026-11-20. Swaged into the machined link's pitch arm end bore, so it moves with the link (Jeff's note 20261119T142516_ci28ci)."
+    },
+    {
+      "id": "pitch_link_lower_inner_race",
+      "name": "MS14101-3 inner race",
+      "display_name": "MS14101-3 inner race, pitch arm end",
+      "parent": "spherical_bearing_pitch_link",
+      "note": "Solid 1 of `asm217755_MS14101_3_815597cb` (10 faces): the ball (r 5.147) and the bore (r 2.41), read off each face's fit, 2026-11-20. Its bore is on the pitch arm's hardware, so it moves with the blade (Jeff's note 20261119T142516_ci28ci: the inner races are part of the mating parts' rigid bodies). The hardware between the arm and the race is not authored: the lesson lists what the meshes show there."
+    },
+    {
+      "id": "spherical_bearing_pitch_link_upper",
+      "name": "pitch-link spherical bearing",
+      "display_name": "MS14101-3 spherical bearing, pitch plate end",
+      "parent": "pitch_link",
+      "occurrence": "217755-001/prd-e-03478612.1/213862-002.1/MS14101-3.2",
+      "note": "The pitch link's second MS14101-3 (213862-002 A's parts list, qty 2), at the pitch plate end: instance MS14101-3.2 of `asm217755_MS14101_3_815597cb`, at (84.97, -17.14, 79.67). Its outer race moves with the link, its inner race with the pitch plate."
+    },
+    {
+      "id": "pitch_link_upper_outer_race",
+      "name": "MS14101-3 outer race",
+      "display_name": "MS14101-3 outer race, pitch plate end",
+      "parent": "spherical_bearing_pitch_link_upper",
+      "note": "Solid 0 of `asm217755_MS14101_3_815597cb` at its second instance (26 faces): the outside cylinder (r 7.141) and the concave seat (r 5.198). Swaged into the machined link's pitch plate end bore."
+    },
+    {
+      "id": "pitch_link_upper_inner_race",
+      "name": "MS14101-3 inner race",
+      "display_name": "MS14101-3 inner race, pitch plate end",
+      "parent": "spherical_bearing_pitch_link_upper",
+      "note": "Solid 1 of `asm217755_MS14101_3_815597cb` at its second instance (10 faces): the ball (r 5.147) and the bore (r 2.41). Located on the plate's flanged bushing and clamped by the straight bushing (Jeff's note 20261119T142516_ci28ci), so it moves with the pitch plate; its one pin in the plate's attachment bore stands in for that bolt stack until the handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack replaces it."
     },
     {
       "id": "tan_link_212956_005",
@@ -197,18 +249,56 @@
       "note": "Drawn once, at of the three, the one whose plate-end ball is nearest blade 1's pitch-arm ball (115.6 mm, against 118.4 and 203.3; balls read off the MS14103-3 occurrences), and the one the P2 sweep poses: its `tan_link.point_a` is this occurrence's mount-end ball. placement_world (row-major 3x4, read off `asm217755_212956_005`'s provenance.json): [0.025581, 0.006047, 0.999654, 79.427885, -0.869066, 0.494321, 0.019249, 62.387588, -0.494034, -0.869258, 0.017901, 110]."
     },
     {
+      "id": "tan_link_213863_004",
+      "name": "213863-004 machined anti-rotation link",
+      "drawing": "213863-004",
+      "parent": "tan_link_212956_005",
+      "occurrence": "217755-001/prd-e-03478614.1/prd-e-03438709.1/213863-002.1",
+      "note": "The machined link inside 212956-005 (Enovia: 213863-004 x1, MS14101-3 x1, MS14103-3 x1). Its mesh `asm217755_213863_004` records product 213863-004 at three instances each NAMED 213863-002.1 -- the number is the product's, and the instance name's -002 is on the lesson's question list. The occurrence is the tangential link this model draws. Its two bores hold the two outer races; the distance between the races' centres is the assembly's `tan_link_length`."
+    },
+    {
       "id": "spherical_bearing_tan_link",
       "name": "tangential-link bearing, narrow end",
       "parent": "tan_link_212956_005",
       "occurrence": "217755-001/prd-e-03478614.1/prd-e-03438709.1/MS14101-3.1",
-      "note": "Drawn once, at the mount-end bearing of the tangential link chosen above. placement_world (row-major 3x4, read off `asm217755_MS14101_3_34f032f0`'s provenance.json): [-0.007896, 0.00519, -0.999955, 79.42809, 0.869274, 0.494311, -0.004298, 62.429907, 0.494267, -0.869269, -0.008414, 110.026857]."
+      "note": "Drawn once, at the mount-end bearing of the tangential link chosen above. placement_world (row-major 3x4, read off `asm217755_MS14101_3_34f032f0`'s provenance.json): [-0.007896, 0.00519, -0.999955, 79.42809, 0.869274, 0.494311, -0.004298, 62.429907, 0.494267, -0.869269, -0.008414, 110.026857]. Two bodies joined by the ball (Jeff's note 20261119T142516_ci28ci): its outer race moves with the link and its inner race with the part it is fixed to, so the bearing is in no body.",
+      "display_name": "MS14101-3 spherical bearing, mount end"
+    },
+    {
+      "id": "tan_link_lower_outer_race",
+      "name": "MS14101-3 outer race",
+      "display_name": "MS14101-3 outer race, mount end",
+      "parent": "spherical_bearing_tan_link",
+      "note": "Solid 0 of `asm217755_MS14101_3_34f032f0` (26 faces): the outside cylinder (r 7.141) and the concave seat (r 5.198), read off each face's fit, 2026-11-20. Swaged into the machined link's mount end bore."
+    },
+    {
+      "id": "tan_link_lower_inner_race",
+      "name": "MS14101-3 inner race",
+      "display_name": "MS14101-3 inner race, mount end",
+      "parent": "spherical_bearing_tan_link",
+      "note": "Solid 1 of `asm217755_MS14101_3_34f032f0` (10 faces): the ball (r 5.147) and the bore (r 2.41). Its bore is on the tangential link mount's hardware, so it moves with ground (Jeff's note 20261119T142516_ci28ci). The hardware between the mount and the race is not authored: the lesson lists what the meshes show there."
     },
     {
       "id": "spherical_bearing_tan_link_ms14103_3",
       "name": "tangential-link bearing, wide end",
       "parent": "tan_link_212956_005",
       "occurrence": "217755-001/prd-e-03478614.1/prd-e-03438709.1/prd-e-02198427.1",
-      "note": "Drawn once, at the plate-end bearing of the tangential link chosen above. placement_world (row-major 3x4, read off `asm217755_MS14103_3`'s provenance.json): [-0.025581, 0.006047, -0.999654, 80.998253, 0.869066, 0.494321, -0.019249, 9.026642, 0.494034, -0.869258, -0.017901, 79.666133]."
+      "note": "Drawn once, at the plate-end bearing of the tangential link chosen above. placement_world (row-major 3x4, read off `asm217755_MS14103_3`'s provenance.json): [-0.025581, 0.006047, -0.999654, 80.998253, 0.869066, 0.494321, -0.019249, 9.026642, 0.494034, -0.869258, -0.017901, 79.666133]. Two bodies joined by the ball (Jeff's note 20261119T142516_ci28ci): its outer race moves with the link and its inner race with the part it is fixed to, so the bearing is in no body.",
+      "display_name": "MS14103-3 spherical bearing, plate end"
+    },
+    {
+      "id": "tan_link_upper_outer_race",
+      "name": "MS14103-3 outer race",
+      "display_name": "MS14103-3 outer race, plate end",
+      "parent": "spherical_bearing_tan_link_ms14103_3",
+      "note": "`asm217755_MS14103_3` is ONE solid (38 faces): the ball and the seat are one sphere (r 6.732), so both races are this solid. This race's own faces are the outside cylinder (r 7.937); the sphere is either race's. Authored as two races anyway (Jeff's note 20261119T142516_ci28ci: every spherical bearing is two bodies joined by the spherical joint). Swaged into the machined link's plate end bore."
+    },
+    {
+      "id": "tan_link_upper_inner_race",
+      "name": "MS14103-3 inner race",
+      "display_name": "MS14103-3 inner race, plate end",
+      "parent": "spherical_bearing_tan_link_ms14103_3",
+      "note": "The same one solid as the outer race (`asm217755_MS14103_3`): this race's own faces are the bore (r 2.413) and the sphere either race's. Located on the plate's flanged bushing and clamped by the straight bushing (Jeff's note 20261119T142516_ci28ci), so it moves with the pitch plate; its one pin in the plate's attachment bore stands in for that bolt stack until the handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack replaces it."
     },
     {
       "id": "piston_head_lower_214699_002",
@@ -468,20 +558,126 @@
       "kind": "datum_feature"
     },
     {
+      "id": "pitch_link_lower_race_bore",
+      "name": "pitch arm end bore",
+      "parts": [
+        "pitch_link_213861_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_213861_002",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "pitch_link_upper_race_bore",
+      "name": "pitch plate end bore",
+      "parts": [
+        "pitch_link_213861_002"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_213861_002",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "pitch_link_lower_outer_race_od",
+      "name": "outer cylinder",
+      "parts": [
+        "pitch_link_lower_outer_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_lower_outer_race",
+        "surface": "cylindrical"
+      }
+    },
+    {
       "id": "pitch_link_lower_sphere_centre",
       "name": "lower bearing centre",
       "parts": [
-        "pitch_link"
+        "pitch_link_lower_outer_race"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_lower_outer_race",
+        "surface": "spherical"
+      },
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+    },
+    {
+      "id": "pitch_link_lower_inner_race_bore",
+      "name": "bore",
+      "parts": [
+        "pitch_link_lower_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_lower_inner_race",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "pitch_link_lower_ball_centre",
+      "name": "ball centre",
+      "parts": [
+        "pitch_link_lower_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_lower_inner_race",
+        "surface": "spherical"
+      }
+    },
+    {
+      "id": "pitch_link_upper_outer_race_od",
+      "name": "outer cylinder",
+      "parts": [
+        "pitch_link_upper_outer_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_upper_outer_race",
+        "surface": "cylindrical"
+      }
     },
     {
       "id": "pitch_link_upper_sphere_centre",
       "name": "upper bearing centre",
       "parts": [
-        "pitch_link"
+        "pitch_link_upper_outer_race"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_upper_outer_race",
+        "surface": "spherical"
+      },
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_bore",
+      "name": "bore",
+      "parts": [
+        "pitch_link_upper_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_upper_inner_race",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "pitch_link_upper_ball_centre",
+      "name": "ball centre",
+      "parts": [
+        "pitch_link_upper_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "pitch_link_upper_inner_race",
+        "surface": "spherical"
+      }
     },
     {
       "id": "pitch_plate_spindle_bore_axis",
@@ -791,20 +987,126 @@
       "note": "The upper head's moving side of the -7 deg stop."
     },
     {
+      "id": "tan_link_lower_race_bore",
+      "name": "mount end bore",
+      "parts": [
+        "tan_link_213863_004"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_213863_004",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "tan_link_upper_race_bore",
+      "name": "plate end bore",
+      "parts": [
+        "tan_link_213863_004"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_213863_004",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "tan_link_lower_outer_race_od",
+      "name": "outer cylinder",
+      "parts": [
+        "tan_link_lower_outer_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_lower_outer_race",
+        "surface": "cylindrical"
+      }
+    },
+    {
       "id": "tan_link_lower_sphere_centre",
       "name": "mount end bearing centre",
       "parts": [
-        "tan_link_212956_005"
+        "tan_link_lower_outer_race"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_lower_outer_race",
+        "surface": "spherical"
+      },
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+    },
+    {
+      "id": "tan_link_lower_inner_race_bore",
+      "name": "bore",
+      "parts": [
+        "tan_link_lower_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_lower_inner_race",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "tan_link_lower_ball_centre",
+      "name": "ball centre",
+      "parts": [
+        "tan_link_lower_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_lower_inner_race",
+        "surface": "spherical"
+      }
+    },
+    {
+      "id": "tan_link_upper_outer_race_od",
+      "name": "outer cylinder",
+      "parts": [
+        "tan_link_upper_outer_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_upper_outer_race",
+        "surface": "cylindrical"
+      }
     },
     {
       "id": "tan_link_upper_sphere_centre",
       "name": "plate end bearing centre",
       "parts": [
-        "tan_link_212956_005"
+        "tan_link_upper_outer_race"
       ],
-      "kind": "datum_feature"
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_upper_outer_race",
+        "surface": "spherical"
+      },
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+    },
+    {
+      "id": "tan_link_upper_inner_race_bore",
+      "name": "bore",
+      "parts": [
+        "tan_link_upper_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_upper_inner_race",
+        "surface": "cylindrical"
+      }
+    },
+    {
+      "id": "tan_link_upper_ball_centre",
+      "name": "ball centre",
+      "parts": [
+        "tan_link_upper_inner_race"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "tan_link_upper_inner_race",
+        "surface": "spherical"
+      }
     }
   ],
   "edges": [
@@ -1079,6 +1381,15 @@
       "note": "Value to come from 213862-002's drawing."
     },
     {
+      "id": "pitch_link_race_bores",
+      "name": "pitch arm end bore to pitch plate end bore",
+      "kind": "structural",
+      "part": "pitch_link_213861_002",
+      "from": "pitch_link_lower_race_bore",
+      "to": "pitch_link_upper_race_bore",
+      "note": "Value to come from 213861-002's drawing. The machined link's own bore to bore; the length the mechanism reads is the assembly's, between the outer races' centres."
+    },
+    {
       "id": "tan_link_length",
       "name": "mount end bearing centre to plate end bearing centre",
       "kind": "structural",
@@ -1086,6 +1397,15 @@
       "from": "tan_link_lower_sphere_centre",
       "to": "tan_link_upper_sphere_centre",
       "note": "Value to come from 212956-005 and 213863-004's drawings."
+    },
+    {
+      "id": "tan_link_race_bores",
+      "name": "mount end bore to plate end bore",
+      "kind": "structural",
+      "part": "tan_link_213863_004",
+      "from": "tan_link_lower_race_bore",
+      "to": "tan_link_upper_race_bore",
+      "note": "Value to come from 213863-004's drawing. The machined link's own bore to bore; the length the mechanism reads is the assembly's, between the outer races' centres."
     },
     {
       "id": "pitch_plate_attach_radius",
@@ -1259,40 +1579,184 @@
       "note": "Value to come from 214698-002's drawing."
     },
     {
-      "id": "pitch_arm_link_joint",
-      "name": "pitch link bore to lower bearing centre",
+      "id": "pitch_link_lower_outer_race_press_fit",
+      "name": "outer cylinder in pitch arm end bore",
       "kind": "gap",
-      "interface": "spherical",
-      "from": "pitch_arm_link_bore",
+      "interface": "press_fit",
+      "from": "pitch_link_lower_outer_race_od",
+      "to": "pitch_link_lower_race_bore",
+      "note": "Value to come from MS14101-3's datasheet and 213861-002's drawing. Swaged into the housing (Jeff): an interference that never moves, so a press fit; the word is a question for Jeff."
+    },
+    {
+      "id": "pitch_link_lower_outer_race_od_to_centre",
+      "name": "outer cylinder to lower bearing centre",
+      "kind": "structural",
+      "part": "pitch_link_lower_outer_race",
+      "from": "pitch_link_lower_outer_race_od",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "Value to come from the bearing's and the arm lug's fits (215071-001, MS14101-3)."
+      "note": "Value to come from MS14101-3's datasheet: the outer race's outside cylinder to its seat's centre."
     },
     {
-      "id": "pitch_plate_link_joint",
-      "name": "pitch link bore to upper bearing centre",
+      "id": "pitch_link_lower_ball_joint",
+      "name": "ball centre to lower bearing centre",
       "kind": "gap",
       "interface": "spherical",
-      "from": "pitch_plate_link_attach_bore",
+      "from": "pitch_link_lower_ball_centre",
+      "to": "pitch_link_lower_sphere_centre",
+      "note": "Value to come from MS14101-3's datasheet: the bearing's ball joint, the inner race's ball in the outer race's seat."
+    },
+    {
+      "id": "pitch_link_lower_inner_race_bore_to_ball",
+      "name": "bore to ball centre",
+      "kind": "structural",
+      "part": "pitch_link_lower_inner_race",
+      "from": "pitch_link_lower_inner_race_bore",
+      "to": "pitch_link_lower_ball_centre",
+      "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
+    },
+    {
+      "id": "pitch_link_lower_inner_race_on_pitch_arm",
+      "name": "pitch link bore to bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_arm_link_bore",
+      "to": "pitch_link_lower_inner_race_bore",
+      "note": "Value to come from the bearing's bore and the lug's fits (215071-001, MS14101-3). It stands in for the hardware the inner race is clamped on, which is not authored here."
+    },
+    {
+      "id": "pitch_link_upper_outer_race_press_fit",
+      "name": "outer cylinder in pitch plate end bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "pitch_link_upper_outer_race_od",
+      "to": "pitch_link_upper_race_bore",
+      "note": "Value to come from MS14101-3's datasheet and 213861-002's drawing. Swaged into the housing (Jeff): an interference that never moves, so a press fit; the word is a question for Jeff."
+    },
+    {
+      "id": "pitch_link_upper_outer_race_od_to_centre",
+      "name": "outer cylinder to upper bearing centre",
+      "kind": "structural",
+      "part": "pitch_link_upper_outer_race",
+      "from": "pitch_link_upper_outer_race_od",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "Value to come from the bearing's and the plate lug's fits (215177-001, MS14101-3)."
+      "note": "Value to come from MS14101-3's datasheet: the outer race's outside cylinder to its seat's centre."
     },
     {
-      "id": "tan_link_mount_joint",
-      "name": "attachment bore to mount end bearing centre",
+      "id": "pitch_link_upper_ball_joint",
+      "name": "ball centre to upper bearing centre",
       "kind": "gap",
       "interface": "spherical",
-      "from": "tan_link_mount_bore",
+      "from": "pitch_link_upper_ball_centre",
+      "to": "pitch_link_upper_sphere_centre",
+      "note": "Value to come from MS14101-3's datasheet: the bearing's ball joint, the inner race's ball in the outer race's seat."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_bore_to_ball",
+      "name": "bore to ball centre",
+      "kind": "structural",
+      "part": "pitch_link_upper_inner_race",
+      "from": "pitch_link_upper_inner_race_bore",
+      "to": "pitch_link_upper_ball_centre",
+      "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_on_pitch_plate",
+      "name": "pitch link bore to bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_plate_link_attach_bore",
+      "to": "pitch_link_upper_inner_race_bore",
+      "note": "Value to come from the bearing's bore and the lug's fits (215177-001, MS14101-3). It stands in for the hardware the inner race is clamped on, which is not authored here."
+    },
+    {
+      "id": "tan_link_lower_outer_race_press_fit",
+      "name": "outer cylinder in mount end bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "tan_link_lower_outer_race_od",
+      "to": "tan_link_lower_race_bore",
+      "note": "Value to come from MS14101-3's datasheet and 213863-004's drawing. Swaged into the housing (Jeff): an interference that never moves, so a press fit; the word is a question for Jeff."
+    },
+    {
+      "id": "tan_link_lower_outer_race_od_to_centre",
+      "name": "outer cylinder to mount end bearing centre",
+      "kind": "structural",
+      "part": "tan_link_lower_outer_race",
+      "from": "tan_link_lower_outer_race_od",
       "to": "tan_link_lower_sphere_centre",
-      "note": "Value to come from the bearing's and the mount lug's fits (215175-002, MS14101-3)."
+      "note": "Value to come from MS14101-3's datasheet: the outer race's outside cylinder to its seat's centre."
     },
     {
-      "id": "tan_link_plate_joint",
-      "name": "plate end bearing centre to tangential link bore",
+      "id": "tan_link_lower_ball_joint",
+      "name": "ball centre to mount end bearing centre",
       "kind": "gap",
       "interface": "spherical",
-      "from": "tan_link_upper_sphere_centre",
-      "to": "pitch_plate_tan_link_attach_bore",
-      "note": "Value to come from the bearing's and the plate lug's fits (215177-001, MS14103-3)."
+      "from": "tan_link_lower_ball_centre",
+      "to": "tan_link_lower_sphere_centre",
+      "note": "Value to come from MS14101-3's datasheet: the bearing's ball joint, the inner race's ball in the outer race's seat."
+    },
+    {
+      "id": "tan_link_lower_inner_race_bore_to_ball",
+      "name": "bore to ball centre",
+      "kind": "structural",
+      "part": "tan_link_lower_inner_race",
+      "from": "tan_link_lower_inner_race_bore",
+      "to": "tan_link_lower_ball_centre",
+      "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
+    },
+    {
+      "id": "tan_link_lower_inner_race_on_mount",
+      "name": "attachment bore to bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_mount_bore",
+      "to": "tan_link_lower_inner_race_bore",
+      "note": "Value to come from the bearing's bore and the lug's fits (215175-002, MS14101-3). It stands in for the hardware the inner race is clamped on, which is not authored here."
+    },
+    {
+      "id": "tan_link_upper_outer_race_press_fit",
+      "name": "outer cylinder in plate end bore",
+      "kind": "gap",
+      "interface": "press_fit",
+      "from": "tan_link_upper_outer_race_od",
+      "to": "tan_link_upper_race_bore",
+      "note": "Value to come from MS14103-3's datasheet and 213863-004's drawing. Swaged into the housing (Jeff): an interference that never moves, so a press fit; the word is a question for Jeff."
+    },
+    {
+      "id": "tan_link_upper_outer_race_od_to_centre",
+      "name": "outer cylinder to plate end bearing centre",
+      "kind": "structural",
+      "part": "tan_link_upper_outer_race",
+      "from": "tan_link_upper_outer_race_od",
+      "to": "tan_link_upper_sphere_centre",
+      "note": "Value to come from MS14103-3's datasheet: the outer race's outside cylinder to its seat's centre."
+    },
+    {
+      "id": "tan_link_upper_ball_joint",
+      "name": "ball centre to plate end bearing centre",
+      "kind": "gap",
+      "interface": "spherical",
+      "from": "tan_link_upper_ball_centre",
+      "to": "tan_link_upper_sphere_centre",
+      "note": "Value to come from MS14103-3's datasheet: the bearing's ball joint, the inner race's ball in the outer race's seat."
+    },
+    {
+      "id": "tan_link_upper_inner_race_bore_to_ball",
+      "name": "bore to ball centre",
+      "kind": "structural",
+      "part": "tan_link_upper_inner_race",
+      "from": "tan_link_upper_inner_race_bore",
+      "to": "tan_link_upper_ball_centre",
+      "note": "Value to come from MS14103-3's datasheet: the inner race's bore to its ball's centre."
+    },
+    {
+      "id": "tan_link_upper_inner_race_on_pitch_plate",
+      "name": "tangential link bore to bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_plate_tan_link_attach_bore",
+      "to": "tan_link_upper_inner_race_bore",
+      "note": "Value to come from the bearing's bore and the lug's fits (215177-001, MS14103-3). It stands in for the hardware the inner race is clamped on, which is not authored here."
     },
     {
       "id": "pitch_plate_slide_bushings_to_piston_body",
@@ -1444,6 +1908,7 @@
     "No edge carries a dimension. Each says what would close it; an untraced zero would read as a measured one.",
     "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener and washer, every bushing but the four at the pitch link's and the tangential link's plate attachments, and blades 2 to 5. v1 keeps all of them.",
     "Named once, 2026-11-10 (handoff the_model_is_derived_once_and_the_left_column_is_its_tree): a feature's name says the feature and not the part it is nested under; a feature two parts share names the seated part; a dimension is <from> to <to> in those words; one spelling of each term (locating boss, end stop, tangential link).",
-    "Edge order, 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the walk is authored, and the hub's edges read its joint with the tangential link mount before its blade bore, so the base reads up the stack from the hub. With the blade bore first the parts drawn as blocks crossed once more than the builder's walk."
+    "Edge order, 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the walk is authored, and the hub's edges read its joint with the tangential link mount before its blade bore, so the base reads up the stack from the hub. With the blade bore first the parts drawn as blocks crossed once more than the builder's walk.",
+    "Each link, 2026-11-19 (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19): a machined part and two spherical bearings, each bearing an outer race swaged into the machined part and an inner race fixed to the part the link attaches to, joined by one spherical gap edge. The link's body is the machined part and its outer races; each inner race is in its mating part's body; the link assembly and the bearings are in none. The four sphere centres keep v1's ids on the outer races; v1's four joint edges are not in this model."
   ]
 }

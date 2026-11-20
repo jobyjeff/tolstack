@@ -13134,6 +13134,21 @@
     //     grid (the_groups_switches_reach_the_map_and_the_grid_brackets_an_
     //     assembly_in_two_bodies, 2026-11-19) --------------------------------
 
+    // An assembly's dimension (the link's centre to centre) is an end of
+    // its members' features, never of the assembly, which owns none
+    // (a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19:
+    // v2's two link lengths). Before then a dimension's end was its `part`'s.
+    await test("an assembly's dimension ends at the features its view row names, on the races, " +
+      "and at neither race's other side of the shared node", function () {
+        var model = VA.buildModel(raceRowsProjection(), null);
+        eq(model.endsOf("outer_a@ball_a"), [{ edgeId: "link_centres", end: "from" },
+                                            { edgeId: "outer_a_ball_to_seat", end: "from" }]);
+        eq(model.endsOf("outer_b@ball_b"), [{ edgeId: "link_centres", end: "to" },
+                                            { edgeId: "outer_b_seat_to_ball", end: "to" }]);
+        eq(model.endsOf("inner_a@ball_a"), [{ edgeId: "inner_a_seat_to_ball", end: "to" }],
+           "the inner race's side of the ball is not the length's end");
+      });
+
     // The rows' fixture's grid model under `kinds`, folding `collapsed`.
     function twoBodyBraces(kinds, collapsed) {
       var topo = raceRowsProjection();
@@ -15367,13 +15382,15 @@
             var base = light(F.body, "base");
             eq(base.own.slice(0, 2), ["body:base", "part:hub"]);
             eq(base.own.filter(function (k) { return k.indexOf("part:") === 0; }),
-               ["part:hub", "part:" + MOUNT, "part:gas_spring_mount_213668_002", "part:piston_cover_214958_002"]);
+               ["part:hub", "part:" + MOUNT, "part:gas_spring_mount_213668_002", "part:piston_cover_214958_002",
+                "part:tan_link_lower_inner_race"], "the base's parts, and the tangential link's mount-end inner race (2026-11-19)");
             eq(base.own.filter(function (k) { return k.indexOf("joint:") === 0; }),
                ["joint:hub+" + MOUNT, "joint:gas_spring_mount_213668_002+" + MOUNT,
-                "joint:gas_spring_mount_213668_002+piston_cover_214958_002"], "the joints inside the base");
+                "joint:gas_spring_mount_213668_002+piston_cover_214958_002",
+                "joint:tan_link_lower_inner_race+" + MOUNT], "the joints inside the base");
             eq(base.touching.filter(function (k) { return k.indexOf("joint:") === 0; }),
                ["joint:blade_root+hub", "joint:gas_spring_mount_213668_002+piston_head_lower_214699_002",
-                "joint:tan_link_212956_005+" + MOUNT, "joint:gas_spring_mount_213668_002+gas_spring_piston_214700_002",
+                "joint:tan_link_lower_inner_race+tan_link_lower_outer_race", "joint:gas_spring_mount_213668_002+gas_spring_piston_214700_002",
                 "joint:piston_cover_214958_002+piston_head_upper_214698_002"], "the five joints to other bodies");
             eq(light(F.feature, "hub@tan_link_mount_hub_face"), {
               own: ["feature:hub@tan_link_mount_hub_face"],

@@ -1278,14 +1278,23 @@ function placementsOf(topology) {
   return out;
 }
 
+// A model feature's key, as VA.endFeatureKey answers an end: its identity --
+// which, for a feature a finer model moved onto a member, names the part the
+// model it reuses ids from puts it on (topology.feature_identity_key).
+function featureKeyOf(topology, feature) {
+  return feature.identity || { topology_id: topology.id, part: feature.part, node: feature.node };
+}
+
 // A model feature's own edge ends on `topology` (the ends whose feature it
 // is, VA.endFeatureKey): [{edgeId, direction}].
 function featureEnds(topology, feature) {
+  const VA = window.ViewerApp;
+  const want = VA.featureToken(featureKeyOf(topology, feature));
   const out = [];
   for (const e of topology.edges || []) {
     for (const d of AA.DIRECTIONS) {
-      const k = e[d] === feature.node ? window.ViewerApp.endFeatureKey(topology, e.id, d) : null;
-      if (k && k.part === feature.part) out.push({ edgeId: e.id, direction: d });
+      const k = e[d] === feature.node ? VA.endFeatureKey(topology, e.id, d) : null;
+      if (k && VA.featureToken(k) === want) out.push({ edgeId: e.id, direction: d });
     }
   }
   return out;
@@ -1293,9 +1302,11 @@ function featureEnds(topology, feature) {
 
 // The model feature an end is, on `topology`, or null.
 function featureAt(topology, edgeId, direction) {
-  const k = window.ViewerApp.endFeatureKey(topology, edgeId, direction);
+  const VA = window.ViewerApp;
+  const k = VA.endFeatureKey(topology, edgeId, direction);
   const features = (topology && topology.model && topology.model.features) || [];
-  return k ? features.find((f) => f.part === k.part && f.node === k.node) || null : null;
+  const want = VA.featureToken(k);
+  return k ? features.find((f) => VA.featureToken(featureKeyOf(topology, f)) === want) || null : null;
 }
 
 // The faces bound on the other side of a feature: what AA.gatherFaceReferences

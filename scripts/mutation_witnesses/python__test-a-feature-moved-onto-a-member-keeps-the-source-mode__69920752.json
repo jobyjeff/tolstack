@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology.py",
+  "expect_red": "test_a_feature_moved_onto_a_member_keeps_the_source_models_key",
+  "mutations": [
+    {
+      "contract": "A node a finer model states on a part inside the source model's part is keyed under the source model and the source's part, so a binding on either model is one record.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_link_is_a_machined_part_and_two_bearings_each_two_races.md",
+      "note": "Drops the member branch, the rule before 2026-11-19: v2's outer-race centres fall to v2's own key and read none of Jeff's bindings.",
+      "file": "tolerance_stack/topology.py",
+      "find": "                if there in topology._parts and topology.within(part_id, there):",
+      "replace": "                if False:"
+    },
+    {
+      "contract": "The key a moved feature carries names the source model's part, not the member's.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_link_is_a_machined_part_and_two_bearings_each_two_races.md",
+      "note": "Keys the moved feature under the source model but on the race: no v1 record has that part, so it still reads unbound.",
+      "file": "tolerance_stack/topology.py",
+      "find": "                    return source.id, there",
+      "replace": "                    return source.id, part_id"
+    }
+  ]
+}

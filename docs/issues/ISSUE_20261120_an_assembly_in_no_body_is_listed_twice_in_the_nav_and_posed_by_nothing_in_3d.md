@@ -39,3 +39,15 @@ Neither is a one-line fix; each needs a decision:
   link 4 to give each member its own mesh before the assembly leaves its
   body. Recommendation: decide with link 4, which is the handoff that makes
   the case real.
+
+## Addendum 2026-11-20 -- live on v2 since a_link_is_a_machined_part_and_two_bearings_each_two_races
+
+v2's two link assemblies and four bearings are now in no body. The nav's
+"Parts" section lists `213862-002 pitch link` and `212956-005 pitch
+anti-rotation link` whole (7 parts each), so each machined link and race is
+listed twice: once under its body and once in its assembly
+(`docs/sessions/lessons/shots/a_link_is_a_machined_part_and_two_bearings_each_two_races/tree_pitch_link_open.png`).
+In 3D, sweep mode is unaffected (it poses the parts linkage lists, the
+assembly meshes); out of it the link is drawn by its assembly, machined and
+bearing meshes at once. The races declare no occurrence on purpose (that
+handoff's lesson, "3D"). Still a design call; nothing changed here.

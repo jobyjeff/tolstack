@@ -74,15 +74,24 @@ def v1_view():
 # --- the counts the strategy session derived by hand --------------------------
 
 MODEL_V2_COUNTS = {
-    "bodies": 5, "parts": 20, "features": 67, "dimensions": 49,
-    "interfaces": 36, "contacts": 15, "gaps": 21,
-    "between_bodies": 8, "within_bodies": 28, "joints": 24,
+    "bodies": 5, "parts": 31, "features": 83, "dimensions": 59,
+    "interfaces": 44, "contacts": 15, "gaps": 29,
+    "between_bodies": 8, "within_bodies": 36, "joints": 32,
     # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
     # assembly holds its bearing, the 212956-005 assembly its two; since
     # 2026-11-18 (the_pitch_plate_is_an_assembly_with_its_bushings) 215177
     # its plate and two flanged bushings, with two straight bushings beside
-    # it: five parts, twelve features, six dimensions, eight fits.
-    "assemblies": 3,
+    # it: five parts, twelve features, six dimensions, eight fits. Since
+    # 2026-11-19 (a_link_is_a_machined_part_and_two_bearings_each_two_races)
+    # each link is a machined part and two bearings, each bearing two races:
+    # eleven parts more (two machined links, the pitch link's second bearing,
+    # eight races); sixteen features more (four bores on the machined links,
+    # and per end the outer race's cylinder and the inner race's bore and
+    # ball centre, the four sphere centres moved onto the outer races); v1's
+    # four joints out and three gaps in per end (a press fit, the ball, a
+    # pin), so eight more; ten dimensions more (one per machined link, two
+    # per bearing); and each bearing an assembly.
+    "assemblies": 7,
 }
 
 #: Interfaces inside one body, per body: ground 9 (its three joints of three
@@ -91,18 +100,18 @@ MODEL_V2_COUNTS = {
 #: joints_are_authored_as_what_the_parts_show``; 3 and 1 before it). The
 #: plate's 16 since 2026-11-18: the four bushings' fits and their bores' pins
 #: to the attachment bores, eight more.
-MODEL_V2_WITHIN = {"base": 9, "pitch_plate": 16, "blade": 3}
+MODEL_V2_WITHIN = {"base": 10, "pitch_plate": 18, "blade": 4, "tan_link": 2, "pitch_link": 2}
 
 
 def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert v2_view["counts"] == MODEL_V2_COUNTS
     assert len(v2_view["bodies"]) == 5
-    assert len(v2_view["parts"]) == 20
-    assert len(v2_view["features"]) == 67
+    assert len(v2_view["parts"]) == 31
+    assert len(v2_view["features"]) == 83
     assert sum(1 for f in v2_view["features"] if f["shared"]) == 30, \
         "15 nodes on two parts are 30 shared features, two each"
-    assert len(v2_view["dimensions"]) == 49
-    assert len(v2_view["interfaces"]) == 36
+    assert len(v2_view["dimensions"]) == 59
+    assert len(v2_view["interfaces"]) == 44
 
 
 #: The base's parts, (features, dimensions) each, since the gas-spring mount
@@ -226,9 +235,13 @@ def test_every_membership_the_view_states_is_the_topologys_own(path):
     for dimension in view["dimensions"]:
         edge = topology.edge(dimension["id"])
         assert edge.kind == "structural"
-        assert dimension["body"] == body_of[edge.part]
-        assert dimension["from"] == feature_id(edge.part, edge.from_node)
-        assert dimension["to"] == feature_id(edge.part, edge.to_node)
+        # An assembly's dimension (since 2026-11-19 v2's two link lengths)
+        # runs between its parts' features, in the one body they share.
+        near, far = topology.dimension_ends(edge)
+        assert dimension["body"] == topology.edge_body(edge)
+        assert dimension["from"] == feature_id(near, edge.from_node)
+        assert dimension["to"] == feature_id(far, edge.to_node)
+        assert (near, far) == (edge.part, edge.part) or topology.children_of(edge.part)
     for interface in view["interfaces"]:
         if interface["source"] == INTERFACE_SOURCES[0]:
             node = topology.node(interface["id"])
@@ -251,9 +264,11 @@ def test_every_membership_the_view_states_is_the_topologys_own(path):
 def test_the_view_lists_bodies_and_their_parts_in_authored_order(v2, v2_view):
     assert [b["id"] for b in v2_view["bodies"]] == [b.id for b in v2.bodies]
     for body, row in zip(v2.bodies, v2_view["bodies"]):
-        # A body's parts are its top-level ones; every part it carries is
-        # `all_parts`, in the one tree order.
-        assert row["parts"] == [p for p in body.parts if v2.part(p).parent is None]
+        # A body's parts are those whose assembly is not in it (a top-level
+        # part, or a race whose bearing is in no body); every part it carries
+        # is `all_parts`, in the one tree order.
+        assert row["parts"] == [p for p in v2.tree_order(body.parts)
+                                if v2.part(p).parent is None or v2.part(p).parent not in body.parts]
         assert sorted(row["all_parts"]) == sorted(body.parts)
         assert row["name"] == body.name
     assert [p["id"] for p in v2_view["parts"]] == [p.id for p in v2.parts]
@@ -268,12 +283,23 @@ def test_the_view_lists_bodies_and_their_parts_in_authored_order(v2, v2_view):
 
 def test_model_v2_puts_each_bearing_inside_its_link_assembly(v2_view):
     parts = {p["id"]: p for p in v2_view["parts"]}
-    assert parts["pitch_link"]["children"] == ["spherical_bearing_pitch_link"]
+    # 2026-11-19: each link assembly is its machined part and two bearings,
+    # each bearing an outer and an inner race, and the assembly and its
+    # bearings are in no body.
+    assert parts["pitch_link"]["children"] == [
+        "pitch_link_213861_002", "spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper"]
     assert parts["tan_link_212956_005"]["children"] == [
-        "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
+        "tan_link_213863_004", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
     assert parts["spherical_bearing_pitch_link"]["parent"] == "pitch_link"
     assert parts["spherical_bearing_pitch_link"]["depth"] == 1
+    assert parts["spherical_bearing_pitch_link"]["children"] == [
+        "pitch_link_lower_outer_race", "pitch_link_lower_inner_race"]
+    assert parts["pitch_link_lower_inner_race"]["depth"] == 2
     assert parts["pitch_link"]["parent"] is None and parts["pitch_link"]["depth"] == 0
+    for assembly in ("pitch_link", "tan_link_212956_005", "spherical_bearing_pitch_link",
+                     "spherical_bearing_pitch_link_upper", "spherical_bearing_tan_link",
+                     "spherical_bearing_tan_link_ms14103_3"):
+        assert parts[assembly]["body"] is None and parts[assembly]["features"] == [], assembly
     # 215177 holds its plate and the flanged bushings (2026-11-18); the
     # straight bushings are top-level beside it. 215175 stays a single part.
     assert parts["pitch_plate_215177_001"]["children"] == [
@@ -283,11 +309,12 @@ def test_model_v2_puts_each_bearing_inside_its_link_assembly(v2_view):
     assert parts["bushing_214820_002"]["parent"] is None
     assert parts["tan_link_mount_215175_002"]["children"] == []
     bodies = {b["id"]: b for b in v2_view["bodies"]}
-    assert bodies["tan_link"]["parts"] == ["tan_link_212956_005"]
-    assert bodies["tan_link"]["all_parts"] == [
-        "tan_link_212956_005", "spherical_bearing_tan_link",
-        "spherical_bearing_tan_link_ms14103_3"]
-    assert bodies["pitch_link"]["all_parts"] == ["pitch_link", "spherical_bearing_pitch_link"]
+    assert bodies["tan_link"]["parts"] == [
+        "tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"]
+    assert bodies["tan_link"]["all_parts"] == bodies["tan_link"]["parts"]
+    assert bodies["pitch_link"]["all_parts"] == [
+        "pitch_link_upper_outer_race", "pitch_link_213861_002", "pitch_link_lower_outer_race"]
+    assert bodies["blade"]["parts"][0] == "pitch_link_lower_inner_race"
 
 
 def test_the_tree_order_is_an_assembly_then_its_children_depth_first(tmp_path):
@@ -295,19 +322,21 @@ def test_the_tree_order_is_an_assembly_then_its_children_depth_first(tmp_path):
     by_id = {p["id"]: p for p in raw["parts"]}
     # Nest one level deeper and list the deepest part first in the body, so
     # the order the view states is the tree's and not the authored list's.
-    by_id["spherical_bearing_tan_link_ms14103_3"]["parent"] = "spherical_bearing_tan_link"
-    body = [b for b in raw["bodies"] if b["id"] == "tan_link"][0]
-    body["parts"] = ["spherical_bearing_tan_link_ms14103_3", "spherical_bearing_tan_link",
-                     "tan_link_212956_005"]
+    # (The pitch plate: since 2026-11-19 the links' bodies hold no assembly.)
+    by_id["flanged_bushing_nas77a3_015a"]["parent"] = "pitch_plate_215735_001"
+    body = [b for b in raw["bodies"] if b["id"] == "pitch_plate"][0]
+    body["parts"] = list(reversed(body["parts"]))
     path = tmp_path / "topology_nested.json"
     path.write_text(json.dumps(raw), encoding="utf-8")
     view = model_view(load_topology(path, identity_path=None))
-    row = [b for b in view["bodies"] if b["id"] == "tan_link"][0]
-    assert row["parts"] == ["tan_link_212956_005"]
-    assert row["all_parts"] == ["tan_link_212956_005", "spherical_bearing_tan_link",
-                                "spherical_bearing_tan_link_ms14103_3"]
+    row = [b for b in view["bodies"] if b["id"] == "pitch_plate"][0]
+    assert "pitch_plate_215735_001" not in row["parts"] and "pitch_plate_215177_001" in row["parts"]
+    at = row["all_parts"].index("pitch_plate_215177_001")
+    assert row["all_parts"][at:at + 4] == ["pitch_plate_215177_001", "pitch_plate_215735_001",
+                                          "flanged_bushing_nas77a3_015a",
+                                          "flanged_bushing_nas77a3_015a_tan_link"]
     depth = {p["id"]: p["depth"] for p in view["parts"]}
-    assert depth["spherical_bearing_tan_link_ms14103_3"] == 2
+    assert depth["flanged_bushing_nas77a3_015a"] == 2
 
 
 def test_an_assembly_in_two_bodies_reads_as_a_tree_and_its_dimension_joins_its_parts():
