@@ -310,11 +310,11 @@ def test_model_v2_puts_each_bearing_inside_its_link_assembly(v2_view):
     assert parts["tan_link_mount_215175_002"]["children"] == []
     bodies = {b["id"]: b for b in v2_view["bodies"]}
     assert bodies["tan_link"]["parts"] == [
-        "tan_link_213863_004", "tan_link_lower_outer_race", "tan_link_upper_outer_race"]
+        "tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"]
     assert bodies["tan_link"]["all_parts"] == bodies["tan_link"]["parts"]
     assert bodies["pitch_link"]["all_parts"] == [
-        "pitch_link_213861_002", "pitch_link_lower_outer_race", "pitch_link_upper_outer_race"]
-    assert bodies["blade"]["parts"][-1] == "pitch_link_lower_inner_race"
+        "pitch_link_upper_outer_race", "pitch_link_213861_002", "pitch_link_lower_outer_race"]
+    assert bodies["blade"]["parts"][0] == "pitch_link_lower_inner_race"
 
 
 def test_the_tree_order_is_an_assembly_then_its_children_depth_first(tmp_path):

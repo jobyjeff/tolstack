@@ -37,8 +37,8 @@
         "component": "propeller-system"
       },
       "parts": [
-        "tan_link_213863_004",
         "tan_link_lower_outer_race",
+        "tan_link_213863_004",
         "tan_link_upper_outer_race"
       ],
       "note": "The machined link 213863-004 and its two bearings' outer races, swaged into its bores (Jeff's note 20261119T142516_ci28ci; handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19). The 212956-005 assembly and its two bearings are in no body: each bearing's inner race moves with the part it is fixed to. linkage lists the assembly alone, because its mesh draws all of it -- the difference is declared beside the pairing test."
@@ -51,17 +51,17 @@
         "component": "propeller-system"
       },
       "parts": [
+        "tan_link_upper_inner_race",
         "pitch_plate_215177_001",
         "flanged_bushing_nas77a3_015a",
         "pitch_plate_215735_001",
         "bushing_214820_002",
+        "pitch_link_upper_inner_race",
         "gas_spring_piston_214700_002",
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002",
         "flanged_bushing_nas77a3_015a_tan_link",
-        "straight_bushing_214820_002",
-        "pitch_link_upper_inner_race",
-        "tan_link_upper_inner_race"
+        "straight_bushing_214820_002"
       ],
       "note": "The plate assembly (the plate and its two flanged bushings), the two straight bushings, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). The plate seats and is bolted on the piston body's flange about its pilot boss; one spigot on the piston body locates both heads, and the upper head is bolted to the piston body through the lower head's bore (2026-11-17, read off the meshes). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
     },
@@ -73,9 +73,9 @@
         "component": "propeller-system"
       },
       "parts": [
+        "pitch_link_upper_outer_race",
         "pitch_link_213861_002",
-        "pitch_link_lower_outer_race",
-        "pitch_link_upper_outer_race"
+        "pitch_link_lower_outer_race"
       ],
       "note": "The machined link 213861-002 and its two bearings' outer races, swaged into its bores (Jeff's note 20261119T142516_ci28ci; handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19). The 213862-002 assembly and its two MS14101-3 bearings are in no body: each bearing's inner race moves with the part it is fixed to. A two-force member: the distance between the two outer races' centres is the assembly's one length. The bearings' tolerances come from their datasheet (Jeff)."
     },
@@ -87,9 +87,9 @@
         "component": "propeller-system"
       },
       "parts": [
+        "pitch_link_lower_inner_race",
         "pitch_arm",
-        "blade_root",
-        "pitch_link_lower_inner_race"
+        "blade_root"
       ],
       "note": "Blade 1 and its pitch arm: the arm's ring seats on the blade root's fitting, on its boss, clocked by one radial hole through both (2026-11-17, read off the meshes)."
     }
@@ -604,7 +604,7 @@
         "part": "pitch_link_lower_outer_race",
         "surface": "spherical"
       },
-      "note": "The centre of the outer race's seat. Moved onto the outer race from the link assembly (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19), keeping v1's id: the sweep joins on it and the assembly's length runs to it. A binding on v1's feature reads here through the assembly (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
     },
     {
       "id": "pitch_link_lower_inner_race_bore",
@@ -653,7 +653,7 @@
         "part": "pitch_link_upper_outer_race",
         "surface": "spherical"
       },
-      "note": "The centre of the outer race's seat. Moved onto the outer race from the link assembly (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19), keeping v1's id: the sweep joins on it and the assembly's length runs to it. A binding on v1's feature reads here through the assembly (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
     },
     {
       "id": "pitch_link_upper_inner_race_bore",
@@ -1033,7 +1033,7 @@
         "part": "tan_link_lower_outer_race",
         "surface": "spherical"
       },
-      "note": "The centre of the outer race's seat. Moved onto the outer race from the link assembly (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19), keeping v1's id: the sweep joins on it and the assembly's length runs to it. A binding on v1's feature reads here through the assembly (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
     },
     {
       "id": "tan_link_lower_inner_race_bore",
@@ -1082,7 +1082,7 @@
         "part": "tan_link_upper_outer_race",
         "surface": "spherical"
       },
-      "note": "The centre of the outer race's seat. Moved onto the outer race from the link assembly (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19), keeping v1's id: the sweep joins on it and the assembly's length runs to it. A binding on v1's feature reads here through the assembly (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
+      "note": "The centre of the outer race's seat, under v1's id, which v1 states on the link assembly: the P2 sweep joins on it and the assembly's length runs to it. A binding on v1's feature is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
     },
     {
       "id": "tan_link_upper_inner_race_bore",

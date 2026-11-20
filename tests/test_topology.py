@@ -1117,17 +1117,19 @@ def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on():
 MODEL_V2_BODIES = {
     "base": ["hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
              "piston_cover_214958_002", "tan_link_lower_inner_race"],
-    "tan_link": ["tan_link_213863_004", "tan_link_lower_outer_race", "tan_link_upper_outer_race"],
-    "pitch_plate": ["pitch_plate_215177_001", "flanged_bushing_nas77a3_015a",
-                    "pitch_plate_215735_001", "bushing_214820_002",
+    "tan_link": ["tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"],
+    "pitch_plate": ["tan_link_upper_inner_race", "pitch_plate_215177_001", "flanged_bushing_nas77a3_015a",
+                    "pitch_plate_215735_001", "bushing_214820_002", "pitch_link_upper_inner_race",
                     "gas_spring_piston_214700_002",
                     "piston_head_lower_214699_002", "piston_head_upper_214698_002",
-                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002",
-                    "pitch_link_upper_inner_race", "tan_link_upper_inner_race"],
-    "pitch_link": ["pitch_link_213861_002", "pitch_link_lower_outer_race",
-                   "pitch_link_upper_outer_race"],
-    "blade": ["pitch_arm", "blade_root", "pitch_link_lower_inner_race"],
+                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002"],
+    "pitch_link": ["pitch_link_upper_outer_race", "pitch_link_213861_002",
+                   "pitch_link_lower_outer_race"],
+    "blade": ["pitch_link_lower_inner_race", "pitch_arm", "blade_root"],
 }
+# Since 2026-11-19 each link reads from the end the walk enters it by, and
+# each inner race is listed where its link enters the mating body (the
+# walk enters a body at its earliest listed part an edge reaches).
 
 #: The parts v2 puts in no body (2026-11-19): each link assembly and its two
 #: bearings, whose races move in two bodies. Every other part is in one.
@@ -3101,7 +3103,7 @@ def test_children_and_the_tree_order_of_model_v2():
     # The link body's parts, walked as a tree, are the machined part then each
     # outer race; the inner races are listed in their mating parts' bodies.
     assert topology.tree_order(topology.body("tan_link").parts) == [
-        "tan_link_213863_004", "tan_link_lower_outer_race", "tan_link_upper_outer_race"]
+        "tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"]
     # 2026-11-18: the plate assembly holds its machined plate and the flanged
     # bushings; the straight bushings are top-level (Jeff: "the straight
     # bushings aren't assembled until the top level").
