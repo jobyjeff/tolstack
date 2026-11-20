@@ -658,7 +658,13 @@ race, so each bearing's outline straddles the border -- and since a district
 and a link's outline are each one rectangle, the five are laid where they
 enclose no other box: the tangential link as a Z under the mount's row, the
 pitch link down a fifth column, and the blade, the pitch arm and the hub along
-a bottom row, five columns by nine rows (the file's `provenance.arrangement`).
+a bottom row, five columns by nine rows. Since 2026-11-20 (handoff
+`the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`) the
+215177 container is its outline round one row -- the two flanged bushings
+either side of the plate -- with each lug's bolt, straight bushing and inner
+race under it and each race on the pitch plate district's bottom edge beside
+its link: seven columns by ten rows, no route in the region crossing another
+(the file's `provenance.arrangement`).
 Nothing in the layout code assumes either shape: a
 pin's side is decided in cell units, a part's name takes whichever corner of
 its box its jumpers leave clear, and a child's row moves aside for a route
@@ -757,8 +763,9 @@ out of its parent's bottom (below).
   and along a lane past the boxes it spans (under, over, left or right, the
   first that crosses none) -- inside the outline. A district's name is drawn
   above every outline. An assembly
-  that still owns a node keeps its box inside the plain outline, so v2's map
-  (215177 and both links) is unchanged until their features move.
+  that still owns a node kept its box inside the plain outline until
+  2026-11-20, when the model began refusing one ("Bodies", rule 1): every
+  assembly is now its outline.
 - **The view**: fitted to the region on the first paint, never past a cap,
   then the reader's wheel zooms about the pointer, a drag pans, Fit and the
   `0` key re-fit; a selection made elsewhere is panned into view when it is
