@@ -339,3 +339,18 @@ topology http 164.1, topology file:// 112.8, 3D pane follows the selection 99.2,
 the page 73.8, annotate flyout 70.6, the DAG zoom 66.4, every study opens in 3D 64.2, a
 pattern is bound as its like faces 64.1, annotate model in the scene 57.5, kinematic study
 page 54.0, annotate sweep rail 52.9. The suite this handoff added took 13.7 s.
+
+## Measurement 2026-11-20 (review of `the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_groups_1120`,
+in the review worktree at `bae3e64f` (tree `f3db140c`), with no slot wait: **2365 s**,
+49 suites, against the 1800 s merge budget. That is `OVER BUDGET` by 9 m 25 s, and the
+runner recorded the row itself. The reviewer's own two short probes, which drive one
+headless Chrome each, ran during part of the tier, so some of the excess may be
+contention. The top 15 suites, in seconds: topology http 252.6, topology file:// 217.3,
+the model drawn alone 201.6, no nav click wedges the page 141.0, 3D pane follows the
+selection 118.1, the map 116.3, annotate rail holds still 109.7, the DAG zoom 105.3, a
+suggestion names its face 105.2, kinematic study page 84.3, every study opens in 3D
+73.0, a pattern is bound as its like faces 66.2, annotate flyout 64.3, annotate model
+in the scene 62.3, the scene pane reads over HTTP 57.1. The suite this handoff added
+(the Groups switches) took 28.5 s.

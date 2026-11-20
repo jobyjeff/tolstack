@@ -6221,6 +6221,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       The same diff wrote one rule twice: `VA.mapOutlined` (JS) and
       `outlined_assemblies` (builder). Only the shared fixture pairs them, so
       ask what case outside the fixture they could disagree on.
+- [ ] **SVG hidden by `visibility: hidden` can still take the pointer.** New
+      2026-11-20 (`the_groups_switches_…_in_two_bodies`, blocker). The map's
+      hit targets declare `pointer-events: stroke | fill | all`
+      (`.map__boxhit`, `.map__districtfield`, `.map__districthit`,
+      `.map__outlinehit`, `apps/viewer/map.css`). Those values ignore
+      visibility; only the `visible*` values respect it. So a Groups kind
+      switched off left an invisible box that hovers, lights, titles and
+      selects, and an invisible district that selects its body on a click
+      in empty space. The lesson said the opposite, and every tier checked
+      only `getComputedStyle(...).visibility`. When a diff hides something
+      interactive, grep the hidden layer's `pointer-events`, then probe it
+      with a real `mouse.move`/`down`/`up` and `elementFromPoint` at a point
+      the hidden element owns. The point must not be on a jumper or a pin.
 
 ## Architectural errors to check
 
