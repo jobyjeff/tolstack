@@ -177,6 +177,9 @@ by a pointer over empty space).
   measurement.
 - The scratch root `data/scratch/rv_groups_1120` (and its logs) was removed
   after the run. Round 2 needs a fresh build from its own tree anyway.
+- Seen, not touched: the main checkout's `tmp/mutation-witness-5028`,
+  dated 2026-11-19 10:48 local, with no witness runner alive. It is
+  another session's leftover shadow tree.
 
 ## For the rework
 
