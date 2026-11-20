@@ -792,6 +792,42 @@ study lit as a route (`ISSUE_20261116_what_the_map_does_not_draw_yet`); a
 hand arrangement of v1's routes; and the compound joints the model does not
 author yet (the map draws each as it is authored).
 
+### The Groups switches — the containers the map and the grid draw (2026-11-19)
+
+Since handoff `the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies`
+(Jeff's note `20261119T142516_ci28ci`). The settings bar's **Groups** popover
+has three switches, `VA.GROUP_KINDS`: **Bodies**, **Assemblies**, **Parts**.
+They are kept per model in the browser as the kinds switched *off*, so a
+choice stored before the Assemblies switch existed reads it on.
+
+**On the map** a kind switched off is hidden in place by a class on the
+drawing (`tv__map--no-<kind>`, `apps/viewer/map.css`): Bodies takes the
+districts' borders, fields and names; Assemblies every assembly's outline and
+its name; Parts every box and its name. Pins, symbols, jumpers and connectors
+stay, and stay where they were: the layout is the whole model whatever is
+switched off, so the drawn counts still find a district per body and a box
+per part.
+
+**In the grid** an assembly is a bracket round its own rows and the rows of
+every part inside it, dotted and its name in italic as on the map
+(`VA.gridBraces`, kind `assembly`). Bodies and assemblies do not nest: an
+assembly whose parts sit in two bodies has rows in both. So the grid's
+outermost bracket is a body **or** an assembly, never both
+(`VA.gridGroupKinds`): with both switched on it draws the one switched on
+last (`VA.GRID_OUTER_KEY`, per model; the bodies until one is), and the map
+draws both. With the assemblies outermost, a top-level assembly's name takes
+the strip a body's would, and one assembly is one bracket per unbroken run of
+its rows; a sub-assembly (a bearing round its races) is a bracket inside it
+whose name is on its fold's hover where a part inside it starts the row. A
+part in no assembly sits where the parts in one do. The fold is the part's,
+so folding one run folds them all into the one row the fold always made.
+
+`VA.gridBraces` still models both at once -- an assembly cut into one
+bracket per run inside each body -- and the fast tier pins that model on the
+race-rows fixture (`tests/fixtures/topology_assembly_in_two_bodies_rows.json`).
+Drawn, it put the link assembly in ground and in the arm as brackets with no
+name, and stacked three caps on a race's one row; the shots are in the lesson.
+
 ### Naming a feature (2026-11-10)
 
 Model v2's names were rewritten under one rule when the left column became

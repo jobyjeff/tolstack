@@ -1297,6 +1297,9 @@
     var indent = {};
     var lefts = [];
     var rows = function (b) { return b.end - b.start + 1; };
+    // Where an assembly is the outermost bracket, a part in none sits where
+    // the parts inside one do, so every number starts on one line.
+    var stripped = model.braces.some(function (b) { return b.kind === "assembly" && b.outermost; });
     model.braces.forEach(function (b) {
       var right = 2 + b.level * g.inset;
       // A part's, and an assembly's inside a body or another assembly, in
@@ -1304,7 +1307,7 @@
       var inStrip = b.kind === "part" || (b.kind === "assembly" && !b.outermost);
       var outer = b.outer || b.body;
       var x = inStrip && outer ? lefts[model.braces.indexOf(outer)] + g.body
-        : 2 + b.level * g.inset;
+        : 2 + b.level * g.inset + (inStrip && stripped ? g.body : 0);
       // A part inside an assembly is indented `nest` a level: its bracket,
       // and so its number (only the part column moves).
       var nested = inStrip ? (b.depth || 0) * g.nest : 0;
@@ -1330,6 +1333,7 @@
       var caret = (b.kind === "part" || b.kind === "assembly") && b.assembly ? g.caret : 0;
       if (caret) {
         carets.push({ part: b.part, open: b.assembly === "open", tint: b.tint,
+                      name: b.kind === "assembly" && !b.named ? b.label : null,
                       left: x + 3, top: b.start * rowHeight, width: caret, height: rowHeight });
       }
       // A label starts on its brace's first row, on that row's text line;
@@ -1410,7 +1414,7 @@
     // An assembly's fold (a_part_may_contain_parts): the one control in this
     // layer, so it alone takes the pointer.
     (geo.carets || []).forEach(function (c) {
-      var node = assemblyCaret(c.part, c.open, ctx);
+      var node = assemblyCaret(c.part, c.open, ctx, c.name);
       if (!node) return;
       node.className += " tvbrace__caret" + ink(c.tint);
       place(node, c);
@@ -1421,13 +1425,17 @@
   // An assembly's fold in the grid: ▾ open, ▸ folded into its one row. A
   // click folds or opens it and selects nothing. Null where the page wires
   // no fold.
-  function assemblyCaret(partId, open, ctx) {
+  // `name` is the assembly's, where its bracket draws none: the fold is
+  // then the one place it is said.
+  function assemblyCaret(partId, open, ctx, name) {
     if (!ctx.onToggleAssembly) return null;
     var node = VA.el("button", "tvasm__caret", open ? "▾" : "▸");
     node.setAttribute("type", "button");
     node.setAttribute("data-assembly-fold", partId);
     node.setAttribute("aria-expanded", open ? "true" : "false");
-    node.setAttribute("title", open ? "Fold into one row" : "Show its parts");
+    node.setAttribute("title", name
+      ? (open ? "Fold " + name + " into one row" : "Show the parts of " + name)
+      : (open ? "Fold into one row" : "Show its parts"));
     node.onclick = function (event) {
       if (event && event.stopPropagation) event.stopPropagation();
       ctx.onToggleAssembly(partId, open);

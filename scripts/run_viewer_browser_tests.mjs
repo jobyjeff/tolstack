@@ -3104,6 +3104,182 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
   }
 }
 
+// --- the Groups switches (the_groups_switches_reach_the_map_and_the_grid_
+//     brackets_an_assembly_in_two_bodies, 2026-11-19) -------------------------
+//
+// Bodies, Assemblies and Parts, ticked in the popover on the real end-stop
+// model: each hides its own containers on the map and nothing else, no pin
+// moves a pixel, the drawn counts hold, the choice survives a reload, and a
+// choice stored before the Assemblies switch existed shows the assemblies.
+// Then the race-rows fixture (apps/viewer/tests.js's copy of its projection)
+// on the same page: its map with each switch off, and its grid with the
+// assemblies as the outermost bracket.
+async function raceRowsProjection() {
+  const source = await readFile(join(APP_DIR, "tests.js"), "utf8");
+  const literal = source.slice(source.indexOf("// BEGIN raceRowsProjection"),
+    source.indexOf("// END raceRowsProjection")).split("var RACE_ROWS_PROJECTION = ")[1];
+  return JSON.parse(literal.slice(0, literal.lastIndexOf(";")));
+}
+
+async function testGroupsSwitches(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const model = topologies && (topologies.topologies || []).find((t) => t.id === MAP_TOPOLOGY);
+  if (!model || !model.map || !model.model) {
+    push("[real] the Groups switches on the end-stop model (skipped: the topology projection with the " +
+      "map's layout is not on disk -- build it, or pass --repo <a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1700, height: 1200 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    const open = async () => {
+      await page.goto(`${url}/apps/viewer/topology.html?topology=${MAP_TOPOLOGY}`, { waitUntil: "load" });
+      await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 });
+      await page.waitForTimeout(600);
+    };
+    await open();
+    await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
+    await open();
+    // Every pin's place, each kind's containers' visibility, the counts.
+    const measure = () => page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const pins = Array.from(document.querySelectorAll("#topopane g.map__pin")).map((g) => {
+        const r = g.getBoundingClientRect();
+        return g.getAttribute("data-map-id") + "@" + r.left.toFixed(2) + "," + r.top.toFixed(2);
+      });
+      const shown = (sel) => {
+        const els = Array.from(document.querySelectorAll("#topopane " + sel));
+        return els.length ? els.filter((e) => getComputedStyle(e).visibility !== "hidden").length / els.length : -1;
+      };
+      return { pins: pins.join("|"), counts: JSON.stringify(VA.mapCounts(VA.lastMapLight.geometry)),
+        shown: { bodies: [shown("rect.map__district"), shown("rect.map__districtfield"), shown("text.map__bodyname")],
+                 assemblies: [shown("rect.map__assembly, g.map__outlinegroup")],
+                 parts: [shown("rect.map__box"), shown("g.map__partname")] },
+        ticked: Array.from(document.querySelectorAll("#group-kinds input")).map((b) => b.getAttribute("data-kind") + "=" + b.checked),
+        summary: (document.querySelector("#group-kinds-toggle") || {}).textContent };
+    });
+    const setKind = async (kind, on) => {
+      if ((await page.locator("#group-kinds").getAttribute("open")) === null) {
+        await page.locator("#group-kinds-toggle").click();
+      }
+      const box = page.locator(`#group-kinds input[data-kind="${kind}"]`);
+      if ((await box.isChecked()) !== on) await box.click({ noWaitAfter: true });
+      await page.waitForTimeout(400);
+    };
+    const hidden = (m, kind) => m.shown[kind].every((v) => v === 0);
+    const visible = (m, kind) => m.shown[kind].every((v) => v === 1);
+    const KINDS = ["bodies", "assemblies", "parts"];
+    const base = await measure();
+    console.log(`      [${label}] all on: ${JSON.stringify(base.shown)}, ${base.summary}`);
+    push("[real] the popover offers three switches, Bodies, Assemblies and Parts, all on and counted",
+      base.ticked.join(",") === "bodies=true,assemblies=true,parts=true" && base.summary === "Groups (3 of 3)" &&
+      KINDS.every((k) => visible(base, k)));
+    let eachOwn = true;
+    let pinsStill = true;
+    let countsHold = true;
+    for (const kind of KINDS) {
+      await setKind(kind, false);
+      const m = await measure();
+      console.log(`      [${label}] ${kind} off: ${JSON.stringify(m.shown)}`);
+      eachOwn = eachOwn && hidden(m, kind) && KINDS.filter((k) => k !== kind).every((k) => visible(m, k));
+      pinsStill = pinsStill && m.pins === base.pins;
+      countsHold = countsHold && m.counts === base.counts;
+      await setKind(kind, true);
+    }
+    push("[real] each switch off hides exactly its own containers on the map: the districts with their " +
+      "fields and names, the assemblies' outlines, the parts' boxes and names", eachOwn);
+    for (const kind of KINDS) await setKind(kind, false);
+    const none = await measure();
+    pinsStill = pinsStill && none.pins === base.pins;
+    countsHold = countsHold && none.counts === base.counts;
+    push("[real] with any switch off, and all three, every pin is where it was to the pixel", pinsStill);
+    push("[real] with any switch off, and all three, the map's drawn counts are unchanged", countsHold);
+    await open();
+    const reloaded = await measure();
+    push("[real] the switches survive a reload, on the map and in the popover",
+      KINDS.every((k) => hidden(reloaded, k)) && reloaded.summary === "Groups (0 of 3)");
+    await page.evaluate((id) => {
+      const all = {}; all[id] = ["parts"];
+      localStorage.setItem("tolstack.viewer.groupKinds", JSON.stringify(all));
+    }, MAP_TOPOLOGY);
+    await open();
+    const old = await measure();
+    push("[real] a choice stored before the Assemblies switch existed shows the assemblies",
+      visible(old, "assemblies") && visible(old, "bodies") && hidden(old, "parts") &&
+      old.ticked.join(",") === "bodies=true,assemblies=true,parts=false");
+    await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
+
+    // The fixture, drawn on this page in this stylesheet and taken away.
+    const fixture = await page.evaluate((proj) => {
+      const VA = window.ViewerApp;
+      const keep = VA.lastMapLight;
+      const mapHost = document.createElement("div");
+      const gridHost = document.createElement("div");
+      mapHost.style.cssText = "position:fixed;left:0;top:0;width:1600px;height:420px;z-index:50;background:var(--bg)";
+      gridHost.style.cssText = "position:fixed;left:0;top:430px;width:1100px;height:400px;z-index:50;background:var(--bg);overflow:auto";
+      document.body.appendChild(mapHost);
+      document.body.appendChild(gridHost);
+      const paint = (kinds, outer) => VA.renderTopoPane(mapHost, { topoProj: proj, gridRoot: gridHost,
+        groupKinds: kinds, gridOuter: outer, study: null, crops: null, onSelect() {}, onToggleAssembly() {} });
+      const pins = () => Array.from(mapHost.querySelectorAll("g.map__pin")).map((g) => {
+        const r = g.getBoundingClientRect();
+        return r.left.toFixed(2) + "," + r.top.toFixed(2);
+      }).join("|");
+      const shown = (sel) => Array.from(mapHost.querySelectorAll(sel))
+        .filter((e) => getComputedStyle(e).visibility !== "hidden").length;
+      const all = { bodies: true, assemblies: true, parts: true };
+      paint(all, "assemblies");
+      const out = { basePins: pins(), districts: shown("rect.map__district"), outlines: shown("g.map__outlinegroup"),
+        boxes: shown("rect.map__box"), off: {} };
+      const grid = {
+        bodies: gridHost.querySelectorAll(".tvbrace--body.tvbrace--top").length,
+        assemblyRuns: Array.from(gridHost.querySelectorAll(".tvbrace--assembly.tvbrace--top"))
+          .map((n) => n.getAttribute("data-brace-entity")).sort(),
+        names: Array.from(gridHost.querySelectorAll(".tvbrace__label--assembly")).map((n) => n.textContent),
+        clipped: Array.from(gridHost.querySelectorAll(".tvbrace__label")).some((n) => n.scrollWidth > n.clientWidth + 1),
+      };
+      ["bodies", "assemblies", "parts"].forEach((k) => {
+        const kinds = Object.assign({}, all);
+        kinds[k] = false;
+        paint(kinds, "assemblies");
+        out.off[k] = { pins: pins() === out.basePins, districts: shown("rect.map__district"),
+          outlines: shown("g.map__outlinegroup"), boxes: shown("rect.map__box") };
+      });
+      VA.releaseMap(mapHost);
+      mapHost.remove();
+      gridHost.remove();
+      VA.lastMapLight = keep;
+      return { map: out, grid };
+    }, await raceRowsProjection());
+    console.log(`      [${label}] the race-rows fixture: ${JSON.stringify(fixture)}`);
+    const f = fixture.map;
+    push("the fixture's map: each switch off hides its own containers, a bearing's outline across two " +
+      "districts among them, and leaves every pin where it was",
+      f.districts === 3 && f.outlines === 4 && f.boxes > 0 &&
+      f.off.bodies.pins && f.off.bodies.districts === 0 && f.off.bodies.outlines === 4 && f.off.bodies.boxes === f.boxes &&
+      f.off.assemblies.pins && f.off.assemblies.outlines === 0 && f.off.assemblies.districts === 3 &&
+      f.off.parts.pins && f.off.parts.boxes === 0 && f.off.parts.outlines === 4);
+    push("the fixture's grid with the assemblies outermost: no body bracket, the link assembly one " +
+      "bracket under its name, each bearing once per race, and no bracket's name clipped",
+      fixture.grid.bodies === 0 &&
+      JSON.stringify(fixture.grid.assemblyRuns) ===
+        JSON.stringify(["base_asm", "bearing_a", "bearing_a", "bearing_b", "bearing_b", "link_asm"]) &&
+      JSON.stringify(fixture.grid.names) === JSON.stringify(["100-000", "200-001"]) && !fixture.grid.clipped);
+    push("[real] nothing threw on the Groups page", errors.length === 0);
+    if (errors.length) console.log(`      [${label}] errors: ${errors.join(" | ").slice(0, 600)}`);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 // --- the map (the_map_draws_the_end_stop_model, 2026-11-16) -----------------
 //
 // The DAG region's one drawing of the model (apps/viewer/map.js,
@@ -14916,6 +15092,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testAPressThatWritesSaysSo(browser, label, topologies)],
       ["the map (the counts on both models, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
+      ["the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+        (label) => testGroupsSwitches(browser, label, topologies)],
       ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",
         (label) => testWindowResizeReclamps(browser, label, topologies)],
     ];

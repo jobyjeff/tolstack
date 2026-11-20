@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the grid draws an assembly's bracket as the map draws its outline, its name once on each run's first row it can take, and its fold there",
+  "mutations": [
+    {
+      "contract": "An assembly's fold is drawn once, on its bracket, where its bracket carries it; its own row's cell draws none.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "The cell draws its fold whatever the bracket does: the link assembly's own row carries a second fold beside the bracket's.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (ctx && !foldDrawn && VA.assemblyIds(ctx.topoProj)[group.part]) {",
+      "replace": "      if (ctx && VA.assemblyIds(ctx.topoProj)[group.part]) {"
+    }
+  ]
+}

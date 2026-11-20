@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "[real] with any switch off, and all three, every pin is where it was to the pixel",
+  "mutations": [
+    {
+      "contract": "A kind switched off is hidden in place: the layout is the model's whole, so nothing it holds moves.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "The tempting wrong shape: Bodies off lays the map out with no bodies, so the parts are placed again and every pin moves.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    var geo = VA.mapLayout(modelView, topoProj && topoProj.map, M);\n    if (!geo) {",
+      "replace": "    if (ctx.groupKinds && ctx.groupKinds.bodies === false && modelView) {\n      modelView = Object.assign({}, modelView, { bodies: [] });\n    }\n    var geo = VA.mapLayout(modelView, topoProj && topoProj.map, M);\n    if (!geo) {"
+    }
+  ]
+}

@@ -372,7 +372,11 @@ export const DECLARED_GUARDS = {
   // 2026-11-20 (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies): +2 --
   // an assembly with no feature is one named outline over the two-body fixture,
   // and the outline is the part's one drawing. Each carries a spec.
-  fast: { declared: 613, enrollable: 613, names: "dcf46d4aed75" },
+  // 2026-11-20 (the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies): +4 --
+  // an assembly in two bodies bracketed once per run, each switch its own kind and the grid's
+  // outermost bracket, the assembly's bracket drawn with its fold, and the map's class per
+  // kind switched off. Each carries a spec.
+  fast: { declared: 617, enrollable: 617, names: "897e76afbc84" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -763,7 +767,11 @@ export const DECLARED_GUARDS = {
   // 2026-11-20 (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies): +2 --
   // the two-body fixture drawn on the map's page: its outlines with no note,
   // and their names as the browser sets them. Each carries a spec.
-  browser: { declared: 788, enrollable: 759, names: "8992c5cec374" },
+  // 2026-11-20 (the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies): +10 --
+  // the Groups switches on v2's page and the race-rows fixture: eight checks with a spec each;
+  // the suite's `(skipped: ...)` push, the literal `true`; and "nothing threw on the Groups
+  // page", which every one of the eight mutations leaves green and no plausible one reddens alone.
+  browser: { declared: 798, enrollable: 769, names: "bc70e662c630" },
 };
 
 

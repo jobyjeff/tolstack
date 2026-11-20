@@ -695,8 +695,10 @@ they are shown, and nothing else: **Rows** (comfortable or compact),
 **Rows: labelled / values only**, **Fit** (the map, back to its region; the
 `0` key too), **Side by side · 3D · DAG** while the 3D pane is open,
 **Unused: dimmed / hidden** while something is lit, **Collapse assemblies /
-Expand all** on a model with an assembly, **Groups** (which of the grid's
-brackets are drawn: Bodies, Parts), **View** (the palette the bodies wear)
+Expand all** on a model with an assembly, **Groups** (which containers the
+map and the grid draw: Bodies, Assemblies, Parts -- the grid draws a body or
+an assembly as its outermost bracket, the one switched on last;
+`docs/DAG_TOPOLOGY.md`, "The Groups switches"), **View** (the palette the bodies wear)
 and **View in 3D** on a study with something to show.
 
 ### The map: the DAG region's drawing

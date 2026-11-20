@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "the fixture's map: each switch off hides its own containers, a bearing's outline across two districts among them, and leaves every pin where it was",
+  "mutations": [
+    {
+      "contract": "Assemblies off hides an assembly with no box of its own -- its outline, the one drawing it has -- as well as one round a box.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "Only the outlines round a box are hidden: v2's three go and the fixture's four box-less outlines, the bearings across two districts among them, stay drawn.",
+      "file": "apps/viewer/map.css",
+      "find": ".tv__map--no-assemblies .map__layer--assemblies,\n",
+      "replace": ".tv__map--no-assemblies .map__assembly,\n"
+    }
+  ]
+}

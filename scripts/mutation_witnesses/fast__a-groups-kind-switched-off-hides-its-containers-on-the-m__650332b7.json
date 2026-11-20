@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a Groups kind switched off hides its containers on the map by a class on the drawing, and every district, outline, box and pin is still drawn where it was",
+  "mutations": [
+    {
+      "contract": "A kind switched off puts its class on the map's drawing, which is what hides its layers.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "No class: every switch off leaves the map exactly as drawn.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    }).map(function (k) { return \" tv__map--no-\" + k.id; }).join(\"\");",
+      "replace": "    }).map(function (k) { return \"\"; }).join(\"\");"
+    }
+  ]
+}
