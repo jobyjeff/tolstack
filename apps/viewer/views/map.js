@@ -269,12 +269,35 @@
       layer.districts.appendChild(g);
     });
 
-    // An assembly's outline round its own box and its children's.
+    // An assembly's outline round its own box and its children's. An
+    // assembly with no box (VA.mapOutlined) IS its outline: the part's one
+    // drawing, named at its top-left -- its number, then its everyday name
+    // -- and its border and name are the part's control, as a box's are.
     geo.assemblies.forEach(function (a) {
       var tint = tintOf(geo, a.body);
-      var r = rect("map__assembly" + tint, a, { rx: M.assembly.radius, ry: M.assembly.radius });
-      r.setAttribute("data-assembly", a.id);
-      layer.assemblies.appendChild(r);
+      if (!a.outline) {
+        var r = rect("map__assembly" + tint, a, { rx: M.assembly.radius, ry: M.assembly.radius });
+        r.setAttribute("data-assembly", a.id);
+        layer.assemblies.appendChild(r);
+        return;
+      }
+      var g = VA.svg("g", "map__outlinegroup");
+      g.setAttribute("data-assembly", a.id);
+      var hit = rect("map__outlinehit", a, { rx: M.assembly.radius, ry: M.assembly.radius });
+      register(reg, hit, "map__outlinehit", VA.FOCUS_KINDS.part, a.id);
+      wire(hit, ctx, VA.FOCUS_KINDS.part, a.id, a.label);
+      title(hit, a.label);
+      g.appendChild(hit);
+      var line = rect("map__outline" + tint, a, { rx: M.assembly.radius, ry: M.assembly.radius });
+      register(reg, line, "map__outline" + tint, VA.FOCUS_KINDS.part, a.id);
+      g.appendChild(line);
+      var name = text("map__outlinename", a.nameAt.x, a.nameAt.y, a.nameAt.text,
+        { "font-size": M.font.assembly, "text-anchor": a.nameAt.anchor });
+      register(reg, name, "map__outlinename", VA.FOCUS_KINDS.part, a.id);
+      wire(name, ctx, VA.FOCUS_KINDS.part, a.id, a.label);
+      title(name, a.label);
+      g.appendChild(name);
+      layer.assemblies.appendChild(g);
     });
 
     // Boxes: one per part, its label inside. A child's box is small and
@@ -485,7 +508,7 @@
   }
 
   // The world rect of a selection's own entities (the first one with a
-  // place): a part's box, a body's district, a pin's point, a jumper's or a
+  // place): a part's box (an outline, for an assembly with none), a body's district, a pin's point, a jumper's or a
   // connector's middle.
   function entityRect(geo, ownKeys, reg) {
     for (var i = 0; i < (ownKeys || []).length; i++) {
@@ -494,7 +517,10 @@
       var kind = k.slice(0, bar), id = k.slice(bar + 1);
       var found = null;
       if (kind === VA.FOCUS_KINDS.body) found = geo.bodies.filter(function (b) { return b.id === id; })[0];
-      else if (kind === VA.FOCUS_KINDS.part) found = geo.boxes.filter(function (b) { return b.id === id; })[0];
+      else if (kind === VA.FOCUS_KINDS.part) {
+        found = geo.boxes.concat(geo.assemblies.filter(function (a) { return a.outline; }))
+          .filter(function (b) { return b.id === id; })[0];
+      }
       else if (kind === VA.FOCUS_KINDS.feature) {
         var pin = geo.pins.concat(geo.marks).filter(function (p) { return p.id === id; })[0];
         if (pin) found = { x: pin.x - 20, y: pin.y - 20, w: 40, h: 40 };

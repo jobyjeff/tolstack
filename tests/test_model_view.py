@@ -40,6 +40,7 @@ import pytest
 from tolerance_stack.model_view import (
     CONTACT_KIND,
     INTERFACE_SOURCES,
+    end_feature,
     feature_id,
     model_view,
     part_label,
@@ -307,6 +308,35 @@ def test_the_tree_order_is_an_assembly_then_its_children_depth_first(tmp_path):
                                 "spherical_bearing_tan_link_ms14103_3"]
     depth = {p["id"]: p["depth"] for p in view["parts"]}
     assert depth["spherical_bearing_tan_link_ms14103_3"] == 2
+
+
+def test_an_assembly_in_two_bodies_reads_as_a_tree_and_its_dimension_joins_its_parts():
+    """The two-body fixture (tests/test_topology.py, "an assembly's parts
+    may sit in two bodies"): an assembly in no body reads ``body: None`` with
+    its tree as before; a part whose assembly is in no body is top-level in
+    its own body; the assembly's dimension runs between its races' features,
+    inside the link's body."""
+    topology = load_topology(REPO_ROOT / "tests" / "fixtures" / "topology_assembly_in_two_bodies.json",
+                             identity_path=None)
+    view = model_view(topology)
+    parts = {p["id"]: p for p in view["parts"]}
+    assert parts["link_asm"]["body"] is None and parts["bearing_a"]["body"] is None
+    assert parts["link_asm"]["children"] == ["link_body", "bearing_a", "bearing_b"]
+    assert parts["link_asm"]["features"] == []
+    assert parts["link_asm"]["dimensions"] == ["link_centres"]
+    assert {p: parts[p]["depth"] for p in ("link_asm", "bearing_a", "inner_a")} == {
+        "link_asm": 0, "bearing_a": 1, "inner_a": 2}
+    bodies = {b["id"]: b for b in view["bodies"]}
+    assert bodies["link"]["parts"] == ["link_body", "outer_a", "outer_b"]
+    assert bodies["base"]["parts"] == ["base_asm", "inner_a"]
+    assert bodies["base"]["all_parts"] == ["base_asm", "base", "spacer", "inner_a"]
+    (centres,) = [d for d in view["dimensions"] if d["id"] == "link_centres"]
+    assert (centres["part"], centres["from"], centres["to"], centres["body"]) == (
+        "link_asm", "outer_a@ball_a", "outer_b@ball_b", "link")
+    feature_ids = {f["id"] for f in view["features"]}
+    assert {centres["from"], centres["to"]} <= feature_ids
+    assert end_feature(topology, topology.edge("link_centres"), "to") == ("outer_b", "ball_b")
+    assert view["counts"]["assemblies"] == 4
 
 
 def test_the_identity_ids_are_the_models_own_and_the_one_it_reuses(v2_view, v1_view):

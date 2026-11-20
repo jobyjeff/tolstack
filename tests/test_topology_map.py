@@ -181,3 +181,79 @@ def test_a_layout_for_another_model_or_schema_is_refused(tmp_path, v2):
     doc["schema"] = "something/else"
     with pytest.raises(ValueError, match="schema"):
         B.load_topology_map(_write(tmp_path, v2, doc), v2)
+
+
+# --- an assembly drawn as an outline (2026-11-19) -----------------------------
+#
+# An assembly with no feature of its own has no box: the map draws its outline
+# round its parts, which need places of their own. The fixture's link
+# assembly holds two bearings whose races sit in two bodies each.
+
+TWO_BODIES = REPO_ROOT / "tests" / "fixtures" / "topology_assembly_in_two_bodies.json"
+
+
+@pytest.fixture(scope="module")
+def two_bodies():
+    return load_topology(TWO_BODIES, identity_path=None)
+
+
+def test_an_assembly_with_no_feature_is_an_outline_and_the_committed_models_have_none(two_bodies, v2):
+    assert B.outlined_assemblies(two_bodies) == ["base_asm", "link_asm", "bearing_a", "bearing_b"]
+    # v2's 215177 and both links still own nodes, so v2's map is unchanged.
+    assert B.outlined_assemblies(v2) == []
+    assert B.outlined_assemblies(load_topology(MODEL_V1)) == []
+
+
+def test_computed_places_put_an_outlines_parts_down_their_own_bodies_columns(two_bodies):
+    """The outline is never placed; its parts are, each in its body's column."""
+    assert B.computed_map_places(two_bodies) == {
+        "base": [0, 0], "spacer": [0, 1], "inner_a": [0, 2],
+        "link_body": [1, 0], "outer_a": [1, 1], "outer_b": [1, 2],
+        "arm": [2, 0], "inner_b": [2, 1]}
+
+
+def _write_two_bodies(tmp_path: Path, places: dict) -> Path:
+    (tmp_path / TWO_BODIES.name).write_text(TWO_BODIES.read_text(encoding="utf-8"), encoding="utf-8")
+    B.map_path(tmp_path, "assembly_in_two_bodies").write_text(json.dumps(
+        {"schema": B.SCHEMA_MAP, "topology": "assembly_in_two_bodies", "places": places}), encoding="utf-8")
+    return tmp_path
+
+
+def test_an_outlines_unplaced_parts_start_at_its_place_and_run_down_its_column(tmp_path, two_bodies):
+    """A layout may place any part. The link assembly's own place is where its
+    unplaced parts start: the link body there, then -- through the nested
+    bearing outlines, in tree order -- each race under it, passing over a cell
+    another part takes. Named in ``computed_places``; the file verbatim
+    otherwise."""
+    places = {"base_asm": [0, 0], "inner_a": [1, 0], "link_asm": [2, 0], "outer_b": [2, 2],
+              "inner_b": [5, 0], "arm": [6, 0]}
+    doc = B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+    assert doc["places"] == dict(places, base=[0, 0], spacer=[0, 1], link_body=[2, 0],
+                                 outer_a=[2, 1])
+    assert doc["computed_places"] == ["base", "link_body", "outer_a", "spacer"]
+    # A part placed in the column is passed over: outer_b at [2, 1] sends
+    # outer_a to the cell under it.
+    places["outer_b"] = [2, 1]
+    doc = B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+    assert doc["places"]["outer_a"] == [2, 2]
+
+
+def test_an_outlines_parts_with_no_place_to_start_from_are_refused(tmp_path, two_bodies):
+    places = {"base_asm": [0, 0], "inner_a": [1, 0], "inner_b": [5, 0], "arm": [6, 0]}
+    with pytest.raises(ValueError, match=r"unplaced: \['link_body', 'outer_a', 'outer_b'\]"):
+        B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+    places["no_such_part"] = [9, 9]
+    with pytest.raises(ValueError, match="no_such_part"):
+        B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+
+
+def test_the_fast_tiers_two_body_model_is_the_model_views_own():
+    """``apps/viewer/tests.js`` carries the fixture's model view between two
+    markers for the map's fast checks; it is the builder's output, so a change
+    to the view's shape reddens here rather than leaving the fast tier testing
+    a model no projection would carry."""
+    source = (REPO_ROOT / "apps" / "viewer" / "tests.js").read_text(encoding="utf-8")
+    start = source.index("// BEGIN twoBodyModel")
+    end = source.index("// END twoBodyModel")
+    literal = source[start:end].split("var TWO_BODY_MODEL = ", 1)[1].rsplit(";", 1)[0]
+    assert json.loads(literal) == model_view(load_topology(TWO_BODIES, identity_path=None))

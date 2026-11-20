@@ -13097,6 +13097,118 @@
            "a left flank's label just below its pin, as ever");
       });
 
+    // The two-body fixture (tests/fixtures/topology_assembly_in_two_bodies.json):
+    // a link assembly whose bearings each have an outer race in the link's
+    // body and an inner race in the body of the part it is bolted to, and a
+    // base assembly of two parts in ground. The model below is model_view()'s
+    // own output over that file -- tests/test_topology_map.py holds the two
+    // equal, so regenerate it from the builder, never edit it by hand.
+    // BEGIN twoBodyModel
+    var TWO_BODY_MODEL = {"id": "assembly_in_two_bodies", "title": "A link assembly whose bearings sit in two bodies", "identity_ids": ["assembly_in_two_bodies"], "bodies": [{"id": "base", "name": "ground", "kind": "body", "parts": ["base_asm", "inner_a"], "all_parts": ["base_asm", "base", "spacer", "inner_a"]}, {"id": "link", "name": "the link", "kind": "link", "parts": ["link_body", "outer_a", "outer_b"], "all_parts": ["link_body", "outer_a", "outer_b"]}, {"id": "arm", "name": "the arm", "kind": "body", "parts": ["arm", "inner_b"], "all_parts": ["arm", "inner_b"]}], "parts": [{"id": "base_asm", "label": "100-000 base assembly", "number": "100-000", "name": "base assembly", "body": "base", "features": [], "dimensions": [], "occurrence": null, "mesh": null, "parent": null, "children": ["base", "spacer"], "depth": 0}, {"id": "base", "label": "100-001 base", "number": "100-001", "name": "base", "body": "base", "features": ["base@base_datum", "base@spacer_seat", "base@base_seat_a"], "dimensions": ["base_datum_to_seat_a"], "occurrence": null, "mesh": null, "parent": "base_asm", "children": [], "depth": 1}, {"id": "spacer", "label": "100-003 spacer", "number": "100-003", "name": "spacer", "body": "base", "features": ["spacer@spacer_seat"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "base_asm", "children": [], "depth": 1}, {"id": "arm", "label": "100-002 arm", "number": "100-002", "name": "arm", "body": "arm", "features": ["arm@arm_seat_b", "arm@arm_datum"], "dimensions": ["arm_seat_b_to_datum"], "occurrence": null, "mesh": null, "parent": null, "children": [], "depth": 0}, {"id": "link_asm", "label": "200-001 link assembly", "number": "200-001", "name": "link assembly", "body": null, "features": [], "dimensions": ["link_centres"], "occurrence": null, "mesh": null, "parent": null, "children": ["link_body", "bearing_a", "bearing_b"], "depth": 0}, {"id": "link_body", "label": "200-002 link body", "number": "200-002", "name": "link body", "body": "link", "features": ["link_body@race_seat_a", "link_body@race_seat_b"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "link_asm", "children": [], "depth": 1}, {"id": "bearing_a", "label": "spherical bearing A", "number": null, "name": "spherical bearing A", "body": null, "features": [], "dimensions": [], "occurrence": null, "mesh": null, "parent": "link_asm", "children": ["outer_a", "inner_a"], "depth": 1}, {"id": "outer_a", "label": "outer race A", "number": null, "name": "outer race A", "body": "link", "features": ["outer_a@ball_a", "outer_a@race_seat_a"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_a", "children": [], "depth": 2}, {"id": "inner_a", "label": "inner race A", "number": null, "name": "inner race A", "body": "base", "features": ["inner_a@base_seat_a", "inner_a@ball_a"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_a", "children": [], "depth": 2}, {"id": "bearing_b", "label": "spherical bearing B", "number": null, "name": "spherical bearing B", "body": null, "features": [], "dimensions": [], "occurrence": null, "mesh": null, "parent": "link_asm", "children": ["outer_b", "inner_b"], "depth": 1}, {"id": "outer_b", "label": "outer race B", "number": null, "name": "outer race B", "body": "link", "features": ["outer_b@race_seat_b", "outer_b@ball_b"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_b", "children": [], "depth": 2}, {"id": "inner_b", "label": "inner race B", "number": null, "name": "inner race B", "body": "arm", "features": ["inner_b@ball_b", "inner_b@arm_seat_b"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_b", "children": [], "depth": 2}], "features": [{"id": "base@base_datum", "part": "base", "node": "base_datum", "name": "base datum", "kind": "datum_feature", "shared": false, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "base", "node": "base_datum"}}, {"id": "base@spacer_seat", "part": "base", "node": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "base", "node": "spacer_seat"}}, {"id": "spacer@spacer_seat", "part": "spacer", "node": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "spacer", "node": "spacer_seat"}}, {"id": "base@base_seat_a", "part": "base", "node": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "base", "node": "base_seat_a"}}, {"id": "inner_a@base_seat_a", "part": "inner_a", "node": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_a", "node": "base_seat_a"}}, {"id": "outer_a@ball_a", "part": "outer_a", "node": "ball_a", "name": "ball A", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_a", "node": "ball_a"}}, {"id": "inner_a@ball_a", "part": "inner_a", "node": "ball_a", "name": "ball A", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_a", "node": "ball_a"}}, {"id": "link_body@race_seat_a", "part": "link_body", "node": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "link_body", "node": "race_seat_a"}}, {"id": "outer_a@race_seat_a", "part": "outer_a", "node": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_a", "node": "race_seat_a"}}, {"id": "link_body@race_seat_b", "part": "link_body", "node": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "link_body", "node": "race_seat_b"}}, {"id": "outer_b@race_seat_b", "part": "outer_b", "node": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_b", "node": "race_seat_b"}}, {"id": "outer_b@ball_b", "part": "outer_b", "node": "ball_b", "name": "ball B", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_b", "node": "ball_b"}}, {"id": "inner_b@ball_b", "part": "inner_b", "node": "ball_b", "name": "ball B", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_b", "node": "ball_b"}}, {"id": "arm@arm_seat_b", "part": "arm", "node": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "arm", "node": "arm_seat_b"}}, {"id": "inner_b@arm_seat_b", "part": "inner_b", "node": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_b", "node": "arm_seat_b"}}, {"id": "arm@arm_datum", "part": "arm", "node": "arm_datum", "name": "arm datum", "kind": "datum_feature", "shared": false, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "arm", "node": "arm_datum"}}], "dimensions": [{"id": "base_datum_to_seat_a", "part": "base", "name": "base datum to bearing A seat", "from": "base@base_datum", "to": "base@base_seat_a", "body": "base"}, {"id": "link_centres", "part": "link_asm", "name": "link centre to centre", "from": "outer_a@ball_a", "to": "outer_b@ball_b", "body": "link"}, {"id": "arm_seat_b_to_datum", "part": "arm", "name": "arm bearing B seat to datum", "from": "arm@arm_seat_b", "to": "arm@arm_datum", "body": "arm"}], "interfaces": [{"id": "spacer_seat", "name": "spacer on the base", "kind": "contact", "source": "node", "ends": ["base@spacer_seat", "spacer@spacer_seat"], "parts": ["base", "spacer"], "bodies": ["base"], "within": "base", "joint": "base+spacer"}, {"id": "base_seat_a", "name": "inner race A on the base", "kind": "contact", "source": "node", "ends": ["base@base_seat_a", "inner_a@base_seat_a"], "parts": ["base", "inner_a"], "bodies": ["base"], "within": "base", "joint": "base+inner_a"}, {"id": "ball_a", "name": "ball A", "kind": "spherical", "source": "node", "ends": ["outer_a@ball_a", "inner_a@ball_a"], "parts": ["outer_a", "inner_a"], "bodies": ["link", "base"], "within": null, "joint": "inner_a+outer_a"}, {"id": "race_seat_a", "name": "outer race A in the link", "kind": "press_fit", "source": "node", "ends": ["link_body@race_seat_a", "outer_a@race_seat_a"], "parts": ["link_body", "outer_a"], "bodies": ["link"], "within": "link", "joint": "link_body+outer_a"}, {"id": "race_seat_b", "name": "outer race B in the link", "kind": "press_fit", "source": "node", "ends": ["link_body@race_seat_b", "outer_b@race_seat_b"], "parts": ["link_body", "outer_b"], "bodies": ["link"], "within": "link", "joint": "link_body+outer_b"}, {"id": "ball_b", "name": "ball B", "kind": "spherical", "source": "node", "ends": ["outer_b@ball_b", "inner_b@ball_b"], "parts": ["outer_b", "inner_b"], "bodies": ["link", "arm"], "within": null, "joint": "inner_b+outer_b"}, {"id": "arm_seat_b", "name": "inner race B on the arm", "kind": "contact", "source": "node", "ends": ["arm@arm_seat_b", "inner_b@arm_seat_b"], "parts": ["arm", "inner_b"], "bodies": ["arm"], "within": "arm", "joint": "arm+inner_b"}], "joints": [{"id": "base+spacer", "parts": ["base", "spacer"], "bodies": ["base"], "within": "base", "constraints": ["spacer_seat"]}, {"id": "base+inner_a", "parts": ["base", "inner_a"], "bodies": ["base"], "within": "base", "constraints": ["base_seat_a"]}, {"id": "inner_a+outer_a", "parts": ["inner_a", "outer_a"], "bodies": ["link", "base"], "within": null, "constraints": ["ball_a"]}, {"id": "link_body+outer_a", "parts": ["link_body", "outer_a"], "bodies": ["link"], "within": "link", "constraints": ["race_seat_a"]}, {"id": "link_body+outer_b", "parts": ["link_body", "outer_b"], "bodies": ["link"], "within": "link", "constraints": ["race_seat_b"]}, {"id": "inner_b+outer_b", "parts": ["inner_b", "outer_b"], "bodies": ["link", "arm"], "within": null, "constraints": ["ball_b"]}, {"id": "arm+inner_b", "parts": ["arm", "inner_b"], "bodies": ["arm"], "within": "arm", "constraints": ["arm_seat_b"]}], "counts": {"bodies": 3, "parts": 12, "features": 16, "dimensions": 3, "interfaces": 7, "contacts": 7, "gaps": 0, "between_bodies": 2, "within_bodies": 5, "joints": 7, "assemblies": 4}};
+    // END twoBodyModel
+    function twoBodyModel() { return JSON.parse(JSON.stringify(TWO_BODY_MODEL)); }
+    // A row: the base and its spacer under it, then each race and the link
+    // body in the order the link runs, so no outline takes in a part it does
+    // not hold.
+    function twoBodyDoc() {
+      return { schema: "joby.tolerance_stack/topology_map/v0", topology: "assembly_in_two_bodies",
+               places: { base: [0, 0], spacer: [0, 1], inner_a: [1, 0], outer_a: [2, 0], link_body: [3, 0],
+                         outer_b: [4, 0], inner_b: [5, 0], arm: [6, 0] } };
+    }
+    function contains(outer, inner) {
+      return inner.x >= outer.x && inner.y >= outer.y &&
+        inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h;
+    }
+
+    await test("an assembly with no feature of its own is one labelled outline and no box, a nested " +
+      "one an outline inside it, an outline crossing two districts or inside one has no note, and " +
+      "the assembly's own dimension runs under its parts' boxes", function () {
+        var m = twoBodyModel();
+        var geo = VA.mapLayout(m, twoBodyDoc());
+        eq(geo.notes, [], "the fixture's layout has no defect");
+        eq(VA.mapCounts(geo), VA.mapExpectedCounts(m));
+        var outlines = geo.assemblies.filter(function (a) { return a.outline; });
+        eq(outlines.map(function (a) { return a.id; }), ["base_asm", "link_asm", "bearing_a", "bearing_b"]);
+        outlines.forEach(function (a) {
+          ok(!geo.boxes.some(function (b) { return b.id === a.id; }), a.id + " has no box");
+          eq(VA.mapOutlined(m.parts.filter(function (p) { return p.id === a.id; })[0]), true);
+        });
+        var by = {};
+        geo.assemblies.concat(geo.bodies).forEach(function (r) { by[r.id] = r; });
+        eq(by.base_asm.nameAt.text, "100-000 base assembly", "the number first, the everyday name beside it");
+        eq(by.bearing_a.nameAt.text, "spherical bearing A");
+        // Nested: each bearing's outline inside the link assembly's, the
+        // inner one's name below the outer one's.
+        ok(contains(by.link_asm, by.bearing_a) && contains(by.link_asm, by.bearing_b), "nested outlines");
+        ok(by.bearing_a.nameAt.y > by.link_asm.nameAt.y, "the nested outline is named under the outer one's name");
+        // One inside a district, one across two.
+        ok(contains(by.base, by.base_asm), "the base assembly sits inside ground");
+        ok(VA.mapSegmentHitsRect({ x: by.bearing_a.x, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 { x: by.bearing_a.x + by.bearing_a.w, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 by.base) &&
+           VA.mapSegmentHitsRect({ x: by.bearing_a.x, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 { x: by.bearing_a.x + by.bearing_a.w, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 by.link), "bearing A's outline crosses from ground into the link");
+        // Every box of a part under an outline is inside it.
+        outlines.forEach(function (a) {
+          geo.boxes.forEach(function (b) {
+            var up = b.id, under = false;
+            while (up) {
+              if (up === a.id) under = true;
+              var part = m.parts.filter(function (p) { return p.id === up; })[0];
+              up = part && part.parent;
+            }
+            if (under) ok(contains(a, b), b.id + " inside " + a.id);
+          });
+        });
+        // The assembly's dimension: between the two outer races' ball
+        // features, through no box, inside the link assembly's outline.
+        var j = geo.jumpers.filter(function (x) { return x.id === "link_centres"; })[0];
+        ok(j, "the link assembly's centre-to-centre is drawn");
+        eq([j.from, j.to], ["outer_a@ball_a", "outer_b@ball_b"]);
+        var pts = [j.a].concat(j.via, [j.b]);
+        for (var i = 1; i < pts.length; i++) {
+          geo.boxes.forEach(function (b) {
+            ok(!VA.mapSegmentHitsRect(pts[i - 1], pts[i], { x: b.x + 1, y: b.y + 1, w: b.w - 2, h: b.h - 2 }),
+               "leg " + i + " clears " + b.id);
+          });
+          ok(contains(by.link_asm, { x: Math.min(pts[i - 1].x, pts[i].x), y: Math.min(pts[i - 1].y, pts[i].y),
+                                     w: Math.abs(pts[i].x - pts[i - 1].x), h: Math.abs(pts[i].y - pts[i - 1].y) }),
+             "leg " + i + " inside the link assembly's outline");
+        }
+        // A layout that lets an outline take in a part it does not hold says so.
+        var doc = twoBodyDoc();
+        doc.places.arm = [3, 1];
+        doc.places.inner_b = [4, 1];
+        var crowded = VA.mapLayout(m, doc);
+        ok(crowded.notes.some(function (n) { return /assembly link_asm's outline takes in arm, which is not one of its parts/.test(n); }),
+           crowded.notes.join(" | "));
+        // A part of an outline with no place of its own has no box to sit under.
+        doc = twoBodyDoc();
+        delete doc.places.outer_a;
+        ok(VA.mapLayout(m, doc).notes.indexOf("part outer_a has no place in the layout") !== -1);
+      });
+
+    await test("an outline is its assembly's one drawing: its border and its name are the part's, " +
+      "drawn once each beside every box, and the map's counts hold", function () {
+        VA.forgetMapViews();
+        var m = twoBodyModel();
+        var root = document.createElement("div");
+        VA.renderTopoMap(root, { topoProj: { model: m, map: twoBodyDoc() }, model: null,
+                                 mapRegion: { width: 2390, height: 2160 } });
+        var svg = all(root, "svg.tv__map")[0];
+        var idsOf = function (cls) {
+          return all(svg, cls).map(function (el) { return el.getAttribute("data-map-id"); });
+        };
+        var drawnParts = idsOf("rect.map__box").concat(idsOf("rect.map__outline"));
+        eq(drawnParts.slice().sort(), m.parts.map(function (p) { return p.id; }).sort(), "every part once");
+        eq(idsOf("text.map__outlinename").sort(), ["base_asm", "bearing_a", "bearing_b", "link_asm"]);
+        all(svg, "rect.map__outline").forEach(function (r) { eq(r.getAttribute("data-map-kind"), VA.FOCUS_KINDS.part); });
+        eq(idsOf("g.map__jumper").sort(), m.dimensions.map(function (d) { return d.id; }).sort());
+        eq(idsOf("g.map__connector").sort(), m.interfaces.map(function (i) { return i.id; }).sort());
+        bannedIn(viewerAuthoredText(root), "the two-body map");
+      });
+
     await test("the map draws every entity once, keyed by the model's kind and id, its drawn " +
       "counts equal the model's, every curve takes fill none, and its words carry no banned string", function () {
         VA.forgetMapViews();

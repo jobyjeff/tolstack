@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology.py",
+  "expect_red": "test_an_assemblys_dimension_between_its_parts_features_in_one_body",
+  "mutations": [
+    {
+      "contract": "An assembly's dimension runs between the parts under it on each end, in the one body both ends share.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Takes the assembly itself as both end parts, as if it were on its own nodes: the ends and the body are wrong and the two-body refusal never fires.",
+      "file": "tolerance_stack/topology.py",
+      "find": "                    self._end_parts[edge.id] = self._assembly_ends(edge)",
+      "replace": "                    self._end_parts[edge.id] = (edge.part, edge.part)"
+    }
+  ]
+}

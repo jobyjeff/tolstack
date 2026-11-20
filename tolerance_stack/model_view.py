@@ -16,13 +16,15 @@ in the workspace; studies scope a subset of it.*
 The entities, and what each is:
 
 * **bodies** -- the authored rigid bodies, in authored order. ``parts`` is
-  a body's top-level parts, in authored order; ``all_parts`` is every part it
+  a body's top-level parts -- those whose assembly is not in the body, or
+  who have none -- in authored order; ``all_parts`` is every part it
   carries in the one tree order (an assembly, then its children, depth first --
   :meth:`~tolerance_stack.topology.Topology.tree_order`). Since 2026-11-14
   (handoff ``a_part_may_contain_parts``) a part may name a ``parent``, and
   everything that walks a body's parts walks ``all_parts``.
 * **parts** -- every authored part, with the body it moves with (``None`` when
-  the document declares no bodies), its :func:`part_label`, its features and
+  the document declares no bodies, or for an assembly whose parts move with
+  two bodies or more), its :func:`part_label`, its features and
   its dimensions, and its place in the tree: ``parent`` (``None`` at the top),
   ``children`` in authored order and ``depth`` (0 at the top).
 * **features** -- a node *as seen on one part*. A node on two parts (a mating
@@ -33,7 +35,8 @@ The entities, and what each is:
   by the feature too: ``identity`` is its feature-identity key, ``{topology_id,
   part, node}``, under the model whose ids it is.
 * **dimensions** -- the structural edges, each on one part between two of its
-  features.
+  features -- or, an assembly's, between features of two parts inside it
+  (``Topology.dimension_ends``; ``from``/``to`` name those parts' features).
 * **interfaces** -- the two authored shapes for "two parts meet", in one list:
   a node on two parts (``source: "node"``, kind = the node's ``interface``
   word where it states one, since 2026-11-17, else ``contact``) and a gap edge
@@ -148,7 +151,8 @@ def end_feature(topology: Topology, edge: Edge, direction: str) -> Tuple[str, st
     and the one the browser's ``featureEnds`` inverts."""
     node_id = edge.from_node if direction == "from" else edge.to_node
     if edge.kind == "structural":
-        return edge.part, node_id
+        near, far = topology.dimension_ends(edge)
+        return (near if direction == "from" else far), node_id
     return _end_part(topology, topology.node(node_id)), node_id
 
 
@@ -196,13 +200,14 @@ def model_view(topology: Topology,
     for edge in topology.edges:
         if edge.kind != "structural":
             continue
+        near, far = topology.dimension_ends(edge)
         row = {
             "id": edge.id,
             "part": edge.part,
             "name": edge.name,
-            "from": feature_id(edge.part, edge.from_node),
-            "to": feature_id(edge.part, edge.to_node),
-            "body": body_of[edge.part],
+            "from": feature_id(near, edge.from_node),
+            "to": feature_id(far, edge.to_node),
+            "body": topology.edge_body(edge),
         }
         dimensions.append(row)
         dimension_ids_of_part[edge.part].append(edge.id)
@@ -254,7 +259,7 @@ def model_view(topology: Topology,
         "id": body.id,
         "name": body.name,
         "kind": body.kind,
-        "parts": [p for p in body.parts if topology.part(p).parent is None],
+        "parts": [p for p in body.parts if topology.part(p).parent not in body.parts],
         "all_parts": topology.tree_order(body.parts),
     } for body in topology.bodies]
 

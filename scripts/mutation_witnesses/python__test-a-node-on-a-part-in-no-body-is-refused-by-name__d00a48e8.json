@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology.py",
+  "expect_red": "test_a_node_on_a_part_in_no_body_is_refused_by_name",
+  "mutations": [
+    {
+      "contract": "A part in no body carries no node: a feature moves with one body.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Lets a node sit on an assembly in no body.",
+      "file": "tolerance_stack/topology.py",
+      "find": "                if self.bodies and part_id not in self._body_of:",
+      "replace": "                if False:"
+    }
+  ]
+}

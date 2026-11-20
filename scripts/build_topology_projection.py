@@ -65,7 +65,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -1260,45 +1260,105 @@ def map_path(topologies_dir: Path, topology_id: str) -> Path:
     return topologies_dir / MAP_NAME.format(topology_id=topology_id)
 
 
+def outlined_assemblies(topology: Topology) -> List[str]:
+    """The assemblies the map draws as a labelled outline and no box
+    (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies,
+    2026-11-19): a part with parts and no feature of its own. An assembly
+    that still owns a node keeps its box inside its outline. The browser
+    reads the same rule off the model view (``VA.mapLayout``)."""
+    return [p.id for p in topology.parts
+            if topology.children_of(p.id) and not topology.nodes_on_part(p.id)]
+
+
+def _needs_place(topology: Topology, part_id: str, outlined: Iterable[str]) -> bool:
+    """A part the map draws a box for in a cell of its own: one that is not
+    an outline, whose parent is none or an outline. A part whose parent has
+    a box may go unplaced -- it sits in its parent's cell."""
+    outlined = set(outlined)
+    parent = topology.part(part_id).parent
+    return part_id not in outlined and (parent is None or parent in outlined)
+
+
 def computed_map_places(topology: Topology) -> Dict[str, List[int]]:
-    """Every top-level part's place on the map's grid, for a model with no
-    layout file (the_map_is_the_only_drawing_and_classic_retires,
-    2026-11-17): each body a column, in the order the model declares its
-    bodies, and its top-level parts stacked down that column in tree order
-    (:meth:`Topology.tree_order`, the one order every surface walks a body).
-    A top-level part in no body takes one more column after the bodies'; a
-    model that declares no bodies is that one column. A child part is never
-    placed: the map sits it in its parent's cell.
+    """Every part that needs a place on the map's grid (:func:`_needs_place`),
+    for a model with no layout file
+    (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17): each body
+    a column, in the order the model declares its bodies, and its parts
+    stacked down that column in tree order (:meth:`Topology.tree_order`, the
+    one order every surface walks a body). A part in no body takes one more
+    column after the bodies'; a model that declares no bodies is that one
+    column. A part whose parent has a box is never placed: the map sits it in
+    its parent's cell. An outline is never placed: it is drawn round its
+    parts, wherever their bodies put them.
 
     A place only. Everything else the map draws is computed in the browser
     from the model either way (``apps/viewer/map.js``), so an authored file
     overrides these places and nothing else changes."""
+    outlined = outlined_assemblies(topology)
     places: Dict[str, List[int]] = {}
     column = 0
     for body in topology.bodies:
-        top = [p for p in topology.tree_order(body.parts) if topology.part(p).parent is None]
+        top = [p for p in topology.tree_order(body.parts) if _needs_place(topology, p, outlined)]
         for row, part_id in enumerate(top):
             places[part_id] = [column, row]
         if top:
             column += 1
-    loose = [p.id for p in topology.parts if p.parent is None and p.id not in places]
+    loose = [p for p in topology.tree_order(q.id for q in topology.parts)
+             if _needs_place(topology, p, outlined) and p not in places]
     for row, part_id in enumerate(loose):
         places[part_id] = [column, row]
     return places
+
+
+def _places_inside_outlines(topology: Topology, places: Dict[str, List[int]]
+                            ) -> Dict[str, List[int]]:
+    """The places an authored layout leaves to the builder: a part of an
+    outlined assembly with no place of its own takes its assembly's place,
+    the next one the cell under it, and so on down that column, passing over
+    a cell another part's box takes. The assembly's own place is where its
+    parts start, never a box. A part of a nested outline with no place of
+    its own continues the same column; a nested outline with a place of its
+    own starts its parts there."""
+    outlined = outlined_assemblies(topology)
+    taken = {tuple(v) for k, v in places.items() if k not in outlined}
+    out: Dict[str, List[int]] = {}
+
+    def fill(assembly: str, cursor: List[int]) -> List[int]:
+        for child in topology.children_of(assembly):
+            if child in places:
+                continue
+            if child in outlined:
+                cursor = fill(child, cursor)
+                continue
+            while tuple(cursor) in taken:
+                cursor = [cursor[0], cursor[1] + 1]
+            out[child] = list(cursor)
+            taken.add(tuple(cursor))
+            cursor = [cursor[0], cursor[1] + 1]
+        return cursor
+
+    for part_id in topology.tree_order(p.id for p in topology.parts):
+        if part_id in outlined and part_id in places:
+            fill(part_id, list(places[part_id]))
+    return out
 
 
 def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any]:
     """The model's map layout: the authored file beside it, verbatim, or --
     where the model has none (v1 today) -- the places
     :func:`computed_map_places` gives it, marked ``computed: true``. Every
-    model has a map; the file only decides where its parts sit.
+    model has a map; the file only decides where its parts sit. A file may
+    place any part; a part of an outlined assembly it leaves unplaced gets a
+    place inside the outline (:func:`_places_inside_outlines`), added to
+    ``places`` and named in ``computed_places`` -- the file is verbatim
+    otherwise.
 
     Present-but-wrong is refused, as :func:`load_hardware` refuses a register
     it cannot read: a layout that places a part the model has no part for, or
-    leaves a top-level part unplaced, would draw a map with a part missing --
-    and the map's whole claim is that nothing in the model is left undrawn.
-    A child part (one with a ``parent``) may be unplaced: it sits in its
-    parent's cell.
+    leaves a part that needs a place (:func:`_needs_place`) without one,
+    would draw a map with a part missing -- and the map's whole claim is that
+    nothing in the model is left undrawn. A part whose parent has a box may
+    be unplaced: it sits in its parent's cell.
     """
     path = map_path(topologies_dir, topology.id)
     if not path.is_file():
@@ -1316,13 +1376,18 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any
     unknown = sorted(set(places) - part_ids)
     if unknown:
         raise ValueError(f"{path}: places parts the model has not: {unknown}")
-    unplaced = sorted(p.id for p in topology.parts if p.parent is None and p.id not in places)
-    if unplaced:
-        raise ValueError(f"{path}: leaves top-level parts unplaced: {unplaced}")
     for part_id, place in places.items():
         if not (isinstance(place, list) and len(place) == 2
                 and all(isinstance(v, int) and v >= 0 for v in place)):
             raise ValueError(f"{path}: {part_id}'s place must be [column, row], got {place!r}")
+    inside = _places_inside_outlines(topology, places)
+    outlined = outlined_assemblies(topology)
+    unplaced = sorted(p.id for p in topology.parts
+                      if _needs_place(topology, p.id, outlined)
+                      and p.id not in places and p.id not in inside)
+    if unplaced:
+        raise ValueError(f"{path}: leaves top-level parts, or an outline's parts with no "
+                         f"place to start from, unplaced: {unplaced}")
     # What a joint is drawn as is the model's word for it (an interface's
     # kind), never the layout's: the `symbols` key that named one until the
     # model could (handoff a_joint_says_what_kind_it_is, 2026-11-17) is
@@ -1330,6 +1395,8 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any
     if "symbols" in raw:
         raise ValueError(f"{path}: carries `symbols`; a joint's symbol is its interface word "
                          f"in the model (docs/DAG_TOPOLOGY.md, \"The map\")")
+    if inside:
+        raw = dict(raw, places=dict(places, **inside), computed_places=sorted(inside))
     return raw
 
 

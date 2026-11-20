@@ -73,6 +73,7 @@ from tolerance_stack.topology import (
     TopologyError,
     Transform,
     UnitMismatch,
+    check_shared_ids,
     assembly_rollups,
     check_study,
     identity_topology_id,
@@ -1253,29 +1254,16 @@ def test_a_model_that_reuses_anothers_ids_means_the_same_feature_by_each(path):
     the other model's bindings and sweeps on every id the two share, so each
     shared id must name the same thing in both: a node its kind and parts, an
     edge its kind, ends, part and interface. A shared id that drifted would
-    carry a binding onto the wrong face without a word."""
+    carry a binding onto the wrong face without a word. The check is
+    :func:`check_shared_ids`; a finer model may state a shared feature on a
+    part inside the other's (2026-11-19), pinned on a fixture below."""
     raw = json.loads(path.read_text(encoding="utf-8"))
     source = raw.get("ids_from")
     if source is None:
         return
     other_path = TOPOLOGIES_DIR / f"topology_{source}.json"
     assert other_path.exists(), f"{path.name}: ids_from names {source!r}, not committed"
-    mine, theirs = load_topology(path), load_topology(other_path)
-    their_nodes = {n.id: n for n in theirs.nodes}
-    their_edges = {e.id: e for e in theirs.edges}
-    shared = 0
-    for node in mine.nodes:
-        if node.id in their_nodes:
-            shared += 1
-            other = their_nodes[node.id]
-            assert (node.kind, set(node.parts)) == (other.kind, set(other.parts)), node.id
-    for edge in mine.edges:
-        if edge.id in their_edges:
-            shared += 1
-            other = their_edges[edge.id]
-            assert ((edge.kind, edge.from_node, edge.to_node, edge.part, edge.interface)
-                    == (other.kind, other.from_node, other.to_node, other.part,
-                        other.interface)), edge.id
+    shared = check_shared_ids(load_topology(path), load_topology(other_path))
     assert shared, f"{path.name} declares ids_from {source!r} and shares no id with it"
 
 
@@ -2895,11 +2883,120 @@ def test_a_parent_the_document_does_not_declare_is_refused():
         _write_and_load(raw)
 
 
-def test_a_parent_in_another_body_is_refused():
-    # The pitch link's bearing inside the pitch arm: the arm is in the blade.
+def test_an_assembly_listed_in_a_body_its_parts_are_not_in_is_refused():
+    # The pitch link's bearing inside the pitch arm: the arm is in the blade
+    # and owns nodes, so it cannot become an assembly of parts in two bodies.
     raw = _with_parents(MODEL_V2, {"spherical_bearing_pitch_link": "pitch_arm"})
-    with pytest.raises(TopologyError, match="its parent 'pitch_arm' in body 'blade'"):
+    with pytest.raises(TopologyError, match="assembly 'pitch_arm' is in body 'blade', but the parts "
+                                            r"under it move with \['pitch_link'\]"):
         _write_and_load(raw)
+
+
+# --- an assembly's parts may sit in two bodies (2026-11-19) ---------------------
+#
+# The tree says what is built into what, a body what moves as one, and neither
+# nests in the other (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_
+# bodies). The fixture is a link assembly whose two spherical bearings each
+# have an outer race in the link's body and an inner race in the body of the
+# part it is bolted to.
+
+TWO_BODIES = REPO_ROOT / "tests" / "fixtures" / "topology_assembly_in_two_bodies.json"
+
+
+def _two_bodies() -> dict:
+    return json.loads(TWO_BODIES.read_text(encoding="utf-8"))
+
+
+def test_an_assembly_whose_parts_sit_in_two_bodies_is_in_none():
+    topology = load_topology(TWO_BODIES, identity_path=None)
+    for assembly in ("link_asm", "bearing_a", "bearing_b"):
+        assert topology.body_of(assembly) is None, assembly
+    assert topology.body_of("outer_a").id == "link"
+    assert topology.body_of("inner_a").id == "base"
+    assert topology.body_of("inner_b").id == "arm"
+    # The tree reads as before.
+    assert topology.children_of("link_asm") == ["link_body", "bearing_a", "bearing_b"]
+    assert topology.children_of("bearing_a") == ["outer_a", "inner_a"]
+    assert topology.subtree("link_asm") == [
+        "link_asm", "link_body", "bearing_a", "outer_a", "inner_a", "bearing_b", "outer_b", "inner_b"]
+    # A body's tree order: a part whose assembly is in no body is top-level in it.
+    assert topology.tree_order(topology.body("link").parts) == ["link_body", "outer_a", "outer_b"]
+    assert topology.tree_order(topology.body("base").parts) == ["base_asm", "base", "spacer", "inner_a"]
+    assert topology.body_of("base_asm").id == "base"
+    assert topology.within("inner_b", "link_asm") and not topology.within("arm", "link_asm")
+
+
+def test_an_assembly_whose_parts_are_all_in_one_body_is_in_that_body():
+    raw = _two_bodies()
+    # Every part of bearing A in the link's body: the bearing is listed there, or refused.
+    raw["bodies"][0]["parts"] = ["base_asm", "base", "spacer"]
+    raw["bodies"][1]["parts"] += ["inner_a"]
+    with pytest.raises(TopologyError, match="assembly 'bearing_a' is in no body, but every part under it "
+                                            "moves with body 'link'"):
+        _write_and_load(raw)
+    raw["bodies"][1]["parts"] += ["bearing_a"]
+    assert _write_and_load(raw).body_of("bearing_a").id == "link"
+
+
+def test_a_node_on_a_part_in_no_body_is_refused_by_name():
+    raw = _two_bodies()
+    raw["nodes"].append({"id": "link_name_plate", "name": "name plate", "kind": "datum_feature",
+                         "parts": ["link_asm"]})
+    with pytest.raises(TopologyError, match="node 'link_name_plate' is on part 'link_asm', which is "
+                                            "in no body"):
+        _write_and_load(raw)
+
+
+def test_an_assemblys_dimension_between_its_parts_features_in_one_body():
+    topology = load_topology(TWO_BODIES, identity_path=None)
+    edge = topology.edge("link_centres")
+    assert topology.dimension_ends(edge) == ("outer_a", "outer_b")
+    assert topology.edge_body(edge) == "link"
+    assert [e.id for e in topology.edges_on_part("link_asm")] == ["link_centres"]
+    # Its ends in two bodies: ball A's parts and the arm's seat share none.
+    raw = _two_bodies()
+    raw["edges"][1]["to"] = "arm_seat_b"
+    with pytest.raises(TopologyError, match="edge 'link_centres' is a dimension of assembly 'link_asm' "
+                                            ".* move with no one body together"):
+        _write_and_load(raw)
+    # A part with no parts of its own still spans only its own interfaces.
+    raw = _two_bodies()
+    raw["edges"][1]["part"] = "link_body"
+    with pytest.raises(TopologyError, match="not on both of its interfaces"):
+        _write_and_load(raw)
+
+
+def test_a_finer_model_states_a_shared_feature_on_the_member_that_carries_it():
+    """``check_shared_ids``: the coarse model puts the ball on the bearing
+    assemblies; the finer one on the races inside them. A node moved onto a
+    part that is not inside the coarse one's is refused."""
+    seat = {"id": "race_a_seat_to_ball", "name": "race A seat to ball", "kind": "structural",
+            "part": "outer_a", "from": "race_seat_a", "to": "ball_a"}
+    fine_raw = _two_bodies()
+    fine_raw["edges"].append(seat)
+    fine = _write_and_load(fine_raw)
+
+    def coarse(ball_parts, seat_part):
+        raw = _two_bodies()
+        raw["id"], raw["bodies"] = "coarse", []
+        for node in raw["nodes"]:
+            if node["id"] == "ball_a":
+                node["parts"] = ball_parts
+        raw["edges"].append(dict(seat, part=seat_part))
+        return _write_and_load(raw)
+
+    # The ball on the race and the bearing round the other race; the seat
+    # dimension on the bearing round the race that carries it.
+    assert check_shared_ids(fine, coarse(["outer_a", "bearing_a"], "bearing_a")) == (
+        len(fine.nodes) + len(fine.edges))
+    # The same node on a part the fine one's race is not inside.
+    with pytest.raises(TopologyError, match="node 'ball_a' is 'mating_surface' on"):
+        check_shared_ids(fine, coarse(["outer_a", "base"], "bearing_a"))
+    # The latitude runs one way: the edge on the link assembly here and on
+    # the race in the other model is not the other's edge.
+    fine_raw["edges"][-1]["part"] = "link_asm"
+    with pytest.raises(TopologyError, match="edge 'race_a_seat_to_ball' is not the edge"):
+        check_shared_ids(_write_and_load(fine_raw), coarse(["outer_a", "bearing_a"], "outer_a"))
 
 
 def test_a_part_that_is_its_own_ancestor_is_refused():

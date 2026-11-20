@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology.py",
+  "expect_red": "test_an_assembly_whose_parts_sit_in_two_bodies_is_in_none",
+  "mutations": [
+    {
+      "contract": "An assembly whose parts sit in two bodies or more is listed in none, and that is not an error.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Refuses every assembly in no body, the old rule's effect: the link assembly no longer loads.",
+      "file": "tolerance_stack/topology.py",
+      "find": "                if listed is None and len(under) == 1:",
+      "replace": "                if listed is None:"
+    }
+  ]
+}

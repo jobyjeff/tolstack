@@ -3114,6 +3114,19 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
 // zooms and pans in its region. v1, which has no layout file, draws its map
 // from the computed places.
 const MAP_TOPOLOGY = "vpa_end_stop_v2";
+// The two-body fixture's model view, read from the fast tier's own copy
+// (apps/viewer/tests.js, between its markers; tests/test_topology_map.py holds
+// it equal to model_view() over tests/fixtures/topology_assembly_in_two_bodies.json),
+// and the row its fast checks lay it out in.
+const TWO_BODY_PLACES = { base: [0, 0], spacer: [0, 1], inner_a: [1, 0], outer_a: [2, 0],
+  link_body: [3, 0], outer_b: [4, 0], inner_b: [5, 0], arm: [6, 0] };
+async function twoBodyModel() {
+  const source = await readFile(join(APP_DIR, "tests.js"), "utf8");
+  const start = source.indexOf("// BEGIN twoBodyModel");
+  const end = source.indexOf("// END twoBodyModel");
+  const literal = source.slice(start, end).split("var TWO_BODY_MODEL = ")[1];
+  return JSON.parse(literal.slice(0, literal.lastIndexOf(";")));
+}
 // A hub feature with a standing binding in the served log (face 144 of the
 // hub's mesh, the pilot gap's from-end), so the scene has a face to pick.
 const MAP_BOUND_FEATURE = "hub@hub_spindle_bore_axis";
@@ -3724,6 +3737,55 @@ async function testTheMap(browser, label, topologies) {
     push("[real] side by side again, the map is back in its region",
       await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
         getComputedStyle(document.getElementById("topopane")).display !== "none"));
+
+    // --- 14. an assembly drawn as an outline (2026-11-19) ---------------------
+    // No committed model has one yet, so the two-body fixture is drawn on this
+    // page, in this stylesheet, beside the real map and then taken away: the
+    // names are measured as the browser sets them, which the fast tier's
+    // estimate of a glyph cannot do.
+    const outlined = await page.evaluate(({ model, places }) => {
+      const VA = window.ViewerApp;
+      const keep = VA.lastMapLight;
+      const host = document.createElement("div");
+      host.style.cssText = "position:fixed;left:0;top:0;width:1600px;height:420px;z-index:50;background:var(--bg)";
+      document.body.appendChild(host);
+      VA.renderTopoMap(host, { topoProj: { model, map: { schema: "joby.tolerance_stack/topology_map/v0",
+        topology: model.id, places } }, model: null });
+      const geo = VA.lastMapLight.geometry;
+      const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
+      const meet = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+      const ids = (sel) => Array.from(host.querySelectorAll(sel)).map((n) => n.getAttribute("data-map-id"));
+      const names = Array.from(host.querySelectorAll("text.map__outlinename")).map(rect);
+      const others = Array.from(host.querySelectorAll("text.map__bodyname, g.map__partname text, rect.map__box")).map(rect);
+      const first = host.querySelector("text.map__outlinename");
+      const district = host.querySelector("text.map__bodyname");
+      const out = {
+        notes: geo.notes,
+        outlines: ids("rect.map__outline").sort(),
+        named: ids("text.map__outlinename").sort(),
+        parts: ids("rect.map__box").concat(ids("rect.map__outline")).sort(),
+        expected: model.parts.map((p) => p.id).sort(),
+        clash: names.some((n, i) => others.some((o) => meet(n, o)) || names.some((m, j) => j !== i && meet(n, m))),
+        type: first && district ? [getComputedStyle(first).fontStyle, getComputedStyle(first).fontWeight,
+          getComputedStyle(district).fontStyle, getComputedStyle(district).fontWeight] : null,
+      };
+      VA.releaseMap(host);
+      host.remove();
+      VA.lastMapLight = keep;
+      return out;
+    }, { model: await twoBodyModel(), places: TWO_BODY_PLACES });
+    console.log(`      [${label}] the two-body fixture: outlines ${JSON.stringify(outlined.outlines)}, ` +
+      `notes ${JSON.stringify(outlined.notes)}, name type ${JSON.stringify(outlined.type)}`);
+    push("an assembly with no feature of its own is drawn as one named outline and no box, a nested one " +
+      "inside it, one crossing two districts and one inside one with no note, and every part drawn once",
+      outlined.notes.length === 0 &&
+      JSON.stringify(outlined.outlines) === JSON.stringify(["base_asm", "bearing_a", "bearing_b", "link_asm"]) &&
+      JSON.stringify(outlined.named) === JSON.stringify(outlined.outlines) &&
+      JSON.stringify(outlined.parts) === JSON.stringify(outlined.expected));
+    push("an outline's name, as the browser sets it, meets no district's name, no part's name or box and " +
+      "no other outline's name, and is told from a district's by type",
+      !outlined.clash && !!outlined.type && outlined.type[0] === "italic" && outlined.type[2] === "normal" &&
+      Number(outlined.type[1]) < Number(outlined.type[3]));
 
     push("[real] nothing threw on the map's page", errors.length === 0);
     if (errors.length) console.log(`      [${label}] errors: ${errors.join(" | ").slice(0, 600)}`);

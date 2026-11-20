@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an outline is its assembly's one drawing: its border and its name are the part's, drawn once each beside every box, and the map's counts hold",
+  "mutations": [
+    {
+      "contract": "A box-less assembly's outline is its part's drawing, keyed by the part's kind and id like a box, so the map draws every part once.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Leaves the outline's border unregistered: it is drawn, but as no entity, and the part counted by its outline is missing from the drawn set.",
+      "file": "apps/viewer/views/map.js",
+      "find": "      register(reg, line, \"map__outline\" + tint, VA.FOCUS_KINDS.part, a.id);",
+      "replace": "      /* mutated: the outline is no part's */"
+    }
+  ]
+}

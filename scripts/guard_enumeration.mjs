@@ -369,7 +369,10 @@ export const DECLARED_GUARDS = {
   // It carries a spec.
   // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
   // a feature with both ends unbound lists the contact candidates. It carries a spec.
-  fast: { declared: 611, enrollable: 611, names: "002f5839f13f" },
+  // 2026-11-20 (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies): +2 --
+  // an assembly with no feature is one named outline over the two-body fixture,
+  // and the outline is the part's one drawing. Each carries a spec.
+  fast: { declared: 613, enrollable: 613, names: "dcf46d4aed75" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -757,7 +760,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +4 --
   // the first end lists the engine's candidate as one row and Take binds the set (each
   // with a spec), and the suite's `(skipped: ...)` pushes, the literal `true`.
-  browser: { declared: 786, enrollable: 757, names: "6dbf94decee6" },
+  // 2026-11-20 (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies): +2 --
+  // the two-body fixture drawn on the map's page: its outlines with no note,
+  // and their names as the browser sets them. Each carries a spec.
+  browser: { declared: 788, enrollable: 759, names: "8992c5cec374" },
 };
 
 

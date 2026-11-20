@@ -15,15 +15,20 @@
 //   * a box's size from how many pins each of its sides carries;
 //   * which side a pin sits on, from where its counterpart's cell is;
 //   * a body's district from the cells its parts occupy;
-//   * an assembly's outline round its own box and its children's;
+//   * an assembly's outline round its own box and its children's -- and
+//     an assembly with no feature of its own (2026-11-19) is its outline
+//     alone, named at its top-left, round its parts' boxes wherever their
+//     bodies put them (VA.mapOutlined);
 //   * routes on 0 / 45 / 90 degrees, and a joint with several constraints
 //     as parallel routes between parallel pins -- a bundle.
 //
 // A part with a parent and no place of its own sits in its parent's cell,
 // as a small box under the parent's: a bearing with no features is an empty
-// box inside its link's outline. A part with no place at all is a layout
-// defect, and `notes` says so -- the drawing never silently drops a part,
-// since the suite counts what it draws against `model.counts`.
+// box inside its link's outline. A part of an outline has no box to sit
+// under, so it needs a place: the builder gives one to every such part the
+// layout file leaves unplaced (load_topology_map). A part with no place at
+// all is a layout defect, and `notes` says so -- the drawing never silently
+// drops a part, since the suite counts what it draws against `model.counts`.
 //
 // Pure: no DOM here. apps/viewer/views/map.js draws the geometry this
 // returns, and the fast tier reads the geometry directly. Classic script,
@@ -59,8 +64,10 @@
     // districts are at least twice the inset apart, and a district with
     // one small part is small.
     district: Object.freeze({ inset: 24, pad: 46, radius: 12 }),
-    // An assembly's outline round its own box and its children's.
-    assembly: Object.freeze({ pad: 12, radius: 8 }),
+    // An assembly's outline round its own box and its children's; an
+    // assembly with no feature of its own has no box, and its outline takes
+    // `label` more room at its top for its name.
+    assembly: Object.freeze({ pad: 12, radius: 8, label: 24 }),
     // A child part with no place of its own: a small box under its parent's
     // (`clear` is how far it keeps from a route leaving the parent's bottom).
     // `joined` is how far under its parent a child sits that an interface
@@ -68,7 +75,7 @@
     // and more than two stubs, so the drop between them never doubles back.
     child: Object.freeze({ w: 150, h: 50, gap: 12, clear: 16, joined: 64 }),
     // Type, in world units (SVG attributes, scaled with the drawing).
-    font: Object.freeze({ body: 18, part: 17, number: 15, pin: 13, child: 12 }),
+    font: Object.freeze({ body: 18, part: 17, number: 15, pin: 13, child: 12, assembly: 15 }),
     // A part's name block: `inset` from the box's border, `clear` from any
     // jumper or mark; `grow` is how much taller a box is drawn, at a time,
     // when no corner of it has room for the name.
@@ -571,6 +578,16 @@
     return { notes: notes, defects: defects };
   };
 
+  // An assembly the map draws as its outline alone, with no box: a part
+  // with parts and no feature of its own -- the assembly tree and the bodies
+  // are two groupings of the same parts, so its parts may sit in two
+  // districts (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies,
+  // 2026-11-19). The builder reads the same rule off the model
+  // (build_topology_projection.outlined_assemblies).
+  VA.mapOutlined = function (part) {
+    return !!(part && part.children && part.children.length && !(part.features && part.features.length));
+  };
+
   // THE LAYOUT. `model` is the projection's model block (or the page's model
   // object -- only its arrays are read), `doc` the authored layout file.
   // Returns the geometry views/map.js draws, or null with no layout.
@@ -625,15 +642,20 @@
     (model.features || []).forEach(function (f) { features[f.id] = f; });
 
     // 1. Every part's cell: its own place, else its parent's (a child with
-    //    no place sits in its parent's cell), else a defect.
+    //    no place sits in its parent's cell), else a defect. An outline has
+    //    no cell: it is drawn round its parts (step 8), and a part under it
+    //    has no box to sit under.
+    var outlined = {};
+    (model.parts || []).forEach(function (p) { if (VA.mapOutlined(p)) outlined[p.id] = true; });
     var placeOf = {};
     var childless = {};
     (model.parts || []).forEach(function (p) {
+      if (outlined[p.id]) return;
       var own = doc.places[p.id];
       if (own && own.length === 2) { placeOf[p.id] = [own[0], own[1]]; return; }
       var up = p.parent;
-      while (up && !doc.places[up]) up = parts[up] ? parts[up].parent : null;
-      if (up) { placeOf[p.id] = [doc.places[up][0], doc.places[up][1]]; childless[p.id] = up; }
+      while (up && !outlined[up] && !doc.places[up]) up = parts[up] ? parts[up].parent : null;
+      if (up && !outlined[up]) { placeOf[p.id] = [doc.places[up][0], doc.places[up][1]]; childless[p.id] = up; }
       else notes.push("part " + p.id + " has no place in the layout");
     });
     Object.keys(doc.places).forEach(function (id) {
@@ -844,6 +866,13 @@
     var jumpersOf = function (pid, ends, box) {
       var out = [];
       (dimsOf[pid] || []).forEach(function (d) {
+        var j = jumperOf(d, ends, box);
+        if (j) out.push(j);
+      });
+      return out;
+    };
+    var jumperOf = function (d, ends, box) {
+      {
         var a = null, b = null, best = Infinity;
         (ends[d.from] || []).forEach(function (pa) {
           (ends[d.to] || []).forEach(function (pb) {
@@ -851,9 +880,9 @@
             if (dist < best - 0.01) { best = dist; a = pa; b = pb; }
           });
         });
-        if (!a || !b) return;
+        if (!a || !b) return null;
         var j = { id: d.id, part: d.part, name: d.name, from: d.from, to: d.to,
-                  a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, ctrl: null,
+                  a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, ctrl: null, sides: [a.side, b.side],
                   mid: { x: round((a.x + b.x) / 2), y: round((a.y + b.y) / 2) } };
         if (a.side && a.side === b.side) {
           var n = NORMAL[a.side];
@@ -866,9 +895,8 @@
         } else {
           j.d = pathD([a, b]);
         }
-        out.push(j);
-      });
-      return out;
+        return j;
+      }
     };
 
     // A part's ends, for its jumpers: each feature's pins and marks, in
@@ -977,10 +1005,42 @@
         Array.prototype.push.apply(jumpers, jumpersOf(k.box.id, endsOf(k.pins.concat(k.marks)), k.box));
       });
     });
-    // A dimension whose ends the map did not place on its own part is a
-    // defect, said once.
+    // An assembly's dimension between two of its parts' features (since
+    // 2026-11-19 its `part` may be the assembly, its ends features of the
+    // parts under it): a jumper between those features' nearest pins, out of
+    // each square to its side and along a lane under the assembly's boxes it
+    // spans, so it runs through none of them. Its outline takes the lane in.
+    var inside = function (id, assemblyId) {
+      for (var up = id; up && parts[up]; up = parts[up].parent) if (up === assemblyId) return true;
+      return false;
+    };
     var drawn = {};
     jumpers.forEach(function (j) { drawn[j.id] = true; });
+    var everyEnd = endsOf(pins.concat(marks));
+    (model.dimensions || []).forEach(function (d) {
+      if (drawn[d.id] || boxOf[d.part]) return;
+      var j = jumperOf(d, everyEnd, null);
+      if (!j) return;
+      var out = function (q, side) {
+        var n = side ? NORMAL[side] : [0, 0];
+        return { x: round(q.x + n[0] * M.stub), y: round(q.y + n[1] * M.stub) };
+      };
+      var p1 = out(j.a, j.sides[0]), p2 = out(j.b, j.sides[1]);
+      var lo = Math.min(p1.x, p2.x), hi = Math.max(p1.x, p2.x);
+      var lane = Math.max(p1.y, p2.y);
+      boxes.forEach(function (box) {
+        if (inside(box.id, d.part) && box.x < hi && box.x + box.w > lo) lane = Math.max(lane, box.y + box.h);
+      });
+      lane = round(lane + M.stub / 2);
+      j.ctrl = null;
+      j.via = [p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2];
+      j.d = pathD([j.a].concat(j.via, [j.b]));
+      j.mid = { x: round((p1.x + p2.x) / 2), y: lane };
+      j.lane = union(j.via.map(function (q) { return { x: q.x, y: q.y, w: 0, h: 0 }; }));
+      jumpers.push(j);
+      drawn[j.id] = true;
+    });
+    // A dimension whose ends the map did not place is a defect, said once.
     (model.dimensions || []).forEach(function (d) {
       if (!drawn[d.id]) notes.push("dimension " + d.id + " has an end the map did not place");
     });
@@ -1119,14 +1179,74 @@
         notes.push("part " + box.id + " is outside its body's district");
       }
     });
-    var assemblies = [];
-    (model.parts || []).forEach(function (p) {
-      if (!(p.children && p.children.length) || !boxOf[p.id]) return;
-      var members = [boxOf[p.id]].concat(p.children.map(function (c) { return boxOf[c]; }).filter(Boolean));
-      var u = union(members);
-      var r = inset(u, -M.assembly.pad);
-      assemblies.push({ id: p.id, label: p.label, body: p.body, x: r.x, y: r.y, w: r.w, h: r.h,
-                        children: p.children.slice() });
+    // Deepest first, so an outline round a nested assembly takes in that
+    // assembly's own outline; listed in the model's part order.
+    var depthOf = function (p) {
+      var n = 0;
+      for (var up = p.parent; up && parts[up]; up = parts[up].parent) n += 1;
+      return n;
+    };
+    var outlineOf = {};
+    var laneOf = {};
+    jumpers.forEach(function (j) { if (j.lane) (laneOf[j.part] = laneOf[j.part] || []).push(j.lane); });
+    // The names an outline's name must keep clear of: every district's
+    // (views/map.js draws it at the district's top-left) and every outline's
+    // already named.
+    var bodyFont = M.font.body, nameFont = M.font.assembly;
+    var taken = bodies.map(function (b) {
+      return { x: b.x + 14, y: b.y + 8, w: String(b.name).length * bodyFont * VA.MAP_GLYPH,
+               h: Math.round(bodyFont * 1.25) };
+    });
+    (model.parts || []).filter(function (p) { return p.children && p.children.length; })
+      .map(function (p, i) { return { p: p, depth: depthOf(p), i: i }; })
+      .sort(function (u, v) { return v.depth - u.depth || u.i - v.i; })
+      .forEach(function (item) {
+        var p = item.p;
+        var kids = p.children.map(function (c) { return outlineOf[c] || boxOf[c]; }).filter(Boolean);
+        if (!outlined[p.id]) {
+          if (!boxOf[p.id]) return;
+          var r = inset(union([boxOf[p.id]].concat(kids)), -M.assembly.pad);
+          outlineOf[p.id] = { id: p.id, label: p.label, body: p.body, x: r.x, y: r.y, w: r.w, h: r.h,
+                              children: p.children.slice() };
+          return;
+        }
+        if (!kids.length) { notes.push("assembly " + p.id + " has no drawn part to draw round"); return; }
+        // An assembly with no box is its outline: named at its top-left as
+        // a district is, its number first and its everyday name beside it --
+        // or at its top-right, where the top-left would meet a district's
+        // name or another outline's.
+        var u = union(kids.concat(laneOf[p.id] || []));
+        var top = M.assembly.label;
+        var o = { id: p.id, label: p.label, number: p.number, name: p.name, body: p.body, outline: true,
+                  x: u.x - M.assembly.pad, y: u.y - M.assembly.pad - top,
+                  w: u.w + 2 * M.assembly.pad, h: u.h + 2 * M.assembly.pad + top,
+                  children: p.children.slice() };
+        var str = VA.mapFitText(p.label, o.w - 20, nameFont);
+        var tw = str.length * nameFont * VA.MAP_GLYPH, th = Math.round(nameFont * 1.25);
+        var ny = o.y + M.assembly.pad / 2;
+        var tries = [{ x: o.x + 10, anchor: "start", rect: { x: o.x + 10, y: ny, w: tw, h: th } },
+                     { x: o.x + o.w - 10, anchor: "end", rect: { x: o.x + o.w - 10 - tw, y: ny, w: tw, h: th } }];
+        var at = tries.filter(function (t) {
+          return !taken.some(function (r) { return overlaps(r, t.rect); });
+        })[0];
+        if (!at) {
+          notes.push("assembly " + p.id + "'s name meets another name at both its top corners");
+          at = tries[0];
+        }
+        taken.push(at.rect);
+        o.nameAt = { x: round(at.x), y: round(ny + nameFont * 0.95), anchor: at.anchor, text: str };
+        outlineOf[p.id] = o;
+      });
+    var assemblies = (model.parts || []).map(function (p) { return outlineOf[p.id]; }).filter(Boolean);
+    // An outline that takes in a box not of its parts says the part is in
+    // an assembly it is not in: a layout defect.
+    assemblies.forEach(function (a) {
+      if (!a.outline) return;
+      boxes.forEach(function (box) {
+        if (!inside(box.id, a.id) && overlaps(a, box)) {
+          notes.push("assembly " + a.id + "'s outline takes in " + box.id + ", which is not one of its parts");
+        }
+      });
     });
 
     // 9. The drawing's extent.
@@ -1155,7 +1275,8 @@
     if (!geo) return null;
     return {
       bodies: geo.bodies.length,
-      parts: geo.boxes.length,
+      // An assembly with no box is drawn as its outline.
+      parts: geo.boxes.length + geo.assemblies.filter(function (a) { return a.outline; }).length,
       // A feature with a pin toward each partner is still one feature.
       features: geo.pins.concat(geo.marks).map(function (p) { return p.id; })
         .filter(function (id, i, all) { return all.indexOf(id) === i; }).length,

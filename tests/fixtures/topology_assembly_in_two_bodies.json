@@ -1,0 +1,42 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "assembly_in_two_bodies",
+  "title": "A link assembly whose bearings sit in two bodies",
+  "description": "Fixture for an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies (2026-11-19): a link assembly of a link body and two spherical bearings, each bearing an outer race moving with the link and an inner race moving with the part it is bolted to; and a base assembly of a base and a spacer, both in ground. No value is cited; nothing here is a real part.",
+  "units": "mm",
+  "bodies": [
+    {"id": "base", "name": "ground", "kind": "body", "parts": ["base_asm", "base", "spacer", "inner_a"]},
+    {"id": "link", "name": "the link", "kind": "link", "parts": ["link_body", "outer_a", "outer_b"]},
+    {"id": "arm", "name": "the arm", "kind": "body", "parts": ["arm", "inner_b"]}
+  ],
+  "parts": [
+    {"id": "base_asm", "name": "base assembly", "drawing": "100-000"},
+    {"id": "base", "name": "base", "drawing": "100-001", "parent": "base_asm"},
+    {"id": "spacer", "name": "spacer", "drawing": "100-003", "parent": "base_asm"},
+    {"id": "arm", "name": "arm", "drawing": "100-002"},
+    {"id": "link_asm", "name": "link assembly", "drawing": "200-001"},
+    {"id": "link_body", "name": "link body", "drawing": "200-002", "parent": "link_asm"},
+    {"id": "bearing_a", "name": "spherical bearing A", "parent": "link_asm"},
+    {"id": "outer_a", "name": "outer race A", "parent": "bearing_a"},
+    {"id": "inner_a", "name": "inner race A", "parent": "bearing_a"},
+    {"id": "bearing_b", "name": "spherical bearing B", "parent": "link_asm"},
+    {"id": "outer_b", "name": "outer race B", "parent": "bearing_b"},
+    {"id": "inner_b", "name": "inner race B", "parent": "bearing_b"}
+  ],
+  "nodes": [
+    {"id": "base_datum", "name": "base datum", "kind": "datum_feature", "parts": ["base"]},
+    {"id": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "parts": ["base", "spacer"]},
+    {"id": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "parts": ["base", "inner_a"]},
+    {"id": "ball_a", "name": "ball A", "kind": "mating_surface", "parts": ["outer_a", "inner_a"], "interface": "spherical"},
+    {"id": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "parts": ["link_body", "outer_a"], "interface": "press_fit"},
+    {"id": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "parts": ["link_body", "outer_b"], "interface": "press_fit"},
+    {"id": "ball_b", "name": "ball B", "kind": "mating_surface", "parts": ["outer_b", "inner_b"], "interface": "spherical"},
+    {"id": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "parts": ["arm", "inner_b"]},
+    {"id": "arm_datum", "name": "arm datum", "kind": "datum_feature", "parts": ["arm"]}
+  ],
+  "edges": [
+    {"id": "base_datum_to_seat_a", "name": "base datum to bearing A seat", "kind": "structural", "part": "base", "from": "base_datum", "to": "base_seat_a"},
+    {"id": "link_centres", "name": "link centre to centre", "kind": "structural", "part": "link_asm", "from": "ball_a", "to": "ball_b"},
+    {"id": "arm_seat_b_to_datum", "name": "arm bearing B seat to datum", "kind": "structural", "part": "arm", "from": "arm_seat_b", "to": "arm_datum"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology_map.py",
+  "expect_red": "test_an_outlines_unplaced_parts_start_at_its_place_and_run_down_its_column",
+  "mutations": [
+    {
+      "contract": "An outline's unplaced parts take its place and the cells under it, passing over a cell another part's box takes.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Stops passing over a taken cell: outer_a lands on outer_b's.",
+      "file": "scripts/build_topology_projection.py",
+      "find": "            while tuple(cursor) in taken:",
+      "replace": "            while False:"
+    }
+  ]
+}

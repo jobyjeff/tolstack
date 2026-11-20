@@ -498,7 +498,7 @@ class Contributor:
     topology node or edge the labels are); ``feature_source`` records whether the
     artifact's own ``geometry.features[]`` confirmed it. ``body`` is the id of
     the topology body the contributor's edge's part moves with
-    (:meth:`~tolerance_stack.topology.Topology.body_of`), ``None`` for a gap
+    (:meth:`~tolerance_stack.topology.Topology.edge_body`), ``None`` for a gap
     edge or a topology that declares no bodies -- read off the topology at
     load, never authored here.
 
@@ -1112,8 +1112,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
                 f"kinematic study {study_id!r}: contributor edge "
                 f"{contributor.edge!r} is not an edge of topology "
                 f"{topology.id!r}") from None
-        body = topology.body_of(edge.part) if edge.part else None
-        contributor.body = body.id if body is not None else None
+        contributor.body = topology.edge_body(edge) if edge.part else None
         for label in contributor.parameters:
             sweep.parameter_index(label)
         contributor.feature_source = _reconcile_feature(

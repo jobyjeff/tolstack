@@ -213,8 +213,9 @@ linkage solver's sweeps already name and the DAG had no way to know:
 ```
 
 - **All or nothing.** `bodies` is optional, and a document that declares one
-  declares them all: every part in exactly one body, every body's parts
-  declared, ids unique. `tolerance_stack/topology.py`'s `Body` and the
+  declares them all: every part with no parts of its own in exactly one body,
+  an assembly in the one body all its parts are in or in none (below), every
+  body's parts declared, ids unique. `tolerance_stack/topology.py`'s `Body` and the
   `Topology` constructor refuse anything else, naming the part.
 - **Honest grouping only.** A body groups parts the mechanism moves together.
   A part whose motion is not recorded is a body of its own, named after the
@@ -258,13 +259,13 @@ linkage solver's sweeps already name and the DAG had no way to know:
   as the DAG does (`AA.sweepModelTree`).
 - **A part may contain parts** (2026-11-14, `a_part_may_contain_parts`). A
   part may name a `"parent": "<part id>"`; a part with children is an
-  assembly. The parent is declared, in the same body, and no part is its own
-  ancestor (`Topology` refuses each, naming the part); depth is not limited.
-  A body still lists every part it carries, children included. The model view
+  assembly. The parent is declared and no part is its own ancestor
+  (`Topology` refuses each, naming the part); depth is not limited. A body
+  still lists every part it carries, children included. The model view
   gives each part `parent`, `children` and `depth`, a body's `parts` its
-  top-level parts and `all_parts` every part in the one tree order — an
-  assembly, then each child's subtree in authored order
-  (`Topology.tree_order`). Selecting an assembly lights it and every part
+  top-level parts -- those whose assembly is not in the body -- and
+  `all_parts` every part in the one tree order — an assembly, then each
+  child's subtree in authored order (`Topology.tree_order`). Selecting an assembly lights it and every part
   inside it as its own. The grid folds an assembly to one row whose numbers
   are the study's own fold of the assembly's and its parts' terms
   (`topology.assembly_rollups`, carried as a study's `result.assemblies`), so
@@ -273,6 +274,30 @@ linkage solver's sweeps already name and the DAG had no way to know:
   hold their bearings, and 215177 (2026-11-18) its plate and the two flanged
   bushings the model reaches; 215175 stays a single part; v1 declares no
   parent.
+- **An assembly and a body are two groupings of the same parts, and neither
+  nests in the other** (2026-11-19,
+  `an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies`; Jeff's note
+  of that day: *"the spherical bearing itself is two bodies joined by the
+  spherical joint"*, and a link assembly is *"a single rigid body plus part of
+  two other rigid bodies"*). The tree (`parent`) says what is built into what;
+  a body says what moves as one. Three rules follow, each refused by name in
+  `Topology`:
+  1. **A part's parent may be in another body, or in none.** A part with no
+     parts of its own is in exactly one body. An assembly is listed in a body
+     when every part under it is in that body, and only then; an assembly
+     whose parts sit in two bodies or more is listed in none, which is not an
+     error (`Topology.body_of` is `None` for it). A part in no body carries
+     no node: a feature moves with one body.
+  2. **An assembly may own a dimension between its parts' features.** A
+     structural edge's `part` may be an assembly over the part on each end,
+     where both ends' parts are in one body -- a link's centre-to-centre,
+     called out on the link assembly's drawing, between its two outer races'
+     centres. Its end parts are `Topology.dimension_ends`, and it is in that
+     one body.
+  3. **A finer model may state a shared feature on the member that carries
+     it.** Where a model reuses another's ids ("Models", below), a node the
+     other puts on part P may sit here on a part inside P, and an edge's
+     `part` likewise; everything else the shared-id check holds stays held.
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 
@@ -280,7 +305,8 @@ linkage solver's sweeps already name and the DAG had no way to know:
 
 Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
 
-- **Which body an element is in.** A structural edge is in its part's body. A
+- **Which body an element is in.** A structural edge is in its part's body
+  (an assembly's, in the one body its two end parts share). A
   node is in its parts' bodies — one, or two for a **joint node**, a mating
   surface between two bodies. A gap edge is in a body when both its ends are on
   that body alone (a bearing's ball centre and the link it is pressed into);
@@ -496,7 +522,8 @@ plays on v2 when v2 is open (`AA.sweepPlaysOn`), so the P2 run binds without a
 republish. The builder lists a model ahead of the model it reuses ids from
 (`in_model_order`), which is why v2 is the nav's default.
 `tests/test_topology.py` holds every shared id to the same kind, ends and
-parts in both documents, and `tests/test_feature_identity.py` folds the events
+parts in both documents (`topology.check_shared_ids`; a part may be one
+inside the other model's, "Bodies" rule 3), and `tests/test_feature_identity.py` folds the events
 every annotator answer path writes on a shared id through the Python rules.
 
 ### The model view — the entities, derived once (2026-11-10)
@@ -528,7 +555,7 @@ The entities:
   is `<part>@<node>` — a view id, not a feature-identity key; bindings stay
   keyed by edge end.
 - **dimensions** — the structural edges, each on one part between two of its
-  features.
+  features -- or, an assembly's, between features of two parts inside it.
 - **interfaces** — both authored shapes for "two parts meet" in one list: a
   node on two parts (`source: "node"`, kind = its `interface` word, or
   `contact` when it states none) and a gap edge
@@ -573,20 +600,29 @@ computes where there is none -- and nothing from the walk's
 drawn.
 
 **What is placed** is one thing: a part's place on a coarse grid —
-`places: {<part>: [column, row]}`, one entry per top-level part. A child part
-(a bearing in its link) has no entry and sits in its parent's cell. **A model
-with no layout file has its places computed** (`computed_map_places`): each
+`places: {<part>: [column, row]}`, an entry for every top-level part and
+any other part the file chooses to place. A child part (a bearing in its
+link) with no entry sits in its parent's cell. **An assembly with no feature
+of its own is drawn as its outline and has no box** (below), so a part under
+it has no cell to sit in: where the file leaves one unplaced, it takes the
+assembly's own place, the next one the cell under it and so on down that
+column in tree order, passing over a cell another part's box takes; a nested
+outline's unplaced parts continue the same column, and a nested outline with
+a place of its own starts its parts there (`_places_inside_outlines`). The
+builder adds those places to `places` and names them in `computed_places`.
+**A model with no layout file has its places computed** (`computed_map_places`): each
 body a column, in the order the model declares its bodies, its top-level
-parts stacked down the column in tree order; a top-level part in no body
-takes one more column, and a model that declares no bodies is that one
-column. The projection marks such a layout `computed: true`. **An authored
+parts -- and the parts of an outline, which is never placed -- stacked down
+the column in tree order; a top-level part in no body takes one more
+column, and a model that declares no bodies is that one column. The projection marks such a layout `computed: true`. **An authored
 file overrides the computed places and nothing else changes**: what a joint
 is drawn as is never authored here: it is the interface's kind, from the
 model (since 2026-11-17 a shared node states its own, so the `symbols`
 override that named the clocking a pattern until then is gone, and the
 builder refuses a file that still carries one). The builder ships an authored
 file verbatim as the topology's `map` and refuses one that leaves a top-level
-part unplaced or places a part the model has not
+part unplaced, leaves an outline's parts with no place to start from, or
+places a part the model has not
 (`build_topology_projection.load_topology_map`): the map's whole claim is
 that nothing in the model is left undrawn. v1 has no file: its parts sit one column
 per body, and its routes are not yet arranged by hand (a route drawn through a box it does not end on is a defect note of the
@@ -678,7 +714,9 @@ out of its parent's bottom (below).
   districts that overlap, a route through a box it does not end on, **a
   route that crosses a box it ends on past its stub**, **a symbol inside a
   box** and **two interfaces' routes on one collinear run** (2026-11-19: the
-  last three are the merged page Jeff reviewed that day). They fire in tests
+  last three are the merged page Jeff reviewed that day), and for an outline
+  **a box it takes in that is not one of its parts** and **a name with no
+  corner clear of another**. They fire in tests
   and on an agent's scoring of a layout, never on the page; model v2's map
   is held at none.
 - **A district per body**: the body's parts' boxes, padded, held inside the
@@ -686,6 +724,22 @@ out of its parent's bottom (below).
   a body with one small part has a small district; named at its corner. **An
   assembly's outline** round its own box and its children's small boxes
   (three nested outlines: body, assembly, part).
+- **An assembly with no feature of its own is its outline** (2026-11-19, Jeff:
+  *"215177-001 IS the pitch plate assembly, yet is shown as a child of the
+  assembly collector, parallel to the 215735-001 pitch plate part"*): no box,
+  and an outline round its parts' boxes and its nested assemblies' outlines,
+  named at its top-left as a district is -- its number first and its everyday
+  name beside it (the part's label) -- and told from a district's name by
+  type, italic and regular against upright and bold, in no body's ink. Where
+  the top-left would meet a district's name or another outline's, the name
+  takes the top-right. Its parts sit where their bodies put them, so the
+  outline may cross a district's border; both stay legible. The outline and
+  its name are the part's one drawing, its control and its count (`VA.mapOutlined`
+  is the rule, `build_topology_projection.outlined_assemblies` the builder's
+  reading of it). An assembly's own dimension runs from its two features'
+  pins on a lane under the boxes it spans, inside the outline. An assembly
+  that still owns a node keeps its box inside the plain outline, so v2's map
+  (215177 and both links) is unchanged until their features move.
 - **The view**: fitted to the region on the first paint, never past a cap,
   then the reader's wheel zooms about the pointer, a drag pans, Fit and the
   `0` key re-fit; a selection made elsewhere is panned into view when it is
@@ -720,7 +774,8 @@ gap list names it, as before.
 
 **Every entity once, keyed by the model's ids.** Each drawn thing carries its
 entity's kind and id (`data-map-kind`, `data-map-id`), and districts, boxes,
-pins, jumpers and connectors are counted against `model.counts` -- the fast
+pins, jumpers and connectors are counted against `model.counts` (a part
+with no box by its outline) -- the fast
 tier on the fixture, the browser tier on the real model. Hover and select go through the page's
 one store and the one resolver (`VA.focusLightOf`, read by `VA.mapLightKeys`),
 by entity rather than by element key — a node two parts share is two pins,
