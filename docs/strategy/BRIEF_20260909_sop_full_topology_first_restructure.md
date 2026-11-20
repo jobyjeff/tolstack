@@ -1,5 +1,7 @@
 # STRATEGY BRIEF 2026-09-09 — sop_full_topology_first_restructure: finish making SOP_TOLERANCE_STACK.md topology-first
 
+> **CONSUMED 2026-11-19 — not now, and not as a restructure of today's text: nobody has authored a linear stack from the SOP since 2026-08-25 (1 of 94 November handoffs cites it, 22 cite `docs/DAG_TOPOLOGY.md`). The procedure is rewritten from what the first tolerance study on v2 (F4) actually did, as a step of the order table in `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md` ("2026-11-19").** (Burndown #5.)
+
 > **Routing note.** `docs/issues/ISSUE_20260908_sop_full_topology_first_restructure.md`
 > is `type: chore`, `priority: low`, `audience: strategy` — the filer marked
 > this a document-restructuring design call, not a mechanical edit.
