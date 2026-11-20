@@ -369,7 +369,7 @@ export const DECLARED_GUARDS = {
   // It carries a spec.
   // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
   // a feature with both ends unbound lists the contact candidates. It carries a spec.
-  fast: { declared: 607, enrollable: 607, names: "4cd6a4f10efc" },
+  fast: { declared: 611, enrollable: 611, names: "002f5839f13f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

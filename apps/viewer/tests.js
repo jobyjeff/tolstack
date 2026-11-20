@@ -12922,6 +12922,156 @@
         eq(top.pins.filter(function (p) { return p.id === "P@bore"; })[0].side, "top");
       });
 
+    // A row of parts L, M, R (2026-11-19, a_map_pin_faces_each_partner_and_
+    // no_two_routes_share_a_run): M's bore meets L's pin on its left and R's
+    // pin on its right -- model v2's tangential-link attachment bore on the
+    // plate, which meets the link on one side and its bushing on the other.
+    // `more` adds interfaces from M's bore, as [id, part, place].
+    function mapPartners(more) {
+      var f = function (part, nodeId) {
+        return { id: part + "@" + nodeId, part: part, node: nodeId, name: nodeId, kind: "datum_feature",
+                 shared: false, body: "one" };
+      };
+      var part = function (id) {
+        return { id: id, label: id + " " + id.toLowerCase(), number: null, name: id.toLowerCase(), body: "one",
+                 features: [], dimensions: [], parent: null, children: [], depth: 0 };
+      };
+      var m = { id: "partners", title: "partners", identity_ids: ["partners"],
+        bodies: [{ id: "one", name: "one", kind: "body", parts: [], all_parts: [] }],
+        parts: [], features: [f("M", "bore")], dimensions: [], interfaces: [], joints: [],
+        counts: { bodies: 1, parts: 0, features: 1, dimensions: 0, interfaces: 0 } };
+      m.parts.push(part("M"));
+      m.parts[0].features.push("M@bore");
+      var places = { M: [1, 0] };
+      [["lm", "L", [0, 0]], ["mr", "R", [2, 0]]].concat(more || []).forEach(function (row) {
+        m.parts.push(part(row[1]));
+        m.parts[m.parts.length - 1].features.push(row[1] + "@pin");
+        m.features.push(f(row[1], "pin"));
+        m.interfaces.push({ id: row[0], name: row[0], kind: "pin_in_bore", source: "edge", ends: ["M@bore", row[1] + "@pin"],
+          parts: ["M", row[1]], bodies: ["one"], within: "one", joint: row[0] });
+        m.joints.push({ id: row[0], parts: ["M", row[1]], bodies: ["one"], within: "one", constraints: [row[0]] });
+        places[row[1]] = row[2];
+      });
+      m.bodies[0].parts = m.parts.map(function (p) { return p.id; });
+      m.bodies[0].all_parts = m.bodies[0].parts.slice();
+      m.counts = { bodies: 1, parts: m.parts.length, features: m.features.length, dimensions: 0,
+                   interfaces: m.interfaces.length };
+      return { model: m, doc: mapDoc(places) };
+    }
+    // A route's legs past its two stubs.
+    function innerLegs(c) {
+      var out = [];
+      for (var i = 2; i < c.points.length - 1; i++) out.push([c.points[i - 1], c.points[i]]);
+      return out;
+    }
+    function inside(r) { return { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 }; }
+
+    await test("a feature whose partners sit on two sides of its part has a pin toward each, neither " +
+      "route enters its own part's box past its stub, and one hover lights both pins of the one feature",
+      function () {
+        var fx = mapPartners();
+        var geo = VA.mapLayout(fx.model, fx.doc);
+        eq(geo.notes, []);
+        eq(VA.mapCounts(geo), VA.mapExpectedCounts(fx.model), "two pins are still one feature");
+        var bore = geo.pins.filter(function (p) { return p.id === "M@bore"; });
+        eq(bore.map(function (p) { return p.iface + " " + p.side; }).sort(), ["lm left", "mr right"]);
+        var m = geo.boxes.filter(function (b) { return b.id === "M"; })[0];
+        geo.connectors.forEach(function (c) {
+          innerLegs(c).forEach(function (leg) {
+            ok(!VA.mapSegmentHitsRect(leg[0], leg[1], inside(m)), c.id + " stays out of M's box past its stub");
+          });
+        });
+        // Drawn as one entity: one group, two dots, each with the feature's
+        // label; a hover on the feature lights the group.
+        VA.forgetMapViews();
+        var root = document.createElement("div");
+        VA.renderTopoMap(root, { topoProj: { id: "partners", model: fx.model, map: fx.doc }, model: null,
+          mapRegion: { width: 1600, height: 600 } });
+        var groups = all(root, "g.map__pin").filter(function (g) { return g.getAttribute("data-map-id") === "M@bore"; });
+        eq(groups.length, 1, "one entity");
+        eq(all(groups[0], "circle.map__pindot").length, 2, "a dot toward each partner");
+        eq(all(groups[0], "text.map__pinlabel").map(function (t) { return t.textContent; }), ["bore", "bore"]);
+        VA.lightMap(null, { kind: VA.FOCUS_KINDS.feature, id: "M@bore" });
+        has(groups[0].getAttribute("class"), "map__pin--lead");
+        VA.lightMap(null, null);
+      });
+
+    await test("two interfaces of one feature toward one side leave from separate pins and share no " +
+      "run, and a pin's side and every route are the same whatever the order of the model's edges",
+      function () {
+        // M's bore also meets S and T, below and right of M, one column: two
+        // pins on its bottom that tie on every key but the interface id.
+        var fx = mapPartners([["ms", "S", [2, 1]], ["mt", "T", [2, 2]]]);
+        var geo = VA.mapLayout(fx.model, fx.doc);
+        eq(geo.notes, []);
+        var under = geo.pins.filter(function (p) { return p.id === "M@bore" && p.side === "bottom"; });
+        eq(under.map(function (p) { return p.iface; }).sort(), ["ms", "mt"]);
+        ok(under[0].x !== under[1].x, "two pins, apart");
+        eq(VA.mapRouteNotes(geo.connectors, geo.boxes, VA.MAP).notes, [], "no shared run, no box crossed");
+        // Shuffled: the same pins, sides and routes.
+        var shape = function (g) {
+          return { pins: g.pins.map(function (p) { return [p.id, p.iface, p.side, p.x, p.y].join(" "); }).sort(),
+                   routes: g.connectors.map(function (c) { return c.id + " " + c.d; }).sort() };
+        };
+        [fx.model, mapModel(), TOPO.model].forEach(function (model, i) {
+          var doc = i === 0 ? fx.doc : i === 1 ? mapDoc() : TOPO.map;
+          var turned = JSON.parse(JSON.stringify(model));
+          turned.interfaces.reverse();
+          turned.features.reverse();
+          eq(shape(VA.mapLayout(turned, doc)), shape(VA.mapLayout(model, doc)), "model " + i + " shuffled");
+        });
+      });
+
+    await test("a child with no place joined to its parent sits under it with the connector's symbol " +
+      "between the two boxes, and the route is the short drop between their facing sides", function () {
+        var fx = mapPartners();
+        var m = fx.model;
+        m.parts.push({ id: "K", label: "K bushing", number: null, name: "bushing", body: "one", features: ["K@od"],
+                       dimensions: [], parent: "M", children: [], depth: 1 });
+        m.parts[0].children = ["K"];
+        m.features.push({ id: "K@od", part: "K", node: "od", name: "od", kind: "datum_feature", shared: false, body: "one" });
+        m.features.push({ id: "M@hole", part: "M", node: "hole", name: "hole", kind: "datum_feature", shared: false, body: "one" });
+        m.parts[0].features.push("M@hole");
+        m.interfaces.push({ id: "press", name: "press", kind: "press_fit", source: "edge", ends: ["K@od", "M@hole"],
+          parts: ["K", "M"], bodies: ["one"], within: "one", joint: "press" });
+        m.joints.push({ id: "press", parts: ["K", "M"], bodies: ["one"], within: "one", constraints: ["press"] });
+        m.bodies[0].all_parts.push("K");
+        m.counts = { bodies: 1, parts: 4, features: 5, dimensions: 0, interfaces: 3, assemblies: 1 };
+        var geo = VA.mapLayout(m, fx.doc);
+        eq(geo.notes, []);
+        var box = function (id) { return geo.boxes.filter(function (b) { return b.id === id; })[0]; };
+        var c = geo.connectors.filter(function (x) { return x.id === "press"; })[0];
+        ok(box("K").y > box("M").y + box("M").h, "the child sits under its parent");
+        ok(c.mid.y > box("M").y + box("M").h && c.mid.y < box("K").y, "the symbol is between the two boxes");
+        ok(geo.boxes.every(function (b) { return !inRect(c.mid, b); }), "and inside none");
+        ok(c.points.every(function (p) { return p.x === c.points[0].x; }), "a straight drop");
+        ok(c.points.every(function (p) { return p.y >= box("M").y + box("M").h && p.y <= box("K").y; }),
+           "never past either facing side");
+      });
+
+    await test("the map's route notes name a route that crosses a box it ends on past its stub, two " +
+      "routes on one run and a symbol inside a box, and stay quiet for parallel lanes", function () {
+        var M = VA.MAP;
+        var boxes = [{ id: "A", x: 0, y: 0, w: 200, h: 100 }, { id: "B", x: 400, y: 0, w: 200, h: 100 }];
+        var conn = function (id, pts, mid) {
+          return { id: id, points: pts, mid: mid || { x: 300, y: 50 }, endParts: ["A", "B"] };
+        };
+        // Out of A's left side, back across A, into B's left side.
+        var back = conn("back", [{ x: 0, y: 50 }, { x: -30, y: 50 }, { x: -30, y: 70 }, { x: 370, y: 70 },
+                                 { x: 400, y: 70 }]);
+        eq(VA.mapRouteNotes([back], boxes, M).notes, ["interface back crosses A, a box it ends on, beyond its stub"]);
+        var straight = conn("straight", [{ x: 200, y: 30 }, { x: 230, y: 30 }, { x: 370, y: 30 }, { x: 400, y: 30 }]);
+        eq(VA.mapRouteNotes([straight], boxes, M).notes, [], "a route between facing sides crosses nothing");
+        var twin = conn("twin", [{ x: 200, y: 60 }, { x: 230, y: 60 }, { x: 230, y: 30 }, { x: 330, y: 30 },
+                                 { x: 360, y: 74 }, { x: 400, y: 74 }], { x: 280, y: 30 });
+        eq(VA.mapRouteNotes([straight, twin], boxes, M).notes, ["interfaces straight and twin share a run"]);
+        var lane = conn("lane", [{ x: 200, y: 74 }, { x: 230, y: 74 }, { x: 370, y: 74 }, { x: 400, y: 74 }],
+                        { x: 300, y: 74 });
+        eq(VA.mapRouteNotes([straight, lane], boxes, M).notes, [], "a lane a pin pitch away is its own");
+        var sunk = conn("sunk", straight.points, { x: 100, y: 50 });
+        eq(VA.mapRouteNotes([sunk], boxes, M).notes, ["interface sunk's symbol sits on A"]);
+      });
+
     await test("a right flank's pin label steps a line lower where a left flank's pin of the same " +
       "part is level with it, so the two lit labels never meet mid-box", function () {
         VA.forgetMapViews();

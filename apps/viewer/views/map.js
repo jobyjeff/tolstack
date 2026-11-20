@@ -385,16 +385,28 @@
       if (side === "top") return { x: pin.x, y: pin.y - o, anchor: "middle" };
       return { x: pin.x, y: pin.y + o + M.font.pin * 0.8, anchor: "middle" };
     };
+    // A feature with a pin toward each partner (map.js, step 3) is one
+    // entity: one group holds all its pins, each with the feature's label,
+    // so a hover or a selection lights every one of them.
+    var pinGroups = [];
+    var groupOf = {};
     geo.pins.forEach(function (pin) {
+      if (!groupOf[pin.id]) { groupOf[pin.id] = []; pinGroups.push(groupOf[pin.id]); }
+      groupOf[pin.id].push(pin);
+    });
+    pinGroups.forEach(function (group) {
+      var pin = group[0];
       var tint = tintOf(geo, (modelView.parts || []).filter(function (p) { return p.id === pin.part; })
         .map(function (p) { return p.body; })[0]);
       var g = VA.svg("g", "map__pin" + tint);
-      g.setAttribute("data-side", pin.side);
-      g.appendChild(VA.svg("circle", "map__pinhit", { cx: pin.x, cy: pin.y, r: M.pinR * 2 }));
-      g.appendChild(VA.svg("circle", "map__pindot", { cx: pin.x, cy: pin.y, r: M.pinR }));
-      var at = labelAt(pin, pin.side);
-      g.appendChild(text("map__pinlabel", at.x, at.y, pin.label,
-        { "font-size": M.font.pin, "text-anchor": at.anchor }));
+      g.setAttribute("data-side", group.map(function (q) { return q.side; }).join(" "));
+      group.forEach(function (q) {
+        g.appendChild(VA.svg("circle", "map__pinhit", { cx: q.x, cy: q.y, r: M.pinR * 2 }));
+        g.appendChild(VA.svg("circle", "map__pindot", { cx: q.x, cy: q.y, r: M.pinR }));
+        var at = labelAt(q, q.side);
+        g.appendChild(text("map__pinlabel", at.x, at.y, q.label,
+          { "font-size": M.font.pin, "text-anchor": at.anchor }));
+      });
       register(reg, g, "map__pin" + tint, VA.FOCUS_KINDS.feature, pin.id);
       wire(g, ctx, VA.FOCUS_KINDS.feature, pin.id, pin.label);
       title(g, pin.label);

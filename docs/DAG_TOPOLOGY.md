@@ -627,14 +627,24 @@ out of its parent's bottom (below).
   (`placeName`; the walk of 2026-11-16 found a jumper struck through three
   parts' numbers). A child's small boxes sit in a row under the parent --
   centred, or beside the routes that leave the parent's bottom, so no route
-  runs through a child it does not end on.
-- **A pin per feature that ends an interface**, on the side of the box that
-  faces the counterpart's cell; the pins of one side centred and evenly
-  spaced, ordered by the counterpart's position and then by the constraint's
-  place in its joint, so a joint's constraints leave **parallel pins in the
-  same order at both ends** — that is the bundle. A feature that ends no
-  interface (a dimension's end on the part alone) is an inner mark. A pin's
-  short label shows on hover and when lit.
+  runs through a child it does not end on. A child joined to its parent sits
+  far enough under it for the connector's symbol to sit between the two boxes.
+- **A pin per interface a feature ends** (2026-11-19, Jeff: "multiple edges
+  coming out of one node"): each on the side of the box that faces that
+  interface's own partner, so a feature with partners on two sides has a pin
+  on each and two interfaces toward one side leave from two pins. The side
+  is the partner's cell's direction; a part between in one column or row
+  sends it to that line's outer flank (below); a child with no place and its
+  parent meet on the parent's bottom and the child's top, and a child's other
+  pins never take its top, which the parent covers. Every pin of a feature
+  names it, and the feature is one entity — one hover lights all its pins.
+  The pins of one side are centred and evenly spaced, ordered by the
+  partner's position, then by the constraint's place in its joint, so a
+  joint's constraints leave **parallel pins in the same order at both ends**
+  — that is the bundle — then by the ids, so **the order of `edges[]` never
+  moves a pin**. A parent's pin toward its own child sits straight over the
+  child's. A feature that ends no interface (a dimension's end on the part
+  alone) is an inner mark. A pin's short label shows on hover and when lit.
 - **A jumper per dimension**, inside the box between the two ends it
   measures; two ends on one side bow into the box.
 - **A connector per interface**, routed from pin to pin: out of each pin
@@ -651,7 +661,23 @@ out of its parent's bottom (below).
   them** are the same case on its side (2026-11-18: the pitch plate
   assembly's bushings in a row beside it): the row's outer flank, the bottom
   from the middle row down and the top above it, and a lane under or over the
-  boxes between (`rowDetour`).
+  boxes between (`rowDetour`). Two facing pins closer than two stubs (a
+  child under its parent) share the gap, so the route is the short drop
+  between them and never doubles back. **A route that would cross a box**
+  first tries its bend the other way round, then a way through one or two
+  corners of the cell grid (or a symbol's width beside one) that crosses no
+  box, shares no run and passes no symbol — the shortest, in a bounded
+  search (`viaCorners`, `VA.MAP.budget`). Where one still crosses, its two
+  pins try the other sides of their parts, kept only where the notes fall.
+  Routes are laid in id order, so none depends on the order of `edges[]`.
+- **The notes** (`geo.notes`; the route ones in one place,
+  `VA.mapRouteNotes`): a part with no place, a box that outgrows its cell,
+  districts that overlap, a route through a box it does not end on, **a
+  route that crosses a box it ends on past its stub**, **a symbol inside a
+  box** and **two interfaces' routes on one collinear run** (2026-11-19: the
+  last three are the merged page Jeff reviewed that day). They fire in tests
+  and on an agent's scoring of a layout, never on the page; model v2's map
+  is held at none.
 - **A district per body**: the body's parts' boxes, padded, held inside the
   union of its cells inset — so two adjacent bodies' districts never touch and
   a body with one small part has a small district; named at its corner. **An

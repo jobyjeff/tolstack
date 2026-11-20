@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a child with no place joined to its parent sits under it with the connector's symbol between the two boxes, and the route is the short drop between their facing sides",
+  "mutations": [
+    {
+      "contract": "A parent's pin toward its own child sits straight over the child's pin for the same interface.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Puts the parent's pin at its bottom's middle instead: the route between the two jogs sideways rather than dropping straight.",
+      "file": "apps/viewer/map.js",
+      "find": "          var mate = slotOf[q.iface + \"|\" + otherEnd(q)];",
+      "replace": "          var mate = null; /* mutated: not over the child */",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    },
+    {
+      "contract": "Two facing pins closer than two stubs take half the gap each, so the route never runs past the far side and doubles back.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Keeps the full stub: the route from the parent runs down past the child's top and back up into it -- Jeff's U-turn of 2026-11-19 at the pitch link's flanged bushing.",
+      "file": "apps/viewer/map.js",
+      "find": "    if (na[0] === -nb[0] && na[1] === -nb[1] && gap > 0 && gap < 2 * M.stub) stub = gap / 2;",
+      "replace": "    /* mutated: the full stub, always */",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    }
+  ]
+}

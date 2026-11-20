@@ -6,9 +6,9 @@
     {
       "contract": "A route leaves its pin square to the side by the stub length before it turns.",
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
-      "note": "Removes the stub at the from end: the route's first leg is zero length and the stub check fails.",
+      "note": "Removes the stub at the from end: the route's first leg is zero length and the stub check fails. Re-pointed 2026-11-19 (a_map_pin_faces_each_partner_and_no_two_routes_share_a_run), when two facing pins closer than two stubs began to share the gap.",
       "file": "apps/viewer/map.js",
-      "find": "    var p1 = { x: a.x + na[0] * M.stub, y: a.y + na[1] * M.stub };",
+      "find": "    var p1 = { x: a.x + na[0] * stub, y: a.y + na[1] * stub };",
       "replace": "    var p1 = { x: a.x, y: a.y }; /* mutated: no stub */"
     },
     {
