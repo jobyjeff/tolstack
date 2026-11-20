@@ -1334,7 +1334,7 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 33 parts, 74 interfaces, 100 edges, 35 branch points, 27 grounded
+The graph: 33 parts, 78 interfaces, 104 edges, 35 branch points, 27 grounded
 loops, 29 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
@@ -1487,7 +1487,8 @@ the tangential link, which has no mesh -- is a top-level part of the
 pitch-plate body, and the stack is eight joints: the flanged bushing pressed
 into the plate (`press_fit`) with its flange seated on the lug face (a shared
 node), the bolt's shank a `pin_in_bore` in the flanged bushing, the inner race
-and the straight bushing, the race's two faces seated on the flange and under
+and the straight bushing -- one length of the shank in each, the bolt's two
+dimensions between them being its shank -- the race's two faces seated on the flange and under
 the straight bushing's end (two shared nodes; the clamp), and the straight
 bushing in the plate's other bore (`transition_fit`). Inside each part a
 dimension joins each new face to the part's own features (a face to its bore,

@@ -353,7 +353,7 @@ const LUGS = {
 const LUG_PARTS = Object.values(LUGS).flatMap((l) => [l.flanged, l.straight, l.bolt, l.race]);
 const MOVED = [`${PLATE}@pitch_plate_spindle_bore_axis`, `${PLATE}@piston_body_plate_flange_seat`,
   `${PLATE}@gas_spring_piston_fastener_clocking`];
-const BOLT_SHANK = "bolt_nas6403u11d@pitch_link_bolt_shank";
+const BOLT_SHANK = "bolt_nas6403u11d@pitch_link_bolt_shank_at_race";
 const BOLT_SHA = "f9d8792134f561e7a08e0d3c6b69a4e666181f517d741a83d3d5971b5603e723";
 
 const mapFacts = (page) => page.evaluate(async (v2) => {

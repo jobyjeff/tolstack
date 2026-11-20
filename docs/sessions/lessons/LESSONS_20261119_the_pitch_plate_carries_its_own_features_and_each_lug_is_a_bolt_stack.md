@@ -7,8 +7,8 @@ children may not carry a node any more.
 
 ## What was built
 
-- **`docs/topologies/topology_vpa_end_stop_v2.json`**: 33 parts, 74 nodes,
-  100 edges (31, 68 and 88 before).
+- **`docs/topologies/topology_vpa_end_stop_v2.json`**: 33 parts, 78 nodes,
+  104 edges (31, 68 and 88 before).
   - The plate's three features moved from 215177-001 onto 215735-001, ids
     unchanged: `pitch_plate_spindle_bore_axis`, `piston_body_plate_flange_seat`
     and `gas_spring_piston_fastener_clocking`. The two dimensions between them
@@ -16,15 +16,22 @@ children may not carry a node any more.
     are 215735's now. 215177-001 owns no node and no edge.
   - Out: `pitch_plate_link_attach_bore`, `pitch_plate_tan_link_attach_bore`,
     their radii, the four bushing pins to them, and link 4's two stand-ins.
-  - In: two bolts, and per lug 4 nodes (the shank, the flange's underside on
-    the plate, the race's flange-side face, the race's clamped face) and
-    10 edges (3 bolt pins, 6 dimensions, the radius from the pilot boss to
-    the flanged bushing bore).
+  - In: two bolts, and per lug 6 nodes (the bolt's shank as its three
+    bearing lengths, the flange's underside on the plate, the race's
+    flange-side face, the race's clamped face) and 12 edges (3 bolt pins,
+    8 dimensions, the radius from the pilot boss to the flanged bushing bore).
+  - **The shank is three features**, one length in each bore, joined by two
+    dimensions of the bolt: the handoff's "the bolt's shank" among the
+    structural dimensions. The first cut had one shank node, and the viewer
+    tier refused it: `[real] every live dot answers the SAME on hover and on
+    click` reads a node's own part off a dimension incident on it, and a
+    one-feature part has none. On the NAS6403U11D mesh all three lengths are
+    faces 36 and 37, one cylinder.
   - The pitch plate body lists its parts in the order its walk first reaches
     them (`test_model_v2_reads_in_its_authored_body_and_part_order` refused the
-    old order): in from the tangential link's race, through that lug, the
-    plate, out through both straight bushings to the pitch link's lug, then
-    the piston. 215177 comes last; it has no row.
+    old order): in from the tangential link's race, through that lug's bolt,
+    straight and flanged bushings to the plate, out through the pitch link's
+    lug to its race, then the piston. 215177 comes last; it has no row.
 - **`tolerance_stack/topology.py`**: a node on a part with children is
   refused by name ("An assembly carries no feature"). It takes the place of
   the old "node on a part in no body" check, which it covers: once bodies are
@@ -105,9 +112,9 @@ Added to link 4's table (link 4's lesson, "The v1 ids v2 no longer carries").
 
 | v1 id | v2 chain |
 |---|---|
-| `pitch_plate_link_attach_bore` (node) | the lug: `pitch_link_bolt_shank` (on `bolt_nas6403u11d`), a `pin_in_bore` in `pitch_link_flanged_bushing_bore`, `pitch_link_upper_inner_race_bore` and `pitch_link_straight_bushing_bore` |
-| `pitch_plate_tan_link_attach_bore` (node) | the same at the tangential link: `tan_link_bolt_shank` on `bolt_nas6403u14d` |
-| `pitch_plate_attach_radius` (pilot boss → pitch link bore) | `pitch_plate_link_flanged_bushing_radius` (pilot boss → the plate's pitch link flanged bushing bore), then `pitch_link_flanged_bushing_press_fit` → `pitch_link_flanged_bushing_wall` → `pitch_link_bolt_in_flanged_bushing` → `pitch_link_upper_inner_race_on_bolt` |
+| `pitch_plate_link_attach_bore` (node) | the lug: the bolt's shank on `bolt_nas6403u11d`, one length a `pin_in_bore` in each of `pitch_link_flanged_bushing_bore` (`pitch_link_bolt_shank_at_flanged`), `pitch_link_upper_inner_race_bore` (`…_at_race`) and `pitch_link_straight_bushing_bore` (`…_at_straight`) |
+| `pitch_plate_tan_link_attach_bore` (node) | the same at the tangential link, `tan_link_bolt_shank_at_…` on `bolt_nas6403u14d` |
+| `pitch_plate_attach_radius` (pilot boss → pitch link bore) | `pitch_plate_link_flanged_bushing_radius` (pilot boss → the plate's pitch link flanged bushing bore), then `pitch_link_flanged_bushing_press_fit` → `pitch_link_flanged_bushing_wall` → `pitch_link_bolt_in_flanged_bushing` → `pitch_link_bolt_shank_race_to_flanged` → `pitch_link_upper_inner_race_on_bolt` |
 | `pitch_plate_tan_link_attach_radius` | `pitch_plate_tan_link_flanged_bushing_radius`, then the same four, `tan_link_…` |
 | link 4's `pitch_link_upper_inner_race_on_pitch_plate` (v2 only) | `pitch_link_upper_inner_race_on_bolt` |
 | link 4's `tan_link_upper_inner_race_on_pitch_plate` (v2 only) | `tan_link_upper_inner_race_on_bolt` |
@@ -141,10 +148,10 @@ It had 100 events before this session and 100 after.
   | proposals 0051, 0054, 0058, 0061 (edge-keyed, `from` end) | `pitch_plate_attach_radius`, `pitch_plate_tan_link_attach_radius` | 439 and 487 | the pilot boss (`pitch_plate_spindle_bore_axis`), which v2 still has |
   | — | `pitch_plate_215177_001@pitch_plate_tan_link_attach_bore` | no events | — |
 
-  If Jeff means the bolt's axis, the pick is now the bolt's shank:
-  `bolt_nas6403u11d@pitch_link_bolt_shank`, faces 36 and 37 of the
-  NAS6403U11D mesh. The surface offers three "Take" rows for it. The
-  tangential link bolt has no mesh to pick on.
+  If Jeff means the bolt's axis, the pick is now on the bolt's shank: its
+  three lengths (`bolt_nas6403u11d@pitch_link_bolt_shank_at_…`) are all
+  faces 36 and 37 of the NAS6403U11D mesh. The tangential link bolt has no
+  mesh to pick on.
 
 ## Questions for Jeff (not resolved by guessing)
 

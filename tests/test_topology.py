@@ -1121,11 +1121,19 @@ MODEL_V2_BODIES = {
     "base": ["hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
              "piston_cover_214958_002", "tan_link_lower_inner_race"],
     "tan_link": ["tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"],
-    "pitch_plate": ["tan_link_upper_inner_race", "bolt_nas6403u14d", "flanged_bushing_nas77a3_015a_tan_link",
-                    "pitch_plate_215735_001", "straight_bushing_214820_002", "bushing_214820_002",
-                    "bolt_nas6403u11d", "flanged_bushing_nas77a3_015a", "pitch_link_upper_inner_race",
-                    "gas_spring_piston_214700_002", "piston_head_lower_214699_002",
-                    "piston_head_upper_214698_002", "pitch_plate_215177_001"],
+    "pitch_plate": ["tan_link_upper_inner_race",
+                    "bolt_nas6403u14d",
+                    "straight_bushing_214820_002",
+                    "flanged_bushing_nas77a3_015a_tan_link",
+                    "pitch_plate_215735_001",
+                    "bushing_214820_002",
+                    "bolt_nas6403u11d",
+                    "flanged_bushing_nas77a3_015a",
+                    "pitch_link_upper_inner_race",
+                    "gas_spring_piston_214700_002",
+                    "piston_head_lower_214699_002",
+                    "piston_head_upper_214698_002",
+                    "pitch_plate_215177_001"],
     "pitch_link": ["pitch_link_upper_outer_race", "pitch_link_213861_002",
                    "pitch_link_lower_outer_race"],
     "blade": ["pitch_link_lower_inner_race", "pitch_arm", "blade_root"],
@@ -1134,10 +1142,10 @@ MODEL_V2_BODIES = {
 # each inner race is listed where its link enters the mating body (the
 # walk enters a body at its earliest listed part an edge reaches). Since
 # 2026-11-20 the pitch plate is listed in the order its walk first reaches
-# each part: in from the tangential link's race, through that lug's bolt and
-# flanged bushing to the plate, out through both straight bushings to the
-# pitch link's lug, then the piston; the 215177 container, which has no row,
-# last.
+# each part: in from the tangential link's race, through that lug's bolt,
+# straight and flanged bushings to the plate, out through the pitch link's
+# straight bushing, bolt and flanged bushing to its race, then the piston;
+# the 215177 container, which has no row, last.
 
 #: The parts v2 puts in no body (2026-11-19): each link assembly and its two
 #: bearings, whose races move in two bodies. Every other part is in one.
@@ -3264,7 +3272,12 @@ def test_model_v2_each_lug_is_the_bolt_stack_jeff_described():
         # straight bushing or flanged bushing is one of the eight, except the
         # inner race's own ball joint.
         bolt = next(p for _, _, ps in joints for p in ps if p.startswith("bolt_"))
-        assert {n.id for n in v2.nodes_on_part(bolt)} == {f"{lug}_bolt_shank"}
+        # The bolt is its shank, one length in each bore, joined by its two
+        # dimensions (the handoff's "the bolt's shank").
+        assert {n.id for n in v2.nodes_on_part(bolt)} == {
+            f"{lug}_bolt_shank_at_straight", f"{lug}_bolt_shank_at_race", f"{lug}_bolt_shank_at_flanged"}
+        assert {e.id for e in v2.edges_on_part(bolt) if e.kind == "structural"} == {
+            f"{lug}_bolt_shank_straight_to_race", f"{lug}_bolt_shank_race_to_flanged"}
         stack = {j for j, _, _ in joints}
         touching = {e.id for e in v2.edges if e.kind == "gap" and any(
             bolt in v2.node(end).parts or "bushing" in v2.node(end).parts[0]
@@ -3291,7 +3304,8 @@ def test_model_v2_each_links_plate_end_reaches_the_plate_through_race_bolt_and_b
     for lug, start, goal in (("pitch_link", "pitch_link_upper_sphere_centre", "pitch_plate_link_flanged_bushing_bore"),
                              ("tan_link", "tan_link_upper_sphere_centre", "pitch_plate_tan_link_flanged_bushing_bore")):
         path = [f"{lug}_upper_ball_joint", f"{lug}_upper_inner_race_bore_to_ball",
-                f"{lug}_upper_inner_race_on_bolt", f"{lug}_bolt_in_flanged_bushing",
+                f"{lug}_upper_inner_race_on_bolt", f"{lug}_bolt_shank_race_to_flanged",
+                f"{lug}_bolt_in_flanged_bushing",
                 f"{lug}_flanged_bushing_wall", f"{lug}_flanged_bushing_press_fit"]
         at, parts = start, []
         for edge_id in path:
@@ -3302,7 +3316,7 @@ def test_model_v2_each_links_plate_end_reaches_the_plate_through_race_bolt_and_b
         assert at == goal, lug
         bolt = "bolt_nas6403u11d" if lug == "pitch_link" else "bolt_nas6403u14d"
         flanged = "flanged_bushing_nas77a3_015a" + ("" if lug == "pitch_link" else "_tan_link")
-        assert parts == [f"{lug}_upper_inner_race", f"{lug}_upper_inner_race", bolt, flanged, flanged,
+        assert parts == [f"{lug}_upper_inner_race", f"{lug}_upper_inner_race", bolt, bolt, flanged, flanged,
                          "pitch_plate_215735_001"], parts
         assert v2.body_of(v2.node(start).parts[0]).id == lug
         assert {v2.body_of(p).id for p in parts} == {"pitch_plate"}

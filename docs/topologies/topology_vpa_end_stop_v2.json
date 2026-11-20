@@ -53,9 +53,9 @@
       "parts": [
         "tan_link_upper_inner_race",
         "bolt_nas6403u14d",
+        "straight_bushing_214820_002",
         "flanged_bushing_nas77a3_015a_tan_link",
         "pitch_plate_215735_001",
-        "straight_bushing_214820_002",
         "bushing_214820_002",
         "bolt_nas6403u11d",
         "flanged_bushing_nas77a3_015a",
@@ -790,8 +790,8 @@
       "note": "The straight bushing's bore the pitch link bolt passes through. On the 214820-002 mesh: faces 4 and 5, diameter 4.826 (.1900 in), 3.16 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
     },
     {
-      "id": "pitch_link_bolt_shank",
-      "name": "shank",
+      "id": "pitch_link_bolt_shank_at_straight",
+      "name": "shank at straight bushing",
       "parts": [
         "bolt_nas6403u11d"
       ],
@@ -800,7 +800,33 @@
         "part": "bolt_nas6403u11d",
         "surface": "cylindrical"
       },
-      "note": "The bolt's plain shank, the pin of the pitch link lug: it runs through the straight bushing, the inner race and the flanged bushing (Jeff's note 20261119T142516_ci28ci). On the NAS6403U11D mesh (`asm217755_NAS6403U11D`): faces 36 and 37, diameter 4.813, 16.96 long from 0.51 under the head; the thread, faces 7 and 9, runs on beyond the flanged bushing. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+      "note": "The length of the pitch link bolt's plain shank inside the straight bushing's bore: the pin of that joint (Jeff's note 20261119T142516_ci28ci: the shoulder bolt has a bore-boss to each). One cylinder with the other two lengths; the bolt's dimensions between them are its shank. faces 36 and 37 of the NAS6403U11D mesh (`asm217755_NAS6403U11D`), diameter 4.813, where the straight bushing's bore is: 0.80 to 3.96 under the head. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_bolt_shank_at_race",
+      "name": "shank at inner race",
+      "parts": [
+        "bolt_nas6403u11d"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bolt_nas6403u11d",
+        "surface": "cylindrical"
+      },
+      "note": "The length of the pitch link bolt's plain shank inside the inner race's bore: the pin of that joint (Jeff's note 20261119T142516_ci28ci: the shoulder bolt has a bore-boss to each). One cylinder with the other two lengths; the bolt's dimensions between them are its shank. faces 36 and 37 of the NAS6403U11D mesh, where the inner race's bore is: 4.93 to 11.65 under the head. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_bolt_shank_at_flanged",
+      "name": "shank at flanged bushing",
+      "parts": [
+        "bolt_nas6403u11d"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bolt_nas6403u11d",
+        "surface": "cylindrical"
+      },
+      "note": "The length of the pitch link bolt's plain shank inside the flanged bushing's bore: the pin of that joint (Jeff's note 20261119T142516_ci28ci: the shoulder bolt has a bore-boss to each). One cylinder with the other two lengths; the bolt's dimensions between them are its shank. faces 36 and 37 of the NAS6403U11D mesh, where the flanged bushing's bore is: 12.64 to 16.50 under the head. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
     },
     {
       "id": "pitch_link_flanged_bushing_plate_seat",
@@ -911,8 +937,8 @@
       "note": "The straight bushing's bore the tangential link bolt passes through. On the 214820-002 mesh: faces 4 and 5, diameter 4.826 (.1900 in), 3.16 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
     },
     {
-      "id": "tan_link_bolt_shank",
-      "name": "shank",
+      "id": "tan_link_bolt_shank_at_straight",
+      "name": "shank at straight bushing",
       "parts": [
         "bolt_nas6403u14d"
       ],
@@ -921,7 +947,33 @@
         "part": "bolt_nas6403u14d",
         "surface": "cylindrical"
       },
-      "note": "The bolt's plain shank, the pin of the tangential link lug: it runs through the straight bushing, the inner race and the flanged bushing (Jeff's note 20261119T142516_ci28ci). No mesh: data/meshes/ has no NAS6403U14D, so the shank has no face to bind yet. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+      "note": "The length of the tangential link bolt's plain shank inside the straight bushing's bore: the pin of that joint (Jeff's note 20261119T142516_ci28ci: the shoulder bolt has a bore-boss to each). One cylinder with the other two lengths; the bolt's dimensions between them are its shank. No mesh: data/meshes/ has no NAS6403U14D, so this length has no face to bind yet. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_bolt_shank_at_race",
+      "name": "shank at inner race",
+      "parts": [
+        "bolt_nas6403u14d"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bolt_nas6403u14d",
+        "surface": "cylindrical"
+      },
+      "note": "The length of the tangential link bolt's plain shank inside the inner race's bore: the pin of that joint (Jeff's note 20261119T142516_ci28ci: the shoulder bolt has a bore-boss to each). One cylinder with the other two lengths; the bolt's dimensions between them are its shank. No mesh: data/meshes/ has no NAS6403U14D, so this length has no face to bind yet. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_bolt_shank_at_flanged",
+      "name": "shank at flanged bushing",
+      "parts": [
+        "bolt_nas6403u14d"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bolt_nas6403u14d",
+        "surface": "cylindrical"
+      },
+      "note": "The length of the tangential link bolt's plain shank inside the flanged bushing's bore: the pin of that joint (Jeff's note 20261119T142516_ci28ci: the shoulder bolt has a bore-boss to each). One cylinder with the other two lengths; the bolt's dimensions between them are its shank. No mesh: data/meshes/ has no NAS6403U14D, so this length has no face to bind yet. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
     },
     {
       "id": "tan_link_flanged_bushing_plate_seat",
@@ -1915,7 +1967,7 @@
       "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "pitch_link_bolt_shank",
+      "from": "pitch_link_bolt_shank_at_flanged",
       "to": "pitch_link_flanged_bushing_bore",
       "note": "The bolt locates the race on the flanged bushing's bore. No value recorded. Value to come from the bushing's bore band and the bolt's shank: NAS6403U11D's from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event); NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
     },
@@ -1924,7 +1976,7 @@
       "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "pitch_link_bolt_shank",
+      "from": "pitch_link_bolt_shank_at_race",
       "to": "pitch_link_upper_inner_race_bore",
       "note": "The inner race on the bolt, replacing the stand-in that ran to the plate's attachment bore. No value recorded. Value to come from MS14101-3's bore band (its datasheet) and NAS6403U11D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
     },
@@ -1951,9 +2003,27 @@
       "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "pitch_link_bolt_shank",
+      "from": "pitch_link_bolt_shank_at_straight",
       "to": "pitch_link_straight_bushing_bore",
       "note": "The bolt through the straight bushing's bore. No value recorded. Value to come from 214820-002's bore band (its drawing is not in data/inbox/drawings/) and NAS6403U11D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "pitch_link_bolt_shank_straight_to_race",
+      "name": "shank at straight bushing to shank at inner race",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "pitch_link_bolt_shank_at_straight",
+      "to": "pitch_link_bolt_shank_at_race",
+      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U11D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "pitch_link_bolt_shank_race_to_flanged",
+      "name": "shank at inner race to shank at flanged bushing",
+      "kind": "structural",
+      "part": "bolt_nas6403u11d",
+      "from": "pitch_link_bolt_shank_at_race",
+      "to": "pitch_link_bolt_shank_at_flanged",
+      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U11D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
     },
     {
       "id": "pitch_link_straight_bushing_bore_to_end",
@@ -2050,7 +2120,7 @@
       "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "tan_link_bolt_shank",
+      "from": "tan_link_bolt_shank_at_flanged",
       "to": "tan_link_flanged_bushing_bore",
       "note": "The bolt locates the race on the flanged bushing's bore. No value recorded. Value to come from the bushing's bore band and the bolt's shank: NAS6403U14D's from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event); NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
     },
@@ -2059,7 +2129,7 @@
       "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "tan_link_bolt_shank",
+      "from": "tan_link_bolt_shank_at_race",
       "to": "tan_link_upper_inner_race_bore",
       "note": "The inner race on the bolt, replacing the stand-in that ran to the plate's attachment bore. No value recorded. Value to come from MS14103-3's bore band (its datasheet) and NAS6403U14D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
     },
@@ -2086,9 +2156,27 @@
       "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "tan_link_bolt_shank",
+      "from": "tan_link_bolt_shank_at_straight",
       "to": "tan_link_straight_bushing_bore",
       "note": "The bolt through the straight bushing's bore. No value recorded. Value to come from 214820-002's bore band (its drawing is not in data/inbox/drawings/) and NAS6403U14D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "tan_link_bolt_shank_straight_to_race",
+      "name": "shank at straight bushing to shank at inner race",
+      "kind": "structural",
+      "part": "bolt_nas6403u14d",
+      "from": "tan_link_bolt_shank_at_straight",
+      "to": "tan_link_bolt_shank_at_race",
+      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U14D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "tan_link_bolt_shank_race_to_flanged",
+      "name": "shank at inner race to shank at flanged bushing",
+      "kind": "structural",
+      "part": "bolt_nas6403u14d",
+      "from": "tan_link_bolt_shank_at_race",
+      "to": "tan_link_bolt_shank_at_flanged",
+      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U14D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
     },
     {
       "id": "tan_link_straight_bushing_bore_to_end",

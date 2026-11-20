@@ -75,7 +75,7 @@ def v1_view():
 # --- the counts the strategy session derived by hand --------------------------
 
 MODEL_V2_COUNTS = {
-    "bodies": 5, "parts": 33, "features": 95, "dimensions": 71,
+    "bodies": 5, "parts": 33, "features": 99, "dimensions": 75,
     "interfaces": 50, "contacts": 21, "gaps": 29,
     "between_bodies": 8, "within_bodies": 42, "joints": 36,
     # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
@@ -94,13 +94,15 @@ MODEL_V2_COUNTS = {
     # per bearing); and each bearing an assembly. Since 2026-11-20
     # (the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack)
     # each lug at the plate is the bolt stack Jeff described: two bolts more;
-    # per lug a shank and three seats (the flange on the plate, the race on
-    # the flange, the straight bushing on the race) -- seven features, less
-    # v1's two attachment bores, so twelve more; per lug six dimensions (the
+    # per lug the bolt's shank, one length in each of its three bores, and
+    # three seats (the flange on the plate, the race on the flange, the
+    # straight bushing on the race) -- nine features, less v1's two
+    # attachment bores, so sixteen more; per lug eight dimensions (the bolt's
+    # shank between its lengths, two; the
     # plate's lug face to its bore, the flange's face to its bore and its
     # thickness, the race's width and its face to its ball, the straight
     # bushing's end to its bore), the two attachment radii swapped for a
-    # radius to each flanged bushing bore, so twelve more; three contacts
+    # radius to each flanged bushing bore, so sixteen more; three contacts
     # more per lug; and the gaps unchanged, six bolt pins for the two
     # stand-ins and the four bushing pins to the attachment bores.
     "assemblies": 7,
@@ -120,10 +122,10 @@ def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert v2_view["counts"] == MODEL_V2_COUNTS
     assert len(v2_view["bodies"]) == 5
     assert len(v2_view["parts"]) == 33
-    assert len(v2_view["features"]) == 95
+    assert len(v2_view["features"]) == 99
     assert sum(1 for f in v2_view["features"] if f["shared"]) == 42, \
         "21 nodes on two parts are 42 shared features, two each"
-    assert len(v2_view["dimensions"]) == 71
+    assert len(v2_view["dimensions"]) == 75
     assert len(v2_view["interfaces"]) == 50
 
 
