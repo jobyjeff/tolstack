@@ -354,3 +354,15 @@ suggestion names its face 105.2, kinematic study page 84.3, every study opens in
 73.0, a pattern is bound as its like faces 66.2, annotate flyout 64.3, annotate model
 in the scene 62.3, the scene pane reads over HTTP 57.1. The suite this handoff added
 (the Groups switches) took 28.5 s.
+
+## Measurement 2026-11-20, round 2 (same review)
+
+Same spelling, at merge `98168d83`, slot wait 1 s, and no other browser work of mine
+during it: **2374 s**, 49 suites and 981 checks. That is `OVER BUDGET` by 9 m 34 s, and the
+runner recorded the row. It matches round 1's 2365 s, so the contention suspected there did
+not explain the excess. The top 15, in seconds: topology http 255.9, topology file:// 215.5, the model
+drawn alone 201.4, no nav click wedges the page 141.9, 3D pane follows the selection 118.2,
+annotate rail holds still 113.2, the map 112.3, the DAG zoom 104.9, a suggestion names its
+face 102.4, kinematic study page 84.3, every study opens in 3D 73.8, a pattern is bound as
+its like faces 67.4, annotate model in the scene 59.7, annotate flyout 57.6, the scene pane
+reads over HTTP 55.8. The Groups switches suite took 45.8 s.

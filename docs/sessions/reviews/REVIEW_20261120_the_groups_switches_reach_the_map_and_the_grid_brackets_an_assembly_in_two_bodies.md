@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md
 reviewer: agent
 date: 2026-11-20
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies
@@ -188,3 +188,75 @@ sound. Round 2 needs: the `pointer-events` fix, a real-pointer browser check
 with its witness spec, the lesson's "no longer takes a click" sentence
 corrected, and an `--only` run of `the Groups switches` and
 `the map (the counts on both models`.
+
+## Re-run 2026-11-20 (round 2)
+
+Round 1 was REQUEST CHANGES with 1 blocker: a hidden container still took the
+pointer. That blocker is **closed** below. This round reviews
+`handoff/…` at `a06690c2` (one commit on top of `5e4ca59f`), merged cleanly
+into `review/…` as `98168d83`.
+
+### Blocker 1 — closed
+
+- **The fix**, in `apps/viewer/map.css`: each `tv__map--no-<kind>` layer that is
+  set to `visibility: hidden` also gets `pointer-events: none` on all its
+  descendants. The selectors are the same four. The rule now says why, and it
+  states no fact a guard would need declared.
+- **The checks**, in `the Groups switches`. On v2, a real `mouse.move`, `down`
+  and `up` goes to a point the hub's box hit, or ground's district field,
+  owned with everything on. The kind is then switched off, and the check
+  asserts nothing of the hidden layer is under the pointer, nothing with that
+  entity's id lights, and the click selects nothing. On the fixture, the hit
+  test at a point an outline's hit owned finds nothing of it with Assemblies
+  off. I confirmed that the attributes and classes the check counts by
+  (`data-map-id`, `data-map-kind`, `--lead`, `--hot`, `--selected`) are the
+  ones `views/map.js` writes, so the zero counts are not counting nothing.
+- **The one allowance is right.** With Parts off, a click inside the hub's
+  box lands on ground's drawn district and selects the body. The check
+  accepts "a body or nothing, never the part alone". That is the correct
+  behaviour: the district is drawn there.
+- **Witness**: two specs. One keeps only the assemblies' rule; the other
+  drops it. The author's ledger rows (15:31Z, `--only`, 2/2 witnessed) are
+  consistent with the lesson.
+- **My probe**, re-run on the merge (`review/hidden_hits.mjs` in the lesson's
+  shots folder): with each kind off, it searched every hidden box hit, district
+  field and outline hit for a point `elementFromPoint` resolves to that
+  element, and found none in any of the three (`{"none": true}`). Round 1 found
+  such a point at once. The fix holds wherever the hit test can reach.
+- **The lesson** strikes the wrong sentence through, corrects it in place
+  with a pointer to its round-2 section, and its test record matches the
+  ledger.
+
+### Tests, round 2
+
+- **Default tier, post-merge**, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+  in the review worktree at `98168d83`: **2386 passed, 2 failed, 1 skipped**
+  (466 s, recorded, inside budget). The two failures are round 1's known
+  ones: no `data/` in the worktree, and the export-run failure filed as
+  `ISSUE_20261119_…`.
+- **Scratch root** rebuilt from `98168d83` (594 s). Every projection is
+  paired at `98168d83`.
+- **Viewer fast tier with `[real]`**: **617/617**. **Annotate**: **334/334**.
+- **Browser, whole tier**: **48 of 49 suites green**, 2374 s, with `the Groups
+  switches` **11/11**. One red: `a pattern is bound as its like faces`, 10/11,
+  on "[real] the Parts filter's count is the number of the model's features
+  not bound". Run alone with `--only` on the same tree and root it is
+  **11/11**. It is not on this diff's surface. Nothing had filed it, so I
+  filed
+  `docs/issues/ISSUE_20261120_the_pattern_suites_parts_filter_count_is_red_in_the_whole_browser_tier_and_green_alone.md`.
+  Round 1's `3D pane follows the selection` red did not recur.
+- **Over budget again by 9 m 34 s**, with no probe of mine running beside
+  it. So round 1's guess that contention explained some of the excess is
+  withdrawn: the tier is simply about 39 minutes now. The measurement is
+  appended to `ISSUE_20261106_the_viewer_browser_tier_ran_51_minutes_against_the_merge_budget.md`.
+- **Witness gate**, `--changed-since 6a3b983b --budget-min 10 --repo <scratch root>`:
+  it selected 44 entries, reached 1, and witnessed 1/1, leaving 43 to the
+  sweep. Exit 0. The branch's own browser specs again fell to the budget, and
+  the author's `--only` rows witness them (17 in round 1, 2 in round 2).
+
+### Verdict
+
+**APPROVE (round 2).** No blockers remain. Still open, and each has an owner:
+the design issue (the popover ticks both kinds while the grid draws one), the
+author's folded-assembly issue, the pattern-suite flake, and the browser-tier
+budget.
