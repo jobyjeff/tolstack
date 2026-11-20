@@ -646,7 +646,9 @@ out of its parent's bottom (below).
   child's. A feature that ends no interface (a dimension's end on the part
   alone) is an inner mark. A pin's short label shows on hover and when lit.
 - **A jumper per dimension**, inside the box between the two ends it
-  measures; two ends on one side bow into the box.
+  measures — of a feature with several pins, the one nearest the other end;
+  two ends on one side bow into the box, and on a child's small box a jumper
+  between two sides runs inside the border, clear of the name.
 - **A connector per interface**, routed from pin to pin: out of each pin
   square to its side, then a 45° leg for the shorter axis and a straight leg
   for the rest, with the **joint's symbol drawn large** where the route passes
@@ -666,7 +668,8 @@ out of its parent's bottom (below).
   between them and never doubles back. **A route that would cross a box**
   first tries its bend the other way round, then a way through one or two
   corners of the cell grid (or a symbol's width beside one) that crosses no
-  box, shares no run and passes no symbol — the shortest, in a bounded
+  box, shares no run, passes no symbol and keeps a stub's length from every
+  other pin — the shortest, in a bounded
   search (`viaCorners`, `VA.MAP.budget`). Where one still crosses, its two
   pins try the other sides of their parts, kept only where the notes fall.
   Routes are laid in id order, so none depends on the order of `edges[]`.

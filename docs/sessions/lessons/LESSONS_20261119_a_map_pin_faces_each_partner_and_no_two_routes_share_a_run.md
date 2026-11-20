@@ -37,9 +37,12 @@ projection after each change and counted notes.
    [4,1]), and every plain route out of the child crosses the plate or the
    tangential link's flanged bushing at [3,3].
 2. **A parent's pin toward its own child sits straight over the child's pin**,
-   and two facing pins closer than two stubs split the gap (`route`). A child
-   joined to its parent sits `VA.MAP.child.joined` (64) under it, room for the
-   40-unit symbol. This is the U-turn fix.
+   and a child joined to its parent sits `VA.MAP.child.joined` (64) under it.
+   That leaves room for the 40-unit symbol, and it is more than two stubs, so
+   the drop never doubles back. This is the U-turn fix. I first also wrote a
+   "facing pins closer than two stubs share the gap" rule. Its witness came
+   back NOT WITNESSED because at 64 the rule never fires, so I removed it as
+   dead code.
 3. **`crosses` is now exact** (`segmentHitsRect` on the box inset by 1). The
    old 20-sample test missed a long diagonal clipping a box's corner — it
    reported a route clean that drew through [3,3]'s corner.
@@ -51,7 +54,18 @@ projection after each change and counted notes.
    exactly on the grid line, so a route through a bare corner ran through it.
    The pin clearance came from the after shot: without it the route ran up
    through the plate's right-pin stub and read as a junction.
-5. **A pin-side repair**: where a defect is left, the two pins of the defective
+   I tried tightening that to two stubs, and to half a pin pitch from where
+   another pin's route turns. Neither leaves v2 any clean route: the corridor
+   between the plate and [3,3] holds the plate-to-bushing route's two stub ends
+   and its symbol, and nothing else.
+5. **A jumper measures from a feature's nearest pin.** On a child box, whose
+   name the layout does not place, a jumper between two different sides runs
+   inside the border through the corners. The browser tier's `[real] no jumper
+   crosses a part's number or name` caught this: the pitch link flanged
+   bushing's wall jumper ran from its bottom pin to its new top pin, straight
+   through "flanged bushing, pitch link". The fast tier has no guard for this
+   yet; the browser check is what holds it.
+6. **A pin-side repair**: where a defect is left, the two pins of the defective
    interface try every pair of sides, kept only if the notes fall.
    It did not end up deciding v2 (step 4 did), but it is cheap and bounded.
 
@@ -73,17 +87,47 @@ overlapping by more than a pin radius). v2 has none, and the browser tier's
 existing `[real]` check holds them at zero. v1 is not held at zero (it was not
 before either).
 
-## Witness specs re-pointed
+## Witness specs
 
-Three existing specs anchored on lines this rewrote (the column flank, the row
-flank, the stub). Each was re-pointed at the new line with the same contract.
-Four new fast guards, each with a spec; census pin 607 → 611.
+Two existing specs anchored on lines this rewrote: the column flank and the
+row flank. I re-pointed each at the new `sideFor` line with the same contract.
+The stub spec went back to its original line when the half-gap rule went.
+There are four new fast guards, each with a spec, and the census pin moved
+607 → 611.
+
+The first witness run hit the runner's default 30-minute cap, which left 8 of
+12 entries "to the sweep". Pass `--budget-min` to an `--only` run when it has
+more than ~5 fast entries; each fast mutation is a full fast tier, 5–10 min.
+
+## What v2 still draws imperfectly (no note fires)
+
+- **The pitch link straight bushing's bolt route takes the long way round**
+  (`pitch_link_straight_bushing_bore_to_flanged_bushing_bore`). It runs right
+  from the child under the plate, up the gap beside the tangential link's
+  flanged bushing, then diagonally to the straight bushing at [4,1], with a
+  kink. It crosses two other routes on the way. Clean by every rule, but it is
+  the drawing a re-placing of that region (link 5) should shorten. Shot:
+  `after_3840_pitch_plate.png`.
+- **Lit pin labels** can land on a part's number (the plate's new right-hand
+  pin) or on the drop's symbol (the child's top pin). Filed as
+  `ISSUE_20261119_a_lit_map_pin_label_can_land_on_a_part_number_or_a_symbol.md`.
+  Shots: `after_3840_hover_1_*`, `after_3840_hover_2_*`.
+- At 1536 Side by side the map region is narrow and the map is tiny, as it was
+  before. The probe's zoom did not take there, so `*_1536_pitch_plate.png`
+  shows the whole map; `*_1536_map.png` is the record.
 
 ## Shots
 
 `docs/sessions/lessons/shots/a_map_pin_faces_each_partner_and_no_two_routes_share_a_run/`,
 from `tests/debug_map_pins_per_partner_20261119.mjs` against the main
 checkout's projection (this handoff changes no projection input). `before_*`
-are integration at `1a0c6707`; `after_*` this branch. Each set: the whole map
-and the pitch plate region at 3840 Side by side and at 1536, and each of the
-five two-interface features hovered at 3840.
+are integration at `1a0c6707`; `after_*` this branch's final code. Each set
+has the whole map and the pitch plate region at 3840 Side by side and at 1536,
+plus each of the five two-interface features hovered at 3840. I read every
+shot. Against Jeff's three:
+- the U-turn at the pitch link's flanged bushing is gone: a straight drop, with
+  the press-fit symbol in the gap (`after_3840_hover_1`);
+- the tangential link's flanged bushing has a pin toward each partner, top and
+  left (`after_3840_hover_2`, his red question marks);
+- the piston body's boss has a top pin and a right pin, and the fork at
+  y≈460 in his first shot is gone (`after_3840_hover_3`).
