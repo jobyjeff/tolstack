@@ -137,3 +137,32 @@ only when it crosses no box).
   clear of every box".
 - `load_topology_map` adds `computed_places` to an authored file only when it
   computed something, so v2's map is still shipped verbatim.
+
+## The test record
+
+Run from this worktree. The two data tiers used a scratch root,
+`data/scratch/aout` in the main checkout: inbox, meshes and projections were
+copied in, every builder was run from this worktree with `--data-root`, and
+the tree's `docs/` was exported in for the worksheets. The shared `data/`
+was never written. The root was removed afterwards.
+
+- **Default tier**, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+  on `6a3e24ef`: **2385 passed, 2 failed, 1 skipped**, 523 s (ledger row
+  recorded, inside budget). The two failures: `test_viewer_js_suite_is_green`
+  (the worktree has no `data/`, which is deliberate, and the tier below was
+  run instead) and
+  `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`
+  (pre-existing, drawing-checker's run log; already filed as
+  `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`).
+- **Viewer fast tier with `[real]`**, `node apps/viewer/run_tests.cjs --repo <scratch root>`:
+  **613/613**, the projection paired with this tree.
+- **Annotate fast tier**, `node apps/annotate/run_tests.cjs`: **334/334**.
+- **Browser**, `node scripts/run_viewer_browser_tests.mjs --repo <scratch root> --only "the map (the counts on both models"`:
+  **32/32 sub-checks**, 121 s, including the two new fixture checks.
+- **Witness**, one run with nine `--only`s (the four censused guards and five
+  pytest guards): 10 of 11 mutations witnessed in 27m46s. The eleventh,
+  `browser__an-outline-s-name…#2` (the CSS one), aborted the map suite on a
+  5-second `locator.click` timeout at its twelfth sub-check, on the real
+  model's page, where there are no outlines. Re-checked alone with `--only`:
+  **2/2 witnessed** in 6m12s. I read that abort as a flake of the map
+  suite's click, not as a property of the guard.
