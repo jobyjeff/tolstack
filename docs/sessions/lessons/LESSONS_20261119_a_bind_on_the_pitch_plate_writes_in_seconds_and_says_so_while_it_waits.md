@@ -93,6 +93,15 @@ three shots):
 
 Disk → body is 0.0–0.6 s on every press (target: within 1 s).
 
+> **Correction (review, 2026-11-19).** The table above does not support "every
+> press". For "Keep, first write, page still opening its model", every
+> press → body (≥ 11 156) is later than every press → disk (≤ 10 708). So the
+> run whose event reached disk at 9 684 ms changed the body at least 1 472 ms
+> later, past the 1 s target. On a loading page the shell's repaint waits
+> behind the pane's mesh work, because they share one thread (see "Gotchas").
+> The ≤ 0.6 s figure holds for the settled-page, grant-held and Take rows. The
+> Unbind row's ranges also include loading-page runs, up to 10 071 ms to disk.
+
 **Where the 3 s target is missed:** the first write of a page while the
 scene is still loading its meshes. Its one remaining large step is the cold
 read at the grant, 4.8–9.5 s here against 1.9–2.6 s on a settled page. The

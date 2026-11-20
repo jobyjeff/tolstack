@@ -6156,6 +6156,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       condition, ask whether Jeff's next ordinary click flips it. If so, ask
       for a filtered copy of the log instead
       (`ISSUE_20261118_the_opposite_pattern_browser_suite_skips_once_jeff_binds_…`).
+      **Second sighting, the red variant** (2026-11-19,
+      `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`):
+      `testAPressThatWritesSaysSo` gates its skip on the *unfolded* event
+      history, but the press needs the *folded* body (`disagree`). The log is
+      append-only, so Jeff's Keep leaves the skip false and the suite goes red
+      for everyone. Check that a skip condition reads the same state (folded
+      or raw) as the thing the suite presses.
 - [ ] **A twin edge's note copied from its sibling states a fact true of only
       one.** New 2026-11-18 (`the_pitch_plate_is_an_assembly_with_its_bushings`):
       the `tan_link_` edge note said Jeff's binding stands on
@@ -6177,7 +6184,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       after the pane opens settles first by posting a read-only command
       (`scene-view`) through the queue and awaiting its `annotate:result`
       (the map suite's pin hover, 2026-11-19). Ask it of any new short scene
-      wait that follows a pane open.
+      wait that follows a pane open. **Identity writes no longer queue**
+      (2026-11-19, `ExecQueue.runAfterLoad`, `AA.IDENTITY_WRITE_VERBS`). They
+      wait only for the load gate, and a second write that arrives while one
+      runs is *dropped* as `busy`, not run after it. A new sender that posts
+      two writes back to back loses the second. Ask how it waits for the
+      first `annotate:result`, the way the shell's `bodyWrite` does.
 
 ## Architectural errors to check
 

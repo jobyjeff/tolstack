@@ -327,3 +327,15 @@ worktree at `c43c42a3` (tree `e85d36c8`): 46/46, 1850 s on the runner's own ledg
 row (`2026-11-19T22:19:34Z`), over the 1800 s budget by 50 s. Top suites: 3D pane
 follows the selection 237.5 s; every study opens in 3D 191.2 s; the model drawn
 alone 185.1 s; topology http 120.1 s; topology file:// 105.7 s.
+
+## Measurement 2026-11-19 (review of `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, in the review
+worktree at merge `b61ac17f` (tree `ab84e0bf`), with no slot wait: **1835 s**, 47 suites and
+966 checks, against the 1800 s merge budget, so `OVER BUDGET` by 35 s. The runner
+recorded the row itself. The top 15 suites, in seconds: the model drawn alone 192.8,
+topology http 164.1, topology file:// 112.8, 3D pane follows the selection 99.2, the map
+98.5, annotate rail holds still 98.4, a suggestion names its face 97.5, no nav click wedges
+the page 73.8, annotate flyout 70.6, the DAG zoom 66.4, every study opens in 3D 64.2, a
+pattern is bound as its like faces 64.1, annotate model in the scene 57.5, kinematic study
+page 54.0, annotate sweep rail 52.9. The suite this handoff added took 13.7 s.

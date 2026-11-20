@@ -7,7 +7,7 @@ reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_a_disagreement_is_settled_by_keep_or_let_go.md
 handoff: docs/sessions/HANDOFF_20261119_a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits.md
 class: annotate_write_latency
-resolution: "verified 2026-11-19 by handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits, probe tests/debug_bind_latency_20261119.mjs on a scratch copy of the log. Pitch plate Keep, press -> disk 29.4 s -> 2.7-3.0 s (settled page; 9.7-10.7 s while the page still loads meshes), press -> body 40.4 s -> 3.3-3.5 s. Unbind 21.7-24.5 s -> 2.0-2.3 s to disk. Armed click 5.6 s -> 0.6 s to disk, 15.5 s -> 0.6 s to body. Take 0.17 s / 0.35 s. Every write press reads writing... in its own click. The remaining first-write cold read is filed as ISSUE_20261119_the_first_write_of_a_page_still_opens_every_event_file_to_find_the_next_seq.md"
+resolution: "verified 2026-11-19 by handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits, probe tests/debug_bind_latency_20261119.mjs on a scratch copy of the log. Pitch plate Keep, press -> disk 29.4 s -> 2.7-3.0 s (settled page; 9.7-10.7 s while the page still loads meshes), press -> body 40.4 s -> 3.3-3.5 s. Unbind 21.7-24.5 s -> 2.0-2.3 s to disk (settled page; up to 10.1 s while the page loads meshes). Armed click 5.6 s -> 0.6 s to disk, 15.5 s -> 0.6 s to body. Take 0.17 s / 0.35 s. Every write press reads writing... in its own click. The remaining first-write cold read is filed as ISSUE_20261119_the_first_write_of_a_page_still_opens_every_event_file_to_find_the_next_seq.md"
 ---
 
 # A bind on the pitch plate takes 10–40 seconds to write, and the tree reads it 5–13 seconds after that
@@ -81,3 +81,11 @@ log, ms:
 
 Each write press reads `writing…` and is disabled from its own click
 (shots in `docs/sessions/lessons/shots/a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits/`).
+
+> **Correction (review, 2026-11-19).** The Unbind row above, and the
+> `resolution:` line's "2.0-2.3 s", show only the settled-page runs. In the
+> lesson's own table the Unbind runs reach 10 071 ms to disk and 11 206 ms to
+> the body when the page is still loading meshes, as Keep does. On a loading
+> page, disk → body also passes 1 s: at least 1 472 ms for one Keep run (the
+> lesson's correction under "After"). The remaining cold read is the
+> follow-on issue named above.
