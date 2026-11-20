@@ -67,9 +67,12 @@ The shots are `v2_map_{all_on,bodies_off,assemblies_off,parts_off,all_off}.png`.
 - The probe measured every pin's place to the pixel, with each switch off
   and with all three off. Every pin stayed put and the drawn counts held: the
   layout is always the whole model, and hiding is a `visibility: hidden` on
-  the layer. A hidden district's field no longer takes a click, so a press
-  there pans and selects no body. That is consistent, because the body is
-  not drawn.
+  the layer. ~~A hidden district's field no longer takes a click, so a press
+  there pans and selects no body.~~ **Wrong as first shipped** (corrected in
+  round 2, below): `visibility: hidden` hides the ink but not the hits,
+  because SVG's `all`, `fill` and `stroke` pointer values ignore visibility.
+  A hidden box still lit and selected its part, and a hidden district still
+  selected its body. The hidden layers now also take `pointer-events: none`.
 
 ## What link 4 will trip on
 
@@ -161,3 +164,56 @@ afterwards.
 ## Found on arrival
 
 Nothing: the worktree was clean, at the integration tip.
+
+## Round 2 (2026-11-20): a hidden container no longer takes the pointer
+
+The review (`REVIEW_20261120_…`, REQUEST CHANGES) found that a switched-off
+container still hovered, lit and selected. The map's hits take the pointer
+with `all`, `fill` or `stroke`, and SVG honours those whatever the
+visibility. Every check read `getComputedStyle(e).visibility`, which only
+says "not drawn", not "not there".
+
+- **Fix**: `apps/viewer/map.css` adds `pointer-events: none` to every
+  descendant of a hidden layer, under the same four `tv__map--no-<kind>`
+  selectors.
+- **Two checks, real pointer**, in `the Groups switches`:
+  - On v2, the pointer goes to a place the hub's box hit or ground's district
+    field owned with all on. Then the kind is switched off, and the pointer
+    is moved there and clicked. Nothing of the hidden layer is under it, and
+    the hidden entity neither lights nor selects.
+  - With Parts off, a click inside the hub's box lands on ground's district,
+    which is drawn, so it selects the body, and a selected body marks its
+    parts selected. The check allows that: the selection is a body or
+    nothing, never the part alone.
+  - On the fixture, with Assemblies off, the hit test at a place an outline's
+    hit owned finds nothing of the outline. v2 has no outline group to try.
+- **For the next probe:** a district field carries no `data-map-id`. Its body's id is on the `map__districthit`
+  beside it.
+
+### The round-2 test record
+
+The browser runs used the main checkout's data (`--repo C:/workspace/tolstack`),
+whose topology projection is built from integration. This branch changes no
+topology input.
+
+- **Browser**, `--only "the Groups switches"`: **11/11**. Before the check was
+  corrected it was 10/11 on the fix, because the part's click selected its
+  body.
+- **Browser**, `--only "the map (the counts on both models"`: **32/32**.
+- **Witness**, two `--only`: **2/2 witnessed** in 2 m 29 s.
+  - The pointer check's mutation keeps only the assemblies' rule.
+  - The outline check's mutation drops the assemblies' rule.
+- **Default tier**: **2385 passed, 3 failed, 1 skipped** in 478 s. The three:
+  - `test_viewer_js_suite_is_green`: the worktree has no `data/`.
+  - The already-filed export-run failure.
+  - `test_the_issue_each_mutation_cites_is_in_the_tree`: the two new specs
+    cited the review report, which is not on this branch. They now cite this
+    lesson, and `tests/test_mutation_witnesses.py` is **49 passed**.
+- **Fast tiers**:
+  - Viewer: **517/518**. Its `[real]` tier refused the main checkout's
+    projection, which was built from integration. Round 2 changes no file
+    that tier loads (only `map.css`, the browser runner, specs, the pin and
+    this lesson). So round 1's `[real]` 617/617 at `5e4ca59f`, which the
+    review reproduced, still stands for it.
+  - Annotate: **334/334**.
+- Guard pin: browser `800 / 771`, +2, each with a spec.

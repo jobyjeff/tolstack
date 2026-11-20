@@ -3213,6 +3213,68 @@ async function testGroupsSwitches(browser, label, topologies) {
       old.ticked.join(",") === "bodies=true,assemblies=true,parts=false");
     await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
 
+    // A real pointer over a place a container owns, all on, and then over the
+    // same place with its kind off: SVG's `all`/`fill`/`stroke` hits take the
+    // pointer whatever the visibility, so "hidden" is read here as "the
+    // pointer finds nothing of it" -- nothing lights, nothing selects
+    // (REVIEW_20261120_the_groups_switches_...).
+    const reach = {};
+    for (const [kind, sel, layer] of [["parts", "rect.map__boxhit", "boxes"],
+      ["bodies", "rect.map__districtfield", "districts"]]) {
+      await open();
+      const at = await page.evaluate((sel) => {
+        for (const el of document.querySelectorAll("#topopane svg.tv__map " + sel)) {
+          const r = el.getBoundingClientRect();
+          for (let fx = 0.1; fx < 1; fx += 0.1) for (let fy = 0.2; fy < 1; fy += 0.2) {
+            const x = r.left + r.width * fx, y = r.top + r.height * fy;
+            // A district's field is unregistered; its body's id is on the hit beside it.
+            if (document.elementFromPoint(x, y) === el) {
+              return { x, y, id: el.getAttribute("data-map-id") ||
+                el.parentNode.querySelector("[data-map-id]").getAttribute("data-map-id") };
+            }
+          }
+        }
+        return null;
+      }, sel);
+      if (!at) { reach[kind] = { none: true }; continue; }
+      await setKind(kind, false);
+      await page.locator("#group-kinds-toggle").click();
+      await page.waitForTimeout(300);
+      await page.mouse.move(at.x, at.y);
+      await page.waitForTimeout(400);
+      const lit = (state) => page.evaluate(({ at, layer, state }) => {
+        const e = document.elementFromPoint(at.x, at.y);
+        const flagged = Array.from(document.querySelectorAll(
+          `#topopane svg.tv__map [data-map-id="${at.id}"]`))
+          .filter((n) => new RegExp(state).test(n.getAttribute("class") || "")).length;
+        const kinds = Array.from(document.querySelectorAll("#topopane svg.tv__map [data-map-kind]"))
+          .filter((n) => /--selected\b/.test(n.getAttribute("class") || ""))
+          .map((n) => n.getAttribute("data-map-kind"));
+        return { inHidden: !!(e && e.closest(".map__layer--" + layer)), flagged,
+          selectedKinds: Array.from(new Set(kinds)).sort() };
+      }, { at, layer, state });
+      const hover = await lit("--(hot|lead)\\b");
+      await page.mouse.down();
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+      const click = await lit("--selected\\b");
+      reach[kind] = { id: at.id, hover, click };
+      await page.mouse.move(2, 2);
+      await setKind(kind, true);
+    }
+    console.log(`      [${label}] a pointer over a hidden container: ${JSON.stringify(reach)}`);
+    // Under a hidden box is its body's drawn district, so that click may
+    // select the body (whose own light marks its parts); it never selects
+    // the part alone. Under a hidden district with no box is nothing at all.
+    const r = (k) => reach[k] && reach[k].id ? reach[k] : null;
+    push("[real] a real pointer over a hidden part's box or a hidden body's district finds nothing there: " +
+      "it lights neither and a click selects neither",
+      r("parts") && r("bodies") && ["parts", "bodies"].every((k) => !reach[k].hover.inHidden &&
+        reach[k].hover.flagged === 0) &&
+      (reach.parts.click.flagged === 0 || reach.parts.click.selectedKinds.includes("body")) &&
+      reach.bodies.click.flagged === 0 && reach.bodies.click.selectedKinds.length === 0);
+    await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
+
     // The fixture, drawn on this page in this stylesheet and taken away.
     const fixture = await page.evaluate((proj) => {
       const VA = window.ViewerApp;
@@ -3235,6 +3297,17 @@ async function testGroupsSwitches(browser, label, topologies) {
       paint(all, "assemblies");
       const out = { basePins: pins(), districts: shown("rect.map__district"), outlines: shown("g.map__outlinegroup"),
         boxes: shown("rect.map__box"), off: {} };
+      // A place an outline's hit owns, all on: the pointer's own hit test.
+      const owned = (() => {
+        for (const el of mapHost.querySelectorAll("rect.map__outlinehit")) {
+          const r = el.getBoundingClientRect();
+          for (const [x, y] of [[r.left + r.width / 2, r.top + 1], [r.left + 1, r.top + r.height / 2],
+            [r.left + r.width / 2, r.bottom - 1], [r.right - 1, r.top + r.height / 2]]) {
+            if (document.elementFromPoint(x, y) === el) return { x, y };
+          }
+        }
+        return null;
+      })();
       const grid = {
         bodies: gridHost.querySelectorAll(".tvbrace--body.tvbrace--top").length,
         assemblyRuns: Array.from(gridHost.querySelectorAll(".tvbrace--assembly.tvbrace--top"))
@@ -3248,6 +3321,11 @@ async function testGroupsSwitches(browser, label, topologies) {
         paint(kinds, "assemblies");
         out.off[k] = { pins: pins() === out.basePins, districts: shown("rect.map__district"),
           outlines: shown("g.map__outlinegroup"), boxes: shown("rect.map__box") };
+        if (k === "assemblies") {
+          const e = owned && document.elementFromPoint(owned.x, owned.y);
+          out.outlineOwned = !!owned;
+          out.outlineReached = !!(e && e.closest(".map__layer--assemblies"));
+        }
       });
       VA.releaseMap(mapHost);
       mapHost.remove();
@@ -3263,6 +3341,8 @@ async function testGroupsSwitches(browser, label, topologies) {
       f.off.bodies.pins && f.off.bodies.districts === 0 && f.off.bodies.outlines === 4 && f.off.bodies.boxes === f.boxes &&
       f.off.assemblies.pins && f.off.assemblies.outlines === 0 && f.off.assemblies.districts === 3 &&
       f.off.parts.pins && f.off.parts.boxes === 0 && f.off.parts.outlines === 4);
+    push("the fixture's map: with Assemblies off, the pointer's hit test finds nothing of an outline " +
+      "at a place its hit owned with all on", f.outlineOwned && !f.outlineReached);
     push("the fixture's grid with the assemblies outermost: no body bracket, the link assembly one " +
       "bracket under its name, each bearing once per race, and no bracket's name clipped",
       fixture.grid.bodies === 0 &&

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "the fixture's map: with Assemblies off, the pointer's hit test finds nothing of an outline at a place its hit owned with all on",
+  "mutations": [
+    {
+      "contract": "An assembly's outline switched off is not there for the pointer: its stroke hit stops taking it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "v2 draws no outline group, so the fixture is the only model that has a hidden outline hit to reach.",
+      "file": "apps/viewer/map.css",
+      "find": ".tv__map--no-assemblies .map__layer--assemblies *,\n.tv__map--no-parts .map__layer--boxes * { pointer-events: none; }",
+      "replace": ".tv__map--no-parts .map__layer--boxes * { pointer-events: none; }"
+    }
+  ]
+}

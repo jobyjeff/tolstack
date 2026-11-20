@@ -20,11 +20,18 @@
 .tv__map text { font-family: inherit; }
 /* The Groups popover's kinds switched off (views/map.js): a body's
    district -- border, field and name --, an assembly's outline and a part's
-   box and name are hidden in place; pins, symbols and routes stay put. */
+   box and name are hidden in place; pins, symbols and routes stay put. The
+   hits below take the pointer with `all`, `fill` and `stroke`, which SVG
+   honours whatever the visibility, so a hidden layer's descendants stop
+   taking it too: hidden, a container neither hovers nor selects. */
 .tv__map--no-bodies .map__layer--districts,
 .tv__map--no-bodies .map__layer--districtnames,
 .tv__map--no-assemblies .map__layer--assemblies,
 .tv__map--no-parts .map__layer--boxes { visibility: hidden; }
+.tv__map--no-bodies .map__layer--districts *,
+.tv__map--no-bodies .map__layer--districtnames *,
+.tv__map--no-assemblies .map__layer--assemblies *,
+.tv__map--no-parts .map__layer--boxes * { pointer-events: none; }
 
 /* A body's district: a dashed field in the body's ink, barely tinted, named
    once at its corner. Its interior pans on a drag and selects the body on a
