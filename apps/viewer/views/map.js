@@ -230,7 +230,9 @@
     svg.appendChild(VA.mapSymbolDefs());
     var world = VA.svg("g", "map__world");
     var layer = {};
-    ["districts", "assemblies", "boxes", "jumpers", "connectors", "pins", "names"].forEach(function (name) {
+    // A district's name sits over the assemblies' outlines, which may cross
+    // a district's border (2026-11-19), and under everything else.
+    ["districts", "assemblies", "districtnames", "boxes", "jumpers", "connectors", "pins", "names"].forEach(function (name) {
       layer[name] = VA.svg("g", "map__layer map__layer--" + name);
       world.appendChild(layer[name]);
     });
@@ -265,7 +267,10 @@
         { "font-size": M.font.body });
       register(reg, name, "map__bodyname", VA.FOCUS_KINDS.body, body.id);
       wire(name, ctx, VA.FOCUS_KINDS.body, body.id, body.name);
-      g.appendChild(name);
+      // In its body's ink, in the layer over the outlines.
+      var nameG = VA.svg("g", "map__body" + tintCls);
+      nameG.appendChild(name);
+      layer.districtnames.appendChild(nameG);
       layer.districts.appendChild(g);
     });
 

@@ -12,12 +12,12 @@
       "replace": "    return false;"
     },
     {
-      "contract": "An assembly's dimension between two of its parts' features runs on a lane under the boxes it spans, through none of them.",
+      "contract": "An assembly's dimension between two of its parts' features runs straight only where that crosses no box, else on a lane past the boxes it spans.",
       "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
-      "note": "Drops the lane: the jumper runs straight from race to race through the link body's box.",
+      "note": "Keeps only the straight try: the jumper runs from race to race through the link body's box.",
       "file": "apps/viewer/map.js",
-      "find": "      j.via = [p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2];",
-      "replace": "      j.via = [p1, p2];"
+      "find": "      var via = tries.filter(function (v) { return clear([j.a].concat(v, [j.b])); })[0];",
+      "replace": "      var via = tries[0];"
     }
   ]
 }

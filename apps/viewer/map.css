@@ -52,6 +52,12 @@
   stroke-width: 1.75; stroke-dasharray: 2 6; stroke-linecap: round; pointer-events: none;
 }
 .map__outlinename { fill: var(--muted); font-style: italic; font-weight: 400; cursor: pointer; }
+/* An outline's border may run under another outline's name: the name is
+   set over a halo of the page's ground. (A district's name is drawn above
+   every outline instead, views/map.js's `districtnames` layer.) */
+.map__outlinename {
+  paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round;
+}
 .map__outlinehit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .map__outline--lead { stroke: var(--ink); stroke-opacity: 1; stroke-width: 2.5; }
 .map__outlinename--lead { fill: var(--ink); }

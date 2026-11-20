@@ -1007,9 +1007,11 @@
     });
     // An assembly's dimension between two of its parts' features (since
     // 2026-11-19 its `part` may be the assembly, its ends features of the
-    // parts under it): a jumper between those features' nearest pins, out of
-    // each square to its side and along a lane under the assembly's boxes it
-    // spans, so it runs through none of them. Its outline takes the lane in.
+    // parts under it): a jumper between those features' nearest pins --
+    // straight where that crosses no box, else out of each pin square to its
+    // side and along a lane past the assembly's boxes it spans, under them,
+    // over them, or beside them, the first that crosses no box. Its outline
+    // takes the jumper in.
     var inside = function (id, assemblyId) {
       for (var up = id; up && parts[up]; up = parts[up].parent) if (up === assemblyId) return true;
       return false;
@@ -1026,17 +1028,40 @@
         return { x: round(q.x + n[0] * M.stub), y: round(q.y + n[1] * M.stub) };
       };
       var p1 = out(j.a, j.sides[0]), p2 = out(j.b, j.sides[1]);
-      var lo = Math.min(p1.x, p2.x), hi = Math.max(p1.x, p2.x);
-      var lane = Math.max(p1.y, p2.y);
-      boxes.forEach(function (box) {
-        if (inside(box.id, d.part) && box.x < hi && box.x + box.w > lo) lane = Math.max(lane, box.y + box.h);
-      });
-      lane = round(lane + M.stub / 2);
+      var clear = function (pts) {
+        for (var i = 1; i < pts.length; i++) {
+          for (var k = 0; k < boxes.length; k++) if (crosses(pts[i - 1], pts[i], boxes[k])) return false;
+        }
+        return true;
+      };
+      // A lane past the assembly's boxes that overlap the run between the
+      // two stubs, on one side: [axis, sign] -- y +1 under, y -1 over,
+      // x -1 left, x +1 right.
+      var lanePast = function (axis, sign) {
+        var across = axis === "y" ? "x" : "y", size = axis === "y" ? "h" : "w", span = axis === "y" ? "w" : "h";
+        var lo = Math.min(p1[across], p2[across]), hi = Math.max(p1[across], p2[across]);
+        var lane = sign > 0 ? Math.max(p1[axis], p2[axis]) : Math.min(p1[axis], p2[axis]);
+        boxes.forEach(function (box) {
+          if (!inside(box.id, d.part) || !(box[across] <= hi && box[across] + box[span] >= lo)) return;
+          lane = sign > 0 ? Math.max(lane, box[axis] + box[size]) : Math.min(lane, box[axis]);
+        });
+        lane = round(lane + sign * M.stub / 2);
+        return axis === "y" ? [p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2]
+          : [p1, { x: lane, y: p1.y }, { x: lane, y: p2.y }, p2];
+      };
+      var tries = [[]].concat([["y", 1], ["y", -1], ["x", -1], ["x", 1]].map(function (t) {
+        return lanePast(t[0], t[1]);
+      }));
+      var via = tries.filter(function (v) { return clear([j.a].concat(v, [j.b])); })[0];
+      if (!via) {
+        notes.push("dimension " + d.id + " has no jumper clear of every box");
+        via = tries[1];
+      }
       j.ctrl = null;
-      j.via = [p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2];
-      j.d = pathD([j.a].concat(j.via, [j.b]));
-      j.mid = { x: round((p1.x + p2.x) / 2), y: lane };
-      j.lane = union(j.via.map(function (q) { return { x: q.x, y: q.y, w: 0, h: 0 }; }));
+      j.via = via.length ? via : null;
+      j.d = pathD([j.a].concat(via, [j.b]));
+      if (via.length) j.mid = { x: round((via[1].x + via[2].x) / 2), y: round((via[1].y + via[2].y) / 2) };
+      j.lane = union([j.a, j.b].concat(via).map(function (q) { return { x: q.x, y: q.y, w: 0, h: 0 }; }));
       jumpers.push(j);
       drawn[j.id] = true;
     });
