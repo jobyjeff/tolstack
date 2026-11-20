@@ -64,7 +64,8 @@
     // A child part with no place of its own: a small box under its parent's
     // (`clear` is how far it keeps from a route leaving the parent's bottom).
     // `joined` is how far under its parent a child sits that an interface
-    // joins to it: room for the connector's symbol between the two boxes.
+    // joins to it: room for the connector's symbol between the two boxes,
+    // and more than two stubs, so the drop between them never doubles back.
     child: Object.freeze({ w: 150, h: 50, gap: 12, clear: 16, joined: 64 }),
     // Type, in world units (SVG attributes, scaled with the drawing).
     font: Object.freeze({ body: 18, part: 17, number: 15, pin: 13, child: 12 }),
@@ -252,16 +253,10 @@
 
   // The route between two pins: out of each pin square to its side, then
   // the bend between the two stub ends.
-  // Two pins on facing sides closer than two stubs (a child under its
-  // parent) take half the gap each, so the route never runs past the far
-  // side and doubles back.
   function route(a, b, M, late) {
     var na = NORMAL[a.side], nb = NORMAL[b.side];
-    var stub = M.stub;
-    var gap = (b.x - a.x) * na[0] + (b.y - a.y) * na[1];
-    if (na[0] === -nb[0] && na[1] === -nb[1] && gap > 0 && gap < 2 * M.stub) stub = gap / 2;
-    var p1 = { x: a.x + na[0] * stub, y: a.y + na[1] * stub };
-    var p2 = { x: b.x + nb[0] * stub, y: b.y + nb[1] * stub };
+    var p1 = { x: a.x + na[0] * M.stub, y: a.y + na[1] * M.stub };
+    var p2 = { x: b.x + nb[0] * M.stub, y: b.y + nb[1] * M.stub };
     var mid = bend(p1, p2, late);
     return [{ x: a.x, y: a.y }].concat(mid, [{ x: b.x, y: b.y }]);
   }
@@ -1031,9 +1026,14 @@
         else if (corners && !last) { deferred.push(iface); return; }
         else if (corners) {
           pts = viaCorners(a, b, M, [lastColumn + 1, lastRow + 1], function (cand) {
+            // ...and keeps a stub's length from every other pin, so it never
+            // meets another route where that one leaves its pin and reads as
+            // a branch of it.
             return !boxesCrossed(cand, a, b).length && !connectors.some(function (c) {
               return sharedRun(c.points, cand, M.pinR) ||
                 nearRect(cand, { x: c.mid.x, y: c.mid.y, w: 0, h: 0 }, M.symbol / 2);
+            }) && !pins.some(function (q) {
+              return q !== a && q !== b && nearRect(cand.slice(1, -1), { x: q.x, y: q.y, w: 0, h: 0 }, M.stub);
             });
           }) || pts;
         }

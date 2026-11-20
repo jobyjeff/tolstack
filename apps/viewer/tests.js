@@ -13024,7 +13024,9 @@
 
     await test("a child with no place joined to its parent sits under it with the connector's symbol " +
       "between the two boxes, and the route is the short drop between their facing sides", function () {
-        var fx = mapPartners();
+        // U, under M, takes a route out of M's bottom, so the child sits
+        // beside it rather than centred.
+        var fx = mapPartners([["mu", "U", [1, 1]]]);
         var m = fx.model;
         m.parts.push({ id: "K", label: "K bushing", number: null, name: "bushing", body: "one", features: ["K@od"],
                        dimensions: [], parent: "M", children: [], depth: 1 });
@@ -13036,12 +13038,14 @@
           parts: ["K", "M"], bodies: ["one"], within: "one", joint: "press" });
         m.joints.push({ id: "press", parts: ["K", "M"], bodies: ["one"], within: "one", constraints: ["press"] });
         m.bodies[0].all_parts.push("K");
-        m.counts = { bodies: 1, parts: 4, features: 5, dimensions: 0, interfaces: 3, assemblies: 1 };
+        m.counts = { bodies: 1, parts: 5, features: 6, dimensions: 0, interfaces: 4, assemblies: 1 };
         var geo = VA.mapLayout(m, fx.doc);
         eq(geo.notes, []);
         var box = function (id) { return geo.boxes.filter(function (b) { return b.id === id; })[0]; };
         var c = geo.connectors.filter(function (x) { return x.id === "press"; })[0];
         ok(box("K").y > box("M").y + box("M").h, "the child sits under its parent");
+        ok(Math.abs(box("K").x + box("K").w / 2 - (box("M").x + box("M").w / 2)) > VA.MAP.pinPitch,
+           "beside the route out of M's bottom");
         ok(c.mid.y > box("M").y + box("M").h && c.mid.y < box("K").y, "the symbol is between the two boxes");
         ok(geo.boxes.every(function (b) { return !inRect(c.mid, b); }), "and inside none");
         ok(c.points.every(function (p) { return p.x === c.points[0].x; }), "a straight drop");
