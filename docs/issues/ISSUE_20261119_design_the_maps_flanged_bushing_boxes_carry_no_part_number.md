@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: resolved
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
@@ -43,3 +43,16 @@ Every sibling row leads with its number (215735-001, 214820-002). v2's
 number is dropped because the part has no `drawing`, the same cause the map
 has. One fix, two surfaces. Shot `02a_attach_bore_two_sets_disagree_crop` in
 `docs/sessions/lessons/shots/the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page/`.
+
+## Resolved 2026-11-20 (handoff `the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`)
+
+- **The number**: `model_view.part_number` is a part's `drawing`, or for a
+  standard part with none the number its own name carries (the one the label
+  rule already stripped), and it is what `model.parts[].number` and the label
+  say. So both flanged bushings read "NAS77A3-015A flanged bushing, ..." on
+  the map and in the tree, and so do the bolts (NAS6403U11D, NAS6403U14D) and
+  the MS14101-3 / MS14103-3 bearings and races. The STEP names the bushings'
+  instances NAS77C3-015.n; that difference is on the lesson's question list.
+- **The diagonal**: `pitch_link_straight_bushing_bore_to_flanged_bushing_bore`
+  is not in v2 any more (the bolt replaced it), and the re-drawn plate region
+  has no route crossing another.

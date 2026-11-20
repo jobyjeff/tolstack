@@ -3201,3 +3201,108 @@ def test_an_assembly_the_chain_does_not_reach_has_no_roll_up():
     topology = _write_and_load(raw)
     study = load_study(REPO_ROOT / "docs" / "topologies" / "study_rotor_fastener_grip_u2h.json")
     assert assembly_rollups(topology, summarize(topology, study)) == {}
+
+
+#: Each lug's stack at the pitch plate (2026-11-20, handoff
+#: the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack; Jeff's
+#: note 20261119T142516_ci28ci): eight joints, ``(id, kind, the two parts)``,
+#: a seat being a node the two parts share.
+V2_LUG_JOINTS = {
+    "pitch_link": [
+        ("pitch_link_flanged_bushing_press_fit", "press_fit",
+         {"flanged_bushing_nas77a3_015a", "pitch_plate_215735_001"}),
+        ("pitch_link_flanged_bushing_plate_seat", "seat",
+         {"flanged_bushing_nas77a3_015a", "pitch_plate_215735_001"}),
+        ("pitch_link_bolt_in_flanged_bushing", "pin_in_bore",
+         {"bolt_nas6403u11d", "flanged_bushing_nas77a3_015a"}),
+        ("pitch_link_upper_inner_race_flange_seat", "seat",
+         {"pitch_link_upper_inner_race", "flanged_bushing_nas77a3_015a"}),
+        ("pitch_link_upper_inner_race_on_bolt", "pin_in_bore",
+         {"bolt_nas6403u11d", "pitch_link_upper_inner_race"}),
+        ("pitch_link_upper_inner_race_clamp_seat", "seat",
+         {"pitch_link_upper_inner_race", "bushing_214820_002"}),
+        ("pitch_link_bolt_in_straight_bushing", "pin_in_bore",
+         {"bolt_nas6403u11d", "bushing_214820_002"}),
+        ("pitch_link_straight_bushing_transition_fit", "transition_fit",
+         {"bushing_214820_002", "pitch_plate_215735_001"}),
+    ],
+    "tan_link": [
+        ("tan_link_flanged_bushing_press_fit", "press_fit",
+         {"flanged_bushing_nas77a3_015a_tan_link", "pitch_plate_215735_001"}),
+        ("tan_link_flanged_bushing_plate_seat", "seat",
+         {"flanged_bushing_nas77a3_015a_tan_link", "pitch_plate_215735_001"}),
+        ("tan_link_bolt_in_flanged_bushing", "pin_in_bore",
+         {"bolt_nas6403u14d", "flanged_bushing_nas77a3_015a_tan_link"}),
+        ("tan_link_upper_inner_race_flange_seat", "seat",
+         {"tan_link_upper_inner_race", "flanged_bushing_nas77a3_015a_tan_link"}),
+        ("tan_link_upper_inner_race_on_bolt", "pin_in_bore",
+         {"bolt_nas6403u14d", "tan_link_upper_inner_race"}),
+        ("tan_link_upper_inner_race_clamp_seat", "seat",
+         {"tan_link_upper_inner_race", "straight_bushing_214820_002"}),
+        ("tan_link_bolt_in_straight_bushing", "pin_in_bore",
+         {"bolt_nas6403u14d", "straight_bushing_214820_002"}),
+        ("tan_link_straight_bushing_transition_fit", "transition_fit",
+         {"straight_bushing_214820_002", "pitch_plate_215735_001"}),
+    ],
+}
+
+
+def test_model_v2_each_lug_is_the_bolt_stack_jeff_described():
+    v2 = load_topology(MODEL_V2)
+    edges, nodes = {e.id: e for e in v2.edges}, {n.id: n for n in v2.nodes}
+    for lug, joints in V2_LUG_JOINTS.items():
+        for joint_id, kind, parts in joints:
+            if kind == "seat":
+                node = nodes[joint_id]
+                assert (node.kind, set(node.parts)) == ("mating_surface", parts), joint_id
+            else:
+                edge = edges[joint_id]
+                assert (edge.kind, edge.interface) == ("gap", kind), joint_id
+                ends = {v2.node(edge.from_node).parts[0], v2.node(edge.to_node).parts[0]}
+                assert ends == parts, joint_id
+        # Exactly this and no more: every gap or seat touching the lug's bolt,
+        # straight bushing or flanged bushing is one of the eight, except the
+        # inner race's own ball joint.
+        bolt = next(p for _, _, ps in joints for p in ps if p.startswith("bolt_"))
+        assert {n.id for n in v2.nodes_on_part(bolt)} == {f"{lug}_bolt_shank"}
+        stack = {j for j, _, _ in joints}
+        touching = {e.id for e in v2.edges if e.kind == "gap" and any(
+            bolt in v2.node(end).parts or "bushing" in v2.node(end).parts[0]
+            for end in (e.from_node, e.to_node)) and lug in e.id}
+        touching |= {n.id for n in v2.nodes if len(n.parts) == 2 and lug in n.id
+                     and any("bushing" in p for p in n.parts)}
+        assert touching <= stack, sorted(touching - stack)
+    # The stand-ins and the attachment bores are not in v2; v1 keeps the bores.
+    gone = {"pitch_plate_link_attach_bore", "pitch_plate_tan_link_attach_bore",
+            "pitch_plate_attach_radius", "pitch_plate_tan_link_attach_radius",
+            "pitch_link_upper_inner_race_on_pitch_plate", "tan_link_upper_inner_race_on_pitch_plate"}
+    assert not gone & (set(edges) | set(nodes))
+    v1 = load_topology(LINKAGE)
+    assert {"pitch_plate_link_attach_bore", "pitch_plate_tan_link_attach_bore"} <= {n.id for n in v1.nodes}
+
+
+def test_model_v2_each_links_plate_end_reaches_the_plate_through_race_bolt_and_bushing():
+    """A path from each link's outer race seat centre to the plate's flanged
+    bushing bore: the ball, the inner race, the bolt, the flanged bushing, its
+    press fit -- walked edge by edge, each edge leaving from the node the last
+    one reached. (The race's seat on the flange is a second, axial route the
+    stack also has.)"""
+    v2 = load_topology(MODEL_V2)
+    for lug, start, goal in (("pitch_link", "pitch_link_upper_sphere_centre", "pitch_plate_link_flanged_bushing_bore"),
+                             ("tan_link", "tan_link_upper_sphere_centre", "pitch_plate_tan_link_flanged_bushing_bore")):
+        path = [f"{lug}_upper_ball_joint", f"{lug}_upper_inner_race_bore_to_ball",
+                f"{lug}_upper_inner_race_on_bolt", f"{lug}_bolt_in_flanged_bushing",
+                f"{lug}_flanged_bushing_wall", f"{lug}_flanged_bushing_press_fit"]
+        at, parts = start, []
+        for edge_id in path:
+            edge = v2.edge(edge_id)
+            assert at in (edge.from_node, edge.to_node), (lug, edge_id, at)
+            at = edge.other_end(at)
+            parts.append(v2.node(at).parts[0])
+        assert at == goal, lug
+        bolt = "bolt_nas6403u11d" if lug == "pitch_link" else "bolt_nas6403u14d"
+        flanged = "flanged_bushing_nas77a3_015a" + ("" if lug == "pitch_link" else "_tan_link")
+        assert parts == [f"{lug}_upper_inner_race", f"{lug}_upper_inner_race", bolt, flanged, flanged,
+                         "pitch_plate_215735_001"], parts
+        assert v2.body_of(v2.node(start).parts[0]).id == lug
+        assert {v2.body_of(p).id for p in parts} == {"pitch_plate"}

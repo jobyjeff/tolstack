@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: topology/v2
 reporter: agent
 audience: strategy
@@ -62,3 +62,17 @@ question is already on Jeff's page as D6
 recommendation (c)), inside the pitch-plate thread of
 `dispatch/docs/strategy/HANDOFF_20261118_strategy.md`. A second file would
 make it less decidable, not more. Linked there with `strategy:`.
+
+## Resolved 2026-11-20 by Jeff's note (handoff `the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`)
+
+Jeff's note `20261119T142516_ci28ci` answers it: the link attaches through a
+bolt stack, and the bolt is located by the bushing bores -- option (c), and
+more. Neither attachment bore is a feature in model v2 any more: v2 has the
+bolt at each lug (NAS6403U11D at the pitch link, NAS6403U14D at the
+tangential link, read off the 217755-001 A.1 STEP), its shank a `pin_in_bore`
+in the flanged bushing, the inner race and the straight bushing. v1 keeps
+both bores, their radii and the bindings on them. The faces of Jeff's
+disagreeing binds (events 0093 to 0100 on `pitch_plate_link_attach_bore`) and
+the v2 feature each set belongs to are listed in
+`docs/sessions/lessons/LESSONS_20261119_the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack.md`,
+"Bindings that need a re-pick", so the review page can offer the re-pick.
