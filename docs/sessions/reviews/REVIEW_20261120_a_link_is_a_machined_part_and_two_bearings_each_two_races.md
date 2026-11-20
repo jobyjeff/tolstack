@@ -175,3 +175,21 @@ changes behaviour.
 Two entries added under "Recurring bugs to check": a part that becomes an
 outline leaves a dead map place, and a moved feature's `identity.part`
 differs from `feature.part`.
+
+## Landing
+
+`integration` was fast-forwarded `1ba5132a` → `e0770018` with `git fetch .
+review/a_link_is_a_machined_part_and_two_bearings_each_two_races:integration`,
+and then again with this section. Both branches are still checked out in
+their worktrees, so neither was deleted (dispatch removes them at Complete).
+The `node_modules` junction I made in this worktree is removed, and the main
+checkout's `node_modules` is intact. The scratch root `data/scratch/lnk` is
+left in place (gitignored). Its log copy is Jeff's 100 events, with the
+tactical agent's test event `0101` moved out to my session scratchpad.
+
+## Blocked actions
+
+- `git push origin integration` (to publish the landing), refused by the auto
+  mode classifier `[Destructive or Unwanted Actions]`. It was not retried.
+  Local `integration` holds the work, so the operator can push it at any time.
+  It changes only `origin/integration`, which nothing else is waiting on.
