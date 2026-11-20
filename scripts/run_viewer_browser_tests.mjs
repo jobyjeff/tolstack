@@ -3539,8 +3539,10 @@ async function testTheMap(browser, label, topologies) {
       const svg = document.querySelector("#topopane svg.tv__map");
       const ids = (sel) => Array.from(svg.querySelectorAll(sel)).map((n) => n.getAttribute("data-map-id"));
       const once = (list) => new Set(list).size === list.length;
-      const districts = ids("rect.map__district"), boxes = ids("rect.map__box"), pins = ids("g.map__pin"),
-        jumpers = ids("g.map__jumper"), connectors = ids("g.map__connector");
+      // A part is its box, or -- an assembly with no feature of its own (v2's
+      // links and bearings since 2026-11-19) -- its outline.
+      const districts = ids("rect.map__district"), boxes = ids("rect.map__box").concat(ids("rect.map__outline")),
+        pins = ids("g.map__pin"), jumpers = ids("g.map__jumper"), connectors = ids("g.map__connector");
       return { drawn: { bodies: districts.length, parts: boxes.length, features: pins.length,
         dimensions: jumpers.length, interfaces: connectors.length },
         once: [districts, boxes, pins, jumpers, connectors].every(once),
@@ -11593,11 +11595,24 @@ async function testPatternAndAddAFace(browser, label, topologies) {
       .then(Number).catch(() => NaN);
     // The fold's answer, read off every feature row's mark with every part open.
     const openAll = async () => {
-      for (let i = 0; i < 4; i++) {
-        const closed = page.locator('#navtree [data-nav-twisty^="p:"][aria-expanded="false"]');
-        const n = await closed.count();
-        if (!n) return;
-        for (let k = n - 1; k >= 0; k--) await closed.nth(k).click({ timeout: 2000 }).catch(() => {});
+      // Every fold opened can draw more: v2's links since 2026-11-19 nest two
+      // levels (assembly, bearing, race), and each also under Parts.
+      // A part listed twice (a race under its body and in its link assembly
+      // under Parts) shares one fold key, so each closed key is clicked once.
+      for (let i = 0; i < 10; i++) {
+        const keys = await page.evaluate(() => Array.from(new Set(Array.from(document.querySelectorAll(
+          '#navtree [data-nav-twisty^="p:"][aria-expanded="false"]')).map((b) => b.getAttribute("data-nav-twisty")))));
+        if (!keys.length) return;
+        // Dispatched in the page: a fold is a plain button, and Playwright's
+        // scroll-into-view stalls on the rows below a long nav's fold.
+        await page.evaluate(async (keys) => {
+          for (const key of keys) {
+            const b = document.querySelector(`#navtree [data-nav-twisty="${key}"][aria-expanded="false"]`);
+            if (b) b.click();
+            await new Promise((ok) => setTimeout(ok, 50));
+          }
+        }, keys).catch(() => {});
+        await page.waitForTimeout(300);
       }
     };
     const rowsNotBound = () => page.evaluate(() => Array.from(document.querySelectorAll('#navtree [data-nav-kind="feature"]'))
@@ -14336,7 +14351,20 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       '#sweep-tree [data-group="bodies"] [data-body]')).map((n) => ({ id: n.dataset.body,
       parts: n.querySelectorAll(":scope > .an__tree-parts > .part-row").length,
     })));
-    const declared = (model.bodies || []).map((b) => ({ id: b.id, parts: (b.parts || []).length }));
+    // A part the run lists for a body that the model puts in NO body (a link
+    // assembly and its bearing, whose races sit in two bodies since
+    // 2026-11-19) is still listed: its mesh is what the run poses.
+    const runParts = await inPane((w) => {
+      const a = w.__sweep && w.__sweep.artifact;
+      const out = {};
+      ((a && a.bodies) || []).forEach((b) => { out[b.name] = b.parts || []; });
+      ((a && a.links) || []).forEach((l) => { out[l.joint] = l.parts || []; });
+      return out;
+    });
+    const inABody = (pid) => (model.bodies || []).some((b) => (b.parts || []).indexOf(pid) !== -1);
+    const declared = (model.bodies || []).map((b) => ({ id: b.id, parts: (b.parts || []).length +
+      ((runParts && runParts[b.id]) || []).filter((pid) => !inABody(pid) &&
+        (model.parts || []).some((q) => q.id === pid)).length }));
     const railIds = (bodiesRail || []).map((b) => b.id);
     const ordered = railIds.filter((id) => declared.some((d) => d.id === id));
     console.log(`      [${label}] Bodies list: ${JSON.stringify(bodiesRail && bodiesRail.map((b) => [b.id, b.parts]))}; ` +
@@ -14376,8 +14404,17 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
         (r.state === "carried" && mesh && r.sha === mesh.sha256 &&
           (!part.occurrence || r.keys.indexOf(part.occurrence) !== -1))));
     };
+    // A part drawn by its parent's mesh (an inner race, a solid of its
+    // bearing's mesh since 2026-11-19) is posed where that mesh is: with the
+    // link the run carries the bearing in. ISSUE_20261120_an_assembly_in_no_body_
+    // is_listed_twice_in_the_nav_and_posed_by_nothing_in_3d.md.
+    const inParentsMesh = (partId) => {
+      const part = (model.parts || []).find((p) => p.id === partId) || {};
+      const mine = meshOf(partId), theirs = part.parent ? meshOf(part.parent) : null;
+      return !!(mine && theirs && mine.sha256 === theirs.sha256);
+    };
     const unposed = (model.bodies || []).filter((b) => b.kind !== "link")
-      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p)).map((p) => b.id + "/" + p));
+      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p) && !inParentsMesh(p)).map((p) => b.id + "/" + p));
     console.log(`      [${label}] P2: parts of the model's bodies not posed with their body: ` +
       `${unposed.join(", ") || "-"}`);
     if (unposed.length) {
@@ -14629,6 +14666,15 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       boundTokens = new Set((ident.features || []).filter((r) => r.state === "bound")
         .map((r) => [r.feature_key.topology_id, r.feature_key.part, r.feature_key.node].join("|")));
     } catch { boundTokens = null; }
+    // The meshes a feature's bound faces are on, by its identity token.
+    let boundShas = new Map();
+    try {
+      const ident = JSON.parse(await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
+        "bindings.json"), "utf8"));
+      (ident.features || []).filter((r) => r.state === "bound").forEach((r) => boundShas.set(
+        [r.feature_key.topology_id, r.feature_key.part, r.feature_key.node].join("|"),
+        uniq((r.faces || []).map((g) => g.source_step_sha256))));
+    } catch { boundShas = new Map(); }
     const featureBound = (fid) => {
       const f = (view.features || []).find((x) => x.id === fid);
       return !!(f && boundTokens && boundTokens.has([f.identity.topology_id, f.identity.part, f.identity.node].join("|")));
@@ -14659,9 +14705,20 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const lookOf = (looks, sha) => (looks.find((r) => r.sha === sha) || {});
     // Every drawn part off its expected look: the lit parts ghost (their
     // resting look), a bound interface partner ghost, the rest faint.
+    // A partner ghosts the mesh its bound face is on -- its own, or (v2's
+    // link centres since 2026-11-19, picked on the link assembly's mesh and
+    // moved onto the outer race) another part's.
     const looksOffRule = async (looks, litParts, partners) => {
       const ghosts = [];
-      for (const pid of litParts.concat(partners)) ghosts.push(await shaOf(pid));
+      for (const pid of litParts) ghosts.push(await shaOf(pid));
+      for (const pid of partners) {
+        const faces = [].concat(...(((view.parts || []).find((p) => p.id === pid) || {}).features || [])
+          .filter((fid) => featureBound(fid)).map((fid) => {
+            const f = (view.features || []).find((x) => x.id === fid);
+            return boundShas.get([f.identity.topology_id, f.identity.part, f.identity.node].join("|")) || [];
+          }));
+        if (faces.length) ghosts.push(...faces); else ghosts.push(await shaOf(pid));
+      }
       return looks.filter((r) => r.look !== (ghosts.indexOf(r.sha) !== -1 ? "ghost" : "faint"));
     };
     const hubPartners = ghostedPartners([HUB]);
@@ -14837,11 +14894,26 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const bossSel = await pageLit();
     console.log(`      [${label}] locating boss selected: on ${JSON.stringify(uniq(bossSel.treeOn))}, on-touching ` +
       `${JSON.stringify(uniq(bossSel.treeOnTouching))}; interface row ${JSON.stringify(bossSel.interfaceRow)}; pilot end drawn ${bossSel.pilotEnd}`);
+    // The page reveals a lit row "never at the cost of the own row leaving the
+    // screen" (revealLitRows): where the boss's row and the interface's do
+    // not fit in the nav together -- v2's ground holds one more part since
+    // 2026-11-19 -- the boss's row stays and the interface is not scrolled to.
+    const bossRow = await page.evaluate((sel) => {
+      const r = document.querySelector(sel);
+      const b = r && r.getBoundingClientRect();
+      return b ? [b.top, b.bottom] : null;
+    }, navRow("feature", HUB + "@hub_spindle_bore_axis"));
+    const ir = bossSel.interfaceRow;
+    const bothFit = !!(bossRow && ir && ir.box && ir.nav &&
+      Math.max(ir.box[1], bossRow[1]) - Math.min(ir.box[0], bossRow[0]) + 16 <= ir.nav[1] - ir.nav[0]);
+    const bossOnScreen = !!(bossRow && ir && ir.nav && bossRow[0] >= ir.nav[0] && bossRow[1] <= ir.nav[1]);
+    console.log(`      [${label}] boss row ${JSON.stringify(bossRow)}; both fit ${bothFit}; boss on screen ${bossOnScreen}`);
     push("[real] selecting the hub's locating boss from the Parts section opens the folds down to the pilot interface " +
       "it is an end of -- the Interfaces group, the hub-mount joint, the interface itself -- lights that row fainter " +
       "with the pilot bore across it, and scrolls it into view",
       bossSel.treeOn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 && !!bossSel.interfaceRow &&
-      /navtree__row--on-touching/.test(bossSel.interfaceRow.cls) && bossSel.interfaceRow.onScreen &&
+      /navtree__row--on-touching/.test(bossSel.interfaceRow.cls) &&
+      (bothFit ? bossSel.interfaceRow.onScreen : bossOnScreen) &&
       bossSel.pilotEnd && bossSel.treeOnTouching.indexOf(MOUNT + "@tan_link_mount_pilot_bore") !== -1 &&
       bossSel.treeOnTouching.indexOf(HUB_JOINT) !== -1);
 
