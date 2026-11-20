@@ -105,9 +105,25 @@ and the review gate runs below.
 - **Annotate fast tier**, `node apps/annotate/run_tests.cjs`: **334/334**, with
   no SKIP lines. That runner takes no `--repo`, so its `[real]` checks read the
   main checkout's (trunk's) projection.
-- **Browser tier, whole**: see "Re-run notes" below. It is appended once the
-  run finishes.
-- **Witness gate**: see "Re-run notes" below.
+- **Browser tier, whole**, `node scripts/run_viewer_browser_tests.mjs --repo
+  C:/workspace/tolstack/data/scratch/lnk` on `f7b119dd` (a `node_modules`
+  junction in this worktree): **48/49 suites**, 2413 s (ledger row written by
+  the runner, OVER the 30-minute merge budget by 10m13s). The one red is `[real]
+  resting on a body row in the nav lights that body in the scene` in `3D pane
+  follows the selection`, on v1's kinematic study, which this diff does not
+  touch. Its DIAG showed the light standing in every sample, beside two
+  `locator.hover` timeouts. The same suite `--only` on the same tree passed
+  **31/31**. It is a known flake: a sighting is appended to
+  `ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`.
+  The budget measurement is appended to the open (deferred)
+  `ISSUE_20261106_the_viewer_browser_tier_ran_51_minutes_against_the_merge_budget.md`,
+  with its slowest suites.
+- **Witness gate**, `node scripts/run_mutation_witness_tests.mjs --repo
+  C:/workspace/tolstack/data/scratch/lnk --changed-since integration
+  --budget-min 10`: exit 0. It reached 14 entries: 1/1 witnessed, 13 left to
+  the sweep (budget), because the first fast entry took 10m05s. The two new
+  specs were among the 13, so I re-checked them with `--only` each: **3/3
+  witnessed** (10m16s).
 
 ## Findings
 
