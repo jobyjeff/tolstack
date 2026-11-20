@@ -57,7 +57,7 @@
     {
       "topology_part": "bolt_nas6403u11d",
       "mesh_part_id": "asm217755_NAS6403U11D",
-      "evidence": "Exact spec number on both sides. docs/topologies/topology_vpa_pitch_linkage.json (topology_pitch_link_to_pitch_plate.json until the 2026-10-27 fold)'s part is named 'NAS6403U11D hex-head bolt' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/f9d8792134f561e7a08e0d3c6b69a4e666181f517d741a83d3d5971b5603e723/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances."
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_vpa_pitch_linkage.json (topology_pitch_link_to_pitch_plate.json until the 2026-10-27 fold)'s part is named 'NAS6403U11D hex-head bolt' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/f9d8792134f561e7a08e0d3c6b69a4e666181f517d741a83d3d5971b5603e723/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances. Model v2's part of the same id (2026-11-20, handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack) is the same bolt: the 217755-001 A.1 STEP's pitch link lug group prd-e-03481962 holds product NAS6403U11D as instance NAS6403U10D.3, and v2 declares the occurrence prd-e-03481962.1, the one beside blade 1's upper pitch link ball. The tangential link lug's bolt, NAS6403U14D, has no row: data/meshes/ holds no NAS6403U14D mesh."
     },
     {
       "topology_part": "bolt_nas6403u13h",

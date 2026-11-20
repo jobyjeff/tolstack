@@ -7,31 +7,121 @@
     "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): five columns by nine rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body the third column in the same sense -- pitch plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle. The pitch plate assembly's members run in a row to the plate's right (2026-11-18, handoff the_pitch_plate_is_an_assembly_with_its_bushings): the tangential link's flanged bushing, then the machined plate; the pitch link's flanged bushing has no place and sits under the plate; the two straight bushings sit above the row. Since 2026-11-19 each link is a machined part and two bearings, each bearing an outer race in the link's district and an inner race in its neighbour's, in two adjacent cells, so the bearing's outline straddles the border and the ball joint sits between its races. A district is one rectangle and a link's outline is one rectangle round its five parts, so each link is laid where its five boxes enclose no other: the tangential link a Z in the second column under the mount's row -- its plate end's inner race under the pitch plate, its mount end's inner race low in the base column, joined to the mount past the empty cells between; the pitch link straight down the fifth column from its inner race under the machined plate to its inner race at the end of the blade's row; the blade along the bottom -- hub, blade root, pitch arm, that inner race -- so the hub to blade joint and the pitch arm's joints run along it. Placed by scoring candidates with the map's own notes (VA.mapLayout); this one has none. Every place above the links' rows is the sketch's."
   },
   "places": {
-    "piston_cover_214958_002": [0, 0],
-    "gas_spring_mount_213668_002": [0, 1],
-    "tan_link_mount_215175_002": [0, 3],
-    "hub": [0, 8],
-    "piston_head_upper_214698_002": [2, 0],
-    "piston_head_lower_214699_002": [2, 1],
-    "gas_spring_piston_214700_002": [2, 2],
-    "pitch_plate_215177_001": [2, 3],
-    "pitch_link": [4, 5],
-    "pitch_arm": [3, 8],
-    "blade_root": [2, 8],
-    "tan_link_212956_005": [1, 4],
-    "flanged_bushing_nas77a3_015a_tan_link": [3, 3],
-    "pitch_plate_215735_001": [4, 3],
-    "straight_bushing_214820_002": [4, 2],
-    "bushing_214820_002": [4, 1],
-    "tan_link_lower_inner_race": [0, 6],
-    "tan_link_lower_outer_race": [1, 6],
-    "tan_link_213863_004": [1, 5],
-    "tan_link_upper_outer_race": [1, 4],
-    "tan_link_upper_inner_race": [2, 4],
-    "pitch_link_upper_inner_race": [4, 4],
-    "pitch_link_upper_outer_race": [4, 5],
-    "pitch_link_213861_002": [4, 6],
-    "pitch_link_lower_outer_race": [4, 7],
-    "pitch_link_lower_inner_race": [4, 8]
+    "piston_cover_214958_002": [
+      0,
+      0
+    ],
+    "gas_spring_mount_213668_002": [
+      0,
+      1
+    ],
+    "tan_link_mount_215175_002": [
+      0,
+      3
+    ],
+    "hub": [
+      0,
+      9
+    ],
+    "piston_head_upper_214698_002": [
+      4,
+      0
+    ],
+    "piston_head_lower_214699_002": [
+      4,
+      1
+    ],
+    "gas_spring_piston_214700_002": [
+      4,
+      2
+    ],
+    "pitch_plate_215177_001": [
+      4,
+      3
+    ],
+    "flanged_bushing_nas77a3_015a_tan_link": [
+      3,
+      3
+    ],
+    "pitch_plate_215735_001": [
+      4,
+      3
+    ],
+    "flanged_bushing_nas77a3_015a": [
+      5,
+      3
+    ],
+    "bolt_nas6403u14d": [
+      3,
+      4
+    ],
+    "straight_bushing_214820_002": [
+      4,
+      4
+    ],
+    "bolt_nas6403u11d": [
+      5,
+      4
+    ],
+    "tan_link_upper_inner_race": [
+      3,
+      5
+    ],
+    "bushing_214820_002": [
+      4,
+      5
+    ],
+    "pitch_link_upper_inner_race": [
+      5,
+      5
+    ],
+    "tan_link_212956_005": [
+      2,
+      5
+    ],
+    "tan_link_upper_outer_race": [
+      2,
+      5
+    ],
+    "tan_link_213863_004": [
+      1,
+      5
+    ],
+    "tan_link_lower_outer_race": [
+      1,
+      6
+    ],
+    "tan_link_lower_inner_race": [
+      0,
+      6
+    ],
+    "pitch_link": [
+      5,
+      6
+    ],
+    "pitch_link_upper_outer_race": [
+      5,
+      6
+    ],
+    "pitch_link_213861_002": [
+      5,
+      7
+    ],
+    "pitch_link_lower_outer_race": [
+      5,
+      8
+    ],
+    "pitch_link_lower_inner_race": [
+      5,
+      9
+    ],
+    "blade_root": [
+      2,
+      9
+    ],
+    "pitch_arm": [
+      4,
+      9
+    ]
   }
 }

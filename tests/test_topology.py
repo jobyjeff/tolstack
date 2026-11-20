@@ -992,7 +992,10 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
 #:
 #: Since 2026-11-19 (a_link_is_a_machined_part_and_two_bearings_each_two_races)
 #: each v2 link is its machined part and its two bearings' outer races, and
-#: each bearing's inner race is in the body of the part it is fixed to.
+#: each bearing's inner race is in the body of the part it is fixed to. Since
+#: 2026-11-20 (the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack)
+#: the pitch plate also carries the bolt through each lug, which no mesh linkage
+#: poses draws.
 BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY = {
     L2_TOPOLOGY.stem: BODY_PARTS_LINKAGE_DOES_NOT_LIST,
     MODEL_V2.stem: {
@@ -1004,7 +1007,7 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY = {
                         "pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
                         "flanged_bushing_nas77a3_015a_tan_link", "bushing_214820_002",
                         "straight_bushing_214820_002", "pitch_link_upper_inner_race",
-                        "tan_link_upper_inner_race"},
+                        "tan_link_upper_inner_race", "bolt_nas6403u11d", "bolt_nas6403u14d"},
         "blade": {"pitch_link_lower_inner_race"},
     },
 }
@@ -1119,10 +1122,11 @@ MODEL_V2_BODIES = {
              "piston_cover_214958_002", "tan_link_lower_inner_race"],
     "tan_link": ["tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"],
     "pitch_plate": ["tan_link_upper_inner_race", "pitch_plate_215177_001", "flanged_bushing_nas77a3_015a",
-                    "pitch_plate_215735_001", "bushing_214820_002", "pitch_link_upper_inner_race",
-                    "gas_spring_piston_214700_002",
+                    "pitch_plate_215735_001", "bushing_214820_002", "bolt_nas6403u11d",
+                    "pitch_link_upper_inner_race", "gas_spring_piston_214700_002",
                     "piston_head_lower_214699_002", "piston_head_upper_214698_002",
-                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002"],
+                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002",
+                    "bolt_nas6403u14d"],
     "pitch_link": ["pitch_link_upper_outer_race", "pitch_link_213861_002",
                    "pitch_link_lower_outer_race"],
     "blade": ["pitch_link_lower_inner_race", "pitch_arm", "blade_root"],
@@ -1208,7 +1212,9 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     assert "hub_to_pitch_plate_spindle_coaxiality" not in {e.id for e in v2.edges}
     assert {e.other_end("pitch_plate_spindle_bore_axis")
             for e in v2.incident("pitch_plate_spindle_bore_axis")} == {
-        "pitch_plate_link_attach_bore", "pitch_plate_tan_link_attach_bore",
+        # each lug's flanged bushing bore (2026-11-20: v1's attachment bores
+        # are not in v2; the bolt stack says where the link attaches)
+        "pitch_plate_link_flanged_bushing_bore", "pitch_plate_tan_link_flanged_bushing_bore",
         "pitch_plate_pilot_in_piston_id",
         # the piston body's flange seat and fastener pattern (2026-11-17)
         "piston_body_plate_flange_seat", "gas_spring_piston_fastener_clocking"}
@@ -3005,13 +3011,35 @@ def test_an_assembly_whose_parts_are_all_in_one_body_is_in_that_body():
     assert _write_and_load(raw).body_of("bearing_a").id == "link"
 
 
-def test_a_node_on_a_part_in_no_body_is_refused_by_name():
+def test_a_part_with_children_carries_no_node():
+    """2026-11-20 (the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack):
+    an assembly is a container, and its features are its parts'. The merged
+    page of 2026-11-19 drew 215177-001's own box beside its plate, and it read
+    to Jeff as a second pitch plate. Refused by name, for an assembly in no
+    body, one in a body, and in a model that declares no bodies; an assembly's
+    own dimension between its parts' features stays allowed."""
+    for assembly in ("link_asm", "base_asm"):
+        raw = _two_bodies()
+        raw["nodes"].append({"id": "name_plate", "name": "name plate", "kind": "datum_feature",
+                             "parts": [assembly]})
+        with pytest.raises(TopologyError, match=f"node 'name_plate' is on part '{assembly}', which has "
+                                                f"parts of its own"):
+            _write_and_load(raw)
+        raw["bodies"] = []
+        with pytest.raises(TopologyError, match="An assembly carries no feature"):
+            _write_and_load(raw)
+    # A node two parts share, one of them an assembly, is refused the same way.
     raw = _two_bodies()
-    raw["nodes"].append({"id": "link_name_plate", "name": "name plate", "kind": "datum_feature",
-                         "parts": ["link_asm"]})
-    with pytest.raises(TopologyError, match="node 'link_name_plate' is on part 'link_asm', which is "
-                                            "in no body"):
+    seat = next(n for n in raw["nodes"] if len(n["parts"]) == 2)
+    seat["parts"] = [seat["parts"][0], "link_asm"]
+    with pytest.raises(TopologyError, match="which has parts of its own"):
         _write_and_load(raw)
+    # v2 complies: no part with children carries a node.
+    v2 = load_topology(MODEL_V2)
+    assemblies = {p.id for p in v2.parts if v2.children_of(p.id)}
+    assert "pitch_plate_215177_001" in assemblies
+    assert [n.id for n in v2.nodes if assemblies & set(n.parts)] == []
+    assert [e.id for e in v2.edges_on_part("pitch_plate_215177_001")] == []
 
 
 def test_an_assemblys_dimension_between_its_parts_features_in_one_body():
@@ -3043,22 +3071,31 @@ def test_a_finer_model_states_a_shared_feature_on_the_member_that_carries_it():
     fine_raw["edges"].append(seat)
     fine = _write_and_load(fine_raw)
 
-    def coarse(ball_parts, seat_part):
+    def coarse(ball_parts, seat_part=None):
         raw = _two_bodies()
         raw["id"], raw["bodies"] = "coarse", []
+        # The coarse model declares no tree, as v1 declares none: an assembly
+        # carries no feature (since 2026-11-20), and the latitude reads the
+        # finer model's tree alone. So it has no assembly dimension either.
+        for part in raw["parts"]:
+            part.pop("parent", None)
+        raw["edges"] = [e for e in raw["edges"] if e["id"] != "link_centres"]
         for node in raw["nodes"]:
             if node["id"] == "ball_a":
                 node["parts"] = ball_parts
-        raw["edges"].append(dict(seat, part=seat_part))
+            if node["id"] == "race_seat_a" and seat_part:
+                node["parts"] = ["link_body", seat_part]
+        if seat_part:
+            raw["edges"].append(dict(seat, part=seat_part))
         return _write_and_load(raw)
 
     # The ball on the race and the bearing round the other race; the seat
     # dimension on the bearing round the race that carries it.
     assert check_shared_ids(fine, coarse(["outer_a", "bearing_a"], "bearing_a")) == (
-        len(fine.nodes) + len(fine.edges))
+        len(fine.nodes) + len(fine.edges) - 1)
     # The same node on a part the fine one's race is not inside.
     with pytest.raises(TopologyError, match="node 'ball_a' is 'mating_surface' on"):
-        check_shared_ids(fine, coarse(["outer_a", "base"], "bearing_a"))
+        check_shared_ids(fine, coarse(["outer_a", "base"]))
     # The latitude runs one way: the edge on the link assembly here and on
     # the race in the other model is not the other's edge.
     fine_raw["edges"][-1]["part"] = "link_asm"
@@ -3116,26 +3153,39 @@ def test_children_and_the_tree_order_of_model_v2():
         assert straight in topology.body("pitch_plate").parts, straight
 
 
+def _with_lug_assembly(parents: dict) -> dict:
+    """v1, in a copy (v1 is untouched), with the pitch link lug's bushings in an
+    assembly of their own. Since 2026-11-20 an assembly carries no feature, so
+    the plate -- which carries v1's features -- cannot be the one."""
+    raw = _with_parents(LINKAGE, parents)
+    raw["parts"].append({"id": "lug_asm", "name": "pitch link lug bushings"})
+    for body in raw["bodies"]:
+        if "bushing_214820_002" in body["parts"]:
+            body["parts"].append("lug_asm")
+    return raw
+
+
 def test_an_assemblys_roll_up_is_the_fold_of_its_subtrees_terms():
-    # v1's cotter-hole clearance with the plate's two bushings nested in the
-    # plate (in a copy: v1 is untouched). Pinned by id: the plate assembly's
-    # share is its flange and the two bushings' own contributions, and the
-    # rest of the chain plus that share is the study's total.
-    raw = _with_parents(LINKAGE, {"bushing_214820_002": "pitch_plate_215177_001",
-                                  "flanged_bushing_nas77a3_015a": "pitch_plate_215177_001"})
+    # v1's cotter-hole clearance with the lug's two bushings nested in one
+    # assembly. Pinned by id: the assembly's share is the two bushings' own
+    # contributions, and the rest of the chain plus that share is the study's
+    # total. (Until 2026-11-20 the plate held them and its flange, -4.06
+    # +/-0.10, was in the share too.)
+    raw = _with_lug_assembly({"bushing_214820_002": "lug_asm",
+                              "flanged_bushing_nas77a3_015a": "lug_asm"})
     topology = _write_and_load(raw)
     study = load_study(REPO_ROOT / "docs" / "topologies" / "study_pitch_link_cotter_hole_clearance.json")
     result = summarize(topology, study)
     rollups = assembly_rollups(topology, result)
-    assert list(rollups) == ["pitch_plate_215177_001"]
-    edges, interval = rollups["pitch_plate_215177_001"]
-    assert edges == ("pitch_plate_flange", "flange_bushing_flange_pitch_link", "bushing_214820")
+    assert list(rollups) == ["lug_asm"]
+    edges, interval = rollups["lug_asm"]
+    assert edges == ("flange_bushing_flange_pitch_link", "bushing_214820")
     mine = [c for c in result.chain if c.edge.id in edges]
     assert interval.nominal == pytest.approx(sum(c.nominal for c in mine))
     assert interval.min == pytest.approx(sum(c.min for c in mine))
     assert interval.max == pytest.approx(sum(c.max for c in mine))
     assert (round(interval.nominal, 4), round(interval.min, 4), round(interval.max, 4)) == (
-        -10.3948, -10.4948, -10.0378)
+        -6.3348, -6.3348, -6.0778)
     rest = fold(c.term for c in result.chain if c.edge.id not in edges)
     assert rest.nominal + interval.nominal == pytest.approx(result.interval.nominal)
     assert rest.min + interval.min == pytest.approx(result.interval.min)
@@ -3143,7 +3193,7 @@ def test_an_assemblys_roll_up_is_the_fold_of_its_subtrees_terms():
 
 
 def test_an_assembly_the_chain_does_not_reach_has_no_roll_up():
-    raw = _with_parents(LINKAGE, {"bushing_214820_002": "pitch_plate_215177_001"})
+    raw = _with_lug_assembly({"bushing_214820_002": "lug_asm"})
     topology = _write_and_load(raw)
     study = load_study(REPO_ROOT / "docs" / "topologies" / "study_rotor_fastener_grip_u2h.json")
     assert assembly_rollups(topology, summarize(topology, study)) == {}

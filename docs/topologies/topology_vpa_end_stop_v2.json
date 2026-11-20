@@ -56,14 +56,16 @@
         "flanged_bushing_nas77a3_015a",
         "pitch_plate_215735_001",
         "bushing_214820_002",
+        "bolt_nas6403u11d",
         "pitch_link_upper_inner_race",
         "gas_spring_piston_214700_002",
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002",
         "flanged_bushing_nas77a3_015a_tan_link",
-        "straight_bushing_214820_002"
+        "straight_bushing_214820_002",
+        "bolt_nas6403u14d"
       ],
-      "note": "The plate assembly (the plate and its two flanged bushings), the two straight bushings, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). The plate seats and is bolted on the piston body's flange about its pilot boss; one spigot on the piston body locates both heads, and the upper head is bolted to the piston body through the lower head's bore (2026-11-17, read off the meshes). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
+      "note": "The plate assembly (the plate and its two flanged bushings), the two straight bushings and the two bolts through each lug and its link's inner race, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). The plate seats and is bolted on the piston body's flange about its pilot boss; one spigot on the piston body locates both heads, and the upper head is bolted to the piston body through the lower head's bore (2026-11-17, read off the meshes). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
     },
     {
       "id": "pitch_link",
@@ -131,7 +133,7 @@
       "drawing": "215177-001",
       "display_name": "pitch plate assembly",
       "naming_note": "The lug thicknesses cite the released 215735 A; the superseded PRELIM 215197 survives only in the old ids pitch_plate_215197 and pitch_flange_215197.",
-      "note": "An assembly: the machined plate 215735-001 and the NAS77 flanged bushings pressed into it (Enovia: 215735-001 x1, NAS77A3-015A x8, NAS77A4-015A x1). Its mesh `asm217755_215177_001` is the plate and all nine bushings, 10 solids: solid 0 the plate, solids 1 to 8 NAS77C3-015.1 to .8 in instance order, solid 9 the NAS77A4. The model holds the two flanged bushings at the attachments it reaches; the straight bushings 214820-002 are not this assembly's, they go in at the top level (Jeff)."
+      "note": "An assembly, and only the container: the machined plate 215735-001 and the NAS77 flanged bushings pressed into it (Enovia: 215735-001 x1, NAS77A3-015A x8, NAS77A4-015A x1). Its features are its parts' -- the plate's and the bushings' (Jeff's note 20261119T142516_ci28ci: '215177-001 IS the pitch plate assembly'). Its mesh `asm217755_215177_001` is the plate and all nine bushings, 10 solids: solid 0 the plate, solids 1 to 8 NAS77C3-015.1 to .8 in instance order, solid 9 the NAS77A4. The model holds the two flanged bushings at the attachments it reaches; the straight bushings 214820-002 and the bolts are not this assembly's, they go in at the top level (Jeff)."
     },
     {
       "id": "pitch_plate_215735_001",
@@ -147,7 +149,8 @@
       "display_name": "NAS77A3-015A flanged bushing, pitch link",
       "parent": "pitch_plate_215177_001",
       "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/215177-001.3/NAS77C3-015.4",
-      "note": "Pressed into the plate's pitch link lug, at blade 1's attachment: occurrence NAS77C3-015.4, solid 4 of the 215177 mesh, at (77.9, -24.4, 103.0) in the plate's frame, beside the P2 sweep's upper pitch link ball (83.0, -25.0 there). Part of the 215177-001 assembly (Enovia). v1's part of the same id is the pitch link joint's flanged bushing."
+      "note": "Pressed into the plate's pitch link lug, at blade 1's attachment: occurrence NAS77C3-015.4, solid 4 of the 215177 mesh, at (77.9, -24.4, 103.0) in the plate's frame, beside the P2 sweep's upper pitch link ball (83.0, -25.0 there). Part of the 215177-001 assembly (Enovia). v1's part of the same id is the pitch link joint's flanged bushing.",
+      "naming_note": "The mesh's product is NAS77A3-015A; the 215177-001 STEP names its instances NAS77C3-015.n, and that difference is on the lesson's question list."
     },
     {
       "id": "flanged_bushing_nas77a3_015a_tan_link",
@@ -155,7 +158,8 @@
       "display_name": "NAS77A3-015A flanged bushing, tangential link",
       "parent": "pitch_plate_215177_001",
       "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/215177-001.3/NAS77C3-015.1",
-      "note": "Pressed into the plate's tangential link lug, at the attachment of the tangential link this model draws: occurrence NAS77C3-015.1, solid 1 of the 215177 mesh, at (74.4, 1.2, 103.0) in the plate's frame, beside the P2 sweep's plate-end ball (81.5, 1.4 there). Its own id: v1's `flanged_bushing_tan_link` is a candidate 214936-002, and the mesh puts a NAS77A3-015A here."
+      "note": "Pressed into the plate's tangential link lug, at the attachment of the tangential link this model draws: occurrence NAS77C3-015.1, solid 1 of the 215177 mesh, at (74.4, 1.2, 103.0) in the plate's frame, beside the P2 sweep's plate-end ball (81.5, 1.4 there). Its own id: v1's `flanged_bushing_tan_link` is a candidate 214936-002, and the mesh puts a NAS77A3-015A here.",
+      "naming_note": "The mesh's product is NAS77A3-015A; the 215177-001 STEP names its instances NAS77C3-015.n, and that difference is on the lesson's question list."
     },
     {
       "id": "bushing_214820_002",
@@ -166,12 +170,27 @@
       "note": "The straight bushing in the pitch link lug's other bore, at blade 1's attachment: occurrence prd-e-03481962.1, at (86.5, -25.4, 103.0) in the plate's frame, coaxial with the flanged bushing. Not part of 215177-001: a transition fit in its bore, it goes in at the top level with the fastener (Jeff), so it is not drawn by the plate's mesh. v1's part of the same id is the pitch link joint's plain bushing."
     },
     {
+      "id": "bolt_nas6403u11d",
+      "name": "NAS6403U11D hex-head bolt",
+      "display_name": "NAS6403U11D shoulder bolt, pitch link",
+      "naming_note": "Jeff calls it the shoulder bolt; the STEP's product is a hex-head bolt.",
+      "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/prd-e-03481962.1/NAS6403U10D.3",
+      "note": "The bolt through the pitch link lug, at blade 1's attachment: read off the 217755-001 A.1 STEP, where the lug's group prd-e-03481962 (product prd-e-03662009) holds the straight bushing, a NAS1149V0332H washer and this bolt, product NAS6403U11D 'BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .688\" GRIP', instance NAS6403U10D.3 -- the instance name's U10D is on the lesson's question list. Its mesh `asm217755_NAS6403U11D` (one solid) records the five lugs; this occurrence, prd-e-03481962.1, is the one beside the P2 sweep's upper pitch link ball. Its head bears on the straight bushing's end and its shank runs through the straight bushing, the inner race and the flanged bushing (Jeff's note 20261119T142516_ci28ci). v1's part of the same id is the same bolt. Washer, nut and grip length are not authored here."
+    },
+    {
       "id": "straight_bushing_214820_002",
       "name": "214820-002 plain bushing",
       "drawing": "214820-002",
       "display_name": "214820-002 straight bushing, tangential link",
       "occurrence": "217755-001/prd-e-03478614.1/215177-001.2/prd-e-03300154.1/prd-e-02977127.1",
       "note": "The straight bushing in the tangential link lug's other bore: occurrence prd-e-03300154.1, at (91.8, 1.8, 103.0) in the plate's frame, coaxial with the flanged bushing. Not part of 215177-001, as the pitch link's. v1's part of the same id is the tangential link joint's straight bushing."
+    },
+    {
+      "id": "bolt_nas6403u14d",
+      "name": "NAS6403U14D hex-head bolt",
+      "display_name": "NAS6403U14D shoulder bolt, tangential link",
+      "naming_note": "Jeff calls it the shoulder bolt; the STEP's product is a hex-head bolt.",
+      "note": "The bolt through the tangential link lug: read off the 217755-001 A.1 STEP, where the lug's group prd-e-03300154 (product prd-e-03662008) holds the straight bushing prd-e-02977127.1, a NAS1149V0332H washer and this bolt, product NAS6403U14D 'BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .875\" GRIP', instance NAS6403U12D.1 -- not the pitch link's number, and the instance name's U12D is on the lesson's question list. No mesh: data/meshes/ has no NAS6403U14D, so the 3D pane does not draw it. v1 names this joint's bolt NAS6403U13H (`bolt_nas6403u13h`); the STEP puts the three NAS6403U13H at the piston heads, so v2 does not reuse that id. Washer, nut and grip length are not authored here."
     },
     {
       "id": "gas_spring_piston_214700_002",
@@ -237,7 +256,7 @@
       "name": "MS14101-3 inner race",
       "display_name": "MS14101-3 inner race, pitch plate end",
       "parent": "spherical_bearing_pitch_link_upper",
-      "note": "Solid 1 of `asm217755_MS14101_3_815597cb` at its second instance (10 faces): the ball (r 5.147) and the bore (r 2.41). Located on the plate's flanged bushing and clamped by the straight bushing (Jeff's note 20261119T142516_ci28ci), so it moves with the pitch plate; its one pin in the plate's attachment bore stands in for that bolt stack until the handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack replaces it."
+      "note": "Solid 1 of `asm217755_MS14101_3_815597cb` at its second instance (10 faces): the ball (r 5.147) and the bore (r 2.41). On the pitch link bolt, located on the plate's flanged bushing and clamped by the straight bushing (Jeff's note 20261119T142516_ci28ci), so it moves with the pitch plate."
     },
     {
       "id": "tan_link_212956_005",
@@ -298,7 +317,7 @@
       "name": "MS14103-3 inner race",
       "display_name": "MS14103-3 inner race, plate end",
       "parent": "spherical_bearing_tan_link_ms14103_3",
-      "note": "The same one solid as the outer race (`asm217755_MS14103_3`): this race's own faces are the bore (r 2.413) and the sphere either race's. Located on the plate's flanged bushing and clamped by the straight bushing (Jeff's note 20261119T142516_ci28ci), so it moves with the pitch plate; its one pin in the plate's attachment bore stands in for that bolt stack until the handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack replaces it."
+      "note": "The same one solid as the outer race (`asm217755_MS14103_3`): this race's own faces are the bore (r 2.413) and its two end faces, and the sphere either race's. On the tangential link bolt, located on the plate's flanged bushing and clamped by the straight bushing (Jeff's note 20261119T142516_ci28ci), so it moves with the pitch plate."
     },
     {
       "id": "piston_head_lower_214699_002",
@@ -683,30 +702,14 @@
       "id": "pitch_plate_spindle_bore_axis",
       "name": "pilot boss",
       "parts": [
-        "pitch_plate_215177_001"
+        "pitch_plate_215735_001"
       ],
       "kind": "datum_feature",
       "face": {
-        "part": "pitch_plate_215177_001",
+        "part": "pitch_plate_215735_001",
         "surface": "cylindrical"
       },
-      "note": "The gas-spring and piston axis: the plate's boss pilots into the piston body's ID (`pitch_plate_pilot_in_piston`)."
-    },
-    {
-      "id": "pitch_plate_link_attach_bore",
-      "name": "pitch link bore",
-      "parts": [
-        "pitch_plate_215177_001"
-      ],
-      "kind": "datum_feature"
-    },
-    {
-      "id": "pitch_plate_tan_link_attach_bore",
-      "name": "tangential link bore",
-      "parts": [
-        "pitch_plate_215177_001"
-      ],
-      "kind": "datum_feature"
+      "note": "The gas-spring and piston axis: the plate's boss pilots into the piston body's ID (`pitch_plate_pilot_in_piston`). On 215735-001, the machined plate: v1 states it on the 215177-001 assembly, and a binding made there is this feature's (docs/ANNOTATION_SURFACE.md, \"A feature on a member\")."
     },
     {
       "id": "pitch_plate_link_flanged_bushing_bore",
@@ -787,6 +790,49 @@
       "note": "The straight bushing's bore the pitch link bolt passes through. On the 214820-002 mesh: faces 4 and 5, diameter 4.826 (.1900 in), 3.16 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
     },
     {
+      "id": "pitch_link_bolt_shank",
+      "name": "shank",
+      "parts": [
+        "bolt_nas6403u11d"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bolt_nas6403u11d",
+        "surface": "cylindrical"
+      },
+      "note": "The bolt's plain shank, the pin of the pitch link lug: it runs through the straight bushing, the inner race and the flanged bushing (Jeff's note 20261119T142516_ci28ci). On the NAS6403U11D mesh (`asm217755_NAS6403U11D`): faces 36 and 37, diameter 4.813, 16.96 long from 0.51 under the head; the thread, faces 7 and 9, runs on beyond the flanged bushing. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_plate_seat",
+      "name": "flange underside",
+      "parts": [
+        "flanged_bushing_nas77a3_015a",
+        "pitch_plate_215735_001"
+      ],
+      "kind": "mating_surface",
+      "note": "The flanged bushing's flange seated on the plate's pitch link lug face (Jeff's note 20261119T142516_ci28ci: 'a flange connection to the pitch plate'). One node on both parts. On the NAS77A3-015A mesh: face 17, the flange's underside, at 13.45 from the bolt head's face, where the plate's chamfer at its flanged bushing bore (215735-001 mesh faces 375 and 376) ends. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_flange_seat",
+      "name": "flange-side face",
+      "parts": [
+        "pitch_link_upper_inner_race",
+        "flanged_bushing_nas77a3_015a"
+      ],
+      "kind": "mating_surface",
+      "note": "The inner race's face located on the flanged bushing's flange (Jeff's note 20261119T142516_ci28ci: 'a flange connection to the spherical inner race'). One node on both parts. On the MS14101-3 mesh, solid 1: face 34, at 11.96 from the bolt head's face; the flange's top, NAS77A3-015A mesh face 18, is at 11.87. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_clamp_seat",
+      "name": "clamped face",
+      "parts": [
+        "pitch_link_upper_inner_race",
+        "bushing_214820_002"
+      ],
+      "kind": "mating_surface",
+      "note": "The inner race's other face, clamped by the straight bushing's end (Jeff's note 20261119T142516_ci28ci: 'the other side is clamped by the straight bushing'). One node on both parts. On the MS14101-3 mesh, solid 1: face 35, at 4.64 to 4.86 from the bolt head's face; the straight bushing's end, 214820-002 mesh face 12, is at 4.76. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
       "id": "pitch_plate_tan_link_flanged_bushing_bore",
       "name": "tangential link flanged bushing bore",
       "parts": [
@@ -865,6 +911,49 @@
       "note": "The straight bushing's bore the tangential link bolt passes through. On the 214820-002 mesh: faces 4 and 5, diameter 4.826 (.1900 in), 3.16 long. Every mesh named here is in its own part's frame, the 215177 mesh's solids in the plate's; a measurement of a mesh, never a value."
     },
     {
+      "id": "tan_link_bolt_shank",
+      "name": "shank",
+      "parts": [
+        "bolt_nas6403u14d"
+      ],
+      "kind": "datum_feature",
+      "face": {
+        "part": "bolt_nas6403u14d",
+        "surface": "cylindrical"
+      },
+      "note": "The bolt's plain shank, the pin of the tangential link lug: it runs through the straight bushing, the inner race and the flanged bushing (Jeff's note 20261119T142516_ci28ci). No mesh: data/meshes/ has no NAS6403U14D, so the shank has no face to bind yet. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_flanged_bushing_plate_seat",
+      "name": "flange underside",
+      "parts": [
+        "flanged_bushing_nas77a3_015a_tan_link",
+        "pitch_plate_215735_001"
+      ],
+      "kind": "mating_surface",
+      "note": "The flanged bushing's flange seated on the plate's tangential link lug face (Jeff's note 20261119T142516_ci28ci: 'a flange connection to the pitch plate'). One node on both parts. On the NAS77A3-015A mesh: face 17, the flange's underside, 17.44 from the straight bushing's outer end along the lug's axis, where the plate's chamfer at its flanged bushing bore (215735-001 mesh faces 15 and 16) ends. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_upper_inner_race_flange_seat",
+      "name": "flange-side face",
+      "parts": [
+        "tan_link_upper_inner_race",
+        "flanged_bushing_nas77a3_015a_tan_link"
+      ],
+      "kind": "mating_surface",
+      "note": "The inner race's face located on the flanged bushing's flange (Jeff's note 20261119T142516_ci28ci: 'a flange connection to the spherical inner race'). One node on both parts. On the MS14103-3 mesh (one solid): face 11, 15.41 to 16.25 from the straight bushing's outer end; the flange's top, NAS77A3-015A mesh face 18, is at 15.86. The bearing is one solid placed with the link, so its faces lean on the lug's axis. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
+      "id": "tan_link_upper_inner_race_clamp_seat",
+      "name": "clamped face",
+      "parts": [
+        "tan_link_upper_inner_race",
+        "straight_bushing_214820_002"
+      ],
+      "kind": "mating_surface",
+      "note": "The inner race's other face, clamped by the straight bushing's end (Jeff's note 20261119T142516_ci28ci: 'the other side is clamped by the straight bushing'). One node on both parts. On the MS14103-3 mesh (one solid): face 10, 4.38 to 5.21 from the straight bushing's outer end; the straight bushing's end, 214820-002 mesh face 13, is at 4.76. The bearing is one solid placed with the link, so its faces lean on the lug's axis. Measured along the bolt's axis with every part at its recorded occurrence; a measurement of a mesh, never a value."
+    },
+    {
       "id": "pitch_plate_pilot_in_piston_id",
       "name": "inner diameter datum",
       "parts": [
@@ -881,21 +970,21 @@
       "name": "piston body flange face",
       "parts": [
         "gas_spring_piston_214700_002",
-        "pitch_plate_215177_001"
+        "pitch_plate_215735_001"
       ],
       "kind": "mating_surface",
-      "note": "The piston body's flange face, its datum A, seated on the pitch plate. On the 214700-002 mesh (`asm217755_214700_002`): face 109 (z 102.166, -Z). On the 215177-001 mesh (`asm217755_215177_001`): faces 922, 382 and 383 (z 102.166, +Z), one plane. v1 keeps this face as `piston_body_plate_flange`, a datum feature of the body alone and deliberately not an interface with the plate; v2 needs a node on both parts, and a shared id names the same parts in both models, so the seat has its own id. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The piston body's flange face, its datum A, seated on the pitch plate. On the 214700-002 mesh (`asm217755_214700_002`): face 109 (z 102.166, -Z). On the 215177-001 mesh (`asm217755_215177_001`): faces 922, 382 and 383 (z 102.166, +Z), one plane, on solid 0, the machined plate 215735-001, which carries the face. v1 keeps this face as `piston_body_plate_flange`, a datum feature of the body alone and deliberately not an interface with the plate; v2 needs a node on both parts, and a shared id names the same parts in both models, so the seat has its own id. The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "gas_spring_piston_fastener_clocking",
       "name": "piston body fastener pattern",
       "parts": [
         "gas_spring_piston_214700_002",
-        "pitch_plate_215177_001"
+        "pitch_plate_215735_001"
       ],
       "kind": "mating_surface",
       "interface": "fastener_pattern",
-      "note": "The ring of fasteners through the piston body's flange into the pitch plate, fixing its rotation about the pilot boss. On the 214700-002 mesh (`asm217755_214700_002`): 5 holes diameter 4.900 on a 72.000 circle through the flange (z 102.17 to 105.67), faces 110 to 119 (the drawing's 5X 4.900, VIEW C-C of 214700-002 A). On the 215177-001 mesh (`asm217755_215177_001`): 5 holes diameter 5.200 on a 72.000 circle (z 98.50 to 101.77), faces 2, 3, 553, 554, 559, 560, 565, 566, 571, 572, with 14.000 and 17.500 counterbores below them on the same centres. The two rings' centres are at the same five equal angles (14.0, 86.0, 158.0, 230.0, 302.0 degrees). The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
+      "note": "The ring of fasteners through the piston body's flange into the pitch plate, fixing its rotation about the pilot boss. On the 214700-002 mesh (`asm217755_214700_002`): 5 holes diameter 4.900 on a 72.000 circle through the flange (z 102.17 to 105.67), faces 110 to 119 (the drawing's 5X 4.900, VIEW C-C of 214700-002 A). On the 215177-001 mesh (`asm217755_215177_001`), solid 0, the machined plate 215735-001: 5 holes diameter 5.200 on a 72.000 circle (z 98.50 to 101.77), faces 2, 3, 553, 554, 559, 560, 565, 566, 571, 572, with 14.000 and 17.500 counterbores below them on the same centres. The two rings' centres are at the same five equal angles (14.0, 86.0, 158.0, 230.0, 302.0 degrees). The plate, the piston body and both heads carry one placement, so the numbers are in the assembly frame; a measurement of a mesh, never a value."
     },
     {
       "id": "gas_spring_piston_body_od",
@@ -1408,40 +1497,22 @@
       "note": "Value to come from 213863-004's drawing. The machined link's own bore to bore; the length the mechanism reads is the assembly's, between the outer races' centres."
     },
     {
-      "id": "pitch_plate_attach_radius",
-      "name": "pilot boss to pitch link bore",
-      "kind": "structural",
-      "part": "pitch_plate_215177_001",
-      "from": "pitch_plate_spindle_bore_axis",
-      "to": "pitch_plate_link_attach_bore",
-      "note": "Value to come from 215177-001's drawing."
-    },
-    {
-      "id": "pitch_plate_tan_link_attach_radius",
-      "name": "pilot boss to tangential link bore",
-      "kind": "structural",
-      "part": "pitch_plate_215177_001",
-      "from": "pitch_plate_spindle_bore_axis",
-      "to": "pitch_plate_tan_link_attach_bore",
-      "note": "Value to come from 215177-001's drawing."
-    },
-    {
       "id": "pitch_plate_pilot_to_piston_flange",
       "name": "pilot boss to piston body flange face",
       "kind": "structural",
-      "part": "pitch_plate_215177_001",
+      "part": "pitch_plate_215735_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "piston_body_plate_flange_seat",
-      "note": "Value to come from 215177-001's drawing."
+      "note": "Value to come from 215735-001's drawing."
     },
     {
       "id": "pitch_plate_pilot_to_piston_fasteners",
       "name": "pilot boss to piston body fastener pattern",
       "kind": "structural",
-      "part": "pitch_plate_215177_001",
+      "part": "pitch_plate_215735_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "gas_spring_piston_fastener_clocking",
-      "note": "Value to come from 215177-001's drawing."
+      "note": "Value to come from 215735-001's drawing."
     },
     {
       "id": "pitch_plate_pilot_in_piston",
@@ -1660,15 +1731,6 @@
       "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
     },
     {
-      "id": "pitch_link_upper_inner_race_on_pitch_plate",
-      "name": "pitch link bore to bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "pitch_plate_link_attach_bore",
-      "to": "pitch_link_upper_inner_race_bore",
-      "note": "Value to come from the bearing's bore and the lug's fits (215177-001, MS14101-3). It stands in for the hardware the inner race is clamped on, which is not authored here."
-    },
-    {
       "id": "tan_link_lower_outer_race_press_fit",
       "name": "outer cylinder in mount end bore",
       "kind": "gap",
@@ -1750,15 +1812,6 @@
       "note": "Value to come from MS14103-3's datasheet: the inner race's bore to its ball's centre."
     },
     {
-      "id": "tan_link_upper_inner_race_on_pitch_plate",
-      "name": "tangential link bore to bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "pitch_plate_tan_link_attach_bore",
-      "to": "tan_link_upper_inner_race_bore",
-      "note": "Value to come from the bearing's bore and the lug's fits (215177-001, MS14103-3). It stands in for the hardware the inner race is clamped on, which is not authored here."
-    },
-    {
       "id": "pitch_plate_slide_bushings_to_piston_body",
       "name": "bushing bores on outer cylinder",
       "kind": "gap",
@@ -1822,22 +1875,94 @@
       "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
     },
     {
-      "id": "pitch_link_flanged_bushing_bore_to_attach_bore",
-      "name": "bore to pitch link bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "pitch_link_flanged_bushing_bore",
-      "to": "pitch_plate_link_attach_bore",
-      "note": "The pitch link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_link_attach_bore`, which keeps its id, its part and Jeff's binding (faces on the plate's straight bushing bore and on this bushing's bore). Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+      "id": "pitch_plate_link_flanged_bushing_radius",
+      "name": "pilot boss to pitch link flanged bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_link_flanged_bushing_bore",
+      "note": "Where the lug sits on the plate. Value to come from 215735-001's drawing: the bore's position is cited on the bore itself (215735-A sheet 2, SECTION A-A), and its basic location is not read yet. Stands where v1's attachment radius does."
     },
     {
-      "id": "pitch_link_straight_bushing_bore_to_flanged_bushing_bore",
-      "name": "bore to flanged bushing bore",
+      "id": "pitch_plate_link_flanged_bushing_bore_to_seat",
+      "name": "pitch link flanged bushing bore to flange underside",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_link_flanged_bushing_bore",
+      "to": "pitch_link_flanged_bushing_plate_seat",
+      "note": "The lug face's squareness to its bore. Value to come from 215735-001's drawing."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_bore_to_flange",
+      "name": "bore to flange-side face",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "pitch_link_flanged_bushing_bore",
+      "to": "pitch_link_upper_inner_race_flange_seat",
+      "note": "The flange's top face square to the bushing's bore. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "pitch_link_flanged_bushing_flange_thickness",
+      "name": "flange underside to flange-side face",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "pitch_link_flanged_bushing_plate_seat",
+      "to": "pitch_link_upper_inner_race_flange_seat",
+      "note": "The flange's thickness. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "pitch_link_bolt_in_flanged_bushing",
+      "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "pitch_link_straight_bushing_bore",
+      "from": "pitch_link_bolt_shank",
       "to": "pitch_link_flanged_bushing_bore",
-      "note": "The pitch link bolt runs through both bushings, so the straight bushing's bore is held coaxial with the flanged bushing's by the bolt; the bolt is not in this model. No value recorded. Value to come from both bores' bands and the bolt's shank."
+      "note": "The bolt locates the race on the flanged bushing's bore. No value recorded. Value to come from the bushing's bore band and the bolt's shank: NAS6403U11D's from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event); NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_on_bolt",
+      "name": "shank in bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_link_bolt_shank",
+      "to": "pitch_link_upper_inner_race_bore",
+      "note": "The inner race on the bolt, replacing the stand-in that ran to the plate's attachment bore. No value recorded. Value to come from MS14101-3's bore band (its datasheet) and NAS6403U11D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_width",
+      "name": "flange-side face to clamped face",
+      "kind": "structural",
+      "part": "pitch_link_upper_inner_race",
+      "from": "pitch_link_upper_inner_race_flange_seat",
+      "to": "pitch_link_upper_inner_race_clamp_seat",
+      "note": "The inner race's width between its two faces. Value to come from MS14101-3's datasheet."
+    },
+    {
+      "id": "pitch_link_upper_inner_race_face_to_ball",
+      "name": "flange-side face to ball centre",
+      "kind": "structural",
+      "part": "pitch_link_upper_inner_race",
+      "from": "pitch_link_upper_inner_race_flange_seat",
+      "to": "pitch_link_upper_ball_centre",
+      "note": "Where the ball's centre sits along the bore from the located face. Value to come from MS14101-3's datasheet."
+    },
+    {
+      "id": "pitch_link_bolt_in_straight_bushing",
+      "name": "shank in bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "pitch_link_bolt_shank",
+      "to": "pitch_link_straight_bushing_bore",
+      "note": "The bolt through the straight bushing's bore. No value recorded. Value to come from 214820-002's bore band (its drawing is not in data/inbox/drawings/) and NAS6403U11D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "pitch_link_straight_bushing_bore_to_end",
+      "name": "bore to clamped face",
+      "kind": "structural",
+      "part": "bushing_214820_002",
+      "from": "pitch_link_straight_bushing_bore",
+      "to": "pitch_link_upper_inner_race_clamp_seat",
+      "note": "The straight bushing's end square to its bore, where it clamps the race. Value to come from 214820-002's drawing, which is not in data/inbox/drawings/."
     },
     {
       "id": "tan_link_flanged_bushing_press_fit",
@@ -1885,30 +2010,103 @@
       "note": "The straight bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. 214820-002's outside diameter band is a gap: its drawing is not in data/inbox/drawings/."
     },
     {
-      "id": "tan_link_flanged_bushing_bore_to_attach_bore",
-      "name": "bore to tangential link bore",
-      "kind": "gap",
-      "interface": "pin_in_bore",
-      "from": "tan_link_flanged_bushing_bore",
-      "to": "pitch_plate_tan_link_attach_bore",
-      "note": "The tangential link bolt is a pin in the flanged bushing's bore; the bolt is not in this model, so the edge runs to the attachment's bore it locates, `pitch_plate_tan_link_attach_bore`, which keeps its id and its part. Which part that feature finally sits on is filed for Jeff. No value recorded. Value to come from the bushing's bore band and the bolt's shank, which this model leaves out."
+      "id": "pitch_plate_tan_link_flanged_bushing_radius",
+      "name": "pilot boss to tangential link flanged bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_spindle_bore_axis",
+      "to": "pitch_plate_tan_link_flanged_bushing_bore",
+      "note": "Where the lug sits on the plate. Value to come from 215735-001's drawing: the bore's position is cited on the bore itself (215735-A sheet 2, SECTION A-A), and its basic location is not read yet. Stands where v1's attachment radius does."
     },
     {
-      "id": "tan_link_straight_bushing_bore_to_flanged_bushing_bore",
-      "name": "bore to flanged bushing bore",
+      "id": "pitch_plate_tan_link_flanged_bushing_bore_to_seat",
+      "name": "tangential link flanged bushing bore to flange underside",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "pitch_plate_tan_link_flanged_bushing_bore",
+      "to": "tan_link_flanged_bushing_plate_seat",
+      "note": "The lug face's squareness to its bore. Value to come from 215735-001's drawing."
+    },
+    {
+      "id": "tan_link_flanged_bushing_bore_to_flange",
+      "name": "bore to flange-side face",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a_tan_link",
+      "from": "tan_link_flanged_bushing_bore",
+      "to": "tan_link_upper_inner_race_flange_seat",
+      "note": "The flange's top face square to the bushing's bore. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "tan_link_flanged_bushing_flange_thickness",
+      "name": "flange underside to flange-side face",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a_tan_link",
+      "from": "tan_link_flanged_bushing_plate_seat",
+      "to": "tan_link_upper_inner_race_flange_seat",
+      "note": "The flange's thickness. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "tan_link_bolt_in_flanged_bushing",
+      "name": "shank in bore",
       "kind": "gap",
       "interface": "pin_in_bore",
-      "from": "tan_link_straight_bushing_bore",
+      "from": "tan_link_bolt_shank",
       "to": "tan_link_flanged_bushing_bore",
-      "note": "The tangential link bolt runs through both bushings, so the straight bushing's bore is held coaxial with the flanged bushing's by the bolt; the bolt is not in this model. No value recorded. Value to come from both bores' bands and the bolt's shank."
+      "note": "The bolt locates the race on the flanged bushing's bore. No value recorded. Value to come from the bushing's bore band and the bolt's shank: NAS6403U14D's from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event); NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+    },
+    {
+      "id": "tan_link_upper_inner_race_on_bolt",
+      "name": "shank in bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_bolt_shank",
+      "to": "tan_link_upper_inner_race_bore",
+      "note": "The inner race on the bolt, replacing the stand-in that ran to the plate's attachment bore. No value recorded. Value to come from MS14103-3's bore band (its datasheet) and NAS6403U14D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "tan_link_upper_inner_race_width",
+      "name": "flange-side face to clamped face",
+      "kind": "structural",
+      "part": "tan_link_upper_inner_race",
+      "from": "tan_link_upper_inner_race_flange_seat",
+      "to": "tan_link_upper_inner_race_clamp_seat",
+      "note": "The inner race's width between its two faces. Value to come from MS14103-3's datasheet."
+    },
+    {
+      "id": "tan_link_upper_inner_race_face_to_ball",
+      "name": "flange-side face to ball centre",
+      "kind": "structural",
+      "part": "tan_link_upper_inner_race",
+      "from": "tan_link_upper_inner_race_flange_seat",
+      "to": "tan_link_upper_ball_centre",
+      "note": "Where the ball's centre sits along the bore from the located face. Value to come from MS14103-3's datasheet."
+    },
+    {
+      "id": "tan_link_bolt_in_straight_bushing",
+      "name": "shank in bore",
+      "kind": "gap",
+      "interface": "pin_in_bore",
+      "from": "tan_link_bolt_shank",
+      "to": "tan_link_straight_bushing_bore",
+      "note": "The bolt through the straight bushing's bore. No value recorded. Value to come from 214820-002's bore band (its drawing is not in data/inbox/drawings/) and NAS6403U14D's shank, from NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+    },
+    {
+      "id": "tan_link_straight_bushing_bore_to_end",
+      "name": "bore to clamped face",
+      "kind": "structural",
+      "part": "straight_bushing_214820_002",
+      "from": "tan_link_straight_bushing_bore",
+      "to": "tan_link_upper_inner_race_clamp_seat",
+      "note": "The straight bushing's end square to its bore, where it clamps the race. Value to come from 214820-002's drawing, which is not in data/inbox/drawings/."
     }
   ],
   "notes": [
     "Studyless by design for now: M2 adds one term per body and the end-stop study over them (dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md, '2026-11-08 -- the reset').",
     "No edge carries a dimension. Each says what would close it; an untraced zero would read as a measured one.",
-    "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener and washer, every bushing but the four at the pitch link's and the tangential link's plate attachments, and blades 2 to 5. v1 keeps all of them.",
+    "Left out, on purpose: the gas spring, the VPA and its piston, the ring gear, the hydraulic brake, every fastener and washer but the two bolts at the pitch link's and the tangential link's plate attachments, every bushing but the four there, and blades 2 to 5. v1 keeps all of them.",
     "Named once, 2026-11-10 (handoff the_model_is_derived_once_and_the_left_column_is_its_tree): a feature's name says the feature and not the part it is nested under; a feature two parts share names the seated part; a dimension is <from> to <to> in those words; one spelling of each term (locating boss, end stop, tangential link).",
     "Edge order, 2026-11-10 (handoff the_gas_spring_mount_sits_on_the_tan_link_mount_in_the_end_stop_model): the walk is authored, and the hub's edges read its joint with the tangential link mount before its blade bore, so the base reads up the stack from the hub. With the blade bore first the parts drawn as blocks crossed once more than the builder's walk.",
-    "Each link, 2026-11-19 (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19): a machined part and two spherical bearings, each bearing an outer race swaged into the machined part and an inner race fixed to the part the link attaches to, joined by one spherical gap edge. The link's body is the machined part and its outer races; each inner race is in its mating part's body; the link assembly and the bearings are in none. The four sphere centres keep v1's ids on the outer races; v1's four joint edges are not in this model."
+    "Each link, 2026-11-19 (handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19): a machined part and two spherical bearings, each bearing an outer race swaged into the machined part and an inner race fixed to the part the link attaches to, joined by one spherical gap edge. The link's body is the machined part and its outer races; each inner race is in its mating part's body; the link assembly and the bearings are in none. The four sphere centres keep v1's ids on the outer races; v1's four joint edges are not in this model.",
+    "Each lug at the pitch plate, 2026-11-20 (handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack, 2026-11-20; Jeff's note 20261119T142516_ci28ci): 215177-001 is the container and owns no feature; the plate 215735-001 carries them. At each lug the flanged bushing is pressed into the plate and seats its flange on it; the bolt's shank is a pin in the flanged bushing, the link's inner race and the straight bushing; the race is located on the flange and clamped by the straight bushing's end; the straight bushing sits in the plate's other bore. No washer, nut or grip length (Jeff: 'irrelevant to the kinematic model/end stop tolerance study'). v1's two attachment bores and their radii are not in this model."
   ]
 }

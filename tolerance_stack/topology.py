@@ -1133,12 +1133,21 @@ class Topology:
                     raise TopologyError(
                         f"topology {self.id!r}: node {node.id!r} is on part "
                         f"{part_id!r}, which the document does not declare")
-                if self.bodies and part_id not in self._body_of:
+                # A part with children is a container: its features are its
+                # parts' (2026-11-20, handoff
+                # the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack;
+                # the merged page of 2026-11-19, where 215177's own box read to
+                # Jeff as a second pitch plate). Its own dimension between its
+                # parts' features stays allowed. With bodies declared, every
+                # part in no body is such an assembly (the leaves are checked
+                # above), so this is also why a feature never sits in no body.
+                if self._children[part_id]:
                     raise TopologyError(
                         f"topology {self.id!r}: node {node.id!r} is on part "
-                        f"{part_id!r}, which is in no body -- an assembly whose "
-                        f"parts move with two bodies or more. A feature moves "
-                        f"with one body: put it on the part that carries it.")
+                        f"{part_id!r}, which has parts of its own "
+                        f"({', '.join(self._children[part_id])}). An assembly "
+                        f"carries no feature: put it on the part inside that "
+                        f"carries it.")
 
         # Every named transform is unit-checked here rather than lazily, so a
         # document with an impossible transform fails at load even if no study

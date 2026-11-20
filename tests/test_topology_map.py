@@ -111,7 +111,8 @@ def test_an_authored_file_overrides_only_the_places(v2):
 #: two races in two adjacent cells across its link's district border. Every
 #: other child sits in its parent's cell.
 V2_PLACED_CHILDREN = {
-    "pitch_plate_215177_001": {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a_tan_link"},
+    "pitch_plate_215177_001": {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
+                               "flanged_bushing_nas77a3_015a_tan_link"},
     "pitch_link": {"pitch_link_213861_002",
                    "pitch_link_lower_outer_race", "pitch_link_lower_inner_race",
                    "pitch_link_upper_outer_race", "pitch_link_upper_inner_race"},
@@ -220,11 +221,12 @@ def two_bodies():
 
 def test_an_assembly_with_no_feature_is_an_outline_and_v2s_links_and_bearings_are(two_bodies, v2):
     assert B.outlined_assemblies(two_bodies) == ["base_asm", "link_asm", "bearing_a", "bearing_b"]
-    # v2's 215177 still owns nodes; since 2026-11-19 its two links and their
-    # four bearings own none (every feature is on a member), so each is an
-    # outline.
+    # Since 2026-11-19 v2's two links and their four bearings own no node
+    # (every feature is on a member), and since 2026-11-20 nor does 215177,
+    # the plate's container: each is an outline (and the model refuses an
+    # assembly that owns one).
     assert B.outlined_assemblies(v2) == [
-        "pitch_link", "spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper",
+        "pitch_plate_215177_001", "pitch_link", "spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper",
         "tan_link_212956_005", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
     assert B.outlined_assemblies(load_topology(MODEL_V1)) == []
 
