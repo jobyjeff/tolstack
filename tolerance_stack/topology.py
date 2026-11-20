@@ -2057,21 +2057,39 @@ def identity_topology_id(topology: Topology, edge_id: str,
     return topology.id
 
 
-def feature_identity_topology_id(topology: Topology, part_id: str, node_id: str,
-                                 topologies: Dict[str, Topology]) -> str:
-    """The topology id a feature-identity key on feature ``part@node`` carries
-    (handoff ``a_feature_is_bound_once_to_a_set_of_faces``).
+def feature_identity_key(topology: Topology, part_id: str, node_id: str,
+                         topologies: Dict[str, Topology]) -> Tuple[str, str]:
+    """``(topology id, part)`` of the feature-identity key feature
+    ``part@node`` carries (handoff ``a_feature_is_bound_once_to_a_set_of_faces``).
 
     :func:`identity_topology_id`'s rule, for a feature: a node the model shares
     with the model it reuses ids from (``ids_from``), on a part that model also
     puts there, is ONE feature in both, keyed under the source model; anything
-    else is keyed to its own model. The topology projection writes it on every
-    feature (``model.features[].identity``), so no browser asks.
+    else is keyed to its own model. Since 2026-11-19 (handoff
+    ``a_link_is_a_machined_part_and_two_bearings_each_two_races``) the same
+    holds for a node this model states on a part INSIDE the part the source
+    model puts it on (:func:`check_shared_ids`' one latitude): it is still the
+    source's feature, keyed ``source@<the source's part>``, so a binding made
+    on either model is the one record both read and write. The topology
+    projection writes it on every feature (``model.features[].identity``), so
+    no browser asks.
     """
     source = topologies.get(topology.ids_from) if topology.ids_from else None
-    if source is not None and node_id in source._nodes and part_id in source.node(node_id).parts:
-        return source.id
-    return topology.id
+    if source is not None and node_id in source._nodes:
+        theirs = source.node(node_id).parts
+        if part_id in theirs:
+            return source.id, part_id
+        if part_id in topology._parts:
+            for there in theirs:
+                if there in topology._parts and topology.within(part_id, there):
+                    return source.id, there
+    return topology.id, part_id
+
+
+def feature_identity_topology_id(topology: Topology, part_id: str, node_id: str,
+                                 topologies: Dict[str, Topology]) -> str:
+    """The topology id of :func:`feature_identity_key`."""
+    return feature_identity_key(topology, part_id, node_id, topologies)[0]
 
 
 def check_shared_ids(mine: Topology, theirs: Topology) -> int:

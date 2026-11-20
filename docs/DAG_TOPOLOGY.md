@@ -1312,8 +1312,8 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 20 parts, 52 interfaces, 70 edges, 23 branch points, 19 grounded
-loops, 21 gap edges. Studyless; no edge carries a dimension, and each says what
+The graph: 31 parts, 68 interfaces, 88 edges, 27 branch points, 21 grounded
+loops, 29 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
@@ -1420,6 +1420,33 @@ and the straight bushing's bore to the flanged one's. No edge gains a
 dimension; each fit's note cites the bore's callout and names the bushing's
 band as a gap. Six NAS77A3 occurrences, the NAS77A4 and six 214820-002
 occurrences are at attachments the model does not draw and are left out.
+
+**Each link is a machined part and two bearings, each bearing two races**
+(2026-11-19, handoff `a_link_is_a_machined_part_and_two_bearings_each_two_races`;
+Jeff's note `20261119T142516_ci28ci`: *"the spherical bearing itself is two
+bodies joined by the spherical joint"*, and the two links *"resolve to a two
+force member with spherical joints at both ends"*). Each link assembly holds
+its machined part (213861-002, 213863-004) and its two bearings, and each
+bearing an outer race and an inner race. The link's body is the machined part
+and its two outer races; each inner race is in the body of the part it is
+fixed to (the blade at the pitch arm, ground at the tangential link mount, the
+pitch plate at both plate ends), so the link assemblies and the bearings are
+in no body ("Bodies", rule 3). At each of the four ends: the machined part's
+bore holds the outer race by a `press_fit` gap (a swage is an interference
+that never moves), the outer race's outside cylinder reaches its seat's centre,
+one `spherical` gap joins the inner race's ball centre to that seat centre --
+the ball joint, between two bodies -- the inner race's bore reaches its ball
+centre, and one `pin_in_bore` gap puts the inner race's bore on the mating
+part's attachment bore. That last gap stands in for the hardware between them,
+which is not authored. The four seat centres keep v1's ids
+(`pitch_link_lower_sphere_centre` and its three siblings), moved onto the
+outer races as rule 3 of "Models" allows, so the P2 sweep still joins on them;
+`pitch_link_length` and `tan_link_length` keep their ids, ends and part (the
+link assembly, now an ancestor of both ends' parts) and stay each link's one
+length. v1's four joint edges (`pitch_arm_link_joint` and its siblings) are
+not in v2: each is the chain from the mating bore through the inner race and
+the ball to the seat centre. A feature moved onto a member keeps its binding:
+`docs/ANNOTATION_SURFACE.md`, "A feature on a member".
 
 ---
 

@@ -988,15 +988,36 @@ BODY_PARTS_LINKAGE_DOES_NOT_LIST = {
 #: straight bushings beside them, at the two attachments the model draws
 #: (the_pitch_plate_is_an_assembly_with_its_bushings): linkage poses the
 #: assembly, whose mesh draws the plate and the flanged ones, and no bushing.
+#:
+#: Since 2026-11-19 (a_link_is_a_machined_part_and_two_bearings_each_two_races)
+#: each v2 link is its machined part and its two bearings' outer races, and
+#: each bearing's inner race is in the body of the part it is fixed to.
 BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY = {
     L2_TOPOLOGY.stem: BODY_PARTS_LINKAGE_DOES_NOT_LIST,
     MODEL_V2.stem: {
-        "tan_link": BODY_PARTS_LINKAGE_DOES_NOT_LIST["tan_link"],
-        "base": {"piston_cover_214958_002"},
+        "tan_link": {"tan_link_213863_004", "tan_link_lower_outer_race", "tan_link_upper_outer_race"},
+        "pitch_link": {"pitch_link_213861_002", "pitch_link_lower_outer_race",
+                       "pitch_link_upper_outer_race"},
+        "base": {"piston_cover_214958_002", "tan_link_lower_inner_race"},
         "pitch_plate": {"piston_head_lower_214699_002", "piston_head_upper_214698_002",
                         "pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
                         "flanged_bushing_nas77a3_015a_tan_link", "bushing_214820_002",
-                        "straight_bushing_214820_002"},
+                        "straight_bushing_214820_002", "pitch_link_upper_inner_race",
+                        "tan_link_upper_inner_race"},
+        "blade": {"pitch_link_lower_inner_race"},
+    },
+}
+
+#: Parts linkage lists in a body that this topology puts in NO body: an
+#: assembly (or a bearing inside one) whose parts move in two bodies, so it is
+#: in none (docs/DAG_TOPOLOGY.md, "Bodies"). linkage poses each one whole,
+#: because its mesh draws all of it; here its members carry the body. Each must
+#: be a part in no body with a member in the body linkage names.
+LINKAGE_PARTS_IN_NO_BODY_BY_TOPOLOGY = {
+    L2_TOPOLOGY.stem: {},
+    MODEL_V2.stem: {
+        "pitch_link": {"pitch_link", "spherical_bearing_pitch_link"},
+        "tan_link": {"tan_link_212956_005"},
     },
 }
 
@@ -1094,17 +1115,24 @@ def test_the_pistons_heads_and_cover_ride_the_bodies_they_sit_on():
 #: before root). The page reads in this order (``walk_order``).
 MODEL_V2_BODIES = {
     "base": ["hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
-             "piston_cover_214958_002"],
-    "tan_link": ["tan_link_212956_005", "spherical_bearing_tan_link",
-                 "spherical_bearing_tan_link_ms14103_3"],
+             "piston_cover_214958_002", "tan_link_lower_inner_race"],
+    "tan_link": ["tan_link_213863_004", "tan_link_lower_outer_race", "tan_link_upper_outer_race"],
     "pitch_plate": ["pitch_plate_215177_001", "flanged_bushing_nas77a3_015a",
                     "pitch_plate_215735_001", "bushing_214820_002",
                     "gas_spring_piston_214700_002",
                     "piston_head_lower_214699_002", "piston_head_upper_214698_002",
-                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002"],
-    "pitch_link": ["pitch_link", "spherical_bearing_pitch_link"],
-    "blade": ["pitch_arm", "blade_root"],
+                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002",
+                    "pitch_link_upper_inner_race", "tan_link_upper_inner_race"],
+    "pitch_link": ["pitch_link_213861_002", "pitch_link_lower_outer_race",
+                   "pitch_link_upper_outer_race"],
+    "blade": ["pitch_arm", "blade_root", "pitch_link_lower_inner_race"],
 }
+
+#: The parts v2 puts in no body (2026-11-19): each link assembly and its two
+#: bearings, whose races move in two bodies. Every other part is in one.
+MODEL_V2_IN_NO_BODY = {"pitch_link", "spherical_bearing_pitch_link",
+                       "spherical_bearing_pitch_link_upper", "tan_link_212956_005",
+                       "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"}
 
 
 def test_model_v2_folds_the_piston_heads_and_cover_into_the_bodies_they_move_with():
@@ -1238,8 +1266,9 @@ def test_the_pitch_system_declares_a_body_round_every_part(path):
     2026-11-08 -- and the shape each declares."""
     topology = load_topology(path)
     assert topology.bodies, f"{topology.id} declares no bodies"
+    in_none = MODEL_V2_IN_NO_BODY if path == MODEL_V2 else set()
     for part in topology.parts:
-        assert topology.body_of(part.id) is not None
+        assert (topology.body_of(part.id) is None) == (part.id in in_none), part.id
     kinds = {b.id: b.kind for b in topology.bodies}
     assert {k for k, v in kinds.items() if v == "link"} == {"pitch_link", "tan_link"}
     # Every topology that does not declare them still loads, and none do.
@@ -1359,10 +1388,18 @@ def test_the_mechanism_bodies_are_linkages_own(path):
     for body_id, (kind, parts) in expected.items():
         our_kind, our_parts = ours[body_id]
         extra = BODY_PARTS_LINKAGE_DOES_NOT_LIST_BY_TOPOLOGY[path.stem].get(body_id, set())
+        unbodied = LINKAGE_PARTS_IN_NO_BODY_BY_TOPOLOGY[path.stem].get(body_id, set())
         assert our_kind == kind, f"{body_id}: {our_kind!r} here, {kind!r} in linkage"
-        assert our_parts == parts | extra, (
-            f"{body_id}: {sorted(our_parts)} here, {sorted(parts)} in linkage, "
-            f"and the declared difference is {sorted(extra)}")
+        assert unbodied <= parts, (
+            f"{body_id}: linkage no longer lists {sorted(unbodied - parts)} -- delete them "
+            f"from LINKAGE_PARTS_IN_NO_BODY_BY_TOPOLOGY")
+        for part_id in unbodied:
+            assert pitch_system.body_of(part_id) is None, f"{part_id} is in a body here"
+            assert any(pitch_system.within(p, part_id) for p in our_parts), (
+                f"{part_id} has no member in {body_id}")
+        assert our_parts == (parts - unbodied) | extra, (
+            f"{body_id}: {sorted(our_parts)} here, {sorted(parts)} in linkage, and the declared "
+            f"difference is {sorted(extra)} added, {sorted(unbodied)} in no body")
         assert not (extra & parts), (
             f"{body_id}: linkage now lists {sorted(extra & parts)} itself -- "
             f"delete them from BODY_PARTS_LINKAGE_DOES_NOT_LIST")
@@ -2884,9 +2921,9 @@ def test_a_parent_the_document_does_not_declare_is_refused():
 
 
 def test_an_assembly_listed_in_a_body_its_parts_are_not_in_is_refused():
-    # The pitch link's bearing inside the pitch arm: the arm is in the blade
+    # The machined pitch link inside the pitch arm: the arm is in the blade
     # and owns nodes, so it cannot become an assembly of parts in two bodies.
-    raw = _with_parents(MODEL_V2, {"spherical_bearing_pitch_link": "pitch_arm"})
+    raw = _with_parents(MODEL_V2, {"pitch_link_213861_002": "pitch_arm"})
     with pytest.raises(TopologyError, match="assembly 'pitch_arm' is in body 'blade', but the parts "
                                             r"under it move with \['pitch_link'\]"):
         _write_and_load(raw)
@@ -3017,10 +3054,26 @@ def test_a_parent_is_checked_without_bodies_too():
 
 def test_children_and_the_tree_order_of_model_v2():
     topology = load_topology(MODEL_V2)
-    assert topology.children_of("pitch_link") == ["spherical_bearing_pitch_link"]
+    # 2026-11-19: each link is its machined part and two bearings, each
+    # bearing an outer and an inner race (Jeff: "the spherical bearing itself
+    # is two bodies joined by the spherical joint").
+    assert topology.children_of("pitch_link") == [
+        "pitch_link_213861_002", "spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper"]
     assert topology.subtree("tan_link_212956_005") == [
-        "tan_link_212956_005", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
-    assert topology.tree_order(topology.body("tan_link").parts) == topology.subtree("tan_link_212956_005")
+        "tan_link_212956_005", "tan_link_213863_004",
+        "spherical_bearing_tan_link", "tan_link_lower_outer_race", "tan_link_lower_inner_race",
+        "spherical_bearing_tan_link_ms14103_3", "tan_link_upper_outer_race", "tan_link_upper_inner_race"]
+    for bearing in ("spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper",
+                    "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"):
+        outer, inner = topology.children_of(bearing)
+        assert outer.endswith("_outer_race") and inner.endswith("_inner_race"), bearing
+        assert topology.body_of(bearing) is None
+        assert topology.body_of(outer).kind == "link", bearing
+        assert topology.body_of(inner).kind == "body", bearing
+    # The link body's parts, walked as a tree, are the machined part then each
+    # outer race; the inner races are listed in their mating parts' bodies.
+    assert topology.tree_order(topology.body("tan_link").parts) == [
+        "tan_link_213863_004", "tan_link_lower_outer_race", "tan_link_upper_outer_race"]
     # 2026-11-18: the plate assembly holds its machined plate and the flanged
     # bushings; the straight bushings are top-level (Jeff: "the straight
     # bushings aren't assembled until the top level").
