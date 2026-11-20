@@ -61,6 +61,21 @@ v2 load and draw as before (below); links 4 and 5 author the first ones.
   next one's tinted field and is now drawn above it (the district names'
   new layer). That is the only pixel this branch moves on either model.
 
+## The click-around (the fixture, since no real model has an outline yet)
+
+`clickaround_*.png` and `clickaround.json`, the fixture on the map with the
+page's own resolver: hovering the link assembly's name lights it and every
+part inside it as its own, in both bodies, and the joints out of it as
+touching; hovering bearing A's border lights the bearing and its two races
+only; a click on its name selects `part:bearing_a` (outline in the accent,
+both races selected, the joints to the base and the link body touched);
+hovering the centre-to-centre's lane lights it and its far race's ball. What
+the first shots showed and the suite did not: an outline's dotted border ran
+straight through "the link"'s name (fixed by the district-names layer), and
+on computed places the assembly's dimension's lane ran down through the
+other race's box (fixed by the straight try and the four lanes, each kept
+only when it crosses no box).
+
 ## Every reader of `body_of` or `parent` that assumed nesting
 
 | Reader | What it assumed | Done |

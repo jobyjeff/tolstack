@@ -716,7 +716,8 @@ out of its parent's bottom (below).
   box** and **two interfaces' routes on one collinear run** (2026-11-19: the
   last three are the merged page Jeff reviewed that day), and for an outline
   **a box it takes in that is not one of its parts** and **a name with no
-  corner clear of another**. They fire in tests
+  corner clear of another**, and **an assembly's dimension with no jumper
+  clear of every box**. They fire in tests
   and on an agent's scoring of a layout, never on the page; model v2's map
   is held at none.
 - **A district per body**: the body's parts' boxes, padded, held inside the
@@ -736,8 +737,11 @@ out of its parent's bottom (below).
   outline may cross a district's border; both stay legible. The outline and
   its name are the part's one drawing, its control and its count (`VA.mapOutlined`
   is the rule, `build_topology_projection.outlined_assemblies` the builder's
-  reading of it). An assembly's own dimension runs from its two features'
-  pins on a lane under the boxes it spans, inside the outline. An assembly
+  reading of it). An assembly's own dimension runs between its two
+  features' pins -- straight where that crosses no box, else out of each pin
+  and along a lane past the boxes it spans (under, over, left or right, the
+  first that crosses none) -- inside the outline. A district's name is drawn
+  above every outline. An assembly
   that still owns a node keeps its box inside the plain outline, so v2's map
   (215177 and both links) is unchanged until their features move.
 - **The view**: fitted to the region on the first paint, never past a cap,
