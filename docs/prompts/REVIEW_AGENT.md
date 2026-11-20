@@ -502,11 +502,19 @@ problem as an unrecorded full suite one step later.
   or a layout file `docs/topologies/map_*.json`** (added 2026-11-16) →
   `pytest -q tests/test_topology_map.py tests/test_topology_projection.py`,
   the viewer fast tier through `--repo` (the nine `the map's …` tests), and
-  the browser suite `--only "the map (Map"` on a root built from this tree.
-  The layout file is a projection input (`load_topology_map` ships it
-  verbatim), so the rebuild trap below applies to it; and the map hooks into
-  `fitDag`, `applyFocus` and `entityUnder`, so drive Classic on the SAME page
-  after the map (the expando entry under "Recurring bugs to check").
+  the browser suite `--only "the map (the counts on both models"` on a root
+  built from this tree (**corrected 2026-11-20**: the suite was renamed, and
+  `"the map (Map"` now selects nothing). The layout file is a projection
+  input (`load_topology_map` ships it verbatim), so the rebuild trap below
+  applies to it. Classic retired 2026-11-17, so there is no second drawing to
+  drive after the map any more.
+- **`tolerance_stack/topology.py`'s body, tree or edge rules** (added
+  2026-11-20) → `tests/test_topology.py` plus every module that reads
+  `body_of`, `parent`, `edge_body` or `edge.part`:
+  `tests/test_model_view.py tests/test_kinematic.py tests/test_topology_map.py
+  tests/test_topology_projection.py tests/test_feature_identity.py`
+  (`git grep -n "body_of\|edge_body\|\.parent\b" -- tolerance_stack scripts apps`
+  re-derives the list).
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
@@ -6201,6 +6209,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261119_a_map_route_can_run_through_another_connectors_symbol_with_no_note.md`).
       Check also that `DAG_TOPOLOGY.md` "The map" does not describe a rule
       the lesson says was removed as dead code.
+- [ ] **A schema rule relaxed in `Topology` is an invariant every reader
+      leaned on.** When a refusal comes out (a child in its parent's body, an
+      edge's part on both ends), the readers that took it for granted keep
+      compiling and quietly go wrong: `apps/viewer/model.js`'s `unbodied`,
+      `AA.sweepRidingParts`, `feature_identity_topology_id`. Ask for the
+      reader table that `an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies`'s
+      lesson carries (each reader, what it assumed, done or filed), and
+      re-derive it with `git grep` over `tolerance_stack/ scripts/ apps/`. A
+      row the author left alone needs a reason, and a fenced row needs an issue.
+      The same diff wrote one rule twice: `VA.mapOutlined` (JS) and
+      `outlined_assemblies` (builder). Only the shared fixture pairs them, so
+      ask what case outside the fixture they could disagree on.
 
 ## Architectural errors to check
 
