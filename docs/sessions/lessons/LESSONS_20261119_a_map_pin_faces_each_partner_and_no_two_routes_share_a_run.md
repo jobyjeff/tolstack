@@ -131,3 +131,18 @@ shot. Against Jeff's three:
   left (`after_3840_hover_2`, his red question marks);
 - the piston body's boss has a top pin and a right pin, and the fork at
   y≈460 in his first shot is gone (`after_3840_hover_3`).
+
+## Test record (this worktree, data from the main checkout)
+
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: 611/611.
+- `node apps/annotate/run_tests.cjs`: 334/334.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "the map (the counts"`: 30/30. v2 drawn
+  `{bodies 5, parts 20, features 67, dimensions 49, interfaces 36}`, equal to `model.counts`, notes none.
+  Its first run failed `[real] no jumper crosses a part's number or name` (step 5 above).
+- Witness, `--only` over the 4 new and 2 re-pointed guards: 9/9 WITNESSED over two runs. The second run's
+  shadow was built before the jumper commit, which touches no anchor.
+- `pytest -q` (default tier): 2374 passed, 2 failed, 1 skipped, 508 s, which is inside budget.
+  - `test_viewer_js_suite`: the documented worktree red; the tier itself ran green above with `--repo`.
+  - `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`: a new
+    drawing-checker run in the shared log, already filed as
+    `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
