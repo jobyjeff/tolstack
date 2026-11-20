@@ -663,9 +663,9 @@ out of its parent's bottom (below).
   them** are the same case on its side (2026-11-18: the pitch plate
   assembly's bushings in a row beside it): the row's outer flank, the bottom
   from the middle row down and the top above it, and a lane under or over the
-  boxes between (`rowDetour`). Two facing pins closer than two stubs (a
-  child under its parent) share the gap, so the route is the short drop
-  between them and never doubles back. **A route that would cross a box**
+  boxes between (`rowDetour`). A child joined to its parent sits more than
+  two stubs under it (`VA.MAP.child.joined`), so the route is the short drop
+  between the two facing pins and never doubles back. **A route that would cross a box**
   first tries its bend the other way round, then a way through one or two
   corners of the cell grid (or a symbol's width beside one) that crosses no
   box, shares no run, passes no symbol and keeps a stub's length from every
