@@ -72,6 +72,7 @@ __all__ = [
     "end_feature",
     "feature_id",
     "part_label",
+    "part_number",
     "model_view",
 ]
 
@@ -88,7 +89,7 @@ INTERFACE_SOURCES = ("node", "edge")
 #: A drawing or standard-part number at the head or tail of a part's name:
 #: ``213668-002 gas-spring mount``, ``Pitch link 213862-002``,
 #: ``NAS6403U11D hex-head bolt``. The label rule strips it so the number is
-#: said once, by ``drawing``. Two or more digit-or-dash-or-slash characters
+#: said once, by :func:`part_number`. Two or more digit-or-dash-or-slash characters
 #: after a leading letter-or-digit run, with at least one digit -- the same
 #: shape the viewer's part-column split reads (``VA.partColumns``).
 _NUMBER_TOKEN = r"[A-Za-z]*\d[\w/\-]*"
@@ -115,14 +116,40 @@ def _everyday_name(part: Part) -> str:
     return text or part.id
 
 
+def part_number(part: Part) -> Optional[str]:
+    """The number a part is known by: its ``drawing``, or -- a standard part
+    with no drawing of its own, a bolt, a NAS77 bushing, an MS bearing -- the
+    number its own name carries at its head or tail, the one
+    :func:`_everyday_name` strips. ``None`` where neither has one.
+
+    Since 2026-11-20 (handoff
+    ``the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack``;
+    ``docs/issues/ISSUE_20261119_design_the_maps_flanged_bushing_boxes_carry_no_part_number.md``):
+    the flanged bushings' boxes and tree rows read "flanged bushing, pitch
+    link" beside siblings that each lead with a number, because the label said
+    the number only by ``drawing``. The projection writes it as
+    ``model.parts[].number``, the slot the map and the tree read.
+    """
+    if part.drawing:
+        return part.drawing
+    text = (part.display_name or part.name or "").strip()
+    lead = _LEADING_NUMBER.match(text)
+    if lead and not _only_letters(lead.group(1)):
+        return lead.group(1)
+    tail = _TRAILING_NUMBER.match(text)
+    if tail and not _only_letters(tail.group(2)):
+        return tail.group(2)
+    return None
+
+
 def _only_letters(token: str) -> bool:
     return not any(ch.isdigit() for ch in token)
 
 
 def part_label(part: Part) -> str:
     """The one way a part is named on a surface: its number, then its everyday
-    name -- ``214698-002 upper piston head`` -- or the everyday name alone for
-    a part with no drawing (a bearing, a gas spring).
+    name -- ``214698-002 upper piston head``, ``NAS6403U11D shoulder bolt`` --
+    or the everyday name alone for a part with no number (:func:`part_number`).
 
     Jeff, 2026-10-20: a label that identifies a thing carries its everyday name
     beside its number, because numbers get renumbered and nobody memorises
@@ -133,8 +160,9 @@ def part_label(part: Part) -> str:
     so no surface composes it again.
     """
     everyday = _everyday_name(part)
-    if part.drawing:
-        return f"{part.drawing} {everyday}"
+    number = part_number(part)
+    if number:
+        return f"{number} {everyday}"
     return everyday
 
 
@@ -244,7 +272,7 @@ def model_view(topology: Topology,
         parts.append({
             "id": part.id,
             "label": part_label(part),
-            "number": part.drawing,
+            "number": part_number(part),
             "name": _everyday_name(part),
             "body": body_of[part.id],
             "features": list(feature_ids_of_part[part.id]),

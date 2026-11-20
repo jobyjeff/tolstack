@@ -52,18 +52,18 @@
       },
       "parts": [
         "tan_link_upper_inner_race",
-        "pitch_plate_215177_001",
-        "flanged_bushing_nas77a3_015a",
+        "bolt_nas6403u14d",
+        "flanged_bushing_nas77a3_015a_tan_link",
         "pitch_plate_215735_001",
+        "straight_bushing_214820_002",
         "bushing_214820_002",
         "bolt_nas6403u11d",
+        "flanged_bushing_nas77a3_015a",
         "pitch_link_upper_inner_race",
         "gas_spring_piston_214700_002",
         "piston_head_lower_214699_002",
         "piston_head_upper_214698_002",
-        "flanged_bushing_nas77a3_015a_tan_link",
-        "straight_bushing_214820_002",
-        "bolt_nas6403u14d"
+        "pitch_plate_215177_001"
       ],
       "note": "The plate assembly (the plate and its two flanged bushings), the two straight bushings and the two bolts through each lug and its link's inner race, the gas-spring piston and the two piston heads. The two piston heads are the plate's: the lower sits on the piston body's shoulder (`piston_body_head_seat`) and the upper stacks on it (`piston_heads_seat`). The plate seats and is bolted on the piston body's flange about its pilot boss; one spigot on the piston body locates both heads, and the upper head is bolted to the piston body through the lower head's bore (2026-11-17, read off the meshes). linkage's pitch plate lists the first two parts alone; the difference is declared beside the pairing test."
     },

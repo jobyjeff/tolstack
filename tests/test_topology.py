@@ -1121,19 +1121,23 @@ MODEL_V2_BODIES = {
     "base": ["hub", "tan_link_mount_215175_002", "gas_spring_mount_213668_002",
              "piston_cover_214958_002", "tan_link_lower_inner_race"],
     "tan_link": ["tan_link_lower_outer_race", "tan_link_213863_004", "tan_link_upper_outer_race"],
-    "pitch_plate": ["tan_link_upper_inner_race", "pitch_plate_215177_001", "flanged_bushing_nas77a3_015a",
-                    "pitch_plate_215735_001", "bushing_214820_002", "bolt_nas6403u11d",
-                    "pitch_link_upper_inner_race", "gas_spring_piston_214700_002",
-                    "piston_head_lower_214699_002", "piston_head_upper_214698_002",
-                    "flanged_bushing_nas77a3_015a_tan_link", "straight_bushing_214820_002",
-                    "bolt_nas6403u14d"],
+    "pitch_plate": ["tan_link_upper_inner_race", "bolt_nas6403u14d", "flanged_bushing_nas77a3_015a_tan_link",
+                    "pitch_plate_215735_001", "straight_bushing_214820_002", "bushing_214820_002",
+                    "bolt_nas6403u11d", "flanged_bushing_nas77a3_015a", "pitch_link_upper_inner_race",
+                    "gas_spring_piston_214700_002", "piston_head_lower_214699_002",
+                    "piston_head_upper_214698_002", "pitch_plate_215177_001"],
     "pitch_link": ["pitch_link_upper_outer_race", "pitch_link_213861_002",
                    "pitch_link_lower_outer_race"],
     "blade": ["pitch_link_lower_inner_race", "pitch_arm", "blade_root"],
 }
 # Since 2026-11-19 each link reads from the end the walk enters it by, and
 # each inner race is listed where its link enters the mating body (the
-# walk enters a body at its earliest listed part an edge reaches).
+# walk enters a body at its earliest listed part an edge reaches). Since
+# 2026-11-20 the pitch plate is listed in the order its walk first reaches
+# each part: in from the tangential link's race, through that lug's bolt and
+# flanged bushing to the plate, out through both straight bushings to the
+# pitch link's lug, then the piston; the 215177 container, which has no row,
+# last.
 
 #: The parts v2 puts in no body (2026-11-19): each link assembly and its two
 #: bearings, whose races move in two bodies. Every other part is in one.

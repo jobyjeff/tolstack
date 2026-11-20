@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_topology.py",
+  "expect_red": "test_a_part_with_children_carries_no_node",
+  "mutations": [
+    {
+      "contract": "A part with children carries no node: an assembly is a container, and its features are its parts'.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack.md",
+      "note": "Lets every assembly own a node, the rule before 2026-11-20: 215177-001 could carry the plate's features again and draw its own box beside the plate.",
+      "file": "tolerance_stack/topology.py",
+      "find": "                if self._children[part_id]:\n                    raise TopologyError(",
+      "replace": "                if False:\n                    raise TopologyError("
+    }
+  ]
+}

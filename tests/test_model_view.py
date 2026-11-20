@@ -44,6 +44,7 @@ from tolerance_stack.model_view import (
     feature_id,
     model_view,
     part_label,
+    part_number,
 )
 from tolerance_stack.topology import Part, load_topology
 
@@ -424,27 +425,43 @@ def test_a_view_of_a_topology_with_no_bodies_has_no_body_anywhere(tmp_path):
     # The record's drawing wins over a title block naming another drawing.
     (Part(id="p", name="215177-001 pitch plate", drawing="215177-001",
           display_name="Pitch plate 215735-001/-002"), "215177-001 Pitch plate"),
-    # No drawing: the everyday name alone, number-free.
+    # No drawing and no number: the everyday name alone.
     (Part(id="b", name="pitch-link spherical bearing"), "pitch-link spherical bearing"),
-    (Part(id="s", name="NAS6403U11D hex-head bolt"), "hex-head bolt"),
+    # A standard part: its own name's number is its number (2026-11-20), once.
+    (Part(id="s", name="NAS6403U11D hex-head bolt"), "NAS6403U11D hex-head bolt"),
+    (Part(id="f", name="NAS77A3-015A flanged bushing",
+          display_name="flanged bushing, pitch link NAS77A3-015A"), "NAS77A3-015A flanged bushing, pitch link"),
     # Nothing but an id falls back to it rather than to an empty label.
     (Part(id="only_an_id", name=""), "only_an_id"),
 ], ids=["number-in-name", "plain", "display-tail", "display-other-drawing",
-        "no-drawing", "standard-part", "id-only"])
+        "no-drawing", "standard-part", "standard-part-display-tail", "id-only"])
 def test_part_label_says_the_number_once_then_the_everyday_name(part, expected):
     assert part_label(part) == expected
+
+
+#: v2's parts with no number at all: the assemblies-in-name-only bearings,
+#: whose display names say "MS14101-3 ..." -- so none, since 2026-11-20 every
+#: v2 part leads with its number (the flanged bushings' NAS77A3-015A, the
+#: bolts', the races' MS numbers).
+V2_PARTS_WITH_NO_NUMBER: set = set()
 
 
 def test_every_v2_part_with_a_drawing_is_labelled_number_then_name(v2, v2_view):
     for part, row in zip(v2.parts, v2_view["parts"]):
         assert row["label"] == part_label(part)
+        assert row["number"] == part_number(part)
         if part.drawing:
-            assert row["label"].startswith(part.drawing + " "), row["label"]
-            assert row["label"].count(part.drawing) == 1, row["label"]
+            assert row["number"] == part.drawing
+        if row["number"]:
+            assert row["label"].startswith(row["number"] + " "), row["label"]
+            assert row["label"].count(row["number"]) == 1, row["label"]
+            assert row["name"] == row["label"][len(row["number"]) + 1:]
         else:
-            assert not any(ch.isdigit() for ch in row["label"].split(" ")[0]), row["label"]
-        assert row["number"] == part.drawing
-        assert row["name"] == row["label"][len(part.drawing) + 1:] if part.drawing else row["label"]
+            assert part.id in V2_PARTS_WITH_NO_NUMBER, part.id
+            assert row["name"] == row["label"]
+    numbers = {p["id"]: p["number"] for p in v2_view["parts"]}
+    assert numbers["flanged_bushing_nas77a3_015a"] == numbers["flanged_bushing_nas77a3_015a_tan_link"] ==         "NAS77A3-015A"
+    assert (numbers["bolt_nas6403u11d"], numbers["bolt_nas6403u14d"]) == ("NAS6403U11D", "NAS6403U14D")
 
 
 # --- the projection carries it ------------------------------------------------

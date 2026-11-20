@@ -272,7 +272,8 @@ linkage solver's sweeps already name and the DAG had no way to know:
   the total is the same folded or open; the DAG draws a part inside an
   assembly as the assembly's. Model v2's pitch link and 212956-005 assemblies
   hold their bearings, and 215177 (2026-11-18) its plate and the two flanged
-  bushings the model reaches; 215175 stays a single part; v1 declares no
+  bushings the model reaches -- since 2026-11-20 as a container that owns no
+  feature (rule 1, below); 215175 stays a single part; v1 declares no
   parent.
 - **An assembly and a body are two groupings of the same parts, and neither
   nests in the other** (2026-11-19,
@@ -286,8 +287,13 @@ linkage solver's sweeps already name and the DAG had no way to know:
      parts of its own is in exactly one body. An assembly is listed in a body
      when every part under it is in that body, and only then; an assembly
      whose parts sit in two bodies or more is listed in none, which is not an
-     error (`Topology.body_of` is `None` for it). A part in no body carries
-     no node: a feature moves with one body.
+     error (`Topology.body_of` is `None` for it). **An assembly carries no
+     node** (2026-11-20, handoff
+     `the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`):
+     it is a container, and its features are its parts' -- the merged page of
+     2026-11-19 drew 215177-001's own box beside its plate, and it read to
+     Jeff as a second pitch plate. So a part in no body, which is always such
+     an assembly, carries none either: a feature moves with one body.
   2. **An assembly may own a dimension between its parts' features.** A
      structural edge's `part` may be an assembly over the part on each end,
      where both ends' parts are in one body -- a link's centre-to-centre,
@@ -1321,7 +1327,7 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 31 parts, 68 interfaces, 88 edges, 27 branch points, 21 grounded
+The graph: 33 parts, 74 interfaces, 100 edges, 35 branch points, 27 grounded
 loops, 29 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
@@ -1415,8 +1421,8 @@ Jeff rather than authored
 `the_pitch_plate_is_an_assembly_with_its_bushings`; Jeff, 2026-11-17: the
 flanged bushings *"are part of the 215177 assembly and the straight bushings
 aren't assembled until the top level because they are a transition fit in the
-bore"*). `pitch_plate_215177_001` keeps its id, its features and Jeff's
-bindings, and holds the machined plate 215735-001 and the NAS77A3-015A flanged
+bore"*). `pitch_plate_215177_001` kept its id, its features and Jeff's
+bindings (its features moved onto the plate on 2026-11-20, below), and holds the machined plate 215735-001 and the NAS77A3-015A flanged
 bushing at each attachment the model reaches as children; the 214820-002
 straight bushings are top-level parts of the pitch-plate body, under v1's ids.
 At each of the two attachments (blade 1's pitch link and the drawn tangential
@@ -1425,8 +1431,8 @@ and Ø8.520 for the straight one; each bushing's outer cylinder sits in its
 bore by a `press_fit` or a `transition_fit` gap, its wall joins its outer
 cylinder to its bore, and the bolt, which is not in the model, is two
 `pin_in_bore` gaps: the flanged bushing's bore to the attachment's own bore,
-and the straight bushing's bore to the flanged one's. No edge gains a
-dimension; each fit's note cites the bore's callout and names the bushing's
+and the straight bushing's bore to the flanged one's (both replaced by the
+bolt on 2026-11-20, below). No edge gains a dimension; each fit's note cites the bore's callout and names the bushing's
 band as a gap. Six NAS77A3 occurrences, the NAS77A4 and six 214820-002
 occurrences are at attachments the model does not draw and are left out.
 
@@ -1447,7 +1453,8 @@ one `spherical` gap joins the inner race's ball centre to that seat centre --
 the ball joint, between two bodies -- the inner race's bore reaches its ball
 centre, and one `pin_in_bore` gap puts the inner race's bore on the mating
 part's attachment bore. That last gap stands in for the hardware between them,
-which is not authored. The four seat centres keep v1's ids
+which is not authored at the pitch arm and the mount; at the two plate ends
+the bolt stack below replaced it. The four seat centres keep v1's ids
 (`pitch_link_lower_sphere_centre` and its three siblings), moved onto the
 outer races as rule 3 of "Models" allows, so the P2 sweep still joins on them;
 `pitch_link_length` and `tan_link_length` keep their ids, ends and part (the
@@ -1456,6 +1463,32 @@ length. v1's four joint edges (`pitch_arm_link_joint` and its siblings) are
 not in v2: each is the chain from the mating bore through the inner race and
 the ball to the seat centre. A feature moved onto a member keeps its binding:
 `docs/ANNOTATION_SURFACE.md`, "A feature on a member".
+
+**215177-001 is the container, and each lug is a bolt stack** (2026-11-20,
+handoff `the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`;
+Jeff's note `20261119T142516_ci28ci`: *"The container (215177-001), contains
+the pitch plate (215735-001) and each flanged bushing"*). The assembly's three
+features that are the plate's -- its pilot boss, its seat on the piston body's
+flange and the piston body's fastener pattern -- moved onto
+`pitch_plate_215735_001` with their ids, and so did the two dimensions between
+them; the assembly owns nothing, and the model now refuses an assembly that
+owns a node ("Bodies", rule 1). v1's two attachment bores and the radii to
+them are not in v2: each lug is located by a new radius of 215735 from the
+pilot boss to its flanged bushing's bore. At each lug a bolt -- read off the
+217755-001 A.1 STEP's lug groups: NAS6403U11D at the pitch link, NAS6403U14D at
+the tangential link, which has no mesh -- is a top-level part of the
+pitch-plate body, and the stack is eight joints: the flanged bushing pressed
+into the plate (`press_fit`) with its flange seated on the lug face (a shared
+node), the bolt's shank a `pin_in_bore` in the flanged bushing, the inner race
+and the straight bushing, the race's two faces seated on the flange and under
+the straight bushing's end (two shared nodes; the clamp), and the straight
+bushing in the plate's other bore (`transition_fit`). Inside each part a
+dimension joins each new face to the part's own features (a face to its bore,
+the flange's thickness, the race's width and its face to its ball). No washer,
+nut or grip length (Jeff: *"irrelevant to the kinematic model/end stop
+tolerance study"*). So each link's plate end reaches the plate from its outer
+race through the ball, the inner race, the bolt and the flanged bushing --
+and through the straight bushing too, a loop the stack closes.
 
 ---
 
