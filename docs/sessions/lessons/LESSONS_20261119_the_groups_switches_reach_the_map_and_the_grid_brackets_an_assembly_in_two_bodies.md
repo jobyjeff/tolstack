@@ -110,6 +110,54 @@ The shots are `v2_map_{all_on,bodies_off,assemblies_off,parts_off,all_off}.png`.
 - **The fast DOM shim** has no compound selectors and no `getAttribute
   ("class")` on HTML elements. Use one class plus `className`.
 
+## The test record
+
+Everything ran from this worktree. The `[real]` tiers ran against a scratch
+root, `data/scratch/grp` in the main checkout. It held copies of inbox,
+meshes and projections, and all eight builders were run from this tree into
+it with `--data-root` (635 s). The tree's `docs/` was copied in too. The
+shared `data/` was never written, and the scratch root was removed
+afterwards.
+
+- **Default tier**, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`
+  on `40142801`: **2385 passed, 3 failed, 1 skipped** in 536 s. The ledger row
+  is recorded and inside budget. The three failures:
+  - `test_viewer_js_suite_is_green`: the worktree has no `data/`. The tier
+    below was run instead.
+  - `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`:
+    pre-existing, already filed as
+    `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
+  - `test_every_anchor_resolves_to_exactly_one_place`: two older specs were
+    anchored on lines this change rewrote. Both are re-anchored and
+    witnessed (below). `tests/test_mutation_witnesses.py` is now
+    **49 passed**. I did not re-run the whole tier after that fix.
+- **Viewer fast tier with `[real]`**, `node apps/viewer/run_tests.cjs --repo <scratch root>`:
+  **617/617**, with the projection paired to this tree.
+- **Annotate fast tier**, `node apps/annotate/run_tests.cjs`: **334/334**.
+- **Browser**, `--repo <scratch root>`, one `--only` per suite:
+  - `the Groups switches` (new): **9/9**, 26 s.
+  - `the DAG zoom, Fit and the grid header`: **35/35**, after its Groups
+    check was updated to count three switches.
+  - `the map (the counts on both models`: **32/32**.
+- **Witness**: 17 specs in four runs. That is the 12 new ones, the 3
+  re-anchored ones and the 2 whose guards changed.
+  - The first run (all 15 then owed) hit the default cap after the four fast
+    specs, at about 5 min each, with all four witnessed.
+  - The second (the 11 left, `--budget-min 90`) witnessed 9. Two were not:
+    - The fold-suppression mutation is invisible on the fixture, because the
+      link assembly's own row is said by its bracket.
+    - The "layout with no bodies" mutation moved no pin, because an authored
+      layout places parts the same with or without bodies; another check
+      went red instead.
+  - Both were re-pointed (the outermost name's wide strip; a refit to the
+    boxes' extent) and are **2/2 witnessed**.
+  - Two more rotted anchors turned up in the default tier, as above: the
+    grid's kinds line and the bracket inset. Both re-anchored, **2/2
+    witnessed**.
+- Two browser guards carry no spec, and the browser pin was raised by 10
+  with a note. They are the suite's `(skipped: ...)` push and "nothing
+  threw on the Groups page".
+
 ## Found on arrival
 
 Nothing: the worktree was clean, at the integration tip.
