@@ -1923,6 +1923,40 @@
     return out;
   };
 
+  // The same candidates as AA.endContactFaces, one row per candidate rather
+  // than per face: a candidate's faces at this end are ONE feature (six faces
+  // of a blade-root boss), so the shell's feature body lists them as one row
+  // whose Take binds them all. A single-face candidate carries no `faces`.
+  // Rows: {kind contact, sha256, faceId (the first), faces?, surface, radius,
+  // reason, detail, rank}. [] for an edge feature or a pair the engine has none for.
+  AA.endContactSets = function (contactDoc, topologyId, via) {
+    if (!via || !via.edgeId || !via.direction) return [];
+    var row = null;
+    ((contactDoc && contactDoc.topologies) || []).forEach(function (t) {
+      if (t.id !== topologyId) return;
+      (t.edges || []).forEach(function (r) { if (r.edge === via.edgeId) row = r; });
+    });
+    var candidates = (row && row.status === "ok" && row.candidates) || [];
+    var out = [];
+    var seen = {};
+    var ranked = candidates.slice().sort(function (a, b) { return a.rank - b.rank; });
+    ranked.forEach(function (c) {
+      var side = c[via.direction] || {};
+      var faces = side.faces || [];
+      if (!side.sha256 || !faces.length) return;
+      var key = side.sha256 + "|" + faces.slice().sort(function (a, b) { return a - b; }).join(",");
+      if (seen[key]) return;
+      seen[key] = true;
+      var set = { kind: AA.CANDIDATE_ROW_KINDS[1], sha256: side.sha256, faceId: faces[0],
+        surface: side.surface || null, radius: AA.candidateRadius(c, via.direction),
+        reason: AA.candidateReason(row, c, via.direction), detail: contactDetail(row.pairing, c),
+        rank: c.rank, bound: false };
+      if (faces.length > 1) set.faces = faces.slice();
+      out.push(set);
+    });
+    return out;
+  };
+
   // A pair's evidence in words, or null when the row carries too little of it
   // to say (AA.describeContact reads numbers the engine always writes; a
   // hand-made row may not) -- the face is still listed, with its reason.
@@ -1999,6 +2033,11 @@
   AA.candidateRowWords = function (row) {
     // A set says itself: "10 of 10 holes Ø5, coaxial within 0.003 mm".
     if (row.kind === AA.CANDIDATE_ROW_KINDS[3] && row.text) return row.text;
+    // A contact candidate of several faces is one row: "6 faces · round · r 47.5 mm".
+    if (row.kind === AA.CANDIDATE_ROW_KINDS[1] && row.faces && row.faces.length > 1) {
+      return AA.preselectWords(row.faces.length, row.surface ? { surface: row.surface, radius: row.radius || 0 } : null)
+        .replace(/^face /, "").replace(/^(\d+)/, AA.CANDIDATE_LIST_WORDS.faces.replace("{n}", "$1"));
+    }
     return AA.preselectWords(row.faceId, row.surface ? { surface: row.surface, radius: row.radius || 0 } : null);
   };
 
@@ -2017,6 +2056,7 @@
     pickOtherTitle: "pick any face of this end's part in the 3D view",
     pickOtherBind: "select this element, then click a face in the 3D view",
     more: "show all {n}",
+    faces: "{n} faces",
   });
   //: How many candidate rows an open list shows before "show all n".
   AA.CANDIDATES_LISTED = 8;

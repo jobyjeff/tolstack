@@ -10477,6 +10477,22 @@
         eq(rows[1].querySelectorAll("button").length, 1, "Take sits on the ranked face's line");
       });
 
+    await test("a feature with both ends of its joint unbound lists the contact candidates, each " +
+      "row's Take naming its own edge and end", function () {
+        var model = VA.buildModel(bodiedProj(), null);
+        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
+          { sha256: "aa", faceId: 10, faces: [10, 11, 12], edgeId: "d1", direction: "from",
+            text: "3 faces · round · r 5 mm", reason: "fits the mating bore", detail: "clearance 0.015 mm" },
+          { sha256: "aa", faceId: 40, edgeId: "d2", direction: "to", text: "face 40", reason: "coincident" }] } } };
+        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
+        eq(plan.lines.map(function (l) { return l.text; }), ["not bound", "3 faces · round · r 5 mm", "face 40"]);
+        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "10", "mini", "11", "12"],
+           "Take binds the whole candidate");
+        eq(plan.lines[2].actions[0].command, ["take", "d2", "to", "aa", "40", "mini"],
+           "a row of another gap edge binds there");
+        eq(plan.actions[0].text, VA.FEATURE_BODY_WORDS.pick, "Pick a face stays");
+      });
+
     await test("a pattern bound opposite leads the mates with one line for the whole set: its " +
       "hover lights every face, its look frames them and its Take binds them all", function () {
         var model = VA.buildModel(bodiedProj(), boundIdentity());

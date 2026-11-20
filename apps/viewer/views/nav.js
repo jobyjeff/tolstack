@@ -1122,7 +1122,7 @@
         face: r.faces ? { sha256: r.sha256, faceId: r.faceId, faceIds: r.faces } : { sha256: r.sha256, faceId: r.faceId },
         look: [V.camera, "face", r.sha256].concat(ids),
         actions: [{ text: W.take, title: r.faces ? W.takeSetTitle : W.takeTitle,
-          command: [V.take, mates.edgeId, mates.direction, r.sha256, ids[0], topologyId].concat(ids.slice(1)) }] };
+          command: [V.take, r.edgeId || mates.edgeId, r.direction || mates.direction, r.sha256, ids[0], topologyId].concat(ids.slice(1)) }] };
     }) : [];
     var record = model.featureRecord ? model.featureRecord(fid) : null;
     if (armed && ends.some(function (e) { return e.edgeId === armed.edgeId && e.end === armed.direction; })) {

@@ -1754,6 +1754,19 @@ check("an end's candidate list: the proposal first, then the engine's faces in r
   assertEqual(bound.filter((r) => r.bound).map((r) => r.faceId), [5]);
 });
 
+check("an end's contact candidates as sets: one row per candidate, its faces together, " +
+  "the same set once, in rank order, the words naming the count", () => {
+  const from = AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual(from.map((r) => [r.faceId, r.faces || null, r.rank]), [[5, null, 1], [8, [8, 7], 2]]);
+  assertEqual(from[0].reason, "fits the mating bore");
+  assertEqual(AA.candidateRowWords(from[0]), "face 5 · round · r " + AA.formatSweepNumber(4.99, "mm") + " mm");
+  assertEqual(AA.candidateRowWords(from[1]).indexOf("2 faces · round"), 0);
+  const to = AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "to" });
+  assertEqual(to.map((r) => r.faces), [[3, 4]], "two pairs over the same bore faces are one row");
+  assertEqual(AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: null }), []);
+  assertEqual(AA.endContactSets(null, "rail_topo", { edgeId: "rod_len", direction: "to" }), []);
+});
+
 check("a candidate's reason names what the face is to the mating feature, for every relation " +
   "and pairing the engine emits", () => {
   const say = (pairing, relation, evidence, direction, mateSurface) => AA.candidateReason(

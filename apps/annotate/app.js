@@ -5060,6 +5060,11 @@ async function cmdTake(edgeId, direction, meshId, faceText, topologyId, ...moreT
     if (!isFinite(f) || String(f) !== String(t)) throw new Error("take's faces are whole face ids, got " + JSON.stringify(t));
     return f;
   });
+  // A set's faces are keyed off the open part (faceGeometryKey): a candidate
+  // taken from the shell's body before anything opened the part opens it.
+  if (named.length && state.scene.listOpenParts().indexOf(mesh.sha256) === -1) {
+    await state.scene.loadPart(mesh.sha256);
+  }
   const record = AA.findBindingRecord(identityOn(topology), AA.topologyEdgeKey(topology.id, edge.id));
   const stackKey = identityWriteKey(topology, edge.id);
   const standing = AA.endBindings(record, direction);
@@ -7661,6 +7666,22 @@ function treeMates() {
   const a = state.armed;
   const f = a && a.mates && a.mates.length ? featureAt(a.topology, a.edgeId, a.direction) : null;
   if (f) put(f.id, a.topologyId, a.edgeId, a.direction, a.mates);
+  // A feature nothing ranks yet (neither side of its joint is bound): the
+  // contact engine's candidates at every gap edge it is an end of, each row
+  // naming its own edge and end so its Take binds there.
+  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+  for (const feature of (topology && topology.model && topology.model.features) || []) {
+    if (out[feature.id]) continue;
+    const rows = [];
+    for (const end of featureEnds(topology, feature)) {
+      for (const r of AA.endContactSets(state.contactSuggestions, topology.id, end)) {
+        rows.push(Object.assign(say(r), { edgeId: end.edgeId, direction: end.direction }));
+      }
+    }
+    if (!rows.length) continue;
+    out[feature.id] = { topologyId: topology.id, edgeId: rows[0].edgeId, direction: rows[0].direction,
+      n: rows.length, rows: rows.slice(0, AA.CANDIDATES_LISTED) };
+  }
   return out;
 }
 

@@ -10911,6 +10911,136 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   }
 }
 
+// The first end of a joint offers the contact faces (handoff the_first_end_of_
+// a_joint_offers_the_contact_faces_the_pane_already_holds, 2026-11-19), on
+// model v2 with the real served log, the real contact suggestions and the real
+// meshes -- writes go to the pane's in-memory store, never to the folder. The
+// blade root's locating boss, with neither end of its gap edge bound, lists
+// the engine's candidate as ONE row of its faces, and Take binds them all.
+// The edge and its faces are read off the served data: an edge the engine has
+// no candidate for says so, by name, and the check passes as skipped.
+async function testFirstEndOffersContactFaces(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V2 = "vpa_end_stop_v2";
+  const EDGE = "blade_root_boss_in_pitch_arm_bore";
+  const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
+  const contact = await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
+    "contact_suggestions.json"), "utf8").then(JSON.parse, () => null);
+  const edge = v2 && (v2.edges || []).find((e) => e.id === EDGE);
+  const row = contact && ((contact.topologies || []).find((t) => t.id === V2) || { edges: [] })
+    .edges.find((r) => r.edge === EDGE);
+  const feature = edge && ((v2.model && v2.model.features) || []).find((f) => f.node === edge.from);
+  const candidate = row && row.status === "ok" && (row.candidates || [])
+    .slice().sort((a, b) => a.rank - b.rank)[0];
+  if (!v2 || !edge || !feature || !candidate) {
+    push("[real] the first end of a joint lists the contact faces as one row (skipped: model v2, " +
+      `the edge ${EDGE} or a contact candidate for it is not on disk -- build them, or pass --repo <main checkout>)`, true);
+    return reportSuite(label, checks, errors);
+  }
+  const fid = feature.id;
+  const want = (candidate.from.faces || []).slice().sort((a, b) => a - b);
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const expand = async (key) => {
+    const sel = `#navtree [data-nav-twisty="${key}"]`;
+    const isOpen = (s) => { const t = document.querySelector(s); return !!t && t.getAttribute("aria-expanded") === "true"; };
+    await page.waitForSelector(sel, { state: "attached", timeout: 30000 }).catch(() =>
+      console.log(`    MISSING: the twisty ${key} is not in the tree`));
+    for (let i = 0; i < 5; i++) {
+      if (await page.evaluate(isOpen, sel)) return;
+      await page.evaluate((s) => { const t = document.querySelector(s); if (t) t.click(); }, sel);
+      await page.waitForFunction(isOpen, sel, { timeout: 3000 }).catch(() => {});
+    }
+  };
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V2, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    const treeUp = await until((w) => !!w.__embedTree, null, 120000);
+    if (!treeUp) console.log("    MISSING: the pane's embedded tree");
+    await expand(`p:${fid.split("@")[0]}`);
+    await expand(`f:${fid}`);
+    const slot = page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`)
+      .locator("xpath=..").locator(".navtree__scene").first();
+    const kind = await slot.locator(".navtree__featurebody").first().getAttribute("data-body-kind", { timeout: 15000 })
+      .catch(() => null);
+    if (kind === "bound") {
+      push("[real] the first end of a joint lists the contact faces as one row (skipped: " +
+        `${fid} is already bound in the served log, so it is no first end)`, true);
+      return reportSuite(label, checks, errors);
+    }
+    const line = slot.locator(".navtree__featurestate[data-face]").first();
+    await line.waitFor({ timeout: 30000 }).catch(() =>
+      console.log(`    MISSING: a candidate line under ${fid}`));
+    // The tree repaints as the pane settles: read the line until it has its words.
+    let text = "";
+    for (let i = 0; i < 10 && !/d/.test(text); i++) {
+      text = await slot.locator(".navtree__featurestate[data-face] .navtree__featurewords").first()
+        .textContent({ timeout: 2000 }).catch(() => "");
+      if (!/d/.test(text)) await page.waitForTimeout(500);
+    }
+    const lines = await slot.locator(".navtree__featurestate").count().catch(() => -1);
+    const published = await inPane((w, f) => {
+      const m = w.__embedTree && w.__embedTree.mates && w.__embedTree.mates[f];
+      return m && m.rows[0] ? { faces: (m.rows[0].faces || [m.rows[0].faceId]).slice().sort((a, b) => a - b),
+        edge: m.rows[0].edgeId, direction: m.rows[0].direction } : null;
+    }, fid);
+    console.log(`    features the pane publishes rows for: ${await inPane((w) => Object.keys((w.__embedTree.mates) || {}).length)} of ${((v2.model && v2.model.features) || []).length}`);
+    console.log(`    ${fid}: ${lines} line(s), first "${String(text).trim().slice(0, 60)}", published ${JSON.stringify(published)}, want ${JSON.stringify(want)}`);
+    push("[real] an unbound end with an unbound counterpart lists the engine's candidate as ONE row of its faces",
+      !!published && JSON.stringify(published.faces) === JSON.stringify(want) &&
+      published.edge === EDGE && lines >= 2 && (want.length < 2 || /^\s*\d+ faces/.test(text)));
+    // TOLSTACK_SHOTS=<dir> keeps the body before and after the Take (the lesson's shots).
+    const shot = async (name) => { if (process.env.TOLSTACK_SHOTS) await slot.screenshot({ path: join(process.env.TOLSTACK_SHOTS, name) }).catch(() => {}); };
+    await shot("01_candidates_listed.png");
+    const before = await inPane((w) => (w.__mockWrites || []).length);
+    await slot.locator("button", { hasText: "Take" }).first().click({ timeout: 10000 }).catch(() =>
+      console.log("    MISSING: the Take button on the candidate line"));
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 30000);
+    await page.waitForTimeout(500);
+    const written = (await inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({
+      verdict: x.event.verdict,
+      faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id).sort((a, b) => a - b) })),
+    before)) || [];
+    await shot("02_after_take.png");
+    console.log("    NOTICE " + JSON.stringify(await inPane((w) => { const n = w.document.querySelector(".an__notice"); return n ? n.textContent : null; })));
+    console.log(`    Take wrote ${JSON.stringify(written)}`);
+    push("[real] ...and Take on that row writes the whole set as one bind",
+      written.length === 1 && written[0].verdict === "bound" &&
+      JSON.stringify(written[0].faces) === JSON.stringify(want));
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
 // A press that writes says so at once (handoff a_bind_on_the_pitch_plate_
 // writes_in_seconds_and_says_so_while_it_waits, 2026-11-19), on model v1 with
 // the real served log and the real meshes -- writes go to the pane's
@@ -14718,6 +14848,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testPatternAndAddAFace(browser, label, topologies)],
       ["a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
         (label) => testOppositePattern(browser, label, topologies)],
+      ["the first end of a joint lists the contact faces (one row per candidate, Take binds the set)",
+        (label) => testFirstEndOffersContactFaces(browser, label, topologies)],
       ["a press that writes says so at once (the pitch plate's Keep: pending in the frame, one event, the body, the time)",
         (label) => testAPressThatWritesSaysSo(browser, label, topologies)],
       ["the map (the counts on both models, the one selection on four surfaces, the view)",

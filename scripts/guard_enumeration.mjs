@@ -367,7 +367,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
   // it_waits): +1 -- a body press that writes reads pending in its own click.
   // It carries a spec.
-  fast: { declared: 606, enrollable: 606, names: "3ece2d9d5aa7" },
+  // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
+  // a feature with both ends unbound lists the contact candidates. It carries a spec.
+  fast: { declared: 607, enrollable: 607, names: "4cd6a4f10efc" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -469,7 +471,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
   // it_waits): +2 -- the inbox is read once per page, and a write runs once the
   // gate opens rather than behind the queue. Each carries a spec.
-  annotate: { declared: 333, enrollable: 333, names: "bf9d0b3c71b4" },
+  // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
+  // an end's contact candidates as sets. It carries a spec.
+  annotate: { declared: 334, enrollable: 334, names: "c55a9dd22d21" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -750,7 +754,10 @@ export const DECLARED_GUARDS = {
   // it_waits): +3 -- the pitch plate's Keep reads pending in the frame and the
   // others wait; it writes one event and leaves nothing pending (each with a
   // spec); and the suite's `(skipped: ...)` push, the literal `true` again.
-  browser: { declared: 782, enrollable: 755, names: "3433004110e2" },
+  // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +4 --
+  // the first end lists the engine's candidate as one row and Take binds the set (each
+  // with a spec), and the suite's `(skipped: ...)` pushes, the literal `true`.
+  browser: { declared: 786, enrollable: 757, names: "6dbf94decee6" },
 };
 
 

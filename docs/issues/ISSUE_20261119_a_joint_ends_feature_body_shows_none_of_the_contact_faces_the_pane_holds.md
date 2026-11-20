@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer shell / feature body candidate list
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261118_the_walk_reads_the_binding_flow_and_the_pitch_plate_on_the_merged_page.md
 handoff: docs/sessions/HANDOFF_20261119_the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds.md
 class: ranked_mates_coverage_gap
+resolution: verified 2026-11-19 on the real served data (browser suite "the first end of a joint lists the contact faces"): blade_root@blade_root_pitch_arm_locating_boss, both ends unbound, lists the six faces 1060, 1061, 6439, 6440, 6666, 6667 as one row and Take writes them as one bind. Cause and counts in LESSONS_20261119_the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds.md.
 ---
 
 # A joint end's feature body in the tree shows none of the contact faces the pane holds for its edge

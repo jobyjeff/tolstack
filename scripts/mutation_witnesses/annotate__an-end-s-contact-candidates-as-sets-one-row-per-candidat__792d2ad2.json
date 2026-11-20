@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "an end's contact candidates as sets: one row per candidate, its faces together, the same set once, in rank order, the words naming the count",
+  "mutations": [
+    {
+      "contract": "A contact candidate's faces at an end are one row, so a Take binds the whole feature rather than its first face.",
+      "issue": "docs/issues/ISSUE_20261119_a_joint_ends_feature_body_shows_none_of_the_contact_faces_the_pane_holds.md",
+      "note": "Declared with the guard by handoff the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds (2026-11-19). Treating a two-face candidate as a single face loses the second face and still reads as a plausible row.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      if (faces.length > 1) set.faces = faces.slice();",
+      "replace": "      if (faces.length > 2) set.faces = faces.slice();"
+    }
+  ]
+}
