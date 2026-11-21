@@ -6249,6 +6249,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `feature.part` with a key's part, or labels a bound face with
       `feature.part`, is wrong for those four link centres. `git grep -n
       "\.part ===\|part === k" -- apps` on any diff that reads a binding.
+- [ ] **A removed sentence's test asserts the old phrase is absent**
+      (2026-11-20, `the_viewer_says_nothing_about_itself`). A test of
+      `indexOf("not a value") === -1` stays green when a later edit puts the
+      same caption back in other words. Prefer a structural absence: an
+      empty `textContent`, no `<p>` child, a zero `.count()` of the class.
+      When a copy-removal diff rewrites tests, count which kind each is.
+      Also check the probe's before/after shots by hash: two states that
+      hash the same were one state shot twice.
 
 ## Architectural errors to check
 

@@ -4,6 +4,7 @@ priority: low
 status: open
 area: viewer
 reporter: agent
+found_by: docs/sessions/active/HANDOFF_20261119_the_viewer_says_nothing_about_itself.md
 ---
 
 # The stale-data banner says "needs a rebuild" twice, two lines apart

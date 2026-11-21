@@ -29,6 +29,15 @@ Shots: `shots/the_viewer_says_nothing_about_itself/before_*.png` and
 `after_*.png`, the same 20 states each, plus `after_v1_study_via_picker.png`.
 All were read before this lesson was written.
 
+> **Correction (review, 2026-11-20):** the shots folder holds **17** states
+> each (`before_*` 17, `after_*` 18 with the picker shot), not 20: the
+> probe's worksheet-dialog shot is conditional and was not taken. And
+> `after_v1_node_selected.png` and `after_v1_branch_node_selected.png` are
+> byte-identical: the probe's `facts.node` is itself a branch point
+> (`hub spindle bore axis`), so a non-branch node's Preview was never shot.
+> The fast and browser tiers cover that state (`base_datum`); the shots do
+> not.
+
 ## The table
 
 "Always" means always visible in that state. "Fold" means behind a
