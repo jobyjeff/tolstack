@@ -1599,7 +1599,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    the grid it sits where the number would be, over the empty min and max. */
 .chip--drawing { color: var(--muted); text-decoration: none; }
 a.chip--drawing:hover, a.chip--drawing:focus-visible { color: var(--ink); border-color: var(--muted); }
-.tvcell--drawing { overflow: visible; text-align: left; }
+.tvcell--drawing { overflow: visible; text-align: left; font-style: normal; }
 .detail__runlist { margin: 2px 0 4px; padding-left: 16px; font-size: var(--t-meta); }
 
 /* One grid for every verdict, so the subjects, the margins and the limits

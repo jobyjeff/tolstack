@@ -1888,7 +1888,8 @@
       var drawingChip = !values && record
         ? VA.drawingStatusChip(record.drawingStatus, ctx.config || VA.CONFIG) : null;
       if (drawingChip) {
-        nominalCell.className += " tvcell--drawing";
+        // Words, not a number: the cell drops `num` and its monospace.
+        nominalCell.className = "tvcell tvcell--nominal tvcell--drawing";
         nominalCell.appendChild(drawingChip);
       }
     }

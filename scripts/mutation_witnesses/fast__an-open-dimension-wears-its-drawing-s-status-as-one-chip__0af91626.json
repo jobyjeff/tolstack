@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
       "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Drops the grid row's chip.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      if (drawingChip) {\n        nominalCell.className += \" tvcell--drawing\";\n        nominalCell.appendChild(drawingChip);\n      }",
-      "replace": "      if (drawingChip) {\n        nominalCell.className += \" tvcell--drawing\";\n      }"
+      "find": "      if (drawingChip) {\n        // Words, not a number: the cell drops `num` and its monospace.\n        nominalCell.className = \"tvcell tvcell--nominal tvcell--drawing\";\n        nominalCell.appendChild(drawingChip);\n      }",
+      "replace": "      if (drawingChip) {\n        // Words, not a number: the cell drops `num` and its monospace.\n        nominalCell.className = \"tvcell tvcell--nominal tvcell--drawing\";\n      }"
     },
     {
       "contract": "The Preview of an open dimension wears the chip.",
