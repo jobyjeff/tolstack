@@ -116,4 +116,42 @@ disclosure, a dialog or a hover.
 
 ## The test record
 
-(Below, appended when the runs finished.)
+Everything ran from this worktree. The `[real]` tiers read the previous
+link's scratch root, `data/scratch/plate` in the main checkout (projections
+built from `a63d1900`). This branch changes no projection input, so no
+rebuild was needed, and no tier refused the root. The shared `data/` was
+never written. `node_modules` was a junction to the main checkout's, for the
+browser runner.
+
+- **Viewer fast tier**, `node apps/viewer/run_tests.cjs --repo <scratch root>`:
+  **620/620** (one check added: the study picker).
+- **Annotate fast tier**, `node apps/annotate/run_tests.cjs --repo <scratch root>`:
+  **333/333**. That is one fewer than before, because two checks merged.
+  It was re-run after the read-only-note removal.
+- **Browser**, `--repo <scratch root>`, one `--only` per suite the change
+  reaches, all green: `topology` (file:// 106/106, http 152/152, height
+  budget 11/11), `annotate top bar` 30/30 (twice), `kinematic study page`
+  22/22, `typography pass` 11/11, `annotate hosted posture` 15/15 (twice),
+  `hosted origin with nothing` 7/7, `3D pane follows` 31/31, `the scene pane
+  reads over HTTP` 10/10.
+  `apps/annotate/run_browser_check.mjs` was edited (its back-to-bind check)
+  but not run. No gate runs it.
+- **Witness**: all **10/10 witnessed**. Eight specs are new and two were
+  re-pointed. The first invocation hit the runner's default 30-minute budget
+  at 6/10 ("left to the sweep (budget)", exit 0). The other four ran in a
+  second invocation with `--budget-min 90` (20m54s). **Ten specs take two
+  invocations, or one with `--budget-min`**: the fast entries cost 5–10
+  minutes each here.
+- **Default tier**, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`:
+  **2577 passed, 2 failed, 1 skipped, 4 deselected**, 554 s (ledger row
+  recorded, inside budget). The two failures are the same as the previous
+  link's:
+  - `test_viewer_js_suite_is_green`: the worktree has no `data/`. The fast
+    tiers above were run against the scratch root instead.
+  - `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`:
+    pre-existing, filed as
+    `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
+
+## Found on arrival
+
+Nothing. The worktree was clean, at `a02f27a4`.
