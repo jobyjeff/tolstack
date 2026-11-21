@@ -1027,6 +1027,19 @@
   // a second table because a reader meets both: the heading groups a panel of
   // gaps for the whole assembly, the phrase labels one row of one study's
   // findings, and the two must not describe the same kind in two vocabularies.
+  // Where an open dimension's drawing stands (the projection's
+  // `edges[].drawing_status`, handoff an_open_dimension_says_where_its_
+  // drawing_stands): the chip each word wears where the dimension is shown,
+  // the grid row and the Preview. `unknown` wears none -- drawing-checker's
+  // runs could not be read, and nothing is claimed.
+  VA.DRAWING_STATUSES = VOCAB.table("DRAWING_STATUSES", {
+    read: { chip: "drawing read" },
+    other_dash_read: { chip: "other dash read" },
+    not_read: { chip: "no drawing yet" },
+    no_drawing: { chip: "spec sheet" },
+    unknown: { chip: null },
+  });
+
   VA.GAP_KINDS = VOCAB.table("GAP_KINDS", {
     excluded_from_model: {
       heading: "Left out of the chain",

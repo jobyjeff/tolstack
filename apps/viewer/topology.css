@@ -1594,6 +1594,12 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    (VA.renderPartName): the run's revision beside it and the other-dash mark
    are secondary, so muted; the older runs fold away (VA.renderOlderRuns). */
 .detail__runrev, .detail__runmark { color: var(--muted); }
+/* An open dimension's drawing status (VA.drawingStatusChip): metadata, so
+   muted, and outlined rather than filled; a link only shows it on hover. In
+   the grid it sits where the number would be, over the empty min and max. */
+.chip--drawing { color: var(--muted); text-decoration: none; }
+a.chip--drawing:hover, a.chip--drawing:focus-visible { color: var(--ink); border-color: var(--muted); }
+.tvcell--drawing { overflow: visible; text-align: left; }
 .detail__runlist { margin: 2px 0 4px; padding-left: 16px; font-size: var(--t-meta); }
 
 /* One grid for every verdict, so the subjects, the margins and the limits

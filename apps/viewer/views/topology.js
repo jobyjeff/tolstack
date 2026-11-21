@@ -1873,15 +1873,24 @@
       if (title) cell.setAttribute("title", title);
       if (shown && shown.refused) cell.className += " muted";
       el.appendChild(cell);
+      return cell;
     };
     if (shown) {
       valueCell("nominal", shown.nominal, shown.nominalTitle);
       valueCell("min", shown.min, shown.minTitle);
       valueCell("max", shown.max, shown.maxTitle);
     } else {
-      valueCell("nominal", values ? VA.fmt(values.nominal) : "");
+      var nominalCell = valueCell("nominal", values ? VA.fmt(values.nominal) : "");
       valueCell("min", values ? VA.fmt(values.min) : "");
       valueCell("max", values ? VA.fmt(values.max) : "");
+      // A dimension with no value says where its drawing stands, in the
+      // place its number would be (VA.drawingStatusChip).
+      var drawingChip = !values && record
+        ? VA.drawingStatusChip(record.drawingStatus, ctx.config || VA.CONFIG) : null;
+      if (drawingChip) {
+        nominalCell.className += " tvcell--drawing";
+        nominalCell.appendChild(drawingChip);
+      }
     }
 
     // The sensitivity: a kinematic term's sweep coefficient, a chain row's
@@ -2580,6 +2589,24 @@
     return link;
   }
 
+  // An open dimension's drawing status as its one chip (VA.DRAWING_STATUSES),
+  // or null -- `unknown` claims nothing and wears nothing. Where the status
+  // carries a run drawing-checker can show, the chip is the link to that
+  // run's page, in a new tab, its hover the run's own line; otherwise its
+  // hover is the spec its part's rows cite, or the drawing still to get.
+  VA.drawingStatusChip = function (status, config) {
+    var words = status && VA.DRAWING_STATUSES[status.status];
+    if (!words || !words.chip) return null;
+    var cls = "chip--drawing chip--drawing-" + status.status;
+    var url = status.run ? VA.runUrl(config, status.run) : null;
+    if (url) {
+      var link = runLink(status.run, url, words.chip);
+      link.className = "chip " + cls;
+      return link;
+    }
+    return VA.chip(cls, words.chip, status.spec || status.drawing || null);
+  };
+
   function partRuns(part, config) {
     var runs = part && part.runs;
     var url = runs && runs.newest ? VA.runUrl(config, runs.newest) : null;
@@ -2645,6 +2672,8 @@
       chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
         VA.ATTENTION.no_tolerance.title));
     }
+    var drawingChip = VA.drawingStatusChip(record.drawingStatus, ctx.config || VA.CONFIG);
+    if (drawingChip) chips.appendChild(drawingChip);
     root.appendChild(chips);
 
     // The part and the two interfaces, in their own names.
