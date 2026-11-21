@@ -2069,8 +2069,12 @@
   // exist yet, so the honest interim is to say where the work happens and
   // stop. Same sentence shape apps/annotate/storage/adapter.js's
   // AA.NO_PROJECTION_NOTICE settled on for the same reason.
+  //
+  // It ended ", not from this page." until 2026-11-19, and the two `missing`
+  // sentences below said what the page computes and draws: a page never
+  // describes itself (the_viewer_says_nothing_about_itself).
   VA.PROJECTION_BUILT_ELSEWHERE =
-    "It is built in the tolerance-stack repository, not from this page.";
+    "It is built in the tolerance-stack repository.";
 
   // Which projection the banner is describing. Two pages share views/banner.js
   // and they read DIFFERENT files: index.html renders `results.json`,
@@ -2088,14 +2092,12 @@
     results: {
       name: "results",
       file: "results.json",
-      missing: "No results projection — this page displays it and computes " +
-        "nothing, so without it there is nothing to show.",
+      missing: "No results projection.",
     },
     topologies: {
       name: "topologies",
       file: "topologies.json",
-      missing: "No topology projection — the map, every study chain and " +
-        "every total come out of it, so without it there is nothing to draw.",
+      missing: "No topology projection.",
     },
   };
 

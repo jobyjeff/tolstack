@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an assembly whose rows fall in more than one body is bracketed once per run of them, inside each body and under its own name, and a fold folds every run",
+  "mutations": [
+    {
+      "contract": "An assembly's run of rows is cut at a body bracket's edge, so where both are drawn an assembly in two bodies is one bracket inside each.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "Runs that ignore the body: the link assembly's bracket runs from ground through the link into the arm, across three body brackets it is no longer inside.",
+      "file": "apps/viewer/topology.js",
+      "find": "          if (run && run.end === r - 1 && (bodyAt[r] || null) === run.body &&",
+      "replace": "          if (run && run.end === r - 1 &&"
+    }
+  ]
+}

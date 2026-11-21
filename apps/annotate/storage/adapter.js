@@ -177,9 +177,12 @@
   // app says INSTEAD of offering a way forward, and because app.js cannot be
   // loaded by the fast tier (ES module, document, WebGL) -- a constant is
   // what lets run_tests.cjs assert on the copy at all.
+  //
+  // It ended ", not from this page." until 2026-11-19: a page never describes
+  // itself (the_viewer_says_nothing_about_itself).
   AA.NO_PROJECTION_NOTICE =
     "No topology projection to read yet. It is built in the " +
-    "tolerance-stack repository, not from this page.";
+    "tolerance-stack repository.";
 
   // What a bind says on a page that reads over HTTP and has no folder to
   // write to -- a hosted origin, or a browser with no File System Access API

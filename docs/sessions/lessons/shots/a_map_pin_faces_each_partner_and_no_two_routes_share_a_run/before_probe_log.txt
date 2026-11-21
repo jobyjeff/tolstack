@@ -1,0 +1,16 @@
+3840: notes none; counts {"bodies":5,"parts":20,"features":67,"dimensions":49,"interfaces":36}
+  shot before_3840_map.png
+  shot before_3840_pitch_plate.png (3 notches)
+  1. hover flanged_bushing_nas77a3_015a@pitch_link_flanged_bushing_bore: 1 dot(s), 1 lead, 5 hot
+  2. hover flanged_bushing_nas77a3_015a_tan_link@tan_link_flanged_bushing_bore: 1 dot(s), 1 lead, 5 hot
+  3. hover gas_spring_piston_214700_002@piston_body_head_locating_boss: 1 dot(s), 1 lead, 6 hot
+  4. hover pitch_plate_215177_001@pitch_plate_link_attach_bore: 1 dot(s), 1 lead, 5 hot
+  5. hover pitch_plate_215177_001@pitch_plate_tan_link_attach_bore: 1 dot(s), 1 lead, 5 hot
+1536: notes none; counts {"bodies":5,"parts":20,"features":67,"dimensions":49,"interfaces":36}
+  shot before_1536_map.png
+  shot before_1536_pitch_plate.png (3 notches)
+  1. hover flanged_bushing_nas77a3_015a@pitch_link_flanged_bushing_bore: 1 dot(s), 1 lead, 5 hot
+  2. hover flanged_bushing_nas77a3_015a_tan_link@tan_link_flanged_bushing_bore: 1 dot(s), 1 lead, 5 hot
+  3. hover gas_spring_piston_214700_002@piston_body_head_locating_boss: 1 dot(s), 1 lead, 6 hot
+  4. hover pitch_plate_215177_001@pitch_plate_link_attach_bore: 1 dot(s), 1 lead, 5 hot
+  5. hover pitch_plate_215177_001@pitch_plate_tan_link_attach_bore: 1 dot(s), 1 lead, 5 hot

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the first end of a joint lists the contact faces (one row per candidate, Take binds the set)",
+  "expect_red": "[real] an unbound end with an unbound counterpart lists the engine's candidate as ONE row of its faces",
+  "mutations": [
+    {
+      "contract": "A feature nothing ranks yet still publishes the contact engine's candidates to the shell's body.",
+      "issue": "docs/issues/ISSUE_20261119_a_joint_ends_feature_body_shows_none_of_the_contact_faces_the_pane_holds.md",
+      "note": "Declared with the guard by handoff the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds (2026-11-19). Skipping every feature in the fallback loop restores the bare 'Pick a face' body the walk saw.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (out[feature.id]) continue;",
+      "replace": "    continue;"
+    }
+  ]
+}

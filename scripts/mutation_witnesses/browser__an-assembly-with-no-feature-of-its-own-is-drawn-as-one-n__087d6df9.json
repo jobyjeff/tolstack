@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
+  "expect_red": "an assembly with no feature of its own is drawn as one named outline and no box, a nested one inside it, one crossing two districts and one inside one with no note, and every part drawn once",
+  "mutations": [
+    {
+      "contract": "An assembly with no feature of its own is drawn as its outline and has no box (VA.mapOutlined), so its parts need places of their own and nothing sits in a cell it does not have.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Reads no assembly as an outline: the box-less assemblies fall back to the old rule, have no place, and the map says so -- the outline the handoff adds is gone.",
+      "file": "apps/viewer/map.js",
+      "find": "    return !!(part && part.children && part.children.length && !(part.features && part.features.length));",
+      "replace": "    return false;"
+    }
+  ]
+}

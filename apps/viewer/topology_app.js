@@ -1938,6 +1938,8 @@
       flyoutFrame.setAttribute("title", "3D annotation panel");
       flyoutFrame.addEventListener("load", function () {
         flyoutLoaded = true;
+        // A pane that (re)loaded answers nothing it was asked before.
+        bodyWrite = null;
       });
       flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
@@ -2047,6 +2049,10 @@
       }
       if (msg && msg.type === VA.SCENE_PICK_MESSAGE) {
         onScenePick(msg);
+        return;
+      }
+      if (msg && msg.type === "annotate:result") {
+        onBodyWriteResult(msg);
         return;
       }
       if (msg && msg.type === "annotate:status") {
@@ -2194,7 +2200,7 @@
       // only for a suggestion they list.
       var plan = feature ? VA.featureBodyPlan(model, fid, state.topologyId, rows, sceneTree) : null;
       VA.renderFeatureBody(slots[i], rows, { send: sceneRail, plan: plan, command: bodyCommand,
-        hoverFace: faceHoverFor(fid) });
+        hoverFace: faceHoverFor(fid), write: bodyWrite });
     }
     if (!focus) return;
     var rows = nodes.navtree.querySelectorAll(".navtree__scene [data-scene-key]");
@@ -2209,8 +2215,44 @@
 
   // A body action, posted to the pane (VA.FEATURE_BODY_VERBS). Nothing here
   // writes: the pane writes the event and posts its record back.
+  //
+  // One that writes (VA.FEATURE_BODY_WRITE_VERBS) is the page's write in
+  // flight until the pane answers it by id (onBodyWriteResult): the pressed
+  // control reads pending and every writing control is disabled meanwhile
+  // (renderBodyPlan), and a failure stays on the control that failed. The
+  // button showed it at the press already; the repaint here keeps it so.
+  var bodyWrite = null;
+  var bodyWriteCount = 0;
   function bodyCommand(cmd) {
-    postToPane(cmd);
+    if (VA.FEATURE_BODY_WRITE_VERBS.indexOf(cmd[0]) === -1) {
+      postToPane(cmd);
+      return;
+    }
+    if (bodyWrite && bodyWrite.state === VA.WRITE_PRESS_STATES[0]) return;
+    var id = "body-write-" + (++bodyWriteCount);
+    if (!postToPaneWithId(cmd, id)) return;
+    bodyWrite = { key: VA.bodyCommandKey(cmd), id: id, state: VA.WRITE_PRESS_STATES[0], reason: null };
+    renderSceneSlot();
+  }
+
+  function postToPaneWithId(command, id) {
+    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return false;
+    flyoutFrame.contentWindow.postMessage(
+      { type: "annotate:exec", id: id, command: command }, window.location.origin);
+    return true;
+  }
+
+  // The pane's answer to the page's write: done (the record it posted first
+  // has already repainted the body), or not written -- an error, or the press
+  // dropped because a write of the pane's own was running.
+  function onBodyWriteResult(msg) {
+    if (!bodyWrite || msg.id !== bodyWrite.id) return;
+    var W = VA.FEATURE_BODY_WORDS;
+    var busy = msg.ok && msg.result && msg.result.action === "busy";
+    if (msg.ok && !busy) bodyWrite = null;
+    else bodyWrite = { key: bodyWrite.key, id: bodyWrite.id, state: VA.WRITE_PRESS_STATES[1],
+      reason: busy ? W.busy : String(msg.error || W.failed) };
+    renderSceneSlot();
   }
 
   function faceHoverFor(fid) {
@@ -2239,10 +2281,16 @@
     var meshesSame = !Array.isArray(msg.installedMeshes) ||
       JSON.stringify(msg.installedMeshes) === JSON.stringify(state.installedMeshes);
     if (state.identity && msg.eventIds.length === mine.length && meshesSame) return;
+    var started = typeof performance !== "undefined" ? performance.now() : 0;
     state.identity = msg.projection;
     if (Array.isArray(msg.installedMeshes)) state.installedMeshes = msg.installedMeshes;
     state.models = VA.buildModels(state.topologies, state.identity);
     renderNav();
+    // How long the page took to take the pane's record in (the bind-latency
+    // probe and the browser tier's timing line read it; nothing else does).
+    if (typeof window !== "undefined" && started) {
+      window.__identityApplied = { events: msg.eventIds.length, ms: Math.round(performance.now() - started) };
+    }
   }
 
   // Select reveals (rule 4, 2026-11-12): once per selection change
@@ -3095,13 +3143,16 @@
     repaintDag = null;
     repaintToolbarFn = null;
     if (showDag) {
-      // Which of the grid's brackets are drawn (VA.GROUP_KINDS): the reader's
-      // own set for this topology, else every kind.
+      // Which containers the map and the grid draw (VA.GROUP_KINDS): the
+      // reader's own set for this topology, else every kind; and which of a
+      // body and an assembly the grid's outermost bracket is where both are
+      // on (VA.gridGroupKinds).
       var groupKinds = topoProj ? VA.readGroupKinds(widthStore(), topoProj.id) : null;
       var ctx = {
         // The grid's own region (VA.renderTopoPane): the map's is nodes.pane.
         gridRoot: nodes.topogrid,
         groupKinds: groupKinds,
+        gridOuter: topoProj ? VA.readGridOuter(widthStore(), topoProj.id) : null,
         topoProj: topoProj, study: showTopology ? study : null, crops: state.crops,
         // The kinematic page's lit set; a chain study's is read off `study`.
         lit: showKinematic ? VA.kinematicLitSet(kinematicStudy, topoProj) : null,
@@ -3207,11 +3258,16 @@
             document.getElementById("dag-view");
           if (menu && menu.setAttribute) menu.setAttribute("open", "");
         },
-        // One kind's checkbox: the grid repaints, nothing else on the page
-        // depends on which brackets are drawn.
+        // One kind's checkbox: the map and the grid repaint, nothing else on
+        // the page depends on which containers are drawn. A body or an
+        // assembly switched on becomes the grid's outermost bracket.
         onGroupKind: function (kind, on) {
           groupKinds[kind] = on;
           VA.writeGroupKinds(widthStore(), topoProj.id, groupKinds);
+          if (on && VA.GRID_OUTER_KINDS.indexOf(kind) >= 0) {
+            ctx.gridOuter = kind;
+            VA.writeGridOuter(widthStore(), topoProj.id, kind);
+          }
           repaintDag(false);
         },
         // Density changes how tall the rows already on screen are, not WHICH
@@ -3267,7 +3323,8 @@
       paneCtx = ctx;
       VA.renderTopoPane(nodes.pane, ctx);
       if (showTopology) {
-        VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
+        VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj),
+          function (studyId) { onNavStudy(topoProj.id, studyId); });
       }
     }
     // The right-hand pane, on every page with a model or a study: the page's

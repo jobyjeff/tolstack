@@ -364,7 +364,27 @@ export const DECLARED_GUARDS = {
   // both +1 from 601, so 603; names digest re-measured on the merge.
   // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part): +1 --
   // a pattern bound opposite is one line whose Take names the set. It carries a spec.
-  fast: { declared: 605, enrollable: 605, names: "de0f2d0d8c87" },
+  // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits): +1 -- a body press that writes reads pending in its own click.
+  // It carries a spec.
+  // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
+  // a feature with both ends unbound lists the contact candidates. It carries a spec.
+  // 2026-11-20 (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies): +2 --
+  // an assembly with no feature is one named outline over the two-body fixture,
+  // and the outline is the part's one drawing. Each carries a spec.
+  // 2026-11-20 (the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies): +4 --
+  // an assembly in two bodies bracketed once per run, each switch its own kind and the grid's
+  // outermost bracket, the assembly's bracket drawn with its fold, and the map's class per
+  // kind switched off. Each carries a spec.
+  // 2026-11-20 (a_link_is_a_machined_part_and_two_bearings_each_two_races): +1 --
+  // an assembly's dimension ends at its members' features. It carries a spec.
+  // 2026-11-20 (the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack): +1 --
+  // the map's drawn transform keeps the fit's scale. It carries a spec.
+  // 2026-11-20 (the_viewer_says_nothing_about_itself): +1 -- with no study the
+  // results pane is the "Pick a study" picker. Seven guards renamed with their
+  // rewrite (each asserted a sentence that described the page, and now asserts
+  // its absence); the picker and six of the seven carry a spec.
+  fast: { declared: 623, enrollable: 623, names: "501320e323a2" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -463,7 +483,15 @@ export const DECLARED_GUARDS = {
   // 2026-11-18 (a_bound_pattern_offers_the_whole_pattern_on_the_other_part):
   // +4 -- the opposite pattern on real v2 records: the size taken from five,
   // another diameter, 7 of 10, another solid. Each carries a spec.
-  annotate: { declared: 331, enrollable: 331, names: "5876b5af892f" },
+  // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits): +2 -- the inbox is read once per page, and a write runs once the
+  // gate opens rather than behind the queue. Each carries a spec.
+  // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
+  // an end's contact candidates as sets. It carries a spec.
+  // 2026-11-20 (the_viewer_says_nothing_about_itself): -1 -- the no-element and
+  // the scoped instruction are one empty line now, so their two checks are one,
+  // renamed. It carries a spec.
+  annotate: { declared: 333, enrollable: 333, names: "98f948721b08" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -740,7 +768,28 @@ export const DECLARED_GUARDS = {
   // -- the opposite pattern's line, head offer, hover and Take, each with a
   // spec, and the suite's `[real] ... (skipped: ...)` push, whose condition is
   // the literal `true`, so no mutation can redden it.
-  browser: { declared: 779, enrollable: 752, names: "52943eb9be94" },
+  // 2026-11-19 (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits): +3 -- the pitch plate's Keep reads pending in the frame and the
+  // others wait; it writes one event and leaves nothing pending (each with a
+  // spec); and the suite's `(skipped: ...)` push, the literal `true` again.
+  // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +4 --
+  // the first end lists the engine's candidate as one row and Take binds the set (each
+  // with a spec), and the suite's `(skipped: ...)` pushes, the literal `true`.
+  // 2026-11-20 (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies): +2 --
+  // the two-body fixture drawn on the map's page: its outlines with no note,
+  // and their names as the browser sets them. Each carries a spec.
+  // 2026-11-20 (the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies): +10 --
+  // the Groups switches on v2's page and the race-rows fixture: eight checks with a spec each;
+  // the suite's `(skipped: ...)` push, the literal `true`; and "nothing threw on the Groups
+  // page", which every one of the eight mutations leaves green and no plausible one reddens alone.
+  // Round 2 of the same handoff: +2 -- a real pointer over a hidden box or district finds nothing,
+  // and the fixture's hidden outline is not hit. Each carries a spec.
+  // 2026-11-20 (the_viewer_says_nothing_about_itself): three pushes renamed with
+  // their rewrite -- the empty Preview, an internal interface's Preview, the
+  // totals' fold -- each asserting a page-describing sentence is gone. None
+  // carried a spec before, and none is written: each is the browser twin of a
+  // fast guard that carries one.
+  browser: { declared: 800, enrollable: 771, names: "f42c4e486016" },
 };
 
 

@@ -1734,8 +1734,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.locator(seat).dispatchEvent("click");
     await page.mouse.move(4, 4);
     push("clicking an interface's connector on the map opens that interface in the preview pane",
-      /An interface is a location, not a value/
-        .test(await page.locator("#detail").textContent()));
+      /base \/ post seat/.test(await page.locator("#detail").textContent()) &&
+      /mating surface/.test(await page.locator("#detail").textContent()));
     push("the clicked connector is visibly marked — the grid has no node rows",
       await page.locator("svg.tv__map g.map__connector.map__connector--selected").count() === 1 &&
       await page.locator("tr.tvrow--selected").count() === 0);
@@ -1817,9 +1817,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       return !!at;
     };
 
-    push("with nothing selected and nothing pointed at, the Preview says so " +
-      "in one line", await previewIs("empty", "") &&
-      /Point at a part, a pin, a line or a row/.test((await preview()).body));
+    // Empty, not a sentence about pointing and clicking (it said "Point at a
+    // part, a pin, a line or a row to preview it here; click to keep it."
+    // until 2026-11-19: a page never describes itself).
+    push("with nothing selected and nothing pointed at, the Preview is empty",
+      await previewIs("empty", "") && (await preview()).body.trim() === "");
 
     // A grid row previews its edge: the crop at a legible size, the part in
     // its own words, the citation.
@@ -1865,9 +1867,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           await page.locator(".detail__previewbody div.detail__side img").count() === 1;
       })());
     await hoverMark(markFor("base@base_datum"));
-    push("an internal interface's Preview says it is internal",
-      await previewIs("hover", "node|base_datum") &&
-      /An internal interface/.test((await preview()).body));
+    push("an internal interface's Preview names its one part, and no sentence " +
+      "about the grid",
+      await previewIs("hover", "node|base_datum") && await (async () => {
+        const body = (await preview()).body;
+        return /base plate/.test(body) && !/⇔/.test(body) && !/internal interface/.test(body);
+      })());
     await hoverMark(markFor("arm@arm_tip"));
     push("an interface with no croppable side names the clearance and shows no image",
       await previewIs("hover", "node|arm_tip") && await (async () => {
@@ -2004,9 +2009,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     if (totalsAlign.drift === null || totalsAlign.drift >= 0.5) {
       console.log("    totals column drift: " + JSON.stringify(totalsAlign));
     }
-    await page.locator(".tvtotals__more summary").click();
-    push("the totals say where the numbers came from, behind the Details toggle",
-      /This page adds nothing up/.test(await page.locator("#totals").textContent()));
+    // The study's notes fold, and nothing about the page itself: the rule
+    // sentence that sat behind it went 2026-11-19 (a page never describes
+    // itself), and this study has no notes, so it has no fold.
+    push("the totals do not describe the page, and a study with no notes has no Details fold",
+      !/adds nothing up/.test(await page.locator("#totals").textContent()) &&
+      (await page.locator("#totals .tvtotals__more").count()) === 0);
 
     // Deselecting gives the walk its own table back.
     await pickModel(page, "demo_mechanism");
@@ -3104,6 +3112,262 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
   }
 }
 
+// --- the Groups switches (the_groups_switches_reach_the_map_and_the_grid_
+//     brackets_an_assembly_in_two_bodies, 2026-11-19) -------------------------
+//
+// Bodies, Assemblies and Parts, ticked in the popover on the real end-stop
+// model: each hides its own containers on the map and nothing else, no pin
+// moves a pixel, the drawn counts hold, the choice survives a reload, and a
+// choice stored before the Assemblies switch existed shows the assemblies.
+// Then the race-rows fixture (apps/viewer/tests.js's copy of its projection)
+// on the same page: its map with each switch off, and its grid with the
+// assemblies as the outermost bracket.
+async function raceRowsProjection() {
+  const source = await readFile(join(APP_DIR, "tests.js"), "utf8");
+  const literal = source.slice(source.indexOf("// BEGIN raceRowsProjection"),
+    source.indexOf("// END raceRowsProjection")).split("var RACE_ROWS_PROJECTION = ")[1];
+  return JSON.parse(literal.slice(0, literal.lastIndexOf(";")));
+}
+
+async function testGroupsSwitches(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const model = topologies && (topologies.topologies || []).find((t) => t.id === MAP_TOPOLOGY);
+  if (!model || !model.map || !model.model) {
+    push("[real] the Groups switches on the end-stop model (skipped: the topology projection with the " +
+      "map's layout is not on disk -- build it, or pass --repo <a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1700, height: 1200 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    const open = async () => {
+      await page.goto(`${url}/apps/viewer/topology.html?topology=${MAP_TOPOLOGY}`, { waitUntil: "load" });
+      await page.waitForSelector("#topopane svg.tv__map", { timeout: 30000 });
+      await page.waitForTimeout(600);
+    };
+    await open();
+    await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
+    await open();
+    // Every pin's place, each kind's containers' visibility, the counts.
+    const measure = () => page.evaluate(() => {
+      const VA = window.ViewerApp;
+      const pins = Array.from(document.querySelectorAll("#topopane g.map__pin")).map((g) => {
+        const r = g.getBoundingClientRect();
+        return g.getAttribute("data-map-id") + "@" + r.left.toFixed(2) + "," + r.top.toFixed(2);
+      });
+      const shown = (sel) => {
+        const els = Array.from(document.querySelectorAll("#topopane " + sel));
+        return els.length ? els.filter((e) => getComputedStyle(e).visibility !== "hidden").length / els.length : -1;
+      };
+      return { pins: pins.join("|"), counts: JSON.stringify(VA.mapCounts(VA.lastMapLight.geometry)),
+        shown: { bodies: [shown("rect.map__district"), shown("rect.map__districtfield"), shown("text.map__bodyname")],
+                 assemblies: [shown("rect.map__assembly, g.map__outlinegroup")],
+                 parts: [shown("rect.map__box"), shown("g.map__partname")] },
+        ticked: Array.from(document.querySelectorAll("#group-kinds input")).map((b) => b.getAttribute("data-kind") + "=" + b.checked),
+        summary: (document.querySelector("#group-kinds-toggle") || {}).textContent };
+    });
+    const setKind = async (kind, on) => {
+      if ((await page.locator("#group-kinds").getAttribute("open")) === null) {
+        await page.locator("#group-kinds-toggle").click();
+      }
+      const box = page.locator(`#group-kinds input[data-kind="${kind}"]`);
+      if ((await box.isChecked()) !== on) await box.click({ noWaitAfter: true });
+      await page.waitForTimeout(400);
+    };
+    const hidden = (m, kind) => m.shown[kind].every((v) => v === 0);
+    const visible = (m, kind) => m.shown[kind].every((v) => v === 1);
+    const KINDS = ["bodies", "assemblies", "parts"];
+    const base = await measure();
+    console.log(`      [${label}] all on: ${JSON.stringify(base.shown)}, ${base.summary}`);
+    push("[real] the popover offers three switches, Bodies, Assemblies and Parts, all on and counted",
+      base.ticked.join(",") === "bodies=true,assemblies=true,parts=true" && base.summary === "Groups (3 of 3)" &&
+      KINDS.every((k) => visible(base, k)));
+    let eachOwn = true;
+    let pinsStill = true;
+    let countsHold = true;
+    for (const kind of KINDS) {
+      await setKind(kind, false);
+      const m = await measure();
+      console.log(`      [${label}] ${kind} off: ${JSON.stringify(m.shown)}`);
+      eachOwn = eachOwn && hidden(m, kind) && KINDS.filter((k) => k !== kind).every((k) => visible(m, k));
+      pinsStill = pinsStill && m.pins === base.pins;
+      countsHold = countsHold && m.counts === base.counts;
+      await setKind(kind, true);
+    }
+    push("[real] each switch off hides exactly its own containers on the map: the districts with their " +
+      "fields and names, the assemblies' outlines, the parts' boxes and names", eachOwn);
+    for (const kind of KINDS) await setKind(kind, false);
+    const none = await measure();
+    pinsStill = pinsStill && none.pins === base.pins;
+    countsHold = countsHold && none.counts === base.counts;
+    push("[real] with any switch off, and all three, every pin is where it was to the pixel", pinsStill);
+    push("[real] with any switch off, and all three, the map's drawn counts are unchanged", countsHold);
+    await open();
+    const reloaded = await measure();
+    push("[real] the switches survive a reload, on the map and in the popover",
+      KINDS.every((k) => hidden(reloaded, k)) && reloaded.summary === "Groups (0 of 3)");
+    await page.evaluate((id) => {
+      const all = {}; all[id] = ["parts"];
+      localStorage.setItem("tolstack.viewer.groupKinds", JSON.stringify(all));
+    }, MAP_TOPOLOGY);
+    await open();
+    const old = await measure();
+    push("[real] a choice stored before the Assemblies switch existed shows the assemblies",
+      visible(old, "assemblies") && visible(old, "bodies") && hidden(old, "parts") &&
+      old.ticked.join(",") === "bodies=true,assemblies=true,parts=false");
+    await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
+
+    // A real pointer over a place a container owns, all on, and then over the
+    // same place with its kind off: SVG's `all`/`fill`/`stroke` hits take the
+    // pointer whatever the visibility, so "hidden" is read here as "the
+    // pointer finds nothing of it" -- nothing lights, nothing selects
+    // (REVIEW_20261120_the_groups_switches_...).
+    const reach = {};
+    for (const [kind, sel, layer] of [["parts", "rect.map__boxhit", "boxes"],
+      ["bodies", "rect.map__districtfield", "districts"]]) {
+      await open();
+      const at = await page.evaluate((sel) => {
+        for (const el of document.querySelectorAll("#topopane svg.tv__map " + sel)) {
+          const r = el.getBoundingClientRect();
+          for (let fx = 0.1; fx < 1; fx += 0.1) for (let fy = 0.2; fy < 1; fy += 0.2) {
+            const x = r.left + r.width * fx, y = r.top + r.height * fy;
+            // A district's field is unregistered; its body's id is on the hit beside it.
+            if (document.elementFromPoint(x, y) === el) {
+              return { x, y, id: el.getAttribute("data-map-id") ||
+                el.parentNode.querySelector("[data-map-id]").getAttribute("data-map-id") };
+            }
+          }
+        }
+        return null;
+      }, sel);
+      if (!at) { reach[kind] = { none: true }; continue; }
+      await setKind(kind, false);
+      await page.locator("#group-kinds-toggle").click();
+      await page.waitForTimeout(300);
+      await page.mouse.move(at.x, at.y);
+      await page.waitForTimeout(400);
+      const lit = (state) => page.evaluate(({ at, layer, state }) => {
+        const e = document.elementFromPoint(at.x, at.y);
+        const flagged = Array.from(document.querySelectorAll(
+          `#topopane svg.tv__map [data-map-id="${at.id}"]`))
+          .filter((n) => new RegExp(state).test(n.getAttribute("class") || "")).length;
+        const kinds = Array.from(document.querySelectorAll("#topopane svg.tv__map [data-map-kind]"))
+          .filter((n) => /--selected\b/.test(n.getAttribute("class") || ""))
+          .map((n) => n.getAttribute("data-map-kind"));
+        return { inHidden: !!(e && e.closest(".map__layer--" + layer)), flagged,
+          selectedKinds: Array.from(new Set(kinds)).sort() };
+      }, { at, layer, state });
+      const hover = await lit("--(hot|lead)\\b");
+      await page.mouse.down();
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+      const click = await lit("--selected\\b");
+      reach[kind] = { id: at.id, hover, click };
+      await page.mouse.move(2, 2);
+      await setKind(kind, true);
+    }
+    console.log(`      [${label}] a pointer over a hidden container: ${JSON.stringify(reach)}`);
+    // Under a hidden box is its body's drawn district, so that click may
+    // select the body (whose own light marks its parts); it never selects
+    // the part alone. Under a hidden district with no box is nothing at all.
+    const r = (k) => reach[k] && reach[k].id ? reach[k] : null;
+    push("[real] a real pointer over a hidden part's box or a hidden body's district finds nothing there: " +
+      "it lights neither and a click selects neither",
+      r("parts") && r("bodies") && ["parts", "bodies"].every((k) => !reach[k].hover.inHidden &&
+        reach[k].hover.flagged === 0) &&
+      (reach.parts.click.flagged === 0 || reach.parts.click.selectedKinds.includes("body")) &&
+      reach.bodies.click.flagged === 0 && reach.bodies.click.selectedKinds.length === 0);
+    await page.evaluate(() => localStorage.removeItem("tolstack.viewer.groupKinds"));
+
+    // The fixture, drawn on this page in this stylesheet and taken away.
+    const fixture = await page.evaluate((proj) => {
+      const VA = window.ViewerApp;
+      const keep = VA.lastMapLight;
+      const mapHost = document.createElement("div");
+      const gridHost = document.createElement("div");
+      mapHost.style.cssText = "position:fixed;left:0;top:0;width:1600px;height:420px;z-index:50;background:var(--bg)";
+      gridHost.style.cssText = "position:fixed;left:0;top:430px;width:1100px;height:400px;z-index:50;background:var(--bg);overflow:auto";
+      document.body.appendChild(mapHost);
+      document.body.appendChild(gridHost);
+      const paint = (kinds, outer) => VA.renderTopoPane(mapHost, { topoProj: proj, gridRoot: gridHost,
+        groupKinds: kinds, gridOuter: outer, study: null, crops: null, onSelect() {}, onToggleAssembly() {} });
+      const pins = () => Array.from(mapHost.querySelectorAll("g.map__pin")).map((g) => {
+        const r = g.getBoundingClientRect();
+        return r.left.toFixed(2) + "," + r.top.toFixed(2);
+      }).join("|");
+      const shown = (sel) => Array.from(mapHost.querySelectorAll(sel))
+        .filter((e) => getComputedStyle(e).visibility !== "hidden").length;
+      const all = { bodies: true, assemblies: true, parts: true };
+      paint(all, "assemblies");
+      const out = { basePins: pins(), districts: shown("rect.map__district"), outlines: shown("g.map__outlinegroup"),
+        boxes: shown("rect.map__box"), off: {} };
+      // A place an outline's hit owns, all on: the pointer's own hit test.
+      const owned = (() => {
+        for (const el of mapHost.querySelectorAll("rect.map__outlinehit")) {
+          const r = el.getBoundingClientRect();
+          for (const [x, y] of [[r.left + r.width / 2, r.top + 1], [r.left + 1, r.top + r.height / 2],
+            [r.left + r.width / 2, r.bottom - 1], [r.right - 1, r.top + r.height / 2]]) {
+            if (document.elementFromPoint(x, y) === el) return { x, y };
+          }
+        }
+        return null;
+      })();
+      const grid = {
+        bodies: gridHost.querySelectorAll(".tvbrace--body.tvbrace--top").length,
+        assemblyRuns: Array.from(gridHost.querySelectorAll(".tvbrace--assembly.tvbrace--top"))
+          .map((n) => n.getAttribute("data-brace-entity")).sort(),
+        names: Array.from(gridHost.querySelectorAll(".tvbrace__label--assembly")).map((n) => n.textContent),
+        clipped: Array.from(gridHost.querySelectorAll(".tvbrace__label")).some((n) => n.scrollWidth > n.clientWidth + 1),
+      };
+      ["bodies", "assemblies", "parts"].forEach((k) => {
+        const kinds = Object.assign({}, all);
+        kinds[k] = false;
+        paint(kinds, "assemblies");
+        out.off[k] = { pins: pins() === out.basePins, districts: shown("rect.map__district"),
+          outlines: shown("g.map__outlinegroup"), boxes: shown("rect.map__box") };
+        if (k === "assemblies") {
+          const e = owned && document.elementFromPoint(owned.x, owned.y);
+          out.outlineOwned = !!owned;
+          out.outlineReached = !!(e && e.closest(".map__layer--assemblies"));
+        }
+      });
+      VA.releaseMap(mapHost);
+      mapHost.remove();
+      gridHost.remove();
+      VA.lastMapLight = keep;
+      return { map: out, grid };
+    }, await raceRowsProjection());
+    console.log(`      [${label}] the race-rows fixture: ${JSON.stringify(fixture)}`);
+    const f = fixture.map;
+    push("the fixture's map: each switch off hides its own containers, a bearing's outline across two " +
+      "districts among them, and leaves every pin where it was",
+      f.districts === 3 && f.outlines === 4 && f.boxes > 0 &&
+      f.off.bodies.pins && f.off.bodies.districts === 0 && f.off.bodies.outlines === 4 && f.off.bodies.boxes === f.boxes &&
+      f.off.assemblies.pins && f.off.assemblies.outlines === 0 && f.off.assemblies.districts === 3 &&
+      f.off.parts.pins && f.off.parts.boxes === 0 && f.off.parts.outlines === 4);
+    push("the fixture's map: with Assemblies off, the pointer's hit test finds nothing of an outline " +
+      "at a place its hit owned with all on", f.outlineOwned && !f.outlineReached);
+    push("the fixture's grid with the assemblies outermost: no body bracket, the link assembly one " +
+      "bracket under its name, each bearing once per race, and no bracket's name clipped",
+      fixture.grid.bodies === 0 &&
+      JSON.stringify(fixture.grid.assemblyRuns) ===
+        JSON.stringify(["base_asm", "bearing_a", "bearing_a", "bearing_b", "bearing_b", "link_asm"]) &&
+      JSON.stringify(fixture.grid.names) === JSON.stringify(["100-000", "200-001"]) && !fixture.grid.clipped);
+    push("[real] nothing threw on the Groups page", errors.length === 0);
+    if (errors.length) console.log(`      [${label}] errors: ${errors.join(" | ").slice(0, 600)}`);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 // --- the map (the_map_draws_the_end_stop_model, 2026-11-16) -----------------
 //
 // The DAG region's one drawing of the model (apps/viewer/map.js,
@@ -3114,6 +3378,19 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
 // zooms and pans in its region. v1, which has no layout file, draws its map
 // from the computed places.
 const MAP_TOPOLOGY = "vpa_end_stop_v2";
+// The two-body fixture's model view, read from the fast tier's own copy
+// (apps/viewer/tests.js, between its markers; tests/test_topology_map.py holds
+// it equal to model_view() over tests/fixtures/topology_assembly_in_two_bodies.json),
+// and the row its fast checks lay it out in.
+const TWO_BODY_PLACES = { base: [0, 0], spacer: [0, 1], inner_a: [1, 0], outer_a: [2, 0],
+  link_body: [3, 0], outer_b: [4, 0], inner_b: [5, 0], arm: [6, 0] };
+async function twoBodyModel() {
+  const source = await readFile(join(APP_DIR, "tests.js"), "utf8");
+  const start = source.indexOf("// BEGIN twoBodyModel");
+  const end = source.indexOf("// END twoBodyModel");
+  const literal = source.slice(start, end).split("var TWO_BODY_MODEL = ")[1];
+  return JSON.parse(literal.slice(0, literal.lastIndexOf(";")));
+}
 // A hub feature with a standing binding in the served log (face 144 of the
 // hub's mesh, the pilot gap's from-end), so the scene has a face to pick.
 const MAP_BOUND_FEATURE = "hub@hub_spindle_bore_axis";
@@ -3270,8 +3547,10 @@ async function testTheMap(browser, label, topologies) {
       const svg = document.querySelector("#topopane svg.tv__map");
       const ids = (sel) => Array.from(svg.querySelectorAll(sel)).map((n) => n.getAttribute("data-map-id"));
       const once = (list) => new Set(list).size === list.length;
-      const districts = ids("rect.map__district"), boxes = ids("rect.map__box"), pins = ids("g.map__pin"),
-        jumpers = ids("g.map__jumper"), connectors = ids("g.map__connector");
+      // A part is its box, or -- an assembly with no feature of its own (v2's
+      // links and bearings since 2026-11-19) -- its outline.
+      const districts = ids("rect.map__district"), boxes = ids("rect.map__box").concat(ids("rect.map__outline")),
+        pins = ids("g.map__pin"), jumpers = ids("g.map__jumper"), connectors = ids("g.map__connector");
       return { drawn: { bodies: districts.length, parts: boxes.length, features: pins.length,
         dimensions: jumpers.length, interfaces: connectors.length },
         once: [districts, boxes, pins, jumpers, connectors].every(once),
@@ -3345,12 +3624,37 @@ async function testTheMap(browser, label, topologies) {
       sceneReady && stillMap);
 
     // --- 5. hover, map -> tree, grid, scene -----------------------------------
+    // The pane runs the page's commands one at a time, in arrival order
+    // (AA.ExecQueue), and opening the model -- `isolate parts`, which opens
+    // the rest of the mesh store as faint context too -- is one entry that
+    // outlasts "a part is open" by tens of seconds on a busy box: a hover's
+    // light posted before it is answered is drawn after it, and a 5s wait
+    // read `pane null` (2026-11-18, the_map_pin_hover_lights_its_bound_face_
+    // in_the_scene). So the pane is settled when a command posted now, behind
+    // everything the page has posted, is answered -- and the wait below
+    // times the light alone.
+    const settledAt = Date.now();
+    const paneSettled = await page.evaluate((timeout) => new Promise((resolve) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      if (!w) { resolve(false); return; }
+      const id = "map-pane-settled-" + Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => { window.removeEventListener("message", on); resolve(false); }, timeout);
+      function on(e) {
+        if (!e.data || e.data.type !== "annotate:result" || e.data.id !== id) return;
+        clearTimeout(timer);
+        window.removeEventListener("message", on);
+        resolve(true);
+      }
+      window.addEventListener("message", on);
+      w.postMessage({ type: "annotate:exec", id, command: ["scene-view"] }, window.location.origin);
+    }), 180000);
+    const settledMs = Date.now() - settledAt;
     await hoverMap("feature", MAP_BOUND_FEATURE);
     let s = await surfaces();
     // The scene's light arrives by message; wait for a hover layer.
     await untilPane((w) => w.__lastLight && w.__lastLight.layers.some((l) => l.role === "hover"), null, 5000);
     s = await surfaces();
-    console.log(`      [${label}] pin hovered: tree hot ${JSON.stringify(s.treeHot)} holds ${JSON.stringify(s.treeHolds)}, grid hot ${JSON.stringify(s.gridHot)}, ` +
+    console.log(`      [${label}] pane settled ${paneSettled} after ${settledMs}ms; pin hovered: tree hot ${JSON.stringify(s.treeHot)} holds ${JSON.stringify(s.treeHolds)}, grid hot ${JSON.stringify(s.gridHot)}, ` +
       `map lead ${JSON.stringify(s.mapLead)}, pane ${JSON.stringify(s.paneLayers)}`);
     const dimsAtBoss = model.model.dimensions.filter((d) => d.from === MAP_BOUND_FEATURE || d.to === MAP_BOUND_FEATURE).map((d) => d.id);
     push("[real] a pin hovered on the map lights its feature's row in the tree (or the closed fold " +
@@ -3699,6 +4003,55 @@ async function testTheMap(browser, label, topologies) {
     push("[real] side by side again, the map is back in its region",
       await page.evaluate(() => document.querySelectorAll("#topopane svg.tv__map").length === 1 &&
         getComputedStyle(document.getElementById("topopane")).display !== "none"));
+
+    // --- 14. an assembly drawn as an outline (2026-11-19) ---------------------
+    // No committed model has one yet, so the two-body fixture is drawn on this
+    // page, in this stylesheet, beside the real map and then taken away: the
+    // names are measured as the browser sets them, which the fast tier's
+    // estimate of a glyph cannot do.
+    const outlined = await page.evaluate(({ model, places }) => {
+      const VA = window.ViewerApp;
+      const keep = VA.lastMapLight;
+      const host = document.createElement("div");
+      host.style.cssText = "position:fixed;left:0;top:0;width:1600px;height:420px;z-index:50;background:var(--bg)";
+      document.body.appendChild(host);
+      VA.renderTopoMap(host, { topoProj: { model, map: { schema: "joby.tolerance_stack/topology_map/v0",
+        topology: model.id, places } }, model: null });
+      const geo = VA.lastMapLight.geometry;
+      const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
+      const meet = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+      const ids = (sel) => Array.from(host.querySelectorAll(sel)).map((n) => n.getAttribute("data-map-id"));
+      const names = Array.from(host.querySelectorAll("text.map__outlinename")).map(rect);
+      const others = Array.from(host.querySelectorAll("text.map__bodyname, g.map__partname text, rect.map__box")).map(rect);
+      const first = host.querySelector("text.map__outlinename");
+      const district = host.querySelector("text.map__bodyname");
+      const out = {
+        notes: geo.notes,
+        outlines: ids("rect.map__outline").sort(),
+        named: ids("text.map__outlinename").sort(),
+        parts: ids("rect.map__box").concat(ids("rect.map__outline")).sort(),
+        expected: model.parts.map((p) => p.id).sort(),
+        clash: names.some((n, i) => others.some((o) => meet(n, o)) || names.some((m, j) => j !== i && meet(n, m))),
+        type: first && district ? [getComputedStyle(first).fontStyle, getComputedStyle(first).fontWeight,
+          getComputedStyle(district).fontStyle, getComputedStyle(district).fontWeight] : null,
+      };
+      VA.releaseMap(host);
+      host.remove();
+      VA.lastMapLight = keep;
+      return out;
+    }, { model: await twoBodyModel(), places: TWO_BODY_PLACES });
+    console.log(`      [${label}] the two-body fixture: outlines ${JSON.stringify(outlined.outlines)}, ` +
+      `notes ${JSON.stringify(outlined.notes)}, name type ${JSON.stringify(outlined.type)}`);
+    push("an assembly with no feature of its own is drawn as one named outline and no box, a nested one " +
+      "inside it, one crossing two districts and one inside one with no note, and every part drawn once",
+      outlined.notes.length === 0 &&
+      JSON.stringify(outlined.outlines) === JSON.stringify(["base_asm", "bearing_a", "bearing_b", "link_asm"]) &&
+      JSON.stringify(outlined.named) === JSON.stringify(outlined.outlines) &&
+      JSON.stringify(outlined.parts) === JSON.stringify(outlined.expected));
+    push("an outline's name, as the browser sets it, meets no district's name, no part's name or box and " +
+      "no other outline's name, and is told from a district's by type",
+      !outlined.clash && !!outlined.type && outlined.type[0] === "italic" && outlined.type[2] === "normal" &&
+      Number(outlined.type[1]) < Number(outlined.type[3]));
 
     push("[real] nothing threw on the map's page", errors.length === 0);
     if (errors.length) console.log(`      [${label}] errors: ${errors.join(" | ").slice(0, 600)}`);
@@ -4267,9 +4620,9 @@ async function testDagZoom(browser, fileBase, label, realProjection, realCrops) 
     console.log(`      groups: ${JSON.stringify([groupsBoth, noBodies, noParts])}`);
     push("[real] each Groups checkbox hides exactly its own kind's brackets in the grid, the map " +
       "is drawn as before, and the popover stays open while it is ticked",
-      groupsBoth.button === "Groups (2 of 2)" && groupsBoth.bodies > 0 && groupsBoth.parts > 0 &&
+      groupsBoth.button === "Groups (3 of 3)" && groupsBoth.bodies > 0 && groupsBoth.parts > 0 &&
       noBodies.bodies === 0 && noBodies.parts === groupsBoth.parts &&
-      noParts.parts === 0 && noParts.button === "Groups (0 of 2)" &&
+      noParts.parts === 0 && noParts.button === "Groups (1 of 3)" &&
       noParts.map === groupsBoth.map &&
       await page.locator("#group-kinds").getAttribute("open") !== null);
     await tick("bodies"); await tick("parts");
@@ -10886,6 +11239,274 @@ async function testSuggestionNamesItsFace(browser, label, topologies) {
   }
 }
 
+// The first end of a joint offers the contact faces (handoff the_first_end_of_
+// a_joint_offers_the_contact_faces_the_pane_already_holds, 2026-11-19), on
+// model v2 with the real served log, the real contact suggestions and the real
+// meshes -- writes go to the pane's in-memory store, never to the folder. The
+// blade root's locating boss, with neither end of its gap edge bound, lists
+// the engine's candidate as ONE row of its faces, and Take binds them all.
+// The edge and its faces are read off the served data: an edge the engine has
+// no candidate for says so, by name, and the check passes as skipped.
+async function testFirstEndOffersContactFaces(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V2 = "vpa_end_stop_v2";
+  const EDGE = "blade_root_boss_in_pitch_arm_bore";
+  const v2 = topologies && (topologies.topologies || []).find((t) => t.id === V2);
+  const contact = await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
+    "contact_suggestions.json"), "utf8").then(JSON.parse, () => null);
+  const edge = v2 && (v2.edges || []).find((e) => e.id === EDGE);
+  const row = contact && ((contact.topologies || []).find((t) => t.id === V2) || { edges: [] })
+    .edges.find((r) => r.edge === EDGE);
+  const feature = edge && ((v2.model && v2.model.features) || []).find((f) => f.node === edge.from);
+  const candidate = row && row.status === "ok" && (row.candidates || [])
+    .slice().sort((a, b) => a.rank - b.rank)[0];
+  if (!v2 || !edge || !feature || !candidate) {
+    push("[real] the first end of a joint lists the contact faces as one row (skipped: model v2, " +
+      `the edge ${EDGE} or a contact candidate for it is not on disk -- build them, or pass --repo <main checkout>)`, true);
+    return reportSuite(label, checks, errors);
+  }
+  const fid = feature.id;
+  const want = (candidate.from.faces || []).slice().sort((a, b) => a - b);
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const expand = async (key) => {
+    const sel = `#navtree [data-nav-twisty="${key}"]`;
+    const isOpen = (s) => { const t = document.querySelector(s); return !!t && t.getAttribute("aria-expanded") === "true"; };
+    await page.waitForSelector(sel, { state: "attached", timeout: 30000 }).catch(() =>
+      console.log(`    MISSING: the twisty ${key} is not in the tree`));
+    for (let i = 0; i < 5; i++) {
+      if (await page.evaluate(isOpen, sel)) return;
+      await page.evaluate((s) => { const t = document.querySelector(s); if (t) t.click(); }, sel);
+      await page.waitForFunction(isOpen, sel, { timeout: 3000 }).catch(() => {});
+    }
+  };
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V2, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    const treeUp = await until((w) => !!w.__embedTree, null, 120000);
+    if (!treeUp) console.log("    MISSING: the pane's embedded tree");
+    await expand(`p:${fid.split("@")[0]}`);
+    await expand(`f:${fid}`);
+    const slot = page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`)
+      .locator("xpath=..").locator(".navtree__scene").first();
+    const kind = await slot.locator(".navtree__featurebody").first().getAttribute("data-body-kind", { timeout: 15000 })
+      .catch(() => null);
+    if (kind === "bound") {
+      push("[real] the first end of a joint lists the contact faces as one row (skipped: " +
+        `${fid} is already bound in the served log, so it is no first end)`, true);
+      return reportSuite(label, checks, errors);
+    }
+    const line = slot.locator(".navtree__featurestate[data-face]").first();
+    await line.waitFor({ timeout: 30000 }).catch(() =>
+      console.log(`    MISSING: a candidate line under ${fid}`));
+    // The tree repaints as the pane settles: read the line until it has its words.
+    let text = "";
+    for (let i = 0; i < 10 && !/d/.test(text); i++) {
+      text = await slot.locator(".navtree__featurestate[data-face] .navtree__featurewords").first()
+        .textContent({ timeout: 2000 }).catch(() => "");
+      if (!/d/.test(text)) await page.waitForTimeout(500);
+    }
+    const lines = await slot.locator(".navtree__featurestate").count().catch(() => -1);
+    const published = await inPane((w, f) => {
+      const m = w.__embedTree && w.__embedTree.mates && w.__embedTree.mates[f];
+      return m && m.rows[0] ? { faces: (m.rows[0].faces || [m.rows[0].faceId]).slice().sort((a, b) => a - b),
+        edge: m.rows[0].edgeId, direction: m.rows[0].direction } : null;
+    }, fid);
+    console.log(`    features the pane publishes rows for: ${await inPane((w) => Object.keys((w.__embedTree.mates) || {}).length)} of ${((v2.model && v2.model.features) || []).length}`);
+    console.log(`    ${fid}: ${lines} line(s), first "${String(text).trim().slice(0, 60)}", published ${JSON.stringify(published)}, want ${JSON.stringify(want)}`);
+    push("[real] an unbound end with an unbound counterpart lists the engine's candidate as ONE row of its faces",
+      !!published && JSON.stringify(published.faces) === JSON.stringify(want) &&
+      published.edge === EDGE && lines >= 2 && (want.length < 2 || /^\s*\d+ faces/.test(text)));
+    // TOLSTACK_SHOTS=<dir> keeps the body before and after the Take (the lesson's shots).
+    const shot = async (name) => { if (process.env.TOLSTACK_SHOTS) await slot.screenshot({ path: join(process.env.TOLSTACK_SHOTS, name) }).catch(() => {}); };
+    await shot("01_candidates_listed.png");
+    const before = await inPane((w) => (w.__mockWrites || []).length);
+    await slot.locator("button", { hasText: "Take" }).first().click({ timeout: 10000 }).catch(() =>
+      console.log("    MISSING: the Take button on the candidate line"));
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 30000);
+    await page.waitForTimeout(500);
+    const written = (await inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({
+      verdict: x.event.verdict,
+      faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id).sort((a, b) => a - b) })),
+    before)) || [];
+    await shot("02_after_take.png");
+    console.log("    NOTICE " + JSON.stringify(await inPane((w) => { const n = w.document.querySelector(".an__notice"); return n ? n.textContent : null; })));
+    console.log(`    Take wrote ${JSON.stringify(written)}`);
+    push("[real] ...and Take on that row writes the whole set as one bind",
+      written.length === 1 && written[0].verdict === "bound" &&
+      JSON.stringify(written[0].faces) === JSON.stringify(want));
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
+// A press that writes says so at once (handoff a_bind_on_the_pitch_plate_
+// writes_in_seconds_and_says_so_while_it_waits, 2026-11-19), on model v1 with
+// the real served log and the real meshes -- writes go to the pane's
+// in-memory store, never to the folder. The pitch plate's link bore holds two
+// sets that disagree (Jeff's events 0093-0100); Keep on "faces 1380, 1381"
+// reads pending in the frame of the press, writes one event, and the body
+// reads bound. The press -> event and press -> body times are PRINTED, never
+// asserted: this tier runs under load (the per-step table is the probe's,
+// tests/debug_bind_latency_20261119.mjs, on a scratch copy of the folder).
+async function testAPressThatWritesSaysSo(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V1 = "vpa_pitch_linkage";
+  const BORE = "pitch_plate_215177_001@pitch_plate_link_attach_bore";
+  const servedLog = await readProjection("feature-identity/log.json");
+  const events = (servedLog && servedLog.events) || [];
+  const faceKeys = (e) => (e.geometry_keys || (e.geometry_key ? [e.geometry_key] : []));
+  const boreSets = new Set(events.filter((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === "pitch_plate_215177_001" && e.feature_key.node === "pitch_plate_link_attach_bore")
+    .map((e) => faceKeys(e).map((k) => k.face_id).sort((a, b) => a - b).join(",")));
+  const v1 = topologies && (topologies.topologies || []).find((t) => t.id === V1);
+  if (!v1 || !boreSets.has("1380,1381") || boreSets.size < 2) {
+    push("[real] a press that writes says so at once (skipped: model v1, or the pitch plate bore's " +
+      "two disagreeing sets in the served log, is not on disk -- build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real" });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // A twisty is clicked until the page reports it expanded (a repaint can
+  // replace the node a click found); an absent one is printed, never thrown.
+  const expand = async (key) => {
+    const sel = `#navtree [data-nav-twisty="${key}"]`;
+    const isOpen = (s) => { const t = document.querySelector(s); return !!t && t.getAttribute("aria-expanded") === "true"; };
+    if (!(await page.locator(sel).count())) return;
+    for (let i = 0; i < 5; i++) {
+      if (await page.evaluate(isOpen, sel)) return;
+      await page.evaluate((s) => { const t = document.querySelector(s); if (t) t.click(); }, sel);
+      await page.waitForFunction(isOpen, sel, { timeout: 3000 }).catch(() => {});
+    }
+  };
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + V1, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    if (!(await until((w) => !!w.__embedTree, null, 120000))) console.log("    MISSING: the pane's embedded tree");
+    for (const key of ["bi:pitch_plate", "p:pitch_plate_215177_001", `f:${BORE}`]) await expand(key);
+    const disagree = await page.waitForFunction((id) => {
+      const row = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+      return !!(row && row.parentElement.querySelector('.navtree__featurebody[data-body-kind="disagree"]'));
+    }, BORE, { timeout: 30000 }).then(() => true, () => false);
+    if (!disagree) console.log("    MISSING: the bore's body reading its two sets disagreeing");
+    const before = (await inPane((w) => (w.__mockWrites || []).length)) || 0;
+    // Pressed in the page, and read one frame later: the frame a reader sees.
+    const atOnce = await page.evaluate(async (id) => {
+      const row = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+      const slot = row && row.parentElement.querySelector(".navtree__scene");
+      const line = slot && Array.from(slot.querySelectorAll(".navtree__featurestate"))
+        .find((l) => (l.querySelector(".navtree__featurewords") || {}).textContent === "faces 1380, 1381");
+      const acts = line && line.nextElementSibling;
+      const keep = acts && Array.from(acts.querySelectorAll("button")).find((b) => b.textContent === "Keep");
+      if (!keep) return null;
+      keep.click();
+      window.__pressT0 = performance.now();
+      window.__bodyAt = null;
+      // The nav is rebuilt whole when the record lands, so the row is found
+      // again on every change rather than held.
+      const obs = new MutationObserver(() => {
+        const r = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+        const body = r && r.parentElement.querySelector(".navtree__scene .navtree__featurebody");
+        if (window.__bodyAt === null && body && body.getAttribute("data-body-kind") === "bound") {
+          window.__bodyAt = performance.now();
+          obs.disconnect();
+        }
+      });
+      obs.observe(document.getElementById("navtree"), { subtree: true, childList: true, attributes: true });
+      await new Promise((r) => requestAnimationFrame(() => r()));
+      const now = slot.querySelector("[data-pending]") || keep;
+      return { text: now.textContent, disabled: !!now.disabled, pending: now.getAttribute("data-pending"),
+        others: Array.from(slot.querySelectorAll('button[data-body-act="keep"], button[data-body-act="unbind"]'))
+          .filter((b) => b !== now).map((b) => !!b.disabled) };
+    }, BORE);
+    console.log(`    one frame after Keep: ${JSON.stringify(atOnce)}`);
+    push("[real] Keep on the pitch plate's link bore reads writing and is disabled in the frame of the " +
+      "press, and the other writing controls wait",
+      !!atOnce && atOnce.text === "writing…" && atOnce.disabled && atOnce.pending === "writing" &&
+      atOnce.others.length > 0 && atOnce.others.every(Boolean));
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 120000);
+    const wroteAt = await page.evaluate(() => performance.now() - window.__pressT0);
+    await page.waitForFunction(() => window.__bodyAt !== null, null, { timeout: 60000 }).catch(() => {});
+    const timing = await page.evaluate(() => ({ body: window.__bodyAt === null ? null : Math.round(window.__bodyAt - window.__pressT0) }));
+    const written = (await inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({ verdict: x.event.verdict,
+      faces: (x.event.geometry_keys || [x.event.geometry_key]).map((k) => k && k.face_id) })), before)) || [];
+    const steps = await inPane((w) => w.__writeSteps || null);
+    console.log(`    TIMING pitch plate Keep: press -> event ${Math.round(wroteAt)} ms, press -> body ` +
+      `${timing.body} ms (in-memory store; printed, not asserted); steps ${JSON.stringify(steps && steps.steps)}`);
+    const body = await page.evaluate((id) => {
+      const row = document.querySelector(`#navtree [data-nav-kind="feature"][data-nav-id="${id}"]`);
+      const slot = row && row.parentElement.querySelector(".navtree__scene");
+      return slot ? { kind: (slot.querySelector(".navtree__featurebody") || { getAttribute: () => null }).getAttribute("data-body-kind"),
+        pending: slot.querySelectorAll("[data-pending]").length + slot.querySelectorAll("button:disabled").length } : null;
+    }, BORE);
+    push("[real] ...it writes one event holding faces 1380 and 1381, the body then reads bound, and " +
+      "nothing is left pending",
+      written.length === 1 && written[0].verdict === "bound" &&
+      JSON.stringify(written[0].faces.slice().sort((a, b) => a - b)) === "[1380,1381]" &&
+      !!body && body.kind === "bound" && body.pending === 0 && timing.body !== null);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
 // A pattern is bound as its like faces, and a face can be added (handoff
 // a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added, 2026-11-15),
 // on model v2 with the real served log and the real meshes -- writes go to
@@ -10982,11 +11603,24 @@ async function testPatternAndAddAFace(browser, label, topologies) {
       .then(Number).catch(() => NaN);
     // The fold's answer, read off every feature row's mark with every part open.
     const openAll = async () => {
-      for (let i = 0; i < 4; i++) {
-        const closed = page.locator('#navtree [data-nav-twisty^="p:"][aria-expanded="false"]');
-        const n = await closed.count();
-        if (!n) return;
-        for (let k = n - 1; k >= 0; k--) await closed.nth(k).click({ timeout: 2000 }).catch(() => {});
+      // Every fold opened can draw more: v2's links since 2026-11-19 nest two
+      // levels (assembly, bearing, race), and each also under Parts.
+      // A part listed twice (a race under its body and in its link assembly
+      // under Parts) shares one fold key, so each closed key is clicked once.
+      for (let i = 0; i < 10; i++) {
+        const keys = await page.evaluate(() => Array.from(new Set(Array.from(document.querySelectorAll(
+          '#navtree [data-nav-twisty^="p:"][aria-expanded="false"]')).map((b) => b.getAttribute("data-nav-twisty")))));
+        if (!keys.length) return;
+        // Dispatched in the page: a fold is a plain button, and Playwright's
+        // scroll-into-view stalls on the rows below a long nav's fold.
+        await page.evaluate(async (keys) => {
+          for (const key of keys) {
+            const b = document.querySelector(`#navtree [data-nav-twisty="${key}"][aria-expanded="false"]`);
+            if (b) b.click();
+            await new Promise((ok) => setTimeout(ok, 50));
+          }
+        }, keys).catch(() => {});
+        await page.waitForTimeout(300);
       }
     };
     const rowsNotBound = () => page.evaluate(() => Array.from(document.querySelectorAll('#navtree [data-nav-kind="feature"]'))
@@ -11198,13 +11832,17 @@ async function testOppositePattern(browser, label, topologies) {
     await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
     await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
     await until((w) => !!w.__embedTree, null, 120000);
-    if (!(await page.locator(row).count())) {
-      await page.locator('#navtree [data-nav-twisty="p:tan_link_mount_215175_002"]').first().click({ timeout: 5000 }).catch(() => {});
-    }
-    const twisty = page.locator(`#navtree [data-nav-twisty="f:${FID}"]`).first();
-    if (await twisty.count() && (await twisty.getAttribute("aria-expanded")) !== "true") {
-      await twisty.click({ timeout: 5000 }).catch(() => {});
-    }
+    // The two folds are clicked in the page: Playwright's scroll-into-view
+    // stalled on the nav while the pane opened v2's meshes (2026-11-20,
+    // a_link_is_a_machined_part_...), and a stalled click left the body unopened.
+    const openFold = (key) => page.evaluate((key) => {
+      const b = document.querySelector(`#navtree [data-nav-twisty="${key}"]`);
+      if (b && b.getAttribute("aria-expanded") !== "true") b.click();
+      return !!b;
+    }, key).catch(() => false);
+    if (!(await page.locator(row).count())) await openFold("p:tan_link_mount_215175_002");
+    await page.waitForSelector(row, { timeout: 30000 }).catch(() => {});
+    await openFold(`f:${FID}`);
     await patternLine().waitFor({ timeout: 180000 }).catch(() => {});
     const body = await slot().locator(".navtree__featurestate").evaluateAll((rows) => rows.map((r) => ({
       words: (r.querySelector(".navtree__featurewords") || {}).textContent || "",
@@ -13725,7 +14363,20 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       '#sweep-tree [data-group="bodies"] [data-body]')).map((n) => ({ id: n.dataset.body,
       parts: n.querySelectorAll(":scope > .an__tree-parts > .part-row").length,
     })));
-    const declared = (model.bodies || []).map((b) => ({ id: b.id, parts: (b.parts || []).length }));
+    // A part the run lists for a body that the model puts in NO body (a link
+    // assembly and its bearing, whose races sit in two bodies since
+    // 2026-11-19) is still listed: its mesh is what the run poses.
+    const runParts = await inPane((w) => {
+      const a = w.__sweep && w.__sweep.artifact;
+      const out = {};
+      ((a && a.bodies) || []).forEach((b) => { out[b.name] = b.parts || []; });
+      ((a && a.links) || []).forEach((l) => { out[l.joint] = l.parts || []; });
+      return out;
+    });
+    const inABody = (pid) => (model.bodies || []).some((b) => (b.parts || []).indexOf(pid) !== -1);
+    const declared = (model.bodies || []).map((b) => ({ id: b.id, parts: (b.parts || []).length +
+      ((runParts && runParts[b.id]) || []).filter((pid) => !inABody(pid) &&
+        (model.parts || []).some((q) => q.id === pid)).length }));
     const railIds = (bodiesRail || []).map((b) => b.id);
     const ordered = railIds.filter((id) => declared.some((d) => d.id === id));
     console.log(`      [${label}] Bodies list: ${JSON.stringify(bodiesRail && bodiesRail.map((b) => [b.id, b.parts]))}; ` +
@@ -13765,8 +14416,21 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
         (r.state === "carried" && mesh && r.sha === mesh.sha256 &&
           (!part.occurrence || r.keys.indexOf(part.occurrence) !== -1))));
     };
+    // A part drawn by its parent's mesh (an inner race, a solid of its
+    // bearing's mesh since 2026-11-19) is posed where that mesh is: with the
+    // link the run carries the bearing in. ISSUE_20261120_an_assembly_in_no_body_
+    // is_listed_twice_in_the_nav_and_posed_by_nothing_in_3d.md.
+    const inParentsMesh = (partId) => {
+      const part = (model.parts || []).find((p) => p.id === partId) || {};
+      const mine = meshOf(partId), theirs = part.parent ? meshOf(part.parent) : null;
+      return !!(mine && theirs && mine.sha256 === theirs.sha256);
+    };
+    // A part with no installed mesh draws nothing to pose (since 2026-11-20
+    // the tangential link's bolt, NAS6403U14D, which data/meshes/ lacks).
+    const meshless = (partId) => !meshOf(partId);
     const unposed = (model.bodies || []).filter((b) => b.kind !== "link")
-      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p)).map((p) => b.id + "/" + p));
+      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p) && !inParentsMesh(p) && !meshless(p))
+        .map((p) => b.id + "/" + p));
     console.log(`      [${label}] P2: parts of the model's bodies not posed with their body: ` +
       `${unposed.join(", ") || "-"}`);
     if (unposed.length) {
@@ -14018,6 +14682,15 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       boundTokens = new Set((ident.features || []).filter((r) => r.state === "bound")
         .map((r) => [r.feature_key.topology_id, r.feature_key.part, r.feature_key.node].join("|")));
     } catch { boundTokens = null; }
+    // The meshes a feature's bound faces are on, by its identity token.
+    let boundShas = new Map();
+    try {
+      const ident = JSON.parse(await readFile(join(DATA_REPO, "data", "projections", "feature-identity",
+        "bindings.json"), "utf8"));
+      (ident.features || []).filter((r) => r.state === "bound").forEach((r) => boundShas.set(
+        [r.feature_key.topology_id, r.feature_key.part, r.feature_key.node].join("|"),
+        uniq((r.faces || []).map((g) => g.source_step_sha256))));
+    } catch { boundShas = new Map(); }
     const featureBound = (fid) => {
       const f = (view.features || []).find((x) => x.id === fid);
       return !!(f && boundTokens && boundTokens.has([f.identity.topology_id, f.identity.part, f.identity.node].join("|")));
@@ -14048,9 +14721,20 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const lookOf = (looks, sha) => (looks.find((r) => r.sha === sha) || {});
     // Every drawn part off its expected look: the lit parts ghost (their
     // resting look), a bound interface partner ghost, the rest faint.
+    // A partner ghosts the mesh its bound face is on -- its own, or (v2's
+    // link centres since 2026-11-19, picked on the link assembly's mesh and
+    // moved onto the outer race) another part's.
     const looksOffRule = async (looks, litParts, partners) => {
       const ghosts = [];
-      for (const pid of litParts.concat(partners)) ghosts.push(await shaOf(pid));
+      for (const pid of litParts) ghosts.push(await shaOf(pid));
+      for (const pid of partners) {
+        const faces = [].concat(...(((view.parts || []).find((p) => p.id === pid) || {}).features || [])
+          .filter((fid) => featureBound(fid)).map((fid) => {
+            const f = (view.features || []).find((x) => x.id === fid);
+            return boundShas.get([f.identity.topology_id, f.identity.part, f.identity.node].join("|")) || [];
+          }));
+        if (faces.length) ghosts.push(...faces); else ghosts.push(await shaOf(pid));
+      }
       return looks.filter((r) => r.look !== (ghosts.indexOf(r.sha) !== -1 ? "ghost" : "faint"));
     };
     const hubPartners = ghostedPartners([HUB]);
@@ -14184,7 +14868,10 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       if (!r) return null;
       r.scrollIntoView({ block: "nearest", inline: "nearest" });
       const b = r.getBoundingClientRect();
-      return { x: b.x + b.width / 2, y: b.y + 1, onScreen: b.y >= 0 && b.y + 2 <= innerHeight && b.x >= 0 && b.x + b.width <= innerWidth };
+      // On the border's own line, the middle of its wide stroke: a pixel
+      // inside it is past the stroke's inner half at a small fit (v2's
+      // seven-column map, 2026-11-20, fits at 0.276).
+      return { x: b.x + b.width / 2, y: b.y, onScreen: b.y >= 0 && b.y + 2 <= innerHeight && b.x >= 0 && b.x + b.width <= innerWidth };
     });
     let fieldTargets = null;
     if (fieldPoint && fieldPoint.onScreen) {
@@ -14226,11 +14913,26 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     const bossSel = await pageLit();
     console.log(`      [${label}] locating boss selected: on ${JSON.stringify(uniq(bossSel.treeOn))}, on-touching ` +
       `${JSON.stringify(uniq(bossSel.treeOnTouching))}; interface row ${JSON.stringify(bossSel.interfaceRow)}; pilot end drawn ${bossSel.pilotEnd}`);
+    // The page reveals a lit row "never at the cost of the own row leaving the
+    // screen" (revealLitRows): where the boss's row and the interface's do
+    // not fit in the nav together -- v2's ground holds one more part since
+    // 2026-11-19 -- the boss's row stays and the interface is not scrolled to.
+    const bossRow = await page.evaluate((sel) => {
+      const r = document.querySelector(sel);
+      const b = r && r.getBoundingClientRect();
+      return b ? [b.top, b.bottom] : null;
+    }, navRow("feature", HUB + "@hub_spindle_bore_axis"));
+    const ir = bossSel.interfaceRow;
+    const bothFit = !!(bossRow && ir && ir.box && ir.nav &&
+      Math.max(ir.box[1], bossRow[1]) - Math.min(ir.box[0], bossRow[0]) + 16 <= ir.nav[1] - ir.nav[0]);
+    const bossOnScreen = !!(bossRow && ir && ir.nav && bossRow[0] >= ir.nav[0] && bossRow[1] <= ir.nav[1]);
+    console.log(`      [${label}] boss row ${JSON.stringify(bossRow)}; both fit ${bothFit}; boss on screen ${bossOnScreen}`);
     push("[real] selecting the hub's locating boss from the Parts section opens the folds down to the pilot interface " +
       "it is an end of -- the Interfaces group, the hub-mount joint, the interface itself -- lights that row fainter " +
       "with the pilot bore across it, and scrolls it into view",
       bossSel.treeOn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 && !!bossSel.interfaceRow &&
-      /navtree__row--on-touching/.test(bossSel.interfaceRow.cls) && bossSel.interfaceRow.onScreen &&
+      /navtree__row--on-touching/.test(bossSel.interfaceRow.cls) &&
+      (bothFit ? bossSel.interfaceRow.onScreen : bossOnScreen) &&
       bossSel.pilotEnd && bossSel.treeOnTouching.indexOf(MOUNT + "@tan_link_mount_pilot_bore") !== -1 &&
       bossSel.treeOnTouching.indexOf(HUB_JOINT) !== -1);
 
@@ -14555,8 +15257,14 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testPatternAndAddAFace(browser, label, topologies)],
       ["a bound pattern offers the whole pattern on the other part (the line, the head offer, the hover, Take)",
         (label) => testOppositePattern(browser, label, topologies)],
+      ["the first end of a joint lists the contact faces (one row per candidate, Take binds the set)",
+        (label) => testFirstEndOffersContactFaces(browser, label, topologies)],
+      ["a press that writes says so at once (the pitch plate's Keep: pending in the frame, one event, the body, the time)",
+        (label) => testAPressThatWritesSaysSo(browser, label, topologies)],
       ["the map (the counts on both models, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
+      ["the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+        (label) => testGroupsSwitches(browser, label, topologies)],
       ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",
         (label) => testWindowResizeReclamps(browser, label, topologies)],
     ];

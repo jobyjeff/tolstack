@@ -418,8 +418,10 @@ class Part:
     #: The id of the part this one is a part *of* -- a bearing pressed into a
     #: link assembly names the assembly. A part with children is an
     #: assembly. Checked against the other parts in :class:`Topology`: the
-    #: parent is declared, in the same body, and no part is its own ancestor.
-    #: Depth is not limited. ``docs/DAG_TOPOLOGY.md``, "Bodies".
+    #: parent is declared and no part is its own ancestor. The parent may move
+    #: with another body, or with none (2026-11-19: an assembly is what is
+    #: built into what, a body what moves as one). Depth is not limited.
+    #: ``docs/DAG_TOPOLOGY.md``, "Bodies".
     parent: Optional[str] = None
 
     def __post_init__(self) -> None:
@@ -549,8 +551,9 @@ class Body:
     """A rigid set of parts -- what moves as one when the mechanism moves.
 
     Optional on a topology; when a document declares any, :class:`Topology`
-    holds it to declaring them all: every part in exactly one body, every
-    body's parts declared. ``docs/DAG_TOPOLOGY.md``, "Bodies".
+    holds it to declaring them all: every part with no children in exactly
+    one body, an assembly in the one body all its parts are in or in none,
+    every body's parts declared. ``docs/DAG_TOPOLOGY.md``, "Bodies".
     """
 
     id: str
@@ -1065,12 +1068,6 @@ class Topology:
                     f"{host.id!r}, which "
                     f"{'is a link' if host.kind == 'link' else 'itself rides with ' + repr(host.rides_with)}"
                     f"; name the body that is posed")
-        unplaced = [p.id for p in self.parts if p.id not in self._body_of]
-        if self.bodies and unplaced:
-            raise TopologyError(
-                f"topology {self.id!r} declares bodies but puts no body round "
-                f"part(s) {unplaced}. Every part is in exactly one body; a part "
-                f"the mechanism does not place is a body of its own.")
         self._children: Dict[str, List[str]] = {p.id: [] for p in self.parts}
         for part in self.parts:
             if part.parent is None:
@@ -1079,13 +1076,6 @@ class Topology:
                 raise TopologyError(
                     f"topology {self.id!r}: part {part.id!r} names parent "
                     f"{part.parent!r}, which the document does not declare")
-            mine, theirs = self._body_of.get(part.id), self._body_of.get(part.parent)
-            if mine is not theirs:
-                raise TopologyError(
-                    f"topology {self.id!r}: part {part.id!r} is in body "
-                    f"{mine.id if mine else None!r} and its parent {part.parent!r} "
-                    f"in body {theirs.id if theirs else None!r}. An assembly's "
-                    f"parts move with it, so they are in its body.")
             self._children[part.parent].append(part.id)
         for part in self.parts:
             seen = [part.id]
@@ -1098,6 +1088,39 @@ class Topology:
                         f"one assembly, and an assembly is not inside its parts.")
                 seen.append(up)
                 up = self._parts[up].parent
+        # Two groupings of the same parts, neither nested in the other
+        # (2026-11-19): the tree says what is built into what, a body what
+        # moves as one. A part with no children moves with exactly one body;
+        # an assembly is in the one body every part under it is in, or -- its
+        # parts in two bodies or more -- in none, which is not an error.
+        if self.bodies:
+            unplaced = [p.id for p in self.parts
+                        if not self._children[p.id] and p.id not in self._body_of]
+            if unplaced:
+                raise TopologyError(
+                    f"topology {self.id!r} declares bodies but puts no body round "
+                    f"part(s) {unplaced}. Every part with no parts of its own is "
+                    f"in exactly one body; a part the mechanism does not place is "
+                    f"a body of its own.")
+            for part in self.parts:
+                if not self._children[part.id]:
+                    continue
+                under = {self._body_of[p].id for p in self.subtree(part.id)
+                         if not self._children[p]}
+                listed = self._body_of.get(part.id)
+                if listed is not None and under != {listed.id}:
+                    raise TopologyError(
+                        f"topology {self.id!r}: assembly {part.id!r} is in body "
+                        f"{listed.id!r}, but the parts under it move with "
+                        f"{sorted(under)}. An assembly is in a body only when "
+                        f"every part under it is in that body.")
+                if listed is None and len(under) == 1:
+                    raise TopologyError(
+                        f"topology {self.id!r}: assembly {part.id!r} is in no "
+                        f"body, but every part under it moves with body "
+                        f"{next(iter(under))!r}. An assembly whose parts are in "
+                        f"one body is in that body; only one whose parts sit in "
+                        f"two bodies or more is in none.")
         if "identity" in self._transforms:
             raise TopologyError(
                 f"topology {self.id!r}: 'identity' is the reserved id of the "
@@ -1110,6 +1133,21 @@ class Topology:
                     raise TopologyError(
                         f"topology {self.id!r}: node {node.id!r} is on part "
                         f"{part_id!r}, which the document does not declare")
+                # A part with children is a container: its features are its
+                # parts' (2026-11-20, handoff
+                # the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack;
+                # the merged page of 2026-11-19, where 215177's own box read to
+                # Jeff as a second pitch plate). Its own dimension between its
+                # parts' features stays allowed. With bodies declared, every
+                # part in no body is such an assembly (the leaves are checked
+                # above), so this is also why a feature never sits in no body.
+                if self._children[part_id]:
+                    raise TopologyError(
+                        f"topology {self.id!r}: node {node.id!r} is on part "
+                        f"{part_id!r}, which has parts of its own "
+                        f"({', '.join(self._children[part_id])}). An assembly "
+                        f"carries no feature: put it on the part inside that "
+                        f"carries it.")
 
         # Every named transform is unit-checked here rather than lazily, so a
         # document with an impossible transform fails at load even if no study
@@ -1117,6 +1155,10 @@ class Topology:
         self._resolved = {t.id: t.resolved(self.units) for t in self.transforms}
 
         self._incident: Dict[str, List[Edge]] = {n.id: [] for n in self.nodes}
+        # A structural edge's two end parts: its own part on both, or -- an
+        # assembly's dimension between its parts' features -- the part under
+        # it on each end (:meth:`dimension_ends`).
+        self._end_parts: Dict[str, Tuple[str, str]] = {}
         for edge in self.edges:
             for end in (edge.from_node, edge.to_node):
                 if end not in self._nodes:
@@ -1142,15 +1184,10 @@ class Topology:
                     raise TopologyError(
                         f"topology {self.id!r}: edge {edge.id!r} is a dimension of "
                         f"part {edge.part!r}, which the document does not declare")
-                if edge.part not in shared:
-                    raise TopologyError(
-                        f"topology {self.id!r}: edge {edge.id!r} is a dimension of "
-                        f"part {edge.part!r}, but that part is not on both of its "
-                        f"interfaces ({edge.from_node!r} is on "
-                        f"{list(self.node(edge.from_node).parts)}, "
-                        f"{edge.to_node!r} is on "
-                        f"{list(self.node(edge.to_node).parts)}). A structural "
-                        f"dimension spans two interfaces the part actually has.")
+                if edge.part in shared:
+                    self._end_parts[edge.id] = (edge.part, edge.part)
+                else:
+                    self._end_parts[edge.id] = self._assembly_ends(edge)
             elif shared:
                 raise TopologyError(
                     f"topology {self.id!r}: edge {edge.id!r} is kind 'gap' but its "
@@ -1179,6 +1216,40 @@ class Topology:
             self._incident[edge.from_node].append(edge)
             self._incident[edge.to_node].append(edge)
 
+    def _assembly_ends(self, edge: Edge) -> Tuple[str, str]:
+        """The end parts of a structural edge whose ``part`` is not on both of
+        its nodes: an assembly's dimension between two of its parts'
+        features (a link's centre-to-centre, called out on the link
+        assembly's drawing, between its two outer races). Each end is the
+        part under the assembly the end node is on -- in the one body both
+        ends share, where the document declares bodies. Refused otherwise,
+        each case by name."""
+        near, far = self.node(edge.from_node), self.node(edge.to_node)
+        ends = [[p for p in n.parts if self.within(p, edge.part)] for n in (near, far)]
+        if not self._children[edge.part] or not ends[0] or not ends[1]:
+            raise TopologyError(
+                f"topology {self.id!r}: edge {edge.id!r} is a dimension of "
+                f"part {edge.part!r}, but that part is not on both of its "
+                f"interfaces, nor a part inside it on each ({edge.from_node!r} "
+                f"is on {list(near.parts)}, {edge.to_node!r} is on "
+                f"{list(far.parts)}). A structural dimension spans two "
+                f"interfaces the part actually has, or an assembly's parts have.")
+        if not self.bodies:
+            return ends[0][0], ends[1][0]
+        common = [b.id for b in self.bodies
+                  if any(self._body_of[p] is b for p in ends[0])
+                  and any(self._body_of[p] is b for p in ends[1])]
+        if len(common) != 1:
+            raise TopologyError(
+                f"topology {self.id!r}: edge {edge.id!r} is a dimension of "
+                f"assembly {edge.part!r} between {edge.from_node!r} (on "
+                f"{ends[0]}) and {edge.to_node!r} (on {ends[1]}), whose parts "
+                f"{'move with no one body together' if not common else 'share bodies ' + str(common)}. "
+                f"An assembly's dimension joins two features of one body.")
+        (body,) = common
+        pick = [next(p for p in end if self._body_of[p].id == body) for end in ends]
+        return pick[0], pick[1]
+
     # -- lookups ----------------------------------------------------------
 
     def part(self, part_id: str) -> Part:
@@ -1194,9 +1265,28 @@ class Topology:
         return _get("body", self._bodies, body_id, self.id)
 
     def body_of(self, part_id: str) -> Optional[Body]:
-        """The body ``part_id`` moves with; ``None`` when no body is declared."""
+        """The body ``part_id`` moves with; ``None`` when no body is declared,
+        or for an assembly whose parts move with two bodies or more."""
         self.part(part_id)
         return self._body_of.get(part_id)
+
+    def within(self, part_id: str, assembly_id: str) -> bool:
+        """``part_id`` is ``assembly_id`` or a part somewhere inside it."""
+        up: Optional[str] = self.part(part_id).id
+        while up is not None:
+            if up == assembly_id:
+                return True
+            up = self._parts[up].parent
+        return False
+
+    def dimension_ends(self, edge: Edge) -> Tuple[str, str]:
+        """``(from part, to part)``: the part each end of a structural edge is
+        a feature of -- the edge's own part on both ends, or, for an
+        assembly's dimension between its parts' features, the part under it
+        on each end node (:meth:`_assembly_ends`)."""
+        if edge.kind != "structural":
+            raise ValueError(f"edge {edge.id!r} is a gap; only a dimension has end parts")
+        return self._end_parts[edge.id]
 
     def children_of(self, part_id: str) -> List[str]:
         """The parts whose ``parent`` is ``part_id``, in authored order; a
@@ -1213,14 +1303,17 @@ class Topology:
         return out
 
     def tree_order(self, part_ids: Iterable[str]) -> List[str]:
-        """``part_ids`` walked as a tree: each top-level one (no parent among
-        the topology's parts) in the given order, followed by its subtree.
-        A body's parts read through this are its parts in the one order every
-        surface walks them."""
+        """``part_ids`` walked as a tree: each top-level one (its parent not
+        among ``part_ids``) in the given order, followed by those of its
+        subtree that are among them. A body's parts read through this are its
+        parts in the one order every surface walks them -- a part whose
+        assembly is in no body is top-level in its own body."""
+        given = list(part_ids)
+        keep = set(given)
         out: List[str] = []
-        for part_id in part_ids:
-            if self.part(part_id).parent is None:
-                out.extend(self.subtree(part_id))
+        for part_id in given:
+            if self.part(part_id).parent not in keep:
+                out.extend(p for p in self.subtree(part_id) if p in keep)
         return out
 
     def node_bodies(self, node_id: str) -> Tuple[str, ...]:
@@ -1239,12 +1332,13 @@ class Topology:
         """The body an edge lies inside, or ``None`` for a **joint**.
 
         A structural edge is a dimension of one part, so it is inside that
-        part's body. A gap edge is inside a body when both of its ends are on
+        part's body -- an assembly's, the one body its two end parts share
+        (:meth:`dimension_ends`). A gap edge is inside a body when both of its ends are on
         that one body alone (a bearing's ball centre and the link it is
         pressed into); otherwise it crosses between bodies and is a joint.
         ``None`` throughout when the document declares no bodies."""
         if edge.kind == "structural":
-            body = self.body_of(edge.part) if edge.part else None
+            body = self.body_of(self.dimension_ends(edge)[0]) if edge.part else None
             return body.id if body is not None else None
         ends = {self.node_bodies(edge.from_node), self.node_bodies(edge.to_node)}
         if len(ends) == 1:
@@ -1972,21 +2066,90 @@ def identity_topology_id(topology: Topology, edge_id: str,
     return topology.id
 
 
-def feature_identity_topology_id(topology: Topology, part_id: str, node_id: str,
-                                 topologies: Dict[str, Topology]) -> str:
-    """The topology id a feature-identity key on feature ``part@node`` carries
-    (handoff ``a_feature_is_bound_once_to_a_set_of_faces``).
+def feature_identity_key(topology: Topology, part_id: str, node_id: str,
+                         topologies: Dict[str, Topology]) -> Tuple[str, str]:
+    """``(topology id, part)`` of the feature-identity key feature
+    ``part@node`` carries (handoff ``a_feature_is_bound_once_to_a_set_of_faces``).
 
     :func:`identity_topology_id`'s rule, for a feature: a node the model shares
     with the model it reuses ids from (``ids_from``), on a part that model also
     puts there, is ONE feature in both, keyed under the source model; anything
-    else is keyed to its own model. The topology projection writes it on every
-    feature (``model.features[].identity``), so no browser asks.
+    else is keyed to its own model. Since 2026-11-19 (handoff
+    ``a_link_is_a_machined_part_and_two_bearings_each_two_races``) the same
+    holds for a node this model states on a part INSIDE the part the source
+    model puts it on (:func:`check_shared_ids`' one latitude): it is still the
+    source's feature, keyed ``source@<the source's part>``, so a binding made
+    on either model is the one record both read and write. The topology
+    projection writes it on every feature (``model.features[].identity``), so
+    no browser asks.
     """
     source = topologies.get(topology.ids_from) if topology.ids_from else None
-    if source is not None and node_id in source._nodes and part_id in source.node(node_id).parts:
-        return source.id
-    return topology.id
+    if source is not None and node_id in source._nodes:
+        theirs = source.node(node_id).parts
+        if part_id in theirs:
+            return source.id, part_id
+        if part_id in topology._parts:
+            for there in theirs:
+                if there in topology._parts and topology.within(part_id, there):
+                    return source.id, there
+    return topology.id, part_id
+
+
+def feature_identity_topology_id(topology: Topology, part_id: str, node_id: str,
+                                 topologies: Dict[str, Topology]) -> str:
+    """The topology id of :func:`feature_identity_key`."""
+    return feature_identity_key(topology, part_id, node_id, topologies)[0]
+
+
+def check_shared_ids(mine: Topology, theirs: Topology) -> int:
+    """How many node and edge ids ``mine`` shares with ``theirs``, the model
+    it reuses ids from (``ids_from``, ``docs/DAG_TOPOLOGY.md`` "Models");
+    :class:`TopologyError` where a shared id means something else in each.
+
+    A shared id names one feature, so the 3D surface reads the other model's
+    bindings and sweeps on it: a node keeps its kind and its parts, an edge
+    its kind, ends, part and interface. One latitude (2026-11-19): a finer
+    model may state the feature on the member that carries it -- a node the
+    other model puts on part P may sit here on a part inside P, and an
+    edge's part likewise. Every part keeps its one-for-one match, so a node
+    moved onto an unrelated part is still refused."""
+
+    def same_part(here: Optional[str], there: Optional[str]) -> bool:
+        if here is None or there is None:
+            return here == there
+        return here in mine._parts and there in mine._parts and mine.within(here, there)
+
+    def same_parts(here: Tuple[str, ...], there: Tuple[str, ...]) -> bool:
+        if len(here) != len(there):
+            return False
+        return any(all(same_part(h, t) for h, t in zip(here, order))
+                   for order in ([there] if len(there) < 2 else [there, there[::-1]]))
+
+    shared = 0
+    for node in mine.nodes:
+        other = theirs._nodes.get(node.id)
+        if other is None:
+            continue
+        shared += 1
+        if node.kind != other.kind or not same_parts(node.parts, other.parts):
+            raise TopologyError(
+                f"topology {mine.id!r}: node {node.id!r} is {node.kind!r} on "
+                f"{list(node.parts)}, and in {theirs.id!r}, whose ids it reuses, "
+                f"{other.kind!r} on {list(other.parts)}. A shared id names one "
+                f"feature: on the same parts, or on a part inside each.")
+    for edge in mine.edges:
+        other = theirs._edges.get(edge.id)
+        if other is None:
+            continue
+        shared += 1
+        if ((edge.kind, edge.from_node, edge.to_node, edge.interface)
+                != (other.kind, other.from_node, other.to_node, other.interface)
+                or not same_part(edge.part, other.part)):
+            raise TopologyError(
+                f"topology {mine.id!r}: edge {edge.id!r} is not the edge "
+                f"{theirs.id!r}, whose ids it reuses, names by that id (kind, "
+                f"ends, part and interface; a part may be one inside the other's).")
+    return shared
 
 
 def in_model_order(topologies: Iterable[Any]) -> List[Any]:

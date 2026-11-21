@@ -86,7 +86,13 @@ def test_a_model_with_no_bodies_is_one_column(v2):
     import dataclasses
     bare = dataclasses.replace(v2, bodies=[])
     places = B.computed_map_places(bare)
-    top = [p.id for p in v2.parts if p.parent is None]
+    # An outline is never placed: its parts are, in its place in the order
+    # (since 2026-11-19 v2's two links and their bearings are outlines).
+    outlined = set(B.outlined_assemblies(bare))
+    top = [p for p in bare.tree_order([p.id for p in v2.parts])
+           if B._needs_place(bare, p, outlined)]
+    assert outlined and not outlined & set(places)
+    assert list(places) == top
     assert [places[p] for p in top] == [[0, row] for row in range(len(top))]
 
 
@@ -97,17 +103,33 @@ def test_an_authored_file_overrides_only_the_places(v2):
     assert doc["places"] != B.computed_map_places(v2)
 
 
-#: Children v2's layout places in cells of their own (2026-11-18,
-#: the_pitch_plate_is_an_assembly_with_its_bushings): the plate assembly's
-#: members in a row beside it. Every other child sits in its parent's cell.
-V2_PLACED_CHILDREN = {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a_tan_link"}
+#: Children v2's layout places in cells of their own: the plate assembly's
+#: members in a row beside it (2026-11-18,
+#: the_pitch_plate_is_an_assembly_with_its_bushings), and since 2026-11-19
+#: (a_link_is_a_machined_part_and_two_bearings_each_two_races) every part of
+#: the two link outlines -- each machined link and its four races, a bearing's
+#: two races in two adjacent cells across its link's district border. Every
+#: other child sits in its parent's cell.
+V2_PLACED_CHILDREN = {
+    "pitch_plate_215177_001": {"pitch_plate_215735_001", "flanged_bushing_nas77a3_015a",
+                               "flanged_bushing_nas77a3_015a_tan_link"},
+    "pitch_link": {"pitch_link_213861_002",
+                   "pitch_link_lower_outer_race", "pitch_link_lower_inner_race",
+                   "pitch_link_upper_outer_race", "pitch_link_upper_inner_race"},
+    "tan_link_212956_005": {"tan_link_213863_004",
+                            "tan_link_lower_outer_race", "tan_link_lower_inner_race",
+                            "tan_link_upper_outer_race", "tan_link_upper_inner_race"},
+}
 
 
 def test_v2s_layout_places_every_top_level_part_and_nothing_else(v2):
     doc = B.load_topology_map(TOPOLOGIES_DIR, v2)
     top_level = {p.id for p in v2.parts if p.parent is None}
-    assert set(doc["places"]) == top_level | V2_PLACED_CHILDREN
-    assert all(v2.part(c).parent == "pitch_plate_215177_001" for c in V2_PLACED_CHILDREN)
+    children = set().union(*V2_PLACED_CHILDREN.values())
+    assert set(doc["places"]) == top_level | children
+    assert "computed_places" not in doc
+    for top, kids in V2_PLACED_CHILDREN.items():
+        assert all(v2.within(c, top) and c != top for c in kids), top
     for place in doc["places"].values():
         assert isinstance(place, list) and len(place) == 2
         assert all(isinstance(v, int) and v >= 0 for v in place)
@@ -181,3 +203,100 @@ def test_a_layout_for_another_model_or_schema_is_refused(tmp_path, v2):
     doc["schema"] = "something/else"
     with pytest.raises(ValueError, match="schema"):
         B.load_topology_map(_write(tmp_path, v2, doc), v2)
+
+
+# --- an assembly drawn as an outline (2026-11-19) -----------------------------
+#
+# An assembly with no feature of its own has no box: the map draws its outline
+# round its parts, which need places of their own. The fixture's link
+# assembly holds two bearings whose races sit in two bodies each.
+
+TWO_BODIES = REPO_ROOT / "tests" / "fixtures" / "topology_assembly_in_two_bodies.json"
+
+
+@pytest.fixture(scope="module")
+def two_bodies():
+    return load_topology(TWO_BODIES, identity_path=None)
+
+
+def test_an_assembly_with_no_feature_is_an_outline_and_v2s_links_and_bearings_are(two_bodies, v2):
+    assert B.outlined_assemblies(two_bodies) == ["base_asm", "link_asm", "bearing_a", "bearing_b"]
+    # Since 2026-11-19 v2's two links and their four bearings own no node
+    # (every feature is on a member), and since 2026-11-20 nor does 215177,
+    # the plate's container: each is an outline (and the model refuses an
+    # assembly that owns one).
+    assert B.outlined_assemblies(v2) == [
+        "pitch_plate_215177_001", "pitch_link", "spherical_bearing_pitch_link", "spherical_bearing_pitch_link_upper",
+        "tan_link_212956_005", "spherical_bearing_tan_link", "spherical_bearing_tan_link_ms14103_3"]
+    assert B.outlined_assemblies(load_topology(MODEL_V1)) == []
+
+
+def test_computed_places_put_an_outlines_parts_down_their_own_bodies_columns(two_bodies):
+    """The outline is never placed; its parts are, each in its body's column."""
+    assert B.computed_map_places(two_bodies) == {
+        "base": [0, 0], "spacer": [0, 1], "inner_a": [0, 2],
+        "link_body": [1, 0], "outer_a": [1, 1], "outer_b": [1, 2],
+        "arm": [2, 0], "inner_b": [2, 1]}
+
+
+def _write_two_bodies(tmp_path: Path, places: dict) -> Path:
+    (tmp_path / TWO_BODIES.name).write_text(TWO_BODIES.read_text(encoding="utf-8"), encoding="utf-8")
+    B.map_path(tmp_path, "assembly_in_two_bodies").write_text(json.dumps(
+        {"schema": B.SCHEMA_MAP, "topology": "assembly_in_two_bodies", "places": places}), encoding="utf-8")
+    return tmp_path
+
+
+def test_an_outlines_unplaced_parts_start_at_its_place_and_run_down_its_column(tmp_path, two_bodies):
+    """A layout may place any part. The link assembly's own place is where its
+    unplaced parts start: the link body there, then -- through the nested
+    bearing outlines, in tree order -- each race under it, passing over a cell
+    another part takes. Named in ``computed_places``; the file verbatim
+    otherwise."""
+    places = {"base_asm": [0, 0], "inner_a": [1, 0], "link_asm": [2, 0], "outer_b": [2, 2],
+              "inner_b": [5, 0], "arm": [6, 0]}
+    doc = B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+    assert doc["places"] == dict(places, base=[0, 0], spacer=[0, 1], link_body=[2, 0],
+                                 outer_a=[2, 1])
+    assert doc["computed_places"] == ["base", "link_body", "outer_a", "spacer"]
+    # A part placed in the column is passed over: outer_b at [2, 1] sends
+    # outer_a to the cell under it.
+    places["outer_b"] = [2, 1]
+    doc = B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+    assert doc["places"]["outer_a"] == [2, 2]
+
+
+def test_an_outlines_parts_with_no_place_to_start_from_are_refused(tmp_path, two_bodies):
+    places = {"base_asm": [0, 0], "inner_a": [1, 0], "inner_b": [5, 0], "arm": [6, 0]}
+    with pytest.raises(ValueError, match=r"unplaced: \['link_body', 'outer_a', 'outer_b'\]"):
+        B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+    places["no_such_part"] = [9, 9]
+    with pytest.raises(ValueError, match="no_such_part"):
+        B.load_topology_map(_write_two_bodies(tmp_path, places), two_bodies)
+
+
+def test_the_fast_tiers_two_body_model_is_the_model_views_own():
+    """``apps/viewer/tests.js`` carries the fixture's model view between two
+    markers for the map's fast checks; it is the builder's output, so a change
+    to the view's shape reddens here rather than leaving the fast tier testing
+    a model no projection would carry."""
+    source = (REPO_ROOT / "apps" / "viewer" / "tests.js").read_text(encoding="utf-8")
+    start = source.index("// BEGIN twoBodyModel")
+    end = source.index("// END twoBodyModel")
+    literal = source[start:end].split("var TWO_BODY_MODEL = ", 1)[1].rsplit(";", 1)[0]
+    assert json.loads(literal) == model_view(load_topology(TWO_BODIES, identity_path=None))
+
+
+def test_the_fast_tiers_two_body_projection_is_the_builders_own():
+    """Its sibling with a dimension on each race
+    (``topology_assembly_in_two_bodies_rows.json``) rides as a whole
+    projection between its own markers for the grid's checks -- the walk an
+    assembly in three bodies is bracketed over -- held to the builder's
+    output the same way."""
+    source = (REPO_ROOT / "apps" / "viewer" / "tests.js").read_text(encoding="utf-8")
+    start = source.index("// BEGIN raceRowsProjection")
+    end = source.index("// END raceRowsProjection")
+    literal = source[start:end].split("var RACE_ROWS_PROJECTION = ", 1)[1].rsplit(";", 1)[0]
+    rows = TWO_BODIES.with_name("topology_assembly_in_two_bodies_rows.json")
+    raw = json.loads(rows.read_text(encoding="utf-8"))
+    topology = load_topology(rows, identity_path=None)
+    assert json.loads(literal) == B.project_topology(rows, raw, topology, [])

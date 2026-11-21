@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a feature whose partners sit on two sides of its part has a pin toward each, neither route enters its own part's box past its stub, and one hover lights both pins of the one feature",
+  "mutations": [
+    {
+      "contract": "Each of a feature's pins faces its own interface's partner, never the first interface's.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Puts every pin of a feature on the side facing its FIRST interface's partner, as the map did before: model v2's tangential-link attach bore on the plate then sends its route to the bushing back across the plate's own box.",
+      "file": "apps/viewer/map.js",
+      "find": "        var side = sideFor(f.part, farPart, iface.id + \"|\" + f.id);",
+      "replace": "        var side = sideFor(f.part, farPartOf(ifaces[0], f.id), iface.id + \"|\" + f.id);",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    },
+    {
+      "contract": "A feature's several pins are drawn as one entity, so a hover on it lights every one.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Draws a group per pin instead of per feature: the map then draws the feature twice and a hover lights each pin alone.",
+      "file": "apps/viewer/views/map.js",
+      "find": "      if (!groupOf[pin.id]) { groupOf[pin.id] = []; pinGroups.push(groupOf[pin.id]); }\n      groupOf[pin.id].push(pin);",
+      "replace": "      var k = pin.id + \"|\" + pin.iface; /* mutated: a group per pin */\n      if (!groupOf[k]) { groupOf[k] = []; pinGroups.push(groupOf[k]); }\n      groupOf[k].push(pin);",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    }
+  ]
+}

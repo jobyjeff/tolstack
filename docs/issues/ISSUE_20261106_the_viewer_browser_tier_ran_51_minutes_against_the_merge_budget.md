@@ -319,3 +319,72 @@ four slowest suites: the model drawn alone 194.1 s; topology http 149.5 s;
 topology file:// 128.0 s; annotate rail holds still 98.4 s. The 11-19 review
 runs of `the_pitch_plate_is_an_assembly_with_its_bushings` were 1829 s and
 1823 s, so the tier now sits at or just over the cap on every whole run.
+
+## 2026-11-19 measurement (review, the_map_pin_hover_lights_its_bound_face_in_the_scene)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, review
+worktree at `c43c42a3` (tree `e85d36c8`): 46/46, 1850 s on the runner's own ledger
+row (`2026-11-19T22:19:34Z`), over the 1800 s budget by 50 s. Top suites: 3D pane
+follows the selection 237.5 s; every study opens in 3D 191.2 s; the model drawn
+alone 185.1 s; topology http 120.1 s; topology file:// 105.7 s.
+
+## Measurement 2026-11-19 (review of `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`, in the review
+worktree at merge `b61ac17f` (tree `ab84e0bf`), with no slot wait: **1835 s**, 47 suites and
+966 checks, against the 1800 s merge budget, so `OVER BUDGET` by 35 s. The runner
+recorded the row itself. The top 15 suites, in seconds: the model drawn alone 192.8,
+topology http 164.1, topology file:// 112.8, 3D pane follows the selection 99.2, the map
+98.5, annotate rail holds still 98.4, a suggestion names its face 97.5, no nav click wedges
+the page 73.8, annotate flyout 70.6, the DAG zoom 66.4, every study opens in 3D 64.2, a
+pattern is bound as its like faces 64.1, annotate model in the scene 57.5, kinematic study
+page 54.0, annotate sweep rail 52.9. The suite this handoff added took 13.7 s.
+
+## Measurement 2026-11-20 (review of `the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_groups_1120`,
+in the review worktree at `bae3e64f` (tree `f3db140c`), with no slot wait: **2365 s**,
+49 suites, against the 1800 s merge budget. That is `OVER BUDGET` by 9 m 25 s, and the
+runner recorded the row itself. The reviewer's own two short probes, which drive one
+headless Chrome each, ran during part of the tier, so some of the excess may be
+contention. The top 15 suites, in seconds: topology http 252.6, topology file:// 217.3,
+the model drawn alone 201.6, no nav click wedges the page 141.0, 3D pane follows the
+selection 118.1, the map 116.3, annotate rail holds still 109.7, the DAG zoom 105.3, a
+suggestion names its face 105.2, kinematic study page 84.3, every study opens in 3D
+73.0, a pattern is bound as its like faces 66.2, annotate flyout 64.3, annotate model
+in the scene 62.3, the scene pane reads over HTTP 57.1. The suite this handoff added
+(the Groups switches) took 28.5 s.
+
+## Measurement 2026-11-20, round 2 (same review)
+
+Same spelling, at merge `98168d83`, slot wait 1 s, and no other browser work of mine
+during it: **2374 s**, 49 suites and 981 checks. That is `OVER BUDGET` by 9 m 34 s, and the
+runner recorded the row. It matches round 1's 2365 s, so the contention suspected there did
+not explain the excess. The top 15, in seconds: topology http 255.9, topology file:// 215.5, the model
+drawn alone 201.4, no nav click wedges the page 141.9, 3D pane follows the selection 118.2,
+annotate rail holds still 113.2, the map 112.3, the DAG zoom 104.9, a suggestion names its
+face 102.4, kinematic study page 84.3, every study opens in 3D 73.8, a pattern is bound as
+its like faces 67.4, annotate model in the scene 59.7, annotate flyout 57.6, the scene pane
+reads over HTTP 55.8. The Groups switches suite took 45.8 s.
+
+## Measurement 2026-11-20 -- review of a_link_is_a_machined_part_and_two_bearings_each_two_races
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/lnk`
+on the merged tree `f7b119dd`: 2413 s recorded (budget 1800 s, OVER by 10m13s),
+49 suites, slot wait 1 s, so the time is the suites' own. Slowest: `topology http`
+257 s, `topology file://` 216 s, `the model drawn alone` 210 s, `no nav click
+wedges the page` 136 s, `the map` 121 s, `3D pane follows the selection` 121 s,
+`the DAG zoom, Fit and the grid header` 114 s, `annotate rail holds still` 113 s,
+`a suggestion names its face` 104 s, `kinematic study page` 84 s.
+
+## Measurement 2026-11-21 (review of `an_open_dimension_says_where_its_drawing_stands`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_odd_1120`,
+whole tier: 49/49 suites, 981 checks, **2398 s** against the 1800 s merge budget
+(ledger row 2026-11-21T06:24:42Z, tree `ee9550e2`). Slot wait 0 s. The machine
+was otherwise quiet: nothing else of mine ran beside it. Slowest: `topology http`
+256 s, `the model drawn alone` 207 s, `topology file://` 204 s, `no nav click
+wedges the page` 147 s, `the map` 124 s, `3D pane follows the selection` 122 s,
+`annotate rail holds still` 112 s, `the DAG zoom, Fit and the grid header`
+109 s, `a suggestion names its face` 104 s, `kinematic study page` 83 s. This is
+the same pareto as the line above. The diff under review added no browser suite.

@@ -1,0 +1,23 @@
+{
+  "tier": "browser",
+  "suite": "the map (the counts on both models, the one selection on four surfaces, the view)",
+  "expect_red": "an outline's name, as the browser sets it, meets no district's name, no part's name or box and no other outline's name, and is told from a district's by type",
+  "mutations": [
+    {
+      "contract": "An outline's name takes its top-left, or its top-right where the top-left meets a district's name or another outline's, so both stay legible.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Always the top-left: the base assembly's name lands on ground's, which the browser's own text boxes show and the glyph estimate does not check.",
+      "file": "apps/viewer/map.js",
+      "find": "          return !taken.some(function (r) { return overlaps(r, t.rect); });",
+      "replace": "          return t === tries[0];"
+    },
+    {
+      "contract": "An outline's name is told from a district's by type -- italic and regular against upright and bold -- not by a new colour.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies.md",
+      "note": "Sets the outline's name as a district's is set.",
+      "file": "apps/viewer/map.css",
+      "find": ".map__outlinename { fill: var(--muted); font-style: italic; font-weight: 400; cursor: pointer; }",
+      "replace": ".map__outlinename { fill: var(--muted); font-style: normal; font-weight: 600; cursor: pointer; }"
+    }
+  ]
+}

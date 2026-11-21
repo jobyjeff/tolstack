@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: resolved
 area: apps/viewer/map
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md
 defer_until: 2026-12-19
 class: map_routing
-resolution: deferred 2026-11-19 (triage): low, deferred by default
+resolution: resolved 2026-11-19 by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run -- a pin per interface, toward its own partner; the child-under-parent connector drops straight with its symbol between the boxes; the map's notes now include a route crossing a box it ends on past its stub, a symbol inside a box and two routes on one run (earlier: deferred 2026-11-19 by triage, low)
 ---
 
 # A map feature whose interfaces go to two sides has one pin, and one route crosses its own box

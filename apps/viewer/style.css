@@ -97,7 +97,6 @@ a { color: var(--accent); }
   padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
   position: sticky; top: 0; z-index: 5;
 }
-.topbar .sub { color: var(--muted); font-size: var(--t-meta); }
 .topbar__spacer { flex: 1; }
 
 button {
@@ -611,8 +610,6 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .check__excludedterms { color: var(--ink); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .check__excludedterm { font-size: var(--t-dense); color: var(--ink); }
-.check__note { font-size: var(--t-meta); color: var(--accent); border: 1px dashed var(--accent);
-  border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
 .check__warn { color: var(--zero); font-size: var(--t-meta); margin: 4px 0; }
 .check__inputs { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
 .check__guidance { font-size: var(--t-dense); color: var(--muted); margin: 8px 0 0; }
@@ -627,7 +624,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    sitting in the name one -- a 30ch column would have capped the paragraph
    tighter than the measure and left eight columns of white space beside it. */
 .check__guidance, .check__excludedterm, .gap__text, .notelist li, .sv__legend li,
-.el-note td, .check__warn, .check__note { max-width: var(--measure); }
+.el-note td, .check__warn { max-width: var(--measure); }
 
 .gaplist, .notelist { margin: 0; padding-left: 0; list-style: none; }
 .gaplist li, .notelist li {

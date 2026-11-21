@@ -6,9 +6,9 @@
     {
       "contract": "The annotate app's no-projection banner is PLAIN WORDS: it says where the projection is built and stops. Jeff's standing rule across every web surface in this workspace -- a terminal command is never rendered for a reader to copy.",
       "issue": "docs/issues/ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness.md",
-      "note": "The first entry on the `annotate` tier word (2026-09-16). It restores the exact shape the defect had -- \"Build it: \" with an interpreter and a script path concatenated on -- so the guard is checked against the sentence it was written for. Re-pointed 2026-10-28: the sentence no longer says \"in the connected folder\", which an HTTP page has none of.",
+      "note": "The first entry on the `annotate` tier word (2026-09-16). It restores the exact shape the defect had -- \"Build it: \" with an interpreter and a script path concatenated on -- so the guard is checked against the sentence it was written for. Re-pointed 2026-10-28: the sentence no longer says \"in the connected folder\", which an HTTP page has none of. Re-pointed 2026-11-19: nor \", not from this page\" (the_viewer_says_nothing_about_itself).",
       "file": "apps/annotate/storage/adapter.js",
-      "find": "    \"No topology projection to read yet. It is built in the \" +\n    \"tolerance-stack repository, not from this page.\";",
+      "find": "    \"No topology projection to read yet. It is built in the \" +\n    \"tolerance-stack repository.\";",
       "replace": "    \"No topology projection to read yet. Build it: \" +\n    \"venv-win/Scripts/python.exe scripts/build_topology_projection.py\";"
     }
   ]

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a write reads the identity inbox once per page: the next seq, the log and the next write's reads open only a file that is new since, and the installed meshes open no file",
+  "mutations": [
+    {
+      "contract": "An event file read once is that event for the rest of the page (the inbox is append-only, one file per event, never rewritten), so a write opens only files that are new since the last read. Reading the whole inbox three times per write was 2025 folder calls and 15-30 s on Jeff's 101-file log.",
+      "issue": "docs/issues/ISSUE_20261118_a_bind_on_the_pitch_plate_takes_ten_to_forty_seconds_to_write.md",
+      "note": "Treats every listed name as unread, which is the pre-2026-11-19 behaviour: every read opens every file.",
+      "file": "apps/annotate/storage/fsa.js",
+      "find": "    var fresh = names.filter(function (name) { return !Object.prototype.hasOwnProperty.call(self._events, name); });",
+      "replace": "    var fresh = names;"
+    }
+  ]
+}

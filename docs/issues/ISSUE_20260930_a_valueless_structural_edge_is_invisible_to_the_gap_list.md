@@ -95,3 +95,16 @@ Two more surfaces of the same conflation, met on the kinematic study page:
   detail pane offers the annotator for it, and on a kinematic page the pane
   names the edge the band is borrowed from. The gap list and the row badges
   still read the confidence alone; that half is still this issue's.
+
+## Addendum 2026-11-20 (walk: the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page)
+
+On v2 the conflation now reads as a false all-clear. `vpa_end_stop_v2` has 104
+edges and **none** carries a value (75 structural, 29 gap), yet the panel under
+the grid says, always visible, "Nothing is recorded as missing for this
+assembly." (`views/topology.js` `gapsPanel`, the `!groups.length` branch). The
+same page's grid wears 75 drawing-status chips on those open dimensions
+(`an_open_dimension_says_where_its_drawing_stands`), so the two surfaces
+disagree two inches apart. Shot:
+`docs/sessions/lessons/shots/the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page/11_grid_bodies_off.png`
+(bottom line). The sentence is also a negation on the surface, which the
+prose budget rules out on its own.

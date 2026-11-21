@@ -10,7 +10,8 @@
     "Three of those five candidates were decided by handoff vpa_pitch_linkage_topology_and_feature_fits (2026-09-30), on parts-list evidence that had not been read when they were filed, and became six of the rows below. Candidate 1 (`tan_link_mount_215175_002`, the dash number): 217755-001 A.1's parts list carries BOTH dash numbers, find 41 `215175-001 ... CW` qty 1 and find 73 `215175-002 ... CCW` qty '-', so the CW assembly every mesh here came from contains the -001. Candidate 2 (two `spherical_bearing_*` ids against three MS141xx meshes): 213862-002 A's own parts list is `213861-002` x1 plus `MS14101-3` x2, and the `_815597cb` mesh's two instances both sit under `213862-002.1` -- so that one is the pitch link's, `_34f032f0` (three instances, one per `212956-005`) is the tangential link's, and `MS14103-3` is the tangential link's other end. Candidate 4 (`gas_spring`): see its own row. Candidates 3 (the two `flanged_bushing_*` ids) and 5 (`asm217755_214723_002`, installed with no candidate id) are UNCHANGED and still out, and so is `spherical_bearing_in_vpa` -- which candidate 2's resolution leaves with no mesh at all, since all three MS141xx geometries are now accounted for in the two links and none of them is in the VPA.",
     "Consumed by apps/annotate/commands.js `resolveMeshIdentifier` (exact match, consulted only after a direct sha256/part_id match misses) and, since handoff annotate_affordances_flyout_and_mesh_gating (2026-09-14), by scripts/build_topology_projection.py `resolve_mesh` -- the same precedence in Python, so the topology projection can stamp per-part mesh availability for the viewer to gate its 3D affordances on. Paired against both live vocabularies by tests/test_part_mesh_aliases.py and apps/annotate/run_tests.cjs's [real] tier.",
     "The two rows the 2026-09-30 extraction left undecided -- `pitch_link` and `blade_root` -- were added by handoff kinematic_sweep_animation (2026-10-01) on Jeff's ruling that day: a topology part names the DESIGN, non-instrumented part, and its alias row points at the design-part mesh. Blade 1 carries the instrumented variant of both (546293-002 and 551438-001), so a design mesh drawn at blade 1's occurrence takes its placement from the INSTRUMENTED mesh's provenance -- the design mesh's own instances are the other blades. That substitution is only sound because the design and instrumented meshes share a local frame, which each row records as a measurement rather than an assumption.",
-    "Handoff the_pitch_plate_is_an_assembly_with_its_bushings (2026-11-18) added three rows for model v2's pitch plate assembly: the machined detail `pitch_plate_215735_001` and the two NAS77A3-015A flanged bushings at the attachments v2 draws, each picking its occurrence. The 215177 mesh still draws the plate and all nine of its bushings, so the plate and those two bushings are drawn twice where both meshes are open; measured, not hidden, in that handoff's lesson."
+    "Handoff the_pitch_plate_is_an_assembly_with_its_bushings (2026-11-18) added three rows for model v2's pitch plate assembly: the machined detail `pitch_plate_215735_001` and the two NAS77A3-015A flanged bushings at the attachments v2 draws, each picking its occurrence. The 215177 mesh still draws the plate and all nine of its bushings, so the plate and those two bushings are drawn twice where both meshes are open; measured, not hidden, in that handoff's lesson.",
+    "Handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19) added eleven rows for model v2's links: the two machined links, the pitch link's second bearing and the eight races. A race is a solid of its bearing's mesh, so a race's row names the bearing's whole mesh, and the race a picked face is on is its solid_id (MS14103-3's one solid cannot say). Where a link's assembly mesh, its machined part's mesh and its bearings' meshes are all open, the link is drawn more than once; measured, not hidden, as 215177's is."
   ],
   "aliases": [
     {
@@ -56,7 +57,7 @@
     {
       "topology_part": "bolt_nas6403u11d",
       "mesh_part_id": "asm217755_NAS6403U11D",
-      "evidence": "Exact spec number on both sides. docs/topologies/topology_vpa_pitch_linkage.json (topology_pitch_link_to_pitch_plate.json until the 2026-10-27 fold)'s part is named 'NAS6403U11D hex-head bolt' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/f9d8792134f561e7a08e0d3c6b69a4e666181f517d741a83d3d5971b5603e723/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances."
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_vpa_pitch_linkage.json (topology_pitch_link_to_pitch_plate.json until the 2026-10-27 fold)'s part is named 'NAS6403U11D hex-head bolt' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/f9d8792134f561e7a08e0d3c6b69a4e666181f517d741a83d3d5971b5603e723/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances. Model v2's part of the same id (2026-11-20, handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack) is the same bolt: the 217755-001 A.1 STEP's pitch link lug group prd-e-03481962 holds product NAS6403U11D as instance NAS6403U10D.3, and v2 declares the occurrence prd-e-03481962.1, the one beside blade 1's upper pitch link ball. The tangential link lug's bolt, NAS6403U14D, has no row: data/meshes/ holds no NAS6403U14D mesh."
     },
     {
       "topology_part": "bolt_nas6403u13h",
@@ -106,7 +107,7 @@
     {
       "topology_part": "tan_link_212956_005",
       "mesh_part_id": "asm217755_212956_005",
-      "evidence": "Exact drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 212956-005; the mesh's provenance.json (data/meshes/8f519ff443a2fe0ff02124dcc5382528d84c553310911243cc9028217d872b36) records product_name '212956-005' at XCAF label 0:1:1:1434, four solids, three instances -- matching 217755-001 A.1 find 25's qty 3. NOTE what this mesh is: the whole link ASSEMBLY, four solids -- the body, an MS14101-3, an MS14103-3 and a bolt -- not the bare link, which is installed separately as `asm217755_213863_004`."
+      "evidence": "Exact drawing number on both sides. docs/topologies/topology_vpa_pitch_linkage.json's part carries drawing 212956-005; the mesh's provenance.json (data/meshes/8f519ff443a2fe0ff02124dcc5382528d84c553310911243cc9028217d872b36) records product_name '212956-005' at XCAF label 0:1:1:1434, four solids, three instances -- matching 217755-001 A.1 find 25's qty 3. NOTE what this mesh is: the whole link ASSEMBLY, four solids -- solid 0 the MS14103-3 (one solid), solids 1 and 2 the MS14101-3's outer and inner race, solid 3 the machined link (read off each face's fit and solid_id, 2026-11-20; an earlier reading of this row named a bolt, and there is none) -- not the bare link, which is installed separately as `asm217755_213863_004`."
     },
     {
       "topology_part": "tan_link_mount_215175_002",
@@ -157,6 +158,61 @@
       "topology_part": "piston_cover_214958_002",
       "mesh_part_id": "asm217755_214958_002",
       "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_end_stop_v2.json's (and topology_vpa_pitch_linkage.json's) part carries drawing 214958-002, the piston cover Jeff named in forge note 20261016T144810_kk46rp; the mesh's provenance.json (data/meshes/9791e92a036acc70d349cb700b6ed468f0e88748e1fdef7b7baef22f4bd2af8e/provenance.json) records product_name '214958-002' at XCAF label 0:1:1:1499 of the 217755-001 A.1 assembly, one solid, ONE instance 214958-002.1 under prd-e-03300520.1 -- the sub-assembly that also holds the tangential link mount 215175-001.1 (rotorkit run assembly_extract_20261108T092425Z, handoff the_piston_cover_214958_002_is_extracted_from_217755)."
+    },
+    {
+      "topology_part": "pitch_link_213861_002",
+      "mesh_part_id": "asm217755_213861_002",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_end_stop_v2.json's part carries drawing 213861-002, the machined link inside 213862-002 (Enovia: 213861-002 x1, MS14101-3 x2); the mesh's provenance.json (data/meshes/afcc3c140899070e68342f7a910c7c657bff0de1537c8fe6be30c576a72c9a1c/provenance.json) records product_name '213861-002', one solid, four instances 213862-002.2 to .5/213861-001.1 (blades 2 to 5) -- the instance name says -001, the product -002, a disagreement on the handoff's lesson's question list. Each sits at the identity in its 213862-002, so the part's declared occurrence is its assembly's at blade 1, recorded on `asm217755_546293_002`, as `pitch_link`'s row explains. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "spherical_bearing_pitch_link_upper",
+      "mesh_part_id": "asm217755_MS14101_3_815597cb",
+      "evidence": "The pitch link's second MS14101-3: the same mesh as `spherical_bearing_pitch_link` (data/meshes/815597cb2da7407eb0e4fc1ef51386a65c5df934401e623859625ab7e05404c9), whose two instances 213862-002.1/MS14101-3.1 and .2 are the two ends of blade 1's pitch link. The part's occurrence picks .2, at (84.97, -17.14, 79.67) in the assembly frame, the plate end; .1 is at (83.00, -44.55, -22.70), the pitch arm end. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "tan_link_213863_004",
+      "mesh_part_id": "asm217755_213863_004",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_end_stop_v2.json's part carries drawing 213863-004, the machined link inside 212956-005 (Enovia: 213863-004 x1, MS14101-3 x1, MS14103-3 x1); the mesh's provenance.json (data/meshes/11bcdfc2716e270d52c0b0c7a114e3abe6d53079cbd33c043effb84dc10271d4/provenance.json) records product_name '213863-004', one solid, three instances each NAMED prd-e-03438709.N/213863-002.1 -- one per tangential link. The product's number is used; the instance name's -002 is on the handoff's lesson's question list. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "pitch_link_lower_outer_race",
+      "mesh_part_id": "asm217755_MS14101_3_815597cb",
+      "evidence": "The race is a solid of its bearing's mesh, and the table maps a part to a whole mesh, so this row names the bearing's (`spherical_bearing_pitch_link`'s row above, data/meshes/815597cb2da7407eb0e4fc1ef51386a65c5df934401e623859625ab7e05404c9). Solid 0 (26 faces) is the outer race: its outside cylinder r 7.141 and its concave seat r 5.198, read off each face's fit and the manifest's per-face solid_id on 2026-11-20. A pick on this part's mesh may land on the other race's solid; the race a face belongs to is its solid_id. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "pitch_link_lower_inner_race",
+      "mesh_part_id": "asm217755_MS14101_3_815597cb",
+      "evidence": "The race is a solid of its bearing's mesh, and the table maps a part to a whole mesh, so this row names the bearing's (`spherical_bearing_pitch_link`'s row above, data/meshes/815597cb2da7407eb0e4fc1ef51386a65c5df934401e623859625ab7e05404c9). Solid 1 (10 faces) is the inner race: the ball r 5.147 and the bore r 2.41, read off each face's fit and the manifest's per-face solid_id on 2026-11-20. A pick on this part's mesh may land on the other race's solid; the race a face belongs to is its solid_id. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "pitch_link_upper_outer_race",
+      "mesh_part_id": "asm217755_MS14101_3_815597cb",
+      "evidence": "The race is a solid of its bearing's mesh, and the table maps a part to a whole mesh, so this row names the bearing's (`spherical_bearing_pitch_link_upper`'s row above, data/meshes/815597cb2da7407eb0e4fc1ef51386a65c5df934401e623859625ab7e05404c9). Solid 0 (26 faces) is the outer race: its outside cylinder r 7.141 and its concave seat r 5.198, read off each face's fit and the manifest's per-face solid_id on 2026-11-20. A pick on this part's mesh may land on the other race's solid; the race a face belongs to is its solid_id. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "pitch_link_upper_inner_race",
+      "mesh_part_id": "asm217755_MS14101_3_815597cb",
+      "evidence": "The race is a solid of its bearing's mesh, and the table maps a part to a whole mesh, so this row names the bearing's (`spherical_bearing_pitch_link_upper`'s row above, data/meshes/815597cb2da7407eb0e4fc1ef51386a65c5df934401e623859625ab7e05404c9). Solid 1 (10 faces) is the inner race: the ball r 5.147 and the bore r 2.41, read off each face's fit and the manifest's per-face solid_id on 2026-11-20. A pick on this part's mesh may land on the other race's solid; the race a face belongs to is its solid_id. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "tan_link_lower_outer_race",
+      "mesh_part_id": "asm217755_MS14101_3_34f032f0",
+      "evidence": "The race is a solid of its bearing's mesh, and the table maps a part to a whole mesh, so this row names the bearing's (`spherical_bearing_tan_link`'s row above, data/meshes/34f032f08978c70a136340db006b709ca2c430d7d6b5429d5fd1faf9a26f9874). Solid 0 (26 faces) is the outer race: its outside cylinder r 7.141 and its concave seat r 5.198, read off each face's fit and the manifest's per-face solid_id on 2026-11-20. A pick on this part's mesh may land on the other race's solid; the race a face belongs to is its solid_id. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "tan_link_lower_inner_race",
+      "mesh_part_id": "asm217755_MS14101_3_34f032f0",
+      "evidence": "The race is a solid of its bearing's mesh, and the table maps a part to a whole mesh, so this row names the bearing's (`spherical_bearing_tan_link`'s row above, data/meshes/34f032f08978c70a136340db006b709ca2c430d7d6b5429d5fd1faf9a26f9874). Solid 1 (10 faces) is the inner race: the ball r 5.147 and the bore r 2.41, read off each face's fit and the manifest's per-face solid_id on 2026-11-20. A pick on this part's mesh may land on the other race's solid; the race a face belongs to is its solid_id. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "tan_link_upper_outer_race",
+      "mesh_part_id": "asm217755_MS14103_3",
+      "evidence": "MS14103-3 is ONE solid in this store (data/meshes/e44145483cfa1ec8b34c583fe946a8dfdfbe45db3307fd63fb05f829dfe7d0c7, 38 faces): its ball and its seat are one sphere (r 6.732), so both races map to the bearing's whole mesh, as `spherical_bearing_tan_link_ms14103_3`'s row does. This race's own faces are the outside cylinder (r 7.937); the sphere is either race's, and no solid_id tells them apart. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
+    },
+    {
+      "topology_part": "tan_link_upper_inner_race",
+      "mesh_part_id": "asm217755_MS14103_3",
+      "evidence": "The same one-solid mesh as `tan_link_upper_outer_race` (data/meshes/e44145483cfa1ec8b34c583fe946a8dfdfbe45db3307fd63fb05f829dfe7d0c7). This race's own faces are the bore (r 2.413); the sphere (r 6.732) is either race's. Added by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races (2026-11-19)."
     }
   ]
 }

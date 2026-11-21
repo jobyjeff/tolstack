@@ -15,15 +15,20 @@
 //   * a box's size from how many pins each of its sides carries;
 //   * which side a pin sits on, from where its counterpart's cell is;
 //   * a body's district from the cells its parts occupy;
-//   * an assembly's outline round its own box and its children's;
+//   * an assembly's outline round its own box and its children's -- and
+//     an assembly with no feature of its own (2026-11-19) is its outline
+//     alone, named at its top-left, round its parts' boxes wherever their
+//     bodies put them (VA.mapOutlined);
 //   * routes on 0 / 45 / 90 degrees, and a joint with several constraints
 //     as parallel routes between parallel pins -- a bundle.
 //
 // A part with a parent and no place of its own sits in its parent's cell,
 // as a small box under the parent's: a bearing with no features is an empty
-// box inside its link's outline. A part with no place at all is a layout
-// defect, and `notes` says so -- the drawing never silently drops a part,
-// since the suite counts what it draws against `model.counts`.
+// box inside its link's outline. A part of an outline has no box to sit
+// under, so it needs a place: the builder gives one to every such part the
+// layout file leaves unplaced (load_topology_map). A part with no place at
+// all is a layout defect, and `notes` says so -- the drawing never silently
+// drops a part, since the suite counts what it draws against `model.counts`.
 //
 // Pure: no DOM here. apps/viewer/views/map.js draws the geometry this
 // returns, and the fast tier reads the geometry directly. Classic script,
@@ -59,18 +64,30 @@
     // districts are at least twice the inset apart, and a district with
     // one small part is small.
     district: Object.freeze({ inset: 24, pad: 46, radius: 12 }),
-    // An assembly's outline round its own box and its children's.
-    assembly: Object.freeze({ pad: 12, radius: 8 }),
+    // An assembly's outline round its own box and its children's; an
+    // assembly with no feature of its own has no box, and its outline takes
+    // `label` more room at its top for its name.
+    assembly: Object.freeze({ pad: 12, radius: 8, label: 24 }),
     // A child part with no place of its own: a small box under its parent's
     // (`clear` is how far it keeps from a route leaving the parent's bottom).
-    child: Object.freeze({ w: 150, h: 50, gap: 12, clear: 16 }),
+    // `joined` is how far under its parent a child sits that an interface
+    // joins to it: room for the connector's symbol between the two boxes,
+    // and more than two stubs, so the drop between them never doubles back.
+    child: Object.freeze({ w: 150, h: 50, gap: 12, clear: 16, joined: 64 }),
     // Type, in world units (SVG attributes, scaled with the drawing).
-    font: Object.freeze({ body: 18, part: 17, number: 15, pin: 13, child: 12 }),
+    font: Object.freeze({ body: 18, part: 17, number: 15, pin: 13, child: 12, assembly: 15 }),
     // A part's name block: `inset` from the box's border, `clear` from any
     // jumper or mark; `grow` is how much taller a box is drawn, at a time,
     // when no corner of it has room for the name.
     name: Object.freeze({ inset: 10, clear: 6, grow: 24, tries: 8 }),
     margin: 40,
+    // The layout's budgets for a route it cannot draw plainly (2026-11-19):
+    // how many stops beside the grid's corners a route may pass, how many
+    // routes through them one connector tries, and
+    // how many whole layouts the repair of pin sides tries. Fixed counts, so
+    // a model the map cannot draw clean (v1's computed one) costs a bounded
+    // time and lays out the same on every machine.
+    budget: Object.freeze({ stops: 60, corners: 2000, repairs: 12 }),
   });
 
   // --- the symbol table ---------------------------------------------------
@@ -229,23 +246,81 @@
 
   // A route from P1 to P2 on 0 / 45 / 90 degrees: the diagonal first for the
   // shorter axis, then straight (the strategy session's sketch's rule).
-  // Straight where the two are aligned.
-  function bend(p1, p2) {
+  // Straight where the two are aligned. `late` puts the straight run first
+  // and the diagonal last: the layout's second try where the first one
+  // crosses a box.
+  function bend(p1, p2, late) {
     var dx = p2.x - p1.x, dy = p2.y - p1.y;
     var d = Math.min(Math.abs(dx), Math.abs(dy));
     if (d < 0.5 || Math.abs(Math.abs(dx) - Math.abs(dy)) < 0.5) return [p1, p2];
     var sx = Math.sign(dx) * d, sy = Math.sign(dy) * d;
+    if (late) return [p1, { x: p2.x - sx, y: p2.y - sy }, p2];
     return [p1, { x: p1.x + sx, y: p1.y + sy }, p2];
   }
 
   // The route between two pins: out of each pin square to its side, then
   // the bend between the two stub ends.
-  function route(a, b, M) {
+  function route(a, b, M, late) {
     var na = NORMAL[a.side], nb = NORMAL[b.side];
     var p1 = { x: a.x + na[0] * M.stub, y: a.y + na[1] * M.stub };
     var p2 = { x: b.x + nb[0] * M.stub, y: b.y + nb[1] * M.stub };
-    var mid = bend(p1, p2);
+    var mid = bend(p1, p2, late);
     return [{ x: a.x, y: a.y }].concat(mid, [{ x: b.x, y: b.y }]);
+  }
+
+  // A route between two pins through one or two corners of the cell grid
+  // -- the free space where four cells meet, or a symbol's width beside one
+  // (a symbol between two neighbours sits on the grid line) -- each leg a
+  // bend either way round: the layout's last try for a plain route that
+  // crosses a box (a child under its parent, boxed in by the part beside
+  // it). The shortest that `clean` accepts, tried in order of the straight
+  // line's length, which no route through the same stops can beat; null
+  // when none is.
+  function viaCorners(a, b, M, cells, clean) {
+    var ends = route(a, b, M);
+    var p1 = ends[1], p2 = ends[ends.length - 2];
+    var stops = [];
+    var near = [-M.symbol, 0, M.symbol];
+    for (var i = 0; i <= cells[0]; i++) {
+      for (var j = 0; j <= cells[1]; j++) {
+        var x = M.margin + i * M.cell.w, y = M.margin + j * M.cell.h;
+        if (x < Math.min(p1.x, p2.x) - M.cell.w || x > Math.max(p1.x, p2.x) + M.cell.w ||
+            y < Math.min(p1.y, p2.y) - M.cell.h || y > Math.max(p1.y, p2.y) + M.cell.h) continue;
+        near.forEach(function (dx) { near.forEach(function (dy) { stops.push({ x: x + dx, y: y + dy }); }); });
+      }
+    }
+    var dist = function (p, q) { return Math.hypot(q.x - p.x, q.y - p.y); };
+    // The stops least out of the way, so a wide grid's pairs stay few.
+    stops = stops.map(function (c, i) { return { c: c, d: dist(p1, c) + dist(c, p2), i: i }; })
+      .sort(function (u, v) { return u.d - v.d || u.i - v.i; }).slice(0, M.budget.stops)
+      .map(function (u) { return u.c; });
+    var tries = [];
+    stops.forEach(function (c) {
+      tries.push({ via: [c], bound: dist(p1, c) + dist(c, p2) });
+      stops.forEach(function (d) {
+        if (c !== d) tries.push({ via: [c, d], bound: dist(p1, c) + dist(c, d) + dist(d, p2) });
+      });
+    });
+    tries.sort(function (u, v) { return u.bound - v.bound; });
+    var best = null;
+    var spent = 0;
+    for (var t = 0; t < tries.length && spent < M.budget.corners; t++) {
+      if (best && tries[t].bound >= best.len) break;
+      var legs = [p1].concat(tries[t].via, [p2]);
+      for (var mask = 0; mask < (1 << (legs.length - 1)); mask++) {
+        var pts = [{ x: a.x, y: a.y }, p1];
+        for (var k = 1; k < legs.length; k++) {
+          pts = pts.concat(bend(legs[k - 1], legs[k], !!(mask & (1 << (k - 1)))).slice(1));
+        }
+        pts.push({ x: b.x, y: b.y });
+        var len = 0;
+        for (var n = 1; n < pts.length; n++) len += dist(pts[n - 1], pts[n]);
+        if (best && len >= best.len - 0.01) continue;
+        spent += 1;
+        if (clean(pts)) best = { pts: pts, len: len };
+      }
+    }
+    return best ? best.pts : null;
   }
 
   function pathD(points) {
@@ -326,6 +401,7 @@
   // The points a jumper's path passes through, for a clearance test: its
   // straight line, or its bow sampled.
   function jumperSamples(j) {
+    if (j.via) return [j.a].concat(j.via, [j.b]);
     var out = [];
     for (var i = 0; i <= 24; i++) {
       var t = i / 24, s = 1 - t;
@@ -420,15 +496,97 @@
     return best || { x: target.x, y: target.y, angle: 0 };
   }
 
-  // Does segment p-q cross rectangle r (a few samples along it)? Enough to
-  // report a route drawn through a box it does not end on.
+  // Does segment p-q cross the inside of rectangle r? Exact, not sampled:
+  // samples a twentieth of a long diagonal apart missed it clipping a
+  // box's corner (2026-11-19). A route along a border is not inside.
   function crosses(p, q, r) {
-    for (var t = 0.05; t < 1; t += 0.05) {
-      var x = p.x + (q.x - p.x) * t, y = p.y + (q.y - p.y) * t;
-      if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return true;
+    return segmentHitsRect(p, q, inset(r, 1));
+  }
+
+  // Do two polylines share a collinear run longer than `min`? Each pair of
+  // segments: parallel, on one line -- within a stroke's width, so two
+  // routes a unit apart still read as one -- and overlapping along it.
+  function sharedRun(pa, pb, min) {
+    for (var i = 1; i < pa.length; i++) {
+      var p = pa[i - 1], q = pa[i];
+      var dx = q.x - p.x, dy = q.y - p.y, len = Math.hypot(dx, dy);
+      if (len < 0.5) continue;
+      var ux = dx / len, uy = dy / len;
+      for (var j = 1; j < pb.length; j++) {
+        var r = pb[j - 1], s = pb[j];
+        var off = function (pt) { return (pt.x - p.x) * uy - (pt.y - p.y) * ux; };
+        if (Math.abs(off(r)) > 2 || Math.abs(off(s)) > 2) continue;
+        var t1 = (r.x - p.x) * ux + (r.y - p.y) * uy, t2 = (s.x - p.x) * ux + (s.y - p.y) * uy;
+        var overlap = Math.min(len, Math.max(t1, t2)) - Math.max(0, Math.min(t1, t2));
+        if (overlap > min) return true;
+      }
     }
     return false;
   }
+
+  // The boxes a route crosses: any box it does not end on, and one of the
+  // two it ends on (`own`) anywhere past its two stubs. [{id, own}]
+  function crossedBoxes(pts, own, boxes) {
+    var hit = {};
+    for (var i = 1; i < pts.length; i++) {
+      var stubLeg = i === 1 || i === pts.length - 1;
+      boxes.forEach(function (box) {
+        var mine = own.indexOf(box.id) !== -1;
+        if (mine && stubLeg) return;
+        if (crosses(pts[i - 1], pts[i], box)) hit[box.id] = mine;
+      });
+    }
+    return Object.keys(hit).map(function (id) { return { id: id, own: hit[id] }; });
+  }
+
+  // What is wrong with the routes as drawn -- the map's route notes, one
+  // place: a route through a box it does not end on; one that crosses a box
+  // it DOES end on anywhere past its two stubs (2026-11-19: the tangential
+  // link's attach bore ran back across the plate's own box); a symbol inside
+  // any box (the child under its parent); and two interfaces' routes on one
+  // collinear run, which read as one line that forks into branches with no
+  // node (Jeff's screenshots of 2026-11-19). A run is shared where two
+  // segments lie on one line and overlap by more than a pin's width.
+  // `connectors` need {id, points, mid, endParts}. Returns {notes, defects:
+  // [interface id]}. They fire in tests and on an agent's scoring of a
+  // layout, never on the page.
+  VA.mapRouteNotes = function (connectors, boxes, M) {
+    var notes = [], defects = [];
+    var defect = function (id) { if (defects.indexOf(id) === -1) defects.push(id); };
+    connectors.forEach(function (c) {
+      crossedBoxes(c.points, c.endParts, boxes).forEach(function (hit) {
+        notes.push(hit.own ? "interface " + c.id + " crosses " + hit.id + ", a box it ends on, beyond its stub"
+          : "interface " + c.id + " is routed through " + hit.id);
+        defect(c.id);
+      });
+      boxes.forEach(function (box) {
+        if (c.mid.x > box.x && c.mid.x < box.x + box.w && c.mid.y > box.y && c.mid.y < box.y + box.h) {
+          notes.push("interface " + c.id + "'s symbol sits on " + box.id);
+          defect(c.id);
+        }
+      });
+    });
+    for (var i = 0; i < connectors.length; i++) {
+      for (var j = i + 1; j < connectors.length; j++) {
+        if (sharedRun(connectors[i].points, connectors[j].points, M.pinR)) {
+          notes.push("interfaces " + connectors[i].id + " and " + connectors[j].id + " share a run");
+          defect(connectors[i].id);
+          defect(connectors[j].id);
+        }
+      }
+    }
+    return { notes: notes, defects: defects };
+  };
+
+  // An assembly the map draws as its outline alone, with no box: a part
+  // with parts and no feature of its own -- the assembly tree and the bodies
+  // are two groupings of the same parts, so its parts may sit in two
+  // districts (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies,
+  // 2026-11-19). The builder reads the same rule off the model
+  // (build_topology_projection.outlined_assemblies).
+  VA.mapOutlined = function (part) {
+    return !!(part && part.children && part.children.length && !(part.features && part.features.length));
+  };
 
   // THE LAYOUT. `model` is the projection's model block (or the page's model
   // object -- only its arrays are read), `doc` the authored layout file.
@@ -436,6 +594,47 @@
   VA.mapLayout = function (model, doc, metrics) {
     if (!model || !doc || !doc.places) return null;
     var M = metrics || VA.MAP;
+    // Where a route still crosses a box, sits its symbol on one or shares a
+    // run, its two pins try the other sides of their parts -- every pair of
+    // sides, in the interfaces' id order: a try is kept only where the map's
+    // notes fall. Deterministic, and blind to the order of `edges[]`. The
+    // tries route plainly; the layout they settle on then routes what is
+    // left through the grid's corners, once.
+    var turned = {};
+    var geo = layoutOnce(model, doc, M, turned, false);
+    var tried = {};
+    var spent = 0;
+    for (var round = 0; round < 8 && geo.defects.length; round++) {
+      var better = false;
+      geo.defects.slice().sort().forEach(function (pair) {
+        if (better || tried[pair.join(" ")]) return;
+        tried[pair.join(" ")] = true;
+        SIDES.forEach(function (sa) {
+          SIDES.forEach(function (sb) {
+            if (better || spent >= M.budget.repairs ||
+                (geo.sideOf[pair[0]] === sa && geo.sideOf[pair[1]] === sb)) return;
+            spent += 1;
+            var next = Object.assign({}, turned);
+            next[pair[0]] = sa;
+            next[pair[1]] = sb;
+            var g = layoutOnce(model, doc, M, next, false);
+            if (g.notes.length < geo.notes.length) { geo = g; turned = next; better = true; }
+          });
+        });
+      });
+      if (!better) break;
+    }
+    if (geo.defects.length) geo = layoutOnce(model, doc, M, turned, true);
+    delete geo.defects;
+    delete geo.sideOf;
+    return geo;
+  };
+
+  // One layout, with `turned` -- {"<interface>|<feature>": side} -- putting
+  // a pin on a side of the repair's choosing (VA.mapLayout).
+  // `corners` says whether a route that crosses a box tries the grid's
+  // corners (viaCorners).
+  function layoutOnce(model, doc, M, turned, corners) {
     var notes = [];
     var parts = {};
     (model.parts || []).forEach(function (p) { parts[p.id] = p; });
@@ -443,15 +642,20 @@
     (model.features || []).forEach(function (f) { features[f.id] = f; });
 
     // 1. Every part's cell: its own place, else its parent's (a child with
-    //    no place sits in its parent's cell), else a defect.
+    //    no place sits in its parent's cell), else a defect. An outline has
+    //    no cell: it is drawn round its parts (step 8), and a part under it
+    //    has no box to sit under.
+    var outlined = {};
+    (model.parts || []).forEach(function (p) { if (VA.mapOutlined(p)) outlined[p.id] = true; });
     var placeOf = {};
     var childless = {};
     (model.parts || []).forEach(function (p) {
+      if (outlined[p.id]) return;
       var own = doc.places[p.id];
       if (own && own.length === 2) { placeOf[p.id] = [own[0], own[1]]; return; }
       var up = p.parent;
-      while (up && !doc.places[up]) up = parts[up] ? parts[up].parent : null;
-      if (up) { placeOf[p.id] = [doc.places[up][0], doc.places[up][1]]; childless[p.id] = up; }
+      while (up && !outlined[up] && !doc.places[up]) up = parts[up] ? parts[up].parent : null;
+      if (up && !outlined[up]) { placeOf[p.id] = [doc.places[up][0], doc.places[up][1]]; childless[p.id] = up; }
       else notes.push("part " + p.id + " has no place in the layout");
     });
     Object.keys(doc.places).forEach(function (id) {
@@ -475,7 +679,6 @@
     //    no interface is an inner mark (a dimension's end on the part alone).
     var pinsOf = {};      // part -> side -> [pin]
     var marksOf = {};     // part -> [mark]
-    var pinById = {};
     // Two parts in one column with another part's cell between them: no
     // straight route misses that part (2026-11-17, the upper piston head on
     // the piston body with the lower head between). A feature whose every
@@ -510,6 +713,42 @@
       var other = (iface.ends || []).filter(function (e) { return e !== fid; })[0];
       return other && features[other] ? features[other].part : null;
     };
+    // The side a feature's pin for ONE interface sits on (2026-11-19, Jeff:
+    // "multiple edges coming out of one node"): toward that interface's own
+    // partner, never toward whichever interface came first in `edges[]`.
+    //   * a child with no place and its parent share a cell: the parent's
+    //     bottom, the child's top -- the child sits under the parent;
+    //   * two such children of one parent: the facing flanks of the row;
+    //   * a part between, in one column or one row: that line's outer flank;
+    //   * else the side of the cell facing the partner's cell -- except a
+    //     child's top, which its parent covers: the flank toward the partner.
+    var kidIndex = {};
+    (model.parts || []).forEach(function (p) {
+      if (childless[p.id]) kidIndex[p.id] = Object.keys(kidIndex).filter(function (k) {
+        return childless[k] === childless[p.id];
+      }).length;
+    });
+    var sideFor = function (part, far, key) {
+      if (turned[key]) return turned[key];
+      if (!far || !placeOf[far]) return "bottom";
+      if (childless[far] === part) return "bottom";
+      if (childless[part] === far) return "top";
+      if (childless[part] && childless[part] === childless[far]) return kidIndex[part] < kidIndex[far] ? "right" : "left";
+      var way = partBetween(placeOf[part], placeOf[far]);
+      if (way === "column") return flankOf(placeOf[part][0]);
+      if (way === "row") return rowFlankOf(placeOf[part][1]);
+      var side = sideTowards(placeOf[part], placeOf[far]);
+      if (side === "top" && childless[part]) {
+        return placeOf[far][0] < placeOf[part][0] ? "left" : "right";
+      }
+      return side;
+    };
+    var slotOf = {};      // interface id + "|" + feature id -> pin
+    var endsOfIface = {};
+    (model.interfaces || []).forEach(function (iface) { endsOfIface[iface.id] = iface.ends || []; });
+    var otherEnd = function (pin) {
+      return endsOfIface[pin.iface].filter(function (e) { return e !== pin.id; })[0];
+    };
     (model.features || []).forEach(function (f) {
       if (!placeOf[f.part]) return;
       var ifaces = interfacesAt[f.id] || [];
@@ -517,29 +756,36 @@
         (marksOf[f.part] = marksOf[f.part] || []).push({ id: f.id, part: f.part, node: f.node, label: f.name });
         return;
       }
-      var first = ifaces[0];
-      var farPart = farPartOf(first, f.id);
-      var side = farPart && placeOf[farPart] ? sideTowards(placeOf[f.part], placeOf[farPart]) : "bottom";
-      var ways = ifaces.map(function (i) { return partBetween(placeOf[f.part], placeOf[farPartOf(i, f.id)]); });
-      if (ways.every(function (w) { return w === "column"; })) side = flankOf(placeOf[f.part][0]);
-      else if (ways.every(function (w) { return w === "row"; })) side = rowFlankOf(placeOf[f.part][1]);
-      var pin = {
-        id: f.id, part: f.part, node: f.node, label: f.name, side: side,
-        counterpart: farPart,
-        // What orders pins along a side: the counterpart's cell along the
-        // side's axis, then the constraint's place in its joint, so the two
-        // ends of a bundle come out in the same order and run parallel.
-        order: [farPart && placeOf[farPart] ? placeOf[farPart][side === "left" || side === "right" ? 1 : 0] : 0,
-                constraintIndex[first.id] || 0, f.id],
-      };
-      pinById[f.id] = pin;
-      var bySide = pinsOf[f.part] = pinsOf[f.part] || { top: [], right: [], bottom: [], left: [] };
-      bySide[side].push(pin);
+      // One pin per interface the feature ends: each faces its own partner,
+      // and no two routes leave one pin (a shared stub that forks read as a
+      // branch with no node). Every pin names the one feature.
+      ifaces.forEach(function (iface) {
+        var farPart = farPartOf(iface, f.id);
+        var side = sideFor(f.part, farPart, iface.id + "|" + f.id);
+        var pin = {
+          id: f.id, part: f.part, node: f.node, label: f.name, side: side,
+          counterpart: farPart, iface: iface.id,
+          // A pin toward this part's own child with no place: drawn straight
+          // above the child's pin for the same interface (step 4-6).
+          toChild: childless[farPart] === f.part ? farPart : null,
+          // What orders pins along a side: the counterpart's cell along the
+          // side's axis (a child: its place in the row), then the
+          // constraint's place in its joint, so the two ends of a bundle come
+          // out in the same order and run parallel; then the ids, so the
+          // order of `edges[]` never moves a pin.
+          order: [farPart && placeOf[farPart] ? placeOf[farPart][side === "left" || side === "right" ? 1 : 0] +
+                    (childless[farPart] ? (kidIndex[farPart] + 1) / 100 : 0) : 0,
+                  constraintIndex[iface.id] || 0, f.id, iface.id],
+        };
+        slotOf[iface.id + "|" + f.id] = pin;
+        var bySide = pinsOf[f.part] = pinsOf[f.part] || { top: [], right: [], bottom: [], left: [] };
+        bySide[side].push(pin);
+      });
     });
     Object.keys(pinsOf).forEach(function (pid) {
       SIDES.forEach(function (side) {
         pinsOf[pid][side].sort(function (a, b) {
-          for (var i = 0; i < 3; i++) {
+          for (var i = 0; i < 4; i++) {
             if (a.order[i] < b.order[i]) return -1;
             if (a.order[i] > b.order[i]) return 1;
           }
@@ -566,13 +812,16 @@
     var dimsOf = {};
     (model.dimensions || []).forEach(function (d) { (dimsOf[d.part] = dimsOf[d.part] || []).push(d); });
 
+    // A side's pins that are spread along it: all but those toward the
+    // part's own child, which sit over the child's (step 4-6).
+    var spread = function (list) { return list.filter(function (q) { return !q.toChild; }); };
     // Pin coordinates along each side of `box`, centred on the side.
     var pinsAlong = function (box) {
       var out = [];
       var bySide = pinsOf[box.id];
       if (!bySide) return out;
       SIDES.forEach(function (side) {
-        var list = bySide[side];
+        var list = spread(bySide[side]);
         list.forEach(function (pin, i) {
           var off = (i - (list.length - 1) / 2) * M.pinPitch;
           if (side === "left") { pin.x = box.x; pin.y = box.y + box.h / 2 + off; }
@@ -594,41 +843,89 @@
       });
       return list.slice();
     };
-    // A part's jumpers: one per dimension, between the two ends it measures.
-    // Two ends on one side bow into the box so the line is not lost in it.
-    var jumpersOf = function (pid, ends) {
+    // A child's box (step 4-6) has no room to place its name clear of a
+    // jumper, so a jumper between two of its sides runs inside the border,
+    // through the corner between them -- or, between opposite sides, the two
+    // corners of a flank.
+    var CORNER_IN = 4;
+    var cornerOf = function (box, s1, s2) {
+      var sides = [s1, s2];
+      return { x: round(sides.indexOf("left") !== -1 ? box.x + CORNER_IN : box.x + box.w - CORNER_IN),
+               y: round(sides.indexOf("top") !== -1 ? box.y + CORNER_IN : box.y + box.h - CORNER_IN) };
+    };
+    var viaBorder = function (box, a, b) {
+      var across = { top: "bottom", bottom: "top", left: "right", right: "left" };
+      if (across[a.side] !== b.side) return [cornerOf(box, a.side, b.side)];
+      var flank = a.side === "top" || a.side === "bottom" ? "right" : "bottom";
+      return [cornerOf(box, a.side, flank), cornerOf(box, b.side, flank)];
+    };
+    // A part's jumpers: one per dimension, between the two ends it measures
+    // -- of a feature with a pin per partner, the pin nearest the other end
+    // (the first such by interface id). Two ends on one side bow into the
+    // box so the line is not lost in it.
+    var jumpersOf = function (pid, ends, box) {
       var out = [];
       (dimsOf[pid] || []).forEach(function (d) {
-        var a = ends[d.from], b = ends[d.to];
-        if (!a || !b) return;
+        var j = jumperOf(d, ends, box);
+        if (j) out.push(j);
+      });
+      return out;
+    };
+    var jumperOf = function (d, ends, box) {
+      {
+        var a = null, b = null, best = Infinity;
+        (ends[d.from] || []).forEach(function (pa) {
+          (ends[d.to] || []).forEach(function (pb) {
+            var dist = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+            if (dist < best - 0.01) { best = dist; a = pa; b = pb; }
+          });
+        });
+        if (!a || !b) return null;
         var j = { id: d.id, part: d.part, name: d.name, from: d.from, to: d.to,
-                  a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, ctrl: null,
+                  a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, ctrl: null, sides: [a.side, b.side],
                   mid: { x: round((a.x + b.x) / 2), y: round((a.y + b.y) / 2) } };
         if (a.side && a.side === b.side) {
           var n = NORMAL[a.side];
           var bow = Math.max(24, Math.hypot(b.x - a.x, b.y - a.y) * 0.35);
           j.ctrl = { x: round((a.x + b.x) / 2 - n[0] * bow), y: round((a.y + b.y) / 2 - n[1] * bow) };
           j.d = "M" + a.x + " " + a.y + " Q" + j.ctrl.x + " " + j.ctrl.y + " " + b.x + " " + b.y;
+        } else if (box && box.child && a.side && b.side) {
+          j.via = viaBorder(box, a, b);
+          j.d = pathD([a].concat(j.via, [b]));
         } else {
           j.d = pathD([a, b]);
         }
-        out.push(j);
+        return j;
+      }
+    };
+
+    // A part's ends, for its jumpers: each feature's pins and marks, in
+    // interface id order, so the order of `edges[]` never moves a jumper.
+    var endsOf = function (list) {
+      var ends = {};
+      list.forEach(function (q) { (ends[q.id] = ends[q.id] || []).push(q); });
+      Object.keys(ends).forEach(function (id) {
+        ends[id].sort(function (u, v) { return (u.iface || "") < (v.iface || "") ? -1 : (u.iface || "") > (v.iface || "") ? 1 : 0; });
       });
-      return out;
+      return ends;
     };
 
     (model.parts || []).forEach(function (p) {
       if (!placeOf[p.id] || childless[p.id]) return;
       var cell = cellRect(placeOf[p.id], M);
       var bySide = pinsOf[p.id] || { top: [], right: [], bottom: [], left: [] };
-      var across = Math.max(bySide.top.length, bySide.bottom.length);
+      var across = Math.max(spread(bySide.top).length, spread(bySide.bottom).length);
       var down = Math.max(bySide.left.length, bySide.right.length);
       var w = Math.max(M.box.minW, across * M.pinPitch + 2 * M.box.pad);
       var h0 = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);
       var kids = childrenInCell[p.id] || [];
-      var kidsH = kids.length ? M.child.h + M.child.gap : 0;
+      // A child joined to its parent sits far enough under it for the
+      // connector's symbol to sit between the two boxes.
+      var joined = bySide.bottom.some(function (q) { return q.toChild; });
+      var kidGap = joined ? M.child.joined : M.child.gap;
+      var kidsH = kids.length ? M.child.h + kidGap : 0;
       var c = centre(cell);
-      var box, ownPins, ownMarks, ownJumpers, name;
+      var box, ownPins, ownMarks, ownJumpers, name, kidBoxes;
       // Taller first, while the cell has the room; then wider, which opens
       // the strips beside a side's centred pins (a part with routes through
       // its top and its bottom has no other room for its name).
@@ -646,11 +943,43 @@
           x: c.x - w / 2, y: c.y - (h + kidsH) / 2, w: w, h: h, cell: cell,
         };
         ownPins = pinsAlong(box);
+        // The children, in a row under the parent: centred, or -- where
+        // routes leave the parent's bottom, as in a column of parts stacked
+        // one on the next -- beside those routes, on the side with more
+        // room, so no route is drawn through a child it does not end on.
+        var rowW = kids.length * M.child.w + (kids.length - 1) * M.child.gap;
+        var rowX = c.x - rowW / 2;
+        var under = spread(bySide.bottom);
+        if (kids.length && under.length) {
+          var lo = Math.min.apply(null, under.map(function (q) { return q.x; })) - M.pinR - M.child.clear;
+          var hi = Math.max.apply(null, under.map(function (q) { return q.x; })) + M.pinR + M.child.clear;
+          var roomL = lo - (cell.x + M.district.inset + M.assembly.pad);
+          var roomR = (cell.x + cell.w - M.district.inset - M.assembly.pad) - hi;
+          if (roomL >= rowW && roomL >= roomR) rowX = lo - rowW;
+          else if (roomR >= rowW) rowX = hi;
+        }
+        kidBoxes = kids.map(function (cid, i) {
+          var kid = parts[cid];
+          var kbox = {
+            id: cid, label: kid.label, number: kid.number, name: kid.name, body: kid.body,
+            x: rowX + i * (M.child.w + M.child.gap), y: box.y + box.h + kidGap,
+            w: M.child.w, h: M.child.h, cell: cell, child: true,
+          };
+          // A child's own features, should it have any, on its own box.
+          return { box: kbox, pins: pinsAlong(kbox), marks: marksAlong(kbox) };
+        });
+        // A pin toward a child sits on the parent's bottom straight over the
+        // child's pin for the same interface: the route is the short drop
+        // between the two facing sides.
+        bySide.bottom.forEach(function (q) {
+          if (!q.toChild) return;
+          var mate = slotOf[q.iface + "|" + otherEnd(q)];
+          q.x = round(mate && mate.x !== undefined ? mate.x : box.x + box.w / 2);
+          q.y = round(box.y + box.h);
+          ownPins.push(q);
+        });
         ownMarks = marksAlong(box);
-        var ends = {};
-        ownPins.forEach(function (q) { ends[q.id] = q; });
-        ownMarks.forEach(function (q) { ends[q.id] = q; });
-        ownJumpers = jumpersOf(p.id, ends);
+        ownJumpers = jumpersOf(p.id, endsOf(ownPins.concat(ownMarks)), box);
         name = placeName(box, ownJumpers, ownPins.concat(ownMarks), M);
         if (name) break;
       }
@@ -668,43 +997,75 @@
       Array.prototype.push.apply(pins, ownPins);
       Array.prototype.push.apply(marks, ownMarks);
       Array.prototype.push.apply(jumpers, ownJumpers);
-      // The children, in a row under the parent: centred, or -- where routes
-      // leave the parent's bottom, as in a column of parts stacked one on
-      // the next -- beside those routes, on the side with more room, so no
-      // route is drawn through a child it does not end on.
-      var rowW = kids.length * M.child.w + (kids.length - 1) * M.child.gap;
-      var rowX = c.x - rowW / 2;
-      var under = bySide.bottom;
-      if (kids.length && under.length) {
-        var lo = Math.min.apply(null, under.map(function (q) { return q.x; })) - M.pinR - M.child.clear;
-        var hi = Math.max.apply(null, under.map(function (q) { return q.x; })) + M.pinR + M.child.clear;
-        var roomL = lo - (cell.x + M.district.inset + M.assembly.pad);
-        var roomR = (cell.x + cell.w - M.district.inset - M.assembly.pad) - hi;
-        if (roomL >= rowW && roomL >= roomR) rowX = lo - rowW;
-        else if (roomR >= rowW) rowX = hi;
-      }
-      kids.forEach(function (cid, i) {
-        var kid = parts[cid];
-        var kbox = {
-          id: cid, label: kid.label, number: kid.number, name: kid.name, body: kid.body,
-          x: rowX + i * (M.child.w + M.child.gap), y: box.y + box.h + M.child.gap,
-          w: M.child.w, h: M.child.h, cell: cell, child: true,
-        };
-        boxes.push(kbox);
-        boxOf[cid] = kbox;
-        // A child's own features, should it have any, on its own box.
-        var kidPins = pinsAlong(kbox), kidMarks = marksAlong(kbox);
-        var kidEnds = {};
-        kidPins.concat(kidMarks).forEach(function (q) { kidEnds[q.id] = q; });
-        Array.prototype.push.apply(pins, kidPins);
-        Array.prototype.push.apply(marks, kidMarks);
-        Array.prototype.push.apply(jumpers, jumpersOf(cid, kidEnds));
+      kidBoxes.forEach(function (k) {
+        boxes.push(k.box);
+        boxOf[k.box.id] = k.box;
+        Array.prototype.push.apply(pins, k.pins);
+        Array.prototype.push.apply(marks, k.marks);
+        Array.prototype.push.apply(jumpers, jumpersOf(k.box.id, endsOf(k.pins.concat(k.marks)), k.box));
       });
     });
-    // A dimension whose ends the map did not place on its own part is a
-    // defect, said once.
+    // An assembly's dimension between two of its parts' features (since
+    // 2026-11-19 its `part` may be the assembly, its ends features of the
+    // parts under it): a jumper between those features' nearest pins --
+    // straight where that crosses no box, else out of each pin square to its
+    // side and along a lane past the assembly's boxes it spans, under them,
+    // over them, or beside them, the first that crosses no box. Its outline
+    // takes the jumper in.
+    var inside = function (id, assemblyId) {
+      for (var up = id; up && parts[up]; up = parts[up].parent) if (up === assemblyId) return true;
+      return false;
+    };
     var drawn = {};
     jumpers.forEach(function (j) { drawn[j.id] = true; });
+    var everyEnd = endsOf(pins.concat(marks));
+    (model.dimensions || []).forEach(function (d) {
+      if (drawn[d.id] || boxOf[d.part]) return;
+      var j = jumperOf(d, everyEnd, null);
+      if (!j) return;
+      var out = function (q, side) {
+        var n = side ? NORMAL[side] : [0, 0];
+        return { x: round(q.x + n[0] * M.stub), y: round(q.y + n[1] * M.stub) };
+      };
+      var p1 = out(j.a, j.sides[0]), p2 = out(j.b, j.sides[1]);
+      var clear = function (pts) {
+        for (var i = 1; i < pts.length; i++) {
+          for (var k = 0; k < boxes.length; k++) if (crosses(pts[i - 1], pts[i], boxes[k])) return false;
+        }
+        return true;
+      };
+      // A lane past the assembly's boxes that overlap the run between the
+      // two stubs, on one side: [axis, sign] -- y +1 under, y -1 over,
+      // x -1 left, x +1 right.
+      var lanePast = function (axis, sign) {
+        var across = axis === "y" ? "x" : "y", size = axis === "y" ? "h" : "w", span = axis === "y" ? "w" : "h";
+        var lo = Math.min(p1[across], p2[across]), hi = Math.max(p1[across], p2[across]);
+        var lane = sign > 0 ? Math.max(p1[axis], p2[axis]) : Math.min(p1[axis], p2[axis]);
+        boxes.forEach(function (box) {
+          if (!inside(box.id, d.part) || !(box[across] <= hi && box[across] + box[span] >= lo)) return;
+          lane = sign > 0 ? Math.max(lane, box[axis] + box[size]) : Math.min(lane, box[axis]);
+        });
+        lane = round(lane + sign * M.stub / 2);
+        return axis === "y" ? [p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2]
+          : [p1, { x: lane, y: p1.y }, { x: lane, y: p2.y }, p2];
+      };
+      var tries = [[]].concat([["y", 1], ["y", -1], ["x", -1], ["x", 1]].map(function (t) {
+        return lanePast(t[0], t[1]);
+      }));
+      var via = tries.filter(function (v) { return clear([j.a].concat(v, [j.b])); })[0];
+      if (!via) {
+        notes.push("dimension " + d.id + " has no jumper clear of every box");
+        via = tries[1];
+      }
+      j.ctrl = null;
+      j.via = via.length ? via : null;
+      j.d = pathD([j.a].concat(via, [j.b]));
+      if (via.length) j.mid = { x: round((via[1].x + via[2].x) / 2), y: round((via[1].y + via[2].y) / 2) };
+      j.lane = union([j.a, j.b].concat(via).map(function (q) { return { x: q.x, y: q.y, w: 0, h: 0 }; }));
+      jumpers.push(j);
+      drawn[j.id] = true;
+    });
+    // A dimension whose ends the map did not place is a defect, said once.
     (model.dimensions || []).forEach(function (d) {
       if (!drawn[d.id]) notes.push("dimension " + d.id + " has an end the map did not place");
     });
@@ -751,12 +1112,45 @@
       lane = round(lane + out * later * M.pinPitch);
       return [{ x: a.x, y: a.y }, p1, { x: p1.x, y: lane }, { x: p2.x, y: lane }, p2, { x: b.x, y: b.y }];
     };
-    (model.interfaces || []).forEach(function (iface) {
+    var boxesCrossed = function (pts, a, b) { return crossedBoxes(pts, [a.part, b.part], boxes); };
+    // The pins of an interface whose route is defective, for the repair.
+    var defects = [];
+    var defect = function (id) {
+      var pair = (endsOfIface[id] || []).map(function (fid) { return id + "|" + fid; });
+      if (pair.length === 2 && slotOf[pair[0]] && slotOf[pair[1]] &&
+          !defects.some(function (d) { return d[0] === pair[0]; })) defects.push(pair);
+    };
+    // Routed in id order, and a route through the grid's corners after
+    // every other, so one that steers clear of those already drawn sees
+    // them all and never depends on the order of `edges[]`.
+    var deferred = [];
+    var lay = function (iface, last) {
       var ends = iface.ends || [];
-      var a = pinById[ends[0]], b = pinById[ends[1]];
+      var a = slotOf[iface.id + "|" + ends[0]], b = slotOf[iface.id + "|" + ends[1]];
       if (!a || !b) { notes.push("interface " + iface.id + " has an end the map did not place"); return; }
       var way = partBetween(placeOf[a.part], placeOf[b.part]);
       var pts = way === "column" ? detour(a, b, iface) : way === "row" ? rowDetour(a, b, iface) : route(a, b, M);
+      // A plain route that crosses a box tries its bend the other way
+      // round, then a way through the grid's corners that crosses none and
+      // runs on no route already drawn.
+      if (!way && boxesCrossed(pts, a, b).length) {
+        var late = route(a, b, M, true);
+        if (!boxesCrossed(late, a, b).length) pts = late;
+        else if (corners && !last) { deferred.push(iface); return; }
+        else if (corners) {
+          pts = viaCorners(a, b, M, [lastColumn + 1, lastRow + 1], function (cand) {
+            // ...and keeps a stub's length from every other pin, so it never
+            // meets another route where that one leaves its pin and reads as
+            // a branch of it.
+            return !boxesCrossed(cand, a, b).length && !connectors.some(function (c) {
+              return sharedRun(c.points, cand, M.pinR) ||
+                nearRect(cand, { x: c.mid.x, y: c.mid.y, w: 0, h: 0 }, M.symbol / 2);
+            }) && !pins.some(function (q) {
+              return q !== a && q !== b && nearRect(cand.slice(1, -1), { x: q.x, y: q.y, w: 0, h: 0 }, M.stub);
+            });
+          }) || pts;
+        }
+      }
       var symbol = VA.mapSymbolOf(iface);
       // A gap edge that states no interface word is a model gap (the gap
       // list names it), not a layout defect: its connector is drawn bare.
@@ -765,22 +1159,19 @@
       var mid = symbolPoint(pts, a, b);
       connectors.push({
         id: iface.id, name: iface.name, kind: iface.kind, joint: iface.joint,
-        within: iface.within, parts: iface.parts, ends: ends,
+        within: iface.within, parts: iface.parts, ends: ends, endParts: [a.part, b.part],
         symbol: symbol, points: pts, d: pathD(pts),
         mid: { x: round(mid.x), y: round(mid.y), angle: round(mid.angle) },
         bundled: (constraintIndex[iface.id] !== undefined) &&
           (model.joints || []).some(function (j) { return j.id === iface.joint && j.constraints.length > 1; }),
       });
-      // A route through a box it does not end on is a layout defect.
-      for (var i = 1; i < pts.length; i++) {
-        boxes.forEach(function (box) {
-          if (box.id === a.part || box.id === b.part) return;
-          if (crosses(pts[i - 1], pts[i], box)) {
-            notes.push("interface " + iface.id + " is routed through " + box.id);
-          }
-        });
-      }
-    });
+    };
+    (model.interfaces || []).slice().sort(function (x, y) { return x.id < y.id ? -1 : x.id > y.id ? 1 : 0; })
+      .forEach(function (iface) { lay(iface, false); });
+    deferred.forEach(function (iface) { lay(iface, true); });
+    var routeNotes = VA.mapRouteNotes(connectors, boxes, M);
+    Array.prototype.push.apply(notes, routeNotes.notes);
+    routeNotes.defects.forEach(defect);
 
     // 8. Districts: a body's cells, inset. An assembly's outline round its
     //    box and its children's.
@@ -813,14 +1204,74 @@
         notes.push("part " + box.id + " is outside its body's district");
       }
     });
-    var assemblies = [];
-    (model.parts || []).forEach(function (p) {
-      if (!(p.children && p.children.length) || !boxOf[p.id]) return;
-      var members = [boxOf[p.id]].concat(p.children.map(function (c) { return boxOf[c]; }).filter(Boolean));
-      var u = union(members);
-      var r = inset(u, -M.assembly.pad);
-      assemblies.push({ id: p.id, label: p.label, body: p.body, x: r.x, y: r.y, w: r.w, h: r.h,
-                        children: p.children.slice() });
+    // Deepest first, so an outline round a nested assembly takes in that
+    // assembly's own outline; listed in the model's part order.
+    var depthOf = function (p) {
+      var n = 0;
+      for (var up = p.parent; up && parts[up]; up = parts[up].parent) n += 1;
+      return n;
+    };
+    var outlineOf = {};
+    var laneOf = {};
+    jumpers.forEach(function (j) { if (j.lane) (laneOf[j.part] = laneOf[j.part] || []).push(j.lane); });
+    // The names an outline's name must keep clear of: every district's
+    // (views/map.js draws it at the district's top-left) and every outline's
+    // already named.
+    var bodyFont = M.font.body, nameFont = M.font.assembly;
+    var taken = bodies.map(function (b) {
+      return { x: b.x + 14, y: b.y + 8, w: String(b.name).length * bodyFont * VA.MAP_GLYPH,
+               h: Math.round(bodyFont * 1.25) };
+    });
+    (model.parts || []).filter(function (p) { return p.children && p.children.length; })
+      .map(function (p, i) { return { p: p, depth: depthOf(p), i: i }; })
+      .sort(function (u, v) { return v.depth - u.depth || u.i - v.i; })
+      .forEach(function (item) {
+        var p = item.p;
+        var kids = p.children.map(function (c) { return outlineOf[c] || boxOf[c]; }).filter(Boolean);
+        if (!outlined[p.id]) {
+          if (!boxOf[p.id]) return;
+          var r = inset(union([boxOf[p.id]].concat(kids)), -M.assembly.pad);
+          outlineOf[p.id] = { id: p.id, label: p.label, body: p.body, x: r.x, y: r.y, w: r.w, h: r.h,
+                              children: p.children.slice() };
+          return;
+        }
+        if (!kids.length) { notes.push("assembly " + p.id + " has no drawn part to draw round"); return; }
+        // An assembly with no box is its outline: named at its top-left as
+        // a district is, its number first and its everyday name beside it --
+        // or at its top-right, where the top-left would meet a district's
+        // name or another outline's.
+        var u = union(kids.concat(laneOf[p.id] || []));
+        var top = M.assembly.label;
+        var o = { id: p.id, label: p.label, number: p.number, name: p.name, body: p.body, outline: true,
+                  x: u.x - M.assembly.pad, y: u.y - M.assembly.pad - top,
+                  w: u.w + 2 * M.assembly.pad, h: u.h + 2 * M.assembly.pad + top,
+                  children: p.children.slice() };
+        var str = VA.mapFitText(p.label, o.w - 20, nameFont);
+        var tw = str.length * nameFont * VA.MAP_GLYPH, th = Math.round(nameFont * 1.25);
+        var ny = o.y + M.assembly.pad / 2;
+        var tries = [{ x: o.x + 10, anchor: "start", rect: { x: o.x + 10, y: ny, w: tw, h: th } },
+                     { x: o.x + o.w - 10, anchor: "end", rect: { x: o.x + o.w - 10 - tw, y: ny, w: tw, h: th } }];
+        var at = tries.filter(function (t) {
+          return !taken.some(function (r) { return overlaps(r, t.rect); });
+        })[0];
+        if (!at) {
+          notes.push("assembly " + p.id + "'s name meets another name at both its top corners");
+          at = tries[0];
+        }
+        taken.push(at.rect);
+        o.nameAt = { x: round(at.x), y: round(ny + nameFont * 0.95), anchor: at.anchor, text: str };
+        outlineOf[p.id] = o;
+      });
+    var assemblies = (model.parts || []).map(function (p) { return outlineOf[p.id]; }).filter(Boolean);
+    // An outline that takes in a box not of its parts says the part is in
+    // an assembly it is not in: a layout defect.
+    assemblies.forEach(function (a) {
+      if (!a.outline) return;
+      boxes.forEach(function (box) {
+        if (!inside(box.id, a.id) && overlaps(a, box)) {
+          notes.push("assembly " + a.id + "'s outline takes in " + box.id + ", which is not one of its parts");
+        }
+      });
     });
 
     // 9. The drawing's extent.
@@ -835,8 +1286,10 @@
       topologyId: model.id, metrics: M,
       bodies: bodies, assemblies: assemblies, boxes: boxes, pins: pins, marks: marks,
       jumpers: jumpers, connectors: connectors, bounds: bounds, notes: notes,
+      defects: defects,
+      sideOf: Object.keys(slotOf).reduce(function (o, k) { o[k] = slotOf[k].side; return o; }, {}),
     };
-  };
+  }
 
   // What the map draws, counted the way `model.counts` counts: districts
   // against bodies, boxes against parts, pins and marks against features,
@@ -847,8 +1300,11 @@
     if (!geo) return null;
     return {
       bodies: geo.bodies.length,
-      parts: geo.boxes.length,
-      features: geo.pins.length + geo.marks.length,
+      // An assembly with no box is drawn as its outline.
+      parts: geo.boxes.length + geo.assemblies.filter(function (a) { return a.outline; }).length,
+      // A feature with a pin toward each partner is still one feature.
+      features: geo.pins.concat(geo.marks).map(function (p) { return p.id; })
+        .filter(function (id, i, all) { return all.indexOf(id) === i; }).length,
       dimensions: geo.jumpers.length,
       interfaces: geo.connectors.length,
     };
@@ -929,8 +1385,12 @@
     return VA.mapPan(view, dx, dy);
   };
 
+  // The scale keeps five decimals: at a fit of 0.276 a scale rounded to
+  // two (0.28) drew v2's seven-column map 1.5% wider than its region and
+  // past the pane's edge (2026-11-20, the first width-bound fit).
   VA.mapTransform = function (view) {
-    return "translate(" + round(view.tx) + " " + round(view.ty) + ") scale(" + round(view.k) + ")";
+    return "translate(" + round(view.tx) + " " + round(view.ty) + ") scale(" +
+      Math.round(view.k * 100000) / 100000 + ")";
   };
 
   // --- what an entity lights on the map -------------------------------------

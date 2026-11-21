@@ -149,10 +149,14 @@ in `apps/viewer/identity_fold.js` (`VA.foldIdentityEvents`, one file for both
 apps; `tests/test_identity_fold_is_paired.py` folds one log in Python and in
 it and compares every record). With the folder granted, the pane reads the
 inbox itself, which is fresher still: an agent's proposal lands there with no
-rebuild. After **every event it writes**, the pane rewrites the served log
-from the folder through the grant, repaints its bound faces, and posts its
-merged record to the shell (`annotate:identity`, below), so the tree changes
-at once and a reload, with or without a grant, shows the write. `bindings.json`
+rebuild. After **every event it writes**, the pane repaints its bound faces
+and posts its merged record to the shell (`annotate:identity`, below) at
+once, so the tree changes as soon as the event is on disk; then, behind the
+press and one rewrite at a time, it rewrites the served log from the folder
+through the grant, so a reload, with or without a grant, shows the write
+(2026-11-19: the press used to wait for that rewrite). Through the grant an
+event file is read once per page -- the inbox is append-only -- and a later
+read opens only the files that are new since. `bindings.json`
 is still what the fitter and every Python reader use, and the rebuild rail
 still refreshes it; a page reads it only where no log is reached.
 
@@ -806,6 +810,7 @@ each under its name) and in the shell's mirror of either.
 | **Pick another face…** (last row) | arms the pick on that end, as **Pick** does. In bind mode it selects the element: the pick there is a click in the scene, and the bar asks which end |
 | a feature's **suggestion line** in the shell's tree ("suggested · high") | names the surest proposal's face: hovering lights it in the pane (`hover face`), a click turns the pane to it (`camera face`, framed, the pick tint on it), and **Take** beside it accepts that proposal (`accept <edge> <end> <model>`). **Pick a face** stays under it |
 | a feature whose **other side is bound** | lists the faces that mate with that side, best first, each "face N · <class> · r X mm" over why it is there: "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", "against propeller hub, 0.050 mm apart". It opens to the list without being armed; each line lights its face on hover and turns the pane to it on a click, and **Take** binds it (`take <edge> <end> <mesh> <face> <model>`). Where the pane lists rows for the feature, the tree draws those rows and the mates are among them (the list above, after the proposals); the tree lists mates itself only for a feature the pane lists no row for |
+| a feature with **neither side bound** (2026-11-19) | lists the contact engine's candidates at every gap edge it is an end of, one row per candidate: a candidate's faces at the feature are one feature, so six faces of a boss read "6 faces · round · r 32 mm" over "fits the mating bore", and **Take** binds them all as one set. It reads like the mates above (hover lights every face, a click turns the pane to them) and each row names its own edge and end; the pane's element list lists the same faces, one row each. A feature the engine has nothing for keeps **Pick a face** alone |
 | **Pick** on a side whose other side is bound | arms the pick as always and pre-lights the listed faces in the suggestion colour; the click still takes any face of the part. Ending the pick takes the colour down |
 
 The engine states only the relations above: it has no "parallel" relation, so
@@ -1004,7 +1009,7 @@ the tree read none at all. What changed:
 Jeff, 2026-11-10: "agreed, once per feature"; and "we will need to support
 multi-surface features". A binding attaches to a part's FEATURE -- the model
 view's `<part>@<node>`, keyed under the model whose ids it is
-(`tolerance_stack.topology.feature_identity_topology_id`, written on every
+(`tolerance_stack.topology.feature_identity_key`, written on every
 feature as `model.features[].identity`) -- not to a dimension's end. The hub's
 locating boss is the start of three v2 dimensions, the v2 pilot fit and four
 v1 edges; it is picked once and every one of those ends reads it.
@@ -1046,6 +1051,35 @@ v1 edges; it is picked once and every one of those ends reads it.
   feature an old event reads through to the page works out from the topology
   projection; `tests/test_identity_fold_is_paired.py` folds one log both ways.
 
+### A feature on a member (2026-11-19)
+
+Handoff `a_link_is_a_machined_part_and_two_bearings_each_two_races`. A model
+that reuses another's ids may state a shared node on a part **inside** the part
+the other model puts it on (`docs/DAG_TOPOLOGY.md`, "Models"): v2's four link
+sphere centres sit on the bearings' outer races, where v1 puts them on the link
+assemblies. It is still the other model's feature, so it keeps that model's
+key: `tolerance_stack.topology.feature_identity_key` answers
+`<source model>:<the source's part>@<node>` -- for v2's outer race,
+`vpa_pitch_linkage:pitch_link@pitch_link_lower_sphere_centre` -- and the
+projection writes that key as the feature's `identity`. So:
+
+- **A binding made on either model is the one record both read.** v2's outer
+  race reads Jeff's bindings on v1's link feature, the same faces, with no
+  event written; a bind, Correct, Keep or Remove made on v2 is written under
+  v1's key. `scripts/fit_bound_features.py` fits that one record, so the
+  centres linkage reads are unchanged.
+- **The faces are where they were picked.** Jeff picked each centre on its
+  link assembly's mesh, which draws both races; the face is the ball's, the
+  inner race's solid, concentric with the outer race's seat to 0.001 mm.
+  Nothing re-homes a face onto the race's own mesh.
+- **A reader matches the whole key**, never the part alone: an end is a
+  feature's when its key (`VA.endFeatureKey`) is that feature's `identity`
+  (the annotator's `featureEnds`, `featureAt`). A dimension's end is the
+  feature its view row names (`model.dimensions[].from`/`to`), so the link's
+  length, a dimension of the assembly, reads at its outer races' centres.
+- **A feature the source model does not have** -- every race's own bore,
+  cylinder and ball -- is keyed to the finer model, as any new feature is.
+
 ### Keep settles a disagreement, and any feature can be let go (2026-11-18)
 
 Handoff `a_disagreement_is_settled_by_keep_or_let_go`, from Jeff's note of
@@ -1076,6 +1110,28 @@ more plain binding, which only joined the set it repeated.
   offer's Take, that lands while the last is still being decided or written
   is dropped, and the page reserves every seq it hands out, so no two of its
   writes share one.
+
+### A press that writes says so at once (2026-11-19)
+
+Handoff `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`:
+on the pitch plate a Keep took 23 s to reach the disk and 27 s to change the
+body, and the only thing that moved meanwhile was the button's focus ring.
+
+- **Every press that writes reads `writing…` and is disabled in its own
+  click**: the body's Keep, Unbind, Take, Flip and Remove, a candidate row's
+  Take, and the group offer's two answers. While it writes, the body's other
+  writing controls wait too. If it was not written, the control reads
+  `not written`, the reason on hover, and pressing it again tries again. An
+  armed click keeps its `reading face N…` line. The words are the pane's
+  `AA.ARMED_PICK_WORDS` and the shell's `VA.FEATURE_BODY_WORDS`, one wording
+  (`tests/test_bind_latency_vocabularies.py`).
+- **A write does not wait behind the pane opening its model.** The pane runs
+  an identity write (`AA.IDENTITY_WRITE_VERBS`) once it has loaded, never
+  queued behind the commands posted before it (`ExecQueue.runAfterLoad`).
+- **What a write still costs** is one read of the inbox, the first time the
+  folder is granted in a page: an event's seq is only in its file, so every
+  file is opened once. `window.__writeSteps` is the last write's clock, step
+  by step, and `tests/debug_bind_latency_20261119.mjs` prints it per press.
 
 ### A hole pattern (2026-11-15)
 

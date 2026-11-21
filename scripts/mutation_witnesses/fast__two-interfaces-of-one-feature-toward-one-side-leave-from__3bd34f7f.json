@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "two interfaces of one feature toward one side leave from separate pins and share no run, and a pin's side and every route are the same whatever the order of the model's edges",
+  "mutations": [
+    {
+      "contract": "Pins along a side are ordered by keys that end in the interface id, so the order of edges[] never moves one.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Drops the last key: two pins of one feature that tie on the rest then sit in the order the model listed its edges, and the reversed model draws them swapped.",
+      "file": "apps/viewer/map.js",
+      "find": "          for (var i = 0; i < 4; i++) {",
+      "replace": "          for (var i = 0; i < 3; i++) {",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    }
+  ]
+}

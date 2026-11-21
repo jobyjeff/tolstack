@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "the fixture's grid with the assemblies outermost: no body bracket, the link assembly one bracket under its name, each bearing once per race, and no bracket's name clipped",
+  "mutations": [
+    {
+      "contract": "With no body round it a top-level assembly is the outermost bracket and is always named, in the body's strip.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "An outermost assembly named only where its first row is its own: the link assembly, whose first row is a race's, has no name anywhere in the grid.",
+      "file": "apps/viewer/topology.js",
+      "find": "                    named: outermost || partAt[r] === a,",
+      "replace": "                    named: partAt[r] === a,"
+    }
+  ]
+}

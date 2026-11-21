@@ -502,11 +502,19 @@ problem as an unrecorded full suite one step later.
   or a layout file `docs/topologies/map_*.json`** (added 2026-11-16) →
   `pytest -q tests/test_topology_map.py tests/test_topology_projection.py`,
   the viewer fast tier through `--repo` (the nine `the map's …` tests), and
-  the browser suite `--only "the map (Map"` on a root built from this tree.
-  The layout file is a projection input (`load_topology_map` ships it
-  verbatim), so the rebuild trap below applies to it; and the map hooks into
-  `fitDag`, `applyFocus` and `entityUnder`, so drive Classic on the SAME page
-  after the map (the expando entry under "Recurring bugs to check").
+  the browser suite `--only "the map (the counts on both models"` on a root
+  built from this tree (**corrected 2026-11-20**: the suite was renamed, and
+  `"the map (Map"` now selects nothing). The layout file is a projection
+  input (`load_topology_map` ships it verbatim), so the rebuild trap below
+  applies to it. Classic retired 2026-11-17, so there is no second drawing to
+  drive after the map any more.
+- **`tolerance_stack/topology.py`'s body, tree or edge rules** (added
+  2026-11-20) → `tests/test_topology.py` plus every module that reads
+  `body_of`, `parent`, `edge_body` or `edge.part`:
+  `tests/test_model_view.py tests/test_kinematic.py tests/test_topology_map.py
+  tests/test_topology_projection.py tests/test_feature_identity.py`
+  (`git grep -n "body_of\|edge_body\|\.parent\b" -- tolerance_stack scripts apps`
+  re-derives the list).
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
@@ -6146,6 +6154,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       bundle against the prose-budget rules and the three prohibitions; split
       any hit into its own `med`, `area: design` issue and grep for the
       older narrower one (here `ISSUE_20261110_topology_notes_still_say_…`).
+- [ ] **A walk files a live defect only as an addendum to a `deferred`
+      issue.** New 2026-11-21
+      (`the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page`):
+      a Take that writes the other lug's faces into Jeff's log, and a false
+      "Nothing is recorded as missing", went only onto deferred
+      `audience: strategy` issues that wake 11-29. For each addendum a walk
+      writes, check the target's `status:`. If it is `deferred` and the
+      addendum is a new failure (a wrong write, a false surface), file an
+      open issue for it and point the page at it.
 - [ ] **A `[real]` suite gated on live log state that the feature itself
       invites Jeff to change.** New 2026-11-18
       (`a_bound_pattern_offers_the_whole_pattern_on_the_other_part`):
@@ -6156,6 +6173,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       condition, ask whether Jeff's next ordinary click flips it. If so, ask
       for a filtered copy of the log instead
       (`ISSUE_20261118_the_opposite_pattern_browser_suite_skips_once_jeff_binds_…`).
+      **Second sighting, the red variant** (2026-11-19,
+      `a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits`):
+      `testAPressThatWritesSaysSo` gates its skip on the *unfolded* event
+      history, but the press needs the *folded* body (`disagree`). The log is
+      append-only, so Jeff's Keep leaves the skip false and the suite goes red
+      for everyone. Check that a skip condition reads the same state (folded
+      or raw) as the thing the suite presses.
 - [ ] **A twin edge's note copied from its sibling states a fact true of only
       one.** New 2026-11-18 (`the_pitch_plate_is_an_assembly_with_its_bushings`):
       the `tan_link_` edge note said Jeff's binding stands on
@@ -6169,6 +6193,88 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       2026-11-18 v1 went from 26/35 to 27/35. Compare the builder's
       `parts with an installed mesh` line for BOTH models, before and after,
       whenever the alias file changes under a handoff fenced off v1.
+- [ ] **"A part is open" is not "the pane is settled".** The pane runs every
+      `annotate:exec` through one serial `AA.ExecQueue`, and `isolate parts`
+      (opening a model) loads the rest of the mesh store inside that one
+      entry, so a `light` posted after `listOpenParts().length > 0` can wait
+      tens of seconds. A `[real]` check asserting what the scene draws soon
+      after the pane opens settles first by posting a read-only command
+      (`scene-view`) through the queue and awaiting its `annotate:result`
+      (the map suite's pin hover, 2026-11-19). Ask it of any new short scene
+      wait that follows a pane open. **Identity writes no longer queue**
+      (2026-11-19, `ExecQueue.runAfterLoad`, `AA.IDENTITY_WRITE_VERBS`). They
+      wait only for the load gate, and a second write that arrives while one
+      runs is *dropped* as `busy`, not run after it. A new sender that posts
+      two writes back to back loses the second. Ask how it waits for the
+      first `annotate:result`, the way the shell's `bodyWrite` does.
+- [ ] **"v2's map has zero notes" only proves the notes are quiet on v2.** A
+      map routing rule is tuned against one model, and the notes count only
+      what that model showed. Load `apps/viewer/vocab.gen.js` and `map.js`
+      into a node `vm` and run `VA.mapLayout` on the real projection with
+      `interfaces` shuffled, base against branch. Then build one crowded
+      synthetic model: a parent with 2–3 bottom partners and a joined child.
+      On 2026-11-19 that model put a route through the drop's symbol and a pin
+      half a pitch from another, with no note
+      (`ISSUE_20261119_a_map_route_can_run_through_another_connectors_symbol_with_no_note.md`).
+      Check also that `DAG_TOPOLOGY.md` "The map" does not describe a rule
+      the lesson says was removed as dead code.
+- [ ] **A schema rule relaxed in `Topology` is an invariant every reader
+      leaned on.** When a refusal comes out (a child in its parent's body, an
+      edge's part on both ends), the readers that took it for granted keep
+      compiling and quietly go wrong: `apps/viewer/model.js`'s `unbodied`,
+      `AA.sweepRidingParts`, `feature_identity_topology_id`. Ask for the
+      reader table that `an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies`'s
+      lesson carries (each reader, what it assumed, done or filed), and
+      re-derive it with `git grep` over `tolerance_stack/ scripts/ apps/`. A
+      row the author left alone needs a reason, and a fenced row needs an issue.
+      The same diff wrote one rule twice: `VA.mapOutlined` (JS) and
+      `outlined_assemblies` (builder). Only the shared fixture pairs them, so
+      ask what case outside the fixture they could disagree on.
+- [ ] **SVG hidden by `visibility: hidden` can still take the pointer.** New
+      2026-11-20 (`the_groups_switches_…_in_two_bodies`, blocker). The map's
+      hit targets declare `pointer-events: stroke | fill | all`
+      (`.map__boxhit`, `.map__districtfield`, `.map__districthit`,
+      `.map__outlinehit`, `apps/viewer/map.css`). Those values ignore
+      visibility; only the `visible*` values respect it. So a Groups kind
+      switched off left an invisible box that hovers, lights, titles and
+      selects, and an invisible district that selects its body on a click
+      in empty space. The lesson said the opposite, and every tier checked
+      only `getComputedStyle(...).visibility`. When a diff hides something
+      interactive, grep the hidden layer's `pointer-events`, then probe it
+      with a real `mouse.move`/`down`/`up` and `elementFromPoint` at a point
+      the hidden element owns. The point must not be on a jumper or a pin.
+- [ ] **A part that loses its last feature becomes an outline, and its map
+      place goes dead silently.** New 2026-11-20
+      (`a_link_is_a_machined_part_and_two_bearings_each_two_races`, nit).
+      `layoutOnce` (`apps/viewer/map.js`) skips an outlined part's place with
+      no note, so `pitch_link` and `tan_link_212956_005` kept places in
+      `map_vpa_end_stop_v2.json` that share a cell with a race and draw
+      nothing. When a model change moves features off an assembly, grep the
+      layout file for that assembly's id and ask whether its place still
+      means anything.
+- [ ] **A feature moved onto a member reads the source model's record**
+      (`feature_identity_key`, since 2026-11-19). Its `identity.part` is the
+      source's part, not `feature.part`. So any reader that compares
+      `feature.part` with a key's part, or labels a bound face with
+      `feature.part`, is wrong for those four link centres. `git grep -n
+      "\.part ===\|part === k" -- apps` on any diff that reads a binding.
+- [ ] **A removed sentence's test asserts the old phrase is absent**
+      (2026-11-20, `the_viewer_says_nothing_about_itself`). A test of
+      `indexOf("not a value") === -1` stays green when a later edit puts the
+      same caption back in other words. Prefer a structural absence: an
+      empty `textContent`, no `<p>` child, a zero `.count()` of the class.
+      When a copy-removal diff rewrites tests, count which kind each is.
+      Also check the probe's before/after shots by hash: two states that
+      hash the same were one state shot twice.
+- [ ] **A status read off an ABSENT field, rendered as a positive claim.**
+      2026-11-20 (`an_open_dimension_says_where_its_drawing_stands`, nit):
+      `no_drawing` means only "the part has no `drawing` field", and its chip
+      says `spec sheet`. True of every open dimension today. But v1 also has
+      `ring_gear`, `hydraulic_brake` and `flanged_bushing_unidentified` with
+      no drawing number. The first open dimension on one of them would wear
+      a false word. When a chip or a label names *why* a field is empty,
+      list every row the empty case reaches today (`parts` with no
+      `drawing`, in every model), not only the rows that have the chip.
 
 ## Architectural errors to check
 

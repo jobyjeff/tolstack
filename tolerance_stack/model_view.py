@@ -16,13 +16,15 @@ in the workspace; studies scope a subset of it.*
 The entities, and what each is:
 
 * **bodies** -- the authored rigid bodies, in authored order. ``parts`` is
-  a body's top-level parts, in authored order; ``all_parts`` is every part it
+  a body's top-level parts -- those whose assembly is not in the body, or
+  who have none -- in authored order; ``all_parts`` is every part it
   carries in the one tree order (an assembly, then its children, depth first --
   :meth:`~tolerance_stack.topology.Topology.tree_order`). Since 2026-11-14
   (handoff ``a_part_may_contain_parts``) a part may name a ``parent``, and
   everything that walks a body's parts walks ``all_parts``.
 * **parts** -- every authored part, with the body it moves with (``None`` when
-  the document declares no bodies), its :func:`part_label`, its features and
+  the document declares no bodies, or for an assembly whose parts move with
+  two bodies or more), its :func:`part_label`, its features and
   its dimensions, and its place in the tree: ``parent`` (``None`` at the top),
   ``children`` in authored order and ``depth`` (0 at the top).
 * **features** -- a node *as seen on one part*. A node on two parts (a mating
@@ -33,7 +35,8 @@ The entities, and what each is:
   by the feature too: ``identity`` is its feature-identity key, ``{topology_id,
   part, node}``, under the model whose ids it is.
 * **dimensions** -- the structural edges, each on one part between two of its
-  features.
+  features -- or, an assembly's, between features of two parts inside it
+  (``Topology.dimension_ends``; ``from``/``to`` name those parts' features).
 * **interfaces** -- the two authored shapes for "two parts meet", in one list:
   a node on two parts (``source: "node"``, kind = the node's ``interface``
   word where it states one, since 2026-11-17, else ``contact``) and a gap edge
@@ -61,7 +64,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .topology import Edge, Node, Part, Topology, feature_identity_topology_id
+from .topology import Edge, Node, Part, Topology, feature_identity_key
 
 __all__ = [
     "CONTACT_KIND",
@@ -69,6 +72,7 @@ __all__ = [
     "end_feature",
     "feature_id",
     "part_label",
+    "part_number",
     "model_view",
 ]
 
@@ -85,7 +89,7 @@ INTERFACE_SOURCES = ("node", "edge")
 #: A drawing or standard-part number at the head or tail of a part's name:
 #: ``213668-002 gas-spring mount``, ``Pitch link 213862-002``,
 #: ``NAS6403U11D hex-head bolt``. The label rule strips it so the number is
-#: said once, by ``drawing``. Two or more digit-or-dash-or-slash characters
+#: said once, by :func:`part_number`. Two or more digit-or-dash-or-slash characters
 #: after a leading letter-or-digit run, with at least one digit -- the same
 #: shape the viewer's part-column split reads (``VA.partColumns``).
 _NUMBER_TOKEN = r"[A-Za-z]*\d[\w/\-]*"
@@ -112,14 +116,40 @@ def _everyday_name(part: Part) -> str:
     return text or part.id
 
 
+def part_number(part: Part) -> Optional[str]:
+    """The number a part is known by: its ``drawing``, or -- a standard part
+    with no drawing of its own, a bolt, a NAS77 bushing, an MS bearing -- the
+    number its own name carries at its head or tail, the one
+    :func:`_everyday_name` strips. ``None`` where neither has one.
+
+    Since 2026-11-20 (handoff
+    ``the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack``;
+    ``docs/issues/ISSUE_20261119_design_the_maps_flanged_bushing_boxes_carry_no_part_number.md``):
+    the flanged bushings' boxes and tree rows read "flanged bushing, pitch
+    link" beside siblings that each lead with a number, because the label said
+    the number only by ``drawing``. The projection writes it as
+    ``model.parts[].number``, the slot the map and the tree read.
+    """
+    if part.drawing:
+        return part.drawing
+    text = (part.display_name or part.name or "").strip()
+    lead = _LEADING_NUMBER.match(text)
+    if lead and not _only_letters(lead.group(1)):
+        return lead.group(1)
+    tail = _TRAILING_NUMBER.match(text)
+    if tail and not _only_letters(tail.group(2)):
+        return tail.group(2)
+    return None
+
+
 def _only_letters(token: str) -> bool:
     return not any(ch.isdigit() for ch in token)
 
 
 def part_label(part: Part) -> str:
     """The one way a part is named on a surface: its number, then its everyday
-    name -- ``214698-002 upper piston head`` -- or the everyday name alone for
-    a part with no drawing (a bearing, a gas spring).
+    name -- ``214698-002 upper piston head``, ``NAS6403U11D shoulder bolt`` --
+    or the everyday name alone for a part with no number (:func:`part_number`).
 
     Jeff, 2026-10-20: a label that identifies a thing carries its everyday name
     beside its number, because numbers get renumbered and nobody memorises
@@ -130,8 +160,9 @@ def part_label(part: Part) -> str:
     so no surface composes it again.
     """
     everyday = _everyday_name(part)
-    if part.drawing:
-        return f"{part.drawing} {everyday}"
+    number = part_number(part)
+    if number:
+        return f"{number} {everyday}"
     return everyday
 
 
@@ -148,7 +179,8 @@ def end_feature(topology: Topology, edge: Edge, direction: str) -> Tuple[str, st
     and the one the browser's ``featureEnds`` inverts."""
     node_id = edge.from_node if direction == "from" else edge.to_node
     if edge.kind == "structural":
-        return edge.part, node_id
+        near, far = topology.dimension_ends(edge)
+        return (near if direction == "from" else far), node_id
     return _end_part(topology, topology.node(node_id)), node_id
 
 
@@ -175,6 +207,7 @@ def model_view(topology: Topology,
         shared = len(node.parts) > 1
         for part_id in node.parts:
             fid = feature_id(part_id, node.id)
+            key_model, key_part = feature_identity_key(topology, part_id, node.id, topologies or {})
             features.append({
                 "id": fid,
                 "part": part_id,
@@ -184,8 +217,8 @@ def model_view(topology: Topology,
                 "shared": shared,
                 "body": body_of[part_id],
                 "identity": {
-                    "topology_id": feature_identity_topology_id(topology, part_id, node.id, topologies or {}),
-                    "part": part_id,
+                    "topology_id": key_model,
+                    "part": key_part,
                     "node": node.id,
                 },
             })
@@ -196,13 +229,14 @@ def model_view(topology: Topology,
     for edge in topology.edges:
         if edge.kind != "structural":
             continue
+        near, far = topology.dimension_ends(edge)
         row = {
             "id": edge.id,
             "part": edge.part,
             "name": edge.name,
-            "from": feature_id(edge.part, edge.from_node),
-            "to": feature_id(edge.part, edge.to_node),
-            "body": body_of[edge.part],
+            "from": feature_id(near, edge.from_node),
+            "to": feature_id(far, edge.to_node),
+            "body": topology.edge_body(edge),
         }
         dimensions.append(row)
         dimension_ids_of_part[edge.part].append(edge.id)
@@ -238,7 +272,7 @@ def model_view(topology: Topology,
         parts.append({
             "id": part.id,
             "label": part_label(part),
-            "number": part.drawing,
+            "number": part_number(part),
             "name": _everyday_name(part),
             "body": body_of[part.id],
             "features": list(feature_ids_of_part[part.id]),
@@ -254,7 +288,7 @@ def model_view(topology: Topology,
         "id": body.id,
         "name": body.name,
         "kind": body.kind,
-        "parts": [p for p in body.parts if topology.part(p).parent is None],
+        "parts": [p for p in body.parts if topology.part(p).parent not in body.parts],
         "all_parts": topology.tree_order(body.parts),
     } for body in topology.bodies]
 

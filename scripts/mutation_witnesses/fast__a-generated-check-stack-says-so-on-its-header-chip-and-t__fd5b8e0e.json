@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a generated-check stack says so on its header chip, and the checks section carries no paragraph about it",
+  "mutations": [
+    {
+      "contract": "A generated-check stack says so on its header chip, with its hover naming the archetype; the checks section has no paragraph about it.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "Renames the chip's kind, so its class is no longer chip--generated: the header no longer says the checks are generated.",
+      "file": "apps/viewer/viewer.js",
+      "find": "        kind: \"generated\",",
+      "replace": "        kind: \"generated_note\","
+    }
+  ]
+}

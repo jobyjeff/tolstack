@@ -6,9 +6,9 @@
     {
       "contract": "Groups decides which of the grid's brackets are drawn.",
       "issue": "docs/sessions/lessons/LESSONS_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md",
-      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17).",
+      "note": "Re-pointed at the map and the grid (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17). Re-anchored 2026-11-20 (the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies): the grid reads its kinds through VA.gridGroupKinds.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      kinds: kindsOn ? { bodies: !!kindsOn.bodies, parts: !!kindsOn.parts } : null,",
+      "find": "      kinds: VA.gridGroupKinds(ctx.groupKinds, ctx.gridOuter),",
       "replace": "      kinds: null,"
     }
   ]

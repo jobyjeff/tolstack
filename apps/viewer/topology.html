@@ -31,12 +31,12 @@
     <div class="tv__left">
       <div class="topbar">
         <h1>tolstack — viewer</h1>
-        <!-- It said `renders <code>data/projections/viewer/</code>` until
-             2026-09-18: a repo-relative path into a gitignored directory, on
-             the one line of copy that is on screen at all times. The claim
-             that matters is the one either side of it: this page reads a
-             built projection and does no arithmetic. -->
-        <span class="sub">read-only · renders the built projections · computes nothing</span>
+        <!-- No subtitle (the_viewer_says_nothing_about_itself, 2026-11-19):
+             it read "read-only · renders the built projections · computes
+             nothing", a page describing itself on the one line of copy that
+             was on screen at all times. That the viewer does no arithmetic is
+             a rule for its authors (apps/viewer/README.md, "The one rule"),
+             kept by the tests, not a caption for its readers. -->
         <span class="topbar__spacer"></span>
         <button id="legend-toggle" class="ghost">How to read this</button>
         <button id="worksheet-toggle" class="ghost">Show worksheet</button>
@@ -164,10 +164,7 @@
         interfaces share no part. A <b>DERIVED</b> gap carries no value at all: it is the quantity a study
         computes, and a study that puts it in its selection is refused.</li>
       <li><b>A study that reaches a branch point</b> with two unconsumed
-        selected edges raises <code>BranchAmbiguity</code> and names both.
-        Which parallel path binds is a mechanics question this tool does not
-        answer and must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>,
-        "Not a solver".</li>
+        selected edges raises <code>BranchAmbiguity</code> and names both.</li>
       <li><b>Every study says whether it passes, and by how much.</b> Its
         answer is the last block of the grid, read like an invoice: a
         <b>totals</b> section under the members it totals, then one
@@ -190,9 +187,7 @@
       <li><b>Selecting a study</b> highlights its chain, numbers each row with its
         place in the sum, prints each edge's own signed and scaled contribution,
         and adds the rolled-up totals as rows of the same grid, in the same
-        columns. Every one of those numbers came out of
-        <code>tolerance_stack.topology.summarize()</code> →
-        <code>fold()</code>. Nothing on this page is added up in JavaScript.</li>
+        columns.</li>
     </ul>
   </dialog>
 

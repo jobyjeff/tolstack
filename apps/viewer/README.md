@@ -251,8 +251,8 @@ of the part cannot disagree about it. An adjacent edge with no part is a
 **clearance**, named (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped, and there
 is never a crop *of the interface itself*: an interface is a location, not a
 value. The pane printed the authored `parts` list until handoff
-`surfaces_that_state_something_false`, which is 86 of the
-131 live nodes answering differently hovered and clicked (both models; 37 of 79 then) — one surface and one
+`surfaces_that_state_something_false`, which is 110 of the
+157 live nodes answering differently hovered and clicked (both models; 37 of 79 then) — one surface and one
 record now.
 
 A part with no drawing of its own is identified by the documents its own rows
@@ -695,8 +695,10 @@ they are shown, and nothing else: **Rows** (comfortable or compact),
 **Rows: labelled / values only**, **Fit** (the map, back to its region; the
 `0` key too), **Side by side · 3D · DAG** while the 3D pane is open,
 **Unused: dimmed / hidden** while something is lit, **Collapse assemblies /
-Expand all** on a model with an assembly, **Groups** (which of the grid's
-brackets are drawn: Bodies, Parts), **View** (the palette the bodies wear)
+Expand all** on a model with an assembly, **Groups** (which containers the
+map and the grid draw: Bodies, Assemblies, Parts -- the grid draws a body or
+an assembly as its outermost bracket, the one switched on last;
+`docs/DAG_TOPOLOGY.md`, "The Groups switches"), **View** (the palette the bodies wear)
 and **View in 3D** on a study with something to show.
 
 ### The map: the DAG region's drawing
@@ -943,6 +945,25 @@ reason.
 study's summary and refuses any `<p>` that is not inside a `<details>`. A
 paragraph where a table belongs is not a phrase a banned-string list can see,
 and that is the defect this pass existed to remove.
+
+**With no study picked the pane is a picker** reading *Pick a study*
+(`VA.STUDY_PICKER_PLACEHOLDER`), over the model's studies, and nothing else
+but What's missing. A model with no studies shows no picker. The `Details`
+fold appears only when the study carries notes.
+
+### The page says nothing about itself
+
+`HANDOFF_20261119_the_viewer_says_nothing_about_itself.md` (Jeff: *"Good ui is
+intuitive enough that it doesn't require explanations like that"*). No
+always-visible sentence on either app says what the page is, what mode it is
+in, what it does or does not compute, or how to use it: the topbar has no
+subtitle, an empty Preview is empty, the stack page's tables have no captions,
+and the 3D pane's bar carries no instruction until an element is being bound.
+Where a state needs words, the words are the control (the study picker), and
+a reading guide that has to exist is a hover (the RSS columns, the Materials
+heading) or a fold. That the viewer computes nothing is still the rule above,
+for its authors, kept by the tests; it is no longer printed for its readers.
+The lesson of that handoff lists every string found and what became of it.
 
 ### The preview pane reuses the crop plumbing, and says so when it cannot
 
@@ -1283,6 +1304,7 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | amber spine on the row + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are named **on the row**, in the name cell, and never folded. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose. It was a striped **card** with the terms under the numbers until 2026-09-22, when the checks became rows of one table (see "A stack's checks and paths are one table", above) |
 | dashed amber spine on the row + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint. A dashed **card** until 2026-09-22, same pass |
 | grey `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above). Accent-**blue** until 2026-09-17: "the loader built these" carries no state, and on these pages the accent means selection (`design_pass_typography`; `.chip--generated`) |
+| grey outlined `drawing read` / `other dash read` / `no drawing yet` / `spec sheet` | a dimension with **no value yet**, saying where its part's drawing stands in drawing-checker: its own number has a run, only another dash number (or the bare base) has one, nothing of it has one, or the part has no drawing number at all. Metadata, so grey. In the grid row it sits where the number would be, and in the Preview among the chips; a chip with a run links to that run's page, and the others name the spec or the drawing on hover. The projection's `edges[].drawing_status` (`build_topology_projection.DRAWING_STATUSES`, handoff `an_open_dimension_says_where_its_drawing_stands`, 2026-11-19); a status of `unknown` -- drawing-checker's runs could not be read -- wears nothing |
 | monospaced weighted chip | a term whose coefficient is not 1: `+ 2.0010712 × sleeve_wall_lower`. Hover says what a coefficient can be |
 
 A path or check also shows the **weakest** confidence among its expanded inputs:

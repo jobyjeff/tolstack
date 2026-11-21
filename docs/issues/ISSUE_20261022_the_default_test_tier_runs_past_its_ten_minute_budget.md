@@ -250,3 +250,13 @@ Triage should fold them into this one, per the one-issue-per-repo-per-tier rule.
   6.31s call  tests/test_topology_projection.py::test_a_topology_with_no_bodies_walks_exactly_as_before
   5.94s setup tests/test_topology_projection.py::test_the_l1_topology_is_a_ring_and_draws_as_two_rails
 ```
+
+## 2026-11-19 measurement (tactical, the_map_pin_hover_lights_its_bound_face_in_the_scene)
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, from a worktree,
+single process (the venv has no pytest-xdist, so `-n 16 --dist loadfile` is refused):
+653.7 s (`1 failed, 2372 passed, 1 skipped, 4 deselected`, the one failure being the
+worktree-only `test_viewer_js_suite`), recorded `OVER BUDGET by 0m54s`. Run without
+`--durations`, so it has no pareto. The 10-22 top 15 above is still the nearest one.
+The box was busy with other agents during the run: the same session's browser
+loads swung from 1 s to 25 s per mesh.

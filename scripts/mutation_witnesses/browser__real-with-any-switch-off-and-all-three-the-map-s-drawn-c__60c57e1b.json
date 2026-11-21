@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "[real] with any switch off, and all three, the map's drawn counts are unchanged",
+  "mutations": [
+    {
+      "contract": "A kind switched off is hidden by a class, never left out: the drawn counts still find a district per body and a box per part.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "Hide by removing: with Bodies off the districts are dropped from the drawn geometry, and the map counts no body.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    var model = ctx.model || null;\n    var reg = registry();",
+      "replace": "    if (ctx.groupKinds && ctx.groupKinds.bodies === false) geo = Object.assign({}, geo, { bodies: [] });\n    var model = ctx.model || null;\n    var reg = registry();"
+    }
+  ]
+}

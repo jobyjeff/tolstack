@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the panel is empty when nothing is selected",
+  "mutations": [
+    {
+      "contract": "The stack page's detail pane is empty when no row is selected.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "Puts back a how-to-use sentence in the empty pane, the shape it had until 2026-11-19.",
+      "file": "apps/viewer/views/detail.js",
+      "find": "      if (materialRow) return renderMaterial(root, materialRow);",
+      "replace": "      if (materialRow) return renderMaterial(root, materialRow);\n      root.appendChild(VA.el(\"p\", \"muted\", \"Select a row in the tables on the left to see its full sourcing here.\"));"
+    }
+  ]
+}

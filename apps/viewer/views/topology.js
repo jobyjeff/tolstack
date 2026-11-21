@@ -1233,18 +1233,14 @@
     // group's top and bottom edge are row counts, and nothing a leader's seam
     // reads moves. A row's first words start inside its innermost bracket.
     var study = !marking ? null : ctx.stack ? "kinematic" : ctx.study ? "chain" : null;
-    var kindsOn = ctx.groupKinds || null;
     var braces = VA.gridBraces(plan, {
       study: study, foot: foot ? foot.childNodes.length : 0, topoProj: ctx.topoProj,
-      kinds: kindsOn ? { bodies: !!kindsOn.bodies, parts: !!kindsOn.parts } : null,
+      kinds: VA.gridGroupKinds(ctx.groupKinds, ctx.gridOuter),
     });
     var braceGeo = VA.braceGeometry(braces, M.rowHeight, tableWidth());
-    // The rows whose part's bracket says its number: their cell does not.
-    var numbered = {};
-    braces.braces.forEach(function (b) {
-      if (b.kind !== "part" || !b.label) return;
-      for (var r = b.start; r <= b.end; r++) numbered[r] = true;
-    });
+    // The rows whose part's number, or whose assembly's fold, a bracket
+    // carries: their cell does not.
+    var numbered = braces.said;
     var tbody = VA.el("tbody");
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
@@ -1254,9 +1250,9 @@
           ? subStackRow(planRow, ctx, hot, indent)
           : planRow.rollup
             ? assemblyRow(planRow, group, index, marking, ctx, hot, indent,
-                          !!numbered[group.start + i])
+                          !!numbered[group.start + i], !!braces.folds[group.start + i])
             : edgeRow(planRow, group, i === 0, index, chain, marking, ctx, hot, indent,
-                      !!numbered[group.start + i]);
+                      !!numbered[group.start + i], !!braces.folds[group.start + i]);
         tbody.appendChild(row);
       }
     });
@@ -1301,13 +1297,20 @@
     var indent = {};
     var lefts = [];
     var rows = function (b) { return b.end - b.start + 1; };
+    // Where an assembly is the outermost bracket, a part in none sits where
+    // the parts inside one do, so every number starts on one line.
+    var stripped = model.braces.some(function (b) { return b.kind === "assembly" && b.outermost; });
     model.braces.forEach(function (b) {
       var right = 2 + b.level * g.inset;
-      var x = b.kind === "part" && b.body ? lefts[model.braces.indexOf(b.body)] + g.body
-        : 2 + b.level * g.inset;
+      // A part's, and an assembly's inside a body or another assembly, in
+      // the part strip; an outermost assembly's where a body's would be.
+      var inStrip = b.kind === "part" || (b.kind === "assembly" && !b.outermost);
+      var outer = b.outer || b.body;
+      var x = inStrip && outer ? lefts[model.braces.indexOf(outer)] + g.body
+        : 2 + b.level * g.inset + (inStrip && stripped ? g.body : 0);
       // A part inside an assembly is indented `nest` a level: its bracket,
       // and so its number (only the part column moves).
-      var nested = b.kind === "part" ? (b.depth || 0) * g.nest : 0;
+      var nested = inStrip ? (b.depth || 0) * g.nest : 0;
       x += nested;
       lefts.push(x);
       var w = Math.max(0, width - x - right);
@@ -1323,21 +1326,23 @@
       caps.push(Object.assign({ side: "bottom", top: y1 - curl }, cap));
       // Where a held row's words start: right of this brace's label strip
       // (a body's or a part's), or just inside its stub.
-      var strip = b.kind === "body" ? g.body : b.kind === "part" ? g.part - nested : g.inset;
+      var wide = b.kind === "body" || (b.kind === "assembly" && b.outermost);
+      var strip = wide ? g.body : inStrip ? g.part - nested : g.inset;
       for (var r = b.start; r <= b.end; r++) indent[r] = Math.max(indent[r] || 4, x + strip);
       // An assembly's fold sits at its label's head, on its first row.
-      var caret = b.kind === "part" && b.assembly ? g.caret : 0;
+      var caret = (b.kind === "part" || b.kind === "assembly") && b.assembly ? g.caret : 0;
       if (caret) {
         carets.push({ part: b.part, open: b.assembly === "open", tint: b.tint,
+                      name: b.kind === "assembly" && !b.named ? b.label : null,
                       left: x + 3, top: b.start * rowHeight, width: caret, height: rowHeight });
       }
       // A label starts on its brace's first row, on that row's text line;
       // a body's wraps down as many lines as its rows hold, a part's is one.
-      if (b.label && (b.kind === "body" || b.kind === "part")) {
+      if (b.label && (b.kind === "body" || b.kind === "part" || (b.kind === "assembly" && b.named))) {
         var line = Math.min(g.line, rowHeight - 2);
-        var lines = b.kind === "body"
+        var lines = wide
           ? Math.max(1, Math.floor((rows(b) * rowHeight - (rowHeight - line)) / g.line)) : 1;
-        labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label,
+        labels.push({ kind: b.kind, id: b.id, tint: b.tint, text: b.label, wide: wide,
                       left: x + 5 + caret, width: strip - 8 - caret, line: line, lines: lines,
                       top: b.start * rowHeight + (rowHeight - line) / 2,
                       height: lines === 1 ? line : lines * g.line });
@@ -1363,16 +1368,20 @@
     // part's controls; the grid's rows are the rows'. A study's bracket is
     // neither lit nor a control.
     var container = function (node, kind, braceId, cls) {
-      if (kind !== "body" && kind !== "part") return node;
-      // A part's brace id is `part:<part>` (VA.gridBraces); a body's is the
-      // body's own id. The entity is the part or the body.
-      var id = kind === "part" ? String(braceId).replace(/^part:/, "") : String(braceId);
-      node.className += tierClasses(ctx, cls, kind, id);
+      if (kind !== "body" && kind !== "part" && kind !== "assembly") return node;
+      // A part's or an assembly's brace id is `part:<part>` (VA.gridBraces);
+      // a body's is the body's own id. The entity is the part or the body.
+      var entity = kind === "body" ? "body" : "part";
+      var id = entity === "part" ? String(braceId).replace(/^part:/, "") : String(braceId);
+      node.className += tierClasses(ctx, cls, entity, id);
       node.setAttribute("data-brace-kind", kind);
       node.setAttribute("data-brace-entity", id);
       hotRegister(hot, { el: node, base: node.getAttribute("class"),
-        self: [hotKey(kind, id)], hot: cls + "--hot", lead: cls + "--lead" });
+        self: [hotKey(entity, id)], hot: cls + "--hot", lead: cls + "--lead" });
       return node;
+    };
+    var ink = function (tint) {
+      return tint !== undefined && tint !== null ? " tv__fill--t" + tint : "";
     };
     var place = function (node, box) {
       node.style.left = box.left + "px";
@@ -1383,17 +1392,18 @@
     };
     geo.caps.forEach(function (cap) {
       var node = VA.el("div", "tvbrace tvbrace--" + cap.side + " tvbrace--" + cap.kind +
-        (cap.tint !== undefined ? " tv__fill--t" + cap.tint : "") +
-        (cap.gap ? " tvbrace--gap" : ""));
+        ink(cap.tint) + (cap.gap ? " tvbrace--gap" : ""));
       node.setAttribute("data-brace", cap.id);
-      if (cap.kind !== "body" && cap.kind !== "part") node.setAttribute("aria-hidden", "true");
+      if (cap.kind !== "body" && cap.kind !== "part" && cap.kind !== "assembly") {
+        node.setAttribute("aria-hidden", "true");
+      }
       place(container(node, cap.kind, cap.id, "tvbrace"), cap);
     });
     // A label the strip clips keeps its whole text as a title for tools; a
     // reader's hover reaches the PART cell under it, whose title names the part.
     geo.labels.forEach(function (label) {
       var node = VA.el("div", "tvbrace__label tvbrace__label--" + label.kind +
-        " tv__fill--t" + label.tint, label.text);
+        (label.wide ? " tvbrace__label--wide" : "") + ink(label.tint), label.text);
       node.setAttribute("data-brace-label", label.id);
       container(node, label.kind, label.id, "tvbrace__label");
       node.setAttribute("title", label.text);
@@ -1404,9 +1414,9 @@
     // An assembly's fold (a_part_may_contain_parts): the one control in this
     // layer, so it alone takes the pointer.
     (geo.carets || []).forEach(function (c) {
-      var node = assemblyCaret(c.part, c.open, ctx);
+      var node = assemblyCaret(c.part, c.open, ctx, c.name);
       if (!node) return;
-      node.className += " tvbrace__caret tv__fill--t" + c.tint;
+      node.className += " tvbrace__caret" + ink(c.tint);
       place(node, c);
     });
     return layer;
@@ -1415,13 +1425,17 @@
   // An assembly's fold in the grid: ▾ open, ▸ folded into its one row. A
   // click folds or opens it and selects nothing. Null where the page wires
   // no fold.
-  function assemblyCaret(partId, open, ctx) {
+  // `name` is the assembly's, where its bracket draws none: the fold is
+  // then the one place it is said.
+  function assemblyCaret(partId, open, ctx, name) {
     if (!ctx.onToggleAssembly) return null;
     var node = VA.el("button", "tvasm__caret", open ? "▾" : "▸");
     node.setAttribute("type", "button");
     node.setAttribute("data-assembly-fold", partId);
     node.setAttribute("aria-expanded", open ? "true" : "false");
-    node.setAttribute("title", open ? "Fold into one row" : "Show its parts");
+    node.setAttribute("title", name
+      ? (open ? "Fold " + name + " into one row" : "Show the parts of " + name)
+      : (open ? "Fold into one row" : "Show its parts"));
     node.onclick = function (event) {
       if (event && event.stopPropagation) event.stopPropagation();
       ctx.onToggleAssembly(partId, open);
@@ -1753,7 +1767,7 @@
   // bracket's label (`bracketed`), so the cell prints none. Whatever the
   // column clips is on hover, and the Preview of any of its rows has the
   // part's name, drawing and picture.
-  function partCells(el, group, first, indent, index, bracketed, ctx, folded) {
+  function partCells(el, group, first, indent, index, bracketed, ctx, folded, foldDrawn) {
     var words = first ? VA.partColumns(group.part === null ? null
       : (index.parts[group.part] || { id: group.part })) : null;
     var number = VA.el("td", "tvcell tvcell--part");
@@ -1763,7 +1777,7 @@
     var depth = group.part === null ? 0 : VA.partDepth(index.parts, group.part);
     number.style.paddingLeft = (indent + (bracketed ? 0 : depth * VA.GRID_BRACE.nest)) + "px";
     if (words && !bracketed) {
-      if (ctx && VA.assemblyIds(ctx.topoProj)[group.part]) {
+      if (ctx && !foldDrawn && VA.assemblyIds(ctx.topoProj)[group.part]) {
         var caret = assemblyCaret(group.part, !folded, ctx);
         if (caret) number.appendChild(caret);
       }
@@ -1779,7 +1793,8 @@
     el.appendChild(description);
   }
 
-  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent, bracketed) {
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, hot, indent, bracketed,
+                   foldDrawn) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
     var term = planRow.term || null;
@@ -1809,7 +1824,7 @@
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
     else if (isTouched(ctx, "edge", planRow.id)) el.className += " tvrow--touched";
 
-    partCells(el, group, first, indent, index, bracketed, ctx, false);
+    partCells(el, group, first, indent, index, bracketed, ctx, false, foldDrawn);
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -1858,15 +1873,25 @@
       if (title) cell.setAttribute("title", title);
       if (shown && shown.refused) cell.className += " muted";
       el.appendChild(cell);
+      return cell;
     };
     if (shown) {
       valueCell("nominal", shown.nominal, shown.nominalTitle);
       valueCell("min", shown.min, shown.minTitle);
       valueCell("max", shown.max, shown.maxTitle);
     } else {
-      valueCell("nominal", values ? VA.fmt(values.nominal) : "");
+      var nominalCell = valueCell("nominal", values ? VA.fmt(values.nominal) : "");
       valueCell("min", values ? VA.fmt(values.min) : "");
       valueCell("max", values ? VA.fmt(values.max) : "");
+      // A dimension with no value says where its drawing stands, in the
+      // place its number would be (VA.drawingStatusChip).
+      var drawingChip = !values && record
+        ? VA.drawingStatusChip(record.drawingStatus, ctx.config || VA.CONFIG) : null;
+      if (drawingChip) {
+        // Words, not a number: the cell drops `num` and its monospace.
+        nominalCell.className = "tvcell tvcell--nominal tvcell--drawing";
+        nominalCell.appendChild(drawingChip);
+      }
     }
 
     // The sensitivity: a kinematic term's sweep coefficient, a chain row's
@@ -1965,7 +1990,7 @@
   // the totals' columns: centre, worst-case min and max, ± half), so the
   // stack's total reads the same folded or open; on the whole walk nothing
   // is totalled, and nor is this. Its mark is the worst its rows wear.
-  function assemblyRow(planRow, group, index, marking, ctx, hot, indent, bracketed) {
+  function assemblyRow(planRow, group, index, marking, ctx, hot, indent, bracketed, foldDrawn) {
     var partId = planRow.rollup.part;
     var edges = planRow.rollup.edges;
     var el = baseRow("part", ctx, partId);
@@ -1976,7 +2001,7 @@
     }
     if (isSelected(ctx, "part", partId)) el.className += " tvrow--selected";
     else if (isTouched(ctx, "part", partId)) el.className += " tvrow--touched";
-    partCells(el, group, true, indent, index, bracketed, ctx, true);
+    partCells(el, group, true, indent, index, bracketed, ctx, true, foldDrawn);
     el.appendChild(VA.el("td", "tvcell tvcell--ord"));
     var names = edges.map(function (id) { return index.edges[id] ? index.edges[id].name : id; });
     var words = edges.length + (edges.length === 1 ? " dimension" : " dimensions");
@@ -2102,14 +2127,20 @@
   // render as footer rows of the contributions grid (totalsFoot, above), which
   // is where the verdict word now sits too. Nothing on this page is added up
   // in JavaScript, here or there.
-  VA.renderTopoTotals = function (root, topoProj, study, index) {
+  //
+  // With no study picked the pane shows the control that fills it, a picker
+  // reading "Pick a study" (`onStudy(studyId)`), and no sentence about what a
+  // study is -- it said "Pick a study to see its chain in the grid and its
+  // totals here. A study is a HUMAN-lassoed chain: this page reports where
+  // the forks are and never chooses one." until 2026-11-19 (the_viewer_says_
+  // nothing_about_itself: a page never describes itself).
+  VA.STUDY_PICKER_PLACEHOLDER = "Pick a study";
+  VA.renderTopoTotals = function (root, topoProj, study, index, onStudy) {
     VA.clear(root);
     root.className = "tvtotals";
     if (!study) {
-      root.appendChild(VA.el("p", "muted tvtotals__empty",
-        "Pick a study to see its chain in the grid and its totals here. " +
-        "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
-        "and never chooses one."));
+      var picker = studyPicker(topoProj, onStudy);
+      if (picker) root.appendChild(picker);
       // The gap panel is a fact about the TOPOLOGY, not about the selected
       // study, so it is on screen before one is picked — which is also the
       // state a reader arrives in.
@@ -2141,19 +2172,48 @@
       if (card) root.appendChild(card);
     });
 
-    var more = VA.el("details", "tvtotals__more");
-    more.appendChild(VA.el("summary", null, "Details"));
-    more.appendChild(VA.el("p", "muted tvtotals__rule",
-      "Every number above came out of tolerance_stack.topology.summarize() → " +
-      "fold(), the repo's single arithmetic path, and was rounded in Python. " +
-      "This page adds nothing up."));
-    (study.notes || []).forEach(function (note) {
-      more.appendChild(VA.el("p", "tvtotals__note", note));
-    });
-    root.appendChild(more);
+    // The study's own notes, one disclosure deep. It also said "Every number
+    // above came out of tolerance_stack.topology.summarize() → fold() ...
+    // This page adds nothing up." until 2026-11-19: the page describing what
+    // it does not compute, which is a rule for its authors and not a fact
+    // about this study.
+    if ((study.notes || []).length) {
+      var more = VA.el("details", "tvtotals__more");
+      more.appendChild(VA.el("summary", null, "Details"));
+      study.notes.forEach(function (note) {
+        more.appendChild(VA.el("p", "tvtotals__note", note));
+      });
+      root.appendChild(more);
+    }
     root.appendChild(gapsPanel(topoProj));
     return root;
   };
+
+  // The empty results pane's one control: the model's studies, under a
+  // placeholder that is the action. null for a model with no studies.
+  function studyPicker(topoProj, onStudy) {
+    var studies = (topoProj && topoProj.studies) || [];
+    if (!studies.length) return null;
+    var select = VA.el("select", "tvtotals__pick");
+    select.setAttribute("aria-label", VA.STUDY_PICKER_PLACEHOLDER);
+    var placeholder = VA.el("option", null, VA.STUDY_PICKER_PLACEHOLDER);
+    placeholder.value = "";
+    placeholder.setAttribute("value", "");
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+    studies.forEach(function (s) {
+      var option = VA.el("option", null, s.title || s.id);
+      option.value = s.id;
+      option.setAttribute("value", s.id);
+      if (s.description) option.setAttribute("title", s.description);
+      select.appendChild(option);
+    });
+    select.onchange = function () {
+      if (select.value && onStudy) onStudy(select.value);
+    };
+    return select;
+  }
 
   // The study's own `incomplete` badge, with the terms that earn it one
   // disclosure deep, each a link to the term. It is the study-level fold of
@@ -2380,10 +2440,11 @@
     root.className = "detail";
     var key = ctx.previewKey ||
       (ctx.selection ? VA.elementKey(ctx.selection.kind, ctx.selection.id) : null);
-    if (!key) {
-      root.appendChild(VA.el("p", "muted", VA.PREVIEW_EMPTY_TEXT));
-      return root;
-    }
+    // Nothing to preview: the pane stays empty under its heading. It said
+    // "Point at a part, a pin, a line or a row to preview it here; click to
+    // keep it." until 2026-11-19 -- how to use the page, on the page
+    // (the_viewer_says_nothing_about_itself).
+    if (!key) return root;
     var record = ctx.record !== undefined ? ctx.record
       : VA.elementRecord(ctx.topoProj, key, VA.previewRecordOptions(ctx));
     if (!record) {
@@ -2395,10 +2456,6 @@
     else renderEdgeDetail(root, record, ctx);
     return root;
   };
-
-  // The one line an empty Preview carries.
-  VA.PREVIEW_EMPTY_TEXT = "Point at a part, a pin, a line or a row to preview it " +
-    "here; click to keep it.";
 
   // What a pane's ctx hands the record builder: the same inputs the page
   // builds its records from (topology_app.js), so a fast-tier render and the
@@ -2423,8 +2480,7 @@
     if (record.branch) {
       chips.appendChild(VA.chip("chip--branch", "BRANCH POINT",
         "a study reaching this node with two unconsumed selected edges raises " +
-        "BranchAmbiguity, naming both. Which path binds is a mechanics question " +
-        "this tool does not answer."));
+        "BranchAmbiguity, naming both."));
     }
     root.appendChild(chips);
 
@@ -2433,10 +2489,10 @@
     // reads -- NOT the document's own `parts` list. In the parts' own names.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 86 of the 131 live nodes the same dot answered differently
+    // false, and on 110 of the 157 live nodes the same dot answered differently
     // hovered and clicked. (That is the STRING count, which is what "answered
-    // differently" means; 66 is the smaller count of nodes that differ as a
-    // SET. The other 20 name the same two parts in the opposite order --
+    // differently" means; 86 is the smaller count of nodes that differ as a
+    // SET. The other 24 name the same two parts in the opposite order --
     // authoring order against first-seen-edge order -- and a reader looking at
     // two orders of two names is still reading two different answers. Every
     // digit in this paragraph, and the README's copy of the first sentence,
@@ -2451,13 +2507,10 @@
     // Preview), and the record is the one derivation behind it.
     var sides = record.sides.map(function (side) { return side.label; });
     root.appendChild(VA.el("div", "detail__where", "on " + sides.join(" ⇔ ")));
-
-    // Whether this interface got a leader line, and why: the omission rule is
-    // the component grouping, so the pane says which side of it this node is
-    // on.
-    root.appendChild(VA.el("p", "detail__crop-reason", record.internal
-      ? "An internal interface: every dimension meeting here belongs to one part."
-      : "A component boundary: the grid starts another part's rows here."));
+    // The line under it said "An internal interface: every dimension meeting
+    // here belongs to one part." or "A component boundary: the grid starts
+    // another part's rows here." until 2026-11-19: the sides above already
+    // say one part or two, and the rest was how to read the grid.
     if (record.note) root.appendChild(VA.el("div", "detail__note", record.note));
 
     if (record.citation) {
@@ -2489,9 +2542,9 @@
       });
       root.appendChild(box);
     }
-    root.appendChild(VA.el("p", "detail__crop-reason",
-      "An interface is a location, not a value — there is no dimension and no " +
-      "crop behind it. The dimensions are the edges either side of this row."));
+    // It ended "An interface is a location, not a value — there is no
+    // dimension and no crop behind it. ..." until 2026-11-19: a sentence
+    // about what the pane does not show.
   }
 
   // What identifies a part, said once: its drawing (less the number its name
@@ -2536,6 +2589,24 @@
       ", checked " + run.date + " — opens in drawing-checker");
     return link;
   }
+
+  // An open dimension's drawing status as its one chip (VA.DRAWING_STATUSES),
+  // or null -- `unknown` claims nothing and wears nothing. Where the status
+  // carries a run drawing-checker can show, the chip is the link to that
+  // run's page, in a new tab, its hover the run's own line; otherwise its
+  // hover is the spec its part's rows cite, or the drawing still to get.
+  VA.drawingStatusChip = function (status, config) {
+    var words = status && VA.DRAWING_STATUSES[status.status];
+    if (!words || !words.chip) return null;
+    var cls = "chip--drawing chip--drawing-" + status.status;
+    var url = status.run ? VA.runUrl(config, status.run) : null;
+    if (url) {
+      var link = runLink(status.run, url, words.chip);
+      link.className = "chip " + cls;
+      return link;
+    }
+    return VA.chip(cls, words.chip, status.spec || status.drawing || null);
+  };
 
   function partRuns(part, config) {
     var runs = part && part.runs;
@@ -2602,6 +2673,8 @@
       chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
         VA.ATTENTION.no_tolerance.title));
     }
+    var drawingChip = VA.drawingStatusChip(record.drawingStatus, ctx.config || VA.CONFIG);
+    if (drawingChip) chips.appendChild(drawingChip);
     root.appendChild(chips);
 
     // The part and the two interfaces, in their own names.
@@ -2813,7 +2886,7 @@
       var ref = record.citation;
       box.appendChild(VA.el("div", "detail__crop-reason",
         ref && ref.kind === "assumed"
-          ? "Its value is an assumption; its crop appears here once a drawing backs it."
+          ? "An assumed value; no drawing backs it."
           : record.noCropReason));
       return box;
     }

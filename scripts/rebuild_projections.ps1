@@ -222,6 +222,21 @@ foreach ($name in $Projections) {
     }
 }
 
+# --- where every model's open dimensions' drawings stand --------------------
+#
+# One line per model, out of topologies.json's `drawing_status_counts`
+# (build_topology_projection.DRAWING_STATUSES, every word present): how many
+# dimensions with no value have their part's drawing read in drawing-checker,
+# read under another dash, not read, or no drawing at all.
+Write-Host ""
+Write-Host "==> open dimensions, by where their drawing stands"
+$Topologies = Get-Content (Join-Path $ProjDir "topologies.json") -Raw | ConvertFrom-Json
+foreach ($t in $Topologies.topologies) {
+    $words = @($t.drawing_status_counts.PSObject.Properties |
+        ForEach-Object { "{0}={1}" -f $_.Name, $_.Value })
+    Write-Host ("    {0,-28} {1}" -f $t.id, ($words -join ", "))
+}
+
 # --- the kinematic studies that did not build, LAST -------------------------
 #
 # A study that refuses to load (most often: its sweep is absent from this

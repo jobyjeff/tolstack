@@ -1,0 +1,39 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an open dimension wears its drawing's status as one chip in its grid row and its Preview, each status its own words",
+  "mutations": [
+    {
+      "contract": "The grid row of an open dimension wears the chip where its number would be.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Drops the grid row's chip.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (drawingChip) {\n        // Words, not a number: the cell drops `num` and its monospace.\n        nominalCell.className = \"tvcell tvcell--nominal tvcell--drawing\";\n        nominalCell.appendChild(drawingChip);\n      }",
+      "replace": "      if (drawingChip) {\n        // Words, not a number: the cell drops `num` and its monospace.\n        nominalCell.className = \"tvcell tvcell--nominal tvcell--drawing\";\n      }"
+    },
+    {
+      "contract": "The Preview of an open dimension wears the chip.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Drops the Preview's chip.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (drawingChip) chips.appendChild(drawingChip);\n    root.appendChild(chips);",
+      "replace": "    root.appendChild(chips);"
+    },
+    {
+      "contract": "`unknown` claims nothing: it wears no chip.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Gives `unknown` words of its own.",
+      "file": "apps/viewer/topology.js",
+      "find": "    unknown: { chip: null },",
+      "replace": "    unknown: { chip: \"not read\" },"
+    },
+    {
+      "contract": "The record carries the edge's status.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). The record drops it.",
+      "file": "apps/viewer/element_record.js",
+      "find": "      drawingStatus: edge.drawing_status || null,",
+      "replace": "      drawingStatus: null,"
+    }
+  ]
+}

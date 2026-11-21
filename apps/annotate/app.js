@@ -1240,11 +1240,11 @@ async function classifyFaces(sha256) {
 // not joined (two seats of one bore, coplanar feet), taken on the human's
 // word. Ids only; nothing when the part's classes cannot be read.
 async function surfaceSiblingsOf(sha256, faceId) {
-  const classes = await ensureFaceClasses(sha256).catch(() => null);
+  const classes = await timed("face classes", () => ensureFaceClasses(sha256).catch(() => null));
   const buffers = state.faceBuffers[sha256];
   if (!classes || !buffers) return { swept: [], offered: [] };
-  return AA.surfaceSiblings(classes, faceId,
-    (a, b) => AA.facesTouch(buffers.positions, buffers.ranges, a, b));
+  return timed("surface siblings", async () => AA.surfaceSiblings(classes, faceId,
+    (a, b) => AA.facesTouch(buffers.positions, buffers.ranges, a, b)));
 }
 
 // One face of an open part, as an event's geometry key.
@@ -1278,14 +1278,23 @@ function placementsOf(topology) {
   return out;
 }
 
+// A model feature's key, as VA.endFeatureKey answers an end: its identity --
+// which, for a feature a finer model moved onto a member, names the part the
+// model it reuses ids from puts it on (topology.feature_identity_key).
+function featureKeyOf(topology, feature) {
+  return feature.identity || { topology_id: topology.id, part: feature.part, node: feature.node };
+}
+
 // A model feature's own edge ends on `topology` (the ends whose feature it
 // is, VA.endFeatureKey): [{edgeId, direction}].
 function featureEnds(topology, feature) {
+  const VA = window.ViewerApp;
+  const want = VA.featureToken(featureKeyOf(topology, feature));
   const out = [];
   for (const e of topology.edges || []) {
     for (const d of AA.DIRECTIONS) {
-      const k = e[d] === feature.node ? window.ViewerApp.endFeatureKey(topology, e.id, d) : null;
-      if (k && k.part === feature.part) out.push({ edgeId: e.id, direction: d });
+      const k = e[d] === feature.node ? VA.endFeatureKey(topology, e.id, d) : null;
+      if (k && VA.featureToken(k) === want) out.push({ edgeId: e.id, direction: d });
     }
   }
   return out;
@@ -1293,9 +1302,11 @@ function featureEnds(topology, feature) {
 
 // The model feature an end is, on `topology`, or null.
 function featureAt(topology, edgeId, direction) {
-  const k = window.ViewerApp.endFeatureKey(topology, edgeId, direction);
+  const VA = window.ViewerApp;
+  const k = VA.endFeatureKey(topology, edgeId, direction);
   const features = (topology && topology.model && topology.model.features) || [];
-  return k ? features.find((f) => f.part === k.part && f.node === k.node) || null : null;
+  const want = VA.featureToken(k);
+  return k ? features.find((f) => VA.featureToken(featureKeyOf(topology, f)) === want) || null : null;
 }
 
 // The faces bound on the other side of a feature: what AA.gatherFaceReferences
@@ -1723,7 +1734,7 @@ async function refreshSuggestions() {
 // nothing to paste, the posture AA.NO_PROJECTION_NOTICE set: this page has no
 // transport that could ask anything to produce one.
 const NO_SWEEP_RUNS = "No solver runs have been published into this " +
-  "repository yet. They are produced by the linkage solver, not from this page.";
+  "repository yet. They are produced by the linkage solver.";
 
 function sweepState() {
   if (!state.sweep) throw new Error("not in sweep mode — load a run first");
@@ -3694,6 +3705,7 @@ async function armedClick(pick, other, shift) {
   if (identityWriteBusy || a.busy) return { action: "busy" };
   identityWriteBusy = true;
   a.busy = true;
+  clockStart("armed click");
   const reading = pick ? AA.armedWords("reading", { face: pick.faceId }) : null;
   if (reading) setArmedLine(reading);
   try {
@@ -3701,6 +3713,7 @@ async function armedClick(pick, other, shift) {
   } finally {
     identityWriteBusy = false;
     a.busy = false;
+    clockStop();
     // A click that ended without a line of its own (a group offered) goes
     // back to the resting line.
     if (reading && state.armed === a && a.line === reading) setArmedLine(armedIdleLine(a));
@@ -3926,7 +3939,7 @@ function showGroupOffer(offer) {
     button.setAttribute("data-offer", which);
     button.textContent = text;
     button.title = title;
-    button.onclick = () => { cmdGroup(which).catch((err) => console.error(err)); };
+    button.onclick = () => { pressWrite(button, ["group", which]); };
     node.appendChild(button);
   });
   node.classList.add("an__offer--on");
@@ -4491,7 +4504,7 @@ function candidateRow(end, row, surest) {
     // is a pick (AA.planAnswer accepts a proposal that names it).
     take.onclick = (ev) => {
       ev.stopPropagation();
-      railExec(surest ? ["accept", end.edgeId, end.direction]
+      pressWrite(take, surest ? ["accept", end.edgeId, end.direction]
         : ["take", end.edgeId, end.direction, row.sha256, String(row.faceId)].concat(row.faces
           ? [railTopology().id].concat(row.faces.slice(1).map(String)) : []));
     };
@@ -5058,6 +5071,11 @@ async function cmdTake(edgeId, direction, meshId, faceText, topologyId, ...moreT
     if (!isFinite(f) || String(f) !== String(t)) throw new Error("take's faces are whole face ids, got " + JSON.stringify(t));
     return f;
   });
+  // A set's faces are keyed off the open part (faceGeometryKey): a candidate
+  // taken from the shell's body before anything opened the part opens it.
+  if (named.length && state.scene.listOpenParts().indexOf(mesh.sha256) === -1) {
+    await state.scene.loadPart(mesh.sha256);
+  }
   const record = AA.findBindingRecord(identityOn(topology), AA.topologyEdgeKey(topology.id, edge.id));
   const stackKey = identityWriteKey(topology, edge.id);
   const standing = AA.endBindings(record, direction);
@@ -5681,13 +5699,13 @@ commands.register("light", cmdLight);
 commands.register("show-body", (name) => cmdSubjectView(true, name));
 commands.register("hide-body", (name) => cmdSubjectView(false, name));
 commands.register("arm", cmdArm);
-commands.register("accept", oneWriteAtATime(cmdAccept));
-commands.register("take", oneWriteAtATime(cmdTake));
-commands.register("unbind", oneWriteAtATime(cmdUnbind));
-commands.register("keep", oneWriteAtATime(cmdKeep));
-commands.register("drop-face", oneWriteAtATime(cmdDropFace));
-commands.register("group", oneWriteAtATime(cmdGroup));
-commands.register("flip", oneWriteAtATime(cmdFlip));
+commands.register("accept", oneWriteAtATime(cmdAccept, "accept"));
+commands.register("take", oneWriteAtATime(cmdTake, "take"));
+commands.register("unbind", oneWriteAtATime(cmdUnbind, "unbind"));
+commands.register("keep", oneWriteAtATime(cmdKeep, "keep"));
+commands.register("drop-face", oneWriteAtATime(cmdDropFace, "drop-face"));
+commands.register("group", oneWriteAtATime(cmdGroup, "group"));
+commands.register("flip", oneWriteAtATime(cmdFlip, "flip"));
 commands.register("bound-faces", cmdBoundFaces);
 AA.exec = (input) => commands.exec(input);
 
@@ -6228,13 +6246,12 @@ function renderDetail() {
       p.textContent = note;
       work.appendChild(p);
     }
-    if (!canWrite) {
-      const p = document.createElement("p");
-      p.className = "read-only-note";
-      p.textContent = "This transport cannot write -- binding controls are hidden. " +
-        "Connect a read/write folder to bind.";
-      work.appendChild(p);
-    }
+    // A read-only transport shows no bind controls and no sentence about
+    // them: "This transport cannot write -- binding controls are hidden.
+    // Connect a read/write folder to bind." stood here until 2026-11-19 (the_
+    // viewer_says_nothing_about_itself: a page never describes its mode, and
+    // a feature that is absent shows nothing). A press says so in one line
+    // (AA.READ_ONLY_WRITE).
     const bound = bind && buildBindingsBlock(edge, bind, canWrite);
     if (bound) work.appendChild(bound);
     if (canWrite) {
@@ -6516,16 +6533,85 @@ function slugify(text) {
 // together). Every verb that writes, and an armed click, holds this flag;
 // one that arrives while it is held is dropped and says so in its result.
 let identityWriteBusy = false;
-function oneWriteAtATime(fn) {
+function oneWriteAtATime(fn, verb) {
   return async (...args) => {
     if (identityWriteBusy) return { action: "busy" };
     identityWriteBusy = true;
+    clockStart(verb);
     try {
       return await fn(...args);
     } finally {
       identityWriteBusy = false;
+      clockStop();
     }
   };
+}
+
+// A PRESS THAT WRITES SAYS SO AT ONCE (handoff a_bind_on_the_pitch_plate_
+// writes_in_seconds_and_says_so_while_it_waits). The pane's own write
+// controls -- a candidate row's Take, the group offer's Take all and Just
+// this one -- read AA.ARMED_PICK_WORDS.writing and are disabled in the click
+// itself, before the write starts, until it lands or fails; a failure (or a
+// press dropped because another write was running) names itself on the
+// control: its word back, `data-pending` "failed", the reason on hover. The
+// shell's mirrored copy follows (railControls). The shell's own body
+// buttons do the same on its side (VA.FEATURE_BODY_WORDS.writing).
+async function pressWrite(button, command) {
+  const word = button.dataset.word || button.textContent;
+  const title = button.dataset.title !== undefined ? button.dataset.title : button.title;
+  button.dataset.word = word;
+  button.dataset.title = title;
+  button.dataset.writes = "true";
+  button.textContent = AA.ARMED_PICK_WORDS.writing;
+  button.disabled = true;
+  button.dataset.pending = WRITE_PRESS_STATES[0];
+  postEmbedTree(false);
+  let failure = null;
+  try {
+    const out = await AA.exec(command);
+    if (out && out.action === "busy") failure = AA.ARMED_PICK_WORDS.busy;
+  } catch (err) {
+    failure = err.message;
+    setBanner(err.message, "error");
+  }
+  if (!button.isConnected) return;
+  button.textContent = failure ? AA.ARMED_PICK_WORDS.failed : word;
+  button.title = failure ? failure : title;
+  button.disabled = false;
+  if (failure) button.dataset.pending = WRITE_PRESS_STATES[1];
+  else delete button.dataset.pending;
+  postEmbedTree(false);
+}
+
+// The states a writing control is in, on its `data-pending`: writing, then
+// failed or nothing. The shell's are VA.WRITE_PRESS_STATES (paired by
+// tests/test_bind_latency_vocabularies.py).
+const WRITE_PRESS_STATES = Object.freeze(["writing", "failed"]);
+
+// THE WRITE CLOCK (handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_
+// says_so_while_it_waits): each step of the last identity write and how long
+// it took, in ms, on `window.__writeSteps` -- {verb, queued, steps: [[step,
+// ms]], total}. `queued` is how long the command waited in the exec queue
+// behind what the page posted before it. What the probe and the browser
+// tier's timing line print; it measures and decides nothing.
+let writeClock = null;
+let lastQueueWait = null;
+function clockStart(verb) {
+  writeClock = { verb: verb || "write", queued: lastQueueWait, steps: [], started: performance.now(), total: null };
+  lastQueueWait = null;
+  window.__writeSteps = writeClock;
+}
+function clockStop() {
+  if (writeClock && writeClock.total === null) writeClock.total = Math.round(performance.now() - writeClock.started);
+}
+async function timed(step, work) {
+  const clock = writeClock;
+  const started = performance.now();
+  try {
+    return await work();
+  } finally {
+    if (clock) clock.steps.push([step, Math.round(performance.now() - started)]);
+  }
 }
 
 // The next event's seq: one past the highest in the projection, this
@@ -6549,11 +6635,11 @@ async function nextEventSeq(count) {
   // count comes from is then re-read from the folder, which the served origin
   // may not publish at all (storage/http.js).
   if (servedTransport && !state.storage.writeGranted()) {
-    await state.storage.ensureWriter();
-    adoptIdentity(await readIdentity());
+    await timed("grant", () => state.storage.ensureWriter());
+    adoptIdentity(await timed("read the log (grant)", () => readIdentity()));
     renderPaneStatus();
   }
-  const onDisk = await state.storage.listFeatureIdentityEventSeqs();
+  const onDisk = await timed("list seqs", () => state.storage.listFeatureIdentityEventSeqs());
   const seq = Math.max(AA.nextEventSeq(state.identityProjection, state.sessionEvents, onDisk), reservedSeq + 1);
   reservedSeq = seq + Math.max(1, count || 1) - 1;
   return seq;
@@ -6678,20 +6764,36 @@ function correctionTarget(record, edge) {
 // `banner` is a string, or a function of the filename actually written (the
 // writer bumps the number when the target exists).
 async function writeIdentityEvent(filename, event, banner) {
-  const written = (await state.storage.writeFeatureIdentityEvent(filename, event)) || filename;
+  const written = (await timed("write event", () => state.storage.writeFeatureIdentityEvent(filename, event))) || filename;
+  if (writeClock) writeClock.onDisk = Math.round(performance.now() - writeClock.started);
   state.sessionEvents.push(event);
   // Repaint from the session's fold NOW: the served-log rewrite below takes
   // seconds, and a panel still showing the binding this event replaced is a
   // panel whose buttons act on a binding that no longer stands (review
   // round 1: a Flip clicked in that window wrote a log the loader refused).
-  renderElementList();
-  renderDetail();
-  await publishIdentity(true);
-  buildModel().catch(() => { /* the layer keeps its last anchors */ });
+  await timed("repaint", async () => { renderElementList(); renderDetail(); });
+  // ...and the shell is told now, from the same fold: the event is on disk.
+  paintBoundMarks();
+  postIdentity();
+  if (writeClock) writeClock.posted = Math.round(performance.now() - writeClock.started);
   setBanner(typeof banner === "function" ? banner(written) : banner, "ok");
-  renderElementList();
-  renderDetail();
+  // The served-log rewrite re-reads the folder and is best-effort (the event
+  // is on disk; the next rebuild writes the same bytes), so the verb does not
+  // wait for it: an armed click's disarm, a toast and the tree all waited
+  // behind it, and the body changed a second or more after the write
+  // (handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_
+  // it_waits). One rewrite at a time, in write order, so an older log never
+  // lands over a newer one.
+  const clock = writeClock;
+  publishTail = publishTail.then(() => publishIdentity(true, clock)).then(() => {
+    buildModel().catch(() => { /* the layer keeps its last anchors */ });
+    renderElementList();
+    renderDetail();
+  }, (err) => console.warn("the served log was not rewritten:", err));
 }
+
+// The served-log rewrites queued behind each write (writeIdentityEvent).
+let publishTail = Promise.resolve();
 
 // --- the log, read and published (handoff a_binding_shows_the_moment_it_is_
 // made_and_is_corrected_where_it_is_shown, deliverable 1) --------------------
@@ -6730,28 +6832,39 @@ function adoptIdentity(projection) {
 // sent the merged record, so its tree changes with no reload. Rewriting is
 // best-effort -- the event is already on disk, and the next rebuild writes the
 // same bytes -- so a failure says so in the console and nothing else.
-async function publishIdentity(rewrite) {
+async function publishIdentity(rewrite, clock) {
   if (rewrite && typeof state.storage.writeServedIdentityLog === "function" &&
       (!servedTransport || state.storage.writeGranted())) {
     const started = performance.now();
+    // The write's clock, kept by the write that queued this (its own steps).
+    const step = async (name, work) => {
+      const t = performance.now();
+      try { return await work(); } finally { if (clock) clock.steps.push([name, Math.round(performance.now() - t)]); }
+    };
     try {
-      const log = await state.storage.readFeatureIdentityLog();
+      const log = await step("read the log", () => state.storage.readFeatureIdentityLog());
       if (log && Array.isArray(log.events)) {
-        await state.storage.writeServedIdentityLog(AA.servedLogDoc(log.events, log.installed_meshes,
-          Array.isArray(log.same_surface) ? log.same_surface : state.sameSurface));
+        await step("write the served log", () => state.storage.writeServedIdentityLog(AA.servedLogDoc(log.events,
+          log.installed_meshes, Array.isArray(log.same_surface) ? log.same_surface : state.sameSurface)));
         state.installedMeshes = Array.isArray(log.installed_meshes) ? log.installed_meshes : state.installedMeshes;
         // The log as just read is what the feature fold folds from now.
         state.identityEvents = log.events;
-        adoptIdentity(AA.foldEvents(log.events, foldOpts()));
+        await step("fold", async () => adoptIdentity(AA.foldEvents(log.events, foldOpts())));
       }
     } catch (err) {
       console.warn("the served log was not rewritten:", err);
     }
     window.__lastServedLogMs = performance.now() - started;
+    if (clock) clock.published = Math.round(performance.now() - clock.started);
   }
   paintBoundMarks();
-  // `eventIds`: every event the record folds, so the shell can refuse a
-  // record that knows less than its own (a pane on other data never wins).
+  postIdentity();
+}
+
+// The merged record, to the shell. `eventIds`: every event the record folds,
+// so the shell can refuse a record that knows less than its own (a pane on
+// other data never wins), and skips one that knows no more.
+function postIdentity() {
   const base = (state.identityProjection && state.identityProjection.built_from_events) || [];
   postToShell({ type: AA.IDENTITY_MESSAGE, projection: sessionIdentityProjection(),
     installedMeshes: state.installedMeshes,
@@ -7373,8 +7486,15 @@ function railControls(node, holder, row) {
   }
   const buttons = Array.from(holder.querySelectorAll(":scope > button"));
   if (buttons.length) {
-    row.buttons = buttons.map((b) => ({ text: b.textContent, title: b.title || "",
-      pressed: b.getAttribute("aria-pressed") === "true" }));
+    row.buttons = buttons.map((b) => {
+      const spec = { text: b.textContent, title: b.title || "", pressed: b.getAttribute("aria-pressed") === "true" };
+      // A control that writes (pressWrite): the shell shows it pending at
+      // its own press, and is told here while it is, and when it failed.
+      if (b.dataset.writes) spec.writes = true;
+      if (b.disabled) spec.disabled = true;
+      if (b.dataset.pending) spec.pending = b.dataset.pending;
+      return spec;
+    });
   }
   const badge = holder.querySelector(":scope > .alertbadge");
   if (badge) row.alert = badge.getAttribute("aria-label") || "";
@@ -7556,6 +7676,22 @@ function treeMates() {
   const a = state.armed;
   const f = a && a.mates && a.mates.length ? featureAt(a.topology, a.edgeId, a.direction) : null;
   if (f) put(f.id, a.topologyId, a.edgeId, a.direction, a.mates);
+  // A feature nothing ranks yet (neither side of its joint is bound): the
+  // contact engine's candidates at every gap edge it is an end of, each row
+  // naming its own edge and end so its Take binds there.
+  const topology = state.sweep ? sweepTopology() : state.currentTopology;
+  for (const feature of (topology && topology.model && topology.model.features) || []) {
+    if (out[feature.id]) continue;
+    const rows = [];
+    for (const end of featureEnds(topology, feature)) {
+      for (const r of AA.endContactSets(state.contactSuggestions, topology.id, end)) {
+        rows.push(Object.assign(say(r), { edgeId: end.edgeId, direction: end.direction }));
+      }
+    }
+    if (!rows.length) continue;
+    out[feature.id] = { topologyId: topology.id, edgeId: rows[0].edgeId, direction: rows[0].direction,
+      n: rows.length, rows: rows.slice(0, AA.CANDIDATES_LISTED) };
+  }
   return out;
 }
 
@@ -7636,7 +7772,15 @@ window.addEventListener("message", (ev) => {
   if (!msg || msg.type !== "annotate:exec" || !msg.command) return;
   const source = ev.source;
   const origin = ev.origin;
-  execQueue.enqueue(() => AA.exec(msg.command)).then((outcome) => {
+  const arrived = performance.now();
+  const run = () => {
+    lastQueueWait = Math.round(performance.now() - arrived);
+    return AA.exec(msg.command);
+  };
+  // A write runs once the page has loaded, never behind the commands posted
+  // before it (ExecQueue.runAfterLoad).
+  const writes = AA.IDENTITY_WRITE_VERBS.indexOf(String(msg.command[0])) !== -1;
+  (writes ? execQueue.runAfterLoad(run) : execQueue.enqueue(run)).then((outcome) => {
     let reply;
     if (outcome.ok) {
       reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,

@@ -4,12 +4,12 @@
   "expect_red": "a run of prose is capped well inside the box it sits in — `.stackview` is as wide as the window leaves it, so without the cap every sentence in it is as long as the window and a reader loses the line coming back",
   "mutations": [
     {
-      "contract": "A run of prose in `.stackview` (`.check__warn`, `.check__note`) is capped at `--measure`, well inside the box it sits in -- without the cap a sentence is as long as the window.",
+      "contract": "A run of prose in `.stackview` (`.check__guidance`, `.check__warn` and the rest of that rule's list) is capped at `--measure`, well inside the box it sits in -- without the cap a sentence is as long as the window.",
       "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry.md",
-      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4.",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. Re-pointed 2026-11-19 (the_viewer_says_nothing_about_itself): `.check__note` left the rule with the generated-checks paragraph it styled; the mutation still strips the cap from the whole selector list, `.check__guidance` (what the guard measures) included.",
       "file": "apps/viewer/style.css",
-      "find": ".check__warn, .check__note { max-width: var(--measure); }",
-      "replace": ".check__warn, .check__note { }"
+      "find": ".check__warn { max-width: var(--measure); }",
+      "replace": ".check__warn { }"
     }
   ]
 }

@@ -6,10 +6,10 @@
     {
       "contract": "An outer bracket is wider than the brackets it holds.",
       "issue": null,
-      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Draws every level at the outermost inset. Re-anchored 2026-11-08 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows), when a part's bracket began to start right of its body's label strip.",
+      "note": "Declared by handoff the_grid_fits_the_screen_and_its_brackets_say_what_nests_in_what (2026-11-05). Draws every level at the outermost inset. Re-anchored 2026-11-08 (the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows), when a part's bracket began to start right of its body's label strip. Re-anchored 2026-11-20 (the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies): the same inset, with a part in no assembly moved into the strip where an assembly is outermost.",
       "file": "apps/viewer/views/topology.js",
-      "find": "        : 2 + b.level * g.inset;",
-      "replace": "        : 2;"
+      "find": "        : 2 + b.level * g.inset + (inStrip && stripped ? g.body : 0);",
+      "replace": "        : 2 + (inStrip && stripped ? g.body : 0);"
     }
   ]
 }

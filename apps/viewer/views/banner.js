@@ -49,8 +49,11 @@
     var labels = VA.projectionLabels(state.projection);
 
     if (state.connection === VA.STATE.DISCONNECTED) {
+      // The words are the action and the folder to pick; they ended "to load
+      // the stacks. Read-only." until 2026-11-19 (a page never describes
+      // itself or its mode).
       root.appendChild(VA.el("span", null,
-        "Connect the tolstack repo folder (C:\\workspace\\tolstack) to load the stacks. Read-only."));
+        "Connect the tolstack repo folder (C:\\workspace\\tolstack)."));
       root.appendChild(button("Connect folder", "banner__action", handlers.onConnect));
     } else if (state.connection === VA.STATE.NEEDS_REGRANT) {
       root.appendChild(VA.el("span", null,

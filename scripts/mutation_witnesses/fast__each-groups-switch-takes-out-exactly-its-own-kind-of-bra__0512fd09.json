@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "each Groups switch takes out exactly its own kind of bracket, and the grid's outermost bracket is a body or an assembly, the one switched on last",
+  "mutations": [
+    {
+      "contract": "With Bodies and Assemblies both on, the grid draws the one switched on last as its outermost bracket.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "The grid always keeps the bodies: switching the assemblies on while the bodies are on changes nothing in the grid.",
+      "file": "apps/viewer/topology.js",
+      "find": "      out[outer === VA.GRID_OUTER_KINDS[1] ? VA.GRID_OUTER_KINDS[0] : VA.GRID_OUTER_KINDS[1]] = false;",
+      "replace": "      out[VA.GRID_OUTER_KINDS[1]] = false;"
+    }
+  ]
+}

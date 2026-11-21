@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an assembly's dimension ends at the features its view row names, on the races, and at neither race's other side of the shared node",
+  "mutations": [
+    {
+      "contract": "A dimension's end is the feature its model-view row names, so an assembly's length ends on its members' features.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_link_is_a_machined_part_and_two_bearings_each_two_races.md",
+      "note": "Reads a dimension's end as its own part's again, the rule before 2026-11-19: the link's length ends on the assembly, which has no feature, so no race reads it.",
+      "file": "apps/viewer/model.js",
+      "find": "        if (dimension && dimension[end]) return dimension[end] === feature.id;",
+      "replace": "        if (false) return dimension[end] === feature.id;"
+    }
+  ]
+}

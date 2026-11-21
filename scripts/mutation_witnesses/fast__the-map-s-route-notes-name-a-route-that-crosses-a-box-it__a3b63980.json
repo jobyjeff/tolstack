@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map's route notes name a route that crosses a box it ends on past its stub, two routes on one run and a symbol inside a box, and stay quiet for parallel lanes",
+  "mutations": [
+    {
+      "contract": "A route that crosses a box it ends on, past its stub, is a layout note.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Exempts both end boxes whole, as the map did before: the merged page of 2026-11-19 drew the tangential link's attach bore back across the plate with no note.",
+      "file": "apps/viewer/map.js",
+      "find": "        if (mine && stubLeg) return;",
+      "replace": "        if (mine) return;",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    },
+    {
+      "contract": "Two routes on one collinear run are a layout note.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Never reports a shared run: Jeff's 'edges overlap each other for parts of their length and then diverge' goes unnoted.",
+      "file": "apps/viewer/map.js",
+      "find": "        if (overlap > min) return true;",
+      "replace": "        if (overlap > min) return false;",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    },
+    {
+      "contract": "A connector's symbol inside a box is a layout note.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Drops the note: the child-under-parent symbol drawn on the child goes unnoted.",
+      "file": "apps/viewer/map.js",
+      "find": "          notes.push(\"interface \" + c.id + \"'s symbol sits on \" + box.id);",
+      "replace": "          void 0; /* mutated: no note */",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    }
+  ]
+}

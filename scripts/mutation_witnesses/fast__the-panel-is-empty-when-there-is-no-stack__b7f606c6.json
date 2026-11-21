@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the panel is empty when there is no stack",
+  "mutations": [
+    {
+      "contract": "The stack page's detail pane says nothing when there is no stack.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "Puts back the \"Pick a stack.\" line the pane carried until 2026-11-19.",
+      "file": "apps/viewer/views/detail.js",
+      "find": "    if (!stackProj) return root;",
+      "replace": "    if (!stackProj) { root.appendChild(VA.el(\"p\", \"muted\", \"Pick a stack.\")); return root; }"
+    }
+  ]
+}

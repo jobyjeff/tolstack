@@ -225,12 +225,20 @@
     VA.lastMapLight = reg;
 
     var hscroll = VA.el("div", "tv__hscroll tv__hscroll--map");
-    var svg = VA.svg("svg", "tv__map", { width: "100%", height: "100%" });
+    // A kind of container the Groups popover switches off (VA.GROUP_KINDS)
+    // is hidden by a class on the drawing, so nothing it holds moves and the
+    // counts still find a district per body and a box per part.
+    var hidden = (VA.GROUP_KINDS || []).filter(function (k) {
+      return ctx.groupKinds && ctx.groupKinds[k.id] === false;
+    }).map(function (k) { return " tv__map--no-" + k.id; }).join("");
+    var svg = VA.svg("svg", "tv__map" + hidden, { width: "100%", height: "100%" });
     svg.setAttribute("data-topology", geo.topologyId);
     svg.appendChild(VA.mapSymbolDefs());
     var world = VA.svg("g", "map__world");
     var layer = {};
-    ["districts", "assemblies", "boxes", "jumpers", "connectors", "pins", "names"].forEach(function (name) {
+    // A district's name sits over the assemblies' outlines, which may cross
+    // a district's border (2026-11-19), and under everything else.
+    ["districts", "assemblies", "districtnames", "boxes", "jumpers", "connectors", "pins", "names"].forEach(function (name) {
       layer[name] = VA.svg("g", "map__layer map__layer--" + name);
       world.appendChild(layer[name]);
     });
@@ -265,16 +273,42 @@
         { "font-size": M.font.body });
       register(reg, name, "map__bodyname", VA.FOCUS_KINDS.body, body.id);
       wire(name, ctx, VA.FOCUS_KINDS.body, body.id, body.name);
-      g.appendChild(name);
+      // In its body's ink, in the layer over the outlines.
+      var nameG = VA.svg("g", "map__body" + tintCls);
+      nameG.appendChild(name);
+      layer.districtnames.appendChild(nameG);
       layer.districts.appendChild(g);
     });
 
-    // An assembly's outline round its own box and its children's.
+    // An assembly's outline round its own box and its children's. An
+    // assembly with no box (VA.mapOutlined) IS its outline: the part's one
+    // drawing, named at its top-left -- its number, then its everyday name
+    // -- and its border and name are the part's control, as a box's are.
     geo.assemblies.forEach(function (a) {
       var tint = tintOf(geo, a.body);
-      var r = rect("map__assembly" + tint, a, { rx: M.assembly.radius, ry: M.assembly.radius });
-      r.setAttribute("data-assembly", a.id);
-      layer.assemblies.appendChild(r);
+      if (!a.outline) {
+        var r = rect("map__assembly" + tint, a, { rx: M.assembly.radius, ry: M.assembly.radius });
+        r.setAttribute("data-assembly", a.id);
+        layer.assemblies.appendChild(r);
+        return;
+      }
+      var g = VA.svg("g", "map__outlinegroup");
+      g.setAttribute("data-assembly", a.id);
+      var hit = rect("map__outlinehit", a, { rx: M.assembly.radius, ry: M.assembly.radius });
+      register(reg, hit, "map__outlinehit", VA.FOCUS_KINDS.part, a.id);
+      wire(hit, ctx, VA.FOCUS_KINDS.part, a.id, a.label);
+      title(hit, a.label);
+      g.appendChild(hit);
+      var line = rect("map__outline" + tint, a, { rx: M.assembly.radius, ry: M.assembly.radius });
+      register(reg, line, "map__outline" + tint, VA.FOCUS_KINDS.part, a.id);
+      g.appendChild(line);
+      var name = text("map__outlinename", a.nameAt.x, a.nameAt.y, a.nameAt.text,
+        { "font-size": M.font.assembly, "text-anchor": a.nameAt.anchor });
+      register(reg, name, "map__outlinename", VA.FOCUS_KINDS.part, a.id);
+      wire(name, ctx, VA.FOCUS_KINDS.part, a.id, a.label);
+      title(name, a.label);
+      g.appendChild(name);
+      layer.assemblies.appendChild(g);
     });
 
     // Boxes: one per part, its label inside. A child's box is small and
@@ -385,16 +419,28 @@
       if (side === "top") return { x: pin.x, y: pin.y - o, anchor: "middle" };
       return { x: pin.x, y: pin.y + o + M.font.pin * 0.8, anchor: "middle" };
     };
+    // A feature with a pin toward each partner (map.js, step 3) is one
+    // entity: one group holds all its pins, each with the feature's label,
+    // so a hover or a selection lights every one of them.
+    var pinGroups = [];
+    var groupOf = {};
     geo.pins.forEach(function (pin) {
+      if (!groupOf[pin.id]) { groupOf[pin.id] = []; pinGroups.push(groupOf[pin.id]); }
+      groupOf[pin.id].push(pin);
+    });
+    pinGroups.forEach(function (group) {
+      var pin = group[0];
       var tint = tintOf(geo, (modelView.parts || []).filter(function (p) { return p.id === pin.part; })
         .map(function (p) { return p.body; })[0]);
       var g = VA.svg("g", "map__pin" + tint);
-      g.setAttribute("data-side", pin.side);
-      g.appendChild(VA.svg("circle", "map__pinhit", { cx: pin.x, cy: pin.y, r: M.pinR * 2 }));
-      g.appendChild(VA.svg("circle", "map__pindot", { cx: pin.x, cy: pin.y, r: M.pinR }));
-      var at = labelAt(pin, pin.side);
-      g.appendChild(text("map__pinlabel", at.x, at.y, pin.label,
-        { "font-size": M.font.pin, "text-anchor": at.anchor }));
+      g.setAttribute("data-side", group.map(function (q) { return q.side; }).join(" "));
+      group.forEach(function (q) {
+        g.appendChild(VA.svg("circle", "map__pinhit", { cx: q.x, cy: q.y, r: M.pinR * 2 }));
+        g.appendChild(VA.svg("circle", "map__pindot", { cx: q.x, cy: q.y, r: M.pinR }));
+        var at = labelAt(q, q.side);
+        g.appendChild(text("map__pinlabel", at.x, at.y, q.label,
+          { "font-size": M.font.pin, "text-anchor": at.anchor }));
+      });
       register(reg, g, "map__pin" + tint, VA.FOCUS_KINDS.feature, pin.id);
       wire(g, ctx, VA.FOCUS_KINDS.feature, pin.id, pin.label);
       title(g, pin.label);
@@ -473,7 +519,7 @@
   }
 
   // The world rect of a selection's own entities (the first one with a
-  // place): a part's box, a body's district, a pin's point, a jumper's or a
+  // place): a part's box (an outline, for an assembly with none), a body's district, a pin's point, a jumper's or a
   // connector's middle.
   function entityRect(geo, ownKeys, reg) {
     for (var i = 0; i < (ownKeys || []).length; i++) {
@@ -482,7 +528,10 @@
       var kind = k.slice(0, bar), id = k.slice(bar + 1);
       var found = null;
       if (kind === VA.FOCUS_KINDS.body) found = geo.bodies.filter(function (b) { return b.id === id; })[0];
-      else if (kind === VA.FOCUS_KINDS.part) found = geo.boxes.filter(function (b) { return b.id === id; })[0];
+      else if (kind === VA.FOCUS_KINDS.part) {
+        found = geo.boxes.concat(geo.assemblies.filter(function (a) { return a.outline; }))
+          .filter(function (b) { return b.id === id; })[0];
+      }
       else if (kind === VA.FOCUS_KINDS.feature) {
         var pin = geo.pins.concat(geo.marks).filter(function (p) { return p.id === id; })[0];
         if (pin) found = { x: pin.x - 20, y: pin.y - 20, w: 40, h: 40 };

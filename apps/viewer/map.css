@@ -18,6 +18,20 @@
 .tv__scroll--zoomgrab .tv__map { cursor: grabbing; }
 .tv__map path, .tv__map polyline { fill: none; }
 .tv__map text { font-family: inherit; }
+/* The Groups popover's kinds switched off (views/map.js): a body's
+   district -- border, field and name --, an assembly's outline and a part's
+   box and name are hidden in place; pins, symbols and routes stay put. The
+   hits below take the pointer with `all`, `fill` and `stroke`, which SVG
+   honours whatever the visibility, so a hidden layer's descendants stop
+   taking it too: hidden, a container neither hovers nor selects. */
+.tv__map--no-bodies .map__layer--districts,
+.tv__map--no-bodies .map__layer--districtnames,
+.tv__map--no-assemblies .map__layer--assemblies,
+.tv__map--no-parts .map__layer--boxes { visibility: hidden; }
+.tv__map--no-bodies .map__layer--districts *,
+.tv__map--no-bodies .map__layer--districtnames *,
+.tv__map--no-assemblies .map__layer--assemblies *,
+.tv__map--no-parts .map__layer--boxes * { pointer-events: none; }
 
 /* A body's district: a dashed field in the body's ink, barely tinted, named
    once at its corner. Its interior pans on a drag and selects the body on a
@@ -43,6 +57,29 @@
   fill: none; stroke: var(--fill-ink, var(--group-part)); stroke-opacity: .5;
   stroke-width: 1.5; stroke-dasharray: 2 7; stroke-linecap: round; pointer-events: none;
 }
+/* An assembly with no box of its own is its outline (2026-11-19): the same
+   dotted line, a little firmer, and its name told from a district's by type
+   -- upright and bold there, italic and regular here. Its parts may sit in
+   two bodies, so it wears no body's ink. */
+.map__outline {
+  fill: none; stroke: var(--muted); stroke-opacity: .8;
+  stroke-width: 1.75; stroke-dasharray: 2 6; stroke-linecap: round; pointer-events: none;
+}
+.map__outlinename { fill: var(--muted); font-style: italic; font-weight: 400; cursor: pointer; }
+/* An outline's border may run under another outline's name: the name is
+   set over a halo of the page's ground. (A district's name is drawn above
+   every outline instead, views/map.js's `districtnames` layer.) */
+.map__outlinename {
+  paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round;
+}
+.map__outlinehit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+.map__outline--lead { stroke: var(--ink); stroke-opacity: 1; stroke-width: 2.5; }
+.map__outlinename--lead { fill: var(--ink); }
+.map__outline--hot { stroke-opacity: 1; }
+.map__outline--selected { stroke: var(--accent); stroke-opacity: 1; stroke-width: 2.5; }
+.map__outlinename--selected { fill: var(--accent); }
+.map__outline--touched { stroke: color-mix(in srgb, var(--accent) 55%, var(--muted)); stroke-opacity: 1; }
+.map__outlinename--touched { fill: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
 
 /* A part's box: an outline in a lighter cut of the body's ink; a bearing's
    (a child's) thinner. The whole box is the part's control -- border,

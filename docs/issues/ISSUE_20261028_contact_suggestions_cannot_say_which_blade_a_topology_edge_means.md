@@ -53,3 +53,33 @@ inventing a fact.
 3. **Leave it ambiguous** and let the proposing agent
    (`HANDOFF_20261028_an_agent_proposes_a_face_binding_and_a_human_ratifies_it`)
    and the human ratifying settle it per edge. What happens today.
+
+## Addendum 2026-11-20 (walk: the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page) -- now it writes a wrong binding
+
+On v2 (`vpa_end_stop_v2`, integration `8082bad0`) the two plate lugs are
+authored as separate parts that share one mesh each (both straight bushings
+alias `asm217755_214820_002`, both flanged bushings `asm217755_NAS77A3_015A`)
+and declare no occurrence. The contact engine then gives **both lugs the same
+candidate**, read off a scratch rebuild of `contact_suggestions.json`:
+
+| pair (pitch link / tangential link) | top candidate, both lugs |
+|---|---|
+| `*_straight_bushing_transition_fit` | bushing faces 10, 11 → plate (`0d6f23ee`) faces **1370, 1371**, at the occurrence `…/prd-e-03300154.1/…` (the tangential link's group) |
+| `*_flanged_bushing_press_fit` | bushing faces 8, 9 → plate faces 1445, 1446, at `…/NAS77C3-015.5` |
+
+The pitch link lug's bolt pins also mix blades: `pitch_link_bolt_in_flanged_bushing`
+pairs bolt occurrence `prd-e-03481962.4` with `NAS77C3-015.7`, while
+`pitch_link_upper_inner_race_on_bolt` and `pitch_link_bolt_in_straight_bushing`
+use `prd-e-03481962.1`.
+
+**What a reader meets:** `215735-001 › pitch link straight bushing bore` opens
+to "2 faces · round · r 4.2600 … fits the mating pin · Take". One Take (2.2 s
+to disk, in a scratch copy of Jeff's log) bound faces **1370/1371**, which
+earlier pages measured as the **tangential** link's Ø8.520 bore
+(`REVIEW_20261118_…`, "Each joint's play"; the pitch link's is 1380/1381).
+Nothing on the page says the face is on the other lug. Until this is fixed, a
+Take on any v2 lug feature is not trustworthy; Pick a face is.
+
+Priority note for triage: this was deferred as a question about v1's joint
+edges. On v2 it is a silent wrong write on the features Jeff is about to
+re-pick (`REVIEW_20261119_the_links_and_the_pitch_plate_stack.md`, D-rows).

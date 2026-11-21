@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
+resolution: "The check hovered while the pane's one command queue was still opening the model, so the light landed past its 5 s wait; it now waits for the queue to drain first (30/30, witnessed)."
 area: tests/browser-truth
 class: browser_red_on_trunk
 reporter: agent
@@ -31,3 +32,27 @@ this red onto trunk. Whole tier in the main checkout after the rebuild:
 and map answered; the scene did not). It was green at the 11-17 merge
 (`1f8c6381`, 45/45). The fix is staged as
 `docs/sessions/HANDOFF_20261119_the_map_pin_hover_lights_its_bound_face_in_the_scene.md`.
+
+## 2026-11-19 — resolved (the_map_pin_hover_lights_its_bound_face_in_the_scene)
+
+Cause: the check's premise. The page posts the right light and the pane
+draws it, but late. The page's `light` (the bound hub face 144, own) is
+posted the moment the pin is hovered. The pane runs commands one at a time,
+though, and it was still executing `isolate parts`: opening the model's
+parts, then the rest of the mesh store as context. The check's "scene ready"
+waits only for one open part. Measured on a quiet box, the hover was posted
+at 15.4 s and drawn at 20.9 s, 0.5 s past the check's 5 s wait. On a busy
+box it was drawn 34 s after the hover. Nothing in `apps/` changed between
+the green `1f8c6381` and the red `69c6f779`. The binding still stands in
+Jeff's log (event seq 77, kept by seq 79). Load-time variance moved the
+check across the line.
+
+Fix: the check now waits, before hovering, until a command posted through
+the pane's own queue (behind everything the page has posted) is answered.
+The 5 s wait then times the light alone, and the clause is unchanged. The
+product-side wait is filed as
+`ISSUE_20261119_a_hover_waits_behind_the_pane_opening_its_model_before_the_scene_lights_it.md`.
+
+Verified: `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack --only "the map (the counts"`
+30/30, and the witness `--only` for this guard was WITNESSED with its clean
+run green.

@@ -156,6 +156,11 @@
       "no_tolerance_recorded", "contact_kind_not_stated", "form_not_folded"
     ],
 
+    // scripts/build_topology_projection.py: DRAWING_STATUSES
+    DRAWING_STATUSES: [
+      "read", "other_dash_read", "not_read", "no_drawing", "unknown"
+    ],
+
     // tolerance_stack/topology.py: NODE_KINDS
     NODE_KINDS: ["mating_surface", "datum_feature"],
 

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a press that writes says so at once (the pitch plate's Keep: pending in the frame, one event, the body, the time)",
+  "expect_red": "[real] ...it writes one event holding faces 1380 and 1381, the body then reads bound, and nothing is left pending",
+  "mutations": [
+    {
+      "contract": "The pane's answer ends the page's write: once it has written, no control is left pending or disabled waiting for it.",
+      "issue": "docs/issues/ISSUE_20261118_a_bind_on_the_pitch_plate_takes_ten_to_forty_seconds_to_write.md",
+      "note": "Ignores a successful answer, so the bound body's Unbind stays disabled behind a write that has already landed.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (msg.ok && !busy) bodyWrite = null;",
+      "replace": "    if (msg.ok && !busy) return;"
+    }
+  ]
+}

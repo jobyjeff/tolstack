@@ -80,6 +80,11 @@ scripts/
                                off drawing-checker's runs dir with
                                build_viewer_crops' listing and
                                build_part_names_projection's drawing number.
+                               Since 2026-11-19 a structural edge with no
+                               value says where its part's drawing stands
+                               (`drawing_status`), out of those run lists; a
+                               model counts them and lists the drawings read
+                               and still uncited.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
                                2026-08-10; stdlib only. Imported by all ten

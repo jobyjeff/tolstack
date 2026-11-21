@@ -64,15 +64,21 @@
   // feature with nothing bound is keyed when it is picked.
   // `gapPart` is the node's first part: the model lists a node's features in
   // the order of its parts (model_view.py), so it is the part of the node's
-  // first feature.
-  function featureEnds(feature, edgesByNode, gapPart) {
+  // first feature. A dimension's end is the feature its view row names
+  // (`dimensions[].from`/`to`): its own part's, or -- for an assembly's
+  // dimension between its parts' features (a link's length) -- the member's.
+  function featureEnds(feature, edgesByNode, gapPart, dimensions) {
     var out = [];
     (edgesByNode[feature.node] || []).forEach(function (edge) {
       // A dimension is EDGE_KINDS[0] ("structural", topology.py's own word).
-      var part = edge.kind === VA.EDGE_KINDS[0] ? edge.part : gapPart;
-      if (part !== feature.part) return;
-      if (edge.from === feature.node) out.push({ edgeId: edge.id, end: VA.EDGE_ENDS.from });
-      if (edge.to === feature.node) out.push({ edgeId: edge.id, end: VA.EDGE_ENDS.to });
+      var dimension = edge.kind === VA.EDGE_KINDS[0] ? (dimensions[edge.id] || null) : null;
+      var mine = function (end) {
+        if (edge[end] !== feature.node) return false;
+        if (dimension && dimension[end]) return dimension[end] === feature.id;
+        return (edge.kind === VA.EDGE_KINDS[0] ? edge.part : gapPart) === feature.part;
+      };
+      if (mine(VA.EDGE_ENDS.from)) out.push({ edgeId: edge.id, end: VA.EDGE_ENDS.from });
+      if (mine(VA.EDGE_ENDS.to)) out.push({ edgeId: edge.id, end: VA.EDGE_ENDS.to });
     });
     return out.sort(function (a, b) {
       return a.edgeId < b.edgeId ? -1 : (a.edgeId > b.edgeId ? 1 : (a.end < b.end ? -1 : 1));
@@ -145,7 +151,7 @@
     });
     (view.features || []).forEach(function (feature) {
       var first = features[featuresByNode[feature.node][0]];
-      ends[feature.id] = featureEnds(feature, edgesByNode, first ? first.part : null);
+      ends[feature.id] = featureEnds(feature, edgesByNode, first ? first.part : null, dimensions);
       status[feature.id] = featureStatus(ends[feature.id], identity, identityIds, recordOf(feature));
     });
 

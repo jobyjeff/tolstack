@@ -1754,6 +1754,19 @@ check("an end's candidate list: the proposal first, then the engine's faces in r
   assertEqual(bound.filter((r) => r.bound).map((r) => r.faceId), [5]);
 });
 
+check("an end's contact candidates as sets: one row per candidate, its faces together, " +
+  "the same set once, in rank order, the words naming the count", () => {
+  const from = AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" });
+  assertEqual(from.map((r) => [r.faceId, r.faces || null, r.rank]), [[5, null, 1], [8, [8, 7], 2]]);
+  assertEqual(from[0].reason, "fits the mating bore");
+  assertEqual(AA.candidateRowWords(from[0]), "face 5 · round · r " + AA.formatSweepNumber(4.99, "mm") + " mm");
+  assertEqual(AA.candidateRowWords(from[1]).indexOf("2 faces · round"), 0);
+  const to = AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "to" });
+  assertEqual(to.map((r) => r.faces), [[3, 4]], "two pairs over the same bore faces are one row");
+  assertEqual(AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: null }), []);
+  assertEqual(AA.endContactSets(null, "rail_topo", { edgeId: "rod_len", direction: "to" }), []);
+});
+
 check("a candidate's reason names what the face is to the mating feature, for every relation " +
   "and pairing the engine emits", () => {
   const say = (pairing, relation, evidence, direction, mateSurface) => AA.candidateReason(
@@ -3054,18 +3067,19 @@ check("bindingDirectionsNeeded: nothing bound needs both directions; one " +
   }), ["from"]);
 });
 
-check("taskInstruction: with no element it is the sentence this app has " +
-  "always opened with", () => {
-  assertEqual(AA.taskInstruction({}), AA.TASK_NO_ELEMENT);
-  assertEqual(AA.taskInstruction(null), AA.TASK_NO_ELEMENT);
-});
-
-check("taskInstruction: a scope entry names the scope instead", () => {
-  const text = AA.taskInstruction({ scopeName: "End-stop chain" });
-  if (text.indexOf("End-stop chain") === -1) {
-    throw new Error("the scope entry's instruction does not name the scope: " + text);
+check("taskInstruction: with no element there is no step, so the line is " +
+  "empty -- scoped or not", () => {
+  // It said "Pick an element on the left, then click a face in the 3D view
+  // to bind it." (scoped: "Showing <scope>. Pick an element ...") until
+  // 2026-11-19: how to use the pane, always on screen
+  // (the_viewer_says_nothing_about_itself). The Help disclosure says it.
+  assertEqual(AA.TASK_NO_ELEMENT, "");
+  assertEqual(AA.taskInstruction({}), "");
+  assertEqual(AA.taskInstruction(null), "");
+  assertEqual(AA.taskInstruction({ scopeName: "End-stop chain" }), "");
+  if (!AA.HELP_LINES.some((line) => /Click one to work on it/.test(line))) {
+    throw new Error("the Help no longer says how to start: " + AA.HELP_LINES.join(" | "));
   }
-  assertNothingBanned(text, "AA.taskInstruction (scope)");
 });
 
 // The two ends of the fixture element, by the names the form shows.
@@ -3208,8 +3222,7 @@ check("planBindLeader: drawn only between the picked face and the face bound at 
 
 check("every sentence the top bar composes survives the shared ban list, and " +
   "carries no schema word", () => {
-  const sentences = [AA.TASK_NO_ELEMENT]
-    .concat(AA.HELP_LINES)
+  const sentences = AA.HELP_LINES.slice()
     .concat([
       AA.taskInstruction({ elementName: "Bushing length", needed: ["from", "to"] }),
       AA.taskInstruction({ elementName: "Bushing length", needed: ["to"] }),
@@ -3219,7 +3232,6 @@ check("every sentence the top bar composes survives the shared ban list, and " +
         needed: ["to"], names: END_NAMES, chosen: "to" }),
       AA.taskInstruction({ elementName: "Bushing length", needed: ["to"],
         names: END_NAMES }),
-      AA.taskInstruction({ scopeName: "End-stop chain" }),
     ]);
   if (sentences.length < 9) {
     throw new Error("the sentence scan collected " + sentences.length +
@@ -5743,6 +5755,70 @@ check("an accept numbered against a folder ahead of the projection takes a seq n
   bare._state = AA.STATE.READY;
   bare._rootHandle = fakeDirHandle({});
   assertEqual(await bare.listFeatureIdentityEventSeqs(), []);
+});
+
+check("a write reads the identity inbox once per page: the next seq, the log and the next " +
+  "write's reads open only a file that is new since, and the installed meshes open no file", async () => {
+  // Jeff's 101-file log was read three times per write -- at the grant, for
+  // the next seq and to publish -- 2025 folder calls and 15-30 s on the pitch
+  // plate (handoff a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_
+  // while_it_waits). Event files are append-only and never rewritten.
+  if (!AA.FsaAdapter) {
+    vm.runInContext(fs.readFileSync(path.join(here, "storage", "fsa.js"), "utf8"), sandbox,
+      { filename: "storage/fsa.js" });
+  }
+  let opened = 0;
+  const counting = (tree) => ({
+    kind: "directory",
+    async getDirectoryHandle(name) {
+      const sub = tree[name];
+      if (!sub || typeof sub !== "object" || sub.__file) throw new Error("NotFoundError");
+      return counting(sub);
+    },
+    async getFileHandle(name) {
+      const leaf = tree[name];
+      if (!leaf || !leaf.__file) throw new Error("NotFoundError");
+      return { kind: "file", getFile: async () => { opened += 1; return { text: async () => leaf.text }; } };
+    },
+    async *entries() {
+      for (const name of Object.keys(tree)) yield [name, tree[name].__file ? { kind: "file" } : { kind: "directory" }];
+    },
+  });
+  const event = (seq) => ({ __file: true, text: JSON.stringify({ event_id: "e" + seq, seq }) });
+  const inbox = { "README.md": { __file: true, text: "# not an event" } };
+  for (let seq = 1; seq <= 5; seq++) inbox[String(seq).padStart(4, "0") + "_e.json"] = event(seq);
+  const fsa = new AA.FsaAdapter();
+  fsa._state = AA.STATE.READY;
+  fsa._rootHandle = counting({ data: { inbox: { "feature-identity": inbox },
+    meshes: { bb: { "provenance.json": { __file: true, text: "{}" } }, aa: {} } } });
+  assertEqual((await fsa.listFeatureIdentityEventSeqs()).sort(), [1, 2, 3, 4, 5]);
+  assertEqual(opened, 5, "the first read opens each event once");
+  const log = await fsa.readFeatureIdentityLog();
+  assertEqual([log.events.length, log.installed_meshes, opened], [5, ["aa", "bb"], 5],
+    "the log after it opens nothing: not an event again, not a mesh's provenance");
+  inbox["0006_e.json"] = event(6);
+  assertEqual((await fsa.listFeatureIdentityEventSeqs()).sort(), [1, 2, 3, 4, 5, 6]);
+  assertEqual(opened, 6, "an event written since is read, and only it");
+  assertEqual((await fsa.readFeatureIdentityLog()).events.map((e) => e.seq), [1, 2, 3, 4, 5, 6]);
+});
+
+check("ExecQueue: a write runs once the gate opens, never behind a command queued before it " +
+  "that has not finished", async () => {
+  // The pane opening its model (`isolate`) is one queue entry of 5-30 s; a
+  // Keep posted meanwhile waited the whole of it before it began.
+  const queue = new AA.ExecQueue();
+  const early = queue.runAfterLoad(() => "kept");
+  queue.enqueue(() => new Promise(() => {}));
+  queue.markLoaded();
+  const out = await Promise.race([early, new Promise((r) => setTimeout(() => r("waited"), 500))]);
+  assertEqual(out, { ok: true, result: "kept" });
+  const later = await Promise.race([queue.runAfterLoad(() => { throw new Error("no"); }),
+    new Promise((r) => setTimeout(() => r("waited"), 500))]);
+  assertEqual([later.ok, later.error && later.error.message], [false, "no"]);
+  const failed = new AA.ExecQueue();
+  const behind = failed.runAfterLoad(() => "ran");
+  failed.markLoadFailed(new Error("load failed: x"));
+  assertEqual((await behind).ok, false, "a load that failed fails the write loudly too");
 });
 
 // --- parts sit where the assembly puts them (handoff 2026-10-14) -------------

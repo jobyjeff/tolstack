@@ -184,6 +184,9 @@
         role: dimension.role || null, hardware: dimension.hardware_ref || null,
       } : null,
       transform: edge.transform,
+      // Where the drawing of a dimension with no value stands (the
+      // projection's `drawing_status`, VA.DRAWING_STATUSES), or null.
+      drawingStatus: edge.drawing_status || null,
       note: edge.note || null,
       // `dimension` without a `source_ref` is the loud case: a number that
       // cites nothing at all.

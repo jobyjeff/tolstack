@@ -556,8 +556,11 @@ async function checkEverything(browser, base) {
   check("leaving sweep mode restores the scene", left.sweep === null &&
     left.open === 0 && left.inSweep === false, JSON.stringify(left));
   const backToBind = await page.locator("#detail").innerText();
-  check("...and the bind instruction is back",
-    backToBind.includes("Pick an element on the left"), backToBind);
+  // Bind mode's bar with no element: the sweep control and Help, and no
+  // sentence about how to use the pane (it said "Pick an element on the
+  // left, then click a face ..." until 2026-11-19).
+  check("...and the bind bar is back, with no instruction",
+    backToBind.includes("Help") && !backToBind.includes("Pick an element"), backToBind);
   // Bind mode draws the model only when asked, at the as-modelled pose.
   await page.waitForFunction(() => !window.__model.built, null, { timeout: 10000 }).catch(() => {});
   const bindOff = await page.evaluate(() => window.__scene.modelState());

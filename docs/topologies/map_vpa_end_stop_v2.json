@@ -3,25 +3,125 @@
   "topology": "vpa_end_stop_v2",
   "description": "Where each part's box sits on the map's coarse grid, [column, row]. Everything else the map draws -- box sizes, pin sides, districts, outlines, routes and bundles -- is computed from the model (apps/viewer/map.js; docs/DAG_TOPOLOGY.md, \"The map\"). The map is a second drawing of the same model, never a second model.",
   "provenance": {
-    "authored_by": "handoff the_map_draws_the_end_stop_model, 2026-11-16; re-placed tall by handoff the_map_is_portrait_as_jeff_drew_it, 2026-11-17",
-    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): three columns by seven rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body the right column in the same sense -- pitch plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle; the tangential link between its mount and the pitch plate; the pitch link, the pitch arm and the blade down the right below the plate, the hub to blade joint along the bottom. A bearing with no place of its own sits under its link. The pitch plate assembly's members run in a row to the plate's right, two more columns (2026-11-18, handoff the_pitch_plate_is_an_assembly_with_its_bushings): the tangential link's flanged bushing, then the machined plate both attachments' bushings sit in, so the assembly's outline is one row and holds nothing else; the pitch link's flanged bushing has no place and sits under the plate, beside its route to the pitch link; the two straight bushings, top-level parts, sit above the row. Of every placement of the five in those two columns, these three were the only ones the map draws with no route through a box (the other two differ in the tangential link's straight bushing alone); every place of the sketch's arrangement is unchanged."
+    "authored_by": "handoff the_map_draws_the_end_stop_model, 2026-11-16; re-placed tall by handoff the_map_is_portrait_as_jeff_drew_it, 2026-11-17; the links re-placed by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19; the pitch plate region re-placed by handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack, 2026-11-20",
+    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): seven columns by ten rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body's column of the piston and its heads (the sixth) in the same sense -- plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle. Since 2026-11-20 215177-001 is the container and owns no feature, so it is drawn as its outline alone, round one row: the tangential link's flanged bushing, the plate 215735-001, the pitch link's flanged bushing (Jeff's note 20261119T142516_ci28ci). Under each flanged bushing its bolt; the tangential link's straight bushing under its bolt, beside that lug's inner race on its left; the pitch link's straight bushing under the plate, between its bolt and the plate; and each inner race on the pitch plate district's bottom row, beside its link: the tangential link's outer race to its left, the pitch link's below it. So the only routes that cross the outline end inside it -- the straight bushings' fits on the plate, the bolts in the flanged bushings, the flanges on the races -- and no route in the region crosses another. Each link is a machined part and two bearings, each bearing an outer race in the link's district and an inner race in its neighbour's, in two adjacent cells, so the bearing's outline straddles the border and the ball joint sits between its races (2026-11-19): the tangential link turns under its plate end to its mount end's inner race in the base column, joined to the mount past the empty cells between; the pitch link runs straight down the seventh column to its inner race at the end of the blade's row -- hub, blade root, pitch arm, that inner race -- so the hub to blade joint and the pitch arm's joints run along it. Placed by scoring candidates with the map's own notes (VA.mapLayout) and counting the routes that cross: this one has no note, and its one crossing is the hub's joint to the tangential link mount, which the base column already had."
   },
   "places": {
-    "piston_cover_214958_002": [0, 0],
-    "gas_spring_mount_213668_002": [0, 1],
-    "tan_link_mount_215175_002": [0, 3],
-    "hub": [0, 6],
-    "piston_head_upper_214698_002": [2, 0],
-    "piston_head_lower_214699_002": [2, 1],
-    "gas_spring_piston_214700_002": [2, 2],
-    "pitch_plate_215177_001": [2, 3],
-    "pitch_link": [2, 4],
-    "pitch_arm": [2, 5],
-    "blade_root": [2, 6],
-    "tan_link_212956_005": [1, 3],
-    "flanged_bushing_nas77a3_015a_tan_link": [3, 3],
-    "pitch_plate_215735_001": [4, 3],
-    "straight_bushing_214820_002": [4, 2],
-    "bushing_214820_002": [4, 1]
+    "piston_cover_214958_002": [
+      0,
+      0
+    ],
+    "gas_spring_mount_213668_002": [
+      0,
+      1
+    ],
+    "tan_link_mount_215175_002": [
+      0,
+      3
+    ],
+    "hub": [
+      0,
+      9
+    ],
+    "piston_head_upper_214698_002": [
+      5,
+      0
+    ],
+    "piston_head_lower_214699_002": [
+      5,
+      1
+    ],
+    "gas_spring_piston_214700_002": [
+      5,
+      2
+    ],
+    "pitch_plate_215177_001": [
+      5,
+      3
+    ],
+    "flanged_bushing_nas77a3_015a_tan_link": [
+      4,
+      3
+    ],
+    "pitch_plate_215735_001": [
+      5,
+      3
+    ],
+    "flanged_bushing_nas77a3_015a": [
+      6,
+      3
+    ],
+    "bolt_nas6403u14d": [
+      4,
+      4
+    ],
+    "straight_bushing_214820_002": [
+      4,
+      5
+    ],
+    "bolt_nas6403u11d": [
+      6,
+      4
+    ],
+    "tan_link_upper_inner_race": [
+      3,
+      5
+    ],
+    "bushing_214820_002": [
+      5,
+      4
+    ],
+    "pitch_link_upper_inner_race": [
+      6,
+      5
+    ],
+    "tan_link_212956_005": [
+      2,
+      5
+    ],
+    "tan_link_upper_outer_race": [
+      2,
+      5
+    ],
+    "tan_link_213863_004": [
+      1,
+      5
+    ],
+    "tan_link_lower_outer_race": [
+      1,
+      6
+    ],
+    "tan_link_lower_inner_race": [
+      0,
+      6
+    ],
+    "pitch_link": [
+      6,
+      6
+    ],
+    "pitch_link_upper_outer_race": [
+      6,
+      6
+    ],
+    "pitch_link_213861_002": [
+      6,
+      7
+    ],
+    "pitch_link_lower_outer_race": [
+      6,
+      8
+    ],
+    "pitch_link_lower_inner_race": [
+      6,
+      9
+    ],
+    "blade_root": [
+      4,
+      9
+    ],
+    "pitch_arm": [
+      5,
+      9
+    ]
   }
 }

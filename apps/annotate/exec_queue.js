@@ -58,5 +58,23 @@
     return this._chain;
   };
 
+  // Run `run` once the gate opens, NOT behind what was queued before it:
+  // an identity write (AA.IDENTITY_WRITE_VERBS) waited behind the pane
+  // opening its model -- `isolate` loads every part in one entry, 5-30 s --
+  // and a write needs the record, not the scene (handoff a_bind_on_the_
+  // pitch_plate_writes_in_seconds_and_says_so_while_it_waits). Same settled
+  // shape as enqueue; writes stay one at a time by their own flag.
+  ExecQueue.prototype.runAfterLoad = function (run) {
+    return this._gate.then(
+      function () {
+        return Promise.resolve().then(run).then(
+          function (result) { return { ok: true, result: result }; },
+          function (err) { return { ok: false, error: err }; }
+        );
+      },
+      function (err) { return { ok: false, error: err }; }
+    );
+  };
+
   AA.ExecQueue = ExecQueue;
 })(window.AnnotateApp = window.AnnotateApp || {});

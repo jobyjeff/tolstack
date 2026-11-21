@@ -480,6 +480,11 @@ details[open] > .navtree__scenesummary .navtree__scenetwisty::before,
   border-radius: 4px; padding: 0 6px; cursor: pointer; }
 .navtree__scenebtn:hover, .navtree__scenebtn:focus-visible { border-color: var(--muted); outline: none; }
 .navtree__scenebtn[aria-pressed="true"] { border-color: var(--accent); }
+/* A press that writes: muted and still while it writes, the fail colour once
+   it did not (the reason on hover); the whole row stays readable. */
+.navtree__scenebtn[data-pending="writing"] { color: var(--muted); cursor: progress; }
+.navtree__scenebtn[data-pending="failed"] { color: var(--fail); border-color: var(--fail); }
+.navtree__scenebtn:disabled:not([data-pending]) { color: var(--muted); cursor: default; }
 /* The candidate rows' words wrap rather than clip. */
 .navtree__scenerow--wrap .navtree__scenename,
 .navtree__scenerow--wrap .navtree__scenesub { white-space: normal; overflow-wrap: anywhere; }
@@ -830,6 +835,10 @@ body { display: flex; flex-direction: column; }
 .tvbrace--body.tvbrace--top { border-width: 2px 2px 0 2px; }
 .tvbrace--body.tvbrace--bottom { border-width: 0 2px 2px 2px; }
 .tvbrace--part { color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+/* An assembly's brace (2026-11-19) is drawn as the map draws its outline:
+   dotted, in its body's ink where it has one body, its name in italic. */
+.tvbrace--assembly { color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff);
+  border-style: dotted; }
 /* The labels, in the gutter at the PART column's left: a body's name in its
    ink, wrapping down its rows; a part's number on its first row. Inert: they
    lie over the PART cells, which are click targets, so a clipped part label
@@ -839,9 +848,11 @@ body { display: flex; flex-direction: column; }
   font-size: var(--t-micro); pointer-events: none;
   white-space: nowrap; text-overflow: ellipsis;
 }
-.tvbrace__label--body { color: var(--fill-ink, var(--muted)); font-weight: 600;
-  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; }
+.tvbrace__label--body { color: var(--fill-ink, var(--muted)); font-weight: 600; }
+.tvbrace__label--wide { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; }
 .tvbrace__label--part {
+  color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
+.tvbrace__label--assembly { font-style: italic;
   color: color-mix(in srgb, var(--fill-ink, var(--group-part)) 62%, #ffffff); }
 /* An assembly's fold in the grid (a_part_may_contain_parts): the one control
    among the brackets, so it alone takes the pointer; quiet until hovered. */
@@ -1004,11 +1015,14 @@ body { display: flex; flex-direction: column; }
   border-top: 1px solid var(--line); padding: 4px 16px 10px; background: var(--panel2);
   flex-shrink: 0;
 }
-.tvtotals__empty { margin: 6px 0; }
+.tvtotals__pick {
+  margin: 8px 0 6px; font: inherit; font-size: var(--t-dense); color: var(--ink);
+  background: var(--panel, #1a1d24); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 8px;
+}
 .tvsum__title { margin: 8px 0 6px; }
 .tvtotals__more { margin: 0 0 4px; }
 .tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
-.tvtotals__rule { margin: 6px 0 0; }
 .tvtotals__note {
   margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
   color: var(--ink); font-size: var(--t-dense);
@@ -1492,7 +1506,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    at once. `--measure` is the cap and style.css declares it once. Left-aligned
    and capped, not centred -- a centred paragraph is the other half of the same
    house rule. */
-.tvgaps__item, .tvtotals__rule,
+.tvgaps__item,
 .tvtotals__note, .tverror__message, .tverror__advice,
 .tvgaps__closes { max-width: var(--measure); }
 
@@ -1580,6 +1594,12 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    (VA.renderPartName): the run's revision beside it and the other-dash mark
    are secondary, so muted; the older runs fold away (VA.renderOlderRuns). */
 .detail__runrev, .detail__runmark { color: var(--muted); }
+/* An open dimension's drawing status (VA.drawingStatusChip): metadata, so
+   muted, and outlined rather than filled; a link only shows it on hover. In
+   the grid it sits where the number would be, over the empty min and max. */
+.chip--drawing { color: var(--muted); text-decoration: none; }
+a.chip--drawing:hover, a.chip--drawing:focus-visible { color: var(--ink); border-color: var(--muted); }
+.tvcell--drawing { overflow: visible; text-align: left; font-style: normal; }
 .detail__runlist { margin: 2px 0 4px; padding-left: 16px; font-size: var(--t-meta); }
 
 /* One grid for every verdict, so the subjects, the margins and the limits

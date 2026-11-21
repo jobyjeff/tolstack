@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a child with no place joined to its parent sits under it with the connector's symbol between the two boxes, and the route is the short drop between their facing sides",
+  "mutations": [
+    {
+      "contract": "A parent's pin toward its own child sits straight over the child's pin for the same interface.",
+      "note": "Declared with the guard by handoff a_map_pin_faces_each_partner_and_no_two_routes_share_a_run (2026-11-19). Puts the parent's pin at its bottom's middle instead: with another route leaving the parent's bottom the child sits beside it, and the drop between the two jogs sideways rather than falling straight.",
+      "file": "apps/viewer/map.js",
+      "find": "          var mate = slotOf[q.iface + \"|\" + otherEnd(q)];",
+      "replace": "          var mate = null; /* mutated: not over the child */",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md"
+    }
+  ]
+}

@@ -65,7 +65,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -266,6 +266,29 @@ MESH_FACT_FIELDS = ("installed", "part_id")
 #: revision (``None`` when the title block gave none); and the date its
 #: directory name opens with.
 DRAWING_RUN_FIELDS = ("run_dir", "drawing", "revision", "date")
+
+#: Where an open dimension's drawing stands (handoff
+#: ``an_open_dimension_says_where_its_drawing_stands``): the one word every
+#: structural edge with no ``dimension`` carries in ``edges[].drawing_status``.
+#: A cited edge is not open and carries ``None``; so does a gap edge, which is
+#: no part's dimension. Read off the part's two run lists
+#: (:func:`part_drawing_runs`), never a second matcher:
+#:
+#: * ``read`` -- the part's own drawing number has a drawing-checker run;
+#: * ``other_dash_read`` -- only another dash number, or the bare base, has one;
+#: * ``not_read`` -- the part names a drawing and nothing of its base has a run;
+#: * ``no_drawing`` -- the part has no drawing number (hardware off a spec sheet);
+#: * ``unknown`` -- drawing-checker's runs could not be read at all (no root, or
+#:   no run in it). Never ``not_read``: an absent listing is not evidence that a
+#:   drawing was never read, the same three-state rule the spec library keeps.
+DRAWING_STATUSES = ("read", "other_dash_read", "not_read", "no_drawing", "unknown")
+
+#: What one ``edges[].drawing_status`` says, and the whole of it: the word, the
+#: part's drawing number (``None`` for ``no_drawing``), the newest run of it
+#: (``read``) or of another dash number of it (``other_dash_read``), a
+#: :data:`DRAWING_RUN_FIELDS` row or ``None``, and for ``no_drawing`` the spec
+#: document the part's own cited rows read off, or ``None``.
+DRAWING_STATUS_FIELDS = ("status", "drawing", "run", "spec")
 
 #: A drawing-checker run directory opens with the run's timestamp
 #: (``20261112_104250_214373-003_A.1_...``). A directory without one is not a
@@ -1260,45 +1283,105 @@ def map_path(topologies_dir: Path, topology_id: str) -> Path:
     return topologies_dir / MAP_NAME.format(topology_id=topology_id)
 
 
+def outlined_assemblies(topology: Topology) -> List[str]:
+    """The assemblies the map draws as a labelled outline and no box
+    (an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies,
+    2026-11-19): a part with parts and no feature of its own. An assembly
+    that still owns a node keeps its box inside its outline. The browser
+    reads the same rule off the model view (``VA.mapLayout``)."""
+    return [p.id for p in topology.parts
+            if topology.children_of(p.id) and not topology.nodes_on_part(p.id)]
+
+
+def _needs_place(topology: Topology, part_id: str, outlined: Iterable[str]) -> bool:
+    """A part the map draws a box for in a cell of its own: one that is not
+    an outline, whose parent is none or an outline. A part whose parent has
+    a box may go unplaced -- it sits in its parent's cell."""
+    outlined = set(outlined)
+    parent = topology.part(part_id).parent
+    return part_id not in outlined and (parent is None or parent in outlined)
+
+
 def computed_map_places(topology: Topology) -> Dict[str, List[int]]:
-    """Every top-level part's place on the map's grid, for a model with no
-    layout file (the_map_is_the_only_drawing_and_classic_retires,
-    2026-11-17): each body a column, in the order the model declares its
-    bodies, and its top-level parts stacked down that column in tree order
-    (:meth:`Topology.tree_order`, the one order every surface walks a body).
-    A top-level part in no body takes one more column after the bodies'; a
-    model that declares no bodies is that one column. A child part is never
-    placed: the map sits it in its parent's cell.
+    """Every part that needs a place on the map's grid (:func:`_needs_place`),
+    for a model with no layout file
+    (the_map_is_the_only_drawing_and_classic_retires, 2026-11-17): each body
+    a column, in the order the model declares its bodies, and its parts
+    stacked down that column in tree order (:meth:`Topology.tree_order`, the
+    one order every surface walks a body). A part in no body takes one more
+    column after the bodies'; a model that declares no bodies is that one
+    column. A part whose parent has a box is never placed: the map sits it in
+    its parent's cell. An outline is never placed: it is drawn round its
+    parts, wherever their bodies put them.
 
     A place only. Everything else the map draws is computed in the browser
     from the model either way (``apps/viewer/map.js``), so an authored file
     overrides these places and nothing else changes."""
+    outlined = outlined_assemblies(topology)
     places: Dict[str, List[int]] = {}
     column = 0
     for body in topology.bodies:
-        top = [p for p in topology.tree_order(body.parts) if topology.part(p).parent is None]
+        top = [p for p in topology.tree_order(body.parts) if _needs_place(topology, p, outlined)]
         for row, part_id in enumerate(top):
             places[part_id] = [column, row]
         if top:
             column += 1
-    loose = [p.id for p in topology.parts if p.parent is None and p.id not in places]
+    loose = [p for p in topology.tree_order(q.id for q in topology.parts)
+             if _needs_place(topology, p, outlined) and p not in places]
     for row, part_id in enumerate(loose):
         places[part_id] = [column, row]
     return places
+
+
+def _places_inside_outlines(topology: Topology, places: Dict[str, List[int]]
+                            ) -> Dict[str, List[int]]:
+    """The places an authored layout leaves to the builder: a part of an
+    outlined assembly with no place of its own takes its assembly's place,
+    the next one the cell under it, and so on down that column, passing over
+    a cell another part's box takes. The assembly's own place is where its
+    parts start, never a box. A part of a nested outline with no place of
+    its own continues the same column; a nested outline with a place of its
+    own starts its parts there."""
+    outlined = outlined_assemblies(topology)
+    taken = {tuple(v) for k, v in places.items() if k not in outlined}
+    out: Dict[str, List[int]] = {}
+
+    def fill(assembly: str, cursor: List[int]) -> List[int]:
+        for child in topology.children_of(assembly):
+            if child in places:
+                continue
+            if child in outlined:
+                cursor = fill(child, cursor)
+                continue
+            while tuple(cursor) in taken:
+                cursor = [cursor[0], cursor[1] + 1]
+            out[child] = list(cursor)
+            taken.add(tuple(cursor))
+            cursor = [cursor[0], cursor[1] + 1]
+        return cursor
+
+    for part_id in topology.tree_order(p.id for p in topology.parts):
+        if part_id in outlined and part_id in places:
+            fill(part_id, list(places[part_id]))
+    return out
 
 
 def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any]:
     """The model's map layout: the authored file beside it, verbatim, or --
     where the model has none (v1 today) -- the places
     :func:`computed_map_places` gives it, marked ``computed: true``. Every
-    model has a map; the file only decides where its parts sit.
+    model has a map; the file only decides where its parts sit. A file may
+    place any part; a part of an outlined assembly it leaves unplaced gets a
+    place inside the outline (:func:`_places_inside_outlines`), added to
+    ``places`` and named in ``computed_places`` -- the file is verbatim
+    otherwise.
 
     Present-but-wrong is refused, as :func:`load_hardware` refuses a register
     it cannot read: a layout that places a part the model has no part for, or
-    leaves a top-level part unplaced, would draw a map with a part missing --
-    and the map's whole claim is that nothing in the model is left undrawn.
-    A child part (one with a ``parent``) may be unplaced: it sits in its
-    parent's cell.
+    leaves a part that needs a place (:func:`_needs_place`) without one,
+    would draw a map with a part missing -- and the map's whole claim is that
+    nothing in the model is left undrawn. A part whose parent has a box may
+    be unplaced: it sits in its parent's cell.
     """
     path = map_path(topologies_dir, topology.id)
     if not path.is_file():
@@ -1316,13 +1399,18 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any
     unknown = sorted(set(places) - part_ids)
     if unknown:
         raise ValueError(f"{path}: places parts the model has not: {unknown}")
-    unplaced = sorted(p.id for p in topology.parts if p.parent is None and p.id not in places)
-    if unplaced:
-        raise ValueError(f"{path}: leaves top-level parts unplaced: {unplaced}")
     for part_id, place in places.items():
         if not (isinstance(place, list) and len(place) == 2
                 and all(isinstance(v, int) and v >= 0 for v in place)):
             raise ValueError(f"{path}: {part_id}'s place must be [column, row], got {place!r}")
+    inside = _places_inside_outlines(topology, places)
+    outlined = outlined_assemblies(topology)
+    unplaced = sorted(p.id for p in topology.parts
+                      if _needs_place(topology, p.id, outlined)
+                      and p.id not in places and p.id not in inside)
+    if unplaced:
+        raise ValueError(f"{path}: leaves top-level parts, or an outline's parts with no "
+                         f"place to start from, unplaced: {unplaced}")
     # What a joint is drawn as is the model's word for it (an interface's
     # kind), never the layout's: the `symbols` key that named one until the
     # model could (handoff a_joint_says_what_kind_it_is, 2026-11-17) is
@@ -1330,6 +1418,8 @@ def load_topology_map(topologies_dir: Path, topology: Topology) -> Dict[str, Any
     if "symbols" in raw:
         raise ValueError(f"{path}: carries `symbols`; a joint's symbol is its interface word "
                          f"in the model (docs/DAG_TOPOLOGY.md, \"The map\")")
+    if inside:
+        raw = dict(raw, places=dict(places, **inside), computed_places=sorted(inside))
     return raw
 
 
@@ -1463,6 +1553,82 @@ def part_drawing_runs(number: Optional[str], runs: Sequence[Dict[str, Any]]
     return {"drawing_runs": [], "other_dash_runs": other}
 
 
+def part_spec(topology: Topology, part_id: str) -> Optional[str]:
+    """The spec document a part's own cited rows read off -- the first
+    ``source_ref`` of kind ``spec`` on one of its valued edges -- or ``None``.
+
+    Where a part with no drawing gets its dimensions, read off a citation and
+    never off the part's prose: the viewer's ``VA.partReferences`` reads the
+    same rows for its "standard part — dimensions from" line.
+    """
+    for edge in topology.edges:
+        ref = edge.dimension.source_ref if edge.dimension is not None else None
+        if edge.part == part_id and ref is not None and ref.kind == "spec" and ref.document:
+            return ref.document
+    return None
+
+
+def dimension_drawing_status(edge: Edge, part_row: Optional[Dict[str, Any]],
+                             runs_known: bool, spec: Optional[str] = None
+                             ) -> Optional[Dict[str, Any]]:
+    """Where an open dimension's drawing stands (:data:`DRAWING_STATUSES`), as a
+    :data:`DRAWING_STATUS_FIELDS` row; ``None`` for an edge that is not open --
+    one with a ``dimension``, or a gap edge.
+
+    ``part_row`` is the edge's projected part (:func:`project_part`), whose run
+    lists are the join. ``runs_known`` is false when drawing-checker's runs
+    could not be read, and then every open dimension is ``unknown``.
+    """
+    if edge.kind != "structural" or edge.dimension is not None:
+        return None
+    part_row = part_row or {}
+    drawing = part_row.get("drawing")
+    own = part_row.get("drawing_runs") or []
+    other = part_row.get("other_dash_runs") or []
+    run: Optional[Dict[str, Any]] = None
+    if not runs_known:
+        status = "unknown"
+    elif not drawing:
+        status = "no_drawing"
+    elif own:
+        status, run = "read", dict(own[0])
+    elif other:
+        status, run = "other_dash_read", dict(other[0])
+    else:
+        status = "not_read"
+    return {"status": status, "drawing": drawing or None, "run": run,
+            "spec": spec if status == "no_drawing" else None}
+
+
+def drawing_status_counts(edges: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    """How many of a model's open dimensions stand where, every word present."""
+    counts = {status: 0 for status in DRAWING_STATUSES}
+    for edge in edges:
+        if edge.get("drawing_status"):
+            counts[edge["drawing_status"]["status"]] += 1
+    return counts
+
+
+def drawings_read_uncited(edges: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The drawings that are read and still wait on transcription: one row per
+    drawing number whose open dimensions are ``read``, with the newest run, the
+    parts and edges waiting on it and how many, most waiting first.
+    """
+    rows: Dict[str, Dict[str, Any]] = {}
+    for edge in edges:
+        status = edge.get("drawing_status")
+        if not status or status["status"] != "read":
+            continue
+        row = rows.setdefault(status["drawing"], {
+            "drawing": status["drawing"], "run": dict(status["run"]),
+            "parts": [], "edges": [], "waiting": 0})
+        if edge["part"] not in row["parts"]:
+            row["parts"].append(edge["part"])
+        row["edges"].append(edge["id"])
+        row["waiting"] += 1
+    return sorted(rows.values(), key=lambda r: (-r["waiting"], r["drawing"]))
+
+
 def project_node(topology: Topology, node: Node, branch_nodes: Sequence[str]
                  ) -> Dict[str, Any]:
     return {
@@ -1483,7 +1649,8 @@ def project_node(topology: Topology, node: Node, branch_nodes: Sequence[str]
     }
 
 
-def project_edge(topology: Topology, edge: Edge) -> Dict[str, Any]:
+def project_edge(topology: Topology, edge: Edge,
+                 drawing_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     dimension = edge.dimension
     transform = topology.transform(edge.transform)
     return {
@@ -1521,6 +1688,9 @@ def project_edge(topology: Topology, edge: Edge) -> Dict[str, Any]:
         # The kind of contact a gap edge crosses (INTERFACE_KINDS), `null`
         # when unstated and on every structural edge. The DAG's glyph.
         "interface": edge.interface,
+        # Where this dimension's drawing stands, when it has no value
+        # (`dimension_drawing_status`); `null` on a cited edge and a gap edge.
+        "drawing_status": drawing_status,
     }
 
 
@@ -1868,6 +2038,18 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # worksheet are the selected study's, not the page's (`study_stack`).
         row["stack"] = study_stack(topology, raw, s)
         study_rows.append(row)
+    part_rows = [project_part(p, meshes, aliases, runs) for p in topology.parts]
+    parts_by_id = {row["id"]: row for row in part_rows}
+    # An empty listing reads as unknown, never as "nothing is read".
+    runs_known = bool(runs)
+
+    def drawing_status(edge: Edge) -> Optional[Dict[str, Any]]:
+        part = parts_by_id.get(edge.part) if edge.part else None
+        spec = (part_spec(topology, edge.part)
+                if part is not None and not part.get("drawing") else None)
+        return dimension_drawing_status(edge, part, runs_known, spec)
+
+    edge_rows = [project_edge(topology, e, drawing_status(e)) for e in topology.edges]
     return {
         "id": topology.id,
         "title": topology.title,
@@ -1889,9 +2071,9 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # `declared` (provenance.worksheet) or `by_name`, the same pairing
         # `results.json` carries for a stack.
         "worksheet_source": worksheet_source,
-        "parts": [project_part(p, meshes, aliases, runs) for p in topology.parts],
+        "parts": part_rows,
         "nodes": [project_node(topology, n, branch_nodes) for n in topology.nodes],
-        "edges": [project_edge(topology, e) for e in topology.edges],
+        "edges": edge_rows,
         "transforms": [dataclasses.asdict(topology.transform(t.id))
                        for t in topology.transforms],
         # The rigid bodies, as authored (docs/DAG_TOPOLOGY.md, "Bodies"); `[]`
@@ -1918,6 +2100,11 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # worksheet carries (see `topology_gaps`). Studies first: the excluded
         # terms come off their projected checks.
         "gaps": topology_gaps(topology, study_rows, hardware or {"entries": []}),
+        # Where every open dimension's drawing stands, counted, and the
+        # drawings that are read and still uncited -- the list a transcription
+        # session works from.
+        "drawing_status_counts": drawing_status_counts(edge_rows),
+        "drawings_read_uncited": drawings_read_uncited(edge_rows),
     }
 
 

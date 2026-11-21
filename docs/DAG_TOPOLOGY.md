@@ -213,8 +213,9 @@ linkage solver's sweeps already name and the DAG had no way to know:
 ```
 
 - **All or nothing.** `bodies` is optional, and a document that declares one
-  declares them all: every part in exactly one body, every body's parts
-  declared, ids unique. `tolerance_stack/topology.py`'s `Body` and the
+  declares them all: every part with no parts of its own in exactly one body,
+  an assembly in the one body all its parts are in or in none (below), every
+  body's parts declared, ids unique. `tolerance_stack/topology.py`'s `Body` and the
   `Topology` constructor refuse anything else, naming the part.
 - **Honest grouping only.** A body groups parts the mechanism moves together.
   A part whose motion is not recorded is a body of its own, named after the
@@ -258,21 +259,51 @@ linkage solver's sweeps already name and the DAG had no way to know:
   as the DAG does (`AA.sweepModelTree`).
 - **A part may contain parts** (2026-11-14, `a_part_may_contain_parts`). A
   part may name a `"parent": "<part id>"`; a part with children is an
-  assembly. The parent is declared, in the same body, and no part is its own
-  ancestor (`Topology` refuses each, naming the part); depth is not limited.
-  A body still lists every part it carries, children included. The model view
+  assembly. The parent is declared and no part is its own ancestor
+  (`Topology` refuses each, naming the part); depth is not limited. A body
+  still lists every part it carries, children included. The model view
   gives each part `parent`, `children` and `depth`, a body's `parts` its
-  top-level parts and `all_parts` every part in the one tree order — an
-  assembly, then each child's subtree in authored order
-  (`Topology.tree_order`). Selecting an assembly lights it and every part
+  top-level parts -- those whose assembly is not in the body -- and
+  `all_parts` every part in the one tree order — an assembly, then each
+  child's subtree in authored order (`Topology.tree_order`). Selecting an assembly lights it and every part
   inside it as its own. The grid folds an assembly to one row whose numbers
   are the study's own fold of the assembly's and its parts' terms
   (`topology.assembly_rollups`, carried as a study's `result.assemblies`), so
   the total is the same folded or open; the DAG draws a part inside an
   assembly as the assembly's. Model v2's pitch link and 212956-005 assemblies
   hold their bearings, and 215177 (2026-11-18) its plate and the two flanged
-  bushings the model reaches; 215175 stays a single part; v1 declares no
+  bushings the model reaches -- since 2026-11-20 as a container that owns no
+  feature (rule 1, below); 215175 stays a single part; v1 declares no
   parent.
+- **An assembly and a body are two groupings of the same parts, and neither
+  nests in the other** (2026-11-19,
+  `an_assembly_is_an_outline_and_its_parts_may_sit_in_two_bodies`; Jeff's note
+  of that day: *"the spherical bearing itself is two bodies joined by the
+  spherical joint"*, and a link assembly is *"a single rigid body plus part of
+  two other rigid bodies"*). The tree (`parent`) says what is built into what;
+  a body says what moves as one. Three rules follow, each refused by name in
+  `Topology`:
+  1. **A part's parent may be in another body, or in none.** A part with no
+     parts of its own is in exactly one body. An assembly is listed in a body
+     when every part under it is in that body, and only then; an assembly
+     whose parts sit in two bodies or more is listed in none, which is not an
+     error (`Topology.body_of` is `None` for it). **An assembly carries no
+     node** (2026-11-20, handoff
+     `the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`):
+     it is a container, and its features are its parts' -- the merged page of
+     2026-11-19 drew 215177-001's own box beside its plate, and it read to
+     Jeff as a second pitch plate. So a part in no body, which is always such
+     an assembly, carries none either: a feature moves with one body.
+  2. **An assembly may own a dimension between its parts' features.** A
+     structural edge's `part` may be an assembly over the part on each end,
+     where both ends' parts are in one body -- a link's centre-to-centre,
+     called out on the link assembly's drawing, between its two outer races'
+     centres. Its end parts are `Topology.dimension_ends`, and it is in that
+     one body.
+  3. **A finer model may state a shared feature on the member that carries
+     it.** Where a model reuses another's ids ("Models", below), a node the
+     other puts on part P may sit here on a part inside P, and an edge's
+     `part` likewise; everything else the shared-id check holds stays held.
 - **Not a solver input.** Nothing here poses a body, and declaring two parts one
   body asserts only that they move together.
 
@@ -280,7 +311,8 @@ linkage solver's sweeps already name and the DAG had no way to know:
 
 Since 2026-10-26 (handoff `the_dag_draws_bodies_as_containers_and_joints_as_symbols`).
 
-- **Which body an element is in.** A structural edge is in its part's body. A
+- **Which body an element is in.** A structural edge is in its part's body
+  (an assembly's, in the one body its two end parts share). A
   node is in its parts' bodies — one, or two for a **joint node**, a mating
   surface between two bodies. A gap edge is in a body when both its ends are on
   that body alone (a bearing's ball centre and the link it is pressed into);
@@ -496,7 +528,8 @@ plays on v2 when v2 is open (`AA.sweepPlaysOn`), so the P2 run binds without a
 republish. The builder lists a model ahead of the model it reuses ids from
 (`in_model_order`), which is why v2 is the nav's default.
 `tests/test_topology.py` holds every shared id to the same kind, ends and
-parts in both documents, and `tests/test_feature_identity.py` folds the events
+parts in both documents (`topology.check_shared_ids`; a part may be one
+inside the other model's, "Bodies" rule 3), and `tests/test_feature_identity.py` folds the events
 every annotator answer path writes on a shared id through the Python rules.
 
 ### The model view — the entities, derived once (2026-11-10)
@@ -528,7 +561,7 @@ The entities:
   is `<part>@<node>` — a view id, not a feature-identity key; bindings stay
   keyed by edge end.
 - **dimensions** — the structural edges, each on one part between two of its
-  features.
+  features -- or, an assembly's, between features of two parts inside it.
 - **interfaces** — both authored shapes for "two parts meet" in one list: a
   node on two parts (`source: "node"`, kind = its `interface` word, or
   `contact` when it states none) and a gap edge
@@ -573,20 +606,29 @@ computes where there is none -- and nothing from the walk's
 drawn.
 
 **What is placed** is one thing: a part's place on a coarse grid —
-`places: {<part>: [column, row]}`, one entry per top-level part. A child part
-(a bearing in its link) has no entry and sits in its parent's cell. **A model
-with no layout file has its places computed** (`computed_map_places`): each
+`places: {<part>: [column, row]}`, an entry for every top-level part and
+any other part the file chooses to place. A child part (a bearing in its
+link) with no entry sits in its parent's cell. **An assembly with no feature
+of its own is drawn as its outline and has no box** (below), so a part under
+it has no cell to sit in: where the file leaves one unplaced, it takes the
+assembly's own place, the next one the cell under it and so on down that
+column in tree order, passing over a cell another part's box takes; a nested
+outline's unplaced parts continue the same column, and a nested outline with
+a place of its own starts its parts there (`_places_inside_outlines`). The
+builder adds those places to `places` and names them in `computed_places`.
+**A model with no layout file has its places computed** (`computed_map_places`): each
 body a column, in the order the model declares its bodies, its top-level
-parts stacked down the column in tree order; a top-level part in no body
-takes one more column, and a model that declares no bodies is that one
-column. The projection marks such a layout `computed: true`. **An authored
+parts -- and the parts of an outline, which is never placed -- stacked down
+the column in tree order; a top-level part in no body takes one more
+column, and a model that declares no bodies is that one column. The projection marks such a layout `computed: true`. **An authored
 file overrides the computed places and nothing else changes**: what a joint
 is drawn as is never authored here: it is the interface's kind, from the
 model (since 2026-11-17 a shared node states its own, so the `symbols`
 override that named the clocking a pattern until then is gone, and the
 builder refuses a file that still carries one). The builder ships an authored
 file verbatim as the topology's `map` and refuses one that leaves a top-level
-part unplaced or places a part the model has not
+part unplaced, leaves an outline's parts with no place to start from, or
+places a part the model has not
 (`build_topology_projection.load_topology_map`): the map's whole claim is
 that nothing in the model is left undrawn. v1 has no file: its parts sit one column
 per body, and its routes are not yet arranged by hand (a route drawn through a box it does not end on is a defect note of the
@@ -608,7 +650,22 @@ fits the region's height. Since 2026-11-18 the pitch plate assembly's members
 run in a row to the plate's right (two more columns, rows 1 to 3, inside the
 pitch plate's district): the tangential link's flanged bushing, then the
 machined plate, with the pitch link's flanged bushing under the plate and the
-two straight bushings above the row; the sketch's places are unchanged. Nothing in the layout code assumes either shape: a
+two straight bushings above the row; the sketch's places are unchanged.
+Since 2026-11-19 (handoff `a_link_is_a_machined_part_and_two_bearings_each_two_races`)
+each link is five boxes -- its machined part, two outer races in its district
+and an inner race at each end in the neighbour's district beside its outer
+race, so each bearing's outline straddles the border -- and since a district
+and a link's outline are each one rectangle, the five are laid where they
+enclose no other box: the tangential link as a Z under the mount's row, the
+pitch link down a fifth column, and the blade, the pitch arm and the hub along
+a bottom row, five columns by nine rows. Since 2026-11-20 (handoff
+`the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`) the
+215177 container is its outline round one row -- the two flanged bushings
+either side of the plate -- with each lug's bolt, straight bushing and inner
+race under it and each race on the pitch plate district's bottom edge beside
+its link: seven columns by ten rows, no route in the region crossing another
+(the file's `provenance.arrangement`).
+Nothing in the layout code assumes either shape: a
 pin's side is decided in cell units, a part's name takes whichever corner of
 its box its jumpers leave clear, and a child's row moves aside for a route
 out of its parent's bottom (below).
@@ -627,16 +684,28 @@ out of its parent's bottom (below).
   (`placeName`; the walk of 2026-11-16 found a jumper struck through three
   parts' numbers). A child's small boxes sit in a row under the parent --
   centred, or beside the routes that leave the parent's bottom, so no route
-  runs through a child it does not end on.
-- **A pin per feature that ends an interface**, on the side of the box that
-  faces the counterpart's cell; the pins of one side centred and evenly
-  spaced, ordered by the counterpart's position and then by the constraint's
-  place in its joint, so a joint's constraints leave **parallel pins in the
-  same order at both ends** — that is the bundle. A feature that ends no
-  interface (a dimension's end on the part alone) is an inner mark. A pin's
-  short label shows on hover and when lit.
+  runs through a child it does not end on. A child joined to its parent sits
+  far enough under it for the connector's symbol to sit between the two boxes.
+- **A pin per interface a feature ends** (2026-11-19, Jeff: "multiple edges
+  coming out of one node"): each on the side of the box that faces that
+  interface's own partner, so a feature with partners on two sides has a pin
+  on each and two interfaces toward one side leave from two pins. The side
+  is the partner's cell's direction; a part between in one column or row
+  sends it to that line's outer flank (below); a child with no place and its
+  parent meet on the parent's bottom and the child's top, and a child's other
+  pins never take its top, which the parent covers. Every pin of a feature
+  names it, and the feature is one entity — one hover lights all its pins.
+  The pins of one side are centred and evenly spaced, ordered by the
+  partner's position, then by the constraint's place in its joint, so a
+  joint's constraints leave **parallel pins in the same order at both ends**
+  — that is the bundle — then by the ids, so **the order of `edges[]` never
+  moves a pin**. A parent's pin toward its own child sits straight over the
+  child's. A feature that ends no interface (a dimension's end on the part
+  alone) is an inner mark. A pin's short label shows on hover and when lit.
 - **A jumper per dimension**, inside the box between the two ends it
-  measures; two ends on one side bow into the box.
+  measures — of a feature with several pins, the one nearest the other end;
+  two ends on one side bow into the box, and on a child's small box a jumper
+  between two sides runs inside the border, clear of the name.
 - **A connector per interface**, routed from pin to pin: out of each pin
   square to its side, then a 45° leg for the shorter axis and a straight leg
   for the rest, with the **joint's symbol drawn large** where the route passes
@@ -651,12 +720,52 @@ out of its parent's bottom (below).
   them** are the same case on its side (2026-11-18: the pitch plate
   assembly's bushings in a row beside it): the row's outer flank, the bottom
   from the middle row down and the top above it, and a lane under or over the
-  boxes between (`rowDetour`).
+  boxes between (`rowDetour`). A child joined to its parent sits more than
+  two stubs under it (`VA.MAP.child.joined`), so the route is the short drop
+  between the two facing pins and never doubles back. **A route that would cross a box**
+  first tries its bend the other way round, then a way through one or two
+  corners of the cell grid (or a symbol's width beside one) that crosses no
+  box, shares no run, passes no symbol and keeps a stub's length from every
+  other pin — the shortest, in a bounded
+  search (`viaCorners`, `VA.MAP.budget`). Where one still crosses, its two
+  pins try the other sides of their parts, kept only where the notes fall.
+  Routes are laid in id order, so none depends on the order of `edges[]`.
+- **The notes** (`geo.notes`; the route ones in one place,
+  `VA.mapRouteNotes`): a part with no place, a box that outgrows its cell,
+  districts that overlap, a route through a box it does not end on, **a
+  route that crosses a box it ends on past its stub**, **a symbol inside a
+  box** and **two interfaces' routes on one collinear run** (2026-11-19: the
+  last three are the merged page Jeff reviewed that day), and for an outline
+  **a box it takes in that is not one of its parts** and **a name with no
+  corner clear of another**, and **an assembly's dimension with no jumper
+  clear of every box**. They fire in tests
+  and on an agent's scoring of a layout, never on the page; model v2's map
+  is held at none.
 - **A district per body**: the body's parts' boxes, padded, held inside the
   union of its cells inset — so two adjacent bodies' districts never touch and
   a body with one small part has a small district; named at its corner. **An
   assembly's outline** round its own box and its children's small boxes
   (three nested outlines: body, assembly, part).
+- **An assembly with no feature of its own is its outline** (2026-11-19, Jeff:
+  *"215177-001 IS the pitch plate assembly, yet is shown as a child of the
+  assembly collector, parallel to the 215735-001 pitch plate part"*): no box,
+  and an outline round its parts' boxes and its nested assemblies' outlines,
+  named at its top-left as a district is -- its number first and its everyday
+  name beside it (the part's label) -- and told from a district's name by
+  type, italic and regular against upright and bold, in no body's ink. Where
+  the top-left would meet a district's name or another outline's, the name
+  takes the top-right. Its parts sit where their bodies put them, so the
+  outline may cross a district's border; both stay legible. The outline and
+  its name are the part's one drawing, its control and its count (`VA.mapOutlined`
+  is the rule, `build_topology_projection.outlined_assemblies` the builder's
+  reading of it). An assembly's own dimension runs between its two
+  features' pins -- straight where that crosses no box, else out of each pin
+  and along a lane past the boxes it spans (under, over, left or right, the
+  first that crosses none) -- inside the outline. A district's name is drawn
+  above every outline. An assembly
+  that still owns a node kept its box inside the plain outline until
+  2026-11-20, when the model began refusing one ("Bodies", rule 1): every
+  assembly is now its outline.
 - **The view**: fitted to the region on the first paint, never past a cap,
   then the reader's wheel zooms about the pointer, a drag pans, Fit and the
   `0` key re-fit; a selection made elsewhere is panned into view when it is
@@ -691,7 +800,8 @@ gap list names it, as before.
 
 **Every entity once, keyed by the model's ids.** Each drawn thing carries its
 entity's kind and id (`data-map-kind`, `data-map-id`), and districts, boxes,
-pins, jumpers and connectors are counted against `model.counts` -- the fast
+pins, jumpers and connectors are counted against `model.counts` (a part
+with no box by its outline) -- the fast
 tier on the fixture, the browser tier on the real model. Hover and select go through the page's
 one store and the one resolver (`VA.focusLightOf`, read by `VA.mapLightKeys`),
 by entity rather than by element key — a node two parts share is two pins,
@@ -703,6 +813,42 @@ outline (`ISSUE_20261114_assembly_folding_left_out_of_three_surfaces`); a
 study lit as a route (`ISSUE_20261116_what_the_map_does_not_draw_yet`); a
 hand arrangement of v1's routes; and the compound joints the model does not
 author yet (the map draws each as it is authored).
+
+### The Groups switches — the containers the map and the grid draw (2026-11-19)
+
+Since handoff `the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies`
+(Jeff's note `20261119T142516_ci28ci`). The settings bar's **Groups** popover
+has three switches, `VA.GROUP_KINDS`: **Bodies**, **Assemblies**, **Parts**.
+They are kept per model in the browser as the kinds switched *off*, so a
+choice stored before the Assemblies switch existed reads it on.
+
+**On the map** a kind switched off is hidden in place by a class on the
+drawing (`tv__map--no-<kind>`, `apps/viewer/map.css`): Bodies takes the
+districts' borders, fields and names; Assemblies every assembly's outline and
+its name; Parts every box and its name. Pins, symbols, jumpers and connectors
+stay, and stay where they were: the layout is the whole model whatever is
+switched off, so the drawn counts still find a district per body and a box
+per part.
+
+**In the grid** an assembly is a bracket round its own rows and the rows of
+every part inside it, dotted and its name in italic as on the map
+(`VA.gridBraces`, kind `assembly`). Bodies and assemblies do not nest: an
+assembly whose parts sit in two bodies has rows in both. So the grid's
+outermost bracket is a body **or** an assembly, never both
+(`VA.gridGroupKinds`): with both switched on it draws the one switched on
+last (`VA.GRID_OUTER_KEY`, per model; the bodies until one is), and the map
+draws both. With the assemblies outermost, a top-level assembly's name takes
+the strip a body's would, and one assembly is one bracket per unbroken run of
+its rows; a sub-assembly (a bearing round its races) is a bracket inside it
+whose name is on its fold's hover where a part inside it starts the row. A
+part in no assembly sits where the parts in one do. The fold is the part's,
+so folding one run folds them all into the one row the fold always made.
+
+`VA.gridBraces` still models both at once -- an assembly cut into one
+bracket per run inside each body -- and the fast tier pins that model on the
+race-rows fixture (`tests/fixtures/topology_assembly_in_two_bodies_rows.json`).
+Drawn, it put the link assembly in ground and in the arm as brackets with no
+name, and stacked three caps on a race's one row; the shots are in the lesson.
 
 ### Naming a feature (2026-11-10)
 
@@ -1188,8 +1334,8 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 20 parts, 52 interfaces, 70 edges, 23 branch points, 19 grounded
-loops, 21 gap edges. Studyless; no edge carries a dimension, and each says what
+The graph: 33 parts, 78 interfaces, 104 edges, 35 branch points, 27 grounded
+loops, 29 gap edges. Studyless; no edge carries a dimension, and each says what
 would close it.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
@@ -1282,8 +1428,8 @@ Jeff rather than authored
 `the_pitch_plate_is_an_assembly_with_its_bushings`; Jeff, 2026-11-17: the
 flanged bushings *"are part of the 215177 assembly and the straight bushings
 aren't assembled until the top level because they are a transition fit in the
-bore"*). `pitch_plate_215177_001` keeps its id, its features and Jeff's
-bindings, and holds the machined plate 215735-001 and the NAS77A3-015A flanged
+bore"*). `pitch_plate_215177_001` kept its id, its features and Jeff's
+bindings (its features moved onto the plate on 2026-11-20, below), and holds the machined plate 215735-001 and the NAS77A3-015A flanged
 bushing at each attachment the model reaches as children; the 214820-002
 straight bushings are top-level parts of the pitch-plate body, under v1's ids.
 At each of the two attachments (blade 1's pitch link and the drawn tangential
@@ -1292,10 +1438,65 @@ and Ø8.520 for the straight one; each bushing's outer cylinder sits in its
 bore by a `press_fit` or a `transition_fit` gap, its wall joins its outer
 cylinder to its bore, and the bolt, which is not in the model, is two
 `pin_in_bore` gaps: the flanged bushing's bore to the attachment's own bore,
-and the straight bushing's bore to the flanged one's. No edge gains a
-dimension; each fit's note cites the bore's callout and names the bushing's
+and the straight bushing's bore to the flanged one's (both replaced by the
+bolt on 2026-11-20, below). No edge gains a dimension; each fit's note cites the bore's callout and names the bushing's
 band as a gap. Six NAS77A3 occurrences, the NAS77A4 and six 214820-002
 occurrences are at attachments the model does not draw and are left out.
+
+**Each link is a machined part and two bearings, each bearing two races**
+(2026-11-19, handoff `a_link_is_a_machined_part_and_two_bearings_each_two_races`;
+Jeff's note `20261119T142516_ci28ci`: *"the spherical bearing itself is two
+bodies joined by the spherical joint"*, and the two links *"resolve to a two
+force member with spherical joints at both ends"*). Each link assembly holds
+its machined part (213861-002, 213863-004) and its two bearings, and each
+bearing an outer race and an inner race. The link's body is the machined part
+and its two outer races; each inner race is in the body of the part it is
+fixed to (the blade at the pitch arm, ground at the tangential link mount, the
+pitch plate at both plate ends), so the link assemblies and the bearings are
+in no body ("Bodies", rule 3). At each of the four ends: the machined part's
+bore holds the outer race by a `press_fit` gap (a swage is an interference
+that never moves), the outer race's outside cylinder reaches its seat's centre,
+one `spherical` gap joins the inner race's ball centre to that seat centre --
+the ball joint, between two bodies -- the inner race's bore reaches its ball
+centre, and one `pin_in_bore` gap puts the inner race's bore on the mating
+part's attachment bore. That last gap stands in for the hardware between them,
+which is not authored at the pitch arm and the mount; at the two plate ends
+the bolt stack below replaced it. The four seat centres keep v1's ids
+(`pitch_link_lower_sphere_centre` and its three siblings), moved onto the
+outer races as rule 3 of "Models" allows, so the P2 sweep still joins on them;
+`pitch_link_length` and `tan_link_length` keep their ids, ends and part (the
+link assembly, now an ancestor of both ends' parts) and stay each link's one
+length. v1's four joint edges (`pitch_arm_link_joint` and its siblings) are
+not in v2: each is the chain from the mating bore through the inner race and
+the ball to the seat centre. A feature moved onto a member keeps its binding:
+`docs/ANNOTATION_SURFACE.md`, "A feature on a member".
+
+**215177-001 is the container, and each lug is a bolt stack** (2026-11-20,
+handoff `the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack`;
+Jeff's note `20261119T142516_ci28ci`: *"The container (215177-001), contains
+the pitch plate (215735-001) and each flanged bushing"*). The assembly's three
+features that are the plate's -- its pilot boss, its seat on the piston body's
+flange and the piston body's fastener pattern -- moved onto
+`pitch_plate_215735_001` with their ids, and so did the two dimensions between
+them; the assembly owns nothing, and the model now refuses an assembly that
+owns a node ("Bodies", rule 1). v1's two attachment bores and the radii to
+them are not in v2: each lug is located by a new radius of 215735 from the
+pilot boss to its flanged bushing's bore. At each lug a bolt -- read off the
+217755-001 A.1 STEP's lug groups: NAS6403U11D at the pitch link, NAS6403U14D at
+the tangential link, which has no mesh -- is a top-level part of the
+pitch-plate body, and the stack is eight joints: the flanged bushing pressed
+into the plate (`press_fit`) with its flange seated on the lug face (a shared
+node), the bolt's shank a `pin_in_bore` in the flanged bushing, the inner race
+and the straight bushing -- one length of the shank in each, the bolt's two
+dimensions between them being its shank -- the race's two faces seated on the flange and under
+the straight bushing's end (two shared nodes; the clamp), and the straight
+bushing in the plate's other bore (`transition_fit`). Inside each part a
+dimension joins each new face to the part's own features (a face to its bore,
+the flange's thickness, the race's width and its face to its ball). No washer,
+nut or grip length (Jeff: *"irrelevant to the kinematic model/end stop
+tolerance study"*). So each link's plate end reaches the plate from its outer
+race through the ball, the inner race, the bolt and the flanged bushing --
+and through the straight bushing too, a loop the stack closes.
 
 ---
 

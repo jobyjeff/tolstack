@@ -1599,10 +1599,9 @@
     VA.clear(root);
     root.className = "kmresults";
     var study = ctx.study;
-    if (!study) {
-      root.appendChild(VA.el("p", "muted", "Pick a kinematic study in the list."));
-      return root;
-    }
+    // No study: nothing. It said "Pick a kinematic study in the list." until
+    // 2026-11-19 -- the nav lists them (the_viewer_says_nothing_about_itself).
+    if (!study) return root;
     var decimals = ctx.kinematic && ctx.kinematic.display_decimals;
     var head = VA.el("h2", "kmhead__title", study.title || study.id);
     head.setAttribute("title", study.id);

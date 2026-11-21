@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a status with a run links its chip to that run in drawing-checker, in a new tab; one without says the spec or the drawing on hover",
+  "mutations": [
+    {
+      "contract": "A status with a run is a link to that run.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Never links.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var url = status.run ? VA.runUrl(config, status.run) : null;\n    if (url) {",
+      "replace": "    var url = null;\n    if (url) {"
+    },
+    {
+      "contract": "A status without a run says its spec, else its drawing, on hover.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Says nothing on hover.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.chip(cls, words.chip, status.spec || status.drawing || null);",
+      "replace": "    return VA.chip(cls, words.chip, null);"
+    }
+  ]
+}

@@ -2069,9 +2069,11 @@
       eq(statuses, ["not-built", "not-built", "not-built", "not-built"]);
     });
 
-    await test("renderStack with no stack asks for one instead of throwing", function () {
+    await test("renderStack with no stack renders nothing instead of throwing", function () {
+      // It said "Pick a stack on the left." until 2026-11-19: the nav's
+      // picker is the control, and the page does not describe it.
       var root = render(function (r) { VA.renderStack(r, null, CROPS, {}); });
-      has(root.textContent, "Pick a stack");
+      eq(root.textContent, "");
     });
 
     // --- selection: clicking a row is how the right pane gets populated -----
@@ -2153,31 +2155,25 @@
       has(weighted[0].getAttribute("title"), "sign × coefficient");
     });
 
-    await test("the checks section says the checks are not in the stack file", function () {
+    await test("a generated-check stack says so on its header chip, and the " +
+      "checks section carries no paragraph about it", function () {
+      // The section opened with "GENERATED CHECKS. These are not authored in
+      // <file> -- ... nothing here was re-derived in the browser ..." until
+      // 2026-11-19 (the_viewer_says_nothing_about_itself): the header's chip
+      // already said it, on hover. (It once carried a terminal command too;
+      // the chip's hover never did.)
       var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
-      var note = all(root, ".check__note")[0];
-      ok(note, "a generated-check stack must say so");
-      has(note.textContent, "GENERATED CHECKS");
-      has(note.textContent, "demo_thermal_fit");
-      has(note.textContent, "stack_demo_fit.json");
-      // The escape hatch out of the browser: the command that prints the same
-      // term table, so the surface is checkable and not just believable.
-      // NOT the command. Jeff's web-UI rule is binding across every repo's web
-      // surface -- never render a terminal command for the user to copy/paste --
-      // and this paragraph rendered one, `venv-win\\Scripts\\python.exe ...`,
-      // on the live M1 thermal stack. It was invisible to the banned-string
-      // guard, which has banned "venv-win" by name since the day it was written
-      // but had no walk that reached a stack-side surface (2026-09-16).
-      ok(note.textContent.indexOf("debug_report_thermal_fit.py") === -1,
-         "no terminal command in the rendered note: " + note.textContent);
-      ok(note.textContent.indexOf("venv-win") === -1,
-         "no interpreter path either: " + note.textContent);
-      // The fact the command carried is kept, in words: the table is
-      // reproducible outside the browser.
-      has(note.textContent, "printed outside the browser");
-      // An authored stack gets no such note.
+      eq(all(root, ".check__note").length, 0);
+      var chip = all(root, "span.chip--generated")[0];
+      ok(chip, "a generated-check stack must say so on its header");
+      has(chip.textContent, "GENERATED");
+      has(chip.getAttribute("title"), "demo_thermal_fit");
+      ok(chip.getAttribute("title").indexOf("venv-win") === -1 &&
+         chip.getAttribute("title").indexOf(".py") === -1,
+         "no terminal command on the chip's hover");
+      // An authored stack gets no such chip.
       var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      eq(all(plain, ".check__note").length, 0);
+      eq(all(plain, "span.chip--generated").length, 0);
     });
 
     await test("a sensitivity probe is marked NOT A RESULT, not shown as a verdict", function () {
@@ -2668,25 +2664,22 @@
       ok(box[0].className.indexOf("--loud") === -1);
     });
 
-    await test("the panel says which rows to click when nothing is selected",
-      function () {
+    await test("the panel is empty when nothing is selected", function () {
+        // It said "Select a row in the tables on the left to see its full
+        // sourcing here -- ..." until 2026-11-19 (the_viewer_says_nothing_
+        // about_itself: a page never describes how to use itself).
         var root = render(function (r) {
           VA.renderDetail(r, DEMO, null, CROPS, null, VA.CONFIG);
         });
-        // Both tables feed this pane since 2026-09-18, so the empty state names
-        // both -- an empty state that mentions one of two clickable tables is
-        // the "if a feature is absent from a build, show nothing about it" rule
-        // upside down.
-        has(root.textContent, "Select a row in the tables on the left");
-        has(root.textContent, "for a material");
+        eq(root.textContent, "");
         eq(all(root, "div.el-export").length, 0);
       });
 
-    await test("the panel asks for a stack when there is none", function () {
+    await test("the panel is empty when there is no stack", function () {
       var root = render(function (r) {
         VA.renderDetail(r, null, "plate", CROPS, null, VA.CONFIG);
       });
-      has(root.textContent, "Pick a stack");
+      eq(root.textContent, "");
     });
 
     // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO --
@@ -4016,8 +4009,10 @@
         VA.renderBanner(r, { connection: VA.STATE.READY, results: null, crops: null }, {});
       });
       has(root.textContent, "No results projection");
-      has(root.textContent, "nothing to show");
       has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
+      // ...and nothing about what the page computes or does not (it said
+      // "this page displays it and computes nothing" until 2026-11-19).
+      eq(root.textContent.indexOf("this page"), -1);
       noCommandsOrPaths(root.textContent);
       // The where-line is the box's SECOND node and muted, not a second
       // sentence inside the first: secondary information is muted, never
@@ -5105,6 +5100,108 @@
         eq(all(bare, "a.detail__runlink").length, 0);
       });
 
+    // An open dimension says where its drawing stands (handoff
+    // an_open_dimension_says_where_its_drawing_stands, 2026-11-19): one chip
+    // per status, where the dimension is shown -- the grid row, in place of
+    // its number, and the Preview -- and a status with a run links to it.
+    // Read off a copy of the demo whose `base_thickness` has no value.
+    var openTopo = function (status) {
+      var topo = JSON.parse(JSON.stringify(TOPO));
+      topo.edges.forEach(function (e) {
+        if (e.id !== "base_thickness") return;
+        e.dimension = null;
+        e.confidence = null;
+        e.value_source = "derived";
+        e.crop_key = null;
+        e.drawing_status = status;
+      });
+      return topo;
+    };
+    var OPEN_RUN = { run_dir: "20261101_090000_215197_B.1_BASE_PLATE", drawing: "215197",
+                     revision: "B", date: "2026-11-01" };
+    var OPEN_STATUSES = {
+      read: { status: "read", drawing: "215197", run: OPEN_RUN, spec: null },
+      other_dash_read: { status: "other_dash_read", drawing: "215197-002",
+        run: { run_dir: "20261112_104250_215197-003_A.1_BASE", drawing: "215197-003",
+               revision: "A", date: "2026-11-12" }, spec: null },
+      not_read: { status: "not_read", drawing: "215197", run: null, spec: null },
+      no_drawing: { status: "no_drawing", drawing: null, run: null, spec: "NAS0000 Rev 1.pdf" },
+      unknown: { status: "unknown", drawing: "215197", run: null, spec: null },
+    };
+    var openViews = function (status) {
+      var ctx = { topoProj: openTopo(status),
+                  config: { drawingCheckerWebui: "http://127.0.0.1:8000" } };
+      var grid = render(function (r) { VA.renderTopoPane(r, topoCtx(ctx)); });
+      var row = all(grid, "tr.tvrow").filter(function (n) {
+        return n.getAttribute("data-id") === "base_thickness";
+      })[0];
+      var pane = render(function (r) {
+        VA.renderTopoDetail(r, topoCtx(Object.assign({
+          selection: { kind: "edge", id: "base_thickness" } }, ctx)));
+      });
+      return { cell: row.querySelector("td.tvcell--nominal"),
+               chips: all(pane, "div.detail__chips")[0] };
+    };
+
+    await test("an open dimension wears its drawing's status as one chip in its " +
+      "grid row and its Preview, each status its own words", function () {
+        eq(Object.keys(VA.DRAWING_STATUSES).sort(), Object.keys(OPEN_STATUSES).sort());
+        // Nothing could be read, so nothing is said: `unknown` has no words.
+        eq(VA.DRAWING_STATUSES.unknown.chip, null);
+        Object.keys(OPEN_STATUSES).forEach(function (status) {
+          var views = openViews(OPEN_STATUSES[status]);
+          var words = VA.DRAWING_STATUSES[status].chip;
+          var inCell = all(views.cell, ".chip--drawing");
+          var inPane = all(views.chips, ".chip--drawing");
+          if (!words) {
+            // Nothing could be read: nothing is claimed.
+            eq(inCell.length, 0, status);
+            eq(inPane.length, 0, status);
+            eq(views.cell.textContent, "", status);
+            return;
+          }
+          eq(inCell.map(function (c) { return c.textContent; }), [words], status);
+          eq(inPane.map(function (c) { return c.textContent; }), [words], status);
+          ok(/\btvcell--drawing\b/.test(views.cell.className), status);
+          ok(/\bchip--drawing-/.test(inCell[0].className), status);
+        });
+      });
+
+    await test("a status with a run links its chip to that run in drawing-checker, " +
+      "in a new tab; one without says the spec or the drawing on hover", function () {
+        ["read", "other_dash_read"].forEach(function (status) {
+          var run = OPEN_STATUSES[status].run;
+          var views = openViews(OPEN_STATUSES[status]);
+          [views.cell, views.chips].forEach(function (box) {
+            var chip = all(box, "a.chip--drawing");
+            eq(chip.length, 1, status);
+            eq(chip[0].getAttribute("href"), runHref(run.run_dir));
+            eq(chip[0].getAttribute("target"), "_blank");
+            eq(chip[0].getAttribute("rel"), "noopener");
+            has(chip[0].getAttribute("title"), "drawing " + run.drawing);
+          });
+        });
+        var spec = all(openViews(OPEN_STATUSES.no_drawing).cell, ".chip--drawing")[0];
+        eq(spec.tagName.toLowerCase(), "span");
+        eq(spec.getAttribute("title"), "NAS0000 Rev 1.pdf");
+        var unread = all(openViews(OPEN_STATUSES.not_read).chips, ".chip--drawing")[0];
+        eq(unread.tagName.toLowerCase(), "span");
+        eq(unread.getAttribute("title"), "215197");
+      });
+
+    await test("a projection built before the field existed draws no drawing chip " +
+      "anywhere, its open rows included", function () {
+        var old = openTopo(OPEN_STATUSES.read);
+        old.edges.forEach(function (e) { delete e.drawing_status; });
+        var grid = render(function (r) { VA.renderTopoPane(r, topoCtx({ topoProj: old })); });
+        eq(all(grid, ".chip--drawing").length, 0);
+        var pane = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ topoProj: old,
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        eq(all(pane, ".chip--drawing").length, 0);
+      });
+
     // ITEM 4, the measured half. The link did nothing when clicked, and the
     // reason is the ORIGIN: Chrome refuses every navigation from an http(s)
     // page to a file: URL. Measured 2026-09-15 with this repo's own browser
@@ -5406,10 +5503,15 @@
             });
           });
           // Anti-vacuity: a stripper that returned "" would pass against
-          // anything, and the subtitle is the line this check exists for.
+          // anything. The subtitle this check was written for is gone
+          // (the_viewer_says_nothing_about_itself, 2026-11-19: a page never
+          // describes itself), so the text it must still find is the
+          // legend's button, and the subtitle must stay gone.
           var topo = markupSrc.readText("topology.html")
             .replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]*>/g, " ");
-          has(topo, "computes nothing");
+          has(topo, "How to read this");
+          ok(topo.indexOf("computes nothing") === -1,
+             "the topbar describes the page again: \"computes nothing\"");
           ok(body_attributes(markupSrc.readText("topology.html")).length > 0,
              "no reader-facing attributes found -- the extractor has drifted");
         });
@@ -7125,7 +7227,9 @@
         eq(sideBoxes.length, 2);
         eq(all(sideBoxes[0], "img").length, 1);
         eq(all(sideBoxes[1], "img").length, 0);
-        has(root.textContent, "An interface is a location, not a value");
+        // ...and no sentence about what an interface is not (it ended "An
+        // interface is a location, not a value ..." until 2026-11-19).
+        eq(root.textContent.indexOf("not a value"), -1);
         // A dot neither of whose sides cropped gets NO picture slot at all.
         var bare = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({ cropImages: images,
@@ -7163,20 +7267,30 @@
         eq(all(frozen, "img")[0].getAttribute("src"), "blob:selected");
       });
 
-    await test("the preview pane says which side of the leader rule an " +
-      "interface is on", function () {
+    await test("the preview pane's sides say whether an interface is between " +
+      "parts or inside one, with no sentence about the grid", function () {
+        // It printed "A component boundary: the grid starts another part's
+        // rows here." / "An internal interface: every dimension meeting here
+        // belongs to one part." under the sides until 2026-11-19
+        // (the_viewer_says_nothing_about_itself): the sides already say it.
+        var whereOf = function (root) {
+          return root.querySelector("div.detail__where").textContent;
+        };
         var boundary = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "node", id: "base_post_seat" } }));
         });
-        has(boundary.textContent, "A component boundary");
+        eq(whereOf(boundary), "on 215197 base plate ⇔ post");
         has(boundary.textContent, "base / post");
         var internal = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "node", id: "base_datum" } }));
         });
-        has(internal.textContent, "An internal interface");
-        has(internal.textContent, "belongs to one part");
+        eq(whereOf(internal).indexOf("⇔"), -1);
+        [boundary, internal].forEach(function (root) {
+          eq(root.textContent.indexOf("component boundary"), -1);
+          eq(root.textContent.indexOf("internal interface"), -1);
+        });
         // A gap boundary names the clearance in plain words, not `null`.
         var gapSide = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
@@ -7205,12 +7319,10 @@
         eq(where, "on " + record.sides.map(function (side) {
           return side.id === null ? VA.CLEARANCE_SIDE_LABEL : side.id;
         }).join(" ⇔ "));
-        // And the leader sentence states the RULE only: it used to re-list the
-        // same sides two lines below them, with a different separator.
-        var rule = all(pane, "p.detail__crop-reason")[0].textContent;
-        has(rule, "A component boundary");
-        eq(rule.indexOf(VA.CLEARANCE_SIDE_LABEL), -1);
-        eq(rule.indexOf("arm"), -1);
+        // And nothing under them restates the sides as a sentence: the
+        // leader-rule line went 2026-11-19, so a node's pane has no
+        // crop-reason paragraph at all.
+        eq(all(pane, "p.detail__crop-reason").length, 0);
       });
 
     await test("a derived gap says it carries no value, rather than showing an " +
@@ -7614,8 +7726,48 @@
         eq(all(foot, "tr.tvtotal--rss").length, 1);
         ok(all(foot, "tr.tvtotal--margin").length >= 1,
            "a study states its bottom line even with no criterion recorded");
-        // ...and the rule sentence is in the summary pane, not the grid.
-        has(studySummary(TOPO, study).textContent, "This page adds nothing up");
+        // ...and the summary pane does not describe the page: the rule
+        // sentence that sat behind its Details fold ("This page adds nothing
+        // up") went 2026-11-19, and a study with no notes has no fold left.
+        var summary = studySummary(TOPO, study);
+        ok(summary.textContent.indexOf("adds nothing up") === -1,
+           "the summary pane describes the page again");
+        eq(all(summary, "details.tvtotals__more").length,
+           (study.notes || []).length ? 1 : 0);
+      });
+
+    await test("with no study the results pane is a picker reading Pick a " +
+      "study, and choosing one asks for it", function () {
+        // It was a paragraph until 2026-11-19 ("Pick a study to see its chain
+        // in the grid and its totals here. A study is a HUMAN-lassoed chain:
+        // ..."): the_viewer_says_nothing_about_itself -- an empty state shows
+        // the control that fills it.
+        var asked = [];
+        var root = render(function (r) {
+          VA.renderTopoTotals(r, TOPO, null, VA.topologyIndex(TOPO),
+            function (id) { asked.push(id); });
+        });
+        var pick = all(root, "select.tvtotals__pick");
+        eq(pick.length, 1);
+        var options = all(pick[0], "option");
+        eq(options[0].textContent, VA.STUDY_PICKER_PLACEHOLDER);
+        eq(VA.STUDY_PICKER_PLACEHOLDER, "Pick a study");
+        eq(options.slice(1).map(function (o) { return o.getAttribute("value"); }),
+           TOPO.studies.map(function (s) { return s.id; }));
+        // No sentence of the pane's own beside it (the gap panel under it
+        // keeps its own copy, inside its fold).
+        eq(all(root, "p").filter(function (p) { return p.parentNode === root; }).length, 0);
+        eq(root.textContent.indexOf("HUMAN-lassoed"), -1);
+        pick[0].value = TOPO.studies[1].id;
+        pick[0].onchange();
+        eq(asked, [TOPO.studies[1].id]);
+        // A model with no studies has nothing to pick, and shows no picker.
+        var bare = JSON.parse(JSON.stringify(TOPO));
+        bare.studies = [];
+        var none = render(function (r) {
+          VA.renderTopoTotals(r, bare, null, VA.topologyIndex(bare), function () {});
+        });
+        eq(all(none, "select").length, 0);
       });
 
     await test("the whole walk has no totals footer -- a total belongs to a " +
@@ -7896,7 +8048,11 @@
         // The exception's own message, whole: it names the node and both
         // candidate edges, and that IS the feature.
         has(root.textContent, study.error.message);
-        has(root.textContent, "which parallel path binds");
+        // ...and what to do about it, without the page's own word on what it
+        // will not do (its advice said "This tool never makes it" until
+        // 2026-11-19; the exception's message is the author's and stays).
+        has(root.textContent, "Drop one of the named edges");
+        eq(root.textContent.indexOf("This tool never makes it"), -1);
         eq(all(root, "div.tvtotal").length, 0);
       });
 
@@ -7913,8 +8069,8 @@
         has(root.textContent, "an error this viewer has no label for");
       });
 
-    await test("the preview pane says what an interface is, and that it has no " +
-      "value", function () {
+    await test("the preview pane says what an interface is, by name, kind and " +
+      "sides", function () {
         var root = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "node", id: "base_post_seat" } }));
@@ -7925,7 +8081,9 @@
         // printed their ids until then, which is the one thing it said that a
         // reader had no way to read.
         has(root.textContent, "base plate ⇔ post");
-        has(root.textContent, "An interface is a location, not a value");
+        // ...and no sentence about what an interface is not (it ended "An
+        // interface is a location, not a value ..." until 2026-11-19).
+        eq(root.textContent.indexOf("not a value"), -1);
         // And the node's own id is on the heading's hover title, not printed.
         eq(all(root, "h3")[0].getAttribute("title"), "base_post_seat");
         eq(all(root, "code").length, 0);
@@ -8221,10 +8379,15 @@
       has(root.textContent, "This study scales it its own way.");
     });
 
-    await test("nothing selected tells you what pointing and clicking do", function () {
+    await test("nothing selected leaves the Preview empty -- no sentence about " +
+      "pointing and clicking", function () {
+      // It said "Point at a part, a pin, a line or a row to preview it here;
+      // click to keep it." until 2026-11-19 (the_viewer_says_nothing_about_
+      // itself: a page never describes itself).
       var root = render(function (r) { VA.renderTopoDetail(r, topoCtx()); });
-      eq(root.textContent, VA.PREVIEW_EMPTY_TEXT);
-      has(root.textContent, "click to keep it");
+      eq(root.textContent, "");
+      eq(root.childNodes.length, 0);
+      eq(VA.PREVIEW_EMPTY_TEXT, undefined);
     });
 
     // --- loose stacks: what "the topology page absorbs the stack viewer" ---
@@ -9264,7 +9427,7 @@
           }, {});
         });
         has(root.textContent, "No topology projection");
-        has(root.textContent, "nothing to draw");
+        eq(root.textContent.indexOf("this page"), -1);
         eq(root.textContent.indexOf("No results projection"), -1);
         noCommandsOrPaths(root.textContent);
       });
@@ -10392,6 +10555,53 @@
         eq(posted, [["camera", "face", "bb", "134", "135"]], "clicking the line turns the pane to it");
       });
 
+    // --- a bind on the pitch plate writes in seconds and says so while it
+    // waits (handoff 2026-11-19): the press is shown taken in the click itself.
+    await test("a body press that writes reads pending in the click itself, before the pane " +
+      "answers; while it writes every writing control waits; a failure stays on its control", function () {
+        var model = VA.buildModel(bodiedProj(), boundIdentity());
+        var W = VA.FEATURE_BODY_WORDS, S = VA.WRITE_PRESS_STATES;
+        var plan = VA.featureBodyPlan(model, "p1@n2", "mini", [], null);
+        var posted = [];
+        // The writer never answers: what the control shows is the click's own doing.
+        var never = function (c) { posted.push(c); return new Promise(function () {}); };
+        var slot = document.createElement("div");
+        VA.renderFeatureBody(slot, [], { plan: plan, command: never });
+        var byAct = function (act) {
+          return Array.prototype.slice.call(slot.querySelectorAll("button")).filter(function (b) {
+            return b.getAttribute("data-body-act") === act;
+          })[0];
+        };
+        var unbind = byAct("unbind");
+        unbind.onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        eq([unbind.textContent, !!unbind.disabled, unbind.getAttribute("data-pending")], [W.writing, true, S[0]],
+           "Unbind reads writing and is disabled before the pane has answered anything");
+        eq(posted, [["unbind", "d1", "to", "mini"]], "and the command went");
+        // The page's repaint while it writes: the pressed one still pending, the
+        // other writer (Flip) waiting, a non-writing control (Correct) free.
+        var writing = { key: VA.bodyCommandKey(["unbind", "d1", "to", "mini"]), state: S[0] };
+        VA.renderFeatureBody(slot, [], { plan: plan, command: never, write: writing });
+        eq([byAct("unbind").textContent, !!byAct("unbind").disabled], [W.writing, true]);
+        eq(!!byAct("flip").disabled, true, "another write waits for this one");
+        eq(!!byAct("arm").disabled, false, "Correct writes nothing, so it is free");
+        // Not written: the reason on the control, which is pressable again.
+        VA.renderFeatureBody(slot, [], { plan: plan, command: never,
+          write: { key: writing.key, state: S[1], reason: "the folder was not granted" } });
+        eq([byAct("unbind").textContent, byAct("unbind").getAttribute("title"), !!byAct("unbind").disabled,
+          byAct("unbind").getAttribute("data-pending")], [W.failed, "the folder was not granted", false, S[1]]);
+        // A mirrored row's control that writes (the pane's candidate Take) does
+        // the same at its own press, before the gesture crosses to the pane.
+        var sent = [];
+        VA.renderFeatureBody(slot, [{ key: "k", text: "end", buttons: [{ text: "Take", writes: true },
+          { text: "Pick on the other part" }] }], { send: function (k, act, i) { sent.push([k, act, i]); } });
+        var buttons = slot.querySelectorAll("button");
+        buttons[0].onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        eq([buttons[0].textContent, !!buttons[0].disabled], [W.writing, true]);
+        buttons[1].onclick({ preventDefault: function () {}, stopPropagation: function () {} });
+        eq(buttons[1].textContent, "Pick on the other part", "a control that writes nothing is left as it is");
+        eq(sent.map(function (s) { return s[2]; }), [0, 1]);
+      });
+
     await test("an unbound feature with the other side bound lists the pane's ranked mates, each " +
       "with its reason and Take; armed, they are listed under the pick's line", function () {
         var model = VA.buildModel(bodiedProj(), boundIdentity());
@@ -10428,6 +10638,22 @@
         var rows = slot.querySelectorAll(".navtree__featurestate");
         eq(rows[1].querySelector(".navtree__featuresub").textContent, plan.lines[1].sub);
         eq(rows[1].querySelectorAll("button").length, 1, "Take sits on the ranked face's line");
+      });
+
+    await test("a feature with both ends of its joint unbound lists the contact candidates, each " +
+      "row's Take naming its own edge and end", function () {
+        var model = VA.buildModel(bodiedProj(), null);
+        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
+          { sha256: "aa", faceId: 10, faces: [10, 11, 12], edgeId: "d1", direction: "from",
+            text: "3 faces · round · r 5 mm", reason: "fits the mating bore", detail: "clearance 0.015 mm" },
+          { sha256: "aa", faceId: 40, edgeId: "d2", direction: "to", text: "face 40", reason: "coincident" }] } } };
+        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
+        eq(plan.lines.map(function (l) { return l.text; }), ["not bound", "3 faces · round · r 5 mm", "face 40"]);
+        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "10", "mini", "11", "12"],
+           "Take binds the whole candidate");
+        eq(plan.lines[2].actions[0].command, ["take", "d2", "to", "aa", "40", "mini"],
+           "a row of another gap edge binds there");
+        eq(plan.actions[0].text, VA.FEATURE_BODY_WORDS.pick, "Pick a face stays");
       });
 
     await test("a pattern bound opposite leads the mates with one line for the whole set: its " +
@@ -11759,8 +11985,8 @@
           var root = render(function (r) { VA.renderTopoPane(r, topoCtx({ topoProj: topo, groupKinds: kinds })); });
           return [all(root, "div.tvbrace--body").length > 0, all(root, "div.tvbrace--part").length > 0];
         };
-        eq(VA.GROUP_KINDS.map(function (k) { return k.id; }), ["bodies", "parts"],
-           "the grid's two bracket kinds; the study kinds were the rails'");
+        eq(VA.GROUP_KINDS.map(function (k) { return k.id; }), ["bodies", "assemblies", "parts"],
+           "the three container kinds; the study kinds were the rails'");
         eq(counts(on(["bodies", "parts"])), [true, true]);
         eq(counts(on(["bodies"])), [true, false]);
         eq(counts(on(["parts"])), [false, true]);
@@ -11776,8 +12002,9 @@
         eq([VA.readGroupKinds(store, "t"), VA.readGroupKinds(store, "u")],
            [on(["bodies"]), on(["parts"])]);
         data[VA.GROUP_KINDS_KEY] = JSON.stringify({ t: ["nonsense", "chain", "parts"] });
-        eq(VA.readGroupKinds(store, "t"), on(["bodies"]),
-           "a word outside the set, a retired study kind among them, is ignored");
+        eq(VA.readGroupKinds(store, "t"), on(["bodies", "assemblies"]),
+           "a word outside the set, a retired study kind among them, is ignored, and a " +
+           "choice stored before the assemblies had a switch reads as them on");
         data[VA.GROUP_KINDS_KEY] = "{not json";
         eq(VA.readGroupKinds(store, "t"), on(kinds), "an unreadable store: all on");
         eq(VA.readGroupKinds(null, "t"), on(kinds));
@@ -11792,7 +12019,7 @@
         boxes[0].checked = false;
         boxes[0].onchange();
         eq(seen, [["bodies", false]]);
-        eq(all(toolbar, "summary")[0].textContent, "Groups (1 of 2)");
+        eq(all(toolbar, "summary")[0].textContent, "Groups (2 of 3)");
       });
 
     // --- groups as borders, colour overlays, the graph's width
@@ -12859,6 +13086,160 @@
         eq(top.pins.filter(function (p) { return p.id === "P@bore"; })[0].side, "top");
       });
 
+    // A row of parts L, M, R (2026-11-19, a_map_pin_faces_each_partner_and_
+    // no_two_routes_share_a_run): M's bore meets L's pin on its left and R's
+    // pin on its right -- model v2's tangential-link attachment bore on the
+    // plate, which meets the link on one side and its bushing on the other.
+    // `more` adds interfaces from M's bore, as [id, part, place].
+    function mapPartners(more) {
+      var f = function (part, nodeId) {
+        return { id: part + "@" + nodeId, part: part, node: nodeId, name: nodeId, kind: "datum_feature",
+                 shared: false, body: "one" };
+      };
+      var part = function (id) {
+        return { id: id, label: id + " " + id.toLowerCase(), number: null, name: id.toLowerCase(), body: "one",
+                 features: [], dimensions: [], parent: null, children: [], depth: 0 };
+      };
+      var m = { id: "partners", title: "partners", identity_ids: ["partners"],
+        bodies: [{ id: "one", name: "one", kind: "body", parts: [], all_parts: [] }],
+        parts: [], features: [f("M", "bore")], dimensions: [], interfaces: [], joints: [],
+        counts: { bodies: 1, parts: 0, features: 1, dimensions: 0, interfaces: 0 } };
+      m.parts.push(part("M"));
+      m.parts[0].features.push("M@bore");
+      var places = { M: [1, 0] };
+      [["lm", "L", [0, 0]], ["mr", "R", [2, 0]]].concat(more || []).forEach(function (row) {
+        m.parts.push(part(row[1]));
+        m.parts[m.parts.length - 1].features.push(row[1] + "@pin");
+        m.features.push(f(row[1], "pin"));
+        m.interfaces.push({ id: row[0], name: row[0], kind: "pin_in_bore", source: "edge", ends: ["M@bore", row[1] + "@pin"],
+          parts: ["M", row[1]], bodies: ["one"], within: "one", joint: row[0] });
+        m.joints.push({ id: row[0], parts: ["M", row[1]], bodies: ["one"], within: "one", constraints: [row[0]] });
+        places[row[1]] = row[2];
+      });
+      m.bodies[0].parts = m.parts.map(function (p) { return p.id; });
+      m.bodies[0].all_parts = m.bodies[0].parts.slice();
+      m.counts = { bodies: 1, parts: m.parts.length, features: m.features.length, dimensions: 0,
+                   interfaces: m.interfaces.length };
+      return { model: m, doc: mapDoc(places) };
+    }
+    // A route's legs past its two stubs.
+    function innerLegs(c) {
+      var out = [];
+      for (var i = 2; i < c.points.length - 1; i++) out.push([c.points[i - 1], c.points[i]]);
+      return out;
+    }
+    function inside(r) { return { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 }; }
+
+    await test("a feature whose partners sit on two sides of its part has a pin toward each, neither " +
+      "route enters its own part's box past its stub, and one hover lights both pins of the one feature",
+      function () {
+        var fx = mapPartners();
+        var geo = VA.mapLayout(fx.model, fx.doc);
+        eq(geo.notes, []);
+        eq(VA.mapCounts(geo), VA.mapExpectedCounts(fx.model), "two pins are still one feature");
+        var bore = geo.pins.filter(function (p) { return p.id === "M@bore"; });
+        eq(bore.map(function (p) { return p.iface + " " + p.side; }).sort(), ["lm left", "mr right"]);
+        var m = geo.boxes.filter(function (b) { return b.id === "M"; })[0];
+        geo.connectors.forEach(function (c) {
+          innerLegs(c).forEach(function (leg) {
+            ok(!VA.mapSegmentHitsRect(leg[0], leg[1], inside(m)), c.id + " stays out of M's box past its stub");
+          });
+        });
+        // Drawn as one entity: one group, two dots, each with the feature's
+        // label; a hover on the feature lights the group.
+        VA.forgetMapViews();
+        var root = document.createElement("div");
+        VA.renderTopoMap(root, { topoProj: { id: "partners", model: fx.model, map: fx.doc }, model: null,
+          mapRegion: { width: 1600, height: 600 } });
+        var groups = all(root, "g.map__pin").filter(function (g) { return g.getAttribute("data-map-id") === "M@bore"; });
+        eq(groups.length, 1, "one entity");
+        eq(all(groups[0], "circle.map__pindot").length, 2, "a dot toward each partner");
+        eq(all(groups[0], "text.map__pinlabel").map(function (t) { return t.textContent; }), ["bore", "bore"]);
+        VA.lightMap(null, { kind: VA.FOCUS_KINDS.feature, id: "M@bore" });
+        has(groups[0].getAttribute("class"), "map__pin--lead");
+        VA.lightMap(null, null);
+      });
+
+    await test("two interfaces of one feature toward one side leave from separate pins and share no " +
+      "run, and a pin's side and every route are the same whatever the order of the model's edges",
+      function () {
+        // M's bore also meets S and T, below and right of M, one column: two
+        // pins on its bottom that tie on every key but the interface id.
+        var fx = mapPartners([["ms", "S", [2, 1]], ["mt", "T", [2, 2]]]);
+        var geo = VA.mapLayout(fx.model, fx.doc);
+        eq(geo.notes, []);
+        var under = geo.pins.filter(function (p) { return p.id === "M@bore" && p.side === "bottom"; });
+        eq(under.map(function (p) { return p.iface; }).sort(), ["ms", "mt"]);
+        ok(under[0].x !== under[1].x, "two pins, apart");
+        eq(VA.mapRouteNotes(geo.connectors, geo.boxes, VA.MAP).notes, [], "no shared run, no box crossed");
+        // Shuffled: the same pins, sides and routes.
+        var shape = function (g) {
+          return { pins: g.pins.map(function (p) { return [p.id, p.iface, p.side, p.x, p.y].join(" "); }).sort(),
+                   routes: g.connectors.map(function (c) { return c.id + " " + c.d; }).sort() };
+        };
+        [fx.model, mapModel(), TOPO.model].forEach(function (model, i) {
+          var doc = i === 0 ? fx.doc : i === 1 ? mapDoc() : TOPO.map;
+          var turned = JSON.parse(JSON.stringify(model));
+          turned.interfaces.reverse();
+          turned.features.reverse();
+          eq(shape(VA.mapLayout(turned, doc)), shape(VA.mapLayout(model, doc)), "model " + i + " shuffled");
+        });
+      });
+
+    await test("a child with no place joined to its parent sits under it with the connector's symbol " +
+      "between the two boxes, and the route is the short drop between their facing sides", function () {
+        // U, under M, takes a route out of M's bottom, so the child sits
+        // beside it rather than centred.
+        var fx = mapPartners([["mu", "U", [1, 1]]]);
+        var m = fx.model;
+        m.parts.push({ id: "K", label: "K bushing", number: null, name: "bushing", body: "one", features: ["K@od"],
+                       dimensions: [], parent: "M", children: [], depth: 1 });
+        m.parts[0].children = ["K"];
+        m.features.push({ id: "K@od", part: "K", node: "od", name: "od", kind: "datum_feature", shared: false, body: "one" });
+        m.features.push({ id: "M@hole", part: "M", node: "hole", name: "hole", kind: "datum_feature", shared: false, body: "one" });
+        m.parts[0].features.push("M@hole");
+        m.interfaces.push({ id: "press", name: "press", kind: "press_fit", source: "edge", ends: ["K@od", "M@hole"],
+          parts: ["K", "M"], bodies: ["one"], within: "one", joint: "press" });
+        m.joints.push({ id: "press", parts: ["K", "M"], bodies: ["one"], within: "one", constraints: ["press"] });
+        m.bodies[0].all_parts.push("K");
+        m.counts = { bodies: 1, parts: 5, features: 6, dimensions: 0, interfaces: 4, assemblies: 1 };
+        var geo = VA.mapLayout(m, fx.doc);
+        eq(geo.notes, []);
+        var box = function (id) { return geo.boxes.filter(function (b) { return b.id === id; })[0]; };
+        var c = geo.connectors.filter(function (x) { return x.id === "press"; })[0];
+        ok(box("K").y > box("M").y + box("M").h, "the child sits under its parent");
+        ok(Math.abs(box("K").x + box("K").w / 2 - (box("M").x + box("M").w / 2)) > VA.MAP.pinPitch,
+           "beside the route out of M's bottom");
+        ok(c.mid.y > box("M").y + box("M").h && c.mid.y < box("K").y, "the symbol is between the two boxes");
+        ok(geo.boxes.every(function (b) { return !inRect(c.mid, b); }), "and inside none");
+        ok(c.points.every(function (p) { return p.x === c.points[0].x; }), "a straight drop");
+        ok(c.points.every(function (p) { return p.y >= box("M").y + box("M").h && p.y <= box("K").y; }),
+           "never past either facing side");
+      });
+
+    await test("the map's route notes name a route that crosses a box it ends on past its stub, two " +
+      "routes on one run and a symbol inside a box, and stay quiet for parallel lanes", function () {
+        var M = VA.MAP;
+        var boxes = [{ id: "A", x: 0, y: 0, w: 200, h: 100 }, { id: "B", x: 400, y: 0, w: 200, h: 100 }];
+        var conn = function (id, pts, mid) {
+          return { id: id, points: pts, mid: mid || { x: 300, y: 50 }, endParts: ["A", "B"] };
+        };
+        // Out of A's left side, back across A, into B's left side.
+        var back = conn("back", [{ x: 0, y: 50 }, { x: -30, y: 50 }, { x: -30, y: 70 }, { x: 370, y: 70 },
+                                 { x: 400, y: 70 }]);
+        eq(VA.mapRouteNotes([back], boxes, M).notes, ["interface back crosses A, a box it ends on, beyond its stub"]);
+        var straight = conn("straight", [{ x: 200, y: 30 }, { x: 230, y: 30 }, { x: 370, y: 30 }, { x: 400, y: 30 }]);
+        eq(VA.mapRouteNotes([straight], boxes, M).notes, [], "a route between facing sides crosses nothing");
+        var twin = conn("twin", [{ x: 200, y: 60 }, { x: 230, y: 60 }, { x: 230, y: 30 }, { x: 330, y: 30 },
+                                 { x: 360, y: 74 }, { x: 400, y: 74 }], { x: 280, y: 30 });
+        eq(VA.mapRouteNotes([straight, twin], boxes, M).notes, ["interfaces straight and twin share a run"]);
+        var lane = conn("lane", [{ x: 200, y: 74 }, { x: 230, y: 74 }, { x: 370, y: 74 }, { x: 400, y: 74 }],
+                        { x: 300, y: 74 });
+        eq(VA.mapRouteNotes([straight, lane], boxes, M).notes, [], "a lane a pin pitch away is its own");
+        var sunk = conn("sunk", straight.points, { x: 100, y: 50 });
+        eq(VA.mapRouteNotes([sunk], boxes, M).notes, ["interface sunk's symbol sits on A"]);
+      });
+
     await test("a right flank's pin label steps a line lower where a left flank's pin of the same " +
       "part is level with it, so the two lit labels never meet mid-box", function () {
         VA.forgetMapViews();
@@ -12878,6 +13259,312 @@
         eq(labelY("B@ball"), Math.round((pin("B@ball").y + 12 + M.font.pin * 2) * 1e6) / 1e6, "a line lower");
         eq(labelY("C@ball"), Math.round((pin("C@ball").y + 12 + M.font.pin * 0.8) * 1e6) / 1e6,
            "a left flank's label just below its pin, as ever");
+      });
+
+    // The two-body fixture (tests/fixtures/topology_assembly_in_two_bodies.json):
+    // a link assembly whose bearings each have an outer race in the link's
+    // body and an inner race in the body of the part it is bolted to, and a
+    // base assembly of two parts in ground. The model below is model_view()'s
+    // own output over that file -- tests/test_topology_map.py holds the two
+    // equal, so regenerate it from the builder, never edit it by hand.
+    // BEGIN twoBodyModel
+    var TWO_BODY_MODEL = {"id": "assembly_in_two_bodies", "title": "A link assembly whose bearings sit in two bodies", "identity_ids": ["assembly_in_two_bodies"], "bodies": [{"id": "base", "name": "ground", "kind": "body", "parts": ["base_asm", "inner_a"], "all_parts": ["base_asm", "base", "spacer", "inner_a"]}, {"id": "link", "name": "the link", "kind": "link", "parts": ["link_body", "outer_a", "outer_b"], "all_parts": ["link_body", "outer_a", "outer_b"]}, {"id": "arm", "name": "the arm", "kind": "body", "parts": ["arm", "inner_b"], "all_parts": ["arm", "inner_b"]}], "parts": [{"id": "base_asm", "label": "100-000 base assembly", "number": "100-000", "name": "base assembly", "body": "base", "features": [], "dimensions": [], "occurrence": null, "mesh": null, "parent": null, "children": ["base", "spacer"], "depth": 0}, {"id": "base", "label": "100-001 base", "number": "100-001", "name": "base", "body": "base", "features": ["base@base_datum", "base@spacer_seat", "base@base_seat_a"], "dimensions": ["base_datum_to_seat_a"], "occurrence": null, "mesh": null, "parent": "base_asm", "children": [], "depth": 1}, {"id": "spacer", "label": "100-003 spacer", "number": "100-003", "name": "spacer", "body": "base", "features": ["spacer@spacer_seat"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "base_asm", "children": [], "depth": 1}, {"id": "arm", "label": "100-002 arm", "number": "100-002", "name": "arm", "body": "arm", "features": ["arm@arm_seat_b", "arm@arm_datum"], "dimensions": ["arm_seat_b_to_datum"], "occurrence": null, "mesh": null, "parent": null, "children": [], "depth": 0}, {"id": "link_asm", "label": "200-001 link assembly", "number": "200-001", "name": "link assembly", "body": null, "features": [], "dimensions": ["link_centres"], "occurrence": null, "mesh": null, "parent": null, "children": ["link_body", "bearing_a", "bearing_b"], "depth": 0}, {"id": "link_body", "label": "200-002 link body", "number": "200-002", "name": "link body", "body": "link", "features": ["link_body@race_seat_a", "link_body@race_seat_b"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "link_asm", "children": [], "depth": 1}, {"id": "bearing_a", "label": "spherical bearing A", "number": null, "name": "spherical bearing A", "body": null, "features": [], "dimensions": [], "occurrence": null, "mesh": null, "parent": "link_asm", "children": ["outer_a", "inner_a"], "depth": 1}, {"id": "outer_a", "label": "outer race A", "number": null, "name": "outer race A", "body": "link", "features": ["outer_a@ball_a", "outer_a@race_seat_a"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_a", "children": [], "depth": 2}, {"id": "inner_a", "label": "inner race A", "number": null, "name": "inner race A", "body": "base", "features": ["inner_a@base_seat_a", "inner_a@ball_a"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_a", "children": [], "depth": 2}, {"id": "bearing_b", "label": "spherical bearing B", "number": null, "name": "spherical bearing B", "body": null, "features": [], "dimensions": [], "occurrence": null, "mesh": null, "parent": "link_asm", "children": ["outer_b", "inner_b"], "depth": 1}, {"id": "outer_b", "label": "outer race B", "number": null, "name": "outer race B", "body": "link", "features": ["outer_b@race_seat_b", "outer_b@ball_b"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_b", "children": [], "depth": 2}, {"id": "inner_b", "label": "inner race B", "number": null, "name": "inner race B", "body": "arm", "features": ["inner_b@ball_b", "inner_b@arm_seat_b"], "dimensions": [], "occurrence": null, "mesh": null, "parent": "bearing_b", "children": [], "depth": 2}], "features": [{"id": "base@base_datum", "part": "base", "node": "base_datum", "name": "base datum", "kind": "datum_feature", "shared": false, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "base", "node": "base_datum"}}, {"id": "base@spacer_seat", "part": "base", "node": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "base", "node": "spacer_seat"}}, {"id": "spacer@spacer_seat", "part": "spacer", "node": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "spacer", "node": "spacer_seat"}}, {"id": "base@base_seat_a", "part": "base", "node": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "base", "node": "base_seat_a"}}, {"id": "inner_a@base_seat_a", "part": "inner_a", "node": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_a", "node": "base_seat_a"}}, {"id": "outer_a@ball_a", "part": "outer_a", "node": "ball_a", "name": "ball A", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_a", "node": "ball_a"}}, {"id": "inner_a@ball_a", "part": "inner_a", "node": "ball_a", "name": "ball A", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_a", "node": "ball_a"}}, {"id": "link_body@race_seat_a", "part": "link_body", "node": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "link_body", "node": "race_seat_a"}}, {"id": "outer_a@race_seat_a", "part": "outer_a", "node": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_a", "node": "race_seat_a"}}, {"id": "link_body@race_seat_b", "part": "link_body", "node": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "link_body", "node": "race_seat_b"}}, {"id": "outer_b@race_seat_b", "part": "outer_b", "node": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_b", "node": "race_seat_b"}}, {"id": "outer_b@ball_b", "part": "outer_b", "node": "ball_b", "name": "ball B", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies", "part": "outer_b", "node": "ball_b"}}, {"id": "inner_b@ball_b", "part": "inner_b", "node": "ball_b", "name": "ball B", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_b", "node": "ball_b"}}, {"id": "arm@arm_seat_b", "part": "arm", "node": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "arm", "node": "arm_seat_b"}}, {"id": "inner_b@arm_seat_b", "part": "inner_b", "node": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "inner_b", "node": "arm_seat_b"}}, {"id": "arm@arm_datum", "part": "arm", "node": "arm_datum", "name": "arm datum", "kind": "datum_feature", "shared": false, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies", "part": "arm", "node": "arm_datum"}}], "dimensions": [{"id": "base_datum_to_seat_a", "part": "base", "name": "base datum to bearing A seat", "from": "base@base_datum", "to": "base@base_seat_a", "body": "base"}, {"id": "link_centres", "part": "link_asm", "name": "link centre to centre", "from": "outer_a@ball_a", "to": "outer_b@ball_b", "body": "link"}, {"id": "arm_seat_b_to_datum", "part": "arm", "name": "arm bearing B seat to datum", "from": "arm@arm_seat_b", "to": "arm@arm_datum", "body": "arm"}], "interfaces": [{"id": "spacer_seat", "name": "spacer on the base", "kind": "contact", "source": "node", "ends": ["base@spacer_seat", "spacer@spacer_seat"], "parts": ["base", "spacer"], "bodies": ["base"], "within": "base", "joint": "base+spacer"}, {"id": "base_seat_a", "name": "inner race A on the base", "kind": "contact", "source": "node", "ends": ["base@base_seat_a", "inner_a@base_seat_a"], "parts": ["base", "inner_a"], "bodies": ["base"], "within": "base", "joint": "base+inner_a"}, {"id": "ball_a", "name": "ball A", "kind": "spherical", "source": "node", "ends": ["outer_a@ball_a", "inner_a@ball_a"], "parts": ["outer_a", "inner_a"], "bodies": ["link", "base"], "within": null, "joint": "inner_a+outer_a"}, {"id": "race_seat_a", "name": "outer race A in the link", "kind": "press_fit", "source": "node", "ends": ["link_body@race_seat_a", "outer_a@race_seat_a"], "parts": ["link_body", "outer_a"], "bodies": ["link"], "within": "link", "joint": "link_body+outer_a"}, {"id": "race_seat_b", "name": "outer race B in the link", "kind": "press_fit", "source": "node", "ends": ["link_body@race_seat_b", "outer_b@race_seat_b"], "parts": ["link_body", "outer_b"], "bodies": ["link"], "within": "link", "joint": "link_body+outer_b"}, {"id": "ball_b", "name": "ball B", "kind": "spherical", "source": "node", "ends": ["outer_b@ball_b", "inner_b@ball_b"], "parts": ["outer_b", "inner_b"], "bodies": ["link", "arm"], "within": null, "joint": "inner_b+outer_b"}, {"id": "arm_seat_b", "name": "inner race B on the arm", "kind": "contact", "source": "node", "ends": ["arm@arm_seat_b", "inner_b@arm_seat_b"], "parts": ["arm", "inner_b"], "bodies": ["arm"], "within": "arm", "joint": "arm+inner_b"}], "joints": [{"id": "base+spacer", "parts": ["base", "spacer"], "bodies": ["base"], "within": "base", "constraints": ["spacer_seat"]}, {"id": "base+inner_a", "parts": ["base", "inner_a"], "bodies": ["base"], "within": "base", "constraints": ["base_seat_a"]}, {"id": "inner_a+outer_a", "parts": ["inner_a", "outer_a"], "bodies": ["link", "base"], "within": null, "constraints": ["ball_a"]}, {"id": "link_body+outer_a", "parts": ["link_body", "outer_a"], "bodies": ["link"], "within": "link", "constraints": ["race_seat_a"]}, {"id": "link_body+outer_b", "parts": ["link_body", "outer_b"], "bodies": ["link"], "within": "link", "constraints": ["race_seat_b"]}, {"id": "inner_b+outer_b", "parts": ["inner_b", "outer_b"], "bodies": ["link", "arm"], "within": null, "constraints": ["ball_b"]}, {"id": "arm+inner_b", "parts": ["arm", "inner_b"], "bodies": ["arm"], "within": "arm", "constraints": ["arm_seat_b"]}], "counts": {"bodies": 3, "parts": 12, "features": 16, "dimensions": 3, "interfaces": 7, "contacts": 7, "gaps": 0, "between_bodies": 2, "within_bodies": 5, "joints": 7, "assemblies": 4}};
+    // END twoBodyModel
+    function twoBodyModel() { return JSON.parse(JSON.stringify(TWO_BODY_MODEL)); }
+    // The builder's whole projection (project_topology, with no studies) of
+    // its sibling with a dimension on each race,
+    // tests/fixtures/topology_assembly_in_two_bodies_rows.json: the walk the
+    // grid's checks read, with the link assembly's rows in all three bodies.
+    // The same test holds it equal to the builder's; regenerate it the same way.
+    // BEGIN raceRowsProjection
+    var RACE_ROWS_PROJECTION = {"id": "assembly_in_two_bodies_rows", "title": "A link assembly whose bearings sit in two bodies, each race dimensioned", "description": "Fixture for the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies (2026-11-19): topology_assembly_in_two_bodies.json with a dimension on each race, so the grid has rows of one assembly in three bodies. That file's own words follow. A link assembly of a link body and two spherical bearings, each bearing an outer race moving with the link and an inner race moving with the part it is bolted to; and a base assembly of a base and a spacer, both in ground. No value is cited; nothing here is a real part.", "ids_from": null, "units": "mm", "source_file": "tests/fixtures/topology_assembly_in_two_bodies_rows.json", "topology": {"schema": "joby.tolerance_stack/topology/v0", "id": "assembly_in_two_bodies_rows", "title": "A link assembly whose bearings sit in two bodies, each race dimensioned", "description": "Fixture for the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies (2026-11-19): topology_assembly_in_two_bodies.json with a dimension on each race, so the grid has rows of one assembly in three bodies. That file's own words follow. A link assembly of a link body and two spherical bearings, each bearing an outer race moving with the link and an inner race moving with the part it is bolted to; and a base assembly of a base and a spacer, both in ground. No value is cited; nothing here is a real part.", "units": "mm", "bodies": [{"id": "base", "name": "ground", "kind": "body", "parts": ["base_asm", "base", "spacer", "inner_a"]}, {"id": "link", "name": "the link", "kind": "link", "parts": ["link_body", "outer_a", "outer_b"]}, {"id": "arm", "name": "the arm", "kind": "body", "parts": ["arm", "inner_b"]}], "parts": [{"id": "base_asm", "name": "base assembly", "drawing": "100-000"}, {"id": "base", "name": "base", "drawing": "100-001", "parent": "base_asm"}, {"id": "spacer", "name": "spacer", "drawing": "100-003", "parent": "base_asm"}, {"id": "arm", "name": "arm", "drawing": "100-002"}, {"id": "link_asm", "name": "link assembly", "drawing": "200-001"}, {"id": "link_body", "name": "link body", "drawing": "200-002", "parent": "link_asm"}, {"id": "bearing_a", "name": "spherical bearing A", "parent": "link_asm"}, {"id": "outer_a", "name": "outer race A", "parent": "bearing_a"}, {"id": "inner_a", "name": "inner race A", "parent": "bearing_a"}, {"id": "bearing_b", "name": "spherical bearing B", "parent": "link_asm"}, {"id": "outer_b", "name": "outer race B", "parent": "bearing_b"}, {"id": "inner_b", "name": "inner race B", "parent": "bearing_b"}], "nodes": [{"id": "base_datum", "name": "base datum", "kind": "datum_feature", "parts": ["base"]}, {"id": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "parts": ["base", "spacer"]}, {"id": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "parts": ["base", "inner_a"]}, {"id": "ball_a", "name": "ball A", "kind": "mating_surface", "parts": ["outer_a", "inner_a"], "interface": "spherical"}, {"id": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "parts": ["link_body", "outer_a"], "interface": "press_fit"}, {"id": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "parts": ["link_body", "outer_b"], "interface": "press_fit"}, {"id": "ball_b", "name": "ball B", "kind": "mating_surface", "parts": ["outer_b", "inner_b"], "interface": "spherical"}, {"id": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "parts": ["arm", "inner_b"]}, {"id": "arm_datum", "name": "arm datum", "kind": "datum_feature", "parts": ["arm"]}], "edges": [{"id": "base_datum_to_seat_a", "name": "base datum to bearing A seat", "kind": "structural", "part": "base", "from": "base_datum", "to": "base_seat_a"}, {"id": "inner_a_seat_to_ball", "name": "inner race A seat to ball", "kind": "structural", "part": "inner_a", "from": "base_seat_a", "to": "ball_a"}, {"id": "outer_a_ball_to_seat", "name": "outer race A ball to seat", "kind": "structural", "part": "outer_a", "from": "ball_a", "to": "race_seat_a"}, {"id": "link_centres", "name": "link centre to centre", "kind": "structural", "part": "link_asm", "from": "ball_a", "to": "ball_b"}, {"id": "outer_b_seat_to_ball", "name": "outer race B seat to ball", "kind": "structural", "part": "outer_b", "from": "race_seat_b", "to": "ball_b"}, {"id": "inner_b_ball_to_seat", "name": "inner race B ball to seat", "kind": "structural", "part": "inner_b", "from": "ball_b", "to": "arm_seat_b"}, {"id": "arm_seat_b_to_datum", "name": "arm bearing B seat to datum", "kind": "structural", "part": "arm", "from": "arm_seat_b", "to": "arm_datum"}]}, "joint": {}, "worksheet_file": null, "worksheet_source": null, "parts": [{"id": "base_asm", "name": "base assembly", "drawing": "100-000", "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": null, "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "100-000 base assembly"}, {"id": "base", "name": "base", "drawing": "100-001", "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "base_asm", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "100-001 base"}, {"id": "spacer", "name": "spacer", "drawing": "100-003", "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "base_asm", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "100-003 spacer"}, {"id": "arm", "name": "arm", "drawing": "100-002", "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": null, "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "100-002 arm"}, {"id": "link_asm", "name": "link assembly", "drawing": "200-001", "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": null, "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "200-001 link assembly"}, {"id": "link_body", "name": "link body", "drawing": "200-002", "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "link_asm", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "200-002 link body"}, {"id": "bearing_a", "name": "spherical bearing A", "drawing": null, "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "link_asm", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "spherical bearing A"}, {"id": "outer_a", "name": "outer race A", "drawing": null, "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "bearing_a", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "outer race A"}, {"id": "inner_a", "name": "inner race A", "drawing": null, "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "bearing_a", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "inner race A"}, {"id": "bearing_b", "name": "spherical bearing B", "drawing": null, "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "link_asm", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "spherical bearing B"}, {"id": "outer_b", "name": "outer race B", "drawing": null, "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "bearing_b", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "outer race B"}, {"id": "inner_b", "name": "inner race B", "drawing": null, "revision": null, "note": null, "display_name": null, "naming_note": null, "occurrence": null, "parent": "bearing_b", "mesh": {"installed": false, "part_id": null}, "drawing_runs": [], "other_dash_runs": [], "label": "inner race B"}], "nodes": [{"id": "base_datum", "name": "base datum", "kind": "datum_feature", "parts": ["base"], "face": null, "hardware_ref": null, "interface": null, "note": null, "source_ref": null, "confidence": null, "degree": 1, "branch": false}, {"id": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "parts": ["base", "spacer"], "face": null, "hardware_ref": null, "interface": null, "note": null, "source_ref": null, "confidence": null, "degree": 0, "branch": false}, {"id": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "parts": ["base", "inner_a"], "face": null, "hardware_ref": null, "interface": null, "note": null, "source_ref": null, "confidence": null, "degree": 2, "branch": false}, {"id": "ball_a", "name": "ball A", "kind": "mating_surface", "parts": ["outer_a", "inner_a"], "face": null, "hardware_ref": null, "interface": "spherical", "note": null, "source_ref": null, "confidence": null, "degree": 3, "branch": true}, {"id": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "parts": ["link_body", "outer_a"], "face": null, "hardware_ref": null, "interface": "press_fit", "note": null, "source_ref": null, "confidence": null, "degree": 1, "branch": false}, {"id": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "parts": ["link_body", "outer_b"], "face": null, "hardware_ref": null, "interface": "press_fit", "note": null, "source_ref": null, "confidence": null, "degree": 1, "branch": false}, {"id": "ball_b", "name": "ball B", "kind": "mating_surface", "parts": ["outer_b", "inner_b"], "face": null, "hardware_ref": null, "interface": "spherical", "note": null, "source_ref": null, "confidence": null, "degree": 3, "branch": true}, {"id": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "parts": ["arm", "inner_b"], "face": null, "hardware_ref": null, "interface": null, "note": null, "source_ref": null, "confidence": null, "degree": 2, "branch": false}, {"id": "arm_datum", "name": "arm datum", "kind": "datum_feature", "parts": ["arm"], "face": null, "hardware_ref": null, "interface": null, "note": null, "source_ref": null, "confidence": null, "degree": 1, "branch": false}], "edges": [{"id": "base_datum_to_seat_a", "name": "base datum to bearing A seat", "kind": "structural", "part": "base", "from": "base_datum", "to": "base_seat_a", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": "100-001", "run": null, "spec": null}}, {"id": "inner_a_seat_to_ball", "name": "inner race A seat to ball", "kind": "structural", "part": "inner_a", "from": "base_seat_a", "to": "ball_a", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": null, "run": null, "spec": null}}, {"id": "outer_a_ball_to_seat", "name": "outer race A ball to seat", "kind": "structural", "part": "outer_a", "from": "ball_a", "to": "race_seat_a", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": null, "run": null, "spec": null}}, {"id": "link_centres", "name": "link centre to centre", "kind": "structural", "part": "link_asm", "from": "ball_a", "to": "ball_b", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": "200-001", "run": null, "spec": null}}, {"id": "outer_b_seat_to_ball", "name": "outer race B seat to ball", "kind": "structural", "part": "outer_b", "from": "race_seat_b", "to": "ball_b", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": null, "run": null, "spec": null}}, {"id": "inner_b_ball_to_seat", "name": "inner race B ball to seat", "kind": "structural", "part": "inner_b", "from": "ball_b", "to": "arm_seat_b", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": null, "run": null, "spec": null}}, {"id": "arm_seat_b_to_datum", "name": "arm bearing B seat to datum", "kind": "structural", "part": "arm", "from": "arm_seat_b", "to": "arm_datum", "note": null, "properties": {}, "value_source": "derived", "dimension_ref": null, "dimension": null, "confidence": null, "zero_width": false, "crop_key": null, "transform": {"id": "identity", "kind": "identity", "ratio": 1.0, "units_in": "mm", "units_out": "mm"}, "transform_declared": null, "interface": null, "drawing_status": {"status": "unknown", "drawing": "100-002", "run": null, "spec": null}}], "transforms": [], "bodies": [{"id": "base", "name": "ground", "kind": "body", "parts": ["base_asm", "base", "spacer", "inner_a"], "note": null, "tags": {}, "rides_with": null, "joint_nodes": ["ball_a"]}, {"id": "link", "name": "the link", "kind": "link", "parts": ["link_body", "outer_a", "outer_b"], "note": null, "tags": {}, "rides_with": null, "joint_nodes": ["ball_a", "ball_b"]}, {"id": "arm", "name": "the arm", "kind": "body", "parts": ["arm", "inner_b"], "note": null, "tags": {}, "rides_with": null, "joint_nodes": ["ball_b"]}], "model": {"id": "assembly_in_two_bodies_rows", "title": "A link assembly whose bearings sit in two bodies, each race dimensioned", "identity_ids": ["assembly_in_two_bodies_rows"], "bodies": [{"id": "base", "name": "ground", "kind": "body", "parts": ["base_asm", "inner_a"], "all_parts": ["base_asm", "base", "spacer", "inner_a"]}, {"id": "link", "name": "the link", "kind": "link", "parts": ["link_body", "outer_a", "outer_b"], "all_parts": ["link_body", "outer_a", "outer_b"]}, {"id": "arm", "name": "the arm", "kind": "body", "parts": ["arm", "inner_b"], "all_parts": ["arm", "inner_b"]}], "parts": [{"id": "base_asm", "label": "100-000 base assembly", "number": "100-000", "name": "base assembly", "body": "base", "features": [], "dimensions": [], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": null, "children": ["base", "spacer"], "depth": 0}, {"id": "base", "label": "100-001 base", "number": "100-001", "name": "base", "body": "base", "features": ["base@base_datum", "base@spacer_seat", "base@base_seat_a"], "dimensions": ["base_datum_to_seat_a"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "base_asm", "children": [], "depth": 1}, {"id": "spacer", "label": "100-003 spacer", "number": "100-003", "name": "spacer", "body": "base", "features": ["spacer@spacer_seat"], "dimensions": [], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "base_asm", "children": [], "depth": 1}, {"id": "arm", "label": "100-002 arm", "number": "100-002", "name": "arm", "body": "arm", "features": ["arm@arm_seat_b", "arm@arm_datum"], "dimensions": ["arm_seat_b_to_datum"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": null, "children": [], "depth": 0}, {"id": "link_asm", "label": "200-001 link assembly", "number": "200-001", "name": "link assembly", "body": null, "features": [], "dimensions": ["link_centres"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": null, "children": ["link_body", "bearing_a", "bearing_b"], "depth": 0}, {"id": "link_body", "label": "200-002 link body", "number": "200-002", "name": "link body", "body": "link", "features": ["link_body@race_seat_a", "link_body@race_seat_b"], "dimensions": [], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "link_asm", "children": [], "depth": 1}, {"id": "bearing_a", "label": "spherical bearing A", "number": null, "name": "spherical bearing A", "body": null, "features": [], "dimensions": [], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "link_asm", "children": ["outer_a", "inner_a"], "depth": 1}, {"id": "outer_a", "label": "outer race A", "number": null, "name": "outer race A", "body": "link", "features": ["outer_a@ball_a", "outer_a@race_seat_a"], "dimensions": ["outer_a_ball_to_seat"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "bearing_a", "children": [], "depth": 2}, {"id": "inner_a", "label": "inner race A", "number": null, "name": "inner race A", "body": "base", "features": ["inner_a@base_seat_a", "inner_a@ball_a"], "dimensions": ["inner_a_seat_to_ball"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "bearing_a", "children": [], "depth": 2}, {"id": "bearing_b", "label": "spherical bearing B", "number": null, "name": "spherical bearing B", "body": null, "features": [], "dimensions": [], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "link_asm", "children": ["outer_b", "inner_b"], "depth": 1}, {"id": "outer_b", "label": "outer race B", "number": null, "name": "outer race B", "body": "link", "features": ["outer_b@race_seat_b", "outer_b@ball_b"], "dimensions": ["outer_b_seat_to_ball"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "bearing_b", "children": [], "depth": 2}, {"id": "inner_b", "label": "inner race B", "number": null, "name": "inner race B", "body": "arm", "features": ["inner_b@ball_b", "inner_b@arm_seat_b"], "dimensions": ["inner_b_ball_to_seat"], "occurrence": null, "mesh": {"installed": false, "part_id": null}, "parent": "bearing_b", "children": [], "depth": 2}], "features": [{"id": "base@base_datum", "part": "base", "node": "base_datum", "name": "base datum", "kind": "datum_feature", "shared": false, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "base", "node": "base_datum"}}, {"id": "base@spacer_seat", "part": "base", "node": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "base", "node": "spacer_seat"}}, {"id": "spacer@spacer_seat", "part": "spacer", "node": "spacer_seat", "name": "spacer on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "spacer", "node": "spacer_seat"}}, {"id": "base@base_seat_a", "part": "base", "node": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "base", "node": "base_seat_a"}}, {"id": "inner_a@base_seat_a", "part": "inner_a", "node": "base_seat_a", "name": "inner race A on the base", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "inner_a", "node": "base_seat_a"}}, {"id": "outer_a@ball_a", "part": "outer_a", "node": "ball_a", "name": "ball A", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "outer_a", "node": "ball_a"}}, {"id": "inner_a@ball_a", "part": "inner_a", "node": "ball_a", "name": "ball A", "kind": "mating_surface", "shared": true, "body": "base", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "inner_a", "node": "ball_a"}}, {"id": "link_body@race_seat_a", "part": "link_body", "node": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "link_body", "node": "race_seat_a"}}, {"id": "outer_a@race_seat_a", "part": "outer_a", "node": "race_seat_a", "name": "outer race A in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "outer_a", "node": "race_seat_a"}}, {"id": "link_body@race_seat_b", "part": "link_body", "node": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "link_body", "node": "race_seat_b"}}, {"id": "outer_b@race_seat_b", "part": "outer_b", "node": "race_seat_b", "name": "outer race B in the link", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "outer_b", "node": "race_seat_b"}}, {"id": "outer_b@ball_b", "part": "outer_b", "node": "ball_b", "name": "ball B", "kind": "mating_surface", "shared": true, "body": "link", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "outer_b", "node": "ball_b"}}, {"id": "inner_b@ball_b", "part": "inner_b", "node": "ball_b", "name": "ball B", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "inner_b", "node": "ball_b"}}, {"id": "arm@arm_seat_b", "part": "arm", "node": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "arm", "node": "arm_seat_b"}}, {"id": "inner_b@arm_seat_b", "part": "inner_b", "node": "arm_seat_b", "name": "inner race B on the arm", "kind": "mating_surface", "shared": true, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "inner_b", "node": "arm_seat_b"}}, {"id": "arm@arm_datum", "part": "arm", "node": "arm_datum", "name": "arm datum", "kind": "datum_feature", "shared": false, "body": "arm", "identity": {"topology_id": "assembly_in_two_bodies_rows", "part": "arm", "node": "arm_datum"}}], "dimensions": [{"id": "base_datum_to_seat_a", "part": "base", "name": "base datum to bearing A seat", "from": "base@base_datum", "to": "base@base_seat_a", "body": "base"}, {"id": "inner_a_seat_to_ball", "part": "inner_a", "name": "inner race A seat to ball", "from": "inner_a@base_seat_a", "to": "inner_a@ball_a", "body": "base"}, {"id": "outer_a_ball_to_seat", "part": "outer_a", "name": "outer race A ball to seat", "from": "outer_a@ball_a", "to": "outer_a@race_seat_a", "body": "link"}, {"id": "link_centres", "part": "link_asm", "name": "link centre to centre", "from": "outer_a@ball_a", "to": "outer_b@ball_b", "body": "link"}, {"id": "outer_b_seat_to_ball", "part": "outer_b", "name": "outer race B seat to ball", "from": "outer_b@race_seat_b", "to": "outer_b@ball_b", "body": "link"}, {"id": "inner_b_ball_to_seat", "part": "inner_b", "name": "inner race B ball to seat", "from": "inner_b@ball_b", "to": "inner_b@arm_seat_b", "body": "arm"}, {"id": "arm_seat_b_to_datum", "part": "arm", "name": "arm bearing B seat to datum", "from": "arm@arm_seat_b", "to": "arm@arm_datum", "body": "arm"}], "interfaces": [{"id": "spacer_seat", "name": "spacer on the base", "kind": "contact", "source": "node", "ends": ["base@spacer_seat", "spacer@spacer_seat"], "parts": ["base", "spacer"], "bodies": ["base"], "within": "base", "joint": "base+spacer"}, {"id": "base_seat_a", "name": "inner race A on the base", "kind": "contact", "source": "node", "ends": ["base@base_seat_a", "inner_a@base_seat_a"], "parts": ["base", "inner_a"], "bodies": ["base"], "within": "base", "joint": "base+inner_a"}, {"id": "ball_a", "name": "ball A", "kind": "spherical", "source": "node", "ends": ["outer_a@ball_a", "inner_a@ball_a"], "parts": ["outer_a", "inner_a"], "bodies": ["link", "base"], "within": null, "joint": "inner_a+outer_a"}, {"id": "race_seat_a", "name": "outer race A in the link", "kind": "press_fit", "source": "node", "ends": ["link_body@race_seat_a", "outer_a@race_seat_a"], "parts": ["link_body", "outer_a"], "bodies": ["link"], "within": "link", "joint": "link_body+outer_a"}, {"id": "race_seat_b", "name": "outer race B in the link", "kind": "press_fit", "source": "node", "ends": ["link_body@race_seat_b", "outer_b@race_seat_b"], "parts": ["link_body", "outer_b"], "bodies": ["link"], "within": "link", "joint": "link_body+outer_b"}, {"id": "ball_b", "name": "ball B", "kind": "spherical", "source": "node", "ends": ["outer_b@ball_b", "inner_b@ball_b"], "parts": ["outer_b", "inner_b"], "bodies": ["link", "arm"], "within": null, "joint": "inner_b+outer_b"}, {"id": "arm_seat_b", "name": "inner race B on the arm", "kind": "contact", "source": "node", "ends": ["arm@arm_seat_b", "inner_b@arm_seat_b"], "parts": ["arm", "inner_b"], "bodies": ["arm"], "within": "arm", "joint": "arm+inner_b"}], "joints": [{"id": "base+spacer", "parts": ["base", "spacer"], "bodies": ["base"], "within": "base", "constraints": ["spacer_seat"]}, {"id": "base+inner_a", "parts": ["base", "inner_a"], "bodies": ["base"], "within": "base", "constraints": ["base_seat_a"]}, {"id": "inner_a+outer_a", "parts": ["inner_a", "outer_a"], "bodies": ["link", "base"], "within": null, "constraints": ["ball_a"]}, {"id": "link_body+outer_a", "parts": ["link_body", "outer_a"], "bodies": ["link"], "within": "link", "constraints": ["race_seat_a"]}, {"id": "link_body+outer_b", "parts": ["link_body", "outer_b"], "bodies": ["link"], "within": "link", "constraints": ["race_seat_b"]}, {"id": "inner_b+outer_b", "parts": ["inner_b", "outer_b"], "bodies": ["link", "arm"], "within": null, "constraints": ["ball_b"]}, {"id": "arm+inner_b", "parts": ["arm", "inner_b"], "bodies": ["arm"], "within": "arm", "constraints": ["arm_seat_b"]}], "counts": {"bodies": 3, "parts": 12, "features": 16, "dimensions": 7, "interfaces": 7, "contacts": 7, "gaps": 0, "between_bodies": 2, "within_bodies": 5, "joints": 7, "assemblies": 4}}, "map": {"schema": "joby.tolerance_stack/topology_map/v0", "topology": "assembly_in_two_bodies_rows", "computed": true, "places": {"base": [0, 0], "spacer": [0, 1], "inner_a": [0, 2], "link_body": [1, 0], "outer_a": [1, 1], "outer_b": [1, 2], "arm": [2, 0], "inner_b": [2, 1]}}, "branch_nodes": ["ball_a", "ball_b"], "layout": {"columns": 3, "column_order": "exact", "rows": [{"row": 0, "kind": "node", "id": "base_datum", "column": 0, "branch": false, "body": "base"}, {"row": 1, "kind": "edge", "id": "base_datum_to_seat_a", "column": 0, "entered_at": "base_datum", "left_at": "base_seat_a", "closes_row": null, "closes_column": null, "body": "base"}, {"row": 2, "kind": "node", "id": "base_seat_a", "column": 0, "branch": false, "body": "base"}, {"row": 3, "kind": "edge", "id": "inner_a_seat_to_ball", "column": 0, "entered_at": "base_seat_a", "left_at": "ball_a", "closes_row": null, "closes_column": null, "body": "base"}, {"row": 4, "kind": "node", "id": "ball_a", "column": 0, "branch": true, "body": "base"}, {"row": 5, "kind": "edge", "id": "link_centres", "column": 1, "entered_at": "ball_a", "left_at": "ball_b", "closes_row": null, "closes_column": null, "body": "link"}, {"row": 6, "kind": "node", "id": "ball_b", "column": 1, "branch": true, "body": "link"}, {"row": 7, "kind": "edge", "id": "outer_b_seat_to_ball", "column": 1, "entered_at": "ball_b", "left_at": "race_seat_b", "closes_row": null, "closes_column": null, "body": "link"}, {"row": 8, "kind": "node", "id": "race_seat_b", "column": 1, "branch": false, "body": "link"}, {"row": 9, "kind": "edge", "id": "outer_a_ball_to_seat", "column": 2, "entered_at": "ball_a", "left_at": "race_seat_a", "closes_row": null, "closes_column": null, "body": "link"}, {"row": 10, "kind": "node", "id": "race_seat_a", "column": 2, "branch": false, "body": "link"}, {"row": 11, "kind": "edge", "id": "inner_b_ball_to_seat", "column": 0, "entered_at": "ball_b", "left_at": "arm_seat_b", "closes_row": null, "closes_column": null, "body": "arm"}, {"row": 12, "kind": "node", "id": "arm_seat_b", "column": 0, "branch": false, "body": "arm"}, {"row": 13, "kind": "edge", "id": "arm_seat_b_to_datum", "column": 0, "entered_at": "arm_seat_b", "left_at": "arm_datum", "closes_row": null, "closes_column": null, "body": "arm"}, {"row": 14, "kind": "node", "id": "arm_datum", "column": 0, "branch": false, "body": "arm"}, {"row": 15, "kind": "node", "id": "spacer_seat", "column": 0, "branch": false, "body": "base"}], "rails": [{"column": 0, "start": 0, "end": 4}, {"column": 1, "start": 4, "end": 8}, {"column": 2, "start": 4, "end": 10}, {"column": 0, "start": 6, "end": 14}, {"column": 0, "start": 15, "end": 15}], "links": [{"kind": "branch", "row": 4, "from_column": 0, "to_row": 4, "to_column": 1}, {"kind": "branch", "row": 4, "from_column": 0, "to_row": 4, "to_column": 2}, {"kind": "branch", "row": 6, "from_column": 1, "to_row": 6, "to_column": 0}], "bodies": [{"body": "base", "start": 0, "end": 4, "lo": 0, "hi": 0}, {"body": "link", "start": 5, "end": 10, "lo": 1, "hi": 2}, {"body": "arm", "start": 11, "end": 14, "lo": 0, "hi": 0}, {"body": "base", "start": 15, "end": 15, "lo": 0, "hi": 0}]}, "confidence_counts": {}, "notes": [], "studies": [], "gaps": [], "drawing_status_counts": {"read": 0, "other_dash_read": 0, "not_read": 0, "no_drawing": 0, "unknown": 7}, "drawings_read_uncited": []};
+    // END raceRowsProjection
+    function raceRowsProjection() { return JSON.parse(JSON.stringify(RACE_ROWS_PROJECTION)); }
+    // A row: the base and its spacer under it, then each race and the link
+    // body in the order the link runs, so no outline takes in a part it does
+    // not hold.
+    function twoBodyDoc() {
+      return { schema: "joby.tolerance_stack/topology_map/v0", topology: "assembly_in_two_bodies",
+               places: { base: [0, 0], spacer: [0, 1], inner_a: [1, 0], outer_a: [2, 0], link_body: [3, 0],
+                         outer_b: [4, 0], inner_b: [5, 0], arm: [6, 0] } };
+    }
+    function contains(outer, inner) {
+      return inner.x >= outer.x && inner.y >= outer.y &&
+        inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h;
+    }
+
+    // --- the Groups switches on the map, and an assembly in two bodies in the
+    //     grid (the_groups_switches_reach_the_map_and_the_grid_brackets_an_
+    //     assembly_in_two_bodies, 2026-11-19) --------------------------------
+
+    // An assembly's dimension (the link's centre to centre) is an end of
+    // its members' features, never of the assembly, which owns none
+    // (a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19:
+    // v2's two link lengths). Before then a dimension's end was its `part`'s.
+    await test("an assembly's dimension ends at the features its view row names, on the races, " +
+      "and at neither race's other side of the shared node", function () {
+        var model = VA.buildModel(raceRowsProjection(), null);
+        eq(model.endsOf("outer_a@ball_a"), [{ edgeId: "link_centres", end: "from" },
+                                            { edgeId: "outer_a_ball_to_seat", end: "from" }]);
+        eq(model.endsOf("outer_b@ball_b"), [{ edgeId: "link_centres", end: "to" },
+                                            { edgeId: "outer_b_seat_to_ball", end: "to" }]);
+        eq(model.endsOf("inner_a@ball_a"), [{ edgeId: "inner_a_seat_to_ball", end: "to" }],
+           "the inner race's side of the ball is not the length's end");
+      });
+
+    // The rows' fixture's grid model under `kinds`, folding `collapsed`.
+    function twoBodyBraces(kinds, collapsed) {
+      var topo = raceRowsProjection();
+      var plan = VA.gridPlan(topo.layout, topo, null, collapsed || null);
+      return { plan: plan, model: VA.gridBraces(plan, { topoProj: topo, kinds: kinds }) };
+    }
+    function braceRuns(model, kind) {
+      return model.braces.filter(function (b) { return b.kind === kind; }).map(function (b) {
+        return [b.kind === "body" ? b.id : b.part, b.start, b.end, b.label];
+      }).sort(function (a, b) { return a[1] - b[1] || String(a[0]).localeCompare(String(b[0])); });
+    }
+
+    await test("an assembly whose rows fall in more than one body is bracketed once per run of " +
+      "them, inside each body and under its own name, and a fold folds every run", function () {
+        var all3 = twoBodyBraces({ bodies: true, assemblies: true, parts: true });
+        eq(all3.plan.rows.map(function (r) { return r.id; }),
+           ["base_datum_to_seat_a", "inner_a_seat_to_ball", "link_centres", "outer_b_seat_to_ball",
+            "outer_a_ball_to_seat", "inner_b_ball_to_seat", "arm_seat_b_to_datum"],
+           "the walk: ground's two rows, the link's three, the arm's two");
+        eq(braceRuns(all3.model, "body"),
+           [["base", 0, 1, "ground"], ["link", 2, 4, "the link"], ["arm", 5, 6, "the arm"]],
+           "one body bracket per body");
+        eq(braceRuns(all3.model, "assembly"),
+           [["base_asm", 0, 0, "100-000"],
+            ["bearing_a", 1, 1, "spherical bearing A"], ["link_asm", 1, 1, "200-001"],
+            ["link_asm", 2, 4, "200-001"], ["bearing_b", 3, 3, "spherical bearing B"],
+            ["bearing_a", 4, 4, "spherical bearing A"],
+            ["bearing_b", 5, 5, "spherical bearing B"], ["link_asm", 5, 5, "200-001"]],
+           "the link assembly once per body its rows are in, each bearing once per race, " +
+           "every run under the assembly's own label");
+        all3.model.braces.forEach(function (b) {
+          if (b.kind !== "assembly") return;
+          ok(b.body && b.body.start <= b.start && b.end <= b.body.end,
+             b.part + "'s run " + b.start + "-" + b.end + " is inside its body's bracket");
+          eq(b.assembly, "open", b.part + "'s run carries its fold, open");
+        });
+        eq(braceRuns(all3.model, "part"),
+           [["base", 0, 0, "100-001"], ["inner_a", 1, 1, "inner race A"],
+            ["outer_b", 3, 3, "outer race B"], ["outer_a", 4, 4, "outer race A"],
+            ["inner_b", 5, 5, "inner race B"], ["arm", 6, 6, "100-002"]],
+           "the link assembly's own dimension is its bracket's row, no part bracket of its own");
+        var level = {};
+        all3.model.braces.forEach(function (b) { level[b.kind + ":" + (b.part || b.id) + ":" + b.start] = b.level; });
+        eq([level["body:base:0"], level["assembly:link_asm:1"], level["assembly:bearing_a:1"],
+            level["part:inner_a:1"]], [0, 1, 2, 3], "a body > an assembly > its sub-assembly > a part");
+        eq([all3.model.said[2], all3.model.folds[2], all3.model.said[1], all3.model.folds[1]],
+           [true, true, true, undefined],
+           "the assembly's own row has its name and its fold on its bracket; a race's row its " +
+           "number on its own");
+
+        var folded = twoBodyBraces({ bodies: true, assemblies: true, parts: true }, { link_asm: true });
+        eq(braceRuns(folded.model, "assembly"), [["base_asm", 0, 0, "100-000"], ["link_asm", 1, 1, "200-001"]],
+           "folded: one row for the whole assembly, so one run, and no bearing inside it");
+        eq(folded.model.braces.filter(function (b) { return b.part === "link_asm"; })[0].assembly, "closed");
+        eq(folded.plan.rows[1].rollup.edges.length, 5, "the one row stands for all five of its rows");
+      });
+
+    await test("each Groups switch takes out exactly its own kind of bracket, and the grid's outermost " +
+      "bracket is a body or an assembly, the one switched on last", function () {
+        var kindsOf = function (kinds) {
+          var seen = {};
+          twoBodyBraces(kinds).model.braces.forEach(function (b) { seen[b.kind] = (seen[b.kind] || 0) + 1; });
+          return seen;
+        };
+        eq(kindsOf({ bodies: true, assemblies: true, parts: true }), { body: 3, assembly: 8, part: 6 });
+        eq(kindsOf({ bodies: false, assemblies: true, parts: true }), { assembly: 6, part: 6 },
+           "bodies off: the assemblies' runs are no longer cut at a body's edge");
+        eq(kindsOf({ bodies: true, assemblies: false, parts: true }), { body: 3, part: 7 },
+           "assemblies off: their brackets go, and the link assembly's own row is a part's again");
+        eq(kindsOf({ bodies: true, assemblies: true, parts: false }), { body: 3, assembly: 8 });
+        eq(kindsOf({ bodies: false, assemblies: false, parts: false }), {});
+        // With no body round it, a top-level assembly's bracket is outermost
+        // and its name takes the body's strip.
+        var outer = twoBodyBraces({ bodies: false, assemblies: true, parts: true }).model;
+        eq(braceRuns(outer, "assembly").filter(function (r) { return r[0] === "link_asm"; }),
+           [["link_asm", 1, 5, "200-001"]], "one run, from inner race A to inner race B");
+        var link = outer.braces.filter(function (b) { return b.part === "link_asm"; })[0];
+        eq([link.outermost, link.named, link.level], [true, true, 0]);
+        var bearing = outer.braces.filter(function (b) { return b.part === "bearing_a"; });
+        ok(bearing.every(function (b) { return b.outer === link && !b.named; }),
+           "a bearing inside it says no name over the race that starts its run");
+
+        var on = { bodies: true, assemblies: true, parts: true };
+        eq(VA.gridGroupKinds(on, "bodies"), { bodies: true, assemblies: false, parts: true });
+        eq(VA.gridGroupKinds(on, "assemblies"), { bodies: false, assemblies: true, parts: true });
+        eq(VA.gridGroupKinds(on, null), VA.gridGroupKinds(on, "bodies"), "bodies until one is chosen");
+        eq(VA.gridGroupKinds({ bodies: false, assemblies: true, parts: false }, "bodies"),
+           { bodies: false, assemblies: true, parts: false }, "one of the two on: that one");
+        eq(VA.gridGroupKinds(null, null), { bodies: true, assemblies: false, parts: true });
+        var data = {};
+        var store = { getItem: function (k) { return k in data ? data[k] : null; },
+                      setItem: function (k, v) { data[k] = String(v); } };
+        eq(VA.readGridOuter(store, "t"), "bodies");
+        VA.writeGridOuter(store, "t", "assemblies");
+        VA.writeGridOuter(store, "u", "parts");
+        eq([VA.readGridOuter(store, "t"), VA.readGridOuter(store, "u")], ["assemblies", "bodies"]);
+        data[VA.GRID_OUTER_KEY] = "{not json";
+        eq(VA.readGridOuter(store, "t"), "bodies");
+      });
+
+    await test("the grid draws an assembly's bracket as the map draws its outline, its name once on " +
+      "each run's first row it can take, and its fold there", function () {
+        var topo = raceRowsProjection();
+        var paint = function (kinds, outer) {
+          return render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ topoProj: topo, groupKinds: kinds, gridOuter: outer,
+                                            onToggleAssembly: function () {} }));
+          });
+        };
+        var on = { bodies: true, assemblies: true, parts: true };
+        var bodies = paint(on, "bodies");
+        eq(all(bodies, "div.tvbrace--assembly").length, 0, "both on, bodies chosen: no assembly bracket");
+        var tops = function (root, kind) {
+          return all(root, "div.tvbrace--" + kind).filter(function (n) {
+            return String(n.className).indexOf("tvbrace--top") >= 0;
+          }).length;
+        };
+        eq(tops(bodies, "body"), 3);
+        var asm = paint(on, "assemblies");
+        eq(all(asm, "div.tvbrace--body").length, 0, "both on, assemblies chosen: no body bracket");
+        eq(tops(asm, "assembly"), 6);
+        var labels = all(asm, "div.tvbrace__label--assembly").map(function (n) {
+          return [n.textContent, String(n.className).indexOf("tvbrace__label--wide") >= 0];
+        });
+        eq(labels, [["100-000", true], ["200-001", true]],
+           "each top-level assembly named once, in the body's strip; its bearings by their folds");
+        ok(all(asm, "div.tvbrace--assembly").some(function (n) {
+          return n.getAttribute("data-brace-entity") === "link_asm";
+        }), "the link assembly's bracket is the part's container");
+        var folds = all(asm, "button.tvasm__caret").map(function (n) {
+          return n.getAttribute("data-assembly-fold");
+        });
+        eq(folds.filter(function (f) { return f === "link_asm"; }).length, 1,
+           "the link assembly's fold is on its bracket, and its own row draws none");
+        eq(folds.filter(function (f) { return f === "bearing_a"; }).length, 2, "one per run");
+      });
+
+    await test("a Groups kind switched off hides its containers on the map by a class on the drawing, " +
+      "and every district, outline, box and pin is still drawn where it was", function () {
+        var draw = function (kinds) {
+          var root = render(function (r) {
+            VA.renderTopoMap(r, { topoProj: { model: twoBodyModel(), map: twoBodyDoc() }, model: null,
+                                  groupKinds: kinds, mapRegion: { width: 1600, height: 420 } });
+          });
+          var svg = all(root, "svg.tv__map")[0];
+          return { cls: svg.getAttribute("class"), drawn: svg.innerHTML,
+                   counts: ["rect.map__district", "rect.map__outline", "rect.map__box", "g.map__pin"]
+                     .map(function (sel) { return all(root, sel).length; }) };
+        };
+        var on = { bodies: true, assemblies: true, parts: true };
+        var base = draw(on);
+        eq(base.cls, "tv__map");
+        [["bodies", "tv__map tv__map--no-bodies"], ["assemblies", "tv__map tv__map--no-assemblies"],
+         ["parts", "tv__map tv__map--no-parts"]].forEach(function (spec) {
+          var kinds = Object.assign({}, on);
+          kinds[spec[0]] = false;
+          var off = draw(kinds);
+          eq(off.cls, spec[1], spec[0] + " off");
+          eq(off.counts, base.counts, spec[0] + " off: a district per body, an outline or box per part, every pin");
+          ok(off.drawn === base.drawn, spec[0] + " off: the same elements, in the same places");
+        });
+        eq(draw({ bodies: false, assemblies: false, parts: false }).cls,
+           "tv__map tv__map--no-bodies tv__map--no-assemblies tv__map--no-parts");
+        eq(draw(null).cls, "tv__map", "no choice: everything drawn");
+      });
+
+    await test("an assembly with no feature of its own is one labelled outline and no box, a nested " +
+      "one an outline inside it, an outline crossing two districts or inside one has no note, and " +
+      "the assembly's own dimension runs under its parts' boxes", function () {
+        var m = twoBodyModel();
+        var geo = VA.mapLayout(m, twoBodyDoc());
+        eq(geo.notes, [], "the fixture's layout has no defect");
+        eq(VA.mapCounts(geo), VA.mapExpectedCounts(m));
+        var outlines = geo.assemblies.filter(function (a) { return a.outline; });
+        eq(outlines.map(function (a) { return a.id; }), ["base_asm", "link_asm", "bearing_a", "bearing_b"]);
+        outlines.forEach(function (a) {
+          ok(!geo.boxes.some(function (b) { return b.id === a.id; }), a.id + " has no box");
+          eq(VA.mapOutlined(m.parts.filter(function (p) { return p.id === a.id; })[0]), true);
+        });
+        var by = {};
+        geo.assemblies.concat(geo.bodies).forEach(function (r) { by[r.id] = r; });
+        eq(by.base_asm.nameAt.text, "100-000 base assembly", "the number first, the everyday name beside it");
+        eq(by.bearing_a.nameAt.text, "spherical bearing A");
+        // Nested: each bearing's outline inside the link assembly's, the
+        // inner one's name below the outer one's.
+        ok(contains(by.link_asm, by.bearing_a) && contains(by.link_asm, by.bearing_b), "nested outlines");
+        ok(by.bearing_a.nameAt.y > by.link_asm.nameAt.y, "the nested outline is named under the outer one's name");
+        // One inside a district, one across two.
+        ok(contains(by.base, by.base_asm), "the base assembly sits inside ground");
+        ok(VA.mapSegmentHitsRect({ x: by.bearing_a.x, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 { x: by.bearing_a.x + by.bearing_a.w, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 by.base) &&
+           VA.mapSegmentHitsRect({ x: by.bearing_a.x, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 { x: by.bearing_a.x + by.bearing_a.w, y: by.bearing_a.y + by.bearing_a.h - 1 },
+                                 by.link), "bearing A's outline crosses from ground into the link");
+        // Every box of a part under an outline is inside it.
+        outlines.forEach(function (a) {
+          geo.boxes.forEach(function (b) {
+            var up = b.id, under = false;
+            while (up) {
+              if (up === a.id) under = true;
+              var part = m.parts.filter(function (p) { return p.id === up; })[0];
+              up = part && part.parent;
+            }
+            if (under) ok(contains(a, b), b.id + " inside " + a.id);
+          });
+        });
+        // The assembly's dimension: between the two outer races' ball
+        // features, through no box, inside the link assembly's outline.
+        var j = geo.jumpers.filter(function (x) { return x.id === "link_centres"; })[0];
+        ok(j, "the link assembly's centre-to-centre is drawn");
+        eq([j.from, j.to], ["outer_a@ball_a", "outer_b@ball_b"]);
+        var pts = [j.a].concat(j.via, [j.b]);
+        for (var i = 1; i < pts.length; i++) {
+          geo.boxes.forEach(function (b) {
+            ok(!VA.mapSegmentHitsRect(pts[i - 1], pts[i], { x: b.x + 1, y: b.y + 1, w: b.w - 2, h: b.h - 2 }),
+               "leg " + i + " clears " + b.id);
+          });
+          ok(contains(by.link_asm, { x: Math.min(pts[i - 1].x, pts[i].x), y: Math.min(pts[i - 1].y, pts[i].y),
+                                     w: Math.abs(pts[i].x - pts[i - 1].x), h: Math.abs(pts[i].y - pts[i - 1].y) }),
+             "leg " + i + " inside the link assembly's outline");
+        }
+        // A layout that lets an outline take in a part it does not hold says so.
+        var doc = twoBodyDoc();
+        doc.places.arm = [3, 1];
+        doc.places.inner_b = [4, 1];
+        var crowded = VA.mapLayout(m, doc);
+        ok(crowded.notes.some(function (n) { return /assembly link_asm's outline takes in arm, which is not one of its parts/.test(n); }),
+           crowded.notes.join(" | "));
+        // A part of an outline with no place of its own has no box to sit under.
+        doc = twoBodyDoc();
+        delete doc.places.outer_a;
+        ok(VA.mapLayout(m, doc).notes.indexOf("part outer_a has no place in the layout") !== -1);
+      });
+
+    await test("an outline is its assembly's one drawing: its border and its name are the part's, " +
+      "drawn once each beside every box, and the map's counts hold", function () {
+        VA.forgetMapViews();
+        var m = twoBodyModel();
+        var root = document.createElement("div");
+        VA.renderTopoMap(root, { topoProj: { model: m, map: twoBodyDoc() }, model: null,
+                                 mapRegion: { width: 2390, height: 2160 } });
+        var svg = all(root, "svg.tv__map")[0];
+        var idsOf = function (cls) {
+          return all(svg, cls).map(function (el) { return el.getAttribute("data-map-id"); });
+        };
+        var drawnParts = idsOf("rect.map__box").concat(idsOf("rect.map__outline"));
+        eq(drawnParts.slice().sort(), m.parts.map(function (p) { return p.id; }).sort(), "every part once");
+        eq(idsOf("text.map__outlinename").sort(), ["base_asm", "bearing_a", "bearing_b", "link_asm"]);
+        all(svg, "rect.map__outline").forEach(function (r) { eq(r.getAttribute("data-map-kind"), VA.FOCUS_KINDS.part); });
+        eq(idsOf("g.map__jumper").sort(), m.dimensions.map(function (d) { return d.id; }).sort());
+        eq(idsOf("g.map__connector").sort(), m.interfaces.map(function (i) { return i.id; }).sort());
+        bannedIn(viewerAuthoredText(root), "the two-body map");
       });
 
     await test("the map draws every entity once, keyed by the model's kind and id, its drawn " +
@@ -12961,6 +13648,17 @@
         eq(VA.mapLightKeys(model, null), { own: [], touching: [] });
         eq(VA.mapLightKeys(null, { kind: F.part, id: "post" }), { own: ["part:post"], touching: [] });
         void cls;
+      });
+
+    await test("the map's drawn transform keeps the fit's scale, so a fitted drawing stays inside " +
+      "its region", function () {
+        // v2's map at 1700 x 1500 Side by side, 2026-11-20: a fit of 0.27588
+        // drawn as scale(0.28) ran 2 px past the pane's right edge.
+        var bounds = { x: -43, y: 54, w: 3034, h: 3394 };
+        var fit = VA.mapFitView(bounds, 837, 1500);
+        var drawn = Number(/scale\(([^)]+)\)/.exec(VA.mapTransform(fit))[1]);
+        ok(Math.abs(drawn - fit.k) < 1e-4, "scale " + drawn + " for a fit of " + fit.k);
+        ok(bounds.w * drawn <= 837 + 0.5, "drawn " + bounds.w * drawn + " wide in 837");
       });
 
     await test("the map's view fits the drawing to its region never past the cap, zooms about " +
@@ -13984,7 +14682,7 @@
         eq(thermal.checks_generated_not_rendered, false);
         eq(all(root, "tr.rs-row--check").length, 16,
            "2 chains × 2 stages × 3 temps + 4 probes");
-        has(all(root, ".check__note")[0].textContent, "thermal_fit");
+        has(all(root, "span.chip--generated")[0].getAttribute("title"), "thermal_fit");
       });
 
       await test("[real] the hot stage-1 wall term carries its 2 × soak weight", function () {
@@ -14858,13 +15556,15 @@
             var base = light(F.body, "base");
             eq(base.own.slice(0, 2), ["body:base", "part:hub"]);
             eq(base.own.filter(function (k) { return k.indexOf("part:") === 0; }),
-               ["part:hub", "part:" + MOUNT, "part:gas_spring_mount_213668_002", "part:piston_cover_214958_002"]);
+               ["part:hub", "part:" + MOUNT, "part:gas_spring_mount_213668_002", "part:piston_cover_214958_002",
+                "part:tan_link_lower_inner_race"], "the base's parts, and the tangential link's mount-end inner race (2026-11-19)");
             eq(base.own.filter(function (k) { return k.indexOf("joint:") === 0; }),
                ["joint:hub+" + MOUNT, "joint:gas_spring_mount_213668_002+" + MOUNT,
-                "joint:gas_spring_mount_213668_002+piston_cover_214958_002"], "the joints inside the base");
+                "joint:gas_spring_mount_213668_002+piston_cover_214958_002",
+                "joint:tan_link_lower_inner_race+" + MOUNT], "the joints inside the base");
             eq(base.touching.filter(function (k) { return k.indexOf("joint:") === 0; }),
                ["joint:blade_root+hub", "joint:gas_spring_mount_213668_002+piston_head_lower_214699_002",
-                "joint:tan_link_212956_005+" + MOUNT, "joint:gas_spring_mount_213668_002+gas_spring_piston_214700_002",
+                "joint:tan_link_lower_inner_race+tan_link_lower_outer_race", "joint:gas_spring_mount_213668_002+gas_spring_piston_214700_002",
                 "joint:piston_cover_214958_002+piston_head_upper_214698_002"], "the five joints to other bodies");
             eq(light(F.feature, "hub@tan_link_mount_hub_face"), {
               own: ["feature:hub@tan_link_mount_hub_face"],

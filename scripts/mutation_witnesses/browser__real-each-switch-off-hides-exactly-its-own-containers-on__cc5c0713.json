@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
+  "expect_red": "[real] each switch off hides exactly its own containers on the map: the districts with their fields and names, the assemblies' outlines, the parts' boxes and names",
+  "mutations": [
+    {
+      "contract": "Bodies off hides a district's name as well as its border and field; the names are in a layer of their own above the outlines.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_groups_switches_reach_the_map_and_the_grid_brackets_an_assembly_in_two_bodies.md",
+      "note": "The names' layer left out of the rule: with Bodies off every district's name still floats over the map.",
+      "file": "apps/viewer/map.css",
+      "find": ".tv__map--no-bodies .map__layer--districtnames,\n",
+      "replace": ""
+    }
+  ]
+}
