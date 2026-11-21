@@ -260,3 +260,16 @@ worktree-only `test_viewer_js_suite`), recorded `OVER BUDGET by 0m54s`. Run with
 `--durations`, so it has no pareto. The 10-22 top 15 above is still the nearest one.
 The box was busy with other agents during the run: the same session's browser
 loads swung from 1 s to 25 s per mesh.
+
+## Measurement, 2026-11-21 (triage batch merge, `dispatch/docs/sessions/lessons/LESSONS_20261121_triage_sweep.md`)
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, merge candidate
+`6564fa00` (cwd the candidate worktree, every declared input bridged,
+projections rebuilt), single process: **1046 s** (`4 failed, 2583 passed, 1
+skipped, 4 deselected in 1044.52s`); `suite-time record` answered `OVER BUDGET by
+7m26s` against 600 s. An earlier run of the same command was 859 s. At least
+3 x 180 s of it is three tests waiting out their subprocess timeout on
+`node apps/viewer/run_tests.cjs` (278 s on this tree vs 19 s before the merge):
+`ISSUE_20261121_the_viewer_node_suite_runs_278_seconds_and_the_default_tier_times_it_out_at_180.md`.
+No `--durations=15` was taken; the pareto after that fix is the next measurement
+to take. The box was shared with other sweep workers' suites.

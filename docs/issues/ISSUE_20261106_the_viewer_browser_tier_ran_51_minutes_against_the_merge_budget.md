@@ -388,3 +388,32 @@ wedges the page` 147 s, `the map` 124 s, `3D pane follows the selection` 122 s,
 `annotate rail holds still` 112 s, `the DAG zoom, Fit and the grid header`
 109 s, `a suggestion names its face` 104 s, `kinematic study page` 83 s. This is
 the same pareto as the line above. The diff under review added no browser suite.
+
+## Measurement, 2026-11-21 (triage batch merge, `dispatch/docs/sessions/lessons/LESSONS_20261121_triage_sweep.md`)
+
+`node scripts/run_viewer_browser_tests.mjs`, whole tier, main checkout at
+merged trunk `53271c6c`, projections rebuilt first: **2458 s** by the shell's
+clock (runner TOTAL 2454.7 s, 981 checks) against the 1800 s budget;
+`suite-time record` answered `OVER BUDGET by 10m58s`. 48/49 suites, the one
+red the nav body-row hover check
+(`ISSUE_20261105_a_nav_scene_row_rebuilt_under_a_resting_pointer_drops_the_scenes_hover_light.md`).
+The 11-20/11-21 review runs were 2413-2438 s, so the tier now sits ~10 minutes
+over the cap on every whole run. Slowest 15 suites:
+
+```
+    265.1s  152 checks  topology http
+    200.9s   22 checks  the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)
+    198.9s  106 checks  topology file://
+    151.8s   16 checks  no nav click wedges the page
+    126.8s   31 checks  3D pane follows the selection (sweep, bind, reload, hover)
+    123.0s   32 checks  the map (the counts on both models, the one selection on four surfaces, the view)
+    115.6s   17 checks  annotate rail holds still (bodies under Bodies, joint words, framing, the second face)
+    109.9s   35 checks  the DAG zoom, Fit and the grid header
+    101.4s    5 checks  a suggestion names its face and the mate ranks the other side (hover, Take, armed mates, nothing opposite)
+    86.7s   22 checks  kinematic study page (deep link, chart hover, contributors, no projection)
+    78.1s   11 checks  every study opens in 3D showing only its parts
+    66.7s   22 checks  annotate model in the scene (anchors, lines, the sweep, the anchors message)
+    64.1s   11 checks  a pattern is bound as its like faces and a face can be added (the offer, Take all, the fit, Add a face, Shift-click, the filter)
+    62.0s   37 checks  annotate flyout (repo-root mount + file:// degradation)
+    58.7s   10 checks  the scene pane reads over HTTP (drawing-checker's mounts, no grant)
+```

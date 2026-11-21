@@ -1,13 +1,12 @@
 ---
 type: bug
-priority: low
-status: deferred
+priority: med
+status: open
 area: viewer nav scene tree / annotator hover
 reporter: agent
 class: hover_lost_on_rebuild
 found_by: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
-defer_until: 2026-12-06
-resolution: deferred 2026-11-06 (triage) -- low defers by default; 30 days
+handoff: docs/sessions/HANDOFF_20261121_a_body_row_in_the_nav_takes_a_resting_hover_every_time.md
 ---
 
 # A nav scene row rebuilt under a resting pointer drops the scene's hover light until the pointer moves
@@ -48,3 +47,16 @@ the scene` (kinematic study, body `base`). The DIAG showed the light standing in
 every sample (own partOverlays 2, about 5, nothing opaque, none faint) beside two
 `locator.hover` 2000 ms timeouts. The same suite `--only` on the same tree:
 31/31. The diff under review does not touch v1 or the hover path.
+
+## Sighting 2026-11-21 -- triage batch merge (`dispatch/docs/sessions/lessons/LESSONS_20261121_triage_sweep.md`)
+
+Whole browser tier, main checkout, merged trunk `53271c6c`, projections rebuilt
+first (`node scripts/run_viewer_browser_tests.mjs`, 2458 s): **48/49**, the one
+red `[real] resting on a body row in the nav lights that body in the scene` in
+`3D pane follows the selection`, 30/31. The DIAG again had the light standing in
+every sample (own 1, about 5, nothing opaque, none faint) beside **three**
+`locator.hover` 2000 ms timeouts, pointer last under `SPAN.navtree__label`.
+Unlike 11-20, the `--only "3D pane follows"` re-run straight after was **also
+30/31** (127 s), so it reproduced twice in a row on this tree. Raised from
+deferred low to open med and routed to
+`HANDOFF_20261121_a_body_row_in_the_nav_takes_a_resting_hover_every_time`.
