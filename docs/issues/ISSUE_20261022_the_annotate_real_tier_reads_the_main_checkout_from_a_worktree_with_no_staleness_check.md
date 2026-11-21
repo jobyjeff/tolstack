@@ -1,14 +1,14 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: open
 area: apps/annotate
 class: shared_mutable_state_across_worktrees
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261021_mutation_tier_gates_on_every_pin_and_survives_a_board_move.md
 defer_until: class:shared_mutable_state_across_worktrees
-resolution: deferred 2026-10-22 triage: low, the default knob; class moved from guard_cannot_fail to shared_mutable_state_across_worktrees: a worktree's [real] tier reading the main checkout's projection is that class's shape, and its program (BRIEF_20260914_real_tier_shared_projection_coupling) has not landed
+resolution: deferred 2026-10-22 triage: low, the default knob; class moved from guard_cannot_fail to shared_mutable_state_across_worktrees: a worktree's [real] tier reading the main checkout's projection is that class's shape, and its program (BRIEF_20260914_real_tier_shared_projection_coupling) has not landed -- woke 2026-11-21 -- real_tier_shared_projection_coupling completed; re-triage (reconciliation sweep 2026-11-21)
 ---
 
 # The annotator's `[real]` checks silently read the main checkout from a worktree, so `tests/test_annotate_js_suite.py` is green there where the viewer's wrapper is red

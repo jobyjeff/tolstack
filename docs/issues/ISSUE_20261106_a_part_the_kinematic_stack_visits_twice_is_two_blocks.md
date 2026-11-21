@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: open
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 class: dag_layout_policy
 found_by: docs/sessions/HANDOFF_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
 defer_until: class:dag_layout_policy
-resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief)
+resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief) -- woke 2026-11-21 -- topology_layout_questions_the_redesign_left_open completed; re-triage (reconciliation sweep 2026-11-21)
 ---
 
 # A part the kinematic stack visits twice is two blocks
