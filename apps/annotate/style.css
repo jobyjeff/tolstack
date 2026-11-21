@@ -311,7 +311,6 @@ body {
   padding: 6px 10px;
   border-radius: 0 4px 4px 0;
 }
-.read-only-note { margin: 0; width: 100%; color: #d6b45b; }
 /* What the colours on the body mean, while faces are suggested. Metadata: it
    carries no state and no alarm, so it is muted and unhued (the house rule --
    secondary is muted, never smaller-and-bolder, and red/amber/green mean

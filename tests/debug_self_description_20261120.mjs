@@ -174,6 +174,13 @@ const KIN = "vpa_pitch_linkage_blade_pitch_at_the_stops";
       element: stack && stack.elements && stack.elements[0] && stack.elements[0].id };
   }, V1);
   log("facts", facts);
+  // The empty results pane's picker, where there is one: choose a study by it.
+  if (await page.locator("select.tvtotals__pick").count()) {
+    await page.locator("select.tvtotals__pick").selectOption(STUDY);
+    await page.waitForTimeout(3000);
+    log("picked by the picker", await page.evaluate(() => location.search));
+    await shot(page, "v1_study_via_picker");
+  }
   // The Preview with a node and with an edge.
   await page.goto(`${url}/tolstack/viewer/topology.html?topology=${V1}&node=${facts.node}`);
   await page.waitForTimeout(2500);

@@ -6246,13 +6246,12 @@ function renderDetail() {
       p.textContent = note;
       work.appendChild(p);
     }
-    if (!canWrite) {
-      const p = document.createElement("p");
-      p.className = "read-only-note";
-      p.textContent = "This transport cannot write -- binding controls are hidden. " +
-        "Connect a read/write folder to bind.";
-      work.appendChild(p);
-    }
+    // A read-only transport shows no bind controls and no sentence about
+    // them: "This transport cannot write -- binding controls are hidden.
+    // Connect a read/write folder to bind." stood here until 2026-11-19 (the_
+    // viewer_says_nothing_about_itself: a page never describes its mode, and
+    // a feature that is absent shows nothing). A press says so in one line
+    // (AA.READ_ONLY_WRITE).
     const bound = bind && buildBindingsBlock(edge, bind, canWrite);
     if (bound) work.appendChild(bound);
     if (canWrite) {
