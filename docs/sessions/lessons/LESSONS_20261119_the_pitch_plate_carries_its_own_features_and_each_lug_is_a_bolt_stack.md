@@ -153,7 +153,7 @@ It had 100 events before this session and 100 after.
   faces 36 and 37 of the NAS6403U11D mesh. The tangential link bolt has no
   mesh to pick on.
 
-## Questions for Jeff (not resolved by guessing)
+## Questions for Jeff (not resolved by guessing; filed as `docs/issues/ISSUE_20261120_the_pitch_plate_bolt_stacks_leave_questions_for_jeff.md`)
 
 1. **The bolts' numbers.** The STEP's products are NAS6403U11D (pitch link)
    and NAS6403U14D (tangential link). The instances are *named*
