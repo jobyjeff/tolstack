@@ -1015,11 +1015,14 @@ body { display: flex; flex-direction: column; }
   border-top: 1px solid var(--line); padding: 4px 16px 10px; background: var(--panel2);
   flex-shrink: 0;
 }
-.tvtotals__empty { margin: 6px 0; }
+.tvtotals__pick {
+  margin: 8px 0 6px; font: inherit; font-size: var(--t-dense); color: var(--ink);
+  background: var(--panel, #1a1d24); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 8px;
+}
 .tvsum__title { margin: 8px 0 6px; }
 .tvtotals__more { margin: 0 0 4px; }
 .tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
-.tvtotals__rule { margin: 6px 0 0; }
 .tvtotals__note {
   margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
   color: var(--ink); font-size: var(--t-dense);
@@ -1503,7 +1506,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    at once. `--measure` is the cap and style.css declares it once. Left-aligned
    and capped, not centred -- a centred paragraph is the other half of the same
    house rule. */
-.tvgaps__item, .tvtotals__rule,
+.tvgaps__item,
 .tvtotals__note, .tverror__message, .tverror__advice,
 .tvgaps__closes { max-width: var(--measure); }
 

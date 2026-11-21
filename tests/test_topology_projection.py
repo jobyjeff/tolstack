@@ -11,10 +11,12 @@ once, a branch's rail starts at its fork, a loop closes upwards, and the chain
 layout's rows are ``StudyResult.chain``'s own order.
 
 **The folds**, because ``apps/viewer/topology.html`` renders them verbatim and
-computes nothing. The claim the page makes on its own footer -- *"every number
-above came out of summarize() -> fold()"* -- is only true if this projection's
-numbers are that function's numbers, so every study's every field is compared
-against a live call, value for value.
+computes nothing. That rule -- every number on the page came out of
+``summarize() -> fold()`` -- is only true if this projection's numbers are
+that function's numbers, so every study's every field is compared against a
+live call, value for value. (The page printed the claim on its own footer
+until 2026-11-19; a page no longer describes itself, and this test is where
+the claim is kept.)
 
 Handoff: ``dag_viewer_poc`` (2026-09-01), from the locked brief
 ``dispatch/docs/strategy/HANDOFF_20260831_tolstack_dag_strategy.md``.
@@ -740,8 +742,8 @@ def test_the_crossing_counter_counts_three_lines_and_spares_a_fan_out():
 # --------------------------------------------------------------------------- #
 
 def test_every_projected_total_is_summarizes_own_number(projection, topologies):
-    """Value for value, against a live call. The page's footer claims exactly
-    this, and it is the claim the whole "the viewer computes nothing" rule rests
+    """Value for value, against a live call. This is the claim the whole "the
+    viewer computes nothing" rule rests
     on: if the projection's numbers are not ``fold()``'s numbers, the rule is
     being kept in the browser and broken in the builder."""
     checked = 0

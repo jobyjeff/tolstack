@@ -15,10 +15,10 @@
   VA.renderStack = function (root, stackProj, cropsIndex, handlers) {
     VA.clear(root);
     root.className = "stackview";
-    if (!stackProj) {
-      root.appendChild(VA.el("p", "muted", "Pick a stack on the left."));
-      return root;
-    }
+    // No stack: nothing (the nav's picker is the control). It said "Pick a
+    // stack on the left." until 2026-11-19 (the_viewer_says_nothing_about_
+    // itself).
+    if (!stackProj) return root;
     handlers = handlers || {};
     root.appendChild(header(stackProj));
     root.appendChild(jointBlock(stackProj.stack.joint));
@@ -199,11 +199,11 @@
 
   function elementsSection(stackProj, cropsIndex, handlers) {
     var section = VA.el("section", "sv__section");
+    // No caption: it said "Values as transcribed. Order is the physical
+    // order through the joint; only the path term lists below are load-
+    // bearing for the arithmetic. Click a row to see its full sourcing on the
+    // right." until 2026-11-19 -- how to read and use the table, on the page.
     section.appendChild(VA.el("h3", null, "Elements"));
-    section.appendChild(VA.el("p", "muted",
-      "Values as transcribed. Order is the physical order through the joint; " +
-      "only the path term lists below are load-bearing for the arithmetic. " +
-      "Click a row to see its full sourcing on the right."));
     section.appendChild(sourcingLegend());
 
     var table = VA.el("table", "eltable");
@@ -454,6 +454,8 @@
   // different rates) and the least-traced numbers in the stack. They are also
   // what makes a term's coefficient auditable: 2.0010712 on a sleeve wall is
   // 2 (diametral) × (1 + ΔT·α), and ΔT is on the check's own row.
+  VA.MATERIALS_HEADING_TITLE = "The soak factor on every weighted term below is " +
+    "1 + ΔT·α from this table; ΔT is on each check's own row.";
   var MATERIAL_COLUMNS = ["material", "designation", "CTE 1e-6/°C",
     "CTE range °C", "used by", "sourcing"];
 
@@ -461,15 +463,11 @@
     var materials = stackProj.materials || [];
     if (!materials.length) return null;
     var section = VA.el("section", "sv__section");
-    section.appendChild(VA.el("h3", null, "Materials"));
-    section.appendChild(VA.el("p", "muted",
-      "The soak factor on every weighted term below is 1 + ΔT·α from this table " +
-      "(ΔT is on each check's own row). A scalar CTE hides that α varies with " +
-      "temperature — the range each value is a mean over is stated when the " +
-      "source states one. The sourcing column says how well sourced each " +
-      "number is and where it came from; the full argument — the entry's own " +
-      "note, the designation's citation and callout, and any outstanding " +
-      "request for a real value — is in the panel on the right; click the row."));
+    // What the table feeds, on the heading's hover: a paragraph under it
+    // said this and how to use the table until 2026-11-19.
+    var heading = VA.el("h3", null, "Materials");
+    heading.setAttribute("title", VA.MATERIALS_HEADING_TITLE);
+    section.appendChild(heading);
 
     var table = VA.el("table", "mattable");
     var head = VA.el("tr");
@@ -683,6 +681,8 @@
   // and its per-column widths have to agree. Two places that happen to agree is
   // the drift a shared source exists to prevent, so the stylesheet declares no
   // `.rs-col--*` width at all and the total below is summed from this array.
+  var RSS_TITLE = "a relative softening indicator, not a probability, and not " +
+    "comparable to the worst-case columns; no verdict reads it";
   var RESULT_COLUMNS = [
     { label: "result", cls: "name", width: 460 },
     { label: "verdict", cls: "verdict", width: 118 },
@@ -690,8 +690,8 @@
     { label: "nominal", cls: "num", width: 98, units: true },
     { label: "worst case min", cls: "num", width: 98, units: true },
     { label: "worst case max", cls: "num", width: 98, units: true },
-    { label: "RSS center", cls: "num", width: 98, units: true },
-    { label: "RSS half", cls: "num", width: 92, units: true },
+    { label: "RSS center", cls: "num", width: 98, units: true, title: RSS_TITLE },
+    { label: "RSS half", cls: "num", width: 92, units: true, title: RSS_TITLE },
     { label: "weakest input", cls: "weakest", width: 102 },
   ];
 
@@ -758,19 +758,10 @@
     section.appendChild(VA.el("h3", null, "Results"));
     var checks = stackProj.checks || [];
     var paths = stackProj.paths || [];
-    // A generated term list is not readable in the stack JSON — the repo's usual
-    // safety property — so the surface has to say where the signs live and how a
-    // reader reproduces them outside the browser.
-    if (stackProj.checks_source === "generated") {
-      section.appendChild(VA.el("p", "check__note",
-        "GENERATED CHECKS. These are not authored in " + stackProj.source_file +
-        " — its checks list is empty on purpose. The archetype \"" +
-        (stackProj.archetype || "?") + "\" builds them, coefficients included, " +
-        "from the stack's own block, and the projection ran that loader in " +
-        "Python: the same code the tests pin, so nothing here was re-derived in " +
-        "the browser. The same term table can be printed outside the browser, " +
-        "from the repo's own thermal-fit term report."));
-    }
+    // A generated term list is not readable in the stack JSON, and the
+    // header's "checks GENERATED" chip says so, with its hover
+    // (VA.stackHeaderChips). A paragraph here said it again, with what the
+    // page does not re-derive, until 2026-11-19.
 
     if (checks.length || paths.length) {
       var table = VA.el("table", "restable");
@@ -778,10 +769,12 @@
       table.appendChild(resultColgroup());
       var head = VA.el("tr");
       RESULT_COLUMNS.forEach(function (column) {
-        head.appendChild(VA.el("th", null,
+        var th = VA.el("th", null,
           column.units && stackProj.units
             ? column.label + " (" + stackProj.units + ")"
-            : column.label));
+            : column.label);
+        if (column.title) th.setAttribute("title", column.title);
+        head.appendChild(th);
       });
       table.appendChild(VA.el("thead", null, head));
       var body = VA.el("tbody");
@@ -822,10 +815,8 @@
         : VA.el("p", "muted", "no checks"));
     }
 
-    section.appendChild(VA.el("p", "muted",
-      "RSS is a relative softening indicator, not a probability statement, and is " +
-      "not directly comparable to the worst-case columns (ARCHITECTURE.md). " +
-      "Verdicts never read it."));
+    // How to read the RSS columns is on their headers' hover (RESULT_COLUMNS);
+    // it was a paragraph under the table until 2026-11-19.
     return section;
   }
 

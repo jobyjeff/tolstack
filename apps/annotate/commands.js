@@ -1117,8 +1117,14 @@
   // is a dimension BETWEEN two interfaces, and a binding event carries a
   // `direction` (AA.DIRECTIONS: from, to), so an element with nothing bound
   // needs two faces and one with a `from` already recorded needs one more.
-  AA.TASK_NO_ELEMENT =
-    "Pick an element on the left, then click a face in the 3D view to bind it.";
+  //
+  // With no element there is no step to name, so the line is empty. It said
+  // "Pick an element on the left, then click a face in the 3D view to bind
+  // it." (and, scoped, "Showing <scope>. Pick an element on the left, then
+  // click a face in the 3D view.") until 2026-11-19: how to use the pane, on
+  // the pane's one always-visible line (the_viewer_says_nothing_about_itself).
+  // The Help disclosure beside it still says it, on request.
+  AA.TASK_NO_ELEMENT = "";
 
   // Which directions a record still has no face for. An absent record needs
   // both -- the same "absence is the consumer's to notice" posture
@@ -1226,12 +1232,7 @@
   //   chosen       the direction word the bind form will write, or null
   AA.taskInstruction = function (ctx) {
     var c = ctx || {};
-    if (!c.elementName) {
-      return c.scopeName
-        ? "Showing " + c.scopeName + ". Pick an element on the left, then " +
-          "click a face in the 3D view."
-        : AA.TASK_NO_ELEMENT;
-    }
+    if (!c.elementName) return AA.TASK_NO_ELEMENT;
     var names = c.names || {};
     var needed = c.needed || AA.DIRECTIONS;
     var nameOf = function (direction) {

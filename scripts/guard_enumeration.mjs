@@ -380,7 +380,11 @@ export const DECLARED_GUARDS = {
   // an assembly's dimension ends at its members' features. It carries a spec.
   // 2026-11-20 (the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack): +1 --
   // the map's drawn transform keeps the fit's scale. It carries a spec.
-  fast: { declared: 619, enrollable: 619, names: "17850bac9211" },
+  // 2026-11-20 (the_viewer_says_nothing_about_itself): +1 -- with no study the
+  // results pane is the "Pick a study" picker. Seven guards renamed with their
+  // rewrite (each asserted a sentence that described the page, and now asserts
+  // its absence); the picker and six of the seven carry a spec.
+  fast: { declared: 620, enrollable: 620, names: "e658210ff405" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -484,7 +488,10 @@ export const DECLARED_GUARDS = {
   // gate opens rather than behind the queue. Each carries a spec.
   // 2026-11-19 (the_first_end_of_a_joint_offers_the_contact_faces_the_pane_already_holds): +1 --
   // an end's contact candidates as sets. It carries a spec.
-  annotate: { declared: 334, enrollable: 334, names: "c55a9dd22d21" },
+  // 2026-11-20 (the_viewer_says_nothing_about_itself): -1 -- the no-element and
+  // the scoped instruction are one empty line now, so their two checks are one,
+  // renamed. It carries a spec.
+  annotate: { declared: 333, enrollable: 333, names: "98f948721b08" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -777,7 +784,12 @@ export const DECLARED_GUARDS = {
   // page", which every one of the eight mutations leaves green and no plausible one reddens alone.
   // Round 2 of the same handoff: +2 -- a real pointer over a hidden box or district finds nothing,
   // and the fixture's hidden outline is not hit. Each carries a spec.
-  browser: { declared: 800, enrollable: 771, names: "18f4e108cede" },
+  // 2026-11-20 (the_viewer_says_nothing_about_itself): three pushes renamed with
+  // their rewrite -- the empty Preview, an internal interface's Preview, the
+  // totals' fold -- each asserting a page-describing sentence is gone. None
+  // carried a spec before, and none is written: each is the browser twin of a
+  // fast guard that carries one.
+  browser: { declared: 800, enrollable: 771, names: "f42c4e486016" },
 };
 
 

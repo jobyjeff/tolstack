@@ -1734,7 +1734,7 @@ async function refreshSuggestions() {
 // nothing to paste, the posture AA.NO_PROJECTION_NOTICE set: this page has no
 // transport that could ask anything to produce one.
 const NO_SWEEP_RUNS = "No solver runs have been published into this " +
-  "repository yet. They are produced by the linkage solver, not from this page.";
+  "repository yet. They are produced by the linkage solver.";
 
 function sweepState() {
   if (!state.sweep) throw new Error("not in sweep mode — load a run first");

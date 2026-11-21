@@ -3067,18 +3067,19 @@ check("bindingDirectionsNeeded: nothing bound needs both directions; one " +
   }), ["from"]);
 });
 
-check("taskInstruction: with no element it is the sentence this app has " +
-  "always opened with", () => {
-  assertEqual(AA.taskInstruction({}), AA.TASK_NO_ELEMENT);
-  assertEqual(AA.taskInstruction(null), AA.TASK_NO_ELEMENT);
-});
-
-check("taskInstruction: a scope entry names the scope instead", () => {
-  const text = AA.taskInstruction({ scopeName: "End-stop chain" });
-  if (text.indexOf("End-stop chain") === -1) {
-    throw new Error("the scope entry's instruction does not name the scope: " + text);
+check("taskInstruction: with no element there is no step, so the line is " +
+  "empty -- scoped or not", () => {
+  // It said "Pick an element on the left, then click a face in the 3D view
+  // to bind it." (scoped: "Showing <scope>. Pick an element ...") until
+  // 2026-11-19: how to use the pane, always on screen
+  // (the_viewer_says_nothing_about_itself). The Help disclosure says it.
+  assertEqual(AA.TASK_NO_ELEMENT, "");
+  assertEqual(AA.taskInstruction({}), "");
+  assertEqual(AA.taskInstruction(null), "");
+  assertEqual(AA.taskInstruction({ scopeName: "End-stop chain" }), "");
+  if (!AA.HELP_LINES.some((line) => /Click one to work on it/.test(line))) {
+    throw new Error("the Help no longer says how to start: " + AA.HELP_LINES.join(" | "));
   }
-  assertNothingBanned(text, "AA.taskInstruction (scope)");
 });
 
 // The two ends of the fixture element, by the names the form shows.
@@ -3221,8 +3222,7 @@ check("planBindLeader: drawn only between the picked face and the face bound at 
 
 check("every sentence the top bar composes survives the shared ban list, and " +
   "carries no schema word", () => {
-  const sentences = [AA.TASK_NO_ELEMENT]
-    .concat(AA.HELP_LINES)
+  const sentences = AA.HELP_LINES.slice()
     .concat([
       AA.taskInstruction({ elementName: "Bushing length", needed: ["from", "to"] }),
       AA.taskInstruction({ elementName: "Bushing length", needed: ["to"] }),
@@ -3232,7 +3232,6 @@ check("every sentence the top bar composes survives the shared ban list, and " +
         needed: ["to"], names: END_NAMES, chosen: "to" }),
       AA.taskInstruction({ elementName: "Bushing length", needed: ["to"],
         names: END_NAMES }),
-      AA.taskInstruction({ scopeName: "End-stop chain" }),
     ]);
   if (sentences.length < 9) {
     throw new Error("the sentence scan collected " + sentences.length +

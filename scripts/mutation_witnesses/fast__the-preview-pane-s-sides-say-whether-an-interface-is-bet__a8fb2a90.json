@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the preview pane's sides say whether an interface is between parts or inside one, with no sentence about the grid",
+  "mutations": [
+    {
+      "contract": "A node's Preview names its sides and adds no sentence about how to read the grid.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "Puts back the leader-rule sentence under the sides, the shape until 2026-11-19.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    root.appendChild(VA.el(\"div\", \"detail__where\", \"on \" + sides.join(\" ⇔ \")));",
+      "replace": "    root.appendChild(VA.el(\"div\", \"detail__where\", \"on \" + sides.join(\" ⇔ \")));\n    root.appendChild(VA.el(\"p\", \"detail__crop-reason\", record.internal ? \"An internal interface: every dimension meeting here belongs to one part.\" : \"A component boundary: the grid starts another part's rows here.\"));"
+    }
+  ]
+}

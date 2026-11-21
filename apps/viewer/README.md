@@ -946,6 +946,25 @@ study's summary and refuses any `<p>` that is not inside a `<details>`. A
 paragraph where a table belongs is not a phrase a banned-string list can see,
 and that is the defect this pass existed to remove.
 
+**With no study picked the pane is a picker** reading *Pick a study*
+(`VA.STUDY_PICKER_PLACEHOLDER`), over the model's studies, and nothing else
+but What's missing. A model with no studies shows no picker. The `Details`
+fold appears only when the study carries notes.
+
+### The page says nothing about itself
+
+`HANDOFF_20261119_the_viewer_says_nothing_about_itself.md` (Jeff: *"Good ui is
+intuitive enough that it doesn't require explanations like that"*). No
+always-visible sentence on either app says what the page is, what mode it is
+in, what it does or does not compute, or how to use it: the topbar has no
+subtitle, an empty Preview is empty, the stack page's tables have no captions,
+and the 3D pane's bar carries no instruction until an element is being bound.
+Where a state needs words, the words are the control (the study picker), and
+a reading guide that has to exist is a hover (the RSS columns, the Materials
+heading) or a fold. That the viewer computes nothing is still the rule above,
+for its authors, kept by the tests; it is no longer printed for its readers.
+The lesson of that handoff lists every string found and what became of it.
+
 ### The preview pane reuses the crop plumbing, and says so when it cannot
 
 An edge that re-expresses a committed stack element **is** that element: same id,

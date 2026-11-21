@@ -2069,9 +2069,11 @@
       eq(statuses, ["not-built", "not-built", "not-built", "not-built"]);
     });
 
-    await test("renderStack with no stack asks for one instead of throwing", function () {
+    await test("renderStack with no stack renders nothing instead of throwing", function () {
+      // It said "Pick a stack on the left." until 2026-11-19: the nav's
+      // picker is the control, and the page does not describe it.
       var root = render(function (r) { VA.renderStack(r, null, CROPS, {}); });
-      has(root.textContent, "Pick a stack");
+      eq(root.textContent, "");
     });
 
     // --- selection: clicking a row is how the right pane gets populated -----
@@ -2153,31 +2155,25 @@
       has(weighted[0].getAttribute("title"), "sign × coefficient");
     });
 
-    await test("the checks section says the checks are not in the stack file", function () {
+    await test("a generated-check stack says so on its header chip, and the " +
+      "checks section carries no paragraph about it", function () {
+      // The section opened with "GENERATED CHECKS. These are not authored in
+      // <file> -- ... nothing here was re-derived in the browser ..." until
+      // 2026-11-19 (the_viewer_says_nothing_about_itself): the header's chip
+      // already said it, on hover. (It once carried a terminal command too;
+      // the chip's hover never did.)
       var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
-      var note = all(root, ".check__note")[0];
-      ok(note, "a generated-check stack must say so");
-      has(note.textContent, "GENERATED CHECKS");
-      has(note.textContent, "demo_thermal_fit");
-      has(note.textContent, "stack_demo_fit.json");
-      // The escape hatch out of the browser: the command that prints the same
-      // term table, so the surface is checkable and not just believable.
-      // NOT the command. Jeff's web-UI rule is binding across every repo's web
-      // surface -- never render a terminal command for the user to copy/paste --
-      // and this paragraph rendered one, `venv-win\\Scripts\\python.exe ...`,
-      // on the live M1 thermal stack. It was invisible to the banned-string
-      // guard, which has banned "venv-win" by name since the day it was written
-      // but had no walk that reached a stack-side surface (2026-09-16).
-      ok(note.textContent.indexOf("debug_report_thermal_fit.py") === -1,
-         "no terminal command in the rendered note: " + note.textContent);
-      ok(note.textContent.indexOf("venv-win") === -1,
-         "no interpreter path either: " + note.textContent);
-      // The fact the command carried is kept, in words: the table is
-      // reproducible outside the browser.
-      has(note.textContent, "printed outside the browser");
-      // An authored stack gets no such note.
+      eq(all(root, ".check__note").length, 0);
+      var chip = all(root, "span.chip--generated")[0];
+      ok(chip, "a generated-check stack must say so on its header");
+      has(chip.textContent, "GENERATED");
+      has(chip.getAttribute("title"), "demo_thermal_fit");
+      ok(chip.getAttribute("title").indexOf("venv-win") === -1 &&
+         chip.getAttribute("title").indexOf(".py") === -1,
+         "no terminal command on the chip's hover");
+      // An authored stack gets no such chip.
       var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      eq(all(plain, ".check__note").length, 0);
+      eq(all(plain, "span.chip--generated").length, 0);
     });
 
     await test("a sensitivity probe is marked NOT A RESULT, not shown as a verdict", function () {
@@ -2668,25 +2664,22 @@
       ok(box[0].className.indexOf("--loud") === -1);
     });
 
-    await test("the panel says which rows to click when nothing is selected",
-      function () {
+    await test("the panel is empty when nothing is selected", function () {
+        // It said "Select a row in the tables on the left to see its full
+        // sourcing here -- ..." until 2026-11-19 (the_viewer_says_nothing_
+        // about_itself: a page never describes how to use itself).
         var root = render(function (r) {
           VA.renderDetail(r, DEMO, null, CROPS, null, VA.CONFIG);
         });
-        // Both tables feed this pane since 2026-09-18, so the empty state names
-        // both -- an empty state that mentions one of two clickable tables is
-        // the "if a feature is absent from a build, show nothing about it" rule
-        // upside down.
-        has(root.textContent, "Select a row in the tables on the left");
-        has(root.textContent, "for a material");
+        eq(root.textContent, "");
         eq(all(root, "div.el-export").length, 0);
       });
 
-    await test("the panel asks for a stack when there is none", function () {
+    await test("the panel is empty when there is no stack", function () {
       var root = render(function (r) {
         VA.renderDetail(r, null, "plate", CROPS, null, VA.CONFIG);
       });
-      has(root.textContent, "Pick a stack");
+      eq(root.textContent, "");
     });
 
     // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO --
@@ -4016,8 +4009,10 @@
         VA.renderBanner(r, { connection: VA.STATE.READY, results: null, crops: null }, {});
       });
       has(root.textContent, "No results projection");
-      has(root.textContent, "nothing to show");
       has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
+      // ...and nothing about what the page computes or does not (it said
+      // "this page displays it and computes nothing" until 2026-11-19).
+      eq(root.textContent.indexOf("this page"), -1);
       noCommandsOrPaths(root.textContent);
       // The where-line is the box's SECOND node and muted, not a second
       // sentence inside the first: secondary information is muted, never
@@ -5406,10 +5401,15 @@
             });
           });
           // Anti-vacuity: a stripper that returned "" would pass against
-          // anything, and the subtitle is the line this check exists for.
+          // anything. The subtitle this check was written for is gone
+          // (the_viewer_says_nothing_about_itself, 2026-11-19: a page never
+          // describes itself), so the text it must still find is the
+          // legend's button, and the subtitle must stay gone.
           var topo = markupSrc.readText("topology.html")
             .replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]*>/g, " ");
-          has(topo, "computes nothing");
+          has(topo, "How to read this");
+          ok(topo.indexOf("computes nothing") === -1,
+             "the topbar describes the page again: \"computes nothing\"");
           ok(body_attributes(markupSrc.readText("topology.html")).length > 0,
              "no reader-facing attributes found -- the extractor has drifted");
         });
@@ -7125,7 +7125,9 @@
         eq(sideBoxes.length, 2);
         eq(all(sideBoxes[0], "img").length, 1);
         eq(all(sideBoxes[1], "img").length, 0);
-        has(root.textContent, "An interface is a location, not a value");
+        // ...and no sentence about what an interface is not (it ended "An
+        // interface is a location, not a value ..." until 2026-11-19).
+        eq(root.textContent.indexOf("not a value"), -1);
         // A dot neither of whose sides cropped gets NO picture slot at all.
         var bare = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({ cropImages: images,
@@ -7163,20 +7165,30 @@
         eq(all(frozen, "img")[0].getAttribute("src"), "blob:selected");
       });
 
-    await test("the preview pane says which side of the leader rule an " +
-      "interface is on", function () {
+    await test("the preview pane's sides say whether an interface is between " +
+      "parts or inside one, with no sentence about the grid", function () {
+        // It printed "A component boundary: the grid starts another part's
+        // rows here." / "An internal interface: every dimension meeting here
+        // belongs to one part." under the sides until 2026-11-19
+        // (the_viewer_says_nothing_about_itself): the sides already say it.
+        var whereOf = function (root) {
+          return root.querySelector("div.detail__where").textContent;
+        };
         var boundary = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "node", id: "base_post_seat" } }));
         });
-        has(boundary.textContent, "A component boundary");
+        eq(whereOf(boundary), "on 215197 base plate ⇔ post");
         has(boundary.textContent, "base / post");
         var internal = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "node", id: "base_datum" } }));
         });
-        has(internal.textContent, "An internal interface");
-        has(internal.textContent, "belongs to one part");
+        eq(whereOf(internal).indexOf("⇔"), -1);
+        [boundary, internal].forEach(function (root) {
+          eq(root.textContent.indexOf("component boundary"), -1);
+          eq(root.textContent.indexOf("internal interface"), -1);
+        });
         // A gap boundary names the clearance in plain words, not `null`.
         var gapSide = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
@@ -7205,12 +7217,10 @@
         eq(where, "on " + record.sides.map(function (side) {
           return side.id === null ? VA.CLEARANCE_SIDE_LABEL : side.id;
         }).join(" ⇔ "));
-        // And the leader sentence states the RULE only: it used to re-list the
-        // same sides two lines below them, with a different separator.
-        var rule = all(pane, "p.detail__crop-reason")[0].textContent;
-        has(rule, "A component boundary");
-        eq(rule.indexOf(VA.CLEARANCE_SIDE_LABEL), -1);
-        eq(rule.indexOf("arm"), -1);
+        // And nothing under them restates the sides as a sentence: the
+        // leader-rule line went 2026-11-19, so a node's pane has no
+        // crop-reason paragraph at all.
+        eq(all(pane, "p.detail__crop-reason").length, 0);
       });
 
     await test("a derived gap says it carries no value, rather than showing an " +
@@ -7614,8 +7624,48 @@
         eq(all(foot, "tr.tvtotal--rss").length, 1);
         ok(all(foot, "tr.tvtotal--margin").length >= 1,
            "a study states its bottom line even with no criterion recorded");
-        // ...and the rule sentence is in the summary pane, not the grid.
-        has(studySummary(TOPO, study).textContent, "This page adds nothing up");
+        // ...and the summary pane does not describe the page: the rule
+        // sentence that sat behind its Details fold ("This page adds nothing
+        // up") went 2026-11-19, and a study with no notes has no fold left.
+        var summary = studySummary(TOPO, study);
+        ok(summary.textContent.indexOf("adds nothing up") === -1,
+           "the summary pane describes the page again");
+        eq(all(summary, "details.tvtotals__more").length,
+           (study.notes || []).length ? 1 : 0);
+      });
+
+    await test("with no study the results pane is a picker reading Pick a " +
+      "study, and choosing one asks for it", function () {
+        // It was a paragraph until 2026-11-19 ("Pick a study to see its chain
+        // in the grid and its totals here. A study is a HUMAN-lassoed chain:
+        // ..."): the_viewer_says_nothing_about_itself -- an empty state shows
+        // the control that fills it.
+        var asked = [];
+        var root = render(function (r) {
+          VA.renderTopoTotals(r, TOPO, null, VA.topologyIndex(TOPO),
+            function (id) { asked.push(id); });
+        });
+        var pick = all(root, "select.tvtotals__pick");
+        eq(pick.length, 1);
+        var options = all(pick[0], "option");
+        eq(options[0].textContent, VA.STUDY_PICKER_PLACEHOLDER);
+        eq(VA.STUDY_PICKER_PLACEHOLDER, "Pick a study");
+        eq(options.slice(1).map(function (o) { return o.getAttribute("value"); }),
+           TOPO.studies.map(function (s) { return s.id; }));
+        // No sentence of the pane's own beside it (the gap panel under it
+        // keeps its own copy, inside its fold).
+        eq(all(root, "p").filter(function (p) { return p.parentNode === root; }).length, 0);
+        eq(root.textContent.indexOf("HUMAN-lassoed"), -1);
+        pick[0].value = TOPO.studies[1].id;
+        pick[0].onchange();
+        eq(asked, [TOPO.studies[1].id]);
+        // A model with no studies has nothing to pick, and shows no picker.
+        var bare = JSON.parse(JSON.stringify(TOPO));
+        bare.studies = [];
+        var none = render(function (r) {
+          VA.renderTopoTotals(r, bare, null, VA.topologyIndex(bare), function () {});
+        });
+        eq(all(none, "select").length, 0);
       });
 
     await test("the whole walk has no totals footer -- a total belongs to a " +
@@ -7896,7 +7946,11 @@
         // The exception's own message, whole: it names the node and both
         // candidate edges, and that IS the feature.
         has(root.textContent, study.error.message);
-        has(root.textContent, "which parallel path binds");
+        // ...and what to do about it, without the page's own word on what it
+        // will not do (its advice said "This tool never makes it" until
+        // 2026-11-19; the exception's message is the author's and stays).
+        has(root.textContent, "Drop one of the named edges");
+        eq(root.textContent.indexOf("This tool never makes it"), -1);
         eq(all(root, "div.tvtotal").length, 0);
       });
 
@@ -7913,8 +7967,8 @@
         has(root.textContent, "an error this viewer has no label for");
       });
 
-    await test("the preview pane says what an interface is, and that it has no " +
-      "value", function () {
+    await test("the preview pane says what an interface is, by name, kind and " +
+      "sides", function () {
         var root = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "node", id: "base_post_seat" } }));
@@ -7925,7 +7979,9 @@
         // printed their ids until then, which is the one thing it said that a
         // reader had no way to read.
         has(root.textContent, "base plate ⇔ post");
-        has(root.textContent, "An interface is a location, not a value");
+        // ...and no sentence about what an interface is not (it ended "An
+        // interface is a location, not a value ..." until 2026-11-19).
+        eq(root.textContent.indexOf("not a value"), -1);
         // And the node's own id is on the heading's hover title, not printed.
         eq(all(root, "h3")[0].getAttribute("title"), "base_post_seat");
         eq(all(root, "code").length, 0);
@@ -8221,10 +8277,15 @@
       has(root.textContent, "This study scales it its own way.");
     });
 
-    await test("nothing selected tells you what pointing and clicking do", function () {
+    await test("nothing selected leaves the Preview empty -- no sentence about " +
+      "pointing and clicking", function () {
+      // It said "Point at a part, a pin, a line or a row to preview it here;
+      // click to keep it." until 2026-11-19 (the_viewer_says_nothing_about_
+      // itself: a page never describes itself).
       var root = render(function (r) { VA.renderTopoDetail(r, topoCtx()); });
-      eq(root.textContent, VA.PREVIEW_EMPTY_TEXT);
-      has(root.textContent, "click to keep it");
+      eq(root.textContent, "");
+      eq(root.childNodes.length, 0);
+      eq(VA.PREVIEW_EMPTY_TEXT, undefined);
     });
 
     // --- loose stacks: what "the topology page absorbs the stack viewer" ---
@@ -9264,7 +9325,7 @@
           }, {});
         });
         has(root.textContent, "No topology projection");
-        has(root.textContent, "nothing to draw");
+        eq(root.textContent.indexOf("this page"), -1);
         eq(root.textContent.indexOf("No results projection"), -1);
         noCommandsOrPaths(root.textContent);
       });
@@ -14519,7 +14580,7 @@
         eq(thermal.checks_generated_not_rendered, false);
         eq(all(root, "tr.rs-row--check").length, 16,
            "2 chains × 2 stages × 3 temps + 4 probes");
-        has(all(root, ".check__note")[0].textContent, "thermal_fit");
+        has(all(root, "span.chip--generated")[0].getAttribute("title"), "thermal_fit");
       });
 
       await test("[real] the hot stage-1 wall term carries its 2 × soak weight", function () {

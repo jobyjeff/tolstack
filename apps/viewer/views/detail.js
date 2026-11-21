@@ -17,19 +17,14 @@
   VA.renderDetail = function (root, stackProj, selectedRowId, cropsIndex, cropImage, config, images) {
     VA.clear(root);
     root.className = "detail";
-    if (!stackProj) {
-      root.appendChild(VA.el("p", "muted", "Pick a stack."));
-      return root;
-    }
+    if (!stackProj) return root;
     var row = findRow(stackProj, selectedRowId);
     if (!row) {
       var materialRow = findMaterial(stackProj, selectedRowId);
       if (materialRow) return renderMaterial(root, materialRow);
-      root.appendChild(VA.el("p", "muted",
-        "Select a row in the tables on the left to see its full sourcing " +
-        "here — for an element, the callout as printed, the citation note in " +
-        "full, which file the value was read from and the drawing crop; for a " +
-        "material, where its CTE and its designation each came from."));
+      // Nothing selected: an empty pane. It said "Select a row in the tables
+      // on the left to see its full sourcing here — ..." until 2026-11-19
+      // (the_viewer_says_nothing_about_itself: a page never describes itself).
       return root;
     }
     var element = row.element;

@@ -1734,8 +1734,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.locator(seat).dispatchEvent("click");
     await page.mouse.move(4, 4);
     push("clicking an interface's connector on the map opens that interface in the preview pane",
-      /An interface is a location, not a value/
-        .test(await page.locator("#detail").textContent()));
+      /base \/ post seat/.test(await page.locator("#detail").textContent()) &&
+      /mating surface/.test(await page.locator("#detail").textContent()));
     push("the clicked connector is visibly marked — the grid has no node rows",
       await page.locator("svg.tv__map g.map__connector.map__connector--selected").count() === 1 &&
       await page.locator("tr.tvrow--selected").count() === 0);
@@ -1817,9 +1817,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       return !!at;
     };
 
-    push("with nothing selected and nothing pointed at, the Preview says so " +
-      "in one line", await previewIs("empty", "") &&
-      /Point at a part, a pin, a line or a row/.test((await preview()).body));
+    // Empty, not a sentence about pointing and clicking (it said "Point at a
+    // part, a pin, a line or a row to preview it here; click to keep it."
+    // until 2026-11-19: a page never describes itself).
+    push("with nothing selected and nothing pointed at, the Preview is empty",
+      await previewIs("empty", "") && (await preview()).body.trim() === "");
 
     // A grid row previews its edge: the crop at a legible size, the part in
     // its own words, the citation.
@@ -1865,9 +1867,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           await page.locator(".detail__previewbody div.detail__side img").count() === 1;
       })());
     await hoverMark(markFor("base@base_datum"));
-    push("an internal interface's Preview says it is internal",
-      await previewIs("hover", "node|base_datum") &&
-      /An internal interface/.test((await preview()).body));
+    push("an internal interface's Preview names its one part, and no sentence " +
+      "about the grid",
+      await previewIs("hover", "node|base_datum") && await (async () => {
+        const body = (await preview()).body;
+        return /base plate/.test(body) && !/⇔/.test(body) && !/internal interface/.test(body);
+      })());
     await hoverMark(markFor("arm@arm_tip"));
     push("an interface with no croppable side names the clearance and shows no image",
       await previewIs("hover", "node|arm_tip") && await (async () => {
@@ -2004,9 +2009,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     if (totalsAlign.drift === null || totalsAlign.drift >= 0.5) {
       console.log("    totals column drift: " + JSON.stringify(totalsAlign));
     }
-    await page.locator(".tvtotals__more summary").click();
-    push("the totals say where the numbers came from, behind the Details toggle",
-      /This page adds nothing up/.test(await page.locator("#totals").textContent()));
+    // The study's notes fold, and nothing about the page itself: the rule
+    // sentence that sat behind it went 2026-11-19 (a page never describes
+    // itself), and this study has no notes, so it has no fold.
+    push("the totals do not describe the page, and a study with no notes has no Details fold",
+      !/adds nothing up/.test(await page.locator("#totals").textContent()) &&
+      (await page.locator("#totals .tvtotals__more").count()) === 0);
 
     // Deselecting gives the walk its own table back.
     await pickModel(page, "demo_mechanism");

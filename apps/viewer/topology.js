@@ -111,13 +111,13 @@
       label: "authored in the topology",
       title: "Its dimension is written in the topology document itself, for a " +
         "system authored topology-first.",
-      crop: "Its crop appears here once this number cites a drawing.",
+      crop: "No drawing cited.",
     },
     stack_ref: {
       label: "from a committed stack",
       title: "Its dimension is an element of a committed stack, read with its " +
         "value, citation and role.",
-      crop: "Its crop appears here once the stack's element cites a drawing.",
+      crop: "The stack's element cites no drawing.",
     },
     derived: {
       label: "DERIVED — the quantity a study computes",
@@ -141,8 +141,7 @@
     BranchAmbiguity: {
       headline: "The selection reaches a fork",
       advice: "Two selected edges are unconsumed at one node, so the chain has a " +
-        "choice to make. This tool never makes it — which parallel path binds is " +
-        "a stiffness question. Drop one of the named edges from the selection.",
+        "choice to make. Drop one of the named edges from the selection.",
     },
     BrokenChain: {
       headline: "The selection is not one chain",

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "nothing selected leaves the Preview empty -- no sentence about pointing and clicking",
+  "mutations": [
+    {
+      "contract": "An empty Preview is empty: no sentence about how to point and click.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "Puts the how-to-use line back, the sentence the empty Preview carried until 2026-11-19.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (!key) return root;",
+      "replace": "    if (!key) { root.appendChild(VA.el(\"p\", \"muted\", \"Point at a part, a pin, a line or a row to preview it here; click to keep it.\")); return root; }"
+    }
+  ]
+}

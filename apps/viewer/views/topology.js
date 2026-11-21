@@ -2117,14 +2117,20 @@
   // render as footer rows of the contributions grid (totalsFoot, above), which
   // is where the verdict word now sits too. Nothing on this page is added up
   // in JavaScript, here or there.
-  VA.renderTopoTotals = function (root, topoProj, study, index) {
+  //
+  // With no study picked the pane shows the control that fills it, a picker
+  // reading "Pick a study" (`onStudy(studyId)`), and no sentence about what a
+  // study is -- it said "Pick a study to see its chain in the grid and its
+  // totals here. A study is a HUMAN-lassoed chain: this page reports where
+  // the forks are and never chooses one." until 2026-11-19 (the_viewer_says_
+  // nothing_about_itself: a page never describes itself).
+  VA.STUDY_PICKER_PLACEHOLDER = "Pick a study";
+  VA.renderTopoTotals = function (root, topoProj, study, index, onStudy) {
     VA.clear(root);
     root.className = "tvtotals";
     if (!study) {
-      root.appendChild(VA.el("p", "muted tvtotals__empty",
-        "Pick a study to see its chain in the grid and its totals here. " +
-        "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
-        "and never chooses one."));
+      var picker = studyPicker(topoProj, onStudy);
+      if (picker) root.appendChild(picker);
       // The gap panel is a fact about the TOPOLOGY, not about the selected
       // study, so it is on screen before one is picked — which is also the
       // state a reader arrives in.
@@ -2156,19 +2162,48 @@
       if (card) root.appendChild(card);
     });
 
-    var more = VA.el("details", "tvtotals__more");
-    more.appendChild(VA.el("summary", null, "Details"));
-    more.appendChild(VA.el("p", "muted tvtotals__rule",
-      "Every number above came out of tolerance_stack.topology.summarize() → " +
-      "fold(), the repo's single arithmetic path, and was rounded in Python. " +
-      "This page adds nothing up."));
-    (study.notes || []).forEach(function (note) {
-      more.appendChild(VA.el("p", "tvtotals__note", note));
-    });
-    root.appendChild(more);
+    // The study's own notes, one disclosure deep. It also said "Every number
+    // above came out of tolerance_stack.topology.summarize() → fold() ...
+    // This page adds nothing up." until 2026-11-19: the page describing what
+    // it does not compute, which is a rule for its authors and not a fact
+    // about this study.
+    if ((study.notes || []).length) {
+      var more = VA.el("details", "tvtotals__more");
+      more.appendChild(VA.el("summary", null, "Details"));
+      study.notes.forEach(function (note) {
+        more.appendChild(VA.el("p", "tvtotals__note", note));
+      });
+      root.appendChild(more);
+    }
     root.appendChild(gapsPanel(topoProj));
     return root;
   };
+
+  // The empty results pane's one control: the model's studies, under a
+  // placeholder that is the action. null for a model with no studies.
+  function studyPicker(topoProj, onStudy) {
+    var studies = (topoProj && topoProj.studies) || [];
+    if (!studies.length) return null;
+    var select = VA.el("select", "tvtotals__pick");
+    select.setAttribute("aria-label", VA.STUDY_PICKER_PLACEHOLDER);
+    var placeholder = VA.el("option", null, VA.STUDY_PICKER_PLACEHOLDER);
+    placeholder.value = "";
+    placeholder.setAttribute("value", "");
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+    studies.forEach(function (s) {
+      var option = VA.el("option", null, s.title || s.id);
+      option.value = s.id;
+      option.setAttribute("value", s.id);
+      if (s.description) option.setAttribute("title", s.description);
+      select.appendChild(option);
+    });
+    select.onchange = function () {
+      if (select.value && onStudy) onStudy(select.value);
+    };
+    return select;
+  }
 
   // The study's own `incomplete` badge, with the terms that earn it one
   // disclosure deep, each a link to the term. It is the study-level fold of
@@ -2395,10 +2430,11 @@
     root.className = "detail";
     var key = ctx.previewKey ||
       (ctx.selection ? VA.elementKey(ctx.selection.kind, ctx.selection.id) : null);
-    if (!key) {
-      root.appendChild(VA.el("p", "muted", VA.PREVIEW_EMPTY_TEXT));
-      return root;
-    }
+    // Nothing to preview: the pane stays empty under its heading. It said
+    // "Point at a part, a pin, a line or a row to preview it here; click to
+    // keep it." until 2026-11-19 -- how to use the page, on the page
+    // (the_viewer_says_nothing_about_itself).
+    if (!key) return root;
     var record = ctx.record !== undefined ? ctx.record
       : VA.elementRecord(ctx.topoProj, key, VA.previewRecordOptions(ctx));
     if (!record) {
@@ -2410,10 +2446,6 @@
     else renderEdgeDetail(root, record, ctx);
     return root;
   };
-
-  // The one line an empty Preview carries.
-  VA.PREVIEW_EMPTY_TEXT = "Point at a part, a pin, a line or a row to preview it " +
-    "here; click to keep it.";
 
   // What a pane's ctx hands the record builder: the same inputs the page
   // builds its records from (topology_app.js), so a fast-tier render and the
@@ -2438,8 +2470,7 @@
     if (record.branch) {
       chips.appendChild(VA.chip("chip--branch", "BRANCH POINT",
         "a study reaching this node with two unconsumed selected edges raises " +
-        "BranchAmbiguity, naming both. Which path binds is a mechanics question " +
-        "this tool does not answer."));
+        "BranchAmbiguity, naming both."));
     }
     root.appendChild(chips);
 
@@ -2466,13 +2497,10 @@
     // Preview), and the record is the one derivation behind it.
     var sides = record.sides.map(function (side) { return side.label; });
     root.appendChild(VA.el("div", "detail__where", "on " + sides.join(" ⇔ ")));
-
-    // Whether this interface got a leader line, and why: the omission rule is
-    // the component grouping, so the pane says which side of it this node is
-    // on.
-    root.appendChild(VA.el("p", "detail__crop-reason", record.internal
-      ? "An internal interface: every dimension meeting here belongs to one part."
-      : "A component boundary: the grid starts another part's rows here."));
+    // The line under it said "An internal interface: every dimension meeting
+    // here belongs to one part." or "A component boundary: the grid starts
+    // another part's rows here." until 2026-11-19: the sides above already
+    // say one part or two, and the rest was how to read the grid.
     if (record.note) root.appendChild(VA.el("div", "detail__note", record.note));
 
     if (record.citation) {
@@ -2504,9 +2532,9 @@
       });
       root.appendChild(box);
     }
-    root.appendChild(VA.el("p", "detail__crop-reason",
-      "An interface is a location, not a value — there is no dimension and no " +
-      "crop behind it. The dimensions are the edges either side of this row."));
+    // It ended "An interface is a location, not a value — there is no
+    // dimension and no crop behind it. ..." until 2026-11-19: a sentence
+    // about what the pane does not show.
   }
 
   // What identifies a part, said once: its drawing (less the number its name
@@ -2828,7 +2856,7 @@
       var ref = record.citation;
       box.appendChild(VA.el("div", "detail__crop-reason",
         ref && ref.kind === "assumed"
-          ? "Its value is an assumption; its crop appears here once a drawing backs it."
+          ? "An assumed value; no drawing backs it."
           : record.noCropReason));
       return box;
     }

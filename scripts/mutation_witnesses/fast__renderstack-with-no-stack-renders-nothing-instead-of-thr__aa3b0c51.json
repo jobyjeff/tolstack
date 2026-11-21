@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "renderStack with no stack renders nothing instead of throwing",
+  "mutations": [
+    {
+      "contract": "The stack view with no stack renders nothing: the nav's picker is the control.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "Puts back the \"Pick a stack on the left.\" line the view carried until 2026-11-19.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "    if (!stackProj) return root;",
+      "replace": "    if (!stackProj) { root.appendChild(VA.el(\"p\", \"muted\", \"Pick a stack on the left.\")); return root; }"
+    }
+  ]
+}

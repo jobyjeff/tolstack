@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "with no study the results pane is a picker reading Pick a study, and choosing one asks for it",
+  "mutations": [
+    {
+      "contract": "With no study the results pane is a picker over the model's studies, and choosing one asks for that study.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_the_viewer_says_nothing_about_itself.md",
+      "note": "The picker asks for no study when one is chosen: a control that looks like it fills the pane and does nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      if (select.value && onStudy) onStudy(select.value);",
+      "replace": "      if (select.value && onStudy) onStudy(null);"
+    }
+  ]
+}

@@ -3323,7 +3323,8 @@
       paneCtx = ctx;
       VA.renderTopoPane(nodes.pane, ctx);
       if (showTopology) {
-        VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
+        VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj),
+          function (studyId) { onNavStudy(topoProj.id, studyId); });
       }
     }
     // The right-hand pane, on every page with a model or a study: the page's

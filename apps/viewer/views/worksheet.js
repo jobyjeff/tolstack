@@ -12,9 +12,10 @@
 
     var path = stackProj.worksheet_file;
     if (!path) {
-      root.appendChild(VA.el("p", "muted",
-        "No worksheet for this stack. (The projection reports absence rather " +
-        "than pointing at a neighbouring stack's sheet.)"));
+      // The fact, and no parenthesis about how the page arrived at it (it
+      // went on "(The projection reports absence rather than pointing at a
+      // neighbouring stack's sheet.)" until 2026-11-19).
+      root.appendChild(VA.el("p", "muted", "No worksheet for this stack."));
       return root;
     }
     root.appendChild(VA.el("div", "worksheet__path", path));
