@@ -376,3 +376,15 @@ on the merged tree `f7b119dd`: 2413 s recorded (budget 1800 s, OVER by 10m13s),
 wedges the page` 136 s, `the map` 121 s, `3D pane follows the selection` 121 s,
 `the DAG zoom, Fit and the grid header` 114 s, `annotate rail holds still` 113 s,
 `a suggestion names its face` 104 s, `kinematic study page` 84 s.
+
+## Measurement 2026-11-21 (review of `an_open_dimension_says_where_its_drawing_stands`)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_odd_1120`,
+whole tier: 49/49 suites, 981 checks, **2398 s** against the 1800 s merge budget
+(ledger row 2026-11-21T06:24:42Z, tree `ee9550e2`). Slot wait 0 s. The machine
+was otherwise quiet: nothing else of mine ran beside it. Slowest: `topology http`
+256 s, `the model drawn alone` 207 s, `topology file://` 204 s, `no nav click
+wedges the page` 147 s, `the map` 124 s, `3D pane follows the selection` 122 s,
+`annotate rail holds still` 112 s, `the DAG zoom, Fit and the grid header`
+109 s, `a suggestion names its face` 104 s, `kinematic study page` 83 s. This is
+the same pareto as the line above. The diff under review added no browser suite.

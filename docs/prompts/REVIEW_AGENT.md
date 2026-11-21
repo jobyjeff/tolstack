@@ -6257,6 +6257,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       When a copy-removal diff rewrites tests, count which kind each is.
       Also check the probe's before/after shots by hash: two states that
       hash the same were one state shot twice.
+- [ ] **A status read off an ABSENT field, rendered as a positive claim.**
+      2026-11-20 (`an_open_dimension_says_where_its_drawing_stands`, nit):
+      `no_drawing` means only "the part has no `drawing` field", and its chip
+      says `spec sheet`. True of every open dimension today. But v1 also has
+      `ring_gear`, `hydraulic_brake` and `flanged_bushing_unidentified` with
+      no drawing number. The first open dimension on one of them would wear
+      a false word. When a chip or a label names *why* a field is empty,
+      list every row the empty case reaches today (`parts` with no
+      `drawing`, in every model), not only the rows that have the chip.
 
 ## Architectural errors to check
 
