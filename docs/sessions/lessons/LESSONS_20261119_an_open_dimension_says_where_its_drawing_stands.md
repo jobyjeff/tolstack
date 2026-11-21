@@ -105,3 +105,35 @@ second pass.
   stdin until the 2-minute timeout -- that cost one background task.
 - The witness spec I patched by string replace got a raw newline inside a JSON
   string; regenerating it through `json.dumps` fixed it.
+
+## The test record
+
+Scratch root `C:/workspace/tolstack/data/scratch/odd_1120`: copies of the main
+checkout's `data/inbox`, `data/meshes`, `data/projections`, every viewer
+projection then rebuilt from this branch's clean tree (topology, results, part
+names, crops, feature identity, fits, contact suggestions, kinematic), `docs`
+junctioned to this worktree for the worksheet checks. Removed at the end.
+
+| command | where | result |
+|---|---|---|
+| `node apps/viewer/run_tests.cjs` | worktree | 523/523, node-fs tier skipped (no projection in a worktree) |
+| `node apps/viewer/run_tests.cjs --repo <scratch root>` | worktree | **623/623**, `[real]` armed and paired with this tree |
+| `node apps/annotate/run_tests.cjs` | worktree | 333/333 |
+| witness `--only` the three new fast specs | worktree | 7/7 mutations WITNESSED |
+| `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider` | worktree | **2 failed, 2585 passed, 1 skipped, 4 deselected in 530s** (ledger: inside budget) |
+
+The two failures: `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`
+(the deliberate worktree red; the same tier is 623/623 against the scratch
+root), and `tests/test_export_runs_match_the_run_log.py` -- drawing-checker
+gained a sixth run of the gas-spring mount export on 2026-11-19 that v1's
+citations do not list. Live data, not this branch, and already filed on
+integration as `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
+
+An earlier full run also caught two of mine, fixed here: an unpinned
+"every"/"two" in the ARCHITECTURE inventory row, and the two-body rows
+projection literal in `tests.js` (`RACE_ROWS_PROJECTION`, held to the
+builder's output by `tests/test_topology_map.py`), regenerated from
+`project_topology`.
+
+No browser suite was added or changed, so no browser `--only` run; the whole
+browser tier and the witness `--changed-since` gate are the review's.
