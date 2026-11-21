@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: resolved
 area: annotate/face-classification
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.md
 class: shared_mutable_state_across_worktrees
 defer_until: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
-resolution: woke 2026-11-21 -- real_tier_shared_projection_coupling completed; re-triage (reconciliation sweep 2026-11-21)
+resolution: superseded by real_tier_shared_projection_coupling -- consumed 2026-11-19 as answered in practice: handoffs run one at a time in a chain, so no concurrent worktree installs meshes into data/meshes/ mid-session, and no such red since 2026-10-22; the floor message's one-sided wording (run_tests.cjs:7227) is left as is (triage 2026-11-21) -- was: woke 2026-11-21 -- real_tier_shared_projection_coupling completed; re-triage (reconciliation sweep 2026-11-21)
 ---
 
 # Meshes installed into the shared `data/meshes/` took the annotate tier's classification floor red, mid-session, on an unrelated branch

@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: resolved
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_the_piston_heads_and_cover_ride_with_their_bodies_in_the_kinematic_model.md
 class: dag_layout_policy
 defer_until: class:dag_layout_policy
-resolution: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief) -- woke 2026-11-21 -- topology_layout_questions_the_redesign_left_open completed; re-triage (reconciliation sweep 2026-11-21)
+resolution: superseded by the_map_is_the_only_drawing_and_classic_retires -- the walk's columns are no longer drawn (2026-11-17), so the width/crossing cost that kept rides_with no longer reaches the page; layout_crossings only breaks ties in the grid's row order; folding the three parts is now a fresh modelling question, not this layout cost (triage 2026-11-21) -- was: deferred 2026-11-06 (triage) -- low defers by default; class trigger (the topology-layout brief) -- woke 2026-11-21 -- topology_layout_questions_the_redesign_left_open completed; re-triage (reconciliation sweep 2026-11-21)
 ---
 
 # Folding the piston heads and cover into their bodies widens and tangles the DAG walk
