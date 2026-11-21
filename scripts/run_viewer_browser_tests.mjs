@@ -14417,8 +14417,12 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       const mine = meshOf(partId), theirs = part.parent ? meshOf(part.parent) : null;
       return !!(mine && theirs && mine.sha256 === theirs.sha256);
     };
+    // A part with no installed mesh draws nothing to pose (since 2026-11-20
+    // the tangential link's bolt, NAS6403U14D, which data/meshes/ lacks).
+    const meshless = (partId) => !meshOf(partId);
     const unposed = (model.bodies || []).filter((b) => b.kind !== "link")
-      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p) && !inParentsMesh(p)).map((p) => b.id + "/" + p));
+      .flatMap((b) => b.parts.filter((p) => !isPosed(b.id, p) && !inParentsMesh(p) && !meshless(p))
+        .map((p) => b.id + "/" + p));
     console.log(`      [${label}] P2: parts of the model's bodies not posed with their body: ` +
       `${unposed.join(", ") || "-"}`);
     if (unposed.length) {
@@ -14856,7 +14860,10 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       if (!r) return null;
       r.scrollIntoView({ block: "nearest", inline: "nearest" });
       const b = r.getBoundingClientRect();
-      return { x: b.x + b.width / 2, y: b.y + 1, onScreen: b.y >= 0 && b.y + 2 <= innerHeight && b.x >= 0 && b.x + b.width <= innerWidth };
+      // On the border's own line, the middle of its wide stroke: a pixel
+      // inside it is past the stroke's inner half at a small fit (v2's
+      // seven-column map, 2026-11-20, fits at 0.276).
+      return { x: b.x + b.width / 2, y: b.y, onScreen: b.y >= 0 && b.y + 2 <= innerHeight && b.x >= 0 && b.x + b.width <= innerWidth };
     });
     let fieldTargets = null;
     if (fieldPoint && fieldPoint.onScreen) {
