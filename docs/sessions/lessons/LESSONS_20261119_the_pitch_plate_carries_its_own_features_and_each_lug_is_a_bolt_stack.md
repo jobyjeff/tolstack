@@ -278,7 +278,7 @@ root, and read before this section was written.
 ## The test record
 
 Everything ran from this worktree. The `[real]` tiers ran against a scratch
-root, `C:\workspace	olstack\data\scratch\plate`. It held copies of the main
+root, `data/scratch/plate` in the main checkout. It held copies of the main
 checkout's `data/inbox`, `data/meshes` and `data/projections`, a `git archive`
 of the tree, and junctions to `node_modules` and `venv-win`. Every builder
 was run from this worktree with `--data-root <root>/data`. The last full
