@@ -58,6 +58,13 @@
 // invented, like every name here; a near miss (another dash number) is stated
 // in tests.js, on a copy.
 //
+// Each edge's `drawing_status: null` and the topology's
+// `drawing_status_counts` (every word 0) and `drawings_read_uncited: []` are
+// the seventh (handoff an_open_dimension_says_where_its_drawing_stands,
+// 2026-11-19): every structural edge here carries a value, so none is open,
+// and the builder writes exactly these for a model with no open dimension. A
+// chip of each status is stated in tests.js, on a copy.
+//
 // Each study's `checks: []` is the third thing patched in by hand
 // (viewer_error_surface_and_layout, 2026-09-09): `topology_projection_emits_
 // study_checks` (391dc7c) added the field to project_study() after this
@@ -614,7 +621,8 @@
               "units_out": "mm"
             },
             "transform_declared": null,
-            "interface": null
+            "interface": null,
+            "drawing_status": null
           },
           {
             "id": "post_height",
@@ -680,7 +688,8 @@
               "units_out": "mm"
             },
             "transform_declared": null,
-            "interface": null
+            "interface": null,
+            "drawing_status": null
           },
           {
             "id": "arm_pin_to_tip",
@@ -733,7 +742,8 @@
               "units_out": "deg"
             },
             "transform_declared": "arm_linear_to_rotary",
-            "interface": null
+            "interface": null,
+            "drawing_status": null
           },
           {
             "id": "post_bushing_offset",
@@ -772,7 +782,8 @@
               "units_out": "mm"
             },
             "transform_declared": null,
-            "interface": null
+            "interface": null,
+            "drawing_status": null
           },
           {
             "id": "strut_length",
@@ -831,7 +842,8 @@
               "units_out": "mm"
             },
             "transform_declared": null,
-            "interface": null
+            "interface": null,
+            "drawing_status": null
           },
           {
             "id": "tip_to_strut_end",
@@ -856,7 +868,8 @@
               "units_out": "mm"
             },
             "transform_declared": null,
-            "interface": null
+            "interface": null,
+            "drawing_status": null
           }
         ],
         "transforms": [
@@ -1826,7 +1839,9 @@
           {"kind": "unverified_value", "text": "post bushing offset", "hardware_id": null, "edge": "post_bushing_offset", "edge_name": "post bushing offset"},
           {"kind": "no_tolerance_recorded", "text": "arm pin to tip", "hardware_id": null, "edge": "arm_pin_to_tip", "edge_name": "arm pin to tip"},
           {"kind": "contact_kind_not_stated", "text": "arm tip to strut end", "hardware_id": null, "edge": "tip_to_strut_end", "edge_name": "arm tip to strut end"}
-        ]
+        ],
+        "drawing_status_counts": {"read": 0, "other_dash_read": 0, "not_read": 0, "no_drawing": 0, "unknown": 0},
+        "drawings_read_uncited": []
       }
       ],
       // Empty on purpose: an orphan study would put a banner alarm on screen in
