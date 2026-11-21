@@ -5100,6 +5100,106 @@
         eq(all(bare, "a.detail__runlink").length, 0);
       });
 
+    // An open dimension says where its drawing stands (handoff
+    // an_open_dimension_says_where_its_drawing_stands, 2026-11-19): one chip
+    // per status, where the dimension is shown -- the grid row, in place of
+    // its number, and the Preview -- and a status with a run links to it.
+    // Read off a copy of the demo whose `base_thickness` has no value.
+    var openTopo = function (status) {
+      var topo = JSON.parse(JSON.stringify(TOPO));
+      topo.edges.forEach(function (e) {
+        if (e.id !== "base_thickness") return;
+        e.dimension = null;
+        e.confidence = null;
+        e.value_source = "derived";
+        e.crop_key = null;
+        e.drawing_status = status;
+      });
+      return topo;
+    };
+    var OPEN_RUN = { run_dir: "20261101_090000_215197_B.1_BASE_PLATE", drawing: "215197",
+                     revision: "B", date: "2026-11-01" };
+    var OPEN_STATUSES = {
+      read: { status: "read", drawing: "215197", run: OPEN_RUN, spec: null },
+      other_dash_read: { status: "other_dash_read", drawing: "215197-002",
+        run: { run_dir: "20261112_104250_215197-003_A.1_BASE", drawing: "215197-003",
+               revision: "A", date: "2026-11-12" }, spec: null },
+      not_read: { status: "not_read", drawing: "215197", run: null, spec: null },
+      no_drawing: { status: "no_drawing", drawing: null, run: null, spec: "NAS0000 Rev 1.pdf" },
+      unknown: { status: "unknown", drawing: "215197", run: null, spec: null },
+    };
+    var openViews = function (status) {
+      var ctx = { topoProj: openTopo(status),
+                  config: { drawingCheckerWebui: "http://127.0.0.1:8000" } };
+      var grid = render(function (r) { VA.renderTopoPane(r, topoCtx(ctx)); });
+      var row = all(grid, "tr.tvrow").filter(function (n) {
+        return n.getAttribute("data-id") === "base_thickness";
+      })[0];
+      var pane = render(function (r) {
+        VA.renderTopoDetail(r, topoCtx(Object.assign({
+          selection: { kind: "edge", id: "base_thickness" } }, ctx)));
+      });
+      return { cell: row.querySelector("td.tvcell--nominal"),
+               chips: all(pane, "div.detail__chips")[0] };
+    };
+
+    await test("an open dimension wears its drawing's status as one chip in its " +
+      "grid row and its Preview, each status its own words", function () {
+        eq(Object.keys(VA.DRAWING_STATUSES).sort(), Object.keys(OPEN_STATUSES).sort());
+        Object.keys(OPEN_STATUSES).forEach(function (status) {
+          var views = openViews(OPEN_STATUSES[status]);
+          var words = VA.DRAWING_STATUSES[status].chip;
+          var inCell = all(views.cell, ".chip--drawing");
+          var inPane = all(views.chips, ".chip--drawing");
+          if (!words) {
+            // Nothing could be read: nothing is claimed.
+            eq(inCell.length, 0, status);
+            eq(inPane.length, 0, status);
+            eq(views.cell.textContent, "", status);
+            return;
+          }
+          eq(inCell.map(function (c) { return c.textContent; }), [words], status);
+          eq(inPane.map(function (c) { return c.textContent; }), [words], status);
+          ok(/\btvcell--drawing\b/.test(views.cell.className), status);
+          ok(/\bchip--drawing-/.test(inCell[0].className), status);
+        });
+      });
+
+    await test("a status with a run links its chip to that run in drawing-checker, " +
+      "in a new tab; one without says the spec or the drawing on hover", function () {
+        ["read", "other_dash_read"].forEach(function (status) {
+          var run = OPEN_STATUSES[status].run;
+          var views = openViews(OPEN_STATUSES[status]);
+          [views.cell, views.chips].forEach(function (box) {
+            var chip = all(box, "a.chip--drawing");
+            eq(chip.length, 1, status);
+            eq(chip[0].getAttribute("href"), runHref(run.run_dir));
+            eq(chip[0].getAttribute("target"), "_blank");
+            eq(chip[0].getAttribute("rel"), "noopener");
+            has(chip[0].getAttribute("title"), "drawing " + run.drawing);
+          });
+        });
+        var spec = all(openViews(OPEN_STATUSES.no_drawing).cell, ".chip--drawing")[0];
+        eq(spec.tagName.toLowerCase(), "span");
+        eq(spec.getAttribute("title"), "NAS0000 Rev 1.pdf");
+        var unread = all(openViews(OPEN_STATUSES.not_read).chips, ".chip--drawing")[0];
+        eq(unread.tagName.toLowerCase(), "span");
+        eq(unread.getAttribute("title"), "215197");
+      });
+
+    await test("a projection built before the field existed draws no drawing chip " +
+      "anywhere, its open rows included", function () {
+        var old = openTopo(OPEN_STATUSES.read);
+        old.edges.forEach(function (e) { delete e.drawing_status; });
+        var grid = render(function (r) { VA.renderTopoPane(r, topoCtx({ topoProj: old })); });
+        eq(all(grid, ".chip--drawing").length, 0);
+        var pane = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({ topoProj: old,
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        eq(all(pane, ".chip--drawing").length, 0);
+      });
+
     // ITEM 4, the measured half. The link did nothing when clicked, and the
     // reason is the ORIGIN: Chrome refuses every navigation from an http(s)
     // page to a file: URL. Measured 2026-09-15 with this repo's own browser
