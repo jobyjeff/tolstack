@@ -224,16 +224,16 @@ root, and read before this section was written.
 
 - **Map**: `map_3840_side_by_side.png`, `map_1536_side_by_side.png` and each
   width's `…_pitch_plate_region.png`. Notes none. Drawn counts equal the
-  model's: 5 bodies, 33 parts, 95 features, 71 dimensions, 50 interfaces.
+  model's: 5 bodies, 33 parts, 99 features, 75 dimensions, 50 interfaces.
   Every lug box leads with its number.
 - **Groups**: `map_3840_pitch_plate_{bodies,assemblies,parts}_off.png`.
   Nothing moves.
 - **Tree**: `tree_215177_open.png`. "215177-001 pitch plate assembly · 3
   parts · 0 features", then the plate with its 9 features, then the two
   "NAS77A3-015A flanged bushing" rows. The pilot boss carries the bound mark.
-- **3D**: `pane_pitch_link_bolt_selected.png`. The shank is selected and
-  framed. Its body offers three "Take" rows (r 2.4065, "fits the mating
-  bore").
+- **3D**: `pane_pitch_link_bolt_selected.png`. The shank's length in the
+  race (`…_at_race`) is selected and the bolt framed. Its body offers one
+  "Take" row (2 faces, r 2.4065, "fits the mating bore").
 - **What the shots showed that no check asked about:**
   - Two long diagonals: tangential flange to race, and the tangential
     straight bushing's fit up to the plate. The pitch link's flange-to-race
@@ -242,7 +242,82 @@ root, and read before this section was written.
   - The pitch link outline's name, "213862-002 pitch link", is crossed by the
     pitch link straight bushing's clamp route. No note fires for a name
     crossed by a route. That is filed (below).
-  - The hovers in the probe lit nothing (`own: []`). The probe's selectors
-    hit the outline's name and the box's centre. Link 4's probe got lights
-    from a bearing's outline name. This is not settled. The hover tier
-    (`the map`) was run, below.
+  - The hovers in the probe lit nothing (`own: []`). The browser suite `the
+    map`, which checks what a hover lights, is green on this tree, so the
+    probe's pointer placement is the suspect, not the page. Not chased
+    further.
+  - One console 404 on every load: `/tolstack/rebuild/status`, an endpoint
+    of drawing-checker's server that the probe's own server does not mount.
+
+## What the tiers caught that the model change moved
+
+- **A one-feature part.** The bolt began as one shank node. The viewer fast
+  tier (`[real] every live dot answers the SAME on hover and on click`)
+  reads a node's own part off a dimension incident on it, so it named
+  `pitch_link_bolt_shank` an authoring error. The handoff's "the bolt's
+  shank" among the structural dimensions said the same. The shank is now its
+  three bearing lengths with two dimensions between them (above).
+- **The map's drawn scale.** `VA.mapTransform` rounded the scale to two
+  decimals. The seven-column map fits a 1700 × 1500 Side by side region at
+  0.27588, and drew at 0.28: 2 px past the pane's right edge. `the map`'s
+  "fits its region" check caught it. v2's map was height-bound before, with
+  slack. The scale now keeps five decimals, with a fast check and its
+  witness spec (`fast__the-map-s-drawn-transform-keeps-the-fit-s-scale-so-a-fit__1f235976.json`).
+- **Two checks in `the model drawn alone`**, each written against the old
+  data:
+  - "every part of the end-stop model's bodies is posed with its own body":
+    the tangential link's bolt has no mesh, so there is nothing to pose. It
+    is now exempt as mesh-less, and only that.
+  - The district-border press: it was one pixel inside the base district's
+    top edge. At the smaller fit that pixel is past the hit stroke's inner
+    half, and lands on the field. It now presses on the border's own line.
+- **The hover-divergence counts** in `apps/viewer/README.md` and
+  `views/topology.js`, re-derived from a projection of this tree: 110 of 157
+  live nodes, 86 as a set (102, 147 and 82 before).
+
+## The test record
+
+Everything ran from this worktree. The `[real]` tiers ran against a scratch
+root, `C:\workspace	olstack\data\scratch\plate`. It held copies of the main
+checkout's `data/inbox`, `data/meshes` and `data/projections`, a `git archive`
+of the tree, and junctions to `node_modules` and `venv-win`. Every builder
+was run from this worktree with `--data-root <root>/data`. The last full
+rebuild was from `a63d1900`; later commits changed the map's transform, two
+browser checks, two published counts and docs, and no projection input. The
+shared `data/` was never written. The real feature-identity log was 100 events
+before and after. The scratch root is left for the review; it is gitignored.
+
+- **Default tier**, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider`
+  on `a63d1900`: **2577 passed, 2 failed, 1 skipped, 4 deselected**, 494 s
+  (ledger row recorded, inside budget). The two failures, both expected and
+  the same as link 4's:
+  - `test_viewer_js_suite_is_green`: the worktree has no `data/`. The tier
+    below was run instead.
+  - `test_every_established_export_lists_exactly_the_runs_the_log_records_for_its_sha`:
+    pre-existing, already filed as
+    `ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`.
+  - After that run, `tests/test_mutation_witnesses.py` was re-run on the
+    later commits (49 passed), and so were the topology, model view,
+    projection and map tests (300 passed).
+- **Viewer fast tier with `[real]`**, `node apps/viewer/run_tests.cjs --repo <scratch root>`:
+  **619/619** (one check added).
+- **Annotate fast tier**, `node apps/annotate/run_tests.cjs --repo <scratch root>`:
+  **334/334**.
+- **Browser**, `--repo <scratch root>`, one `--only` run per suite that reads
+  v2. These are a stack-data change's browser checks, not suites this branch
+  changed, except `the model drawn alone`:
+  - `the map (the counts on both models`: 32/32. It failed once on the fit
+    (above) and passed after the fix.
+  - `the Groups switches`: 11/11.
+  - `the model drawn alone`: 22/22 after its two edits.
+  - `the DAG zoom, Fit and the grid header`, `a suggestion names its face`,
+    `a pattern is bound as its like faces`, `a bound pattern offers the
+    whole pattern`, `the first end of a joint lists`: each 1/1 suite green.
+- **Witness**: one run with the two new specs, `--only` each, **2/2
+  witnessed** in 9m52s. The retired spec (`…in-no-body…__d00a48e8.json`)
+  went with its guard. Pin: viewer fast `619 / 619` (+1, with a spec). The
+  pytest guard is not censused.
+
+## Found on arrival
+
+Nothing. The worktree was clean, at `bf9aa924`.
