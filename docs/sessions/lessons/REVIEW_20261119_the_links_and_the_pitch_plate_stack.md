@@ -52,6 +52,13 @@ Each was read before its row was written. Issues are cited by name.
   under the grid it reads "Nothing is recorded as missing for this assembly."
   Filed as an addendum to
   `ISSUE_20260930_a_valueless_structural_edge_is_invisible_to_the_gap_list`.
+> **Review note, 2026-11-21:** both addenda above sit on `deferred`
+> issues, which no sweep reads until 2026-11-29. The review filed the open
+> halves: `ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face`
+> (high) and
+> `ISSUE_20261120_design_the_gap_panel_says_nothing_is_missing_on_a_model_with_no_values`
+> (med).
+
 - **Map boxes change colour after the pointer passes over them.** A box is
   teal on load and takes its body's colour on the first hover. Your 11-19
   shot was all orange. Filed:

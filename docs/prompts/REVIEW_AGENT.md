@@ -6154,6 +6154,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       bundle against the prose-budget rules and the three prohibitions; split
       any hit into its own `med`, `area: design` issue and grep for the
       older narrower one (here `ISSUE_20261110_topology_notes_still_say_…`).
+- [ ] **A walk files a live defect only as an addendum to a `deferred`
+      issue.** New 2026-11-21
+      (`the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page`):
+      a Take that writes the other lug's faces into Jeff's log, and a false
+      "Nothing is recorded as missing", went only onto deferred
+      `audience: strategy` issues that wake 11-29. For each addendum a walk
+      writes, check the target's `status:`. If it is `deferred` and the
+      addendum is a new failure (a wrong write, a false surface), file an
+      open issue for it and point the page at it.
 - [ ] **A `[real]` suite gated on live log state that the feature itself
       invites Jeff to change.** New 2026-11-18
       (`a_bound_pattern_offers_the_whole_pattern_on_the_other_part`):
