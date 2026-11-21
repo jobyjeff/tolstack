@@ -5146,6 +5146,8 @@
     await test("an open dimension wears its drawing's status as one chip in its " +
       "grid row and its Preview, each status its own words", function () {
         eq(Object.keys(VA.DRAWING_STATUSES).sort(), Object.keys(OPEN_STATUSES).sort());
+        // Nothing could be read, so nothing is said: `unknown` has no words.
+        eq(VA.DRAWING_STATUSES.unknown.chip, null);
         Object.keys(OPEN_STATUSES).forEach(function (status) {
           var views = openViews(OPEN_STATUSES[status]);
           var words = VA.DRAWING_STATUSES[status].chip;

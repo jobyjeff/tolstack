@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a projection built before the field existed draws no drawing chip anywhere, its open rows included",
+  "mutations": [
+    {
+      "contract": "A missing status draws nothing, rather than a guessed one.",
+      "issue": "docs/sessions/lessons/LESSONS_20261119_an_open_dimension_says_where_its_drawing_stands.md",
+      "note": "Declared by handoff an_open_dimension_says_where_its_drawing_stands (2026-11-19). Falls back to `not_read` when the field is absent.",
+      "file": "apps/viewer/element_record.js",
+      "find": "      drawingStatus: edge.drawing_status || null,",
+      "replace": "      drawingStatus: edge.drawing_status || { status: \"not_read\", drawing: null, run: null, spec: null },"
+    }
+  ]
+}
