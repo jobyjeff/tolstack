@@ -7,9 +7,9 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 class: fixed_at_one_of_n_sites
-defer_until: 2026-11-20
+defer_until: 2026-12-21
 needs: agent
-resolution: class trigger `class:fixed_at_one_of_n_sites` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | class trigger `class:fixed_at_one_of_n_sites` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The review-merge rule landed in tolstack's override; the principle behind it is not repo-specific

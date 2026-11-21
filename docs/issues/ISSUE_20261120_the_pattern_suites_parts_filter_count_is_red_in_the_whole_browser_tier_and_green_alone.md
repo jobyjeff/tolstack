@@ -1,7 +1,9 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+defer_until: 2026-12-05
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3; one sighting, green alone
 area: tests/browser annotate
 reporter: agent
 class: whole_tier_flake

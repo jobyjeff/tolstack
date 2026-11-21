@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer nav scene tree / annotator hover
 reporter: agent
 class: hover_lost_on_rebuild

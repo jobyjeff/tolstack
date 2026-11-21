@@ -6,8 +6,8 @@ area: tests
 reporter: agent
 class: suite_over_budget
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261022_triage_sweep.md
-resolution: triage 2026-10-22 (second sweep): med beyond this sweep's BUDGET=3 for tolstack (3 staged); deferred 14 days (the class has no program) | woke 2026-11-05 -- date trigger passed; re-triage | resolved 2026-11-05 (triage): the 11-05 batch-merge candidate ran the default tier in 503 s (1724 passed), recorded inside the 10-min budget; reopen on the next over-budget record | deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
-defer_until: 2026-11-20
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): med beyond tolstack's budget of 3 (spent this sweep); deferred to 2026-12-05 | triage 2026-10-22 (second sweep): med beyond this sweep's BUDGET=3 for tolstack (3 staged); deferred 14 days (the class has no program) | woke 2026-11-05 -- date trigger passed; re-triage | resolved 2026-11-05 (triage): the 11-05 batch-merge candidate ran the default tier in 503 s (1724 passed), recorded inside the 10-min budget; reopen on the next over-budget record | deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
+defer_until: 2026-12-05
 ---
 
 # The default pytest tier runs 12 minutes against a 10-minute budget

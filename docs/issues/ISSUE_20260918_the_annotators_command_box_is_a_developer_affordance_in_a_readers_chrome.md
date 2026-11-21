@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: resolved
 area: apps/annotate
 reporter: agent
 audience: strategy
@@ -9,7 +9,7 @@ found_by: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 class: internals_on_a_user_surface
 defer_until: 2026-11-20
 needs: agent
-resolution: class trigger `class:internals_on_a_user_surface` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
+resolution: superseded by the_annotator_has_no_front_door -- ee2a0e77 removed the standalone annotator page and its command box (runConsoleCommand no longer exists in apps/annotate/app.js); woke 2026-11-21 on its date trigger, triage 2026-11-21 | class trigger `class:internals_on_a_user_surface` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # The annotator's command box is a developer affordance living in a reader's chrome, and rewording its placeholder did not settle that

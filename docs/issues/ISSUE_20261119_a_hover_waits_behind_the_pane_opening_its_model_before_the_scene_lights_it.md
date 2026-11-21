@@ -1,7 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+class: serial_queue_head_of_line_blocking
+defer_until: 2026-12-05
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3 (spent on the three batch-merge handoffs plus one unroutable high); a design call with options, re-triage on wake
 area: annotate/exec-queue
 audience: strategy
 reporter: agent

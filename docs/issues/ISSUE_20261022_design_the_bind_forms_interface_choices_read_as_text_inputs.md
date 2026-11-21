@@ -6,8 +6,8 @@ area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261021_a_face_pick_survives_an_orbit_and_names_its_end.md
 class: unreviewed_design_debt
-defer_until: 2026-11-21
-resolution: deferred 2026-10-22 triage: low, the default knob
+defer_until: 2026-12-21
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | deferred 2026-10-22 triage: low, the default knob
 ---
 
 # Design: the bind form's interface choices read as text inputs

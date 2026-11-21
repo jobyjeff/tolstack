@@ -7,9 +7,9 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20260916_reader_facing_copy_and_vocabulary.md
 class: guard_cannot_fail
-defer_until: 2026-11-20
+defer_until: 2026-12-21
 needs: agent
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # `dd.kv__value` exempts 433 nodes from the whole surface scan — the free-form blocks are scanned for their labels and not their values

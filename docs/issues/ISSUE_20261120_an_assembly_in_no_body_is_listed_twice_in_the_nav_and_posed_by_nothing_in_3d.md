@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
+strategy: dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md
 area: viewer/nav, annotate/sweep
 reporter: agent
 audience: strategy

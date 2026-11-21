@@ -1,13 +1,14 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: spec_library
 audience: strategy
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20260915_stack_fable_audit.md
 strategy: docs/strategy/BRIEF_20260916_drawing_arrival_gap_join.md
 needs: agent
+resolution: an_open_dimension_says_where_its_drawing_stands (merged 2026-11-21, d77b2e19) gives every open dimension its drawing_status -- read in drawing-checker, read under another dash, not read, or no drawing -- on the grid row and the Preview, which is what this asked for (its brief was consumed into that handoff); triage 2026-11-21
 ---
 
 # Nothing notices when a drawing a gap is waiting on lands in drawing-checker

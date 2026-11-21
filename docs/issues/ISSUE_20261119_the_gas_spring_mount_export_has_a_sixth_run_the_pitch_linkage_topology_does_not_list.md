@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: docs/topologies citations / tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits.md

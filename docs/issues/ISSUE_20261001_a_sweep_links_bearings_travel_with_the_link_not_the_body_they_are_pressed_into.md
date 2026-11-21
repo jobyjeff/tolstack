@@ -7,8 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261001_kinematic_sweep_animation.md
 class: sweep_artifact_body_part_grain
-defer_until: 2026-11-20
-resolution: deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together. -- class trigger `class:sweep_artifact_body_part_grain` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
+defer_until: 2026-12-21
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | deferred 2026-10-01 (triage, second sweep) -- low, and the budget rule defers low by default. Grouped on its class so the set is judged together. -- class trigger `class:sweep_artifact_body_part_grain` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 needs: agent
 ---
 

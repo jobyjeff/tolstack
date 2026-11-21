@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20261121_a_take_on_a_lug_feature_binds_that_lugs_own_face.md
 area: annotate/contact-suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md

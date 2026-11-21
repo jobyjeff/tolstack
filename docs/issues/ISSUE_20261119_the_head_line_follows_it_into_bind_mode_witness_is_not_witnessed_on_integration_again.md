@@ -1,7 +1,9 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+defer_until: 2026-12-05
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3; a decayed witness with no product exposure, the scheduled witness sweep's class
 area: tests/mutation-witness (3D pane follows the selection)
 class: decayed_witness
 reporter: agent

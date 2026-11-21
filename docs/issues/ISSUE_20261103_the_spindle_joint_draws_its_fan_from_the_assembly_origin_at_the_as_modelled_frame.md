@@ -1,13 +1,15 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: deferred
 area: annotate/model-layer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20261103_coaxial_ends_share_one_3d_node.md
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
-resolution: triage 2026-11-05: folded into the layout brief as an addendum (Q7/Q8) rather than a new brief
+resolution: re-triaged 2026-11-21: its layout brief was consumed and names this issue (options a/b/c) as Q8's own carrier; med beyond tolstack's budget of 3, deferred to 2026-12-05 -- a strategy call for the session that writes F4 | triage 2026-11-05: folded into the layout brief as an addendum (Q7/Q8) rather than a new brief
+defer_until: 2026-12-05
+class: three_d_visibility_policy
 ---
 
 # At the as-modelled frame the spindle joint draws its fan of lines from the assembly origin, and it reads as the old star

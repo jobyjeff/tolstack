@@ -1,7 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+class: surface_disagrees_with_itself
+defer_until: 2026-12-05
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3; a one-line fix shape (write `base` at register time) for the next sweep with budget
 area: viewer/map
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md

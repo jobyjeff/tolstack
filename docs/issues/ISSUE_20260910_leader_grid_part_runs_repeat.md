@@ -1,12 +1,12 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: viewer
 reporter: agent
 audience: strategy
 needs: agent
-resolution: triage 2026-10-30: brief BRIEF_20260911_viewer_3d_and_card_content_reach consumed 2026-10-29 without curing this (VA.gridPlan in apps/viewer/topology.js still emits one merged component cell per contiguous run with no tie between a part's split runs); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
+resolution: superseded by a_part_with_many_interfaces_is_drawn_as_a_component_with_pins -- a multi-interface part is one component with pins, so its runs no longer repeat (layout brief Q5, marked dissolved there); triage 2026-11-21, re-read because its strategy brief was consumed | triage 2026-10-30: brief BRIEF_20260911_viewer_3d_and_card_content_reach consumed 2026-10-29 without curing this (VA.gridPlan in apps/viewer/topology.js still emits one merged component cell per contiguous run with no tie between a part's split runs); reopened for re-triage; triage 2026-10-30: gathered into a new brief with the other undecided layout questions
 class: dag_layout_policy
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 ---

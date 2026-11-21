@@ -1,12 +1,15 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: deferred
 strategy: docs/strategy/BRIEF_20261030_topology_layout_questions_the_redesign_left_open.md
 area: viewer/map
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261115_the_map_draws_the_end_stop_model.md
+defer_until: 2026-12-05
+class: dag_layout_policy
+resolution: re-triaged 2026-11-21: its layout brief was consumed and names this issue as the map form of Q1/Q3; med beyond tolstack's budget of 3, deferred to 2026-12-05 (dag_layout_policy's program is that consumed brief, so a date)
 ---
 
 # What the map does not draw yet, each fenced out of its handoff by name

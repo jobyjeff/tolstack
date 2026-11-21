@@ -6,9 +6,9 @@ area: kinematic study / requirements
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261103_each_stop_is_its_own_stack.md
-defer_until: 2026-11-20
+defer_until: 2026-12-05
 class: check_semantics
-resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): med beyond tolstack's budget of 3 (spent this sweep); deferred to 2026-12-05 | deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # S461-607 was checked against the stop positions; it bounds the spread between one propeller's blades

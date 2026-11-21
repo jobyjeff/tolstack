@@ -6,8 +6,8 @@ area: viewer/topology
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260930_nav_tooltip_once_and_rail_hover_emphasis.md
 class: guard_cannot_fail
-defer_until: 2026-11-20
-resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
+defer_until: 2026-12-21
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # `hotHover`'s leave-race guard is inert in Chrome, and the comment that justifies it states the event order backwards

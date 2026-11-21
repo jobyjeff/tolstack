@@ -5,9 +5,9 @@ status: deferred
 area: design
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261020_the_sweep_rail_shows_the_mechanism.md
-defer_until: 2026-11-20
+defer_until: 2026-12-21
 class: pointer_only_control
-resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # Design: the sweep rail's Re-pick and contributor rows cannot be reached by keyboard

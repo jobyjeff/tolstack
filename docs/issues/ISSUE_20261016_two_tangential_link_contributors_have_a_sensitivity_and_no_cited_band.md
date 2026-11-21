@@ -1,14 +1,14 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: resolved
 area: topologies/vpa_pitch_linkage
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261016_a_kinematic_study_folds_the_sweeps_jacobian.md
 defer_until: 2026-11-20
 class: kinematic_term_without_cited_band
 handoff: docs/sessions/HANDOFF_20261026_the_tangential_link_cites_its_drawing.md
-resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): both contributors cite their band since 43019000 (the_tangential_link_cites_its_drawing, 2026-10-26): 61.40 basic and the 3X attach position in docs/tolerance_stacks kinematic_study_vpa_pitch_linkage_blade_pitch_at_the_stops.json; the remaining gap rows are the blade-root anchor, not these two | triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # Two tangential-link contributors have a sensitivity and no cited band

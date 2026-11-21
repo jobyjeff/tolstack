@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
+resolution: Jeff rejected proposal 0055 in the annotator on 2026-11-08 (feature-identity event seq 66, `rejects: proposal-0055-hub_to_pitch_plate_spindle_coaxiality-to`, data/inbox/feature-identity/0004_hub_to_pitch_plate_spindle_coaxiality_rejected.json) -- triage 2026-11-21; todo 20261104T184024_t8xbuq can be withdrawn
 area: feature-identity/proposals
 reporter: agent
 needs: jeff

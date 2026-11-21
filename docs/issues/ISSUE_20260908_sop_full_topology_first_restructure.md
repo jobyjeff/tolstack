@@ -5,8 +5,9 @@ status: triaged
 area: docs/SOP_TOLERANCE_STACK.md
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260909_sop_full_topology_first_restructure.md
+strategy: dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md
 needs: agent
+resolution: re-triaged 2026-11-21: BRIEF_20260909 consumed 2026-11-19 as "not now" -- the SOP is rewritten from what F4 does, a step of the draft's order table; back-link repointed there
 ---
 
 # `docs/SOP_TOLERANCE_STACK.md` still reads as a linear-stack document with a topology pointer, not a topology-first procedure

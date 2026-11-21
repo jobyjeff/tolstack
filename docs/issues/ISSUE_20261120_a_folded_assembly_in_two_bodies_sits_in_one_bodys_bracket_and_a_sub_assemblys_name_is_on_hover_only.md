@@ -1,7 +1,8 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
+strategy: dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md
 area: viewer/grid
 reporter: agent
 audience: strategy

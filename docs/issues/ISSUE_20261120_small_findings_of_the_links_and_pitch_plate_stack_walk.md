@@ -1,7 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
+class: walk_small_findings
+defer_until: 2026-12-21
+resolution: deferred 2026-11-21 (triage) -- low, the default knob
 area: viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md

@@ -1,7 +1,9 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
+defer_until: 2026-12-05
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3; latent (the bore still folds to a disagreement); if Jeff settles it first, the red arrives at a review or batch merge and points here
 area: tests/browser (a press that writes says so at once)
 class: real_check_bound_to_live_log_state
 reporter: agent

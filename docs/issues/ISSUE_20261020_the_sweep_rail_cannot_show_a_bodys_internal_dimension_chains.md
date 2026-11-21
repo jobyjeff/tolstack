@@ -6,9 +6,9 @@ area: annotate/sweep-rail
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261020_the_sweep_rail_shows_the_mechanism.md
-defer_until: 2026-11-20
+defer_until: 2026-12-21
 class: sweep_rail_level_of_detail
-resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # The sweep rail cannot show a body's internal dimension chains

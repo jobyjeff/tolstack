@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: tests / apps/viewer node-fs [real] tier
 reporter: agent
 class: suite_timeout

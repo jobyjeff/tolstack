@@ -1,7 +1,9 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
+defer_until: 2026-12-21
+resolution: deferred 2026-11-21 (triage) -- low, the default knob; map_routing has no program
 area: apps/viewer/map
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_a_map_pin_faces_each_partner_and_no_two_routes_share_a_run.md

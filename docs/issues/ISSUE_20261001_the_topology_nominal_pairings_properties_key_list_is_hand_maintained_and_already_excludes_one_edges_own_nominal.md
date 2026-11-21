@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: closed
 area: topologies
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20261001_one_part_feature_one_value_across_topologies.md
 class: a_vocabulary_restated_by_hand
 defer_until: 2026-11-20
-resolution: deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. -- class trigger `class:a_vocabulary_restated_by_hand` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): closed under the 2026-10-27 guard rule -- a guard/witness gap that cites no dated wrong outcome and names no payer of a misfire; reopen with one if it happens | deferred 2026-10-01 (triage, second sweep) -- med beyond this sweep's BUDGET=3 for this repo. Not a judgement that it is unimportant; it is what the budget rule does with med past the cap. -- class trigger `class:a_vocabulary_restated_by_hand` moved to 2026-11-20 -- class has no program (HANDOFF_20261016_class_triggers_resolve_through_a_program_registry, 2026-10-21)
 ---
 
 # `EDGE_NOMINAL_PROPERTY_KEYS` is a hand-maintained list with nothing pairing it to the corpus, and its stated reason for excluding `nominal_stroke_mm` does not hold

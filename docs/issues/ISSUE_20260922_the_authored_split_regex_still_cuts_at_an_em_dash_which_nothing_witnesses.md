@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: closed
 area: viewer/topology-summary
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_findings_splitter_scopes_to_excluded_terms.md
 class: guard_cannot_fail
 defer_until: 2026-11-20
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): closed under the 2026-10-27 guard rule -- a guard/witness gap that cites no dated wrong outcome and names no payer of a misfire; reopen with one if it happens | woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # `AUTHORED_REASON_SPLIT` still cuts at an em dash, and nothing witnesses that alternative

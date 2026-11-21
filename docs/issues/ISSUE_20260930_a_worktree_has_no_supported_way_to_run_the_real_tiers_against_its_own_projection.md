@@ -1,7 +1,7 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: tiers/projection-freshness
 reporter: agent
 audience: strategy
@@ -9,6 +9,7 @@ found_by: docs/sessions/HANDOFF_20260930_columns_ordered_to_minimise_crossings.m
 class: shared_mutable_state_across_worktrees
 strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
 needs: agent
+resolution: superseded by real_tier_shared_projection_coupling -- that brief was consumed 2026-11-19 as answered in practice: every session builds a private scratch projection (--data-root + --repo), the main checkout's is written at the merge, handoffs run one at a time in a chain, and no red from another handoff's projection since 2026-10-22; the left-over rebuild_projections data-root gap is ISSUE_20261110 (triage 2026-11-21, re-read because its strategy brief was consumed)
 ---
 
 # A worktree that changes a projection builder has no supported way to run the `[real]` tiers against its own projection

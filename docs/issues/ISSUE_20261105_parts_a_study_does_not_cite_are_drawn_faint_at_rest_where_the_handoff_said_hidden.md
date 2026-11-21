@@ -6,9 +6,9 @@ area: apps/annotate (part looks at rest, study scope)
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261105_everything_in_3d_is_transparent_until_an_action_needs_a_face.md
-defer_until: 2026-11-20
+defer_until: 2026-12-05
 class: three_d_visibility_policy
-resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): med beyond tolstack's budget of 3 (spent this sweep); deferred to 2026-12-05 | deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # Parts a study does not cite are drawn faint at rest, where the handoff said hidden

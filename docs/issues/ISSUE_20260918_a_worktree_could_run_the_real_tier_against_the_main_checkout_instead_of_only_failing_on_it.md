@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: tests/viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
 class: guard_cannot_fail
 needs: agent
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
+resolution: superseded by real_tier_shared_projection_coupling -- that brief was consumed 2026-11-19 as answered in practice: every session builds a private scratch projection (--data-root + --repo), the main checkout's is written at the merge, handoffs run one at a time in a chain, and no red from another handoff's projection since 2026-10-22; the left-over rebuild_projections data-root gap is ISSUE_20261110 (triage 2026-11-21, re-read because its strategy brief was consumed) | woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17)
 strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
 ---
 

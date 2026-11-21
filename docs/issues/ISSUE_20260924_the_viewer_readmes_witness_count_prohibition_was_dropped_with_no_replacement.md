@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: deferred
+status: closed
 area: tests/doc-scans
 reporter: agent
 audience: strategy
@@ -9,7 +9,7 @@ found_by: docs/sessions/reviews/REVIEW_20260924_claims_registry_guards_read_decl
 class: guard_cannot_fail
 defer_until: 2026-11-20
 needs: agent
-resolution: woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): closed under the 2026-10-27 guard rule -- a guard/witness gap that cites no dated wrong outcome and names no payer of a misfire; reopen with one if it happens | woke 2026-10-17 -- guard_coverage_set_size_assertions completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # `apps/viewer/README.md`'s mutation-witness-count prohibition went with the prose scans, and a stale witness count written there is now caught by nothing

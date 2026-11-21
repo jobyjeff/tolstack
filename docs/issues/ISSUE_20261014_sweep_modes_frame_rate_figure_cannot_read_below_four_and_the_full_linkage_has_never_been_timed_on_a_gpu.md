@@ -7,9 +7,9 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20261014_parts_sit_where_the_assembly_puts_them.md
 todo: 20261015T015550_cp6rqz
 audience: strategy
-defer_until: 2026-11-20
+defer_until: 2026-12-21
 class: unmeasured_on_target_hardware
-resolution: triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21 | triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # Sweep mode's frame-rate figure cannot read below 4, and the whole placed linkage has never been timed on a GPU

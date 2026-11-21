@@ -1,14 +1,15 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: deferred
 area: scripts/rebuild_projections
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261110_the_end_stop_models_notes_say_where_the_value_comes_from.md
 class: shared_mutable_state_across_worktrees
 strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
-resolution: triage 2026-11-11 -- same question as the open real-tier coupling brief (a worktree builds and reads its own projection); appended there as a dated addendum
+resolution: re-triaged 2026-11-21: the real-tier brief was consumed 2026-11-19 and names this as the issue-sized remainder; med beyond tolstack's budget of 3, deferred to 2026-12-05 | triage 2026-11-11 -- same question as the open real-tier coupling brief (a worktree builds and reads its own projection); appended there as a dated addendum
+defer_until: 2026-12-05
 ---
 
 # `rebuild_projections.ps1` cannot run from a worktree, yet a handoff's DoD asks for it

@@ -7,7 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261022_a_study_says_it_is_incomplete_without_inventing_a_check.md
 class: study_kind_feature_parity
-defer_until: 2026-11-21
+defer_until: 2026-12-21
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21
 ---
 
 # A kinematic study has no derived completeness, so its nav row and page never say "incomplete"

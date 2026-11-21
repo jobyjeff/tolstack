@@ -1,7 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
+class: reading_surface_copy
+defer_until: 2026-12-21
+resolution: deferred 2026-11-21 (triage) -- low, the default knob
 area: viewer
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261119_the_viewer_says_nothing_about_itself.md

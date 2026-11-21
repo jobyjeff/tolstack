@@ -7,7 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261022_a_general_profile_note_bands_a_model_defined_term.md
 class: retired_stand_in_exemption
-defer_until: 2026-11-21
+defer_until: 2026-12-21
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): low, the default knob; deferred to 2026-12-21
 ---
 
 # Two pitch-system placeholders are exempted from the retired-stand-in rule, not re-shaped by it

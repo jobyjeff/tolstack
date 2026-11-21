@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: closed
 area: tests/projection-freshness
 class: guard_cannot_fail
 audience: strategy
@@ -9,7 +9,7 @@ reporter: agent
 found_by: docs/sessions/HANDOFF_20260930_projection_freshness_pairs_with_the_tree.md
 defer_until: 2026-11-20
 needs: agent
-resolution: woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): closed under the 2026-10-27 guard rule -- a guard/witness gap that cites no dated wrong outcome and names no payer of a misfire; reopen with one if it happens | woke 2026-10-17 -- porting_a_proven_lever_across_repos completed; re-triage (reconciliation sweep 2026-10-17); triage 2026-10-21: low, deferred to 2026-11-20 by default
 ---
 
 # `crops.json` can be rebuilt from a different datasheet pile and still read "paired with this tree"

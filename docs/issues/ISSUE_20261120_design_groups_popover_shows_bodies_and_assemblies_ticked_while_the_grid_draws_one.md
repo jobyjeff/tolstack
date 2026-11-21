@@ -1,7 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
+class: design_polish
+defer_until: 2026-12-21
+resolution: deferred 2026-11-21 (triage) -- low, the default knob; the issue itself says judge it once real assemblies in two bodies are on v2
 area: design
 reporter: agent
 audience: strategy

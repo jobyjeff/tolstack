@@ -6,8 +6,8 @@ area: tests
 reporter: agent
 class: suite_over_budget
 found_by: docs/sessions/HANDOFF_20261105_a_part_with_many_interfaces_is_drawn_as_a_component_with_pins.md
-defer_until: 2026-11-20
-resolution: deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
+defer_until: 2026-12-05
+resolution: woke 2026-11-21 -- date trigger passed; re-triaged (triage 2026-11-21): med beyond tolstack's budget of 3 (spent this sweep); deferred to 2026-12-05 | deferred 2026-11-06 (triage) -- med beyond tolstack's budget of 3 (two highs and one class-scoped handoff staged); 14 days
 ---
 
 # The witness gate ran 43 minutes of wall time while the browser slot was contended

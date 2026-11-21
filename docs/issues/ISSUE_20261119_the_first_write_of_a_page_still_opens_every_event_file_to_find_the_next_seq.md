@@ -1,7 +1,9 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
+defer_until: 2026-12-21
+resolution: deferred 2026-11-21 (triage) -- low, the default knob; the class's program (a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits) has landed, so a date, not the class
 area: annotate / feature-identity write path
 reporter: agent
 audience: strategy

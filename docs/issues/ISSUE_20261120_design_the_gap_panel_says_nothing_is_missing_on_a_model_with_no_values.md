@@ -1,7 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
+class: reading_surface_copy
+defer_until: 2026-12-05
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md
