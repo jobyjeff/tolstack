@@ -17509,9 +17509,64 @@
           });
         }
 
+        // The same study on v2 (the_blade_pitch_study_folds_on_v2_and_names_
+        // what_v2_adds, 2026-11-22): listed under v2, v1's numbers on v2's
+        // parts, its rows in three kinds, and a lit route on v2's model.
+        await test("[real] v2's blade-pitch study is listed under v2, reads v1's " +
+          "numbers, tells its rows apart and lights its route", function () {
+            var v2Study = VA.findKinematicStudy(realKinematic,
+              "vpa_end_stop_v2_blade_pitch_at_the_stops");
+            ok(v2Study && v2Study.status === "ok", "the v2 study built");
+            eq(v2Study.topology, "vpa_end_stop_v2");
+            eq(v2Study.ids_from, "vpa_pitch_linkage");
+            var nav = VA.kinematicNav(realKinematic, realKinTopologies);
+            var v2Group = nav.filter(function (g) { return g.topologyId === "vpa_end_stop_v2"; })[0];
+            eq(v2Group.studies.map(function (st) { return st.id; }),
+               ["vpa_end_stop_v2_blade_pitch_at_the_stops"]);
+            var numbers = function (study) {
+              return study.checks.map(function (c) {
+                return [c.stop, c.verdict, VA.kinematicNumber(c.margin, 3),
+                        VA.kinematicNumber(c.rss_margin, 3)];
+              }).concat(study.stops.map(function (st) {
+                return [st.id, VA.kinematicNumber(st.worst_case_half, 3),
+                        VA.kinematicNumber(st.rss_half, 3)];
+              }));
+            };
+            eq(numbers(v2Study), numbers(realKinStudy), "v1's numbers, computed, not restated");
+            var kinds = {};
+            v2Study.stops[0].rows.forEach(function (r) {
+              kinds[r.value_from] = (kinds[r.value_from] || 0) + 1;
+            });
+            eq(Object.keys(kinds).sort(), ["none", "other_model"]);
+            eq(kinds.other_model, 6, "the six contributors are v1's bands");
+            var topo = VA.findTopology(realKinTopologies, "vpa_end_stop_v2");
+            var lit = VA.kinematicLitSet(v2Study, topo);
+            v2Study.stops[0].rows.forEach(function (r) {
+              ok(lit.edges[r.edge], r.edge + " is on the lit route");
+            });
+            var index = VA.topologyIndex(topo);
+            v2Study.stops.forEach(function (st) {
+              (st.groups || []).forEach(function (g) {
+                g.children.forEach(function (c) {
+                  eq(!!lit.edges[c.edge], !!index.edges[c.edge],
+                     c.edge + ": lit exactly where v2 has it");
+                });
+              });
+            });
+            var stack = VA.kinematicStack(v2Study, topo, "plus72", 3, {});
+            ok(stack.terms.tan_link_mount_overall_height.borrowed,
+               "a v1 chain's leaf v2 has is a borrowed row");
+            ok(stack.terms.pitch_link_length.borrowed);
+            eq(stack.terms.pitch_link_upper_ball_joint.borrowed, null);
+            ok(stack.terms.pitch_link_upper_ball_joint.sensitivity,
+               "a row with no value still shows its sensitivity");
+          });
+
         await test("[real] the kinematic projection carries the blade-pitch study, " +
           "both stop margins and six banded rows", function () {
-            eq(realKinematic.studies.length, 1);
+            eq(realKinematic.studies.map(function (st) { return st.id; }).sort(),
+               ["vpa_end_stop_v2_blade_pitch_at_the_stops",
+                "vpa_pitch_linkage_blade_pitch_at_the_stops"]);
             ok(realKinStudy, "the blade-pitch study is in the live projection");
             eq(realKinStudy.status, "ok");
             // Since each_stop_is_its_own_stack (2026-11-03): one-sided reach
