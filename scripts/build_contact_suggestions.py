@@ -455,7 +455,8 @@ def report_lines(data: Dict[str, Any]) -> List[str]:
                 out.append(f"{head} {e['status']}: {e.get('note', '')}")
                 continue
             top = e["candidates"][0]
-            flag = ("" if clear_top(e) else "  (not clear)") +                 ("" if row_placed(e) else "  (place not known)")
+            flag = (("" if clear_top(e) else "  (not clear)")
+                    + ("" if row_placed(e) else "  (place not known)"))
             out.append(f"{head} {len(e['candidates'])} candidate(s), top "
                        f"{top['relation']} {top['from']['surface']}/{top['to']['surface']} "
                        f"{json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in top['evidence'].items()})}"
