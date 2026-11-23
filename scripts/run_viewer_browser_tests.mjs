@@ -7422,9 +7422,18 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       "glows at its resting look, the rest go faint, and nothing is opaque", bodyLit);
     // Left for a heading -- inside the nav, on no row -- so the only thing
     // that can take the light down is the row's own leave.
-    await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
-    push("[real] ...and leaving it takes the light down",
-      await until((w) => w.__lastLight === null, null, 10000));
+    const leaveErrors = [];
+    await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 })
+      .catch((e) => leaveErrors.push(String(e.message).replace(/\u001b\[\d+m/g, "").slice(-160)));
+    const lightDown = await until((w) => w.__lastLight === null, null, 10000);
+    if (!lightDown) {
+      console.log(`      [${label}] DIAG body leave ${bodyName}: ` + JSON.stringify({ leaveErrors,
+        hot: await page.evaluate(() => Array.from(document.querySelectorAll("#navtree .navtree__row--hot"))
+          .map((n) => n.getAttribute("data-nav-id"))),
+        heard: await inPane((w) => (w.__heardLight || []).slice(-6).map((c) => c.slice(0, 60))),
+        light: await inPane((w) => w.__lastLight ? w.__lastLight.layers : null) }));
+    }
+    push("[real] ...and leaving it takes the light down", lightDown);
 
     // A feature row in the nav selects its node: the page's selection, and
     // the scene's layer selects it too (the `model select node` the page
