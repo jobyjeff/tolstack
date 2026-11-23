@@ -1,0 +1,31 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a seat's or a pattern's row reaches each side's feature through the edge ends it lists, as one set with its words, and an end it does not list gets nothing",
+  "mutations": [
+    {
+      "contract": "A shared node row reaches the features its sides list.",
+      "issue": null,
+      "note": "Declared with the guard by handoff a_seat_and_a_pattern_get_contact_suggestions_too (2026-11-22). Edge rows only: every seat and pattern end shows nothing, the 24 ends Jeff found empty.",
+      "file": "apps/annotate/sweep.js",
+      "find": "      (t.nodes || []).forEach(function (r) {\n        if (!ok(r)) return;",
+      "replace": "      ([]).forEach(function (r) {\n        if (!ok(r)) return;"
+    },
+    {
+      "contract": "A node row offers each feature its own side.",
+      "issue": null,
+      "note": "Takes the side from the edge end instead of the row: a feature reached through an edge end at its to side is offered the OTHER part faces.",
+      "file": "apps/annotate/sweep.js",
+      "find": "          if (here) out.push({ row: r, side: side });",
+      "replace": "          if (here) out.push({ row: r, side: via.direction });"
+    },
+    {
+      "contract": "A hole pattern says it lines up with the mating holes.",
+      "issue": null,
+      "note": "Says a pattern by its relation: coaxial with the mating round face, for a set of holes.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    var template = candidate.relation === \"contact\" || row.pairing === \"hole_pattern\"",
+      "replace": "    var template = candidate.relation === \"contact\""
+    }
+  ]
+}

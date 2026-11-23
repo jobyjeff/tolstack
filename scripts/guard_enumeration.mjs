@@ -497,7 +497,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-20 (the_viewer_says_nothing_about_itself): -1 -- the no-element and
   // the scoped instruction are one empty line now, so their two checks are one,
   // renamed. It carries a spec.
-  annotate: { declared: 334, enrollable: 334, names: "8c7682e7b34b" },
+  // 2026-11-23 (a_seat_and_a_pattern_get_contact_suggestions_too): +1 -- a
+  // seat's or a pattern's row reaches each side's feature. It carries a spec.
+  annotate: { declared: 335, enrollable: 335, names: "27c013cd200a" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

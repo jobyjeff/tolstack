@@ -26,6 +26,14 @@
       "file": "apps/annotate/sweep.js",
       "find": "    return !!from && from === to;",
       "replace": "    return false;"
+    },
+    {
+      "contract": "A dimension of one part is within it, whatever part its end nodes name first.",
+      "issue": null,
+      "note": "Reads the dimension by its end nodes only: the plate pilot-to-fastener dimension ends on the piston-body pattern node, which names the body first, and the plate pattern was offered the plate own spindle bore ahead of its holes (a_seat_and_a_pattern_get_contact_suggestions_too, 2026-11-23).",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (edge && edge.kind === \"structural\" && edge.part && !((topology.parts || []).some(function (p) {",
+      "replace": "    if (false && edge && edge.kind === \"structural\" && edge.part && !((topology.parts || []).some(function (p) {"
     }
   ]
 }
