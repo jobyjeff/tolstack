@@ -13355,6 +13355,33 @@
         eq(VA.mapRouteNotes([sunk], boxes, M).notes, ["interface sunk's symbol sits on A"]);
       });
 
+    await test("the map's route notes name two routes that cross, a route that turns on another and a " +
+      "symbol on another's route, once a pair, and stay quiet for routes that only run near", function () {
+        var M = VA.MAP;
+        var boxes = [{ id: "A", x: 0, y: 0, w: 200, h: 300 }, { id: "B", x: 600, y: 0, w: 200, h: 300 }];
+        var conn = function (id, pts, mid) {
+          return { id: id, points: pts, mid: mid, endParts: ["A", "B"], symbol: "planar" };
+        };
+        // Two routes between facing sides that swap levels on the way.
+        var down = conn("down", [{ x: 200, y: 60 }, { x: 230, y: 60 }, { x: 370, y: 200 }, { x: 570, y: 200 },
+                                 { x: 600, y: 200 }], { x: 470, y: 200 });
+        var up = conn("up", [{ x: 200, y: 200 }, { x: 230, y: 200 }, { x: 370, y: 60 }, { x: 570, y: 60 },
+                             { x: 600, y: 60 }], { x: 470, y: 60 });
+        eq(VA.mapRouteNotes([down, up], boxes, M).notes, ["interfaces down and up cross"]);
+        // A route whose corner lies on another's run: it meets it.
+        var level = conn("level", [{ x: 200, y: 120 }, { x: 230, y: 120 }, { x: 570, y: 120 }, { x: 600, y: 120 }],
+                         { x: 300, y: 120 });
+        var onto = conn("onto", [{ x: 200, y: 250 }, { x: 230, y: 250 }, { x: 400, y: 250 }, { x: 400, y: 120 },
+                                 { x: 480, y: 40 }, { x: 570, y: 40 }, { x: 600, y: 40 }], { x: 400, y: 200 });
+        eq(VA.mapRouteNotes([level, onto], boxes, M).notes, ["interfaces level and onto cross"]);
+        // A symbol on another route, and a parallel route a pin pitch away.
+        var under = conn("under", [{ x: 200, y: 164 }, { x: 230, y: 164 }, { x: 570, y: 164 }, { x: 600, y: 164 }],
+                         { x: 450, y: 164 });
+        eq(VA.mapRouteNotes([level, under], boxes, M).notes, [], "a route a pin pitch away runs near, and is its own");
+        var sat = conn("sat", under.points, { x: 450, y: 130 });
+        eq(VA.mapRouteNotes([level, sat], boxes, M).notes, ["interface sat's symbol sits on level's route"]);
+      });
+
     await test("a right flank's pin label steps a line lower where a left flank's pin of the same " +
       "part is level with it, so the two lit labels never meet mid-box", function () {
         VA.forgetMapViews();

@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the map's route notes name two routes that cross, a route that turns on another and a symbol on another's route, once a pair, and stay quiet for routes that only run near",
+  "mutations": [
+    {
+      "contract": "Two interfaces' routes that cross are a note of the map's, once a pair.",
+      "note": "Declared with the guard by handoff the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map (2026-11-22). Without the branch the page counts no crossing, and an arrangement is scored by a scratch script again.",
+      "file": "apps/viewer/map.js",
+      "find": "        } else if (routesCross(connectors[i].points, connectors[j].points)) {",
+      "replace": "        } else if (false && routesCross(connectors[i].points, connectors[j].points)) {",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map.md"
+    },
+    {
+      "contract": "A route whose corner lies on another's run meets it, as a crossing does.",
+      "note": "Declared with the guard by handoff the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map (2026-11-22). The straight bushing's stub ended on the lane past it and read as a branch of it.",
+      "file": "apps/viewer/map.js",
+      "find": "    return onto(pa, pb) || onto(pb, pa);",
+      "replace": "    return false;",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map.md"
+    },
+    {
+      "contract": "A symbol on another interface's route is a note.",
+      "note": "Declared with the guard by handoff the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map (2026-11-22).",
+      "file": "apps/viewer/map.js",
+      "find": "          if (c.symbol && nearRect(d.points, { x: c.mid.x, y: c.mid.y, w: 0, h: 0 }, M.symbol / 2)) {",
+      "replace": "          if (false) {",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map.md"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every box wears its body's ink and every connector its weight from the first paint, before any hover (ISSUE_20261120_a_map_box_wears_its_bodys_colour_only_after_the_pointer_has_passed_over_it)",
+  "mutations": [
+    {
+      "contract": "A map element wears its base class -- a box its body's tint, a connector its between-bodies weight -- before anything paints it.",
+      "note": "Declared with the guard by handoff the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map (2026-11-22). Without the write at register time the class reaches the element only on the first hover, which is the defect the issue measured.",
+      "file": "apps/viewer/views/map.js",
+      "find": "    el.setAttribute(\"class\", base);\n",
+      "replace": "",
+      "issue": "docs/issues/ISSUE_20261120_a_map_box_wears_its_bodys_colour_only_after_the_pointer_has_passed_over_it.md"
+    }
+  ]
+}
