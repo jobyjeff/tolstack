@@ -11486,6 +11486,117 @@
         eq(VA.kinematicLitSet({ stops: [] }, topo), null, "nothing to light, no lit set");
       });
 
+    // --- a study on a model that reuses another's ids (2026-11-22) ----------
+    //
+    // the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds: v2's study
+    // borrows v1's bands and v1's stop chains, so its rows come in three
+    // kinds a reader tells apart, and v1's chains are its own model's.
+
+    // KIN_STUDY with its arm row borrowed from a "legacy" model, its gap row
+    // carrying the builder's display record, and a stop chain of that model
+    // whose one leaf is an edge of the demo topology under the same id.
+    function borrowedStudy(idsFrom) {
+      var study = JSON.parse(JSON.stringify(KIN_STUDY));
+      study.ids_from = idsFrom;
+      study.study_refs = [{ study: "legacy_chain", topology: "legacy", title: "Legacy chain",
+        parameter: "actuator.value", units: "mm", note: null, gap: null,
+        stops: ["high"], completeness: { complete: true },
+        total: { nominal: 12, worst_case_min: 11.9, worst_case_max: 12.1,
+                 worst_case_half: 0.1 },
+        children: [{ edge: "post_bushing_offset", name: "post bushing offset",
+                     by_point: null }] }];
+      study.stops.forEach(function (stop) {
+        stop.rows[0].value_from = "other_model";
+        stop.rows[0].lender = { topology: "legacy", edge: "arm_pin_to_tip",
+                                title: "Legacy model" };
+        stop.rows[0].citation = { kind: "drawing", document: "D-100-001",
+                                  callout: "10.0 ±0.1", confidence: "traced" };
+        stop.rows[1].value_from = "this_model";
+        stop.rows[2].value_from = "none";
+        stop.rows[2].display = { refused: true, reason: "no band on file: none yet",
+          sensitivity: 0.8, contribution: null };
+        if (stop.id !== "high") return;
+        stop.groups = [{ study: "legacy_chain", topology: "legacy", title: "Legacy chain",
+          parameter: "actuator.value", entry: 0.5, sign: 1, reach: 0.05, units: "mm",
+          stop_position: true, gap: null,
+          children: [{ edge: "post_bushing_offset", name: "post bushing offset",
+            kind: "term", sign: 1, coefficient: 0.5, magnitude: 0.05,
+            band: { id: "post_bushing_offset", name: "post bushing offset", nominal: 0,
+                    min: -0.1, max: 0.1, half_range: 0.1, units: null },
+            source: { nominal: 12, min: 11.9, max: 12.1 },
+            citation: { kind: "drawing", document: "D-200-001", confidence: "traced" },
+            confidence: "traced", value_from: "other_model",
+            lender: { topology: "legacy", edge: "post_bushing_offset",
+                      title: "Legacy model" } }] }];
+        stop.sub_stacks = [{ kind: "linkage" }, { kind: "stop_position", term_count: 1,
+          position: { worst_case_half: 0.1 }, worst_case_half: 0.05 }];
+      });
+      return study;
+    }
+
+    await test("a study's own model is its topology or the one it reuses ids from, " +
+      "and nothing else", function () {
+        var study = { topology: "v2", ids_from: "v1" };
+        ok(VA.kinematicSameModel(study, "v2"));
+        ok(VA.kinematicSameModel(study, "v1"));
+        ok(VA.kinematicSameModel(study, null), "a ref with no topology is the study's own");
+        ok(!VA.kinematicSameModel(study, "v3"));
+        ok(!VA.kinematicSameModel({ topology: "v1", ids_from: null }, "v2"));
+        eq(window.TolstackVocab.viewer.list("KINEMATIC_VALUE_FROM"), ["this_model", "other_model", "none"]);
+      });
+
+    await test("a borrowed row wears one quiet badge that names its model and opens " +
+      "its citation; a row of its own model wears none and a gap shows its sensitivity",
+      function () {
+        var study = borrowedStudy(null);
+        var shown = [];
+        var g = kinematicGrid(study, { stop: "low",
+          onCardShow: function (c, t) { shown.push([c, t]); } });
+        var row = function (id) {
+          return g.rows.filter(function (r) { return r.getAttribute("data-id") === id; })[0];
+        };
+        var badges = all(g.root, "span.tvflag--borrowed");
+        eq(badges.length, 1, "one borrowed row, one badge");
+        var badge = badges[0];
+        eq(badge.textContent, VA.KINEMATIC_VALUE_FROM.other_model.badge);
+        eq(all(row("arm_pin_to_tip"), "span.tvflag--borrowed").length, 1, "on the borrowed row");
+        has(badge.getAttribute("title"), "value from Legacy model: arm pin to tip");
+        ok(hasClass(badge, "cardtrig"));
+        badge.onmouseenter();
+        eq(shown[0][0].kind, "citation");
+        has(shown[0][0].title, "D-100-001");
+        eq(all(row("base_thickness"), "span.tvflag--borrowed").length, 0);
+        eq(all(row("post_height"), "span.tvflag--borrowed").length, 0);
+        var cell = function (id, cls) { return row(id).querySelector("td.tvcell--" + cls); };
+        eq(cell("post_height", "nominal").textContent, "no value");
+        eq(cell("post_height", "sensitivity").textContent, "0.800",
+           "a gap's sensitivity is the sweep's, shown");
+        eq(cell("post_height", "contribution").textContent, "");
+        eq(VA.kinematicBorrowed(study.stops[0].rows[1]), null);
+        eq(VA.kinematicBorrowed(study.stops[0].rows[2]), null);
+      });
+
+    await test("a chain of the model this one reuses ids from lights its leaves that " +
+      "this model has, and a borrowed leaf prints the band it carries", function () {
+        var topo = KIN_TOPOLOGIES.topologies[0];
+        ok(!VA.kinematicLitSet(borrowedStudy(null), topo).edges.post_bushing_offset,
+           "another model's chain is not this one's");
+        var study = borrowedStudy("legacy");
+        ok(VA.kinematicLitSet(study, topo).edges.post_bushing_offset,
+           "the leaf is lit under its shared id");
+        var stack = VA.kinematicStack(study, topo, "high", 3, {});
+        var leaf = stack.terms.post_bushing_offset;
+        ok(leaf, "the leaf is a term of the stop's stack");
+        eq([leaf.values.nominal, leaf.values.min, leaf.values.max], ["12", "11.9", "12.1"]);
+        eq(leaf.borrowed.words, "borrowed");
+        has(leaf.values.nominalTitle, "Legacy model");
+        ok(stack.entries.some(function (e) { return e.kind === "sub" && e.id === "legacy_chain"; }),
+           "its chain is a sub-stack");
+        eq(VA.kinematicSubStacks(study, 3).map(function (s) { return s.id; }), ["legacy_chain"]);
+        var g = kinematicGrid(study, { stop: "high" });
+        ok(rowIds(g.rows).indexOf("post_bushing_offset") !== -1, "a row of the grid");
+      });
+
     // --- the lit set on the model, dimmed or hidden (2026-10-26) ------------
 
     // The connected components of a walk's rows, nodes and edges together: an

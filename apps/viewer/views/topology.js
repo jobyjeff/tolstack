@@ -1861,7 +1861,14 @@
     var record = VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx))[
       hotKey("edge", planRow.id)] || null;
     var fullName = record ? record.title : missing(planRow.id);
-    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : fullName);
+    var borrowed = term && term.borrowed || null;
+    // A value borrowed from another model wears one quiet badge, first in
+    // the cell so a clipped name never hides it; it opens the citation.
+    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly || borrowed ? "" : fullName);
+    if (borrowed) {
+      nameCell.appendChild(borrowedBadge(borrowed, ctx));
+      if (!valueOnly) nameCell.appendChild(VA.el("span", null, fullName));
+    }
     // A kinematic term whose band is another edge's says whose, on hover.
     var shown = term && term.values || null;
     var lender = shown && shown.bandFrom && shown.bandFrom.edge !== planRow.id
@@ -1869,12 +1876,8 @@
     var lenderName = lender && index.edges[lender.edge] ? index.edges[lender.edge].name : null;
     var nameTitle = fullName + (lender
       ? "\nband from " + (lenderName || lender.edge) + " (dimension_ref)" : "");
-    var borrowed = term && term.borrowed || null;
     if (borrowed) nameTitle += "\n" + borrowed.title;
     if (!valueOnly) nameCell.setAttribute("title", nameTitle);
-    // A value borrowed from another model wears one quiet badge, first in
-    // the cell so a clipped name never hides it; it opens the citation.
-    if (borrowed) nameCell.insertBefore(borrowedBadge(borrowed, ctx), nameCell.firstChild);
     el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined

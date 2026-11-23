@@ -1334,9 +1334,12 @@ counts components rather than assuming one either way.
 Handoff `model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models`
 (2026-11-08): the first rung of the reset in
 `dispatch/docs/strategy/drafts/DRAFT_tolerance_analysis_over_the_kinematic_model.md`.
-The graph: 33 parts, 78 interfaces, 104 edges, 35 branch points, 27 grounded
-loops, 29 gap edges. Studyless; no edge carries a dimension, and each says what
-would close it.
+The graph: 33 parts, 78 interfaces, 105 edges, 36 branch points, 28 grounded
+loops, 29 gap edges. No edge carries a dimension, and each says what would
+close it. Its one study is the blade-pitch kinematic study on borrowed bands
+(2026-11-22, "A kinematic study on a model that reuses another's ids", below);
+for it the plate gained `pitch_plate_link_flanged_bushing_height`, datum A to
+the pitch link lug's bore, standing where v1's `pitch_plate_attach_height` does.
 
 It is v1's mechanism cut down to the joints and the stops. The bodies are
 linkage's five, in the loop's reading order (base, tangential link, pitch
@@ -1621,6 +1624,23 @@ parameter. A derivative of the output with respect to one input is exactly a
   (`the_plus72_stop_is_the_travel_datum`) that a driver `study_ref` among the
   contributors is an x-interval of the stops its `applies_to` names, with the
   datum stop's interval 0; that form is now refused, naming this handoff.
+- **A kinematic study on a model that reuses another's ids** (2026-11-22,
+  handoff `the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds`). A run's
+  `geometry.features[]` entry naming the model the study's topology declares
+  in `ids_from` is read as the study's own: the id names the same feature in
+  both ("Models", above), and it must exist in the study's topology. Any other
+  model still refuses. A `dimension_ref` and a `study_ref` may name another
+  model (they always could); an inline band may say `borrowed_from` another
+  model's edge — needed where that edge's band is about a real nominal, which
+  a contributor cannot reference — and the pairing is checked at load (the
+  edge's band has the same half-width and cites the same document). A
+  contributor may be **`route_of`** another: an edge of this model on the
+  route from that contributor's edge to the ball centre its columns move,
+  reading the same columns and zone (refused otherwise), so it shows the same
+  sensitivity and, once banded, enters as its own term on the same
+  coefficient; nothing refuses two contributors on one column. Each projected
+  row says where its value comes from (`VALUE_FROM`: this model, another
+  model, none), and the grid shows a borrowed value with one quiet badge.
 
 **The fence is unchanged.** Nothing here solves, perturbs or differentiates a
 mechanism, picks a load path, or calls `traverse()`/`summarize()`/`check_study()`.
@@ -1642,7 +1662,13 @@ The first document is
 over the P2 sweep from the linkage's cited tolerances, checked against
 S461-607 at both end stops, four of its bands borrowed from other edges of the
 same topology (from `topology_pitch_system.json` until the 2026-10-26 fold) with
-each pairing argued in the contributor's own `note`.
+each pairing argued in the contributor's own `note`. The second,
+`kinematic_study_vpa_end_stop_v2_blade_pitch_at_the_stops.json` (2026-11-22),
+is the same study on v2: the same run, stops, axial stacks and checks, v1's six
+contributors on v2's edges with v1's bands, and a `route_of` row with no value
+for every part v2 has between a contributor's edge and its ball centre. It
+folds to v1's numbers, which `tests/test_kinematic.py` checks by computing
+both.
 
 **What the viewer shows for one** (2026-10-20, handoff
 `the_viewer_shows_a_kinematic_study`): a page of its own, reached from a
