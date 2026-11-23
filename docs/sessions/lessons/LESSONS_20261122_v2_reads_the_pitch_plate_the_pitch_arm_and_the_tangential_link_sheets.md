@@ -55,7 +55,16 @@ No reading differs from v1's, so no number moves. The three switches:
 `pitch_arm_radius` still reads `pitch_arm_link_hole_to_clocking_hole` (workbook
 B26, ±0.015, untraced), because the sheet did not close `pitch_arm_radius`.
 
-STOP_TABLE_PLACEHOLDER
+From the scratch build's own output (kinematic builder), before and after:
+
+| v2 study | before (11-22 lesson) | after (this build) |
+|---|---|---|
+| +72 stop: nominal / worst / RSS | 72.001 / ±0.784 / ±0.283 deg | 72.001 / ±0.784 / ±0.283 deg |
+| +72 S461-261 reach | margin +1.217 | margin +1.217 |
+| −7 stop: nominal / worst / RSS | −6.992 / ±2.355 / ±1.034 deg | −6.992 / ±2.355 / ±1.034 deg |
+| −7 S461-261 reach | margin −0.363 | margin −0.363 |
+
+v1's study prints the same four lines. 27 gap rows on v2, as before.
 
 The parity test now names, per contributor, why it equals v1's
 (`V2_EQUALS_V1_BECAUSE`) and keeps an empty `V2_DIFFERS_FROM_V1` for the first
@@ -96,6 +105,71 @@ edge; none wears BORROWED.
   orientation zone as an offset is a reading. Position frames are `traced`, as
   v1's are.
 
-LOOKED_PLACEHOLDER
+## Looked at
 
-TESTS_PLACEHOLDER
+Scratch root `C:\workspace	olstack\data\scratch2_sheets\` (the 11-22
+study_v2 root copied, its inbox re-mirrored from the main checkout, this tree's
+`docs/`), all eight builders run from this worktree with `--data-root`
+(`v2_sheets/build.sh`; crops and topology rebuilt again after the E7 change).
+Served by `tests/debug_walk_merged_page_20261114.mjs` on **8894**, 1536 wide;
+8000 was not used. Shots in `shots/v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets/`,
+each read:
+
+- `02_v2_grid_plate_rows_1536.png` — 215735-001's rows valued (±0.025, ±0.1,
+  ±0.05, ±0.15; the lug group above them ±0.015, ±0.1, ±0.1, ±0.015). The grid
+  panel was dragged wider to show the value columns at this width.
+- `03_open_215735_pilot_to_flange_1536.png` — the opened row (0, ±0.05,
+  inferred) with its crop: Ø 41.040 boxed as the match, ⊥ Ø0.1 A below it.
+- `04_open_213863_race_bores_1536.png` — 61.4 / 61.35 / 61.45, crop showing
+  61.40 and ⌖ Ø0.1 B. The first take showed the row under the resting
+  pointer, not the selected one; the pointer was moved off and re-shot.
+- `05_open_215071_pitch_arm_radius_open_1536.png` — the open pitch arm row,
+  "no value", its note saying what 215071-C has.
+- `06_v2_blade_pitch_study_1536.png` — the study page: no BORROWED anywhere
+  (text search: zero), plate rows 79.67 ±0.1 and centre ±0.100, margins as above.
+
+Every crop was read against the transcription: D8 (41.040, ⊥ Ø0.1 A), H8
+(5.20, Ø0.3Ⓜ A B C / Ø0.1Ⓜ A B), B9 (8.520 ±0.008, Ø0.03Ⓜ GⓂ, and 7.950,
+Ø0.2 A B C / Ø0.1 A), D10 (4.06 ±0.10, 0.2 A B C / ⊥ 0.05 G), D3 (8.520,
+Ø0.03Ⓜ FⓂ), C4 (7.950, Ø0.2 A B, C), B4 (4.06 ±0.08, ⊥ 0.05 F), E7 (61.40,
+Ø 14.288 ⌖ Ø0.1 B). Each locates by its zone with a verified text match.
+Seeing the same on 8000 is for after the merge.
+
+Seen and not changed: the study page's `pitch_arm_radius` row prints the
+workbook band (centre, 0.015) while the grid's own `pitch_arm_radius` row is
+"no value" — the contributor reads another edge; the pitch arm issue covers it.
+The grid shows `tan_link_length` (212956-005, 61.4) and `tan_link_race_bores`
+(213863-004, 61.4) both valued from one callout (addendum on the study issue).
+
+## Jeff's binding log
+
+`C:\workspace	olstack\data\inboxeature-identity\`: 116 files before and
+after; the sha256 of its per-file sha256 list was `e3e9fd53…808d` at both ends.
+Nothing was written there.
+
+## Found on arrival
+
+Nothing: the worktree was clean, and the main checkout was not worked in.
+
+## Tests
+
+- Default tier, worktree, `C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q -p no:cacheprovider -rfs`:
+  **2599 passed, 1 skipped, 1 failed** in 539 s (ledger: inside budget). The
+  skip: `test_fit_bound_features.py:433`, a pitch-link bearing re-extraction
+  not installed. The failure: `test_viewer_js_suite_is_green`, the deliberate
+  worktree red (no projection under the worktree's `data/`). `-n 16` is not
+  available in this venv (no xdist), so the run is single-process.
+  The first full run was 3 failed: that red, `test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners`
+  (asserted every non-copied v2 edge says "Value to come"; now knows the ten
+  read and the two left open) and the viewer suite's [real] check below.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/v2_sheets`:
+  **628/628**, [real] armed. It was 627/628: "[real] v2's blade-pitch study is
+  listed under v2…" still expected all six bands `other_model` and
+  `pitch_link_length` borrowed — stale since the 11-23 ten-citations handoff,
+  which ran the tier unarmed. Now it expects `this_model` for all six; the +72
+  stop's v1 chain leaves stay borrowed, as they are.
+- `node apps/annotate/run_tests.cjs`: **334/334**.
+- No browser suite and no witness spec added or changed, so neither runner was
+  run. The one spec whose guard body changed (`fast__real-v2-s-blade-pitch-study…`)
+  mutates `apps/viewer/views/map.js`, which this branch does not touch; the
+  review's `--changed-since` gate will select it from the guard hunk.
