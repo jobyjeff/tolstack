@@ -69,3 +69,6 @@ The page's "data is older than the latest code" banner is the scratch root's dir
   with the [real] tier skipped; `--repo` on the scratch root failed only the freshness gate
   (projection built from a dirty tree), not a check.
 - No new guard; no witness spec added, so the witness runner was not run.
+- Worktree `pytest -q` after the fixes: **2598 passed, 1 skipped, 1 failed** in 530 s (the
+  one failure is `test_viewer_js_suite_is_green`, the deliberate worktree red; not run in the
+  main checkout, which lacks this branch). Over the 10-min budget? No (8m50s).
