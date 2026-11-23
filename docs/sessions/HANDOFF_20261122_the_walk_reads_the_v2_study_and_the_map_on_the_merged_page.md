@@ -105,8 +105,11 @@ has none):
 **The binding pane and the tree were deliberately not changed by this
 chain.** Jeff's later messages the same evening asked whether the tree
 should live in the 3D pane and whether commands should move to a panel or a
-right-click menu; a layout sketch is with him and its handoffs follow his
-answer. So the binding sentences get a row each that says what the page does
+right-click menu; he said yes to a sketch
+(`C:\workspace\dispatch\docs\strategy\drafts\mockups\tolstack_binding_pane_20261122\`)
+and a chain of four that builds it is staged behind this walk, starting with
+`the_tree_sits_beside_the_3d_canvas_and_holds_still`. So the binding
+sentences get a row each that says what the page does
 **today**, with a shot, so the redesign starts from measured behaviour, and
 deliverable 3 below.
 
