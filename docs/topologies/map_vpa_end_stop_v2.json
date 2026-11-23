@@ -3,8 +3,8 @@
   "topology": "vpa_end_stop_v2",
   "description": "Where each part's box sits on the map's coarse grid, [column, row]. Everything else the map draws -- box sizes, pin sides, districts, outlines, routes and bundles -- is computed from the model (apps/viewer/map.js; docs/DAG_TOPOLOGY.md, \"The map\"). The map is a second drawing of the same model, never a second model.",
   "provenance": {
-    "authored_by": "handoff the_map_draws_the_end_stop_model, 2026-11-16; re-placed tall by handoff the_map_is_portrait_as_jeff_drew_it, 2026-11-17; the links re-placed by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19; the pitch plate region re-placed by handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack, 2026-11-20",
-    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): seven columns by ten rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover; the pitch plate body's column of the piston and its heads (the sixth) in the same sense -- plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross the middle. Since 2026-11-20 215177-001 is the container and owns no feature, so it is drawn as its outline alone, round one row: the tangential link's flanged bushing, the plate 215735-001, the pitch link's flanged bushing (Jeff's note 20261119T142516_ci28ci). Under each flanged bushing its bolt; the tangential link's straight bushing under its bolt, beside that lug's inner race on its left; the pitch link's straight bushing under the plate, between its bolt and the plate; and each inner race on the pitch plate district's bottom row, beside its link: the tangential link's outer race to its left, the pitch link's below it. So the only routes that cross the outline end inside it -- the straight bushings' fits on the plate, the bolts in the flanged bushings, the flanges on the races -- and no route in the region crosses another. Each link is a machined part and two bearings, each bearing an outer race in the link's district and an inner race in its neighbour's, in two adjacent cells, so the bearing's outline straddles the border and the ball joint sits between its races (2026-11-19): the tangential link turns under its plate end to its mount end's inner race in the base column, joined to the mount past the empty cells between; the pitch link runs straight down the seventh column to its inner race at the end of the blade's row -- hub, blade root, pitch arm, that inner race -- so the hub to blade joint and the pitch arm's joints run along it. Placed by scoring candidates with the map's own notes (VA.mapLayout) and counting the routes that cross: this one has no note, and its one crossing is the hub's joint to the tangential link mount, which the base column already had."
+    "authored_by": "handoff the_map_draws_the_end_stop_model, 2026-11-16; re-placed tall by handoff the_map_is_portrait_as_jeff_drew_it, 2026-11-17; the links re-placed by handoff a_link_is_a_machined_part_and_two_bearings_each_two_races, 2026-11-19; the pitch plate region re-placed by handoff the_pitch_plate_carries_its_own_features_and_each_lug_is_a_bolt_stack, 2026-11-20; each link a row and each lug stack a column by handoff the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map, 2026-11-22",
+    "arrangement": "Tall, after Jeff's sketch of 2026-11-10 (Jeff, 2026-11-17: the one arrangement is portrait, so it fits the Side by side region): seven columns by ten rows. The base body is the left column read upward as the hardware stacks -- hub, tangential link mount, gas-spring mount, piston cover -- and the pitch plate body's column of the piston and its heads the sixth, in the same sense -- plate, piston body, lower head, upper head -- so the end-stop route runs across the top and the feather stop and the slide cross under it. Since 2026-11-22 (Jeff's note 20261122T211136_iubdsx: line the lug stacks up, draw each link as a two-force member in a row, fewer crossings) each link is five boxes in one line: the tangential link a row from the mount end's inner race, beside the mount in the base column, to the plate end's inner race under its bolt; the pitch link a column down the seventh from the plate end's inner race to the pitch arm end's, at the end of the blade's row -- hub, blade root, pitch arm, that inner race. Each lug stack is a column -- inner race, bolt, flanged bushing -- with the plate beside the flanged bushing at the top, the tangential link's in the fifth column, the pitch link's in the seventh; 215177-001's outline is that row of three. The plate has room beside it for four parts and five meet it (the piston body and four bushings), so the straight bushings sit in the plate's column under it: the tangential link's straight under the plate, beside its bolt (the stack's second load path, plate -- straight bushing -- bolt, a square with the first), the pitch link's between the two plate-end inner races, beside its own. A straight line from every inner race to its plate cannot be had while each body is one rectangle: a race at the end of its lug's line sits inside the pitch plate's district, so its link must leave that rectangle from a corner, and the gas-spring mount must meet the piston, which pins the plate's rectangle to the base's side -- the lesson of the handoff above shows the search. Placed by scoring candidates with the map's own notes, crossings included (tests/debug_map_arrangement.mjs): this one has no note, no route crosses another, and its bounds are the same as the arrangement before it."
   },
   "places": {
     "piston_cover_214958_002": [
@@ -17,7 +17,7 @@
     ],
     "tan_link_mount_215175_002": [
       0,
-      3
+      6
     ],
     "hub": [
       0,
@@ -56,20 +56,20 @@
       4
     ],
     "straight_bushing_214820_002": [
-      4,
-      5
+      5,
+      4
     ],
     "bolt_nas6403u11d": [
       6,
       4
     ],
     "tan_link_upper_inner_race": [
-      3,
+      4,
       5
     ],
     "bushing_214820_002": [
       5,
-      4
+      5
     ],
     "pitch_link_upper_inner_race": [
       6,
@@ -80,24 +80,24 @@
       5
     ],
     "tan_link_upper_outer_race": [
-      2,
+      3,
       5
     ],
     "tan_link_213863_004": [
-      1,
+      2,
       5
     ],
     "tan_link_lower_outer_race": [
       1,
-      6
+      5
     ],
     "tan_link_lower_inner_race": [
       0,
-      6
+      5
     ],
     "pitch_link": [
       6,
-      6
+      7
     ],
     "pitch_link_upper_outer_race": [
       6,

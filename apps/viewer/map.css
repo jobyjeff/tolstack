@@ -98,6 +98,11 @@
    muted; it is the part's own business until it is lit. */
 .map__jumperline { stroke: var(--muted); stroke-opacity: .55; stroke-width: 2.5; stroke-linecap: round; }
 .map__jumperhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+/* An assembly's own dimension -- a link's length -- drawn the way a drawing
+   draws one: hairline extension lines out of its two ends and the dimension
+   line between them, arrowheads at both ends. */
+.map__jumper--dimension .map__jumperline { stroke-linejoin: round; }
+.map__jumperext { stroke: var(--muted); stroke-opacity: .45; stroke-width: 1.5; }
 
 /* A connector: an interface between two pins, the route in the page's ink
    and heavier where it crosses between two bodies. Its symbol breaks the
@@ -166,6 +171,10 @@
 .map__box--touched { stroke: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke-width: 2.5; }
 .map__partname--touched .map__partname-text { fill: color-mix(in srgb, var(--accent) 65%, var(--muted)); }
 .map__jumper--touched .map__jumperline { stroke: color-mix(in srgb, var(--accent) 55%, var(--muted)); stroke-opacity: 1; stroke-width: 3.5; }
+/* A lit dimension's extension lines go with it, at their own hairline. */
+.map__jumper--lead .map__jumperext { stroke: var(--ink); stroke-opacity: .8; }
+.map__jumper--selected .map__jumperext { stroke: var(--accent); stroke-opacity: .8; }
+.map__jumper--touched .map__jumperext { stroke: color-mix(in srgb, var(--accent) 55%, var(--muted)); stroke-opacity: .8; }
 .map__connector--touched .map__connectorline { stroke: color-mix(in srgb, var(--accent) 55%, var(--ink)); stroke-opacity: 1; stroke-width: 4.5; }
 .map__pin--touched .map__pindot { fill: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke: var(--ink); stroke-width: 2; }
 .map__pin--touched .map__pinlabel { opacity: 1; }

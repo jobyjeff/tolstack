@@ -395,11 +395,17 @@
     geo.jumpers.forEach(function (j) {
       var g = VA.svg("g", "map__jumper");
       var hit = VA.svg("path", "map__jumperhit", { d: j.d, fill: "none" });
-      var line = VA.svg("path", "map__jumperline", { d: j.d, fill: "none" });
-      register(reg, g, "map__jumper", VA.FOCUS_KINDS.dimension, j.id);
+      var line = VA.svg("path", "map__jumperline", { d: j.dimension ? dimensionLine(j.dimension.line, M) : j.d,
+                                                     fill: "none" });
+      register(reg, g, "map__jumper" + (j.dimension ? " map__jumper--dimension" : ""), VA.FOCUS_KINDS.dimension, j.id);
       wire(g, ctx, VA.FOCUS_KINDS.dimension, j.id, j.name);
       title(g, j.name);
       g.appendChild(hit);
+      if (j.dimension) {
+        g.appendChild(VA.svg("path", "map__jumperext", { d: j.dimension.ext.map(function (leg) {
+          return leg.map(function (p, i) { return (i ? "L" : "M") + p.x + " " + p.y; }).join(" ");
+        }).join(" "), fill: "none" }));
+      }
       g.appendChild(line);
       layer.jumpers.appendChild(g);
     });
@@ -556,6 +562,24 @@
     if (ctx.onPainted) ctx.onPainted();
     return root;
   };
+
+  // A dimension line between two points with an open arrowhead at each end,
+  // pointing out to its extension line: one path, so it takes `fill: none`
+  // like every other curve here.
+  function dimensionLine(ends, M) {
+    var p = ends[0], q = ends[1];
+    var len = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+    var ux = (q.x - p.x) / len, uy = (q.y - p.y) / len;
+    var a = M.dimension.arrow, w = a * 0.45;
+    var head = function (tip, dx, dy) {
+      var bx = tip.x + dx * a, by = tip.y + dy * a;
+      return " M" + r2(bx - dy * w) + " " + r2(by + dx * w) + " L" + tip.x + " " + tip.y +
+        " L" + r2(bx + dy * w) + " " + r2(by - dx * w);
+    };
+    return "M" + p.x + " " + p.y + " L" + q.x + " " + q.y + head(p, ux, uy) + head(q, -ux, -uy);
+  }
+
+  function r2(n) { return Math.round(n * 100) / 100; }
 
   function tintOf(geo, bodyId) {
     for (var i = 0; i < geo.bodies.length; i++) {

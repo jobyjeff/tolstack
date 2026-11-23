@@ -81,6 +81,9 @@
     // when no corner of it has room for the name.
     name: Object.freeze({ inset: 10, clear: 6, grow: 24, tries: 8 }),
     margin: 40,
+    // An assembly's own dimension drawn as a dimension: its extension lines
+    // run `past` the dimension line, whose arrowheads are `arrow` long.
+    dimension: Object.freeze({ past: 10, arrow: 14 }),
     // The layout's budgets for a route it cannot draw plainly (2026-11-19):
     // how many stops beside the grid's corners a route may pass, how many
     // routes through them one connector tries, and
@@ -524,23 +527,32 @@
     return false;
   }
 
-  // Do two polylines cross -- a segment of one passing from one side of a
-  // segment of the other to its far side? Each end's signed distance from
-  // the other segment's line, half a unit of slack, so two routes that
-  // touch, or run on one line (a shared run, said apart), do not count.
+  // Do two polylines meet -- a segment of one passing from one side of a
+  // segment of the other to its far side, or a corner of one (past its
+  // pins) lying on the other? Each end's signed distance from the other
+  // segment's line, with half a unit of slack. A route that turns ON another
+  // reads as a branch of it, the way a crossing does (2026-11-22: the
+  // straight bushing's stub ended on the lane past it). Two routes on one
+  // line are a shared run, said apart.
   function routesCross(pa, pb) {
     var side = function (a, b, c) {
       var len = Math.hypot(b.x - a.x, b.y - a.y);
       return len ? ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / len : 0;
     };
     var apart = function (u, v) { return (u > 0.5 && v < -0.5) || (u < -0.5 && v > 0.5); };
+    var onto = function (pts, other) {
+      for (var k = 1; k < pts.length - 1; k++) {
+        if (nearRect(other, { x: pts[k].x, y: pts[k].y, w: 0, h: 0 }, 1)) return true;
+      }
+      return false;
+    };
     for (var i = 1; i < pa.length; i++) {
       for (var j = 1; j < pb.length; j++) {
         var p = pa[i - 1], q = pa[i], r = pb[j - 1], s = pb[j];
         if (apart(side(r, s, p), side(r, s, q)) && apart(side(p, q, r), side(p, q, s))) return true;
       }
     }
-    return false;
+    return onto(pa, pb) || onto(pb, pa);
   }
   VA.mapRoutesCross = routesCross;
 
@@ -600,6 +612,13 @@
           defect(connectors[i].id);
           defect(connectors[j].id);
         }
+        [[i, j], [j, i]].forEach(function (pair) {
+          var c = connectors[pair[0]], d = connectors[pair[1]];
+          if (c.symbol && nearRect(d.points, { x: c.mid.x, y: c.mid.y, w: 0, h: 0 }, M.symbol / 2)) {
+            notes.push("interface " + c.id + "'s symbol sits on " + d.id + "'s route");
+            defect(c.id);
+          }
+        });
       }
     }
     return { notes: notes, defects: defects };
@@ -760,6 +779,26 @@
     };
     var flankOf = function (column) { return column >= lastColumn - column ? "right" : "left"; };
     var rowFlankOf = function (row) { return row >= lastRow - row ? "bottom" : "top"; };
+    // The flank a detour takes between two parts in one column (or row):
+    // the side whose neighbouring column (row) holds fewer parts along the
+    // span, so the lane runs past empty cells rather than across the routes
+    // of the parts beside it (2026-11-22: the tangential link's flange seat,
+    // round its bolt, crossed the straight bushing's routes on the plate
+    // side); a tie keeps the side toward the nearer edge of the map.
+    var beside = function (p, q, axis, offset) {
+      var lo = Math.min(p[1 - axis], q[1 - axis]), hi = Math.max(p[1 - axis], q[1 - axis]);
+      return Object.keys(placeOf).filter(function (pid) {
+        var c = placeOf[pid];
+        return !childless[pid] && c[axis] === p[axis] + offset && c[1 - axis] > lo && c[1 - axis] < hi;
+      }).length;
+    };
+    var detourFlank = function (p, q, way) {
+      var axis = way === "column" ? 0 : 1;
+      var lower = beside(p, q, axis, -1), upper = beside(p, q, axis, 1);
+      var edge = way === "column" ? flankOf(p[0]) : rowFlankOf(p[1]);
+      var far = way === "column" ? "right" : "bottom", near = way === "column" ? "left" : "top";
+      return lower < upper ? near : upper < lower ? far : edge;
+    };
     var farPartOf = function (iface, fid) {
       var other = (iface.ends || []).filter(function (e) { return e !== fid; })[0];
       return other && features[other] ? features[other].part : null;
@@ -786,8 +825,7 @@
       if (childless[part] === far) return "top";
       if (childless[part] && childless[part] === childless[far]) return kidIndex[part] < kidIndex[far] ? "right" : "left";
       var way = partBetween(placeOf[part], placeOf[far]);
-      if (way === "column") return flankOf(placeOf[part][0]);
-      if (way === "row") return rowFlankOf(placeOf[part][1]);
+      if (way) return detourFlank(placeOf[part], placeOf[far], way);
       var side = sideTowards(placeOf[part], placeOf[far]);
       if (side === "top" && childless[part]) {
         return placeOf[far][0] < placeOf[part][0] ? "left" : "right";
@@ -805,6 +843,18 @@
       var off = placeOf[far][along] - placeOf[part][along];
       var depth = Math.abs(placeOf[far][1 - along] - placeOf[part][1 - along]);
       return off > 0 ? -depth : off < 0 ? depth : 0;
+    };
+    // A bundle that detours round a part between (`detour`, `rowDetour`)
+    // leaves both its parts from the same flank, its earlier constraints on
+    // the outer lanes. In the same order at both ends the lanes cross at the
+    // far one -- the hub's joint to the tangential link mount did, round the
+    // mount end's inner race (2026-11-22) -- so the far end, the one further
+    // down the column or along the row, takes the order reversed.
+    var detourOrder = function (part, far, index) {
+      var way = partBetween(placeOf[part], placeOf[far]);
+      if (!way) return index;
+      var axis = way === "column" ? 1 : 0;
+      return placeOf[part][axis] > placeOf[far][axis] ? -index : index;
     };
     var slotOf = {};      // interface id + "|" + feature id -> pin
     var endsOfIface = {};
@@ -840,7 +890,7 @@
           order: [farPart && placeOf[farPart] ? placeOf[farPart][side === "left" || side === "right" ? 1 : 0] +
                     (childless[farPart] ? (kidIndex[farPart] + 1) / 100 : 0) : 0,
                   nearerOutside(f.part, farPart, side),
-                  constraintIndex[iface.id] || 0, f.id, iface.id],
+                  detourOrder(f.part, farPart, constraintIndex[iface.id] || 0), f.id, iface.id],
         };
         slotOf[iface.id + "|" + f.id] = pin;
         var bySide = pinsOf[f.part] = pinsOf[f.part] || { top: [], right: [], bottom: [], left: [] };
@@ -880,15 +930,42 @@
     // A side's pins that are spread along it: all but those toward the
     // part's own child, which sit over the child's (step 4-6).
     var spread = function (list) { return list.filter(function (q) { return !q.toChild; }); };
-    // Pin coordinates along each side of `box`, centred on the side.
+    // Where along a side its pins are centred, in pin steps from the first:
+    // the middle of the side, unless some of them meet a partner straight
+    // across -- a part in the same row, for a flank; the same column, for the
+    // top or bottom -- whose box is centred on the same line. Then those pins
+    // are centred, so the route between the two is one straight line
+    // (2026-11-22: a link's last ball joint jogged a pin's width where its
+    // inner race also carried the flange seat's pin on that side). The box
+    // grows to keep the rest of the side's pins on it (`reach`).
+    var centreOf = function (part, side, list) {
+      var along = side === "left" || side === "right" ? 1 : 0;
+      var first = -1, last = -1, who = null;
+      list.forEach(function (q, i) {
+        var c = q.counterpart && !childless[q.counterpart] ? placeOf[q.counterpart] : null;
+        if (!c || c[along] !== placeOf[part][along] || (who && q.counterpart !== who)) return;
+        who = q.counterpart;
+        if (first < 0) first = i;
+        last = i;
+      });
+      return first < 0 ? (list.length - 1) / 2 : (first + last) / 2;
+    };
+    // How many pin steps a side needs either side of its centre.
+    var reach = function (part, side, list) {
+      if (!list.length) return -0.5;
+      var k = centreOf(part, side, list);
+      return Math.max(k, list.length - 1 - k);
+    };
+    // Pin coordinates along each side of `box`, centred as above.
     var pinsAlong = function (box) {
       var out = [];
       var bySide = pinsOf[box.id];
       if (!bySide) return out;
       SIDES.forEach(function (side) {
         var list = spread(bySide[side]);
+        var k = centreOf(box.id, side, list);
         list.forEach(function (pin, i) {
-          var off = (i - (list.length - 1) / 2) * M.pinPitch;
+          var off = (i - k) * M.pinPitch;
           if (side === "left") { pin.x = box.x; pin.y = box.y + box.h / 2 + off; }
           if (side === "right") { pin.x = box.x + box.w; pin.y = box.y + box.h / 2 + off; }
           if (side === "top") { pin.x = box.x + box.w / 2 + off; pin.y = box.y; }
@@ -979,8 +1056,11 @@
       if (!placeOf[p.id] || childless[p.id]) return;
       var cell = cellRect(placeOf[p.id], M);
       var bySide = pinsOf[p.id] || { top: [], right: [], bottom: [], left: [] };
-      var across = Math.max(spread(bySide.top).length, spread(bySide.bottom).length);
-      var down = Math.max(bySide.left.length, bySide.right.length);
+      // A side of n pins centred in the middle needs n steps; one centred on
+      // a partner straight across needs twice its longer reach, plus one.
+      var across = 2 * Math.max(reach(p.id, "top", spread(bySide.top)),
+                                reach(p.id, "bottom", spread(bySide.bottom))) + 1;
+      var down = 2 * Math.max(reach(p.id, "left", bySide.left), reach(p.id, "right", bySide.right)) + 1;
       var w = Math.max(M.box.minW, across * M.pinPitch + 2 * M.box.pad);
       var h0 = Math.max(M.box.minH, down * M.pinPitch + 2 * M.box.pad);
       var kids = childrenInCell[p.id] || [];
@@ -1126,6 +1206,21 @@
       j.via = via.length ? via : null;
       j.d = pathD([j.a].concat(via, [j.b]));
       if (via.length) j.mid = { x: round((via[1].x + via[2].x) / 2), y: round((via[1].y + via[2].y) / 2) };
+      // Drawn as a dimension, not a lane (2026-11-22, the 11-19 walk: "each
+      // link's length is a long lane that reads as another box"): an
+      // extension line out of each end, a little past the dimension line,
+      // and the dimension line between them with an arrowhead at each end.
+      if (via.length) {
+        var past = function (from, to) {
+          var len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+          return { x: round(to.x + (to.x - from.x) / len * M.dimension.past),
+                   y: round(to.y + (to.y - from.y) / len * M.dimension.past) };
+        };
+        j.dimension = {
+          ext: [[j.a, via[0], past(via[0], via[1])], [j.b, via[3], past(via[3], via[2])]],
+          line: [via[1], via[2]],
+        };
+      }
       j.lane = union([j.a, j.b].concat(via).map(function (q) { return { x: q.x, y: q.y, w: 0, h: 0 }; }));
       jumpers.push(j);
       drawn[j.id] = true;
@@ -1146,7 +1241,7 @@
     var detour = function (a, b, iface) {
       var square = route(a, b, M);
       var p1 = square[1], p2 = square[square.length - 2];
-      var out = flankOf(placeOf[a.part][0]) === "right" ? 1 : -1;
+      var out = a.side === "left" ? -1 : a.side === "right" ? 1 : flankOf(placeOf[a.part][0]) === "right" ? 1 : -1;
       var lo = Math.min(p1.y, p2.y), hi = Math.max(p1.y, p2.y);
       var lane = out * Math.max(out * p1.x, out * p2.x);
       boxes.forEach(function (box) {
@@ -1164,7 +1259,7 @@
     var rowDetour = function (a, b, iface) {
       var square = route(a, b, M);
       var p1 = square[1], p2 = square[square.length - 2];
-      var out = rowFlankOf(placeOf[a.part][1]) === "bottom" ? 1 : -1;
+      var out = a.side === "top" ? -1 : a.side === "bottom" ? 1 : rowFlankOf(placeOf[a.part][1]) === "bottom" ? 1 : -1;
       var lo = Math.min(p1.x, p2.x), hi = Math.max(p1.x, p2.x);
       var lane = out * Math.max(out * p1.y, out * p2.y);
       boxes.forEach(function (box) {
