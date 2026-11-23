@@ -312,6 +312,121 @@ def test_an_edge_whose_ends_name_nothing_is_paired_by_its_interface_word(store):
 
 
 # ---------------------------------------------------------------------------
+# 2026-11-21: two parts on one mesh, each at its own occurrence
+# ---------------------------------------------------------------------------
+
+#: v2's two plate lugs in miniature: one plate with a bore at each lug, and one
+#: bushing mesh recorded at both. Lug A's bushing declares its occurrence;
+#: lug B's is a race-like child of a bearing that declares lug B's.
+LUG_A = ["asm", "lugA", "bush.1"]
+LUG_B = ["asm", "lugB", "bush.1"]
+
+
+@pytest.fixture
+def lug_store(tmp_path):
+    def make(declare_b=True):
+        root = tmp_path / ("declared" if declare_b else "silent")
+        meshes = root / "data" / "meshes"
+        bush = make_mesh([cylinder_face(5.0, 0, 10, convex=True)])
+        plate = make_mesh([cylinder_face(5.05, 0, 10, convex=False),
+                           cylinder_face(5.05, 0, 10, convex=False, centre=(30.0, 0.0))])
+        write_mesh(meshes, "a" * 64, "bushing", bush,
+                   [instance("bush.1", IDENTITY, LUG_A), instance("bush.1", translate(30, 0, 0), LUG_B)])
+        write_mesh(meshes, "b" * 64, "plate", plate, [instance("plate.1", IDENTITY)])
+        topologies = root / "topologies"
+        topologies.mkdir(parents=True)
+        aliases = [{"topology_part": p, "mesh_part_id": "bushing"}
+                   for p in ("lug_a_bushing", "lug_b_bearing", "lug_b_race", "lug_b_inner")]
+        (topologies / "part_mesh_aliases.json").write_text(json.dumps({"aliases": aliases}),
+                                                           encoding="utf-8")
+        parts = [{"id": "plate", "name": "plate"},
+                 {"id": "lug_a_bushing", "name": "lug A bushing", "occurrence": "/".join(LUG_A)},
+                 {"id": "lug_b_bearing", "name": "lug B bearing"},
+                 {"id": "lug_b_race", "name": "lug B race", "parent": "lug_b_bearing"},
+                 {"id": "lug_b_inner", "name": "lug B inner race", "parent": "lug_b_bearing"}]
+        if declare_b:
+            parts[2]["occurrence"] = "/".join(LUG_B)
+        nodes = [{"id": n, "name": n, "kind": "datum_feature", "parts": [p]}
+                 for n, p in (("a_od", "lug_a_bushing"), ("a_bore", "plate"),
+                              ("b_od", "lug_b_race"), ("b_bore", "plate"),
+                              ("b_inner", "lug_b_inner"))]
+        topology = {
+            "schema": "joby.tolerance_stack/topology/v0", "id": "lugs", "title": "Lugs",
+            "units": "mm", "nodes": nodes, "parts": parts,
+            "edges": [gap_edge("lug_a_fit", "a_od", "a_bore", "pin_in_bore"),
+                      gap_edge("lug_b_fit", "b_od", "b_bore", "pin_in_bore"),
+                      gap_edge("lug_b_races", "b_inner", "b_od", "pin_in_bore")],
+        }
+        (topologies / "topology_lugs.json").write_text(json.dumps(topology), encoding="utf-8")
+        _out, data = builder.build(topologies, root / "data" / "meshes",
+                                   root / "data" / builder.PROJECTION_SUBDIR)
+        return {r["edge"]: r for r in data["topologies"][0]["edges"]}, data
+    return make
+
+
+def test_two_parts_on_one_mesh_are_each_offered_their_own_lugs_faces(lug_store):
+    """Ranked per MESH, both lugs tie and the first slot in key order wins
+    both: lug B was offered lug A's bore. Each end is now measured at its
+    part's own occurrence -- declared, or its same-mesh parent's."""
+    rows, data = lug_store(declare_b=True)
+    a, b = rows["lug_a_fit"], rows["lug_b_fit"]
+    assert a["occurrences"]["from"] == "/".join(LUG_A)
+    assert b["occurrences"]["from"] == "/".join(LUG_B)
+    assert b["from"]["occurrence"] == "/".join(LUG_B)          # inherited from the bearing
+    assert a["candidates"][0]["to"]["faces"] == [0]
+    assert b["candidates"][0]["to"]["faces"] == [1]
+    assert all(r[s]["placed"] for r in (a, b) for s in builder.SIDES)
+    assert data["summary"]["unplaced"] == 0
+    # Two races of one bearing: one mesh at one place, never compared with
+    # itself -- said, rather than a crash on a nearest gap that was never measured.
+    races = rows["lug_b_races"]
+    assert (races["status"], races["nearest_gap_mm"]) == ("no_contact", None)
+    assert "one 3D model at one place" in races["note"]
+
+
+def test_a_shared_mesh_part_with_no_place_is_listed_but_never_a_take(lug_store):
+    """Lug B declares nothing: it is still ranked, over every slot, and its row
+    says its place is not known -- which the annotator shows with no Take."""
+    rows, data = lug_store(declare_b=False)
+    a, b = rows["lug_a_fit"], rows["lug_b_fit"]
+    assert (b["from"]["occurrence"], b["from"]["placed"], b["to"]["placed"]) == (None, False, True)
+    assert b["status"] == "ok" and b["candidates"]
+    assert not builder.row_placed(b) and not builder.clear_top(b)
+    assert builder.row_placed(a)
+    assert data["summary"]["unplaced"] == 2            # lug B's fit and its two races
+
+
+def test_a_declared_occurrence_no_mesh_records_says_so(lug_store, tmp_path):
+    rows, _data = lug_store(declare_b=True)
+    topology = json.loads((tmp_path / "declared" / "topologies" / "topology_lugs.json")
+                          .read_text(encoding="utf-8"))
+    topology["parts"][1]["occurrence"] = "asm/nowhere/bush.9"
+    (tmp_path / "declared" / "topologies" / "topology_lugs.json").write_text(
+        json.dumps(topology), encoding="utf-8")
+    root = tmp_path / "declared"
+    _out, data = builder.build(root / "topologies", root / "data" / "meshes",
+                               root / "data" / builder.PROJECTION_SUBDIR, allow_older=True)
+    row = {r["edge"]: r for r in data["topologies"][0]["edges"]}["lug_a_fit"]
+    assert row["status"] == "no_occurrence"
+    assert "asm/nowhere/bush.9" in row["note"]
+
+
+def test_the_place_rule_is_the_annotators_rule():
+    """``part_occurrence`` / ``Store.place`` and ``AA.partOccurrence`` /
+    ``AA.partPlaced`` (apps/annotate/sweep.js): own occurrence, else the
+    nearest same-mesh parent's; a part with neither is placed only when it is
+    alone on its mesh. A reader and the projection disagreeing about which
+    lug a part is, is the defect this pairs against."""
+    sweep = (REPO_ROOT / "apps" / "annotate" / "sweep.js").read_text(encoding="utf-8")
+    occ = re.search(r"AA\.partOccurrence = function[\s\S]*?\n  \};", sweep)
+    placed = re.search(r"AA\.partPlaced = function[\s\S]*?\n  \};", sweep)
+    assert occ and placed, "AA.partOccurrence / AA.partPlaced moved -- this pairing has drifted"
+    assert "part.occurrence" in occ.group(0) and "part.parent" in occ.group(0)
+    assert "shaOf(part.id) === sha" in occ.group(0)
+    assert "< 2" in placed.group(0)
+
+
+# ---------------------------------------------------------------------------
 # [real] -- what the 2026-10-29 rebuild found, held
 # ---------------------------------------------------------------------------
 

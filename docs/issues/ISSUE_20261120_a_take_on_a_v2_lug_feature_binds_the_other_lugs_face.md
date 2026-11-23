@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20261121_a_take_on_a_lug_feature_binds_that_lugs_own_face.md
 area: annotate/contact-suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md
+resolution: handoff completed 2026-11-22 -- closed automatically by dispatch when handoff `a_take_on_a_lug_feature_binds_that_lugs_own_face` moved to completed/; not independently verified.
 ---
 
 # A Take on a v2 lug feature binds the other lug's face

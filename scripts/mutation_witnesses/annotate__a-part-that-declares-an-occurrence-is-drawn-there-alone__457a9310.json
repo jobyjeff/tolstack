@@ -10,6 +10,22 @@
       "file": "apps/annotate/sweep.js",
       "find": "      byMesh[sha] = mine;\n",
       "replace": ""
+    },
+    {
+      "contract": "A part is measured at its own occurrence, never at every slot its mesh is drawn at.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "Measures a declared part at every drawn slot of its mesh: two lugs' bushings on one mesh, and a bore ranked against both offers the other lug's (a_take_on_a_lug_feature_binds_that_lugs_own_face).",
+      "file": "apps/annotate/sweep.js",
+      "find": "    if (key) {\n      return drawn.filter(function (o) { return o.key === key; })",
+      "replace": "    if (key) {\n      return drawn.filter(function (o) { return !!o.key; })"
+    },
+    {
+      "contract": "A dimension within one part is not a mate: its bound other end is never ranked against.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "The rule before 2026-11-22: v2's flanged-bushing lug bores were offered the plate's own spindle bore (face 487), with a Take, through the radius dimension from the spindle axis.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return !!from && from === to;",
+      "replace": "    return false;"
     }
   ]
 }

@@ -1,0 +1,35 @@
+{
+  "schema": "joby.tolerance_stack/feature-identity/v1",
+  "event_id": "annotate-1795415372892-pitch_link_straight_bushing_transition_fit",
+  "seq": 116,
+  "created_at": "2026-11-23T06:29:32Z",
+  "recorded_by": "annotate-app:jeff",
+  "feature_key": {
+    "topology_id": "vpa_end_stop_v2",
+    "part": "pitch_plate_215735_001",
+    "node": "pitch_plate_link_straight_bushing_bore"
+  },
+  "verdict": "bound",
+  "geometry_keys": [
+    {
+      "source_step_sha256": "0d6f23eef420017a4e467315343c8535290cb68943d0b9d69dac0e7f8c27bc15",
+      "face_id": 1380,
+      "area_native2": 29.443006,
+      "centroid_native": [
+        88.548686,
+        -26.991259,
+        100.619996
+      ]
+    },
+    {
+      "source_step_sha256": "0d6f23eef420017a4e467315343c8535290cb68943d0b9d69dac0e7f8c27bc15",
+      "face_id": 1381,
+      "area_native2": 29.443006,
+      "centroid_native": [
+        88.865595,
+        -24.410238,
+        105.380004
+      ]
+    }
+  ]
+}

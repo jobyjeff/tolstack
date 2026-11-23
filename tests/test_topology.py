@@ -2936,6 +2936,9 @@ def test_the_contact_builder_and_the_proposer_read_a_declared_face():
         def resolve(self, part):
             return {"sha256": "s-" + part, "part_id": part}
 
+        def place(self, topology, part):
+            return None, True
+
     topology = load_topology(LINKAGE_TOPOLOGY)
     edge = topology.edge("hub_to_pitch_plate_spindle_coaxiality")
     end = bcs._end(topology, edge, "pitch_plate_spindle_bore_axis", Store())

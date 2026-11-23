@@ -516,6 +516,12 @@ the edge's own words can settle which end it means. A part every blade shares
 (the pitch plate, the tangential link mount) touches at a different face per
 blade and is reported the same way: nothing declares which blade a topology is
 about (`docs/issues/ISSUE_20261028_contact_suggestions_cannot_say_which_blade_a_topology_edge_means.md`).
+**A part is measured at its own occurrence** (2026-11-21): its `occurrence`, else
+its nearest same-mesh parent's (a race is at its bearing's place), so two parts
+on one mesh — v2's two plate lugs — are each offered their own faces; a part
+that shares its mesh with another and declares neither is still ranked, its end
+says `placed: false`, and its rows are listed with "place not known" and no Take
+(the mate ranking skips it the same way).
 
 **An edge with no candidate says why**, one of
 `interface_contact.EMPTY_REASONS`: no installed mesh for an end, no recorded

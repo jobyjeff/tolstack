@@ -1,0 +1,23 @@
+{
+  "tier": "python",
+  "suite": "tests/test_contact_suggestions.py",
+  "expect_red": "test_two_parts_on_one_mesh_are_each_offered_their_own_lugs_faces",
+  "mutations": [
+    {
+      "contract": "A part with a declared occurrence (or a same-mesh parent's) is measured at that occurrence only, so two parts on one mesh are each offered their own faces.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "Ignores the pin, the rule before 2026-11-21: every slot of the mesh is ranked and the tie goes to the first key, so lug B is offered lug A's bore -- v2's pitch link straight bushing offered the tangential link's 1370/1371.",
+      "file": "scripts/build_contact_suggestions.py",
+      "find": "        if pin:\n            return pinned_occurrences(sha, pin, self.own, self.every)",
+      "replace": "        if False:\n            return pinned_occurrences(sha, pin, self.own, self.every)"
+    },
+    {
+      "contract": "A race with no occurrence of its own is at its same-mesh bearing's place.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "Stops the walk at the part itself: v2's eight races, which declare nothing, would fall back to every slot.",
+      "file": "scripts/build_contact_suggestions.py",
+      "find": "        part = parts.get(part.parent) if part.parent else None\n    return None",
+      "replace": "        part = None\n    return None"
+    }
+  ]
+}
