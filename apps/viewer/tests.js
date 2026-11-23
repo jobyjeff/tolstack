@@ -9776,8 +9776,9 @@
         eq(model.subtreeOf("nobody"), []);
         eq(model.allPartsOf("b1"), ["p1", "p2"]);
         eq(model.body("b1").parts, ["p1"], "a body's parts are its top-level parts");
-        eq(VA.navRowPath(model, "part", "p2"), ["b:b1", "bp:b1", "p:p1"]);
-        eq(VA.navRowPath(model, "feature", "p2@n3"), ["b:b1", "bp:b1", "p:p1", "p:p2"]);
+        var plan = VA.navPlan(model, {});
+        eq(plan.paths["part:p2"], ["b:b1", "p:p1"]);
+        eq(plan.paths["feature:p2@n3"], ["b:b1", "p:p1", "p:p2"]);
         // A projection built before parts had parents reads every part as a leaf.
         var flat = VA.buildModel(bodiedProj(), null);
         eq(flat.childrenOf("p1"), []);
@@ -9801,7 +9802,8 @@
       });
 
     await test("the tree draws an assembly's parts inside it, one level in and before its " +
-      "own features, and counts a body's every part", function () {
+      "own features, counts its features bound over everything inside it, and counts a body's " +
+      "every part", function () {
         var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
                      looseStacks: [], kinematic: [] };
         var state = { mode: "topology", topologyId: "mini",
@@ -9809,7 +9811,7 @@
                       navOpen: { "p:p1": true }, focus: { selected: null, hovered: null },
                       selection: null, hiddenParts: { p1: true } };
         var root = render(function (r) {
-          VA.renderNavTree(r, tree, state, { onVisibility: function () {} });
+          VA.renderNavTree(r, tree, state, { structure: true, onVisibility: function () {} });
         });
         var rows = all(root, "div.navtree__row").map(function (r) {
           return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id");
@@ -9823,7 +9825,9 @@
         })[0];
         eq(p1.getAttribute("data-nav-assembly"), "true");
         eq(p1.querySelector(".navtree__count").textContent,
-           "1" + VA.NAV_WORDS.partCount + " · 2" + VA.NAV_WORDS.featuresCount);
+           VA.NAV_WORDS.boundOf.replace("{n}", "0").replace("{m}", "5"),
+           "p1's two features and p2's three, none bound");
+        eq(p1.querySelector(".navtree__count").getAttribute("data-nav-bound"), "0/5");
         // The assembly's box covers its meshed parts (p1 only: p2 has none).
         eq(p1.querySelector("input.navtree__vis").checked, false);
         var body = all(root, "div.navtree__row--body")[0];
@@ -10170,24 +10174,30 @@
           own: ["feature:p1@n2"], touching: ["interface:n2", "joint:p1+p2", "feature:p2@n2", "dimension:d1"] });
         eq(VA.focusNavRowsOf(model, { kind: F.body, id: "b2" }).own, ["body:b2", "part:p3", "feature:p3@n4"]);
         eq(VA.focusNavRowsOf(model, null), { own: [], touching: [] });
-        // Where a row is revealed: the folds on its path, outermost first.
-        eq(VA.navRowPath(model, F.feature, "p1@n2"), ["b:b1", "bp:b1", "p:p1"], "a feature under its part");
-        eq(VA.navRowPath(model, F.feature, "p2@n2", "n2"), ["b:b1", "bi:b1", "j:p1+p2", "i:n2"],
-           "...or under the interface it is an end of");
-        eq(VA.navRowPath(model, F.feature, "p3@n4", "g1"), ["i:g1"],
+        // Where a row is: the folds on its path, outermost first, from the
+        // tree's own plan -- by part, and by joint.
+        var byPart = VA.navPlan(model, {});
+        var byJoint = VA.navPlan(model, { navGroup: VA.NAV_GROUPINGS[1] });
+        eq(byPart.paths["feature:p1@n2"], ["b:b1", "p:p1"], "by part, a feature under its part");
+        eq(byPart.paths["part:p3"], ["b:b2"]);
+        eq(byPart.paths["body:b1"], []);
+        eq(byPart.paths["interface:n2"], undefined, "by part, no interface rows");
+        eq(byJoint.paths["feature:p2@n2"], ["b:b1", "j:p1+p2", "i:n2"], "by joint, under the interface it ends");
+        eq(byJoint.paths["feature:p3@n4"], ["i:g1"],
            "under a single-constraint joint between bodies, the interface row is the joint's");
-        eq(VA.navRowPath(model, F.interface, "g2"), ["b:b1", "bi:b1", "j:p1+p2"]);
-        eq(VA.navRowPath(model, F.joint, "p2+p3"), []);
-        eq(VA.navRowPath(model, F.part, "p3"), ["b:b2", "bp:b2"]);
-        eq(VA.navRowPath(model, F.body, "b1"), []);
-        var reveal = VA.navRevealPaths(model, VA.focusLightOf(model, { kind: F.part, id: "p1" }), { kind: F.part, id: "p1" });
-        eq(reveal["feature:p1@n1"], ["b:b1", "bp:b1", "p:p1"], "a part's own feature is revealed under the part");
-        eq(reveal["feature:p2@n2"], ["b:b1", "bi:b1", "j:p1+p2", "i:n2"],
-           "the feature across its interface under that interface, not by opening the neighbour part");
-        eq(reveal["dimension:d1"], undefined, "a dimension has no row");
-        var ifaceReveal = VA.navRevealPaths(model, VA.focusLightOf(model, { kind: F.interface, id: "n2" }), { kind: F.interface, id: "n2" });
-        eq(ifaceReveal["feature:p1@n2"], ["b:b1", "bi:b1", "j:p1+p2", "i:n2"],
-           "an interface's own ends are revealed under it, where the reader is looking");
+        eq(byJoint.paths["interface:g2"], ["b:b1", "j:p1+p2"]);
+        eq(byJoint.paths["part:p1"], undefined, "by joint, no part rows");
+        // What a selection opens: the path to its own row and nothing else --
+        // or, with no row of its own in this grouping, the paths to what it owns.
+        eq(VA.navSelectionPaths(byPart, model, { kind: F.part, id: "p1" }), [["b:b1"]],
+           "a part: its body, not the part itself");
+        eq(VA.navSelectionPaths(byPart, model, { kind: F.interface, id: "g2" }), [["b:b1", "p:p1"], ["b:b1", "p:p2"]],
+           "an interface by part: its two ends' paths");
+        eq(VA.navSelectionRows(byPart, model, { kind: F.interface, id: "g2" }), ["feature:p1@n1", "feature:p2@n5"]);
+        eq(VA.navSelectionPaths(byJoint, model, { kind: F.interface, id: "g2" }), [["b:b1", "j:p1+p2"]],
+           "the same interface by joint: its own row");
+        eq(VA.navSelectionRows(byJoint, model, { kind: F.feature, id: "p1@n2" }), ["feature:p1@n2"]);
+        eq(VA.navSelectionPaths(byPart, null, null), []);
         // The scene's reading: parts with a mesh, faces, and the elements.
         var scene = VA.sceneLightOf(bound, { kind: F.part, id: "p1" });
         eq(scene.own, { parts: ["p1"], nodes: ["n1", "n2"], edges: ["d1"], faces: [{ sha256: "aa", faceId: 12 }] });
@@ -10216,9 +10226,9 @@
         var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
                      looseStacks: [], kinematic: [] };
         var state = { mode: "topology", topologyId: "mini", models: { mini: model },
-                      navOpen: { "p:p1": true, "p:p2": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true },
+                      navOpen: { "p:p1": true },
                       focus: { selected: null, hovered: { kind: "part", id: "p2" } }, selection: null };
-        var root = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
+        var root = render(function (r) { VA.renderNavTree(r, tree, state, { structure: true }); });
         var rowsWith = function (cls) {
           return all(root, "div.navtree__row").filter(function (r) { return hasClass(r, cls); })
             .map(function (r) { return r.getAttribute("data-nav-kind") + ":" + r.getAttribute("data-nav-id"); });
@@ -10226,29 +10236,18 @@
         var unique = function (list) {
           return list.filter(function (k, i) { return list.indexOf(k) === i; }).sort();
         };
-        eq(unique(rowsWith("navtree__row--hot")),
-           ["feature:p2@n2", "feature:p2@n3", "feature:p2@n5", "part:p2"],
-           "a render draws the hovered part and its features lit as own");
-        eq(unique(rowsWith("navtree__row--hot-touching")),
-           ["feature:p1@n1", "feature:p1@n2", "interface:g1", "interface:g2", "interface:n2", "joint:p1+p2"],
-           "...and the interfaces to its neighbours, their joint and the features across as touching");
-        // The far feature behind a closed fold: p3@n4 is an end of g1, which
-        // is closed and whose part p3 is closed too, so the g1 row wears the
-        // mark of a lit row it hides. p1@n1 is across g2, also closed -- but
-        // its row under p1 is on screen, so nothing marks g2.
-        eq(unique(rowsWith("navtree__row--holds-touching")), ["interface:g1"]);
-        eq(rowsWith("navtree__row--holds"), []);
+        eq(unique(rowsWith("navtree__row--hot")), ["part:p2"], "a render draws the hovered part lit as own");
+        eq(unique(rowsWith("navtree__row--hot-touching")), ["feature:p1@n1", "feature:p1@n2"],
+           "...and the features across its interfaces, under p1, as touching");
+        // Its own features are behind its own closed fold, so its row wears the
+        // mark; the ball centre across g1 is behind p3's, so p3's row does.
+        eq(unique(rowsWith("navtree__row--holds")), ["part:p2"]);
+        eq(unique(rowsWith("navtree__row--holds-touching")), ["part:p3"]);
         // Re-lit in place: a feature of the shared node.
-        eq(VA.lightNavTree(root, model, { kind: "feature", id: "p1@n2" }), 6,
-           "p1@n2 twice (under p1 and under n2), the interface row, the joint row, p2@n2 twice");
+        eq(VA.lightNavTree(root, model, { kind: "feature", id: "p1@n2" }), 1, "its one row: each thing once");
         eq(unique(rowsWith("navtree__row--hot")), ["feature:p1@n2"]);
-        eq(unique(rowsWith("navtree__row--hot-touching")), ["feature:p2@n2", "interface:n2", "joint:p1+p2"]);
-        eq(rowsWith("navtree__row--holds-touching"), [], "nothing lit is hidden");
-        // A body: its parts and features own; the joint between bodies and
-        // the far feature touching -- the far feature under the closed g1.
-        eq(VA.lightNavTree(root, model, { kind: "body", id: "b1" }) > 8, true);
-        ok(rowsWith("navtree__row--hot").indexOf("body:b1") !== -1);
-        eq(unique(rowsWith("navtree__row--holds-touching")), ["interface:g1"]);
+        eq(unique(rowsWith("navtree__row--hot-touching")), []);
+        eq(unique(rowsWith("navtree__row--holds-touching")), ["part:p2"], "the feature across it, behind p2");
         eq(VA.lightNavTree(root, model, null), 0);
         eq(rowsWith("navtree__row--hot").concat(rowsWith("navtree__row--hot-touching"),
           rowsWith("navtree__row--holds"), rowsWith("navtree__row--holds-touching")), [],
@@ -10256,14 +10255,13 @@
         eq(VA.lightNavTree(null, model, { kind: "body", id: "b1" }), 0, "no tree, nothing to light");
         // The selected rows are drawn in the same two tiers, and a hover
         // touches neither.
+        state.navOpen = { "p:p2": true, "p:p3": true };
         state.focus = { selected: { kind: "interface", id: "g1" }, hovered: null };
-        root = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
-        eq(unique(rowsWith("navtree__row--on")), ["feature:p2@n3", "feature:p3@n4", "interface:g1"],
-           "the gap's row and its two ends -- p3 opens by the nav's own default since it holds an own row");
-        eq(unique(rowsWith("navtree__row--on-touching")), [],
-           "its joint has no row of its own (one constraint) and d2 is no row");
+        root = render(function (r) { VA.renderNavTree(r, tree, state, { structure: true }); });
+        eq(unique(rowsWith("navtree__row--on")), ["feature:p2@n3", "feature:p3@n4"],
+           "the gap has no row by part: its two ends are lit as its own");
         VA.lightNavTree(root, model, { kind: "feature", id: "p1@n1" });
-        eq(rowsWith("navtree__row--on").length, 3, "a hover lights nothing --on and takes nothing --on down");
+        eq(rowsWith("navtree__row--on").length, 2, "a hover lights nothing --on and takes nothing --on down");
       });
 
     await test("the Parts filter: All lists every part and feature; Unbound hides the bound " +
@@ -10287,7 +10285,7 @@
                         navOpen: { "p:p1": true, "p:p2": true, "p:p3": true },
                         focus: { selected: null, hovered: null }, selection: null };
           return render(function (r) {
-            VA.renderNavTree(r, tree, state, { onNavFilter: function (v) { asked.push(v); } });
+            VA.renderNavTree(r, tree, state, { structure: true, onNavFilter: function (v) { asked.push(v); } });
           });
         };
         var ids = function (root, kind) {
@@ -10306,93 +10304,121 @@
            [[VA.NAV_WORDS.filterAll, "false"], [VA.NAV_WORDS.filterUnbound, "true"]]);
         eq(all(only, "span.navtree__count").filter(function (c) { return c.getAttribute("data-nav-filter-count"); })
           .map(function (c) { return c.textContent; }), [String(unboundIds.length)]);
-        eq(all(only, "div.navtree__sectionhead").length, 1, "one control, on the parts section");
+        eq(all(only, "div.navtree__head").length, 1, "one control, at the tree's head");
         chips[0].click();
         eq(asked, [VA.NAV_FILTERS[0]]);
         // A page that does not handle it shows nothing of it.
         var bare = render(function (r) {
           VA.renderNavTree(r, tree, { mode: "topology", topologyId: "mini", models: { mini: model },
-            focus: { selected: null, hovered: null } }, {});
+            focus: { selected: null, hovered: null } }, { structure: true });
         });
-        eq(all(bare, "div.navtree__sectionhead").length, 0);
+        eq(all(bare, "div.navtree__head").length, 0);
       });
 
-    await test("the left column is the model's tree: bodies open to parts and interfaces, " +
-      "parts to features with one mark each, joints between bodies listed once, and a " +
-      "compound joint to its constraints", function () {
+    await test("the left column is the model's tree, beside the 3D scene only: by part, bodies " +
+      "open to parts and parts to features with one mark each, each listed once; by joint, " +
+      "bodies to the joints inside them, the joints between bodies and a compound joint to its " +
+      "constraints, each feature once; a part and a joint count their features bound", function () {
         var proj = bodiedProj();
         var tree = { topologies: [{ id: "mini", title: "Mini", description: null, studies: [] }],
                      looseStacks: [], kinematic: [] };
         var state = { mode: "topology", topologyId: "mini",
                       models: { mini: VA.buildModel(proj, bodiedIdentity()) },
-                      navOpen: { "p:p1": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true },
+                      navOpen: { "p:p1": true, "f:p1@n2": true },
                       focus: { selected: { kind: "feature", id: "p1@n2" }, hovered: null },
                       selection: { kind: "node", id: "n2" } };
-        var root = render(function (r) {
-          VA.renderNavTree(r, tree, state, { sceneSlot: true, onVisibility: function () {} });
-        });
+        var draw = function (handlers) {
+          return render(function (r) { VA.renderNavTree(r, tree, state, handlers); });
+        };
+        var root = draw({ structure: true, sceneSlot: true, onVisibility: function () {},
+          onNavGroup: function () {} });
         eq(all(root, "h2.navtree__heading").map(function (h) { return h.textContent; }),
-           [VA.NAV_WORDS.bodies, VA.NAV_WORDS.between]);
+           [VA.NAV_WORDS.bodies]);
         var bodies = all(root, "div.navtree__row--body");
         eq(bodies.map(function (b) { return b.querySelector(".navtree__label").textContent; }),
            ["ground", "arm"]);
         eq(bodies[0].querySelector(".navtree__count").textContent, "2" + VA.NAV_WORDS.partsCount);
-        eq(bodies[0].querySelector(".navtree__swatch").style.getPropertyValue("--swatch"),
-           "var(--tv-body-ink-0)");
-        // Bodies are open by default, their Parts group too; p1 was opened.
+        eq(bodies[0].style.getPropertyValue("--swatch"), "var(--tv-body-ink-0)", "the band wears the body's ink");
+        ok(!!bodies[0].querySelector(".navtree__swatch"), "...and keeps its square");
+        // Bodies open by default, straight to their parts; p1 was opened.
         var parts = all(root, "div.navtree__row--part");
         eq(parts.map(function (p) { return p.querySelector(".navtree__label").textContent; }),
            ["100-001 hub", "100-002 mount", "arm"]);
+        var W = VA.NAV_WORDS;
+        var of = function (n, m) { return W.boundOf.replace("{n}", n).replace("{m}", m); };
+        eq(parts.map(function (p) { return p.querySelector(".navtree__count").textContent; }),
+           [of(1, 2), of(1, 3), of(0, 1)], "each part: its features bound, of its features");
         var features = all(root, "div.navtree__row--feature");
-        // p1 was opened by the reader; p2 stays closed -- the other feature of
-        // the selected node is TOUCHING, revealed under the interface n2 (open
-        // here, as the page's reveal would open it), not by opening p2; p3
-        // stays closed. The open interface group's joint opens to its two
-        // constraints: n2 to its two end rows, g2 closed.
-        eq(features.map(function (f) { return f.getAttribute("data-nav-id"); }),
-           ["p1@n1", "p1@n2", "p1@n2", "p2@n2"]);
+        eq(features.map(function (f) { return f.getAttribute("data-nav-id"); }), ["p1@n1", "p1@n2"],
+           "the selected feature once, under its part; p2 stays closed");
         var S = VA.FEATURE_STATUSES;
         eq(features.map(function (f) { return f.querySelector(".navtree__mark").getAttribute("data-status"); }),
-           [S.none, S.bound, S.bound, S.none], "a shared node's two features: only the part bound is");
+           [S.none, S.bound], "one mark per feature, every state drawn");
         ok(hasClass(features[1], "navtree__row--on"), "the selected feature is marked");
-        ok(hasClass(features[2], "navtree__row--on"), "...its end row under the interface too");
-        ok(hasClass(features[3], "navtree__row--on-touching"), "...and the feature across the interface, fainter");
         ok(!hasClass(features[0], "navtree__row--on"));
-        // The selected feature's row is open -- its own twisty says so -- and
-        // its body's slot sits under it and nowhere else; the other rows are
-        // closed, each with a twisty of its own (the scene is open).
-        eq(all(root, "div.navtree__scene").length, 2, "one slot per drawn row of the selected feature");
+        // The reader opened the selected feature's body: its slot sits under it.
+        eq(all(root, "div.navtree__scene").length, 1);
         ok(insideOf(features[1].parentNode, all(root, "div.navtree__scene")[0]));
         eq(all(root, "div.navtree__scene")[0].getAttribute("data-scene-feature"), "p1@n2");
+        eq(all(root, "div.navtree__scene")[0].getAttribute("data-nav-under"), "f:p1@n2");
         eq(features.map(function (f) {
-          var tw = f.querySelector("button.navtree__twisty");
-          return tw ? tw.getAttribute("aria-expanded") : "leaf";
-        }), ["false", "true", "true", "false"]);
-        eq(features[1].querySelector("button.navtree__twisty").getAttribute("data-nav-twisty"), "f:p1@n2");
+          return f.querySelector("button.navtree__twisty").getAttribute("aria-expanded");
+        }), ["false", "true"]);
+        eq(features[1].getAttribute("data-nav-fold"), "f:p1@n2");
         // Show/hide: a part with a mesh has the box, one without has none; a
         // body with any meshed part has one.
         eq(parts[0].querySelector("input.navtree__vis") !== null, true);
         eq(parts[1].querySelector("input.navtree__vis"), null);
         eq(bodies[0].querySelector("input.navtree__vis").checked, true);
-        // The compound joint inside ground, open to its two constraints.
+        eq(bodies[0].getAttribute("data-nav-fold"), "b:b1");
+        eq(all(root, "div.navtree__row--interface").length, 0, "by part, no interface rows");
+        eq(all(root, "div.navtree__row--group").length, 0, "a body holds its parts with no group row between");
+        // The grouping switch: By part pressed.
+        eq(all(root, "button.navtree__tag").filter(function (b) { return b.getAttribute("data-nav-group-by"); }).map(function (b) {
+          return [b.textContent, b.getAttribute("aria-pressed")];
+        }), [[W.byPart, "true"], [W.byJoint, "false"]]);
+
+        // By joint: ground holds the compound joint, arm holds none and is not
+        // listed, and the joint between bodies is its own section.
+        state.navGroup = VA.NAV_GROUPINGS[1];
+        state.navOpen = { "j:p1+p2": true, "i:n2": true, "i:g2": true, "i:g1": true };
+        root = draw({ structure: true, sceneSlot: true });
+        eq(all(root, "h2.navtree__heading").map(function (h) { return h.textContent; }),
+           [W.bodies, W.between]);
+        eq(all(root, "div.navtree__row--body").map(function (b) { return b.getAttribute("data-nav-id"); }), ["b1"]);
         var joint = all(root, "div.navtree__row--joint")[0];
         eq(joint.querySelector(".navtree__label").textContent, "hub and mount");
-        eq(joint.querySelector(".navtree__count").textContent, "2" + VA.NAV_WORDS.constraintsCount);
+        eq(joint.querySelector(".navtree__count").textContent, of(1, 4), "its four end features, one bound");
+        eq(joint.getAttribute("data-nav-fold"), "j:p1+p2", "a fold row carries its fold key");
         var interfaces = all(root, "div.navtree__row--interface");
         eq(interfaces.map(function (i) { return i.getAttribute("data-nav-id"); }), ["n2", "g2", "g1"]);
         eq(interfaces.map(function (i) { return i.getAttribute("data-interface-kind"); }), ["node", "edge", "edge"]);
         ok(hasClass(interfaces[0], "navtree__row--on-touching"),
            "the shared node's interface touches the selected feature");
         ok(hasClass(joint, "navtree__row--on-touching"), "...and so does its joint");
-        eq(joint.getAttribute("data-nav-fold"), "j:p1+p2", "a fold row carries its fold key");
-        eq(bodies[0].getAttribute("data-nav-fold"), "b:b1");
-        eq(all(root, "div.navtree__row--group")[0].getAttribute("data-nav-fold"), "bp:b1");
+        var ends = all(root, "div.navtree__row--feature").map(function (f) { return f.getAttribute("data-nav-id"); });
+        eq(ends, ["p1@n2", "p2@n2", "p1@n1", "p2@n5", "p2@n3", "p3@n4"], "every feature once, at the first interface it ends");
+        eq(all(root, "div.navtree__row--feature")[0].querySelector(".navtree__label").textContent,
+           "100-001 hub \u00b7 mount seat", "listed outside its part, a feature names it");
         // The one joint between bodies, listed once, under its own heading.
         ok(insideOf(all(root, "div.navtree__section--joints")[0], interfaces[2]));
-        // No filter, no component chip, no mirrored rail.
+        // A feature no interface ends is listed once, at the end.
+        var lone = JSON.parse(JSON.stringify(proj));
+        lone.model.features.push({ id: "p3@n9", part: "p3", node: "n9", name: "tip", kind: "datum_feature",
+          shared: false, body: "b2" });
+        lone.model.parts[2].features.push("p3@n9");
+        state.models = { mini: VA.buildModel(lone, bodiedIdentity()) };
+        root = draw({ structure: true });
+        var loose = all(root, "div.navtree__section--loose")[0];
+        eq(loose.querySelector("h2").textContent, W.atNoJoint);
+        eq(all(loose, "div.navtree__row--feature").map(function (f) { return f.getAttribute("data-nav-id"); }), ["p3@n9"]);
+        // No mirrored rail, no component chip; and with the scene closed no
+        // structure at all.
         eq(all(root, "button.navtree__scenechip").length, 0);
-        eq(root.textContent.indexOf("All "), -1);
         eq(root.textContent.indexOf("In this model"), -1);
+        var closed = draw({ sceneSlot: false });
+        eq(all(closed, "div.navtree__struct").length, 0, "the scene closed: no structure in the column");
+        eq(all(closed, "div.navtree__row[data-nav-kind]").length, 0);
       });
 
     // --- a joint says what kind it is (a_joint_says_what_kind_it_is,
@@ -10417,10 +10443,10 @@
                      looseStacks: [], kinematic: [] };
         var state = { mode: "topology", topologyId: "mini",
                       models: { mini: VA.buildModel(proj, bodiedIdentity()) },
-                      navOpen: { "bi:b1": true, "j:p1+p2": true }, focus: { selected: null, hovered: null },
-                      selection: null };
+                      navOpen: { "j:p1+p2": true }, focus: { selected: null, hovered: null },
+                      selection: null, navGroup: VA.NAV_GROUPINGS[1] };
         var root = render(function (r) {
-          VA.renderNavTree(r, tree, state, { sceneSlot: true, onVisibility: function () {} });
+          VA.renderNavTree(r, tree, state, { structure: true, sceneSlot: true, onVisibility: function () {} });
         });
         var words = {};
         all(root, "div.navtree__row--interface").forEach(function (row) {
@@ -10809,7 +10835,7 @@
         var state = { mode: "topology", topologyId: "mini", models: { mini: VA.buildModel(bodiedProj(), identity) } };
         var root = render(function (r) {
           VA.renderNavTree(r, { topologies: [{ id: "mini", title: "Mini", studies: [] }], looseStacks: [] },
-            state, { orphans: orphans });
+            state, { structure: true, orphans: orphans });
         });
         var foot = root.querySelector(".navtree__orphans");
         ok(!!foot, "the foot is drawn");
@@ -10820,7 +10846,7 @@
           "d2 · face 5 · 2026-10-01 · that part's 3D model was replaced"]);
         var none = render(function (r) {
           VA.renderNavTree(r, { topologies: [{ id: "mini", title: "Mini", studies: [] }], looseStacks: [] },
-            state, { orphans: [] });
+            state, { structure: true, orphans: [] });
         });
         eq(none.querySelector(".navtree__orphans"), null, "nothing gone draws nothing");
       });
@@ -10857,19 +10883,22 @@
         var seen = [];
         var state = { mode: "topology", topologyId: "mini",
                       models: { mini: VA.buildModel(proj, null) },
-                      navOpen: { "p:p2": true, "bi:b1": true, "j:p1+p2": true, "i:n2": true } };
+                      navOpen: { "j:p1+p2": true, "i:n2": true }, navGroup: VA.NAV_GROUPINGS[1] };
         var handlers = {
+          structure: true,
           onFeature: function (fid) { seen.push(["feature", fid]); },
           onInterface: function (kind, id) { seen.push(["interface", kind, id]); },
           onEntity: function (kind, id) { seen.push(["entity", kind, id]); },
           onToggle: function (key, open) { seen.push(["toggle", key, open]); },
           onVisibility: function (kind, id, shown) { seen.push(["vis", kind, id, shown]); },
           onHover: function (t) { seen.push(["hover", t ? t.kind + ":" + t.id : null]); },
+          onNavGroup: function (g) { seen.push(["group", g]); },
         };
-        var root = render(function (r) { VA.renderNavTree(r, { topologies: [
-          { id: "mini", title: "Mini", studies: [] }], looseStacks: [] }, state, handlers); });
+        var tree = { topologies: [{ id: "mini", title: "Mini", studies: [] }], looseStacks: [] };
+        var root = render(function (r) { VA.renderNavTree(r, tree, state, handlers); });
+        // n2 is open: its two ends are rows naming part and feature.
         var feature = all(root, "div.navtree__row--feature")[0];
-        eq(feature.getAttribute("data-nav-id"), "p2@n2");
+        eq(feature.getAttribute("data-nav-id"), "p1@n2");
         eq(feature.getAttribute("role"), "button");
         eq(feature.getAttribute("tabindex"), "0");
         feature.click();
@@ -10883,16 +10912,15 @@
         g1.click();
         g1.onmouseenter();
         g1.onmouseleave();
-        // A joint row and a part row select their entity; the body row too.
         var jointRow = all(root, "div.navtree__row--joint")[0];
         jointRow.click();
         jointRow.onmouseenter();
         jointRow.onmouseleave();
-        // n2 is open: its two ends are rows naming part and feature.
-        var ends = all(root, "div.navtree__row--feature").filter(function (r) {
-          return r.getAttribute("data-node-id") === "n2" && r.textContent.indexOf("\u00b7") !== -1; });
-        eq(ends.map(function (e) { return e.querySelector(".navtree__label").textContent; }),
-           ["100-001 hub \u00b7 mount seat", "100-002 mount \u00b7 mount seat"]);
+        all(root, "button.navtree__tag").filter(function (b) { return b.getAttribute("data-nav-group-by"); })[0].click();
+        // By part: the body's and the part's rows select, their twisties fold.
+        state.navGroup = VA.NAV_GROUPINGS[0];
+        state.navOpen = { "p:p2": true };
+        root = render(function (r) { VA.renderNavTree(r, tree, state, handlers); });
         var body = all(root, "div.navtree__row--body")[0];
         body.click();
         body.querySelector("button.navtree__twisty").onclick({ stopPropagation: function () {} });
@@ -10903,18 +10931,65 @@
         part.click();
         part.querySelector("button.navtree__twisty").onclick({ stopPropagation: function () {} });
         part.querySelector("input.navtree__vis").onclick({ stopPropagation: function () {} });
-        eq(seen, [["feature", "p2@n2"], ["feature", "p2@n2"], ["hover", "feature:p2@n2"], ["hover", null],
+        eq(seen, [["feature", "p1@n2"], ["feature", "p1@n2"], ["hover", "feature:p1@n2"], ["hover", null],
           ["interface", "edge", "g1"], ["hover", "interface:g1"], ["hover", null],
           ["entity", "joint", "p1+p2"], ["hover", "joint:p1+p2"], ["hover", null],
+          ["group", VA.NAV_GROUPINGS[0]],
           ["entity", "body", "b1"], ["toggle", "b:b1", true],
           ["vis", "body", "b1", false],
           ["entity", "part", "p1"], ["toggle", "p:p1", false], ["vis", "part", "p1", true]],
           "a body's, a part's and a joint's row SELECT (2026-11-12); only the twisty folds");
         // Without the scene, no box at all: nothing about a feature that is not there.
-        var bare = render(function (r) { VA.renderNavTree(r, { topologies: [
-          { id: "mini", title: "Mini", studies: [] }], looseStacks: [] }, state, {}); });
+        var bare = render(function (r) { VA.renderNavTree(r, tree, state, {}); });
         eq(all(bare, "input.navtree__vis").length, 0);
         eq(all(bare, "div.navtree__scene").length, 0);
+      });
+
+    // --- a lit face and its row agree (the_tree_sits_beside_the_3d_canvas_and_
+    // holds_still, deliverable 6) -----------------------------------------------
+    await test("an assembly's dimension ends on its members' features: an edge-end reader " +
+      "finds the binding the member's feature holds, and two features that share one face say " +
+      "so on both rows", function () {
+        // p2 inside p1; d9 is the assembly's dimension from p2's bore to p1's
+        // boss, as the model view names it -- its edge's own part is p1.
+        var proj = nestedProj();
+        proj.edges.push({ id: "d9", kind: "structural", part: "p1", from: "n3", to: "n1" });
+        proj.model.dimensions.push({ id: "d9", part: "p1", name: "bore to boss", from: "p2@n3", to: "p1@n1", body: "b1" });
+        proj.model.parts[0].dimensions.push("d9");
+        proj.model.features.forEach(function (f) { f.identity = { topology_id: "mini", part: f.part, node: f.node }; });
+        var face = { source_step_sha256: "aa", face_id: 7 };
+        var bound = { event_id: "e9", seq: 1, created_at: "t", verdict: "bound",
+          feature_key: { topology_id: "mini", part: "p2", node: "n3" }, geometry_keys: [face] };
+        var identity = VA.foldIdentityEvents([bound], null, { topologies: [proj] });
+        var model = VA.buildModel(proj, identity);
+        eq(model.status("p2@n3"), VA.FEATURE_STATUSES.bound);
+        eq(model.bindingsAt("d9", "from").map(function (b) { return b.geometry_key.face_id; }), [7],
+           "the assembly's dimension's end is the member's feature, which holds the face");
+        eq(VA.endFeatureKey(proj, "d9", "from"), { topology_id: "mini", part: "p2", node: "n3" });
+        eq(VA.endFeatureKey(proj, "d1", "to"), { topology_id: "mini", part: "p1", node: "n2" },
+           "a part's own dimension ends on its own feature, as before");
+        // g1 is a ball joint (spherical): its two ends are one surface.
+        eq(model.sharesFaceWith("p2@n3"), [{ feature: "p3@n4", why: VA.SHARED_FACE_WHY.concentric }]);
+        eq(model.sharesFaceWith("p3@n4"), [{ feature: "p2@n3", why: VA.SHARED_FACE_WHY.concentric }]);
+        eq(model.sharesFaceWith("p1@n1"), []);
+        ok(VA.INTERFACE_KINDS.indexOf(VA.CONCENTRIC_INTERFACE_KINDS[0]) !== -1, "a generated interface kind");
+        // The same face held by two features is said on both.
+        var twice = VA.foldIdentityEvents([bound, { event_id: "e10", seq: 2, created_at: "t", verdict: "bound",
+          feature_key: { topology_id: "mini", part: "p1", node: "n1" }, geometry_keys: [face] }], null,
+          { topologies: [proj] });
+        var both = VA.buildModel(proj, twice);
+        eq(both.sharesFaceWith("p1@n1"), [{ feature: "p2@n3", why: VA.SHARED_FACE_WHY.face }]);
+        var root = render(function (r) {
+          VA.renderNavTree(r, { topologies: [{ id: "mini", title: "Mini", studies: [] }], looseStacks: [] },
+            { mode: "topology", topologyId: "mini", models: { mini: both }, navOpen: { "p:p1": true, "p:p2": true } },
+            { structure: true });
+        });
+        var notes = {};
+        all(root, "span.navtree__shared").forEach(function (n) {
+          notes[n.parentNode.getAttribute("data-nav-id")] = n.getAttribute("data-nav-shared");
+        });
+        eq(Object.keys(notes).sort().map(function (k) { return k + " > " + notes[k]; }),
+           ["p1@n1 > p2@n3", "p2@n3 > p1@n1 p3@n4"], "both rows say it, naming the other");
       });
 
     // --- models (model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_

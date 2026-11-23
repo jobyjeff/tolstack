@@ -37,6 +37,17 @@
      this file and topology.css; the TABLES never take it, because a column of
      numbers narrowed to a measure is worse than a long line. */
   --measure: 72ch;
+  /* The structure tree's levels (the_tree_sits_beside_the_3d_canvas_and_
+     holds_still, 2026-11-22; docs/DESIGN_TYPE_AND_COLOUR.md, "Where the
+     numbers are"): how far each level steps in, the guide line down it, the
+     body band's spine and wash, and how long a fold takes to ease open or
+     shut (topology_app.js reads --tree-ease; a reader asking for reduced
+     motion gets none). */
+  --tree-indent: 22px;
+  --tree-guide: 1px;
+  --tree-band-spine: 3px;
+  --tree-band-wash: 16%;
+  --tree-ease: 140ms;
   --bg: #16181d; --panel: #1e2128; --panel2: #12141a; --ink: #e6e8ec;
   --muted: #9aa1ac; --accent: #6ea8fe; --on: #2b6cb0; --line: #2b2f38;
   /* The provenance palette. These three are the whole point of the app, so

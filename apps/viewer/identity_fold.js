@@ -190,11 +190,21 @@
     var out = {};
     (topologies || []).forEach(function (t) {
       if (!t || !t.id) return;
-      var edges = {}, firstPart = {}, identity = {};
+      var edges = {}, firstPart = {}, identity = {}, featurePart = {}, dimensionEnds = {};
       (t.edges || []).forEach(function (e) { edges[e.id] = e; });
       (t.nodes || []).forEach(function (n) { if (n && (n.parts || []).length) firstPart[n.id] = n.parts[0]; });
-      ((t.model && t.model.features) || []).forEach(function (f) { identity[f.id] = f.identity; });
-      out[t.id] = { id: t.id, edges: edges, firstPart: firstPart, identity: identity };
+      ((t.model && t.model.features) || []).forEach(function (f) {
+        identity[f.id] = f.identity;
+        featurePart[f.id] = f.part;
+      });
+      // A dimension's two end features as the model view names them
+      // (Topology.dimension_ends): an assembly's dimension between its
+      // parts' features ends on the MEMBERS, never on the assembly.
+      ((t.model && t.model.dimensions) || []).forEach(function (d) {
+        dimensionEnds[d.id] = { from: d.from, to: d.to };
+      });
+      out[t.id] = { id: t.id, edges: edges, firstPart: firstPart, identity: identity,
+        featurePart: featurePart, dimensionEnds: dimensionEnds };
     });
     return out;
   }
@@ -202,10 +212,22 @@
   // The feature key an end of `edge` IS, on topology `t` (an index entry):
   // model_view.end_feature, then the projection's identity for that feature
   // (keyed under the model whose ids it is). Null when the edge is gone.
+  //
+  // A dimension's end is the feature the model view names for it -- its own
+  // part's, or for an assembly's dimension the member's (2026-11-22, handoff
+  // the_tree_sits_beside_the_3d_canvas_and_holds_still, deliverable 6). Until
+  // then this read the edge's own `part`, the assembly: v2's link lengths end
+  // on the outer races' bearing centres, and their ends were keyed to an
+  // assembly feature no model has, so an edge-end reader found nothing there
+  // while the race's own feature read the same binding as bound.
   function endFeatureKey(t, edgeId, direction) {
     var edge = t && t.edges[edgeId];
     if (!edge || (direction !== "from" && direction !== "to")) return null;
     var node = direction === "from" ? edge.from : edge.to;
+    var named = edge.kind === "structural" && t.dimensionEnds && t.dimensionEnds[edgeId]
+      ? t.dimensionEnds[edgeId][direction] : null;
+    if (named && t.identity[named]) return t.identity[named];
+    if (named && t.featurePart[named]) return { topology_id: t.id, part: t.featurePart[named], node: node };
     var part = edge.kind === "structural" ? edge.part : t.firstPart[node];
     if (!part) return null;
     return t.identity[part + "@" + node] || { topology_id: t.id, part: part, node: node };

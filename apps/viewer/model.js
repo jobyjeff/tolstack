@@ -35,6 +35,15 @@
     none: "none",
   });
 
+  // The joints whose two ends are one surface seen from two parts: a ball in
+  // its seat shares its centre and its sphere with the seat (topology.py's
+  // INTERFACE_KINDS, generated; the fast tier pairs the word against it).
+  VA.CONCENTRIC_INTERFACE_KINDS = Object.freeze(["spherical"]);
+
+  // Why two features share a face (model.sharesFaceWith): the same face held
+  // by both, or the two ends of a concentric joint.
+  VA.SHARED_FACE_WHY = Object.freeze({ face: "face", concentric: "concentric" });
+
   // The two ends of an edge, the feature-identity stream's own words
   // (tolerance_stack.feature_identity.DIRECTIONS). Which end a node is on an
   // edge is read off the edge's `from`/`to`, nowhere else.
@@ -155,6 +164,36 @@
       status[feature.id] = featureStatus(ends[feature.id], identity, identityIds, recordOf(feature));
     });
 
+    // Which features share a face (handoff the_tree_sits_beside_the_3d_
+    // canvas_and_holds_still, deliverable 6): two features whose records hold
+    // the same face, and the two ends of a concentric joint (a ball in its
+    // seat, VA.CONCENTRIC_INTERFACE_KINDS) -- one surface, two features, so
+    // a face lit for one is the other's face too. {fid: [{feature, why}]}.
+    var shared = {};
+    var share = function (a, b, why) {
+      if (a === b || !features[a] || !features[b]) return;
+      var list = shared[a] = shared[a] || [];
+      if (!list.some(function (s) { return s.feature === b; })) list.push({ feature: b, why: why });
+    };
+    var holders = {};
+    (view.features || []).forEach(function (feature) {
+      var record = recordOf(feature);
+      ((record && record.state === VA.FEATURE_STATES[0] && record.faces) || []).forEach(function (f) {
+        var token = f.source_step_sha256 + "#" + f.face_id;
+        (holders[token] = holders[token] || []).push(feature.id);
+      });
+    });
+    Object.keys(holders).forEach(function (token) {
+      holders[token].forEach(function (a) {
+        holders[token].forEach(function (b) { share(a, b, VA.SHARED_FACE_WHY.face); });
+      });
+    });
+    (view.interfaces || []).forEach(function (iface) {
+      if (VA.CONCENTRIC_INTERFACE_KINDS.indexOf(iface.kind) === -1 || (iface.ends || []).length !== 2) return;
+      share(iface.ends[0], iface.ends[1], VA.SHARED_FACE_WHY.concentric);
+      share(iface.ends[1], iface.ends[0], VA.SHARED_FACE_WHY.concentric);
+    });
+
     // A body's tint index, the DAG's rule (VA.bodyTint): its position in the
     // authored list, modulo the palette.
     var tintOf = {};
@@ -244,6 +283,13 @@
       },
       // One status word per feature (VA.FEATURE_STATUSES).
       status: function (featureId) { return status[featureId] || VA.FEATURE_STATUSES.none; },
+      // How many of `featureIds` are bound: what a part's and a joint's row
+      // counts ("n of m").
+      boundCount: function (featureIds) {
+        return (featureIds || []).filter(function (fid) { return status[fid] === VA.FEATURE_STATUSES.bound; }).length;
+      },
+      // The features sharing a face with this one, [{feature, why}] (above).
+      sharesFaceWith: function (featureId) { return shared[featureId] || []; },
       // The edge ends a feature is ([{edgeId, end}], featureEnds), and the
       // standing bindings / open proposals at them ([{edgeId, end, event}]).
       endsOf: function (featureId) { return ends[featureId] || []; },
@@ -383,8 +429,7 @@
   // pronounced color for interfaces"). The four functions after it are the
   // only translations of the tiers into a surface's terms: element keys for
   // the DAG and the grid (VA.focusElementKeysOf), row keys for the tree
-  // (VA.focusNavRowsOf), the folds a row is behind (VA.navRevealPaths), and
-  // the scene's payload (VA.sceneLightOf). Nothing else decides what lights.
+  // (VA.focusNavRowsOf), and the scene's payload (VA.sceneLightOf). Nothing else decides what lights.
   // A projection built before the model block (model null) has no entities;
   // there an element stands for itself alone.
   VA.FOCUS_TIERS = Object.freeze({ own: "own", touching: "touching" });
@@ -584,85 +629,10 @@
     return { own: light.own.map(key), touching: light.touching.map(key) };
   };
 
-  // The folds a tree row sits behind, outermost first, as the nav's own fold
-  // keys (views/nav.js: `b:<body>`, `bp:<body>`, `bi:<body>`, `p:<part>`,
-  // `j:<joint>`, `i:<interface>`). A feature is listed twice in the tree --
-  // under its part, and as an end under each interface it is on -- so
-  // `under` says which: an interface id puts it under that interface's fold,
-  // else it is under its part. A joint with one constraint has no row of its
-  // own (the interface's row stands where it would be), so no `j:` key.
-  VA.navRowPath = function (model, kind, id, under) {
-    if (!model) return [];
-    var F = VA.FOCUS_KINDS;
-    var bodyPath = function (bodyId, group) {
-      return bodyId && model.body(bodyId) ? ["b:" + bodyId, group + ":" + bodyId] : [];
-    };
-    var jointPath = function (joint) {
-      if (!joint) return [];
-      var path = bodyPath(joint.within, "bi");
-      if (model.constraintsOf(joint.id).length > 1) path.push("j:" + joint.id);
-      return path;
-    };
-    if (kind === F.body) return [];
-    if (kind === F.part) {
-      var part = model.part(id);
-      if (!part) return [];
-      // A part inside an assembly is behind each ancestor's fold, outermost
-      // first (a_part_may_contain_parts).
-      var ancestors = [];
-      for (var up = model.parentOf(id); up; up = model.parentOf(up)) ancestors.unshift("p:" + up);
-      return bodyPath(part.body, "bp").concat(ancestors);
-    }
-    if (kind === F.joint) return jointPath(model.joint(id));
-    if (kind === F.interface) {
-      var iface = model.interface(id);
-      return iface ? jointPath(model.joint(iface.joint)) : [];
-    }
-    if (kind === F.feature) {
-      var f = model.feature(id);
-      if (!f) return [];
-      var host = under ? model.interface(under) : null;
-      if (host && (host.ends || []).indexOf(f.id) !== -1) {
-        return VA.navRowPath(model, F.interface, host.id).concat(["i:" + host.id]);
-      }
-      return VA.navRowPath(model, F.part, f.part).concat(["p:" + f.part]);
-    }
-    return [];
-  };
-
-  // Where each lit row is revealed, as {`<kind>:<id>`: [fold keys]} over both
-  // tiers. A TOUCHING feature (the far feature of a part's neighbour) is
-  // revealed under the lit interface it is an end of, not by opening the
-  // part across the joint; an OWN feature under its part -- unless the lit
-  // entity is itself an interface or a joint, whose own ends are revealed
-  // under that interface, where the reader is looking. A dimension has no
-  // row. The page opens every key on select (hover opens nothing: a closed
-  // fold that holds a lit row wears a mark instead, VA.lightNavTree).
-  VA.navRevealPaths = function (model, light, entity) {
-    var out = {};
-    if (!model || !light) return out;
-    var F = VA.FOCUS_KINDS;
-    var own = light.own || [];
-    var touching = light.touching || [];
-    var interfacesIn = function (list) {
-      return list.filter(function (e) { return e.kind === F.interface; })
-        .map(function (e) { return model.interface(e.id); }).filter(Boolean);
-    };
-    var hostAmong = function (ifaces, fid) {
-      var host = ifaces.filter(function (i) { return (i.ends || []).indexOf(fid) !== -1; })[0];
-      return host ? host.id : null;
-    };
-    var ownHosts = entity && (entity.kind === F.interface || entity.kind === F.joint) ? interfacesIn(own) : [];
-    var allHosts = interfacesIn(own.concat(touching));
-    var place = function (e, hosts) {
-      if (e.kind === F.dimension) return;
-      var under = e.kind === F.feature ? hostAmong(hosts, e.id) : null;
-      out[e.kind + ":" + e.id] = VA.navRowPath(model, e.kind, e.id, under);
-    };
-    own.forEach(function (e) { place(e, ownHosts); });
-    touching.forEach(function (e) { place(e, allHosts); });
-    return out;
-  };
+  // Where a tree row is -- the folds it sits behind -- is the tree's own
+  // plan (views/nav.js, VA.navPlan), since 2026-11-22: the shape is decided
+  // once, by the grouping the reader chose, and a selection opens the folds
+  // that plan names (VA.navSelectionPaths).
 
   // The 3D pane's reading of a light: the parts with a mesh to glow, the
   // bound faces to overlay, and the elements the model layer emphasises, per

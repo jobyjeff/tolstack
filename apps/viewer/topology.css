@@ -192,7 +192,10 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
   overflow-y: auto;
 }
 .navtree__list, .navtree__children { list-style: none; margin: 0; padding: 0; }
-.navtree__children { padding-left: 16px; margin-top: 2px; }
+/* Each level steps in by --tree-indent, with a guide line down it from under
+   its parent's twisty (apps/viewer/style.css's :root holds the numbers). */
+.navtree__children { margin: 2px 0 0 12px; padding-left: calc(var(--tree-indent) - 12px);
+  border-left: var(--tree-guide) solid var(--line); }
 .navtree__item { margin-bottom: 2px; }
 .navtree__row {
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
@@ -275,10 +278,30 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 }
 .navtree__row--body, .navtree__row--part, .navtree__row--group, .navtree__row--joint,
 .navtree__row--interface, .navtree__row--feature { flex-wrap: nowrap; align-items: center; gap: 6px; padding: 3px 6px; }
-.navtree__row--body { font-weight: 600; }
-.navtree__row--group { padding-top: 4px; padding-bottom: 2px; cursor: pointer; }
-.navtree__grouplabel { color: var(--muted); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em; }
+/* The levels look different (the_tree_sits_beside_the_3d_canvas_and_holds_
+   still, deliverable 4). A body is a band in its own ink -- a spine and a
+   wash of it -- at the body size, semibold; a part is semibold at the data
+   size, with room above it; a feature is a regular data row; a joint reads
+   like a part, an interface like a feature. The section label above them is
+   the quiet tiny capital. Hierarchy by weight, size and room; one colour,
+   the body's, which is identity. */
+.navtree__row--body { font-weight: 600; font-size: var(--t-body); padding-top: 5px; padding-bottom: 5px;
+  background: color-mix(in srgb, var(--swatch) var(--tree-band-wash), transparent);
+  box-shadow: inset var(--tree-band-spine) 0 0 var(--swatch); border-radius: 4px; }
+.navtree__item--body { margin-bottom: 6px; }
+.navtree__item--body + .navtree__item--body { margin-top: 10px; }
+.navtree__row--part, .navtree__row--joint { font-weight: 600; }
+.navtree__item--part, .navtree__item--joint { margin-top: 4px; }
+.navtree__item--feature + .navtree__item--part { margin-top: 8px; }
+.navtree__row--feature, .navtree__row--interface { font-weight: 400; }
 .navtree__row--feature, .navtree__row--interface, .navtree__row--joint, .navtree__row--part { font-size: var(--t-dense); }
+.navtree__row--part .navtree__count, .navtree__row--joint .navtree__count { font-weight: 400; }
+/* The tree's head: the grouping and the filter, side by side. */
+.navtree__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 2px 4px 4px; }
+.navtree__head .navtree__tags { padding: 0; }
+.navtree__struct .navtree__section:first-of-type { margin-top: 8px; }
+/* "shares a face": metadata, muted, after the name. */
+.navtree__shared { flex: none; color: var(--muted); font-size: var(--t-micro); white-space: nowrap; }
 .navtree__row--feature:focus-visible, .navtree__row--interface:focus-visible { outline: 1px solid var(--accent); }
 .navtree__row--feature:focus, .navtree__row--interface:focus { outline: none; }
 /* The twisty column: one width whether a row folds or not, so names align. */
@@ -290,18 +313,19 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .navtree__twisty[aria-expanded="true"]::before { transform: rotate(45deg) translate(-1px, -1px); }
 .navtree__row:hover > .navtree__twisty, .navtree__twisty:focus-visible { color: var(--ink); }
 /* A body's swatch: its DAG ink, so the tree, the DAG, the grid's brackets and
-   the scene are one palette. */
+   the scene are one palette. Identity, not status. */
 .navtree__swatch { flex: none; width: 9px; height: 9px; border-radius: 2px; background: var(--swatch); }
-/* The one status mark a feature wears: filled for bound, a ring for a
-   suggestion, nothing for none -- the same column either way. */
-.navtree__mark { flex: none; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; }
-.navtree__mark[data-status="bound"] { background: var(--mark-bound); }
-.navtree__mark[data-status="suggested"] { border: 1.5px solid var(--mark-proposed); }
+/* The one status mark a feature wears, the same shape wherever it is listed
+   (deliverable 5): an empty grey ring while open, a blue ring while only
+   suggested, a green dot once bound. A part and a joint wear a count. */
+.navtree__mark { flex: none; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box;
+  border: 1.5px solid var(--muted); }
+.navtree__mark[data-status="bound"] { background: var(--mark-bound); border-color: var(--mark-bound); }
+.navtree__mark[data-status="suggested"] { border-color: var(--mark-proposed); }
 .navtree__count { flex: none; margin-left: auto; color: var(--muted); font-size: var(--t-micro); white-space: nowrap; }
 /* Show/hide in 3D: a quiet native box at the row's right edge, in one column. */
 .navtree__vis { flex: none; margin: 0 0 0 4px; width: 12px; height: 12px; accent-color: var(--muted); }
 .navtree__row--on .navtree__vis, .navtree__row:hover .navtree__vis { accent-color: var(--ink); }
-.navtree__children .navtree__children { padding-left: 14px; }
 /* A feature's body (one_selection_one_hover_and_leaders_off, 2026-11-10):
    under its row, stepped in to the row's name -- past the twisty's column
    and the mark's -- so it reads as the row's own. The state line is

@@ -74,6 +74,9 @@
     // The Parts filter (VA.NAV_FILTERS): the page's, not the model's -- it
     // filters the tree and touches no selection, light or other surface.
     navFilter: VA.NAV_FILTERS[0],
+    // The tree's grouping (VA.NAV_GROUPINGS): by part, the default, or by
+    // joint. The page's, like the filter; a new model keeps it.
+    navGroup: VA.NAV_GROUPINGS[0],
     // "comfortable" (26px rows) or "compact" (16px) — a display preference,
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
@@ -298,8 +301,11 @@
       document.body.classList.remove("flyout-open");
       applyPaneView();
       repaintToolbar();
-      // The scene's tree leaves the nav.
+      // The scene's tree leaves the nav, and the structure with it; where the
+      // reader had it scrolled comes back with it (launchAnnotate). Its folds
+      // are state.navOpen's and stay as they were.
       sceneTree = null;
+      structScroll = nodes.navtree ? nodes.navtree.scrollTop : null;
       renderNav();
       // Closed is remembered as firmly as open: the pane stays where the
       // reader left it, either way, across a reload.
@@ -315,6 +321,7 @@
       sceneInspectHeld = null;
     });
     wirePageHover();
+    wireNavPointer();
     wirePaneState();
     wirePreviewRelease();
     wireFitKey();
@@ -694,18 +701,15 @@
     var model = currentModel();
     state.focus.selected = entity || null;
     state.selection = VA.focusElementOf(model, entity);
-    // A feature selected is open: its row's own default applies again (the
-    // reader's later fold of it still wins, views/nav.js's isOpen).
-    if (entity && entity.kind === VA.FOCUS_KINDS.feature) delete state.navOpen[VA.navFeatureKey(entity.id)];
-    // Select REVEALS (rule 4 of hover_and_select_light_the_same_things_on_
-    // all_four_surfaces_and_nothing_goes_opaque): every fold on the path to
-    // every lit row -- interfaces, joints and groups, not only parts --
-    // opens, and after the paint the first lit row not on screen is scrolled
-    // into view (revealLitRows). Hover opens nothing.
+    // Select REVEALS, and only the selected row (2026-11-22, the_tree_sits_
+    // beside_the_3d_canvas_and_holds_still, rule 2): the folds on the path to
+    // its row -- or, where this grouping lists no row for it, to the rows of
+    // what it owns -- open, nothing else opens and nothing closes; after the
+    // paint the row is scrolled to only if it is off screen, by the least
+    // that shows it (revealLitRows). Hover opens nothing.
     if (entity && model) {
-      var paths = VA.navRevealPaths(model, VA.focusLightOf(model, entity), entity);
-      Object.keys(paths).forEach(function (row) {
-        paths[row].forEach(function (key) { state.navOpen[key] = true; });
+      VA.navSelectionPaths(VA.navPlan(model, state), model, entity).forEach(function (path) {
+        path.forEach(function (key) { state.navOpen[key] = true; });
       });
       revealPending = true;
     }
@@ -988,6 +992,13 @@
     renderNav();
   }
 
+  // "By part · By joint" at the tree's head: the tree, and only the tree.
+  function onNavGroup(value) {
+    if (VA.NAV_GROUPINGS.indexOf(value) === -1 || value === state.navGroup) return;
+    state.navGroup = value;
+    renderNav();
+  }
+
   function onNavStack(stackId) {
     selectStack(stackId);
     hideCrop();
@@ -1032,8 +1043,19 @@
   // A fold is the nav's alone: nothing else on the page moves, so only the
   // nav repaints. `open` is what the row showed when it was clicked (views/
   // nav.js passes it), so the reader's choice is the opposite of it.
+  //
+  // Opening is drawn and then eased open; closing eases shut and is then
+  // drawn (navEase, below), so what was under the row is seen going.
   function onNavToggle(key, open) {
-    state.navOpen[key] = !open;
+    if (open) {
+      easeShut(key, function () {
+        state.navOpen[key] = false;
+        renderNav();
+      });
+      return;
+    }
+    state.navOpen[key] = true;
+    navEaseOpen = key;
     renderNav();
   }
 
@@ -1901,8 +1923,13 @@
     repaintToolbar();
     VA.writeStoredFlyoutOpen(widthStore(), true);
     syncPaneHandle();
-    // The nav grows the slot the scene's tree is drawn into.
+    // The nav grows the structure tree and the slots the scene's rows are
+    // drawn into -- at the scroll it was left at when the pane last closed.
     renderNav();
+    if (structScroll !== null && nodes.navtree) {
+      nodes.navtree.scrollTop = structScroll;
+      structScroll = null;
+    }
 
     // The panel's width, clamped to the room the page can spare, EVERY time it
     // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
@@ -2152,6 +2179,8 @@
   // what a row says and what it does are both the annotator's, and this page
   // keeps no copy of either. The type chips' state is the annotator's too.
   var sceneTree = null;
+  // The column's scroll when the pane closed, put back when it reopens.
+  var structScroll = null;
 
   function sceneRail(key, act, index) {
     if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
@@ -2185,6 +2214,12 @@
   // (views/nav.js's featureItem, `data-scene-feature`), and each is filled
   // here; no tree yet, or no rows for the node, draws nothing.
   function renderSceneSlot() {
+    var anchor = takeNavAnchor();
+    fillSceneSlots();
+    restoreNavAnchor(anchor);
+  }
+
+  function fillSceneSlots() {
     var slots = nodes.navtree && nodes.navtree.querySelectorAll
       ? nodes.navtree.querySelectorAll(".navtree__scene[data-scene-feature]") : [];
     if (!slots.length) return;
@@ -2208,7 +2243,8 @@
       if (rows[j].getAttribute("data-scene-key") !== focus.key) continue;
       var target = focus.part
         ? rows[j].querySelector('[data-scene-part="' + focus.part + '"]') : rows[j];
-      if (target && target.focus) target.focus();
+      // The keyboard goes back; the column's scroll is the anchor's.
+      if (target && target.focus) target.focus({ preventScroll: true });
       break;
     }
   }
@@ -2293,15 +2329,15 @@
     }
   }
 
-  // Select reveals (rule 4, 2026-11-12): once per selection change
-  // (revealPending, set by setSelected), after the paint that opened the
-  // folds, the first lit row not on screen is brought into the column with
-  // the smallest scroll that shows it -- the selected entity's own row first,
-  // then the other lit rows in column order -- and never at the cost of the
-  // own row leaving the screen. Never on a refresh or a nav rebuild, which
-  // would yank the reader's own scrolling back (Jeff, 2026-11-05 and
-  // 2026-11-10); and a click on a row already on screen moves nothing
-  // unless a row it lit is off screen.
+  // Select reveals (rule 2 of the_tree_sits_beside_the_3d_canvas_and_holds_
+  // still, 2026-11-22): once per selection change (revealPending, set by
+  // setSelected), after the paint that opened its path, the selection's own
+  // row -- or, where the grouping lists none, the first row of what it owns
+  // (VA.navSelectionRows) -- is brought into the column only if it is off
+  // screen, and then by the least scroll that shows it. Never on a refresh
+  // or a rebuild, which hold still instead (takeNavAnchor). Until 2026-11-22
+  // the touching rows were revealed too, and the column moved for a row the
+  // reader had not picked.
   function revealLitRows() {
     if (!revealPending) return;
     revealPending = false;
@@ -2309,25 +2345,13 @@
     var model = currentModel();
     var sel = state.focus.selected;
     if (!sel || !model || !nav || !nav.querySelectorAll || !nav.getBoundingClientRect) return;
-    var rows = VA.focusNavRowsOf(model, sel);
-    var lit = {};
-    rows.own.concat(rows.touching).forEach(function (k) { lit[k] = true; });
-    var own = nav.querySelector('[data-nav-kind="' + sel.kind + '"][data-nav-id="' + sel.id + '"]');
-    var drawn = Array.prototype.slice.call(nav.querySelectorAll("div.navtree__row[data-nav-kind][data-nav-id]"))
-      .filter(function (row) {
-        return lit[row.getAttribute("data-nav-kind") + ":" + row.getAttribute("data-nav-id")];
-      });
-    if (own) drawn = [own].concat(drawn.filter(function (r) { return r !== own; }));
+    var keys = VA.navSelectionRows(VA.navPlan(model, state), model, sel);
+    var row = navRows().filter(function (r) { return keys.indexOf(navRowKey(r)) !== -1; })[0];
+    if (!row) return;
     var n = nav.getBoundingClientRect();
-    var offScreen = function (r) {
-      var b = r.getBoundingClientRect();
-      return b.top < n.top ? b.top - n.top - 8 : b.bottom > n.bottom ? b.bottom - n.bottom + 8 : 0;
-    };
-    var first = drawn.filter(function (r) { return offScreen(r) !== 0; })[0];
-    if (!first) return;
-    var was = nav.scrollTop;
-    nav.scrollTop += offScreen(first);
-    if (own && first !== own && offScreen(own) !== 0) nav.scrollTop = was;
+    var b = row.getBoundingClientRect();
+    if (b.top < n.top) nav.scrollTop -= n.top - b.top + 8;
+    else if (b.bottom > n.bottom) nav.scrollTop += b.bottom - n.bottom + 8;
   }
 
   // One selection across the seam. The page tells the pane what it has
@@ -2638,6 +2662,14 @@
     var entity = target.kind === "node" ? featureEntityOfNode(target.id)
       : VA.focusEntityOf(currentModel(), target.kind, target.id);
     if (!entity || VA.sameFocus(entity, state.focus.selected)) return;
+    // A reader working in a feature's body when the pane moves on (a Take
+    // selects the partner end) keeps working there: the partner's body
+    // opens. A selection alone opens no body (setSelected).
+    var was = state.focus.selected;
+    if (was && was.kind === VA.FOCUS_KINDS.feature && entity.kind === VA.FOCUS_KINDS.feature &&
+        state.navOpen[VA.navFeatureKey(was.id)]) {
+      state.navOpen[VA.navFeatureKey(entity.id)] = true;
+    }
     hideCrop();
     selectFromScene(entity);
   }
@@ -3440,11 +3472,17 @@
     nodes.navtree.style.display = "";
     if (nodes.navDivider) nodes.navDivider.style.display = "";
     var tree = VA.navTree(state.topologies, state.stacksResults, state.kinematic);
+    var paneOpen = !!(nodes.flyout && nodes.flyout.open);
+    // The tree holds still (deliverable 2): the row under the pointer -- or,
+    // with none, the selected row, else the top row on screen -- is where it
+    // was after the redraw as before it (takeNavAnchor, below).
+    var anchor = takeNavAnchor();
     VA.renderNavTree(nodes.navtree, tree, state, {
       onTopology: onNavTopology,
       onStudy: onNavStudy,
       onTag: onNavTag,
       onNavFilter: onNavFilter,
+      onNavGroup: onNavGroup,
       onStack: onNavStack,
       onKinematic: onNavKinematic,
       onKinematicModel: onNavKinematicModel,
@@ -3455,7 +3493,10 @@
       onEntity: onNavEntity,
       onHover: onNavHover,
       // Show/hide in 3D: only while the scene is open, where it means something.
-      onVisibility: nodes.flyout && nodes.flyout.open ? onNavVisibility : null,
+      onVisibility: paneOpen ? onNavVisibility : null,
+      // The structure tree sits beside the 3D scene and is drawn only with it
+      // (deliverable 1); with the scene closed the map is the structure view.
+      structure: paneOpen,
       // The 3D control on each row: only where the scene is mounted.
       on3D: state.annotateMount ? onNav3D : null,
       // The study row's consolidated ⚠ opens into the SAME popover node every
@@ -3467,13 +3508,155 @@
       onCardShow: showCard,
       // The open scene's own tree goes under the row it is showing
       // (renderSceneSlot, below); a closed scene has no slot at all.
-      sceneSlot: !!(nodes.flyout && nodes.flyout.open),
+      sceneSlot: paneOpen,
       // Standing bindings that name an edge no model has, or a mesh not
       // installed: one line at the foot of the tree (VA.orphanBindings).
       orphans: VA.orphanBindings(state.identity, state.topologies, state.installedMeshes),
     });
-    renderSceneSlot();
+    fillSceneSlots();
+    restoreNavAnchor(anchor);
     revealLitRows();
+    if (navEaseOpen) {
+      easeOpen(navEaseOpen);
+      navEaseOpen = null;
+    }
+  }
+
+  // --- the tree holds still (the_tree_sits_beside_the_3d_canvas_and_holds_
+  // still, deliverable 2) -------------------------------------------------------
+  //
+  // The tree is rebuilt whole on every paint, fold, filter, write and pane
+  // message; what keeps it still is that every one of those goes through
+  // takeNavAnchor / restoreNavAnchor: before the redraw, one row and its
+  // screen y; after it, the same row (by kind and id) put back at that y by
+  // the column's scroll. The row is the one under the pointer, where the
+  // pointer is over the column -- so a fold moves only the rows below it --
+  // else the selected row on screen, else the top row on screen. A selection
+  // made elsewhere then scrolls only if its own row is off screen
+  // (revealLitRows). Until 2026-11-22 nothing saved the column's scroll, and
+  // a rebuild landed wherever the new heights put it.
+  var navPointer = null;
+
+  function wireNavPointer() {
+    var nav = nodes.navtree;
+    if (!nav || !nav.addEventListener) return;
+    nav.addEventListener("pointermove", function (event) {
+      navPointer = { x: event.clientX, y: event.clientY };
+    });
+    nav.addEventListener("pointerleave", function () { navPointer = null; });
+  }
+
+  function navRows() {
+    var nav = nodes.navtree;
+    return nav && nav.querySelectorAll
+      ? Array.prototype.slice.call(nav.querySelectorAll("div.navtree__row[data-nav-kind][data-nav-id]")) : [];
+  }
+
+  function navRowKey(row) {
+    return row.getAttribute("data-nav-kind") + ":" + row.getAttribute("data-nav-id");
+  }
+
+  // The row the pointer is on, or -- on a feature's body -- that feature's row.
+  function navRowUnderPointer() {
+    var nav = nodes.navtree;
+    if (!navPointer || typeof document === "undefined" || !document.elementFromPoint) return null;
+    var el = document.elementFromPoint(navPointer.x, navPointer.y);
+    if (!el || !nav.contains(el) || !el.closest) return null;
+    var row = el.closest("div.navtree__row[data-nav-kind][data-nav-id]");
+    if (row) return row;
+    var item = el.closest("li.navtree__item");
+    return item ? item.querySelector("div.navtree__row[data-nav-kind][data-nav-id]") : null;
+  }
+
+  function takeNavAnchor() {
+    var nav = nodes.navtree;
+    if (!nav || !nav.getBoundingClientRect || !nav.querySelectorAll) return null;
+    var box = nav.getBoundingClientRect();
+    var onScreen = function (row) {
+      var r = row.getBoundingClientRect();
+      return r.height > 0 && r.bottom > box.top && r.top < box.bottom;
+    };
+    var row = navRowUnderPointer();
+    if (!row) {
+      var rows = navRows().filter(onScreen);
+      row = rows.filter(function (r) { return r.classList.contains("navtree__row--on"); })[0] || rows[0] || null;
+    }
+    return { scroll: nav.scrollTop, key: row ? navRowKey(row) : null,
+      top: row ? row.getBoundingClientRect().top : 0 };
+  }
+
+  function restoreNavAnchor(anchor) {
+    var nav = nodes.navtree;
+    if (!anchor || !nav) return;
+    nav.scrollTop = anchor.scroll;
+    if (!anchor.key) return;
+    var row = navRows().filter(function (r) { return navRowKey(r) === anchor.key; })[0];
+    if (!row) return;
+    var moved = row.getBoundingClientRect().top - anchor.top;
+    if (moved) nav.scrollTop += moved;
+  }
+
+  // --- opening and closing is seen (deliverable 3) ------------------------------
+  //
+  // What is under a row eases open from nothing and shut to nothing, over
+  // `--tree-ease` (apps/viewer/style.css), and not at all for a reader who
+  // asks for reduced motion. Driven by requestAnimationFrame and the page's
+  // own clock, so scripts/filmstrip.mjs's stepped clock films it frame by
+  // frame. The rows above never move; the rows below follow the height.
+  var navEaseOpen = null;
+  var navEasing = {};
+
+  function navEaseMs() {
+    if (typeof window === "undefined" || !window.getComputedStyle || !document.documentElement) return 0;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return 0;
+    var ms = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue("--tree-ease"));
+    return isFinite(ms) && ms > 0 ? ms : 0;
+  }
+
+  // What is drawn under the row with fold `key`: its children or its body.
+  function navUnder(key) {
+    var nav = nodes.navtree;
+    if (!nav || !nav.querySelectorAll) return null;
+    var all = nav.querySelectorAll("[data-nav-under]");
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute("data-nav-under") === key) return all[i];
+    return null;
+  }
+
+  function easeHeight(el, from, to, ms, done) {
+    var start = performance.now();
+    el.style.overflow = "hidden";
+    el.style.height = from + "px";
+    var step = function () {
+      var t = Math.min(1, (performance.now() - start) / ms);
+      var k = 1 - Math.pow(1 - t, 3);
+      el.style.height = (from + (to - from) * k) + "px";
+      if (t < 1) { window.requestAnimationFrame(step); return; }
+      el.style.height = "";
+      el.style.overflow = "";
+      if (done) done();
+    };
+    window.requestAnimationFrame(step);
+  }
+
+  function easeOpen(key) {
+    var ms = navEaseMs();
+    var el = ms ? navUnder(key) : null;
+    if (!el) return;
+    var h = el.getBoundingClientRect().height;
+    if (h > 0) easeHeight(el, 0, h, ms, null);
+  }
+
+  function easeShut(key, done) {
+    var ms = navEaseMs();
+    var el = ms ? navUnder(key) : null;
+    if (!el) { done(); return; }
+    // A second press while it is closing is the same press.
+    if (navEasing[key]) return;
+    navEasing[key] = true;
+    easeHeight(el, el.getBoundingClientRect().height, 0, ms, function () {
+      delete navEasing[key];
+      done();
+    });
   }
 
   // Re-render with the rows/rows-equivalent scrolled back to the top. Only the
