@@ -110,6 +110,7 @@ from tolerance_stack.kinematic import (  # noqa: E402
     check_at_stop,
     envelope,
     RANGE_TERM_KINDS,
+    VALUE_FROM,
     fold_at_stop,
     load_kinematic_study,
     range_between_stops,
@@ -208,6 +209,23 @@ def project_point(point: PointResult) -> Dict[str, Any]:
 SUB_STACK_KINDS = ("linkage", "stop_position")
 
 
+def project_row(study, row) -> Dict[str, Any]:
+    """A contributor row, and where its value comes from (``VALUE_FROM``):
+    this model's edge, another model's, or none -- the word a reader's badge
+    is chosen by, decided here and never in the browser."""
+    return {**row.as_dict(), "value_from": row.contributor.value_from(study.topology)}
+
+
+def project_group(study, group) -> Dict[str, Any]:
+    """A ``study_ref``'s line, each leaf saying where its value comes from:
+    the sub-study's edge, which is another model's when the ref is."""
+    projected = group.as_dict()
+    word = VALUE_FROM[0] if group.ref.topology == study.topology else VALUE_FROM[1]
+    for child in projected["children"]:
+        child["value_from"] = word
+    return projected
+
+
 def project_stop(study, sweep, stop) -> Dict[str, Any]:
     """One stop: its fold at the top level, and the two sub-stacks it is made of.
 
@@ -227,7 +245,7 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
     point, stack = at_stop.point, at_stop.stack
     stack_groups = []
     for group in stack.groups:
-        projected = group.as_dict()
+        projected = project_group(study, group)
         projected["stop_position"] = True
         projected["gap"] = group.ref.gap
         for child in projected["children"]:
@@ -243,8 +261,8 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
         **rounded(at_stop.interval.as_dict()),
         "driver_entry": stack.entry,
         "gap_count": point.gap_count,
-        "rows": [row.as_dict() for row in point.rows],
-        "groups": [group.as_dict() for group in point.groups] + stack_groups,
+        "rows": [project_row(study, row) for row in point.rows],
+        "groups": [project_group(study, group) for group in point.groups] + stack_groups,
         "sub_stacks": [
             {"kind": SUB_STACK_KINDS[0], "term_count": sum(1 for r in point.rows if r.term),
              "refused_count": point.refused_count,
@@ -435,6 +453,9 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
                           "worst_confidence": worst_confidence(counts)})
         checks.append(projected)
     row.update({
+        # The model whose ids this one reuses (docs/DAG_TOPOLOGY.md, "Models"):
+        # a ref or a band of that model names the same feature by the same id.
+        "ids_from": (raw_topology or {}).get("ids_from"),
         "units": sweep.units.get(study.measure),
         "sweep": {
             "run_id": sweep.run_id, "schema": sweep.schema,

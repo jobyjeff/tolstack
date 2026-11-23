@@ -1,0 +1,843 @@
+{
+  "schema": "joby.tolerance_stack/kinematic_study/v0",
+  "id": "vpa_end_stop_v2_blade_pitch_at_the_stops",
+  "title": "Blade pitch at the end stops",
+  "description": "Blade pitch at the two end stops of the P2 sweep on model v2: v1's six linkage tolerances on v2's parts, with a row for every part v2 has between a contributor's edge and the ball centre it moves; the stops' axial stacks and the checks as v1's.",
+  "topology": "vpa_end_stop_v2",
+  "sweep": {
+    "run_id": "vpa-pitch-p2-20261105-204957",
+    "schema": "linkage-sweep/v1"
+  },
+  "measure": "blade_pitch",
+  "datum": {
+    "stop": "plus72",
+    "basis": "the feather stops touching",
+    "note": "Jeff, 2026-10-29: 'for now let's make the 72deg feather hard stop the datum, since that's where the propeller is at rest when the gas spring is charged (and what is modeled in nominal CAD).' Jeff, 2026-11-03: 'During rigging, the actuator's home (zero travel) is reset to the position with the feather direction end stops touching. So for any given permutation of a build, that will always be what defines zero travel.' So the datum is a contact pose by procedure as well as by CAD: the sweep's driver is 0 there (S461-610/636: 0 mm at full extension). It zeroes nothing -- since 2026-11-03 (handoff each_stop_is_its_own_stack) each stop's own axial stack says where that contact puts the plate, the datum stop's included."
+  },
+  "stops": [
+    {
+      "id": "minus7",
+      "label": "-7 deg stop (low pitch)",
+      "target": -7.0,
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-241",
+        "callout": "The propeller assembly shall provide propeller pitch end stops at -7º and +72º.",
+        "confidence": "traced",
+        "note": "c_status: draft. The stop's target value; the sweep point is the one whose solved blade pitch is nearest it, found by value."
+      },
+      "axial_stack": [
+        {
+          "study_ref": {
+            "topology": "vpa_pitch_linkage",
+            "study_id": "vpa_pitch_linkage_feather_stop_axial_position",
+            "parameter": "actuator.value"
+          },
+          "note": "Where the feather contact puts the plate: the hub face up through both mounts to the mount's end-stop surface, then the piston body from the shoulder the lower head seats on to its flange on the plate. Shared by both stops: the low stop's contact is this one plus the travel."
+        },
+        {
+          "study_ref": {
+            "topology": "vpa_pitch_linkage",
+            "study_id": "vpa_pitch_linkage_travel_between_end_stops",
+            "parameter": "actuator.value"
+          },
+          "note": "The low stop's contact is the feather contact moved by the travel between the stops (cover length less the mount's end-stop thickness and both heads): plate at the low stop = plate at the feather stop + travel, in the driver's +Z. The heads enter here and not at the feather stop (Jeff, 2026-11-03)."
+        },
+        {
+          "study_ref": {
+            "topology": "vpa_pitch_linkage",
+            "study_id": "vpa_pitch_linkage_hub_to_feather_stop",
+            "parameter": "actuator.value"
+          },
+          "title": "Blade-root bores to the tan link mount",
+          "gap": "Neither stop is yet anchored to the blade-root bores",
+          "note": "Declared 2026-10-29 (handoff the_plus72_stop_is_the_travel_datum), not authored: no chain in vpa_pitch_linkage runs from the blade-root bearing bores (the hub datum the blade angle is indexed to) to the tangential link mount's hub face, where both stops' axial stacks begin. Both stops move with it. Jeff, 2026-10-29: 'the nominal location of both end stops is really indexed relative to the blade root bores, since shifting those features relative to each other along the z-axis actually shifts the blade angle.'"
+        }
+      ]
+    },
+    {
+      "id": "plus72",
+      "label": "+72 deg stop (feather)",
+      "target": 72.0,
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-241",
+        "callout": "The propeller assembly shall provide propeller pitch end stops at -7º and +72º.",
+        "confidence": "traced",
+        "note": "c_status: draft. The stop's target value; the sweep point is the one whose solved blade pitch is nearest it, found by value."
+      },
+      "axial_stack": [
+        {
+          "study_ref": {
+            "topology": "vpa_pitch_linkage",
+            "study_id": "vpa_pitch_linkage_feather_stop_axial_position",
+            "parameter": "actuator.value"
+          },
+          "note": "Where the feather contact puts the plate: the hub face up through both mounts to the mount's end-stop surface, then the piston body from the shoulder the lower head seats on to its flange on the plate. Shared by both stops: the low stop's contact is this one plus the travel."
+        },
+        {
+          "study_ref": {
+            "topology": "vpa_pitch_linkage",
+            "study_id": "vpa_pitch_linkage_hub_to_feather_stop",
+            "parameter": "actuator.value"
+          },
+          "title": "Blade-root bores to the tan link mount",
+          "gap": "Neither stop is yet anchored to the blade-root bores",
+          "note": "Declared 2026-10-29 (handoff the_plus72_stop_is_the_travel_datum), not authored: no chain in vpa_pitch_linkage runs from the blade-root bearing bores (the hub datum the blade angle is indexed to) to the tangential link mount's hub face, where both stops' axial stacks begin. Both stops move with it. Jeff, 2026-10-29: 'the nominal location of both end stops is really indexed relative to the blade root bores, since shifting those features relative to each other along the z-axis actually shifts the blade angle.'"
+        }
+      ]
+    }
+  ],
+  "contributors": [
+    {
+      "edge": "pitch_link_length",
+      "parameters": [
+        "pitch_link.length"
+      ],
+      "geometry": [
+        "pitch_link.length"
+      ],
+      "feature": {
+        "edge": "pitch_link_length"
+      },
+      "zone": "band",
+      "dimension_ref": {
+        "topology": "vpa_pitch_linkage",
+        "edge": "pitch_link_length"
+      },
+      "note": "v1's band on v1's edge of the same id (the link's sphere centre to sphere centre). Borrowed until 213861-002's own sheet is cited; on v2 that band lands on pitch_link_race_bores, the link body's bore to bore, and this edge is then the sum of it and the four rows below."
+    },
+    {
+      "edge": "pitch_link_lower_outer_race_od_to_centre",
+      "parameters": [
+        "pitch_link.length"
+      ],
+      "geometry": [
+        "pitch_link.length"
+      ],
+      "feature": {
+        "edge": "pitch_link_length"
+      },
+      "zone": "band",
+      "route_of": "pitch_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The arm end's outer race, its outside diameter to its ball seat's centre: radial, so it moves the sphere centre along the link."
+    },
+    {
+      "edge": "pitch_link_lower_outer_race_press_fit",
+      "parameters": [
+        "pitch_link.length"
+      ],
+      "geometry": [
+        "pitch_link.length"
+      ],
+      "feature": {
+        "edge": "pitch_link_length"
+      },
+      "zone": "band",
+      "route_of": "pitch_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The arm end's outer race pressed into the link's eye: where the race's axis sits in the bore, along the link."
+    },
+    {
+      "edge": "pitch_link_upper_outer_race_press_fit",
+      "parameters": [
+        "pitch_link.length"
+      ],
+      "geometry": [
+        "pitch_link.length"
+      ],
+      "feature": {
+        "edge": "pitch_link_length"
+      },
+      "zone": "band",
+      "route_of": "pitch_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's outer race pressed into the link's eye, as at the arm end."
+    },
+    {
+      "edge": "pitch_link_upper_outer_race_od_to_centre",
+      "parameters": [
+        "pitch_link.length"
+      ],
+      "geometry": [
+        "pitch_link.length"
+      ],
+      "feature": {
+        "edge": "pitch_link_length"
+      },
+      "zone": "band",
+      "route_of": "pitch_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's outer race, outside diameter to centre, as at the arm end."
+    },
+    {
+      "edge": "pitch_arm_radius",
+      "parameters": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_lower_sphere_centre",
+        "body": "blade"
+      },
+      "zone": "sphere",
+      "dimension_ref": {
+        "topology": "vpa_pitch_linkage",
+        "edge": "pitch_arm_link_hole_to_clocking_hole"
+      },
+      "note": "The same edge id as v1's, banded as v1's study bands it: the arm's link-hole-to-clocking-hole position read as a ball about the joint centre (v1's note on this contributor says why)."
+    },
+    {
+      "edge": "pitch_link_lower_inner_race_on_pitch_arm",
+      "parameters": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_lower_sphere_centre",
+        "body": "blade"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_arm_radius",
+      "gap": "no value on v2 yet",
+      "note": "The stand-in pin: the arm end's inner race in the arm's link bore."
+    },
+    {
+      "edge": "pitch_link_lower_inner_race_bore_to_ball",
+      "parameters": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_lower_sphere_centre",
+        "body": "blade"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_arm_radius",
+      "gap": "no value on v2 yet",
+      "note": "The arm end's inner race, its bore to its ball's centre."
+    },
+    {
+      "edge": "pitch_link_lower_ball_joint",
+      "parameters": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_b[0]",
+        "pitch_link.point_b[1]",
+        "pitch_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_lower_sphere_centre",
+        "body": "blade"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_arm_radius",
+      "gap": "no value on v2 yet",
+      "note": "The arm end's ball in its outer race: the solver's one joint point is both."
+    },
+    {
+      "edge": "pitch_plate_link_flanged_bushing_height",
+      "parameters": [
+        "pitch_link.point_a[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_upper_sphere_centre",
+        "component": "z",
+        "body": "pitch_plate"
+      },
+      "zone": "band",
+      "dimension_ref": {
+        "topology": "vpa_pitch_linkage",
+        "edge": "pitch_plate_flange_to_link_hole"
+      },
+      "note": "v2's edge for the lug's axial height (datum A to the flanged bushing's bore), standing where v1's pitch_plate_attach_height does, banded by the same 215735-A position callout v1 borrows: the Z component of the plate-side joint centre only, as in v1."
+    },
+    {
+      "edge": "pitch_link_flanged_bushing_press_fit",
+      "parameters": [
+        "pitch_link.point_a[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_upper_sphere_centre",
+        "component": "z",
+        "body": "pitch_plate"
+      },
+      "zone": "band",
+      "route_of": "pitch_plate_link_flanged_bushing_height",
+      "gap": "no value on v2 yet",
+      "note": "The flanged bushing pressed into the plate's lug bore: where its axis sits."
+    },
+    {
+      "edge": "pitch_link_flanged_bushing_wall",
+      "parameters": [
+        "pitch_link.point_a[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_upper_sphere_centre",
+        "component": "z",
+        "body": "pitch_plate"
+      },
+      "zone": "band",
+      "route_of": "pitch_plate_link_flanged_bushing_height",
+      "gap": "no value on v2 yet",
+      "note": "The flanged bushing's wall, outside diameter to bore."
+    },
+    {
+      "edge": "pitch_link_bolt_in_flanged_bushing",
+      "parameters": [
+        "pitch_link.point_a[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_upper_sphere_centre",
+        "component": "z",
+        "body": "pitch_plate"
+      },
+      "zone": "band",
+      "route_of": "pitch_plate_link_flanged_bushing_height",
+      "gap": "no value on v2 yet",
+      "note": "The bolt's shank in the flanged bushing's bore."
+    },
+    {
+      "edge": "pitch_link_upper_inner_race_on_bolt",
+      "parameters": [
+        "pitch_link.point_a[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_upper_sphere_centre",
+        "component": "z",
+        "body": "pitch_plate"
+      },
+      "zone": "band",
+      "route_of": "pitch_plate_link_flanged_bushing_height",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's inner race on the bolt."
+    },
+    {
+      "edge": "pitch_link_upper_ball_joint",
+      "parameters": [
+        "pitch_link.point_a[2]"
+      ],
+      "geometry": [
+        "pitch_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "pitch_link_upper_sphere_centre",
+        "component": "z",
+        "body": "pitch_plate"
+      },
+      "zone": "band",
+      "route_of": "pitch_plate_link_flanged_bushing_height",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's ball in its outer race: the solver's one joint point is both."
+    },
+    {
+      "edge": "tan_link_length",
+      "parameters": [
+        "tan_link.length"
+      ],
+      "geometry": [
+        "tan_link.length"
+      ],
+      "feature": {
+        "edge": "tan_link_length"
+      },
+      "zone": "band",
+      "units": "mm",
+      "dimension": {
+        "id": "tan_link_length",
+        "name": "tangential link length band about the sweep nominal",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213863-004-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": null,
+          "view": "PART DETAIL (plan view)",
+          "callout": "61.40 (basic, boxed) with ⌖Ø0.1 B on Ø 14.288 +/-0.006",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213863-004-A.pdf",
+            "sha256": "4e1a130436bd257b47e12560ceee0efca0ff8783df7bcd64f7b2b5f5cbbfec75",
+            "runs": [
+              {
+                "run_id": "20260910_154233_213863-004-A",
+                "ts": "2026-09-10T22:42:43.204081+00:00"
+              }
+            ],
+            "note": "Read 2026-10-26 off the PDF text layer and the page_1.png render of the run. The part drawing of the bare link body (find 3 of 212956-005); the run recorded no dimensions, so the callouts were read by eye and by text layer."
+          },
+          "confidence": "traced",
+          "note": "213863-004 A sheet 1 of 1 (PART DETAIL, PITCH ANTI ROTATION LINK, PROPELLER), page 1190.56 x 841.89 pt. The length: boxed basic dimension 61.40 between the two bore centres, bbox [332.97, 139.52, 365.25, 155.67]. Its band: ⌖Ø0.1 B on the Ø 14.288 +/-0.006 bore, frame bbox [93.43, 186.58, 159.12, 202.73], callout bbox [86.72, 170.71, 187.38, 186.86]; datum B is the Ø 15.876 +/-0.006 bore (callout bbox [481.35, 329.45, 581.15, 345.6]). So one bore sits within a Ø0.1 zone of 61.40 from the other: a radius of 0.05 mm, taken along the centre line as the worst case, +/-0.05. The bore diameters' own tolerances (+/-0.006) do not move a bore's centre and are not added.\nWhat this is and is not: the distance between the link BODY's two bore axes. The solver's sphere centres are the bearings' ball centres in those bores; the ball-centre offset from the bore axis is the two `*_ball_centre_offset` edges, still uncited, and is not in this band. The 212956-005 A assembly sheet gives only reference lengths (overall (81.43), (11.10), (21.00)) and no centre distance.\nMesh agreement: run P2's two sphere centres sit 61.45 mm apart (tan_link.point_a_world / point_b_world), 0.05 mm over the drawing's 61.40 -- inside the band's full width and inside what a bearing fit can account for. A fit is a measurement of a mesh and is not what is cited."
+        },
+        "note": "The basic 61.40 with its ⌖Ø0.1 B zone as +/-0.05 along the centre line. The study reads the same band about zero (its contributors are variations about the sweep's own nominal), with this same citation inline; tests/test_kinematic.py pairs the two."
+      },
+      "borrowed_from": {
+        "topology": "vpa_pitch_linkage",
+        "edge": "tan_link_length"
+      },
+      "note": "v1's inline band, the same citation as v1's tan_link_length edge carries about 61.40 (borrowed_from pairs the two at load). Borrowed until 213863-004-A is cited on v2: that band lands on tan_link_race_bores, the link body's bore to bore."
+    },
+    {
+      "edge": "tan_link_lower_outer_race_od_to_centre",
+      "parameters": [
+        "tan_link.length"
+      ],
+      "geometry": [
+        "tan_link.length"
+      ],
+      "feature": {
+        "edge": "tan_link_length"
+      },
+      "zone": "band",
+      "route_of": "tan_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The mount end's outer race, its outside diameter to its ball seat's centre: radial, so it moves the sphere centre along the link."
+    },
+    {
+      "edge": "tan_link_lower_outer_race_press_fit",
+      "parameters": [
+        "tan_link.length"
+      ],
+      "geometry": [
+        "tan_link.length"
+      ],
+      "feature": {
+        "edge": "tan_link_length"
+      },
+      "zone": "band",
+      "route_of": "tan_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The mount end's outer race pressed into the link's eye: where the race's axis sits in the bore, along the link."
+    },
+    {
+      "edge": "tan_link_upper_outer_race_press_fit",
+      "parameters": [
+        "tan_link.length"
+      ],
+      "geometry": [
+        "tan_link.length"
+      ],
+      "feature": {
+        "edge": "tan_link_length"
+      },
+      "zone": "band",
+      "route_of": "tan_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's outer race pressed into the link's eye, as at the mount end."
+    },
+    {
+      "edge": "tan_link_upper_outer_race_od_to_centre",
+      "parameters": [
+        "tan_link.length"
+      ],
+      "geometry": [
+        "tan_link.length"
+      ],
+      "feature": {
+        "edge": "tan_link_length"
+      },
+      "zone": "band",
+      "route_of": "tan_link_length",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's outer race, outside diameter to centre, as at the mount end."
+    },
+    {
+      "edge": "tan_link_mount_height",
+      "parameters": [
+        "tan_link.point_a[2]"
+      ],
+      "geometry": [
+        "tan_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "tan_link_lower_sphere_centre",
+        "component": "z",
+        "body": "base"
+      },
+      "zone": "band",
+      "dimension_ref": {
+        "topology": "vpa_pitch_linkage",
+        "edge": "tan_link_mount_overall_height"
+      },
+      "note": "The same edge id as v1's (the mount's hub face to its bore), banded as v1's study bands it, by the mount's overall height."
+    },
+    {
+      "edge": "tan_link_lower_inner_race_on_mount",
+      "parameters": [
+        "tan_link.point_a[2]"
+      ],
+      "geometry": [
+        "tan_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "tan_link_lower_sphere_centre",
+        "component": "z",
+        "body": "base"
+      },
+      "zone": "band",
+      "route_of": "tan_link_mount_height",
+      "gap": "no value on v2 yet",
+      "note": "The stand-in pin: the mount end's inner race in the mount's bore."
+    },
+    {
+      "edge": "tan_link_lower_inner_race_bore_to_ball",
+      "parameters": [
+        "tan_link.point_a[2]"
+      ],
+      "geometry": [
+        "tan_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "tan_link_lower_sphere_centre",
+        "component": "z",
+        "body": "base"
+      },
+      "zone": "band",
+      "route_of": "tan_link_mount_height",
+      "gap": "no value on v2 yet",
+      "note": "The mount end's inner race, its bore to its ball's centre."
+    },
+    {
+      "edge": "tan_link_lower_ball_joint",
+      "parameters": [
+        "tan_link.point_a[2]"
+      ],
+      "geometry": [
+        "tan_link.point_a[2]"
+      ],
+      "feature": {
+        "node": "tan_link_lower_sphere_centre",
+        "component": "z",
+        "body": "base"
+      },
+      "zone": "band",
+      "route_of": "tan_link_mount_height",
+      "gap": "no value on v2 yet",
+      "note": "The mount end's ball in its outer race: the solver's one joint point is both."
+    },
+    {
+      "edge": "pitch_plate_tan_link_flanged_bushing_radius",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "dimension_ref": {
+        "topology": "vpa_pitch_linkage",
+        "edge": "pitch_plate_tan_link_attach_radius"
+      },
+      "note": "v2's edge for where the tangential link's lug sits on the plate (pilot boss to the flanged bushing's bore), standing where v1's pitch_plate_tan_link_attach_radius does, banded by that edge's 215735-A position zone as a ball."
+    },
+    {
+      "edge": "tan_link_flanged_bushing_press_fit",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "The flanged bushing pressed into the plate's lug bore: where its axis sits."
+    },
+    {
+      "edge": "tan_link_flanged_bushing_wall",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "The flanged bushing's wall, outside diameter to bore."
+    },
+    {
+      "edge": "tan_link_bolt_in_flanged_bushing",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "The bolt's shank in the flanged bushing's bore."
+    },
+    {
+      "edge": "tan_link_upper_inner_race_on_bolt",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's inner race on the bolt."
+    },
+    {
+      "edge": "pitch_plate_tan_link_flanged_bushing_bore_to_seat",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "Along the bolt: the lug bore to the lug face the bushing's flange seats on. The ball zone has all three columns, so a position along the bolt moves one."
+    },
+    {
+      "edge": "tan_link_flanged_bushing_flange_thickness",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "Along the bolt: the bushing's flange, from the lug face to the race's face."
+    },
+    {
+      "edge": "tan_link_upper_inner_race_face_to_ball",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "Along the bolt: the inner race's located face to its ball's centre."
+    },
+    {
+      "edge": "tan_link_upper_ball_joint",
+      "parameters": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "geometry": [
+        "tan_link.point_b[0]",
+        "tan_link.point_b[1]",
+        "tan_link.point_b[2]"
+      ],
+      "feature": {
+        "node": "tan_link_upper_sphere_centre",
+        "body": "pitch_plate"
+      },
+      "zone": "sphere",
+      "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
+      "gap": "no value on v2 yet",
+      "note": "The plate end's ball in its outer race: the solver's one joint point is both."
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "s461_261_reach_at_plus72",
+      "label": "Pitch at the feather stop reaches S461-261's +70 deg",
+      "configuration": {
+        "stop": "plus72",
+        "sensitivity_condition": "the P2 sweep's own Jacobian at the point nearest +72 deg"
+      },
+      "criterion": ">= 0",
+      "bound": "at_least",
+      "limit": {
+        "value": 70,
+        "units": "deg",
+        "source_ref": {
+          "kind": "requirement",
+          "document": "S461_equipmentrequirements_20260906.json",
+          "cell": "S461-261",
+          "callout": "The propeller pitch angle shall be controlled between -5º and +70º in all operating conditions.",
+          "confidence": "traced",
+          "note": "Blade Pitch Control Range. c_status: draft, severity must_have. Pulled 2026-09-06 from Polarion (Delta mirror). The bare minimum travel at each end (Jeff, 2026-11-03: 'there is a bare minimum at both ends of travel. I think it's -5 to 70'): a stop must reach past it, so the check is one-sided."
+        }
+      },
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-241",
+        "callout": "The propeller assembly shall provide propeller pitch end stops at -7º and +72º.",
+        "confidence": "traced",
+        "note": "c_status: draft. Pulled 2026-09-06. The stop's target (+72 deg) -- the sweep point the stop is read at; not itself a criterion."
+      },
+      "complete": false,
+      "excluded_terms": [
+        "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
+        "temperature",
+        "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
+        "pitch_plate_attach_height's second in-plane component -- 215735-A's ⌖Ø0.2 A B C on the plate's link hole is a disk of radius 0.1 normal to the hole's axis, and only the axial (CAD Z) component is folded, as a band, because neither topology states the hole's axis; closed by a bore-axis fit of the plate's link hole bound in the annotator, or by 215735-A's own views naming the hole's direction",
+        "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own"
+      ]
+    },
+    {
+      "check_id": "s461_261_reach_at_minus7",
+      "label": "Pitch at the low stop reaches S461-261's -5 deg",
+      "configuration": {
+        "stop": "minus7",
+        "sensitivity_condition": "the P2 sweep's own Jacobian at the point nearest -7 deg"
+      },
+      "criterion": ">= 0",
+      "bound": "at_most",
+      "limit": {
+        "value": -5,
+        "units": "deg",
+        "source_ref": {
+          "kind": "requirement",
+          "document": "S461_equipmentrequirements_20260906.json",
+          "cell": "S461-261",
+          "callout": "The propeller pitch angle shall be controlled between -5º and +70º in all operating conditions.",
+          "confidence": "traced",
+          "note": "Blade Pitch Control Range. c_status: draft, severity must_have. Pulled 2026-09-06 from Polarion (Delta mirror). The bare minimum travel at each end (Jeff, 2026-11-03: 'there is a bare minimum at both ends of travel. I think it's -5 to 70'): a stop must reach past it, so the check is one-sided."
+        }
+      },
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-241",
+        "callout": "The propeller assembly shall provide propeller pitch end stops at -7º and +72º.",
+        "confidence": "traced",
+        "note": "c_status: draft. Pulled 2026-09-06. The stop's target (-7 deg) -- the sweep point the stop is read at; not itself a criterion."
+      },
+      "complete": false,
+      "excluded_terms": [
+        "gas-spring bushing tipping -- a disk on the plate slide's axis components, whose band is a tilt in rad; P2 carries its Jacobian, but neither the bushing's radial clearance nor the bushing length that turns that clearance into a tilt is cited anywhere yet",
+        "temperature",
+        "every geometric callout (position, profile, runout) on the linkage's parts -- none is read into either topology",
+        "pitch_plate_attach_height's second in-plane component -- 215735-A's ⌖Ø0.2 A B C on the plate's link hole is a disk of radius 0.1 normal to the hole's axis, and only the axial (CAD Z) component is folded, as a band, because neither topology states the hole's axis; closed by a bore-axis fit of the plate's link hole bound in the annotator, or by 215735-A's own views naming the hole's direction",
+        "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own"
+      ]
+    }
+  ],
+  "provenance": {
+    "authored_by": "handoff the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds, 2026-11-22",
+    "sweep": "The same P2 run as v1's study. Its geometry.features[] name v1's topology; v2 declares ids_from vpa_pitch_linkage and has every node and edge the run names under the same id, so the run is read on v2 (docs/DAG_TOPOLOGY.md, \"Models\").",
+    "bands": "No v2 edge carries a value yet, so each of the six contributors borrows the band v1's study reads, from v1's edge (dimension_ref across models, or the inline band paired by borrowed_from): the first v2 number is v1's number, on v2's parts. tests/test_kinematic.py folds both studies and compares them.",
+    "rows": "A row `route_of` a contributor is an edge of v2 on the route from that contributor's edge to the ball centre its sweep columns move: the parts v1 lumped into one step. Each reads its contributor's columns, shows that sensitivity and enters no term until it has a value. The lesson of the handoff (docs/sessions/lessons/LESSONS_20261122_the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds.md) lists them, and the edges left out with why.",
+    "stops": "The stops' axial stacks are v1's chain studies, by study_ref to v1: v2's own stop stacks come after the drawings are cited."
+  },
+  "notes": [
+    "Variation only, as v1's: every band is about 0.0 and each stop's fold is the deviation of blade pitch from the sweep's own nominal there.",
+    "Each stop is its own stack, as v1's: the linkage terms at that pose plus v1's axial stack to the stop's contact.",
+    "Every band is borrowed from v1 for now. The rows with no value are v2's parts between a contributor's edge and its ball centre; their sensitivity is the contributor's, and a band cited on any of them enters as its own term."
+  ]
+}

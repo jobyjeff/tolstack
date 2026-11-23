@@ -1660,13 +1660,18 @@ def test_a_geometry_key_the_sweep_lacks_is_a_refusal_naming_it(tmp_path):
     assert d["refused"] and "link.no_such_length" in d["reason"]
 
 
-def test_a_gap_row_is_a_refusal_row_with_no_sensitivity_shown(tmp_path):
+def test_a_gap_row_is_a_refusal_row_that_still_shows_its_sensitivity(tmp_path):
+    # Since 2026-11-22 (the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds):
+    # the sweep's sensitivity is real whatever the band is, and it is what
+    # says what a band on a v2 part not yet cited would cost. Its contribution
+    # needs a band, so it stays empty, and the row still refuses.
     def unband(data):
         data["contributors"][1]["dimension_ref"]["edge"] = "plate_attach_unbanded"
     study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=unband)
     study, sweep = load_kinematic_study(study_path, data_root, topologies)
     gap = next(r for r in fold_at(study, sweep, 0).rows if r.kind == "gap")
-    assert gap.display["refused"] and gap.display["sensitivity"] is None
+    assert gap.display["refused"]
+    assert gap.display["sensitivity"] == gap.sign * gap.coefficient == pytest.approx(5.0)
     assert gap.display["contribution"] is None
     assert fold_at(study, sweep, 0).refused_count == 1
 
@@ -1691,3 +1696,262 @@ def test_real_every_linkage_row_prints_its_skeleton_nominal_and_no_row_is_blank(
         assert (plate["min"], plate["max"]) == pytest.approx(
             (plate["nominal"] - 0.1, plate["nominal"] + 0.1))
         assert plate["sensitivity"] is not None and plate["nominal"] == pytest.approx(79.666)
+
+
+# --------------------------------------------------------------------------- #
+# 9. a model that reuses another's ids, shared columns, and the v2 study       #
+#    (handoff the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds)        #
+# --------------------------------------------------------------------------- #
+
+V2_STUDY = (REPO_ROOT / "docs" / "topologies"
+            / "kinematic_study_vpa_end_stop_v2_blade_pitch_at_the_stops.json")
+
+#: v1's six contributors, each by the v2 edge that stands where it does. The
+#: table of the handoff's deliverable 3, and the only place it is written.
+V1_TO_V2 = {
+    "pitch_link_length": "pitch_link_length",
+    "pitch_arm_radius": "pitch_arm_radius",
+    "pitch_plate_attach_height": "pitch_plate_link_flanged_bushing_height",
+    "tan_link_length": "tan_link_length",
+    "tan_link_mount_height": "tan_link_mount_height",
+    "pitch_plate_tan_link_attach_radius": "pitch_plate_tan_link_flanged_bushing_radius",
+}
+
+
+def _relabel_fixture(root: Path, ids_from):
+    """The copied fixture topology, declaring ``ids_from`` (or not), and a
+    second model ``kin_upstream`` -- the fixture's own graph under another id
+    -- for a band or a run to come from."""
+    path = root / "topologies" / "topology_kin_fixture.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    upstream = dict(data, id="kin_upstream")
+    (root / "topologies" / "topology_kin_upstream.json").write_text(
+        json.dumps(upstream), encoding="utf-8")
+    if ids_from is not None:
+        data["ids_from"] = ids_from
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def _features_from(topology):
+    def edit(data):
+        _features(data)
+        for entry in data["geometry"]["features"]:
+            entry["topology"] = topology
+    return edit
+
+
+def test_a_run_naming_the_model_this_one_reuses_ids_from_is_read(tmp_path):
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, sweep_edit=_features_from("kin_upstream"))
+    _relabel_fixture(topologies.parent, ids_from="kin_upstream")
+    study, _ = load_kinematic_study(study_path, data_root, topologies)
+    assert [c.feature_source for c in study.contributors] == ["artifact", "artifact"]
+
+
+@pytest.mark.parametrize("ids_from", [None, "kin_upstream"])
+def test_a_run_naming_any_other_model_still_refuses(tmp_path, ids_from):
+    # Without ids_from the upstream model is just another model; with it, a
+    # third model is still another one.
+    named = "kin_upstream" if ids_from is None else "kin_third"
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, sweep_edit=_features_from(named))
+    _relabel_fixture(topologies.parent, ids_from=ids_from)
+    with pytest.raises(KinematicStudyError,
+                       match=rf"topology '{named}' vs 'kin_fixture'.*refusing to fold"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def _second_on_the_length_column(data):
+    """Two more rows on link.length: a banded one (its own term on the same
+    coefficient) and a route row with no value."""
+    data["contributors"] += [
+        {"edge": "plate_attach_position", "parameters": ["link.length"],
+         "geometry": ["link.length"], "feature": {"edge": "link_length"}, "zone": "band",
+         "dimension_ref": {"topology": "kin_fixture", "edge": "plate_attach_position"}},
+        {"edge": "plate_attach_unbanded", "parameters": ["link.length"],
+         "geometry": ["link.length"], "feature": {"edge": "link_length"}, "zone": "band",
+         "route_of": "link_length", "gap": "no value yet"},
+    ]
+    data["contributors"][1]["edge"] = "link_to_plate"
+
+
+def test_two_contributors_may_share_a_column_each_its_own_term(tmp_path):
+    """Point 0, J_len = 2: link_length's [-0.1, 0.3] -> [-0.2, 0.6], the
+    second band's +-0.02 -> +-0.04, the sphere's +-0.1 as before; the route
+    row shows the same coefficient and enters nothing."""
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=_second_on_the_length_column)
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    rows = {r.contributor.edge: r for r in fold_at(study, sweep, 0).rows}
+    assert rows["plate_attach_position"].term.coefficient == pytest.approx(2.0)
+    assert rows["link_length"].term.coefficient == pytest.approx(2.0)
+    route = rows["plate_attach_unbanded"]
+    assert route.kind == "gap" and route.term is None
+    assert (route.sign, route.coefficient) == (rows["link_length"].sign,
+                                               rows["link_length"].coefficient)
+    assert route.display["sensitivity"] == pytest.approx(2.0)
+    interval = fold_at(study, sweep, 0).interval
+    assert (interval.min, interval.max) == pytest.approx((-0.34, 0.74))
+
+
+def _route_to_nothing(c):
+    c["route_of"] = "no_such_edge"
+
+
+def _route_on_other_columns(c):
+    c.update(parameters=["link.point_a[0]"], geometry=["link.point_a[0]"],
+             feature={"node": "plate_attach"})
+
+
+@pytest.mark.parametrize("edit, match", [
+    (_route_to_nothing, "not a contributor"),
+    (_route_on_other_columns, "but reads"),
+])
+def test_a_route_row_names_a_contributor_on_its_own_columns(tmp_path, edit, match):
+    def bad_route(data):
+        _second_on_the_length_column(data)
+        edit(data["contributors"][-1])
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=bad_route)
+    with pytest.raises(KinematicStudyError, match=match):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def _inline_length(data, lender, half=None):
+    band = {"id": "link_length", "name": "Link length", "nominal": 0.0, "min": -0.1,
+            "max": 0.3, "source_ref": {"kind": "spec", "document": "FIXTURE-1.pdf",
+                                       "sheet": 1, "confidence": "traced"}}
+    if half is not None:
+        band.update(min=-half, max=half)
+    c = data["contributors"][0]
+    del c["dimension_ref"]
+    c.update(dimension=band, units="mm", borrowed_from=lender)
+
+
+def test_an_inline_band_borrowed_from_another_models_edge_is_paired_and_says_so(tmp_path):
+    lender = {"topology": "kin_upstream", "edge": "link_length"}
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=lambda d: _inline_length(d, lender))
+    _relabel_fixture(topologies.parent, ids_from=None)
+    study, sweep = load_kinematic_study(study_path, data_root, topologies)
+    by_edge = {c.edge: c for c in study.contributors}
+    assert by_edge["link_length"].value_from("kin_fixture") == "other_model"
+    assert by_edge["plate_attach_position"].value_from("kin_fixture") == "this_model"
+    assert fold_at(study, sweep, 0).interval.max == pytest.approx(HAND[0][1])
+
+
+def test_an_inline_band_that_is_not_its_lenders_refuses(tmp_path):
+    lender = {"topology": "kin_upstream", "edge": "link_length"}
+    study_path, data_root, topologies = copy_fixture(
+        tmp_path, study_edit=lambda d: _inline_length(d, lender, half=0.05))
+    _relabel_fixture(topologies.parent, ids_from=None)
+    with pytest.raises(KinematicStudyError, match="is not edge 'link_length'"):
+        load_kinematic_study(study_path, data_root, topologies)
+
+
+def test_value_from_is_none_for_a_gap_and_other_model_for_a_cross_model_ref(tmp_path):
+    def cross(data):
+        data["contributors"][1]["dimension_ref"]["topology"] = "kin_upstream"
+        data["contributors"].append(
+            {"edge": "plate_attach_unbanded", "parameters": ["link.length"],
+             "geometry": ["link.length"], "feature": {"edge": "link_length"},
+             "zone": "band", "gap": "no value yet"})
+    study_path, data_root, topologies = copy_fixture(tmp_path, study_edit=cross)
+    _relabel_fixture(topologies.parent, ids_from=None)
+    study, _ = load_kinematic_study(study_path, data_root, topologies)
+    assert [c.value_from("kin_fixture") for c in study.contributors] == [
+        "this_model", "other_model", "none"]
+
+
+def _both_real():
+    v1 = load_kinematic_study(REAL_STUDY, REAL_DATA)
+    v2 = load_kinematic_study(V2_STUDY, REAL_DATA)
+    return v1, v2
+
+
+def _terms_by_edge(result, rename=None):
+    """{edge: (sign, coefficient, min, max)} for each term a stop's fold took."""
+    out = {}
+    for row in result.point.rows:
+        if row.term is not None:
+            edge = (rename or {}).get(row.contributor.edge, row.contributor.edge)
+            out[edge] = (row.term.sign, row.term.coefficient,
+                         row.term.element.min, row.term.element.max)
+    for group in (*result.point.groups, *result.stack.groups):
+        for child in group.children:
+            if child.term is not None:
+                out[(group.ref.study_id, child.sub.edge)] = (
+                    child.term.sign, child.term.coefficient,
+                    child.term.element.min, child.term.element.max)
+    return out
+
+
+def _range_terms(result, rename):
+    return {(rename.get(t.edge, t.edge), t.kind): (t.coefficient, t.half)
+            for t in result.terms if t.term is not None}
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_v2_folds_to_v1s_numbers_at_both_stops_and_over_the_range():
+    """(a) Parity, computed: with the six contributors on borrowed bands, v2's
+    study is v1's study on v2's parts -- the same total and the same terms at
+    each stop and in the range between them."""
+    (s1, w1), (s2, w2) = _both_real()
+    for stop in ("plus72", "minus7"):
+        a, b = fold_at_stop(s1, w1, stop), fold_at_stop(s2, w2, stop)
+        assert b.interval.as_dict() == a.interval.as_dict()
+        assert _terms_by_edge(b) == _terms_by_edge(a, rename=V1_TO_V2)
+    r1, r2 = range_between_stops(s1, w1), range_between_stops(s2, w2)
+    assert r2.interval.as_dict() == r1.interval.as_dict()
+    assert r2.nominal.as_dict() == r1.nominal.as_dict()
+    assert _range_terms(r2, {}) == _range_terms(r1, V1_TO_V2)
+    for check in s1.checks:
+        c1 = check_at_stop(s1, w1, check["check_id"])
+        c2 = check_at_stop(s2, w2, check["check_id"])
+        assert c2.interval.as_dict() == c1.interval.as_dict()
+        assert c2.complete is False
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_v2_reads_the_v1_run_and_every_contributor_is_v2s_edge():
+    _, (s2, _) = _both_real()
+    owners = [c for c in s2.contributors if c.route_of is None]
+    assert sorted(c.edge for c in owners) == sorted(V1_TO_V2.values())
+    assert {c.feature_source for c in s2.contributors} == {"artifact"}
+    assert {c.value_from(s2.topology) for c in owners} == {"other_model"}
+    assert {r.topology for r in s2.study_refs} == {"vpa_pitch_linkage"}
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_every_added_v2_row_shows_its_contributors_sensitivity_and_enters_no_term():
+    """(b) Each row of deliverable 4 reads its contributor's columns: the same
+    Jacobian entries and coefficient at every point, shown, and no term."""
+    _, (s2, w2) = _both_real()
+    added = [c for c in s2.contributors if c.route_of is not None]
+    assert added and all(c.is_gap and c.value_from(s2.topology) == "none" for c in added)
+    for point in range(w2.n_points):
+        rows = {r.contributor.edge: r for r in fold_at(s2, w2, point).rows}
+        for c in added:
+            row, owner = rows[c.edge], rows[c.route_of]
+            assert row.term is None and row.kind == "gap"
+            assert row.entries == owner.entries
+            assert (row.sign, row.coefficient) == (owner.sign, owner.coefficient)
+            assert row.display["sensitivity"] == row.sign * row.coefficient
+    assert fold_at(s2, w2, 0).refused_count == len(added)
+
+
+@pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
+def test_real_the_projection_says_where_each_v2_value_comes_from():
+    row = builder.project_study(V2_STUDY, REAL_DATA, V2_STUDY.parent)
+    assert row["status"] == "ok" and row["ids_from"] == "vpa_pitch_linkage"
+    stop = row["stops"][0]
+    words = {r["edge"]: r["value_from"] for r in stop["rows"]}
+    assert {words[e] for e in V1_TO_V2.values()} == {"other_model"}
+    assert set(words.values()) == {"other_model", "none"}
+    leaves = [c for g in stop["groups"] for c in g["children"]]
+    assert leaves and {c["value_from"] for c in leaves} == {"other_model"}
+    tan = next(r for r in stop["rows"] if r["edge"] == "tan_link_length")
+    assert tan["display"]["nominal_source"]["kind"] == "cited"
+    assert tan["display"]["nominal"] == pytest.approx(61.40)
+    v1 = builder.project_study(REAL_STUDY, REAL_DATA, REAL_STUDY.parent)
+    assert {r["value_from"] for r in v1["stops"][0]["rows"]} == {"this_model"}
+    assert v1["ids_from"] is None

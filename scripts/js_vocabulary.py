@@ -600,6 +600,9 @@ VOCABULARIES: Tuple[Vocabulary, ...] = (
     Vocabulary("viewer", "KINEMATIC_SUB_STACK_KINDS",
                "scripts/build_kinematic_projection.py: SUB_STACK_KINDS",
                _const(_kinematic_projection_module, "SUB_STACK_KINDS")),
+    Vocabulary("viewer", "KINEMATIC_VALUE_FROM",
+               "tolerance_stack/kinematic.py: VALUE_FROM",
+               _const(_kinematic_module, "VALUE_FROM")),
     # --- apps/annotate/binding_state.js ------------------------------------ #
     Vocabulary("annotate", "STACK_KEY_KINDS",
                "tolerance_stack/feature_identity.py: STACK_KEY_KINDS",
