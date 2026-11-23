@@ -122,3 +122,8 @@ line to that entry: `__sweep.bodies` is not settled either, and a
 `locator.hover` stalled at "performing hover action" is the shared-thread
 cause, not a rebuilt row. The two red suites above settle on `__sweep.bodies`
 too, which the issue notes.
+
+Re-merge (`integration` `ea39a847` merged in, contact suggestions rebuilt in
+the scratch root): `node apps/viewer/run_tests.cjs --repo <scratch>` **624/624**,
+`node apps/annotate/run_tests.cjs` **334/334**, and `--only "3D pane follows"`
+**31/31**.
