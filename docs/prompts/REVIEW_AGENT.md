@@ -6309,6 +6309,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Same review: a new kinematic study changes which one sorts first, and
       `testEveryStudyOpensIn3D` took `studies[0]` as v1's (fixed by id).
       Grep the runners for `studies || [])[0]` when a study is added.
+- [ ] **One drawing frame valued onto two edges, each as its own band.** New
+      2026-11-23 (`v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets`).
+      v2's `pitch_plate_link_flanged_bushing_radius` and `_height` both carry
+      215735-A's one `⌖Ø0.2 A B C` zone as ±0.1. A study or lasso that folds both
+      squares the disk. Group the diff's new `source_ref`s by
+      `(document, sheet, zone, callout)` and check that no study folds two edges
+      from one group (`ISSUE_20261123_two_v2_plate_edges_carry_one_diametral_position_zone_each_as_its_own_band.md`).
+      For a re-read citation, re-read each bbox off the text layer
+      (`page.get_text("text", clip=bbox)`, drawing-checker's venv). It takes one
+      pass for every box. On a data diff that also edits a `[real]` pin, the gate's
+      `--repo C:/workspace/tolstack` pairs the new pin with trunk's projections
+      and prints NOT WITNESSED ("red before the mutation"). Re-run that entry
+      `--only` with `--repo <a root built from this tree>`.
 
 ## Architectural errors to check
 

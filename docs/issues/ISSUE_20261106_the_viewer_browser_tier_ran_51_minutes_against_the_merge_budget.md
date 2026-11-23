@@ -441,3 +441,12 @@ suites. The pattern suite again takes most of it: 1071.7 s, red, and red on
 Next: the model drawn alone 210.1 s, the suggestion suite 189.0 s (also red on
 `integration`), topology http 157.9 s, topology file:// 119.4 s, 3D pane follows
 the selection 116.4 s. Without the pattern suite the tier is about 2050 s.
+
+## Measurement 2026-11-23 (review of v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/v2_sheets`,
+review worktree, tree `6c802ac4`: **2488.8 s** against 1800 s, 46/49, slot wait 0.
+Top: pattern suite 432.2 s (red, the open 11-22 issue), the model drawn alone 209.6 s,
+suggestion suite 188.3 s (red, same issue), topology http 149.6 s, topology file://
+114.7 s, 3D pane follows the selection 112.9 s, annotate rail holds still 112.8 s,
+the map 109.8 s.
