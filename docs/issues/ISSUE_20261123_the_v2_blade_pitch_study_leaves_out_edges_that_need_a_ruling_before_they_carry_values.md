@@ -45,3 +45,20 @@ has the full table.
    (`piston_body_shoulder_to_top`, `piston_body_flange_to_top`) are not v2 edges. They
    enter the fold but have no grid row on v2, so the sub-stack header's term count (5)
    exceeds its visible rows (3). This closes when v2's own stop stacks are authored.
+
+## Addendum 2026-11-23 (handoff v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets)
+
+- **Item 1, tangential link:** `tan_link_race_bores` now carries 213863-004-A's
+  61.40 ±0.05. The study's `tan_link_length` keeps its inline band, now paired
+  to `tan_link_race_bores` instead of to v2's `tan_link_length` (same callout,
+  same half-width), so nothing counts twice. v2's `tan_link_length` edge still
+  carries the same citation at the sphere centres (copied from v1); the
+  recommendation above (band only the race-bores edge) is still open.
+- **Item 3, and its tangential twin:** both `*_flanged_bushing_bore_to_seat`
+  edges now carry 215735-A's ⊥ 0.05 G / ⊥ 0.05 F on the lug ear, a
+  *squareness* (±0.025, inferred), which is what the edges' own notes said they
+  were. The study's row `pitch_plate_tan_link_flanged_bushing_bore_to_seat`
+  reads them as a place *along the bolt*, which a squareness is not, so it stays
+  a gap (reworded). The sheet places the ear along the bolt by its ⌖ 0.2 A B C,
+  from the plate's datums: a v2 edge from those datums to the seat would be the
+  one that row can fold.

@@ -2054,7 +2054,7 @@ READ_OFF_THE_SHEETS = {
         0.0, 0.025, "215735-A", 2, "B4", "inferred",
         "3X 4.06 ±0.08 with ⌖ 0.2 A B C over ⊥ 0.05 F, 3X INDIVIDUALLY"),
     "tan_link_race_bores": (
-        61.4, 0.05, "213863-004-A", 1, "E6", "traced",
+        61.4, 0.05, "213863-004-A", 1, "E7", "traced",
         "61.40 (basic, boxed) with ⌖ Ø0.1 B on Ø 14.288 ±0.006"),
 }
 

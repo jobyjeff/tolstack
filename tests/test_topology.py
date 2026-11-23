@@ -1202,6 +1202,22 @@ V2_TAKEN_FROM_V1 = {
     "tan_link_mount_overall_height",
 }
 
+#: v2 edges read off 215735-A and 213863-004-A on 2026-11-23 (handoff
+#: v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets);
+#: tests/test_kinematic.py READ_OFF_THE_SHEETS pins each by value.
+V2_READ_OFF_THEIR_SHEETS = {
+    "pitch_plate_pilot_to_piston_flange", "pitch_plate_pilot_to_piston_fasteners",
+    "pitch_plate_link_bushing_bores_position", "pitch_plate_link_flanged_bushing_radius",
+    "pitch_plate_link_flanged_bushing_bore_to_seat",
+    "pitch_plate_tan_link_bushing_bores_position",
+    "pitch_plate_tan_link_flanged_bushing_radius",
+    "pitch_plate_tan_link_flanged_bushing_bore_to_seat",
+    "pitch_plate_link_flanged_bushing_height", "tan_link_race_bores",
+}
+
+#: The two the same handoff read and left open.
+V2_LEFT_OPEN_BY_THEIR_SHEET = {"pitch_arm_radius", "pitch_arm_bore_to_clamp_face"}
+
 
 def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     """Jeff, 2026-11-08: the mount sits on the hub's top face, is located
@@ -1229,13 +1245,18 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
             "tan_link_mount_gas_spring_pilot_bore", "tan_link_mount_pilot_bore"),
         "tan_link_mount_gas_spring_fasteners_to_fasteners": (
             "gas_spring_mount_fastener_clocking", "tan_link_mount_fastener_clocking")}
-    # The ten edges that took v1's citation (2026-11-23) are valued; every
-    # other v2 edge still waits on its own drawing.
+    # The ten edges that took v1's citation and the ten read off their own
+    # sheets (both 2026-11-23) are valued; the two pitch arm edges 215071-C
+    # leaves open say what it has instead; every other v2 edge still waits on
+    # its own drawing.
     for edge in v2.edges:
-        if edge.id in V2_TAKEN_FROM_V1:
+        if edge.id in V2_TAKEN_FROM_V1 | V2_READ_OFF_THEIR_SHEETS:
             assert edge.dimension is not None, edge.id
             continue
         assert edge.dimension is None, edge.id
+        if edge.id in V2_LEFT_OPEN_BY_THEIR_SHEET:
+            assert (edge.note or "").startswith("No value. 215071-C"), edge.id
+            continue
         assert "Value to come" in (edge.note or ""), edge.id
     assert "hub_to_pitch_plate_spindle_coaxiality" not in {e.id for e in v2.edges}
     assert {e.other_end("pitch_plate_spindle_bore_axis")
