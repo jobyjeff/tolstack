@@ -60,3 +60,20 @@ Unlike 11-20, the `--only "3D pane follows"` re-run straight after was **also
 30/31** (127 s), so it reproduced twice in a row on this tree. Raised from
 deferred low to open med and routed to
 `HANDOFF_20261121_a_body_row_in_the_nav_takes_a_resting_hover_every_time`.
+
+## Measured 2026-11-22 -- the row is not rebuilt; the check hovered before the pane settled
+
+`HANDOFF_20261121_a_body_row_in_the_nav_takes_a_resting_hover_every_time`. A
+MutationObserver on `#navtree` across the check's whole 20 s window recorded
+**no** removal of the body row (two failing runs), so nothing replaced it under
+the pointer. What the runs showed instead: the pane was still opening the model
+(a command posted behind it was answered 14.9 s later) and that work held the
+main thread the page shares with its same-origin pane -- the `light` waited in
+the pane's queue, and `locator.hover` stalled at "performing hover action". The
+check now waits for the pane's queue to drain first (the map suite's barrier)
+and asserts the same light; green after. The product half is the queue and the
+thread, already filed as
+`ISSUE_20261119_a_hover_waits_behind_the_pane_opening_its_model_before_the_scene_lights_it.md`
+(sighting appended there). The 2026-11-05 observation (light out with a
+resting pointer, back on a one-pixel move) was not reproduced and is not
+explained by a rebuild of this row.
