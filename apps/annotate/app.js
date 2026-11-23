@@ -1318,6 +1318,8 @@ function mateReferences(topology, ends, ownSha, view) {
     for (const r of AA.gatherFaceReferences(topology, end.edgeId, end.direction, view)) {
       const key = r.sha256 + "|" + r.faceId;
       if (r.sha256 === ownSha || seen.has(key)) continue;
+      // A dimension within one part names that part's other feature, not a mate.
+      if (r.source === "other_end" && AA.edgeWithinOnePart(topology, r.edgeId)) continue;
       seen.add(key);
       out.push(r);
     }

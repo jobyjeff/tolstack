@@ -1216,6 +1216,19 @@
     return drawn.map(function (o) { return o.placement; });
   };
 
+  // Whether an edge runs within ONE part: both its ends name the same first
+  // part (AA.pickEndPartIds) -- a plate's lug bore positioned from its own
+  // spindle bore. The bound face at the other end of such a dimension is the
+  // same part's other feature, never a face this one mates with; v2's two
+  // flanged-bushing bores were offered the plate's spindle bore that way
+  // (2026-11-22). A cross-part dimension (a hub's fastener pattern to the
+  // mount's) stays a mate.
+  AA.edgeWithinOnePart = function (topology, edgeId) {
+    var from = AA.pickEndPartIds(topology, edgeId, AA.DIRECTIONS[0])[0];
+    var to = AA.pickEndPartIds(topology, edgeId, AA.DIRECTIONS[1])[0];
+    return !!from && from === to;
+  };
+
   // The part a face reference ({edgeId, direction, sha256}, AA.gather
   // FaceReferences) is bound on: the first of its end's parts
   // (AA.pickEndPartIds) on that mesh, or null.

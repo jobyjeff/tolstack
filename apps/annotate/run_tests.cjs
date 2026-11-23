@@ -6172,6 +6172,15 @@ check("a part that declares an occurrence is drawn there alone -- its own record
     edges: [{ id: "e", from: "x", to: "n" }] };
   assertEqual(AA.referencePart(refTopology, ref, meshes, lugAliases), "race_two",
     "the reference's own part, by its end and its mesh");
+  const dims = { nodes: [{ id: "axis", parts: ["plate"] }, { id: "lug", parts: ["plate"] },
+    { id: "pin", parts: ["bushing"] }, { id: "holes", face: { part: "hub", surface: "cylindrical" }, parts: ["hub", "mount"] },
+    { id: "studs", parts: ["mount"] }],
+    edges: [{ id: "radius", from: "axis", to: "lug" }, { id: "fit", from: "pin", to: "lug" },
+      { id: "clocking", from: "holes", to: "studs" }] };
+  assertEqual(AA.edgeWithinOnePart(dims, "radius"), true, "a lug bore placed from its own spindle bore");
+  assertEqual(AA.edgeWithinOnePart(dims, "fit"), false);
+  assertEqual(AA.edgeWithinOnePart(dims, "clocking"), false, "a declared face part decides, as the pick does");
+  assertEqual(AA.edgeWithinOnePart(dims, "nowhere"), false);
 });
 
 check("a topology that declares occurrences is drawn alone: its own parts' meshes, " +
