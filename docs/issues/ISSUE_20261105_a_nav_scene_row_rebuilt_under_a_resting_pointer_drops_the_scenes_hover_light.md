@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer nav scene tree / annotator hover
 reporter: agent
 class: hover_lost_on_rebuild
 found_by: docs/sessions/HANDOFF_20261105_the_seam_and_rail_checks_wait_on_settled_state.md
 handoff: docs/sessions/HANDOFF_20261121_a_body_row_in_the_nav_takes_a_resting_hover_every_time.md
+resolution: handoff completed 2026-11-23 -- closed automatically by dispatch when handoff `a_body_row_in_the_nav_takes_a_resting_hover_every_time` moved to completed/; not independently verified.
 ---
 
 # A nav scene row rebuilt under a resting pointer drops the scene's hover light until the pointer moves
