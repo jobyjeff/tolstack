@@ -1154,6 +1154,79 @@
     return pins;
   };
 
+  // Which occurrence ONE part is at (a_take_on_a_lug_feature_binds_that_
+  // lugs_own_face, 2026-11-21): its own `occurrence`, else the nearest
+  // `parent` that declares one when that parent resolves to the same mesh --
+  // a bearing's race is a solid of the bearing's mesh, at the bearing's
+  // place. null when neither says. AA.occurrencePins above is per MESH (what
+  // is drawn); this is per PART (which of the drawn slots is this part's),
+  // and it is scripts/build_contact_suggestions.py's part_occurrence,
+  // paired by tests/test_contact_suggestions.py.
+  AA.partOccurrence = function (topology, partId, meshes, aliases) {
+    var parts = {};
+    ((topology && topology.parts) || []).forEach(function (p) { if (p && p.id) parts[p.id] = p; });
+    var shaOf = function (id) {
+      var mesh = AA.resolveMeshIdentifier(meshes, id, aliases);
+      return mesh ? mesh.sha256 : null;
+    };
+    var sha = shaOf(partId);
+    var part = parts[partId] || null;
+    var seen = {};
+    while (part && !seen[part.id]) {
+      seen[part.id] = true;
+      if (typeof part.occurrence === "string" && part.occurrence) {
+        return shaOf(part.id) === sha ? part.occurrence : null;
+      }
+      part = part.parent ? parts[part.parent] || null : null;
+    }
+    return null;
+  };
+
+  // Whether a part's place in the assembly is known: it has an occurrence
+  // (AA.partOccurrence), or it is the only part of the model on its mesh.
+  // Two lugs' bushings on one mesh with nothing declared are not: either
+  // slot could be either lug's. A part with no mesh is placed (nothing to
+  // tell apart).
+  AA.partPlaced = function (topology, partId, meshes, aliases) {
+    if (AA.partOccurrence(topology, partId, meshes, aliases)) return true;
+    var mesh = AA.resolveMeshIdentifier(meshes, partId, aliases);
+    if (!mesh) return true;
+    var sharing = ((topology && topology.parts) || []).filter(function (p) {
+      var m = p && AA.resolveMeshIdentifier(meshes, p.id, aliases);
+      return m && m.sha256 === mesh.sha256;
+    });
+    return sharing.length < 2;
+  };
+
+  // The placements ONE part is measured at: its occurrence's, where it has
+  // one (looked up in the pinned table, AA.pinnedOccurrences, by key); every
+  // slot its mesh is drawn at when it is the only part there; none when its
+  // place is not known -- nothing is ranked against a slot that may be
+  // another part's. `occurrences` is occurrencesFor()'s table.
+  AA.partPlacements = function (topology, partId, meshes, aliases, occurrences) {
+    var mesh = AA.resolveMeshIdentifier(meshes, partId, aliases);
+    if (!mesh) return [];
+    var drawn = ((occurrences && occurrences.byMesh) || {})[mesh.sha256] || [];
+    var key = AA.partOccurrence(topology, partId, meshes, aliases);
+    if (key) {
+      return drawn.filter(function (o) { return o.key === key; })
+        .map(function (o) { return o.placement; });
+    }
+    if (!AA.partPlaced(topology, partId, meshes, aliases)) return [];
+    return drawn.map(function (o) { return o.placement; });
+  };
+
+  // The part a face reference ({edgeId, direction, sha256}, AA.gather
+  // FaceReferences) is bound on: the first of its end's parts
+  // (AA.pickEndPartIds) on that mesh, or null.
+  AA.referencePart = function (topology, ref, meshes, aliases) {
+    if (!ref) return null;
+    return AA.pickEndPartIds(topology, ref.edgeId, ref.direction).filter(function (id) {
+      var mesh = AA.resolveMeshIdentifier(meshes, id, aliases);
+      return mesh && mesh.sha256 === ref.sha256;
+    })[0] || null;
+  };
+
   // A topology that declares any occurrence is a MODEL, and a model is drawn
   // alone (the_scene_draws_the_model_alone_and_every_node_it_places_has_a_
   // leader, 2026-11-08): its own parts, each at its declared occurrence, and
@@ -1893,6 +1966,19 @@
       face: { sha256: faces[0].sha256, faceId: faces[0].faceId } };
   };
 
+  // Whether a contact row was measured where BOTH its parts are (scripts/
+  // build_contact_suggestions.py's row_placed): an end whose part shares its
+  // mesh with another part of the model and declares no occurrence says
+  // `placed: false`, and its faces -- and the faces they were matched
+  // against at the other end -- may be the other part's (v2's two lugs on
+  // one bushing mesh, 2026-11-21). Such a row is listed and never a Take. A
+  // row from a projection built before the field reads as placed.
+  AA.contactRowPlaced = function (row) {
+    return !!row && AA.DIRECTIONS.every(function (d) {
+      return !row[d] || row[d].placed !== false;
+    });
+  };
+
   // The contact engine's faces at ONE end of an edge, one per face, in the
   // order of the best-ranked pair each appears in (a pair's own face order
   // within it): [{sha256, faceId, surface, radius, reason, detail, rank}].
@@ -1917,7 +2003,7 @@
         out.push({ sha256: side.sha256, faceId: faceId, surface: side.surface || null,
           radius: AA.candidateRadius(c, via.direction),
           reason: AA.candidateReason(row, c, via.direction),
-          detail: contactDetail(row.pairing, c), rank: c.rank });
+          detail: contactDetail(row.pairing, c), rank: c.rank, placed: AA.contactRowPlaced(row) });
       });
     });
     return out;
@@ -1950,7 +2036,7 @@
       var set = { kind: AA.CANDIDATE_ROW_KINDS[1], sha256: side.sha256, faceId: faces[0],
         surface: side.surface || null, radius: AA.candidateRadius(c, via.direction),
         reason: AA.candidateReason(row, c, via.direction), detail: contactDetail(row.pairing, c),
-        rank: c.rank, bound: false };
+        rank: c.rank, bound: false, placed: AA.contactRowPlaced(row) };
       if (faces.length > 1) set.faces = faces.slice();
       out.push(set);
     });
@@ -2022,7 +2108,7 @@
       seen[key] = true;
       out.push({ kind: AA.CANDIDATE_ROW_KINDS[1], sha256: f.sha256, faceId: f.faceId,
         surface: f.surface, radius: f.radius, reason: f.reason, detail: f.detail, rank: f.rank,
-        bound: standing.indexOf(key) !== -1 });
+        placed: f.placed, bound: standing.indexOf(key) !== -1 });
     });
     return out;
   };
@@ -2057,6 +2143,10 @@
     pickOtherBind: "select this element, then click a face in the 3D view",
     more: "show all {n}",
     faces: "{n} faces",
+    // A contact row with no Take (AA.contactRowPlaced): the phrase on its
+    // reason line, and why on hover.
+    unplaced: "place not known",
+    unplacedTitle: "this part shares its 3D model with another part, and which one it is is not recorded; pick the face instead",
   });
   //: How many candidate rows an open list shows before "show all n".
   AA.CANDIDATES_LISTED = 8;

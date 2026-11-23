@@ -1341,9 +1341,20 @@ function partNameOfMesh(topology, sha256) {
 // either part has no place in the assembly, or nothing mates.
 async function rankMatesAt(topology, ends, partId, view, placements) {
   const mesh = AA.resolveMeshIdentifier(state.meshList, partId, state.partMeshAliases);
-  if (!mesh || !ends.length || !(placements[mesh.sha256] || []).length) return [];
+  // Each part where IT is, never at every slot its mesh is drawn at: two lugs'
+  // bushings share one mesh, and a bore ranked against both would offer the
+  // other lug's (AA.partPlacements, 2026-11-21). A part whose place is not
+  // known ranks nothing.
+  const occ = occurrencesFor(topology);
+  const at = (part, sha) => (part && occ
+    ? AA.partPlacements(topology, part, state.meshList, state.partMeshAliases, occ)
+    : placements[sha] || []);
+  const own = mesh ? at(partId, mesh.sha256) : [];
+  if (!mesh || !ends.length || !own.length) return [];
   const refs = mateReferences(topology, ends, mesh.sha256, view)
-    .filter((r) => (placements[r.sha256] || []).length);
+    .map((r) => Object.assign({}, r, { placements: at(AA.referencePart(topology, r, state.meshList,
+      state.partMeshAliases), r.sha256) }))
+    .filter((r) => r.placements.length);
   if (!refs.length) return [];
   // The class the feature's own words ask for, where they ask: a bore bound
   // opposite a "face" end says nothing about which flat face it is.
@@ -1353,13 +1364,12 @@ async function rankMatesAt(topology, ends, partId, view, placements) {
   for (const sha of [mesh.sha256].concat(refs.map((r) => r.sha256))) {
     await ensureFaceClasses(sha).catch(() => null);
   }
-  const own = state.faceClasses[mesh.sha256];
-  if (!own) return [];
+  const classes = state.faceClasses[mesh.sha256];
+  if (!classes) return [];
   const references = refs.map((r) => ({ sha256: r.sha256, faceId: r.faceId,
-    record: (state.faceClasses[r.sha256] || [])[r.faceId] || null, placements: placements[r.sha256] }))
+    record: (state.faceClasses[r.sha256] || [])[r.faceId] || null, placements: r.placements }))
     .filter((r) => r.record && (!want || r.record.surface === want.surface));
-  const ranked = AA.rankMatingFaces({ sha256: mesh.sha256, classes: own, placements: placements[mesh.sha256],
-    references });
+  const ranked = AA.rankMatingFaces({ sha256: mesh.sha256, classes, placements: own, references });
   const rows = ranked.map((m) => {
     const reason = AA.mateReason(m, partNameOfMesh(topology, m.mateSha256));
     return { kind: AA.CANDIDATE_ROW_KINDS[2], sha256: m.sha256, faceId: m.faceId, surface: m.surface,
@@ -1368,7 +1378,7 @@ async function rankMatesAt(topology, ends, partId, view, placements) {
   // A pattern bound opposite leads with one row: the whole pattern on this
   // part, one cylinder per bound hole (AA.rankOppositePattern, 2026-11-18).
   const solids = state.faceSolids[mesh.sha256] || null;
-  const pattern = AA.rankOppositePattern({ sha256: mesh.sha256, classes: own, placements: placements[mesh.sha256],
+  const pattern = AA.rankOppositePattern({ sha256: mesh.sha256, classes, placements: own,
     bound: references, solids: solids && solids.solids });
   return pattern ? [patternRow(topology, pattern, solids ? solids.count : 1)].concat(rows) : rows;
 }
@@ -4491,11 +4501,17 @@ function candidateRow(end, row, surest) {
   // Muted: inside a list that is all suggestions the reason is the row's
   // second fact, and its mark (railLook) carries whose suggestion it is.
   reason.className = "tree-row__face";
-  reason.textContent = [row.reason, row.bound ? words.bound : null].filter(Boolean).join(" · ");
+  // A contact row whose part's place is not known (AA.contactRowPlaced)
+  // says so and offers no Take: its face may be the other lug's.
+  const unplaced = row.placed === false;
+  reason.textContent = [row.reason, row.bound ? words.bound : null, unplaced ? words.unplaced : null]
+    .filter(Boolean).join(" · ");
+  if (unplaced) li.title += "
+" + words.unplacedTitle;
   text.appendChild(reason);
   li.appendChild(text);
   candidateHover(li, row);
-  if (!row.bound) {
+  if (!row.bound && !unplaced) {
     const take = document.createElement("button");
     take.className = "tree-row__repick tree-cand__take";
     take.textContent = words.take;
@@ -7685,6 +7701,9 @@ function treeMates() {
     const rows = [];
     for (const end of featureEnds(topology, feature)) {
       for (const r of AA.endContactSets(state.contactSuggestions, topology.id, end)) {
+        // The shell gives every row here a Take: a row whose place is not
+        // known is left to the pane's own list, which shows it without one.
+        if (r.placed === false) continue;
         rows.push(Object.assign(say(r), { edgeId: end.edgeId, direction: end.direction }));
       }
     }

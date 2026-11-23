@@ -1767,6 +1767,26 @@ check("an end's contact candidates as sets: one row per candidate, its faces tog
   assertEqual(AA.endContactSets(null, "rail_topo", { edgeId: "rod_len", direction: "to" }), []);
 });
 
+check("a contact row whose part's place is not known is listed, says so, and offers no Take; " +
+  "a row from an older projection, with no `placed`, reads as placed", () => {
+  const unplaced = JSON.parse(JSON.stringify(CAND_CONTACT));
+  const row = unplaced.topologies[0].edges[0];
+  row.from = { part: "lug_b_bushing", placed: false };
+  row.to = { part: "plate", placed: true };
+  assertEqual(AA.contactRowPlaced(row), false);
+  assertEqual(AA.contactRowPlaced(CAND_CONTACT.topologies[0].edges[0]), true, "no field: placed");
+  for (const direction of ["from", "to"]) {
+    const sets = AA.endContactSets(unplaced, "rail_topo", { edgeId: "rod_len", direction });
+    assertEqual(sets.length > 0 && sets.every((r) => r.placed === false), true,
+      "both ends: the faces at the placed end were matched against a slot that may be the other lug's");
+    const faces = AA.endCandidates(null, unplaced, "rail_topo", { edgeId: "rod_len", direction });
+    assertEqual(faces.length > 0 && faces.every((r) => r.placed === false), true);
+  }
+  assertEqual(AA.endContactSets(CAND_CONTACT, "rail_topo", { edgeId: "rod_len", direction: "from" })
+    .every((r) => r.placed === true), true);
+  assertEqual(AA.CANDIDATE_LIST_WORDS.unplaced.length <= 30, true, "one short phrase");
+});
+
 check("a candidate's reason names what the face is to the mating feature, for every relation " +
   "and pairing the engine emits", () => {
   const say = (pairing, relation, evidence, direction, mateSurface) => AA.candidateReason(
@@ -6122,6 +6142,36 @@ check("a part that declares an occurrence is drawn there alone -- its own record
   assertEqual(twinPins, { arm: ["r/b.1/arm.1", "r/b.2/arm.1"] }, "one mesh, both its declared places");
   assertEqual(AA.restPlacements(AA.pinnedOccurrences(occ, twinPins).byMesh.arm).placements,
     [P(10), P(20)], "and the mesh drawn at both");
+  // ...and each PART at its own one (a_take_on_a_lug_feature_binds_that_
+  // lugs_own_face): the mesh is drawn at both, a part is measured at its own.
+  const lugs = { parts: [{ id: "arm_one", occurrence: "r/b.1/arm.1" },
+    { id: "bearing_two", occurrence: "r/b.2/arm.1" },
+    { id: "race_two", parent: "bearing_two" },
+    { id: "loose_three" }, { id: "hub" }] };
+  const lugAliases = twinAliases.concat([{ topology_part: "bearing_two", mesh_part_id: "m_arm" },
+    { topology_part: "race_two", mesh_part_id: "m_arm" }, { topology_part: "loose_three", mesh_part_id: "m_arm" },
+    { topology_part: "hub", mesh_part_id: "m_hub" }]);
+  const lugOcc = AA.pinnedOccurrences(occ, AA.occurrencePins(lugs, meshes, lugAliases));
+  assertEqual(AA.partOccurrence(lugs, "race_two", meshes, lugAliases), "r/b.2/arm.1",
+    "a race is at its same-mesh bearing's place");
+  assertEqual(AA.partPlacements(lugs, "arm_one", meshes, lugAliases, lugOcc), [P(10)]);
+  assertEqual(AA.partPlacements(lugs, "race_two", meshes, lugAliases, lugOcc), [P(20)]);
+  assertEqual(AA.partPlaced(lugs, "loose_three", meshes, lugAliases), false,
+    "on a shared mesh with nothing declared: either slot could be its");
+  assertEqual(AA.partPlacements(lugs, "loose_three", meshes, lugAliases, lugOcc), [],
+    "and nothing is ranked against a slot that may be another part's");
+  assertEqual(AA.partPlaced(lugs, "hub", meshes, lugAliases), true, "alone on its mesh");
+  assertEqual(AA.partPlacements(lugs, "hub", meshes, lugAliases, lugOcc), [P(0)]);
+  const otherMesh = { parts: [{ id: "link", occurrence: "r/link.1" }, { id: "arm_in_link", parent: "link" }] };
+  const otherAliases = [{ topology_part: "link", mesh_part_id: "m_link" },
+    { topology_part: "arm_in_link", mesh_part_id: "m_arm" }];
+  assertEqual(AA.partOccurrence(otherMesh, "arm_in_link", meshes, otherAliases), null,
+    "a parent on another mesh is not this part's place");
+  const ref = { edgeId: "e", direction: "to", sha256: "arm" };
+  const refTopology = { parts: lugs.parts, nodes: [{ id: "n", parts: ["hub", "race_two"] }],
+    edges: [{ id: "e", from: "x", to: "n" }] };
+  assertEqual(AA.referencePart(refTopology, ref, meshes, lugAliases), "race_two",
+    "the reference's own part, by its end and its mesh");
 });
 
 check("a topology that declares occurrences is drawn alone: its own parts' meshes, " +
