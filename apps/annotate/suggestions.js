@@ -1064,6 +1064,8 @@
     }
     var words = AA.CONTACT_SEAT_WORDS[e.seat];
     if (e.seat === "planar") return words + ", gap " + mm(e.seat_gap_mm);
+    // One solid, its race's sphere the ball's own surface (MS14103-3).
+    if (e.seat_modelled === false) return "the bearing's one ball";
     return words + ", off by " + mm(e.centre_mm);
   };
 

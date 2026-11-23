@@ -494,6 +494,7 @@ projection's "clear" edges it contradicted what both ends name.
 | pin in bore | round, round | a convex and a concave cylinder on one axis, the bore no smaller than the pin past a press-fit margin, sharing length | `axis_offset_mm`, `angle_deg`, `pin_radius_mm`, `bore_radius_mm`, `clearance_mm`, `axial_overlap_mm`, `bore` (which end) |
 | ball in its seat | ball, any | a convex sphere and a concave sphere sharing its centre, a **bore** whose axis runs through the centre (ranked by how near its radius is to the ball's), or a flat it rests on **where the ball's sphere is** | `centre_mm` (or `seat_gap_mm`), `ball_radius_mm`, `seat_radius_mm`, `along_axis_mm`, `seat`, `ball` (which end) |
 | flat across the axis | flat, round | a flat whose normal runs along a cylinder's axis, the axis crossing it: a washer's far face and the shank through it. Never a touch (`relation: across`) | `angle_deg`, `axis_offset_mm`, `end_mm` (where the cylinder ends, past the flat + or short of it −), `cylinder_radius_mm`, `plane` (which end) |
+| hole pattern | a node two parts share that says `fastener_pattern` | every like hole of one part on the axis of a like hole of the other, near it, as one set per side and size (`relation: coaxial`); most holes first, then the sizes nearest each other | `holes`, `from_radius_mm`, `to_radius_mm`, `axis_offset_mm` and `angle_deg` (the worst hole's) |
 
 A pin-in-bore pairing that finds nothing touching falls back to two cylinders
 **on one axis** (`relation: coaxial`), which is what a coaxiality edge between
@@ -522,6 +523,29 @@ on one mesh — v2's two plate lugs — are each offered their own faces; a part
 that shares its mesh with another and declares neither is still ranked, its end
 says `placed: false`, and its rows are listed with "place not known" and no Take
 (the mate ranking skips it the same way).
+
+**A node two parts share gets a row too** (2026-11-22, handoff
+`a_seat_and_a_pattern_get_contact_suggestions_too`, from Jeff finding the
+pitch plate's features with nothing to take). A seat, a fastener pattern or a
+joint stated on one node names no gap edge, so the engine never saw one (the
+count, before and after, is in that handoff's lesson). Each such node is now a row under
+the model's `nodes`, beside its `edges`, with the same evidence: `from` is the
+node's first part and `to` its second, each side listing the edge ends that
+**are** its feature (`ends`) — that is how the annotator finds it, and the end
+a Take writes through. The pairing is `interface_contact.node_pairing`: a node
+saying `fastener_pattern` pairs every like hole that lines up (the table's
+last row: one set per side, so a Take binds the pattern as one event, as the
+pattern rows of 11-16 and 11-18 do); a node saying nothing is a seat, paired
+flat on flat. Parts that do not touch get nothing, as for an edge.
+
+**A ball inside its own bearing's mesh** (same day). A bearing's two races are
+solids of one mesh at one place (MS14103-3 is one solid), and one mesh at one
+place is never compared with itself, so v2's inner-race ball centres had
+nothing. When a ball joint's two ends are that, the mesh is compared with
+itself, a face never with itself, and only a pair whose ball (the convex
+sphere) is at the end named for the ball (`BALL_WORD`, read off the node's
+name) counts. When the names do not say which end is the ball, the edge is
+not compared, as before: either sphere could be either race's.
 
 **An edge with no candidate says why**, one of
 `interface_contact.EMPTY_REASONS`: no installed mesh for an end, no recorded

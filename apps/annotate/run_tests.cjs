@@ -1812,6 +1812,8 @@ check("a seat's or a pattern's row reaches each side's feature through the edge 
   assertEqual(body[0].reason, "lines up with the mating holes");
   assertEqual(body[0].radius, 2.45);
   assertEqual(body[0].detail, "5 holes, each on the mating hole's axis within 0.002 mm");
+  assertEqual(AA.describeContact("ball_in_seat", { relation: "contact", evidence: { ball: "from",
+    seat: "spherical", centre_mm: 0, seat_modelled: false } }), "the bearing's one ball");
   const plate = AA.endContactFaces(NODE_CONTACT, "rail_topo", { edgeId: "plate_pilot_to_holes", direction: "to" });
   assertEqual(plate.map((f) => f.faceId), [2, 3, 553, 554, 559]);
   assertEqual(plate[0].radius, 2.6);

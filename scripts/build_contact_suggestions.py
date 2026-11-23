@@ -48,6 +48,14 @@ every slot, as before), and the end says ``"placed": false``, which the
 annotator reads as "show it, offer no Take" (``docs/ANNOTATION_SURFACE.md``,
 "Contact suggestions").
 
+**A node two parts share is a row too** (2026-11-22, handoff
+``a_seat_and_a_pattern_get_contact_suggestions_too``): a seat or a fastener
+pattern names no gap edge, so it is written under ``nodes`` beside ``edges``
+(:func:`node_row`), each side carrying the edge ends that are its feature --
+how a reader finds it. And a ball joint whose two races are one mesh at one
+place is compared with itself when the ends say which is the ball
+(:func:`ball_side`).
+
 Usage -- from the MAIN checkout, where ``data/`` is::
 
     venv-win/Scripts/python.exe scripts/build_contact_suggestions.py

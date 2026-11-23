@@ -1048,6 +1048,38 @@ def feature_box(faces: Sequence[PlacedFace]) -> Dict[str, List[float]]:
 # one edge: which occurrences, which features
 # ---------------------------------------------------------------------------
 
+def _lone_ball(part: PartFaces, places: Sequence[Tuple[Dict[str, Any], Dict[str, Any]]],
+               ball: str, tol: Dict[str, float]) -> List[Tuple[Any, ...]]:
+    """A ball joint inside one mesh that models no seat: MS14103-3 is one
+    solid, its outer race's sphere the ball's own surface, so nothing concave
+    shares the centre. When the mesh has exactly ONE ball (a convex sphere,
+    its STEP pieces one feature), that ball is the joint at both ends -- the
+    face a reader binds the race's centre to by hand (2026-11-22). Evidence
+    says the seat is not modelled. Two balls or none: nothing, as before.
+    ``[(occurrence, occurrence, candidates, placed faces)]`` in
+    :func:`edge_candidates`' ``scored`` shape, for the first place only."""
+    if not places:
+        return []
+    oa, ob = sorted(places, key=lambda p: p[0]["key"])[0]
+    fit_faces(part, sorted(part.bounds))
+    spheres = [f for f in part.fitted.values() if f is not None and f.surface == "spherical"]
+    if any(f.convex is not True for f in spheres):
+        return []          # a seat is modelled, and the ball is not in it
+    faces = [place(f, oa["placement"]) for f in spheres]
+    groups = feature_groups(faces, tol)
+    if len(set(groups.values())) != 1:
+        return []
+    ids = sorted(groups)
+    radius = faces[0].geometry["radius"]
+    evidence = {"ball": ball, "seat": "spherical", "centre_mm": 0.0,
+                "ball_radius_mm": radius, "seat_radius_mm": radius, "seat_modelled": False}
+    candidate = {"a_surface": "spherical", "b_surface": "spherical", "relation": "contact",
+                 "evidence": evidence, "score": rank_score("ball_in_seat", evidence, tol),
+                 "a_faces": ids, "b_faces": ids}
+    by_id = {f.face_id: f for f in faces}
+    return [(oa, ob, [candidate], (by_id, by_id))]
+
+
 def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
                     occurrences_a: Sequence[Dict[str, Any]],
                     occurrences_b: Sequence[Dict[str, Any]],
@@ -1130,6 +1162,9 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
         if candidates:
             scored.append((oa, ob, candidates,
                            ({f.face_id: f for f in faces_a}, {f.face_id: f for f in faces_b})))
+    if not scored and ball and part_a is part_b:
+        scored = _lone_ball(part_a, [r[:2] for r in in_reach if r[0]["key"] == r[1]["key"]],
+                            ball, tol)
     if not scored:
         result["status"] = "no_contact" if all(fitted) else "no_fit"
         return result

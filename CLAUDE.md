@@ -101,7 +101,9 @@ traced ratio" — never restate the rule elsewhere).
   "A hole pattern", and the gesture table). Since 2026-11-18 a pattern bound
   on one side offers the whole pattern on the other as one row, a cylinder
   per bound hole on that hole's axis, whatever its size or solid (same
-  section).
+  section). Since 2026-11-22 a seat and a fastener pattern (a node two parts
+  share) get contact rows too, and a ball inside its own bearing's mesh its
+  sphere (same document, "Contact suggestions").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

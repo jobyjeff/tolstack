@@ -604,3 +604,23 @@ def test_a_ball_off_its_own_races_centre_is_offered_nothing():
     at = [occ("bearing")]
     found = ic.edge_candidates("ball_in_seat", part, part, at, at, ball="a")
     assert found["status"] == "no_contact" and not found["candidates"]
+
+
+def test_a_bearing_of_one_solid_with_no_seat_offers_its_one_ball_at_both_ends():
+    """MS14103-3: one solid, the outer race's sphere the ball's own surface.
+    The one ball is the joint at both ends, and the evidence says the seat is
+    not modelled; a mesh with two balls offers nothing."""
+    halves = make_mesh([sphere_face(6.0, convex=True, lat=30.0, rows=4),
+                        [tuple((-x, -y, z) for x, y, z in tri)
+                         for tri in sphere_face(6.0, convex=True, lat=30.0, rows=4)]], sha="a" * 64)
+    part = ic.part_faces(halves)
+    at = [occ("bearing")]
+    found = ic.edge_candidates("ball_in_seat", part, part, at, at, ball="a")
+    (top,) = found["candidates"]
+    assert (top["a_faces"], top["b_faces"]) == ([0, 1], [0, 1])
+    assert top["evidence"]["seat_modelled"] is False
+    assert ic.edge_candidates("ball_in_seat", part, part, at, at)["status"] == "no_contact"
+    two = ic.part_faces(make_mesh([sphere_face(6.0, convex=True),
+                                   [tuple((x + 30.0, y, z) for x, y, z in tri)
+                                    for tri in sphere_face(6.0, convex=True)]], sha="b" * 64))
+    assert ic.edge_candidates("ball_in_seat", two, two, at, at, ball="a")["candidates"] == []
