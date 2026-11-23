@@ -13593,6 +13593,33 @@
         eq(draw(null).cls, "tv__map", "no choice: everything drawn");
       });
 
+    await test("every box wears its body's ink and every connector its weight from the first paint, " +
+      "before any hover (ISSUE_20261120_a_map_box_wears_its_bodys_colour_only_after_the_pointer_has_passed_over_it)",
+      function () {
+        var m = twoBodyModel();
+        var root = render(function (r) {
+          VA.renderTopoMap(r, { topoProj: { model: m, map: twoBodyDoc() }, model: null,
+                                mapRegion: { width: 1600, height: 420 } });
+        });
+        var bodyOf = {};
+        (m.parts || []).forEach(function (p) { bodyOf[p.id] = p.body; });
+        var boxes = all(root, "rect.map__box");
+        ok(boxes.length > 0, "the fixture draws boxes");
+        boxes.forEach(function (r) {
+          var id = r.getAttribute("data-map-id");
+          if (!bodyOf[id]) return;
+          ok(/\btv__fill--t\d+\b/.test(r.getAttribute("class")), id + "'s box carries its body's tint: " +
+             r.getAttribute("class"));
+        });
+        var geo = VA.mapLayout(m, twoBodyDoc());
+        var between = geo.connectors.filter(function (c) {
+          return bodyOf[c.endParts[0]] !== bodyOf[c.endParts[1]];
+        }).length;
+        ok(between > 0, "the fixture has a joint between its two bodies");
+        eq(all(root, "g.map__connector--between").length, between,
+           "each connector between two bodies is drawn heavier before any hover");
+      });
+
     await test("an assembly with no feature of its own is one labelled outline and no box, a nested " +
       "one an outline inside it, an outline crossing two districts or inside one has no note, and " +
       "the assembly's own dimension runs under its parts' boxes", function () {

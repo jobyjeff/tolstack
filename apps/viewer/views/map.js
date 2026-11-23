@@ -90,9 +90,15 @@
     return { byKey: {}, marked: [], topologyId: null };
   }
 
+  // The element wears its base from the first paint: a box's body tint and a
+  // connector's between / bundled weight were written only by paint(), on
+  // the first hover, so the map's colours depended on where the pointer had
+  // been (ISSUE_20261120_a_map_box_wears_its_bodys_colour_only_after_the_
+  // pointer_has_passed_over_it).
   function register(reg, el, base, kind, id) {
     var k = key(kind, id);
     (reg.byKey[k] = reg.byKey[k] || []).push({ el: el, base: base, sel: "" });
+    el.setAttribute("class", base);
     el.setAttribute("data-map-kind", kind);
     el.setAttribute("data-map-id", id);
     return el;

@@ -524,6 +524,26 @@
     return false;
   }
 
+  // Do two polylines cross -- a segment of one passing from one side of a
+  // segment of the other to its far side? Each end's signed distance from
+  // the other segment's line, half a unit of slack, so two routes that
+  // touch, or run on one line (a shared run, said apart), do not count.
+  function routesCross(pa, pb) {
+    var side = function (a, b, c) {
+      var len = Math.hypot(b.x - a.x, b.y - a.y);
+      return len ? ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / len : 0;
+    };
+    var apart = function (u, v) { return (u > 0.5 && v < -0.5) || (u < -0.5 && v > 0.5); };
+    for (var i = 1; i < pa.length; i++) {
+      for (var j = 1; j < pb.length; j++) {
+        var p = pa[i - 1], q = pa[i], r = pb[j - 1], s = pb[j];
+        if (apart(side(r, s, p), side(r, s, q)) && apart(side(p, q, r), side(p, q, s))) return true;
+      }
+    }
+    return false;
+  }
+  VA.mapRoutesCross = routesCross;
+
   // The boxes a route crosses: any box it does not end on, and one of the
   // two it ends on (`own`) anywhere past its two stubs. [{id, own}]
   function crossedBoxes(pts, own, boxes) {
@@ -546,7 +566,10 @@
   // any box (the child under its parent); and two interfaces' routes on one
   // collinear run, which read as one line that forks into branches with no
   // node (Jeff's screenshots of 2026-11-19). A run is shared where two
-  // segments lie on one line and overlap by more than a pin's width.
+  // segments lie on one line and overlap by more than a pin's width. And two
+  // interfaces' routes that cross (2026-11-22, Jeff: "Minimizing line
+  // crossings whenever possible is also helpful"): one note per pair, so
+  // the count is the page's; a jumper inside a box is not a route.
   // `connectors` need {id, points, mid, endParts}. Returns {notes, defects:
   // [interface id]}. They fire in tests and on an agent's scoring of a
   // layout, never on the page.
@@ -570,6 +593,10 @@
       for (var j = i + 1; j < connectors.length; j++) {
         if (sharedRun(connectors[i].points, connectors[j].points, M.pinR)) {
           notes.push("interfaces " + connectors[i].id + " and " + connectors[j].id + " share a run");
+          defect(connectors[i].id);
+          defect(connectors[j].id);
+        } else if (routesCross(connectors[i].points, connectors[j].points)) {
+          notes.push("interfaces " + connectors[i].id + " and " + connectors[j].id + " cross");
           defect(connectors[i].id);
           defect(connectors[j].id);
         }
@@ -767,6 +794,18 @@
       }
       return side;
     };
+    // Two partners in one cell column along a side (one line for a top or
+    // bottom side, one row for a flank) tie on the first key. The nearer one
+    // takes the end of the side toward them, so its route turns off before
+    // the farther one's and the two never cross (2026-11-22: ordered by id,
+    // the nearer partner's route ran across the farther one's).
+    var nearerOutside = function (part, far, side) {
+      if (!far || !placeOf[far] || !placeOf[part]) return 0;
+      var along = side === "left" || side === "right" ? 1 : 0;
+      var off = placeOf[far][along] - placeOf[part][along];
+      var depth = Math.abs(placeOf[far][1 - along] - placeOf[part][1 - along]);
+      return off > 0 ? -depth : off < 0 ? depth : 0;
+    };
     var slotOf = {};      // interface id + "|" + feature id -> pin
     var endsOfIface = {};
     (model.interfaces || []).forEach(function (iface) { endsOfIface[iface.id] = iface.ends || []; });
@@ -793,12 +832,14 @@
           // above the child's pin for the same interface (step 4-6).
           toChild: childless[farPart] === f.part ? farPart : null,
           // What orders pins along a side: the counterpart's cell along the
-          // side's axis (a child: its place in the row), then the
+          // side's axis (a child: its place in the row), then between two
+          // tied on that the nearer at the end toward them, then the
           // constraint's place in its joint, so the two ends of a bundle come
           // out in the same order and run parallel; then the ids, so the
           // order of `edges[]` never moves a pin.
           order: [farPart && placeOf[farPart] ? placeOf[farPart][side === "left" || side === "right" ? 1 : 0] +
                     (childless[farPart] ? (kidIndex[farPart] + 1) / 100 : 0) : 0,
+                  nearerOutside(f.part, farPart, side),
                   constraintIndex[iface.id] || 0, f.id, iface.id],
         };
         slotOf[iface.id + "|" + f.id] = pin;
@@ -809,7 +850,7 @@
     Object.keys(pinsOf).forEach(function (pid) {
       SIDES.forEach(function (side) {
         pinsOf[pid][side].sort(function (a, b) {
-          for (var i = 0; i < 4; i++) {
+          for (var i = 0; i < a.order.length; i++) {
             if (a.order[i] < b.order[i]) return -1;
             if (a.order[i] > b.order[i]) return 1;
           }
