@@ -17537,8 +17537,10 @@
             v2Study.stops[0].rows.forEach(function (r) {
               kinds[r.value_from] = (kinds[r.value_from] || 0) + 1;
             });
-            eq(Object.keys(kinds).sort(), ["none", "other_model"]);
-            eq(kinds.other_model, 6, "the six contributors are v1's bands");
+            // Since 2026-11-23 (v2_reads_the_pitch_plate_the_pitch_arm_and_the_
+            // tangential_link_sheets) every contributor reads v2's own edge.
+            eq(Object.keys(kinds).sort(), ["none", "this_model"]);
+            eq(kinds.this_model, 6, "the six contributors read v2's own edges");
             var topo = VA.findTopology(realKinTopologies, "vpa_end_stop_v2");
             var lit = VA.kinematicLitSet(v2Study, topo);
             v2Study.stops[0].rows.forEach(function (r) {
@@ -17567,7 +17569,8 @@
             var stack = VA.kinematicStack(v2Study, topo, "plus72", 3, {});
             ok(stack.terms.tan_link_mount_overall_height.borrowed,
                "a v1 chain's leaf v2 has is a borrowed row");
-            ok(stack.terms.pitch_link_length.borrowed);
+            eq(stack.terms.pitch_link_length.borrowed, null,
+               "a contributor reading v2's own edge is not a borrowed row");
             eq(stack.terms.pitch_link_upper_ball_joint.borrowed, null);
             ok(stack.terms.pitch_link_upper_ball_joint.sensitivity,
                "a row with no value still shows its sensitivity");
