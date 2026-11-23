@@ -55,6 +55,11 @@ read before its row was written. Issues are cited by name.
 - Smaller items, in `ISSUE_20261123_small_findings_of_the_v2_study_walk`:
   - the study cannot be put down without choosing the other one (F1);
   - both ends of one lower-head dimension are offered face 7 (F2);
+
+    > **Correction, 2026-11-23 (review).** F2 is not a defect. That
+    > dimension is `piston_head_lower_face_flatness`, the ⏥0.05 flatness of
+    > the lower head's one lower face. The feather-stop contact and the head
+    > seat are two regions of that face, so face 7 at both ends is right.
   - some gap rows have names a reader cannot place (F3).
 
 ## The study (deliverable 2)

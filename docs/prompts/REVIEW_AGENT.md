@@ -6183,6 +6183,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       writes, check the target's `status:`. If it is `deferred` and the
       addendum is a new failure (a wrong write, a false surface), file an
       open issue for it and point the page at it.
+- [ ] **A walk's "these two ends cannot be one face" finding, unread
+      against the edge.** New 2026-11-23
+      (`the_walk_reads_the_v2_study_and_the_map_on_the_merged_page`): F2
+      called face 7 at both ends of a lower-head dimension a defect. The edge
+      is `piston_head_lower_face_flatness`, a flatness whose two ends are
+      regions of one face, so the offers were right. Before you pass a
+      binding finding to Jeff's page, read the edge's `dimension` and both
+      nodes' `note` in the topology JSON. A finding that is wrong there gets
+      a correction blockquote on the page and the issue.
 - [ ] **A `[real]` suite gated on live log state that the feature itself
       invites Jeff to change.** New 2026-11-18
       (`a_bound_pattern_offers_the_whole_pattern_on_the_other_part`):

@@ -25,6 +25,15 @@ Seen on the merged page (`integration` at `f267da49`, scratch root
   suggestion at the feather-stop end, and a contact row ("coincident with the
   mating face") at the seat end (`43_suggested_child_expanded.png`). Two
   features of one part cannot be one face. Taking both would bind them to it.
+
+  > **Correction, 2026-11-23 (review of this walk): F2 is not a defect; do
+  > not fix it.** The dimension is `piston_head_lower_face_flatness`
+  > (`docs/topologies/topology_vpa_end_stop_v2.json`): "lower piston head
+  > lower face flatness, as an offset", 214699-002 ⏥0.05, nominal 0. Its two
+  > ends, `endstop_feather_contact` ("the lower head's lower face on the
+  > gas-spring mount's end-stop face") and `piston_body_head_seat`, are two
+  > regions of one face. One face, face 7, at both ends is the correct
+  > binding, and both offers agree on it.
 - **F3. Gap rows in the study grid carry names a reader cannot place.**
   `pitch_link_lower_inner_race_on_pitch_arm` (the stand-in pin) reads "pitch
   link bore to bore", and `tan_link_lower_inner_race_on_mount` reads
