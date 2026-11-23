@@ -1862,6 +1862,28 @@ def test_value_from_is_none_for_a_gap_and_other_model_for_a_cross_model_ref(tmp_
         "this_model", "other_model", "none"]
 
 
+#: v1's stop stacks that v2 now has its own twin of, by id. The edges each one
+#: selects exist in v2 under the same id and carry v1's dimension.
+V1_TO_V2_STUDY = {
+    "vpa_pitch_linkage_travel_between_end_stops":
+        "vpa_end_stop_v2_travel_between_end_stops",
+}
+
+#: The ten v2 edges that took the citation v1 holds under the same id (handoff
+#: v2_carries_the_ten_citations_v1_already_has_and_its_own_stop_stacks).
+TEN_COPIED = (
+    "gas_spring_mount_datum_a_to_end_stop", "gas_spring_mount_flange_to_end_stop",
+    "piston_cover_flange_to_end_stop", "piston_head_lower_thickness",
+    "piston_head_lower_face_flatness", "piston_head_upper_thickness",
+    "pitch_arm_link_hole_to_clocking_hole", "pitch_link_length", "tan_link_length",
+    "tan_link_mount_overall_height",
+)
+
+#: v2's owners whose band is still v1's (215735-A, read for the next link).
+STILL_BORROWED = {"pitch_plate_link_flanged_bushing_height",
+                  "pitch_plate_tan_link_flanged_bushing_radius"}
+
+
 def _both_real():
     v1 = load_kinematic_study(REAL_STUDY, REAL_DATA)
     v2 = load_kinematic_study(V2_STUDY, REAL_DATA)
@@ -1879,7 +1901,8 @@ def _terms_by_edge(result, rename=None):
     for group in (*result.point.groups, *result.stack.groups):
         for child in group.children:
             if child.term is not None:
-                out[(group.ref.study_id, child.sub.edge)] = (
+                out[(V1_TO_V2_STUDY.get(group.ref.study_id, group.ref.study_id)
+                     if rename else group.ref.study_id, child.sub.edge)] = (
                     child.term.sign, child.term.coefficient,
                     child.term.element.min, child.term.element.max)
     return out
@@ -1892,9 +1915,9 @@ def _range_terms(result, rename):
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
 def test_real_v2_folds_to_v1s_numbers_at_both_stops_and_over_the_range():
-    """(a) Parity, computed: with the six contributors on borrowed bands, v2's
-    study is v1's study on v2's parts -- the same total and the same terms at
-    each stop and in the range between them."""
+    """(a) Parity, computed: v2's study is v1's study on v2's parts -- the same
+    total and the same terms at each stop and in the range between them, now
+    with v2's own edges under every band but 215735-A's two."""
     (s1, w1), (s2, w2) = _both_real()
     for stop in ("plus72", "minus7"):
         a, b = fold_at_stop(s1, w1, stop), fold_at_stop(s2, w2, stop)
@@ -1917,8 +1940,12 @@ def test_real_v2_reads_the_v1_run_and_every_contributor_is_v2s_edge():
     owners = [c for c in s2.contributors if c.route_of is None]
     assert sorted(c.edge for c in owners) == sorted(V1_TO_V2.values())
     assert {c.feature_source for c in s2.contributors} == {"artifact"}
-    assert {c.value_from(s2.topology) for c in owners} == {"other_model"}
-    assert {r.topology for r in s2.study_refs} == {"vpa_pitch_linkage"}
+    words = {c.edge: c.value_from(s2.topology) for c in owners}
+    assert {e for e, w in words.items() if w == "other_model"} == STILL_BORROWED
+    assert {w for e, w in words.items() if e not in STILL_BORROWED} == {"this_model"}
+    assert {r.topology for r in s2.study_refs} == {"vpa_pitch_linkage", "vpa_end_stop_v2"}
+    assert {r.study_id for r in s2.study_refs if r.topology == "vpa_end_stop_v2"} == set(
+        V1_TO_V2_STUDY.values())
 
 
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
@@ -1945,13 +1972,39 @@ def test_real_the_projection_says_where_each_v2_value_comes_from():
     assert row["status"] == "ok" and row["ids_from"] == "vpa_pitch_linkage"
     stop = row["stops"][0]
     words = {r["edge"]: r["value_from"] for r in stop["rows"]}
-    assert {words[e] for e in V1_TO_V2.values()} == {"other_model"}
-    assert set(words.values()) == {"other_model", "none"}
-    leaves = [c for g in stop["groups"] for c in g["children"]]
-    assert leaves and {c["value_from"] for c in leaves} == {"other_model"}
+    assert {e for e in V1_TO_V2.values() if words[e] == "other_model"} == STILL_BORROWED
+    assert {words[e] for e in V1_TO_V2.values() if e not in STILL_BORROWED} == {"this_model"}
+    assert set(words.values()) == {"this_model", "other_model", "none"}
+    leaves = {g["study"]: {c["value_from"] for c in g["children"]}
+              for g in stop["groups"] if g["children"]}
+    assert leaves[V1_TO_V2_STUDY["vpa_pitch_linkage_travel_between_end_stops"]] == {"this_model"}
+    assert leaves["vpa_pitch_linkage_feather_stop_axial_position"] == {"other_model"}
     tan = next(r for r in stop["rows"] if r["edge"] == "tan_link_length")
     assert tan["display"]["nominal_source"]["kind"] == "cited"
     assert tan["display"]["nominal"] == pytest.approx(61.40)
     v1 = builder.project_study(REAL_STUDY, REAL_DATA, REAL_STUDY.parent)
     assert {r["value_from"] for r in v1["stops"][0]["rows"]} == {"this_model"}
     assert v1["ids_from"] is None
+
+
+def test_real_the_ten_copied_edges_carry_v1s_dimension_exactly():
+    from tolerance_stack.topology import load_topology
+    t1 = load_topology(REPO_ROOT / "docs" / "topologies" / "topology_vpa_pitch_linkage.json")
+    t2 = load_topology(REPO_ROOT / "docs" / "topologies" / "topology_vpa_end_stop_v2.json")
+    for edge in TEN_COPIED:
+        e1, e2 = t1.edge(edge), t2.edge(edge)
+        assert (e2.part, e2.from_node, e2.to_node) == (e1.part, e1.from_node, e1.to_node), edge
+        assert e2.dimension is not None and e2.dimension == e1.dimension, edge
+
+
+def test_real_each_v2_stop_stack_folds_to_its_v1_twin():
+    """Both folded by the one fold, compared by computing both."""
+    from tolerance_stack.topology import load_study, load_topology, summarize
+    d = REPO_ROOT / "docs" / "topologies"
+    t1 = load_topology(d / "topology_vpa_pitch_linkage.json")
+    t2 = load_topology(d / "topology_vpa_end_stop_v2.json")
+    for v1_id, v2_id in V1_TO_V2_STUDY.items():
+        a = summarize(t1, load_study(d / f"study_{v1_id}.json"))
+        b = summarize(t2, load_study(d / f"study_{v2_id}.json"))
+        assert b.interval.as_dict() == a.interval.as_dict(), v2_id
+        assert [(c.edge.id, c.sign) for c in b.chain] == [(c.edge.id, c.sign) for c in a.chain]

@@ -1192,6 +1192,17 @@ def test_no_name_on_model_v2_says_spindle():
     assert said == []
 
 
+#: v2 edges carrying the dimension v1's edge of the same id holds (handoff
+#: v2_carries_the_ten_citations_v1_already_has_and_its_own_stop_stacks).
+V2_TAKEN_FROM_V1 = {
+    "gas_spring_mount_datum_a_to_end_stop", "gas_spring_mount_flange_to_end_stop",
+    "piston_cover_flange_to_end_stop", "piston_head_lower_thickness",
+    "piston_head_lower_face_flatness", "piston_head_upper_thickness",
+    "pitch_arm_link_hole_to_clocking_hole", "pitch_link_length", "tan_link_length",
+    "tan_link_mount_overall_height",
+}
+
+
 def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     """Jeff, 2026-11-08: the mount sits on the hub's top face, is located
     radially by the hub's circular boss, and is clocked by the fasteners round
@@ -1218,7 +1229,12 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
             "tan_link_mount_gas_spring_pilot_bore", "tan_link_mount_pilot_bore"),
         "tan_link_mount_gas_spring_fasteners_to_fasteners": (
             "gas_spring_mount_fastener_clocking", "tan_link_mount_fastener_clocking")}
+    # The ten edges that took v1's citation (2026-11-23) are valued; every
+    # other v2 edge still waits on its own drawing.
     for edge in v2.edges:
+        if edge.id in V2_TAKEN_FROM_V1:
+            assert edge.dimension is not None, edge.id
+            continue
         assert edge.dimension is None, edge.id
         assert "Value to come" in (edge.note or ""), edge.id
     assert "hub_to_pitch_plate_spindle_coaxiality" not in {e.id for e in v2.edges}

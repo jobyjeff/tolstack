@@ -38,8 +38,8 @@
         },
         {
           "study_ref": {
-            "topology": "vpa_pitch_linkage",
-            "study_id": "vpa_pitch_linkage_travel_between_end_stops",
+            "topology": "vpa_end_stop_v2",
+            "study_id": "vpa_end_stop_v2_travel_between_end_stops",
             "parameter": "actuator.value"
           },
           "note": "The low stop's contact is the feather contact moved by the travel between the stops (cover length less the mount's end-stop thickness and both heads): plate at the low stop = plate at the feather stop + travel, in the driver's +Z. The heads enter here and not at the feather stop (Jeff, 2026-11-03)."
@@ -104,10 +104,10 @@
       },
       "zone": "band",
       "dimension_ref": {
-        "topology": "vpa_pitch_linkage",
+        "topology": "vpa_end_stop_v2",
         "edge": "pitch_link_length"
       },
-      "note": "v1's band on v1's edge of the same id (the link's sphere centre to sphere centre). Borrowed until 213861-002's own sheet is cited; on v2 that band lands on pitch_link_race_bores, the link body's bore to bore, and this edge is then the sum of it and the four rows below."
+      "note": "v2's own edge of this id, carrying v1's band (the link's sphere centre to sphere centre) since 2026-11-23; on v2 a band from 213861-002's own sheet lands on pitch_link_race_bores, the link body's bore to bore, and this edge is then the sum of it and the four rows below."
     },
     {
       "edge": "pitch_link_lower_outer_race_od_to_centre",
@@ -191,10 +191,10 @@
       },
       "zone": "sphere",
       "dimension_ref": {
-        "topology": "vpa_pitch_linkage",
+        "topology": "vpa_end_stop_v2",
         "edge": "pitch_arm_link_hole_to_clocking_hole"
       },
-      "note": "The same edge id as v1's, banded as v1's study bands it: the arm's link-hole-to-clocking-hole position read as a ball about the joint centre (v1's note on this contributor says why)."
+      "note": "v2's own pitch_arm_link_hole_to_clocking_hole, carrying v1's band, read as v1's study reads it: the arm's link-hole-to-clocking-hole position read as a ball about the joint centre (v1's note on this contributor says why)."
     },
     {
       "edge": "pitch_link_lower_inner_race_on_pitch_arm",
@@ -415,10 +415,10 @@
         "note": "The basic 61.40 with its ⌖Ø0.1 B zone as +/-0.05 along the centre line. The study reads the same band about zero (its contributors are variations about the sweep's own nominal), with this same citation inline; tests/test_kinematic.py pairs the two."
       },
       "borrowed_from": {
-        "topology": "vpa_pitch_linkage",
+        "topology": "vpa_end_stop_v2",
         "edge": "tan_link_length"
       },
-      "note": "v1's inline band, the same citation as v1's tan_link_length edge carries about 61.40 (borrowed_from pairs the two at load). Borrowed until 213863-004-A is cited on v2: that band lands on tan_link_race_bores, the link body's bore to bore."
+      "note": "The inline band about zero, the same citation as v2's tan_link_length edge carries about 61.40 (borrowed_from pairs the two at load). On v2 a band from 213863-004-A's own sheet lands on tan_link_race_bores, the link body's bore to bore."
     },
     {
       "edge": "tan_link_lower_outer_race_od_to_centre",
@@ -499,10 +499,10 @@
       },
       "zone": "band",
       "dimension_ref": {
-        "topology": "vpa_pitch_linkage",
+        "topology": "vpa_end_stop_v2",
         "edge": "tan_link_mount_overall_height"
       },
-      "note": "The same edge id as v1's (the mount's hub face to its bore), banded as v1's study bands it, by the mount's overall height."
+      "note": "v2's own tan_link_mount_overall_height (the mount's hub face to its bore), carrying v1's band, the mount's overall height."
     },
     {
       "edge": "tan_link_lower_inner_race_on_mount",
