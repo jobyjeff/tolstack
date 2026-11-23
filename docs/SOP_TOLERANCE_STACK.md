@@ -544,6 +544,8 @@ source's, not yours.
   consumed feeds none (`runs: []`, empty by fact).
   `tests/test_export_runs_match_the_run_log.py` pairs the list against
   drawing-checker's `runs.jsonl` and skips where that log is unreadable.
+  When a new run lands on an already-cited export it goes red;
+  `scripts/sync_export_runs.py` appends the missing runs.
 
   **Each run is `{"run_id": ..., "ts": ...}`, and the `ts` is copied verbatim
   from that run's own `run_meta.json`** (since 2026-08-07,
