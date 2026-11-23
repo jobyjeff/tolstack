@@ -22,47 +22,14 @@ log is a skip naming the path and never a failure.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parent.parent
-#: Committed JSON that can carry a ``source_ref.export`` / ``assembly_export_ref``.
-CITING_GLOBS = ("docs/topologies/*.json", "docs/tolerance_stacks/stack_*.json")
-RUN_LOG = Path(r"C:\workspace\drawing-checker\data\runs.jsonl")
-
-
-def consuming_runs(log_text: str) -> dict[str, set[str]]:
-    """``{input sha256: {run ids}}`` from the log's recorded ``inputs``."""
-    by_sha: dict[str, set[str]] = {}
-    for line in log_text.splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        for item in row.get("inputs") or ():
-            sha = (item.get("sha256") or "").lower()
-            if sha:
-                by_sha.setdefault(sha, set()).add(row["run_id"])
-    return by_sha
-
-
-def established_exports(node, where="$"):
-    """``(where, export dict)`` for every established export block, any depth."""
-    if isinstance(node, dict):
-        if node.get("status") == "established" and node.get("sha256"):
-            yield where, node
-        for key, value in node.items():
-            yield from established_exports(value, f"{where}.{key}")
-    elif isinstance(node, list):
-        for i, value in enumerate(node):
-            yield from established_exports(value, f"{where}[{i}]")
-
-
-def resolve(listed: str, wanted: set[str]) -> set[str]:
-    """The logged runs a listed id names: itself, or -- for the short
-    ``YYYYMMDD_HHMMSS`` spelling the 2026-08 stacks use and other tests key on --
-    the logged ids that begin ``<listed>_``."""
-    return {w for w in wanted if w == listed or w.startswith(listed + "_")}
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+from sync_export_runs import (  # noqa: E402  (the pairing's one home)
+    CITING_GLOBS, REPO, RUN_LOG, consuming_runs, established_exports, resolve)
 
 
 def mismatches(by_sha: dict[str, set[str]], documents: dict[str, object]) -> list[str]:
@@ -102,7 +69,9 @@ def test_every_established_export_lists_exactly_the_runs_the_log_records_for_its
     bad = mismatches(by_sha, documents)
     assert not bad, (
         "an export's `runs` must be every run whose recorded input sha256 equals "
-        "its own (copy each ts from that run's run_meta.json):\n  " + "\n  ".join(bad))
+        "its own. For a missing run, `venv-win/Scripts/python.exe "
+        "scripts/sync_export_runs.py` appends it (ts copied from the run's "
+        "run_meta.json); an extra run is removed by hand:\n  " + "\n  ".join(bad))
 
 
 def test_the_pairing_names_a_missing_run_an_extra_run_and_an_empty_list():

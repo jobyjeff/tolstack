@@ -1909,9 +1909,13 @@
               {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
+              },
+              {
+                "run_id": "20261119_132629_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-11-19T21:27:04.861494+00:00"
               }
             ],
-            "note": "Five runs consumed this export: drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
+            "note": "Five runs consumed this export (a sixth, 2026-11-19, was appended by scripts/sync_export_runs.py): drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
           },
           "element_id": null,
           "run_id": null,
@@ -1986,9 +1990,13 @@
               {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
+              },
+              {
+                "run_id": "20261119_132629_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-11-19T21:27:04.861494+00:00"
               }
             ],
-            "note": "Five runs consumed this export: drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
+            "note": "Five runs consumed this export (a sixth, 2026-11-19, was appended by scripts/sync_export_runs.py): drawing-checker's runs.jsonl records its sha256 as the input of each (the run's own run_meta.json does too for the three from 20260730 on), and the file in drawing-checker's drawings inbox re-hashes to it (2026-10-22). The ts of the first two (backfilled) is derived from the run id by drawing-checker's reconcile_run_log.py, not a stamped instant. Read-only: nothing was written into drawing-checker."
           },
           "element_id": null,
           "run_id": null,
@@ -2527,6 +2535,10 @@
               {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
+              },
+              {
+                "run_id": "20261119_132629_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-11-19T21:27:04.861494+00:00"
               }
             ],
             "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, §8a/§8b row 41); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used."
@@ -2610,6 +2622,10 @@
               {
                 "run_id": "20260819_150314_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
                 "ts": "2026-08-19T22:03:41.397347+00:00"
+              },
+              {
+                "run_id": "20261119_132629_213668-002_A.1_MOUNT,_GAS_SPRING,_PROPELLER",
+                "ts": "2026-11-19T21:27:04.861494+00:00"
               }
             ],
             "note": "Read directly off a 10x rendered crop, review/endstop_vision_baseline (2026-09-01, F7); read without running drawing-checker's pipeline for it; the runs listed are the ones drawing-checker's run log (runs.jsonl) records for this export's sha256, not extractions this reading used. This drawing's GD&T frames are vector geometry, absent from its text layer entirely (WORKSHEET §2g)."

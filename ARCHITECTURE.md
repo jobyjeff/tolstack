@@ -112,6 +112,10 @@ scripts/
                                Added 2026-09-30; the kinematic projection joined
                                its inputs 2026-10-20 (its gitignored sweep is
                                outside them, as the datasheet pile is for crops).
+  sync_export_runs.py          appends the drawing-checker runs a citation's
+                               export is missing, from runs.jsonl; ts from the
+                               run's run_meta.json, no other byte moves. Added
+                               2026-11-22; stdlib only.
   export_stack_tabular.py      a stack or topology study -> a spreadsheet-shaped
                                CSV, straight from the stored JSON and fold() /
                                summarize() -- no second arithmetic path and no
