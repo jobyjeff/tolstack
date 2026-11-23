@@ -44,3 +44,15 @@ next Take can retire.
 Evidence: the scratch logs `data/scratch/rv_ns_base1.txt` and
 `rv_ns_base2.txt` (baseline), and `rv_nodesuite_only1.txt` and
 `rv_nodesuite_only2.txt` (merge), in the main checkout.
+
+## Sighting 2026-11-22 -- a_body_row_in_the_nav_takes_a_resting_hover_every_time (review)
+
+Same two reds on that review's merge, whole tier 47/49 (ledger 2026-11-23T07:35:06Z).
+Baseline pair against one scratch root, `--only` each: a `git archive integration`
+export gave **3/5** and **5/11**, and the merged tree straight after gave **3/5** and **8/11**.
+So the pattern suite's count also moves run to run. `MOUNT_FACE`
+(`tan_link_mount_215175_002@tan_link_mount_hub_face`) appears in
+`0101_tan_link_mount_height_accepted.json` (2026-11-22 20:28 local). Also worth
+fixing in the same change: both suites settle on `__sweep.bodies`, which that
+handoff measured as true ~15 s before the pane's `annotate:exec` queue drains.
+Settle on the `scene-view` barrier instead.

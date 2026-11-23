@@ -85,8 +85,11 @@ Post-merge:
     merged tree, run straight after, they gave **3/5** and **8/11**. Both were
     red before this diff, and the diff touches neither suite. Likely cause: Jeff
     bound the features these checks drive during his session on 2026-11-22
-    (events 0101–0115, including `tan_link_mount_hub_face`). Filed as
-    `ISSUE_20261122_the_suggestion_and_pattern_real_checks_go_red_once_jeff_binds_the_features_they_drive.md`.
+    (events 0101–0115, including `tan_link_mount_hub_face`). The sibling
+    review filed this first, as
+    `ISSUE_20261122_two_annotate_browser_suites_assume_live_features_are_still_unbound.md`.
+    I drafted a twin, then deleted it before landing, and appended this
+    baseline pair there as a sighting instead.
 - Witness gate,
   `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
   --changed-since integration --budget-min 10`: exit 0, **1/1 witnessed**
@@ -101,6 +104,16 @@ None blocking. No should-fix.
 - **nit:** the barrier's `page.evaluate` promise is near-verbatim the map
   suite's (line ~3636). A third copy should become a shared helper in the
   harness. Not worth a loop-back for two copies.
+
+## Landing
+
+`integration` moved during the review (`8ba9e509` → `ea39a847`: the sibling
+review of `the_viewer_node_suite_runs_inside_its_default_tier_timeout`, and
+`a_take_on_a_lug_feature_binds_that_lugs_own_face`). I merged it into
+`review/…` with no conflict. The only projection input it changed was
+`scripts/build_contact_suggestions.py`. Before the fast-forward I re-ran the
+risky subset on the re-merged tree, after rebuilding the scratch root's contact
+suggestions from it. Counts are in the "Re-merge" line below.
 
 ## Overlay
 
