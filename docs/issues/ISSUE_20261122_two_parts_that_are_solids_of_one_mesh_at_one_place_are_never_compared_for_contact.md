@@ -30,3 +30,17 @@ first teach the engine which faces are which solid (the parts' notes name
 solid indices; `data/meshes/` carries per-face solids for the annotator's
 `faceSolids`) and pair only solid against solid. Recommendation: (b) -- (a)
 would offer the MS14103-3's one-solid sphere as its own seat.
+
+## Addendum 2026-11-23 (review of `a_seat_and_a_pattern_get_contact_suggestions_too`)
+
+That handoff (deliverable 4) addressed this with neither (a) nor (b) as written.
+A ball joint whose two ends are one mesh at one place is compared with itself,
+a face never with itself, and only when exactly one end's node name says "ball"
+(`build_contact_suggestions.ball_side`, `interface_contact.edge_candidates(ball=…)`).
+For a mesh with no concave sphere and exactly one ball (MS14103-3), that ball is
+offered at both ends, with `seat_modelled: false`
+(`interface_contact._lone_ball`). This is the outcome option (b)'s
+recommendation warned about. It was offered on purpose: Jeff had bound the outer
+race's centre to that sphere by hand. On the review's scratch rebuild, v2's four
+inner-race ball joints read `ok`. Left `open` for triage to disposition (resolved,
+or kept for the solid-based pairing of (b)).

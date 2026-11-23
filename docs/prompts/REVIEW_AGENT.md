@@ -518,6 +518,16 @@ problem as an unrecorded full suite one step later.
 - **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
   two apps' `:root` scales are paired against each other there), plus the browser
   tier as above.
+- **The contact engine: `tolerance_stack/interface_contact.py` or
+  `scripts/build_contact_suggestions.py`** (added 2026-11-23) → `pytest -q
+  tests/test_interface_contact.py tests/test_contact_suggestions.py
+  tests/test_js_vocabulary_is_generated.py` (a new pairing word regenerates
+  `vocab.gen.js`). The `[real]` checks there skip on a live projection older
+  than the change. To arm them, build a scratch `--data-root`, copy its
+  `contact_suggestions.json` into the worktree's gitignored `data/`, run, and
+  remove the copy. The contact leg takes **~18 minutes** on real data and prints
+  nothing until it ends, so start it first. Then diff the edge statuses against
+  the live projection: no `ok` row may become anything else.
 - **A guard, a witness, or `scripts/mutation_witnesses/`** → `pytest -q
   tests/test_mutation_witnesses.py` plus `node
   scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
@@ -5561,6 +5571,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261029_a_balls_seat_ranks_the_companion_bore_over_…`). Build the
       projection into a scratch `--data-root` to read the ranks; the builder
       takes ~2–5 min since `AXIS_INTERFACES` fits every hub face.
+- [ ] **A set-valued offer (a hole pattern) whose grouping tolerance is
+      tighter than the mesh fit's own scatter breaks into one-face rows,
+      each with a Take.** New 2026-11-23
+      (`a_seat_and_a_pattern_get_contact_suggestions_too`). `pair_patterns`
+      sizes holes by the like-hole rule's `radius_fraction` 1e-3, but the
+      fitted Ø17.5 counterbores scatter by 1.4e-3, so the plate lists
+      "face 857" and "face 883" as patterns. v2's mount clocking node has 10
+      candidates. Read the lower rows of a set offer in the shot, not only
+      the top one
+      (`ISSUE_20261123_a_fastener_pattern_node_offers_single_counterbore_faces_as_pattern_rows_with_a_take.md`).
 - [ ] **A python test that reads a `SHADOW_EMPTY_DIRS` directory turns its
       whole file's `python__` witnesses NOT WITNESSED, and nothing goes red.**
       New 2026-10-29 (`the_plus72_stop_is_the_travel_datum`). The witness
