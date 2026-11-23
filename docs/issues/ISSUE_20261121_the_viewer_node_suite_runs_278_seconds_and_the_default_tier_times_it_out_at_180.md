@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: tests / apps/viewer node-fs [real] tier
 reporter: agent
 class: suite_timeout
 found_by: dispatch/docs/sessions/lessons/LESSONS_20261121_triage_sweep.md
 handoff: docs/sessions/HANDOFF_20261121_the_viewer_node_suite_runs_inside_its_default_tier_timeout.md
+resolution: handoff completed 2026-11-22 -- closed automatically by dispatch when handoff `the_viewer_node_suite_runs_inside_its_default_tier_timeout` moved to completed/; not independently verified.
 ---
 
 # The viewer node suite takes 278 s on the merged tree, and the default tier times it out at 180 s
