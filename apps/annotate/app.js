@@ -4506,8 +4506,7 @@ function candidateRow(end, row, surest) {
   const unplaced = row.placed === false;
   reason.textContent = [row.reason, row.bound ? words.bound : null, unplaced ? words.unplaced : null]
     .filter(Boolean).join(" · ");
-  if (unplaced) li.title += "
-" + words.unplacedTitle;
+  if (unplaced) li.title += "\n" + words.unplacedTitle;
   text.appendChild(reason);
   li.appendChild(text);
   candidateHover(li, row);
