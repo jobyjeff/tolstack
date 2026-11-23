@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261115_the_map_draws_the_end_stop_model.md",
       "note": "Keys the jumper by the DAG's element kind instead, so no light reaches it.",
       "file": "apps/viewer/views/map.js",
-      "find": "      register(reg, g, \"map__jumper\", VA.FOCUS_KINDS.dimension, j.id);",
-      "replace": "      register(reg, g, \"map__jumper\", \"edge\", j.id); /* mutated: keyed by element, not entity */"
+      "find": "      register(reg, g, \"map__jumper\" + (j.dimension ? \" map__jumper--dimension\" : \"\"), VA.FOCUS_KINDS.dimension, j.id);",
+      "replace": "      register(reg, g, \"map__jumper\" + (j.dimension ? \" map__jumper--dimension\" : \"\"), \"edge\", j.id); /* mutated: keyed by element, not entity */"
     }
   ]
 }

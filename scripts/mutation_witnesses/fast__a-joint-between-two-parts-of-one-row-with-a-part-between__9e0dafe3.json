@@ -5,10 +5,10 @@
   "mutations": [
     {
       "contract": "A feature whose every interface is with a part in its own row beyond a part between them takes the row's outer flank.",
-      "note": "Declared with the guard by handoff the_pitch_plate_is_an_assembly_with_its_bushings (2026-11-18). Without the row's flank, the pitch plate assembly's tangential-link flanged bushing -- pinned to the plate's attachment bore with the machined plate between them in model v2's row -- leaves its side straight into the machined plate. Re-pointed 2026-11-19 (a_map_pin_faces_each_partner_and_no_two_routes_share_a_run), when a feature's pin side became one per interface.",
+      "note": "Declared with the guard by handoff the_pitch_plate_is_an_assembly_with_its_bushings (2026-11-18). Without the row's flank, the pitch plate assembly's tangential-link flanged bushing -- pinned to the plate's attachment bore with the machined plate between them in model v2's row -- leaves its side straight into the machined plate. Re-pointed 2026-11-19 (a_map_pin_faces_each_partner_and_no_two_routes_share_a_run), when a feature's pin side became one per interface. Re-pointed 2026-11-22 (the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map), when the detour's flank became the one with fewer parts beside the span.",
       "file": "apps/viewer/map.js",
-      "find": "      if (way === \"row\") return rowFlankOf(placeOf[part][1]);",
-      "replace": "      if (way === \"row\") return sideTowards(placeOf[part], placeOf[far]);",
+      "find": "      if (way) return detourFlank(placeOf[part], placeOf[far], way);",
+      "replace": "      if (way) return way === \"row\" ? sideTowards(placeOf[part], placeOf[far]) : detourFlank(placeOf[part], placeOf[far], way);",
       "issue": "docs/sessions/lessons/LESSONS_20261118_the_pitch_plate_is_an_assembly_with_its_bushings.md"
     }
   ]
