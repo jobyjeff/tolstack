@@ -68,11 +68,14 @@ A one-line fix does not have to restate a whole standard, and the wrong number
 stays visible. A library that quietly swaps a value is no better than the
 workbook this repo exists to get away from.
 
-**The log currently holds no correction event**, because re-reading every value
-the pitch_link session had transcribed by hand found no error. The mechanism is
-pinned by fixture events in `tests/fixtures/spec_events/` and by
-`test_a_correction_event_wins_the_fold_and_keeps_what_it_displaced`, so the
-first real correction lands on a tested path rather than an untried one.
+**The log holds one correction event** (0009, 2026-11-22): the RBC sheet's H and
+W columns had been read swapped for MS14101-3, and the displaced values stay on
+the winner's `superseded` list. A correction can only overlay a subject an
+earlier event for that document established, so adding a subject (NAS6403U14D)
+to a document already read takes a `full` event restating the document's other
+entries; event 0007 does, and a test pins them equal to 0001's. The mechanism is
+also pinned by fixture events in `tests/fixtures/spec_events/` and by
+`test_a_correction_event_wins_the_fold_and_keeps_what_it_displaced`.
 
 ## Parser v0 is an agent, not a pipeline
 

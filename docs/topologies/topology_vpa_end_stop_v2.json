@@ -2146,7 +2146,7 @@
       "part": "pitch_link_lower_outer_race",
       "from": "pitch_link_lower_outer_race_od",
       "to": "pitch_link_lower_sphere_centre",
-      "note": "Value to come from MS14101-3's datasheet: the outer race's outside cylinder to its seat's centre."
+      "note": "Open. MS14101-3's sheet gives the outside diameter D (14.288 mm, +.000/-.013; library MS14101-3 od_D) and states no offset of the ball's centre from the outer cylinder, so no band is cited."
     },
     {
       "id": "pitch_link_lower_ball_joint",
@@ -2164,7 +2164,7 @@
       "part": "pitch_link_lower_inner_race",
       "from": "pitch_link_lower_inner_race_bore",
       "to": "pitch_link_lower_ball_centre",
-      "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
+      "note": "Open. MS14101-3's sheet gives the bore B (4.826 mm, +.000/-.013; library MS14101-3 bore_B) and states no concentricity of the ball to its bore, so no band is cited."
     },
     {
       "id": "pitch_link_lower_inner_race_on_pitch_arm",
@@ -2191,7 +2191,7 @@
       "part": "pitch_link_upper_outer_race",
       "from": "pitch_link_upper_outer_race_od",
       "to": "pitch_link_upper_sphere_centre",
-      "note": "Value to come from MS14101-3's datasheet: the outer race's outside cylinder to its seat's centre."
+      "note": "Open. MS14101-3's sheet gives the outside diameter D (14.288 mm, +.000/-.013; library MS14101-3 od_D) and states no offset of the ball's centre from the outer cylinder, so no band is cited."
     },
     {
       "id": "pitch_link_upper_ball_joint",
@@ -2209,7 +2209,7 @@
       "part": "pitch_link_upper_inner_race",
       "from": "pitch_link_upper_inner_race_bore",
       "to": "pitch_link_upper_ball_centre",
-      "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
+      "note": "Open. MS14101-3's sheet gives the bore B (4.826 mm, +.000/-.013; library MS14101-3 bore_B) and states no concentricity of the ball to its bore, so no band is cited."
     },
     {
       "id": "tan_link_lower_outer_race_press_fit",
@@ -2227,7 +2227,7 @@
       "part": "tan_link_lower_outer_race",
       "from": "tan_link_lower_outer_race_od",
       "to": "tan_link_lower_sphere_centre",
-      "note": "Value to come from MS14101-3's datasheet: the outer race's outside cylinder to its seat's centre."
+      "note": "Open. MS14101-3's sheet gives the outside diameter D (14.288 mm, +.000/-.013; library MS14101-3 od_D) and states no offset of the ball's centre from the outer cylinder, so no band is cited."
     },
     {
       "id": "tan_link_lower_ball_joint",
@@ -2245,7 +2245,7 @@
       "part": "tan_link_lower_inner_race",
       "from": "tan_link_lower_inner_race_bore",
       "to": "tan_link_lower_ball_centre",
-      "note": "Value to come from MS14101-3's datasheet: the inner race's bore to its ball's centre."
+      "note": "Open. MS14101-3's sheet gives the bore B (4.826 mm, +.000/-.013; library MS14101-3 bore_B) and states no concentricity of the ball to its bore, so no band is cited."
     },
     {
       "id": "tan_link_lower_inner_race_on_mount",
@@ -2272,7 +2272,7 @@
       "part": "tan_link_upper_outer_race",
       "from": "tan_link_upper_outer_race_od",
       "to": "tan_link_upper_sphere_centre",
-      "note": "Value to come from MS14103-3's datasheet: the outer race's outside cylinder to its seat's centre."
+      "note": "Open. MS14103-3's sheet gives the outside diameter D (15.875 mm, +.000/-.013; library MS14103-3 od_D) and states no offset of the ball's centre from the outer cylinder, so no band is cited."
     },
     {
       "id": "tan_link_upper_ball_joint",
@@ -2290,7 +2290,7 @@
       "part": "tan_link_upper_inner_race",
       "from": "tan_link_upper_inner_race_bore",
       "to": "tan_link_upper_ball_centre",
-      "note": "Value to come from MS14103-3's datasheet: the inner race's bore to its ball's centre."
+      "note": "Open. MS14103-3's sheet gives the bore B (4.826 mm, +.000/-.013; library MS14103-3 bore_B) and states no concentricity of the ball to its bore, so no band is cited."
     },
     {
       "id": "pitch_plate_slide_bushings_to_piston_body",
@@ -2379,7 +2379,7 @@
       "part": "flanged_bushing_nas77a3_015a",
       "from": "pitch_link_flanged_bushing_od",
       "to": "pitch_link_flanged_bushing_bore",
-      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+      "note": "Open. NAS77A3-015A's sheet (JB_NAS77.pdf, library NAS77A3-015A) bands the bore B (+.0015/-.0000 in) and the outside diameter D (starred, +.000/-.0005 in) each on its own and prints no concentricity or wall band between them; a wall would be a subtraction of two catalogue numbers."
     },
     {
       "id": "pitch_link_straight_bushing_wall",
@@ -2529,7 +2529,7 @@
       "part": "flanged_bushing_nas77a3_015a",
       "from": "pitch_link_flanged_bushing_bore",
       "to": "pitch_link_upper_inner_race_flange_seat",
-      "note": "The flange's top face square to the bushing's bore. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+      "note": "Open. NAS77A3-015A's sheet gives the flange's thickness F and diameter H and prints no squareness of the flange face to the bore (library NAS77 absence flange_face_squareness_to_bore)."
     },
     {
       "id": "pitch_link_flanged_bushing_flange_thickness",
@@ -2538,7 +2538,31 @@
       "part": "flanged_bushing_nas77a3_015a",
       "from": "pitch_link_flanged_bushing_plate_seat",
       "to": "pitch_link_upper_inner_race_flange_seat",
-      "note": "The flange's thickness. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+      "dimension": {
+        "id": "pitch_link_flanged_bushing_flange_thickness",
+        "name": "bushing flange thickness F",
+        "nominal": 1.575,
+        "min": 1.445,
+        "max": 1.575,
+        "source_ref": {
+          "kind": "spec",
+          "document": "JB_NAS77.pdf",
+          "sheet": 1,
+          "view": "NAS77 UNLINED FLANGED BUSHINGS, DIMENSIONS - TOLERANCES",
+          "cell": "NAS77A3 row, column F",
+          "callout": ".062 in / 1.575 mm, +.000/-.005 in (+.00/-.13 mm)",
+          "export": {
+            "status": "established",
+            "pdf": "data/inbox/specs/JB_NAS77.pdf",
+            "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+            "runs": [],
+            "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. No drawing-checker run consumes a spec."
+          },
+          "confidence": "traced",
+          "note": "Library NAS77A3-015A flange_thickness_F, event 20261122-jb-nas77-agentmanual-v0. The figure prints the same band at the flange ('.062 +.000/-.005'). The minimum uses the sheet's own mm column (1.575 - .13 = 1.445); the inch band would give 1.448. The same page in 'RBC - Plain bearings (NAS77 p92).pdf' (its page 94) reads identically. The sheet's size-3 row is for NAS77A3; the model's STEP names NAS77C3-015, which the sheet distinguishes by material only (question D4)."
+        }
+      },
+      "note": "The flange's thickness."
     },
     {
       "id": "pitch_link_bolt_in_flanged_bushing",
@@ -2565,7 +2589,31 @@
       "part": "pitch_link_upper_inner_race",
       "from": "pitch_link_upper_inner_race_flange_seat",
       "to": "pitch_link_upper_inner_race_clamp_seat",
-      "note": "The inner race's width between its two faces. Value to come from MS14101-3's datasheet."
+      "dimension": {
+        "id": "pitch_link_upper_inner_race_width",
+        "name": "inner race width, the ball's width W",
+        "nominal": 7.14,
+        "min": 7.09,
+        "max": 7.14,
+        "source_ref": {
+          "kind": "spec",
+          "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+          "sheet": 21,
+          "view": "MS14101 grooved dash -3, DIMENSIONS - TOLERANCES",
+          "cell": "MS14101-3 row, column W",
+          "callout": ".281 in / 7.14 mm, +.000/-.002 in (+.00/-.05 mm)",
+          "export": {
+            "status": "established",
+            "pdf": "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf",
+            "sha256": "a2bfa011d54e6c1ce632a5ad6f24e0da1694694d43cd10a099f03935456f3036",
+            "runs": [],
+            "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. No drawing-checker run consumes a spec."
+          },
+          "confidence": "traced",
+          "note": "Library MS14101-3 ball_width_W, event 20261122-rbc-aerospace-plain-bearings-2008-agentmanual-v0-hw-correction (which corrects event 0006: its H and W columns were swapped for MS14101-3). The band is the column W header, printed once for every dash: +.000/-.002 in = +.00/-.05 mm, so the minimum is the sheet's mm column subtracted from its nominal. The ball is the inner race, so W is the width between its two faces."
+        }
+      },
+      "note": "The inner race's width between its two faces, the ball width W of MS14101-3's sheet."
     },
     {
       "id": "pitch_link_upper_inner_race_face_to_ball",
@@ -2574,7 +2622,7 @@
       "part": "pitch_link_upper_inner_race",
       "from": "pitch_link_upper_inner_race_flange_seat",
       "to": "pitch_link_upper_ball_centre",
-      "note": "Where the ball's centre sits along the bore from the located face. Value to come from MS14101-3's datasheet."
+      "note": "Open. MS14101-3's sheet gives the ball's width (W .281 in / 7.14 mm, +.000/-.002) and states no position of its centre from a face; taking the centre at half the width would be a derivation, not a reading."
     },
     {
       "id": "pitch_link_bolt_in_straight_bushing",
@@ -2592,7 +2640,7 @@
       "part": "bolt_nas6403u11d",
       "from": "pitch_link_bolt_shank_at_straight",
       "to": "pitch_link_bolt_shank_at_race",
-      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U11D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+      "note": "Open. NAS6403U11D's sheet (NAS6403-NAS6420 Rev 4, library NAS6403U11D) gives the one shank diameter (.1895/.1890 in) and straightness 'within BB values TIR per inch of length' (note (e); BB .0040 in for NAS6403, library shank_straightness_BB). That is a rate; the sheet does not say over which length, and this span's length is not the sheet's to give, so no band is cited."
     },
     {
       "id": "pitch_link_bolt_shank_race_to_flanged",
@@ -2601,7 +2649,7 @@
       "part": "bolt_nas6403u11d",
       "from": "pitch_link_bolt_shank_at_race",
       "to": "pitch_link_bolt_shank_at_flanged",
-      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U11D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+      "note": "Open. NAS6403U11D's sheet (NAS6403-NAS6420 Rev 4, library NAS6403U11D) gives the one shank diameter (.1895/.1890 in) and straightness 'within BB values TIR per inch of length' (note (e); BB .0040 in for NAS6403, library shank_straightness_BB). That is a rate; the sheet does not say over which length, and this span's length is not the sheet's to give, so no band is cited."
     },
     {
       "id": "pitch_link_straight_bushing_bore_to_end",
@@ -2681,7 +2729,7 @@
       "part": "flanged_bushing_nas77a3_015a_tan_link",
       "from": "tan_link_flanged_bushing_od",
       "to": "tan_link_flanged_bushing_bore",
-      "note": "The flanged bushing's own concentricity. No value recorded. Value to come from the bushing's own bands. NAS77A3-015A's outside diameter band is a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+      "note": "Open. NAS77A3-015A's sheet (JB_NAS77.pdf, library NAS77A3-015A) bands the bore B (+.0015/-.0000 in) and the outside diameter D (starred, +.000/-.0005 in) each on its own and prints no concentricity or wall band between them; a wall would be a subtraction of two catalogue numbers."
     },
     {
       "id": "tan_link_straight_bushing_wall",
@@ -2787,7 +2835,7 @@
       "part": "flanged_bushing_nas77a3_015a_tan_link",
       "from": "tan_link_flanged_bushing_bore",
       "to": "tan_link_upper_inner_race_flange_seat",
-      "note": "The flange's top face square to the bushing's bore. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+      "note": "Open. NAS77A3-015A's sheet gives the flange's thickness F and diameter H and prints no squareness of the flange face to the bore (library NAS77 absence flange_face_squareness_to_bore)."
     },
     {
       "id": "tan_link_flanged_bushing_flange_thickness",
@@ -2796,7 +2844,31 @@
       "part": "flanged_bushing_nas77a3_015a_tan_link",
       "from": "tan_link_flanged_bushing_plate_seat",
       "to": "tan_link_upper_inner_race_flange_seat",
-      "note": "The flange's thickness. Value to come from the bushing's own bands. NAS77A3-015A's bands are a gap: data/inbox/specs/ holds JB_NAS77.pdf and the RBC NAS77 page, and neither is read into the spec library yet (docs/spec_library/events/ has no NAS77 event)."
+      "dimension": {
+        "id": "tan_link_flanged_bushing_flange_thickness",
+        "name": "bushing flange thickness F",
+        "nominal": 1.575,
+        "min": 1.445,
+        "max": 1.575,
+        "source_ref": {
+          "kind": "spec",
+          "document": "JB_NAS77.pdf",
+          "sheet": 1,
+          "view": "NAS77 UNLINED FLANGED BUSHINGS, DIMENSIONS - TOLERANCES",
+          "cell": "NAS77A3 row, column F",
+          "callout": ".062 in / 1.575 mm, +.000/-.005 in (+.00/-.13 mm)",
+          "export": {
+            "status": "established",
+            "pdf": "data/inbox/specs/JB_NAS77.pdf",
+            "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+            "runs": [],
+            "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. No drawing-checker run consumes a spec."
+          },
+          "confidence": "traced",
+          "note": "Library NAS77A3-015A flange_thickness_F, event 20261122-jb-nas77-agentmanual-v0. The figure prints the same band at the flange ('.062 +.000/-.005'). The minimum uses the sheet's own mm column (1.575 - .13 = 1.445); the inch band would give 1.448. The same page in 'RBC - Plain bearings (NAS77 p92).pdf' (its page 94) reads identically. The sheet's size-3 row is for NAS77A3; the model's STEP names NAS77C3-015, which the sheet distinguishes by material only (question D4)."
+        }
+      },
+      "note": "The flange's thickness."
     },
     {
       "id": "tan_link_bolt_in_flanged_bushing",
@@ -2823,7 +2895,31 @@
       "part": "tan_link_upper_inner_race",
       "from": "tan_link_upper_inner_race_flange_seat",
       "to": "tan_link_upper_inner_race_clamp_seat",
-      "note": "The inner race's width between its two faces. Value to come from MS14103-3's datasheet."
+      "dimension": {
+        "id": "tan_link_upper_inner_race_width",
+        "name": "inner race width, the ball's width W",
+        "nominal": 11.1,
+        "min": 11.05,
+        "max": 11.1,
+        "source_ref": {
+          "kind": "spec",
+          "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+          "sheet": 22,
+          "view": "MS14103 grooved dash -3, DIMENSIONS - TOLERANCES",
+          "cell": "MS14103-3 row, column W",
+          "callout": ".437 in / 11.10 mm, +.000/-.002 in (+.00/-.05 mm)",
+          "export": {
+            "status": "established",
+            "pdf": "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf",
+            "sha256": "a2bfa011d54e6c1ce632a5ad6f24e0da1694694d43cd10a099f03935456f3036",
+            "runs": [],
+            "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. No drawing-checker run consumes a spec."
+          },
+          "confidence": "traced",
+          "note": "Library MS14103-3 ball_width_W, event 20261122-rbc-aerospace-plain-bearings-2008-agentmanual-v0-hw-correction (which corrects event 0006: its H and W columns were swapped for MS14101-3). The band is the column W header, printed once for every dash: +.000/-.002 in = +.00/-.05 mm, so the minimum is the sheet's mm column subtracted from its nominal. The ball is the inner race, so W is the width between its two faces."
+        }
+      },
+      "note": "The inner race's width between its two faces, the ball width W of MS14103-3's sheet."
     },
     {
       "id": "tan_link_upper_inner_race_face_to_ball",
@@ -2832,7 +2928,7 @@
       "part": "tan_link_upper_inner_race",
       "from": "tan_link_upper_inner_race_flange_seat",
       "to": "tan_link_upper_ball_centre",
-      "note": "Where the ball's centre sits along the bore from the located face. Value to come from MS14103-3's datasheet."
+      "note": "Open. MS14103-3's sheet gives the ball's width (W .437 in / 11.10 mm, +.000/-.002) and states no position of its centre from a face; taking the centre at half the width would be a derivation, not a reading."
     },
     {
       "id": "tan_link_bolt_in_straight_bushing",
@@ -2850,7 +2946,7 @@
       "part": "bolt_nas6403u14d",
       "from": "tan_link_bolt_shank_at_straight",
       "to": "tan_link_bolt_shank_at_race",
-      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U14D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+      "note": "Open. NAS6403U14D's sheet (NAS6403-NAS6420 Rev 4, library NAS6403U14D) gives the one shank diameter (.1895/.1890 in) and straightness 'within BB values TIR per inch of length' (note (e); BB .0040 in for NAS6403, library shank_straightness_BB). That is a rate; the sheet does not say over which length, and this span's length is not the sheet's to give, so no band is cited."
     },
     {
       "id": "tan_link_bolt_shank_race_to_flanged",
@@ -2859,7 +2955,7 @@
       "part": "bolt_nas6403u14d",
       "from": "tan_link_bolt_shank_at_race",
       "to": "tan_link_bolt_shank_at_flanged",
-      "note": "The shank between two of its bearing lengths: one cylinder, so its straightness and its one diameter. Value to come from NAS6403U14D's shank, NAS6403-NAS6420 Rev 4 (data/inbox/specs/), not read into the spec library yet (docs/spec_library/events/ has no NAS6403 event)."
+      "note": "Open. NAS6403U14D's sheet (NAS6403-NAS6420 Rev 4, library NAS6403U14D) gives the one shank diameter (.1895/.1890 in) and straightness 'within BB values TIR per inch of length' (note (e); BB .0040 in for NAS6403, library shank_straightness_BB). That is a rate; the sheet does not say over which length, and this span's length is not the sheet's to give, so no band is cited."
     },
     {
       "id": "tan_link_straight_bushing_bore_to_end",

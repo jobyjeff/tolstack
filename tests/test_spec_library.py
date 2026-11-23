@@ -42,6 +42,9 @@ ALL_EVENT_FILES = [
     "0004_nas1151_nas1158_2012_agent_manual_v0.json",
     "0005_trelleborg_aerospace_2011_agent_manual_v0.json",
     "0006_rbc_aerospace_plain_bearings_2008_agent_manual_v0.json",
+    "0007_nas6403_nas6420_rev4_agent_manual_v0_u14d.json",
+    "0008_jb_nas77_agent_manual_v0.json",
+    "0009_rbc_aerospace_plain_bearings_2008_agent_manual_v0_hw_correction.json",
 ]
 
 
@@ -68,11 +71,17 @@ def test_the_library_rebuilds_from_the_event_log(library):
         "20260904-nas1151-nas1158-2012-agentmanual-v0",
         "20260904-trelleborg-aerospace-2011-agentmanual-v0",
         "20260910-rbc-aerospace-plain-bearings-2008-agentmanual-v0",
+        "20261122-nas6403-nas6420-rev4-agentmanual-v0-u14d",
+        "20261122-jb-nas77-agentmanual-v0",
+        "20261122-rbc-aerospace-plain-bearings-2008-agentmanual-v0-hw-correction",
     ]
     assert set(library.subjects) == {
         "NAS6403 thru NAS6420",
         "NAS6403U11D",
+        "NAS6403U14D",
         "NAS6404U13D",
+        "NAS77",
+        "NAS77A3-015A",
         "MS9363",
         "MS9363-09",
         "MS9363-10",
@@ -945,3 +954,88 @@ def test_an_unstamped_library_is_overwritten_because_there_is_nothing_to_compare
     )
     out = rebuild(events_dir=EVENTS_DIR, out_dir=out_dir)
     assert json.loads(out.read_text(encoding="utf-8"))["provenance"]["branch"]
+
+
+# ---------------------------------------------------------------------------
+# v2s_standard_parts_cite_their_spec_sheets (2026-11-22)
+# ---------------------------------------------------------------------------
+
+
+def test_the_nas6403_restatement_carries_event_0001_unchanged_but_for_what_it_adds(library):
+    """Event 0007 is a `full` event because the fold cannot add a subject by
+    correction, so it restates every entry of 0001. Nothing may drift in the
+    restatement: each carried entry equals 0001's after the three additions
+    this handoff made (the family's two note rules, U11D's BB) are removed."""
+    old = json.loads((EVENTS_DIR / ALL_EVENT_FILES[0]).read_text(encoding="utf-8"))
+    new = json.loads((EVENTS_DIR / "0007_nas6403_nas6420_rev4_agent_manual_v0_u14d.json")
+                     .read_text(encoding="utf-8"))
+    added = {"NAS6403 thru NAS6420": {"shank_straightness_rule", "concentricity_rule"},
+             "NAS6403U11D": {"shank_straightness_BB"}}
+    by_subject = {e["subject"]: e for e in new["entries"]}
+    for entry in old["entries"]:
+        carried = json.loads(json.dumps(by_subject[entry["subject"]]))
+        for name in added.get(entry["subject"], ()):
+            del carried["values"][name]
+        assert carried == entry, entry["subject"]
+    assert set(by_subject) - {e["subject"] for e in old["entries"]} == {"NAS6403U14D"}
+
+
+def test_nas6403u14d_reads_grip_dash_14_off_sheet_3(library):
+    grip = library.value("NAS6403U14D", "grip").value
+    assert (grip.nominal, grip.plus_minus, grip.units) == (0.875, 0.010, "in")
+    assert (grip.at.sheet, grip.at.row) == (3, "grip dash no. 14")
+    length = library.value("NAS6403U14D", "length").value
+    assert (length.nominal, length.plus_minus) == (1.198, 0.015)
+    # length is grip + T, to the thousandth, as on U11D
+    t = library.value("NAS6403U14D", "T_ref").value.nominal
+    assert round(length.nominal - grip.nominal, 3) == t == 0.323
+    shank = library.value("NAS6403U14D", "shank_dia").value
+    assert (shank.max, shank.min) == (0.1895, 0.189)
+
+
+def test_the_nas6403_shank_straightness_is_a_per_inch_rate_and_says_so(library):
+    bb = library.value("NAS6403U14D", "shank_straightness_BB").value
+    assert bb.max == 0.004 and bb.at.column == "BB"
+    assert library.value("NAS6403U11D", "shank_straightness_BB").value.max == 0.004
+    rule = library.value("NAS6403 thru NAS6420", "shank_straightness_rule").value
+    assert "per inch of length" in rule.text and rule.at.note == "note (e)"
+
+
+def test_nas77a3_015a_flange_thickness_and_bore_are_the_sheets(library):
+    f = library.value("NAS77A3-015A", "flange_thickness_F").value
+    assert (f.nominal, f.min, f.max, f.units) == (1.575, 1.445, 1.575, "mm")
+    assert f.at.column == "F" and f.confidence == "traced"
+    b = library.value("NAS77A3-015A", "bore_B").value
+    assert (b.nominal, b.min, b.max) == (4.826, 4.826, 4.864)
+    assert library.value("NAS77A3-015A", "flange_od_H").value.nominal == 11.1
+    assert library.value("NAS77A3-015A", "length_L").value.nominal == 0.15
+
+
+def test_nas77_od_is_inferred_because_two_star_footnotes_compete(library):
+    d = library.value("NAS77A3-015A", "od_D").value
+    assert (d.nominal, d.min, d.max) == (7.965, 7.952, 7.965)
+    assert d.confidence == "inferred"
+    assert "SECOND '*' footnote" in d.note
+
+
+def test_nas77_records_what_the_sheet_does_not_say_as_absences(library):
+    names = {a["name"] for a in library.subject("NAS77").absences}
+    assert names == {"od_to_bore_concentricity", "flange_face_squareness_to_bore"}
+    assert {a["name"] for a in library.subject("NAS77A3-015A").absences} == {"trailing_A_of_015A"}
+    codes = library.value("NAS77", "material_codes").value.text
+    assert "A=Aluminum bronze" in codes and "C=CRES type 17-4PH" in codes
+
+
+def test_the_rbc_h_and_w_columns_were_swapped_for_ms14101_3_and_the_log_says_so(library):
+    w = library.value("MS14101-3", "ball_width_W")
+    assert (w.value.nominal, w.value.min, w.value.max) == (7.14, 7.09, 7.14)
+    assert w.event_id.endswith("hw-correction")
+    # the displaced reading stays visible: the wrong number is kept, not hidden
+    assert [s["value"]["nominal"] for s in w.superseded] == [5.54]
+    h = library.value("MS14101-3", "width_H")
+    assert h.value.nominal == 5.54 and h.value.at.column == "H"
+    assert [s["value"]["nominal"] for s in h.superseded] == [7.14]
+    # the wide bearing was read correctly; only its band is added
+    w3 = library.value("MS14103-3", "ball_width_W")
+    assert (w3.value.nominal, w3.value.min, w3.value.max) == (11.10, 11.05, 11.10)
+    assert library.value("MS14103-3", "width_H").value.nominal == 8.31

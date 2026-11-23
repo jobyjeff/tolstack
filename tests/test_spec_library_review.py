@@ -419,6 +419,7 @@ def test_the_documents_the_library_holds_are_exactly_the_ones_it_was_read_from(l
         "NAS1151- NAS1158.PDF",
         "trelleborg_aerospace_gb_en.pdf",
         "RBC_Aerospace_Plain_Bearings_Web.pdf",
+        "JB_NAS77.pdf",
     }
 
 

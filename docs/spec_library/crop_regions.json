@@ -37,6 +37,48 @@
       "shows": "Sheet 1 from below the standard's masthead down to the bottom rule of the first dimension table: the side-elevation figure of the bolt with its lettered dimensions (C, W, H, J, Length, Grip, T, M, X, Y, U, R, D, E, TD and the note leaders for the drilled shank and the locking element), the head-on and point-on views beside it, and under them the dimension table's column headers (BASIC NUMBER, Nom Thread Size, C, D Dia unplated/plated-before/plated-after, E Dia Min, H, J, K Dia, M, N, P, R Rad, T (Ref), TD) with every basic-number row from NAS6403 to NAS6420. This is the figure the lettered columns refer to, which is what a reader of a bare row cannot see. Rect read off a 3x render on 2026-09-15; the declared NAS6403 row band falls inside it.",
       "recorded": "2026-09-15",
       "recorded_by": "handoff viewer_reference_crops_in_context"
+    },
+    {
+      "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+      "page": 21,
+      "label": "Page 21, the narrow-series figure above its dimensions table",
+      "rect": [
+        54.0,
+        118.0,
+        560.0,
+        478.0
+      ],
+      "shows": "The MS14104 / MS14101 section figures with the lettered dimensions (W, H, A, B, D, C, P, X), and the whole DIMENSIONS - TOLERANCES table with its per-column tolerance row, down to dash -16 and the table's footnotes.",
+      "recorded": "2026-11-22",
+      "recorded_by": "handoff_v2s_standard_parts_cite_their_spec_sheets"
+    },
+    {
+      "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+      "page": 22,
+      "label": "Page 22, the wide-series figure above its dimensions table",
+      "rect": [
+        54.0,
+        118.0,
+        560.0,
+        462.0
+      ],
+      "shows": "The MS14102 / MS14103 section figures with the lettered dimensions, and the whole DIMENSIONS - TOLERANCES table with its per-column tolerance row, down to its last dash row.",
+      "recorded": "2026-11-22",
+      "recorded_by": "handoff_v2s_standard_parts_cite_their_spec_sheets"
+    },
+    {
+      "document": "JB_NAS77.pdf",
+      "page": 1,
+      "label": "The NAS77 page, figure, table and footnotes",
+      "rect": [
+        54.0,
+        85.0,
+        560.0,
+        690.0
+      ],
+      "shows": "The flanged bushing section with B, D, F-flange thickness, H and L, DETAIL I, the whole dimensions table with its tolerance row, the starred footnotes under it, the material options and the xxx length note.",
+      "recorded": "2026-11-22",
+      "recorded_by": "handoff_v2s_standard_parts_cite_their_spec_sheets"
     }
   ],
   "regions": [
@@ -260,6 +302,57 @@
       "shows": "Sheet 1's dimension table: its column headers (BASIC NUMBER, Nom Thread Size, C, D Dia unplated/plated-before/plated-after, E Dia Min, H, J, K Dia, M) and the NAS6403 row beneath them -- .1900-32, C .376/.367, E .335, H .125/.110, J .088/.073, K .056/.046, M .174/.154. Columns right of M (N, P, R Rad, T, TD) are outside the rect; the whole sheet stays one click away on the card. Read off a 7x render of sheet 1 on 2026-09-14.",
       "recorded": "2026-09-14",
       "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+      "page": 21,
+      "label": "MS14101-3 row",
+      "rect": [
+        128.0,
+        355.5,
+        430.0,
+        365.5
+      ],
+      "match": [
+        "MS14101-3 row"
+      ],
+      "shows": "The MS14101 grooved dash -3 row of the DIMENSIONS - TOLERANCES table on the narrow-series page: B .1900 / 4.826, D .5625 / 14.288, H .218 / 5.54 under the table's own letters, W .281 / 7.14 and A .293 / 7.44 (min). The per-column tolerances are in the table header, outside this rect; the sheet context carries them. Read on a 2.2x render and a preview of this rect on 2026-11-22.",
+      "recorded": "2026-11-22",
+      "recorded_by": "handoff_v2s_standard_parts_cite_their_spec_sheets"
+    },
+    {
+      "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+      "page": 22,
+      "label": "MS14103-3 row",
+      "rect": [
+        128.0,
+        338.5,
+        430.0,
+        348.5
+      ],
+      "match": [
+        "MS14103-3 row"
+      ],
+      "shows": "The MS14103 grooved dash -3 row of the DIMENSIONS - TOLERANCES table on the wide-series page: B .1900 / 4.826, D .6250 / 15.875, H .327 / 8.31, W .437 / 11.10 and A .300 / 7.62 (min). Tolerances are in the table header, outside this rect. Read on a 2.2x render and a preview of this rect on 2026-11-22.",
+      "recorded": "2026-11-22",
+      "recorded_by": "handoff_v2s_standard_parts_cite_their_spec_sheets"
+    },
+    {
+      "document": "JB_NAS77.pdf",
+      "page": 1,
+      "label": "NAS77A3 row",
+      "rect": [
+        56.0,
+        409.5,
+        345.0,
+        419.5
+      ],
+      "match": [
+        "NAS77A3 row"
+      ],
+      "shows": "The NAS77A3-xxx row of the DIMENSIONS - TOLERANCES table: B 0.1900 / 4.826, D *0.3136 / 7.965 (starred), F 0.062 / 1.575 and H 0.437 / 11.100. Bands are in the table header and the footnotes under it, outside this rect; the sheet context carries them. Read on a 2.5x render and a preview of this rect on 2026-11-22.",
+      "recorded": "2026-11-22",
+      "recorded_by": "handoff_v2s_standard_parts_cite_their_spec_sheets"
     }
   ]
 }

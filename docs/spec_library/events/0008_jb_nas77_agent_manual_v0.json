@@ -1,0 +1,239 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20261122-jb-nas77-agentmanual-v0",
+  "seq": 8,
+  "mode": "full",
+  "document": "JB_NAS77.pdf",
+  "parsed_at": "2026-11-22",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff v2s_standard_parts_cite_their_spec_sheets",
+    "recipe": "One born-digital page with a text layer; the text was read with PyMuPDF from drawing-checker's venv and every number checked against a 2.5x render of the page, with the starred footnotes' column positions read off the render (a text sweep loses which footnote sits under which column)."
+  },
+  "document_meta": {
+    "title": "NAS77 Unlined Flanged Bushings, RBC Aerospace Bearings journal bearings catalogue",
+    "issuer": "RBC Bearings Incorporated",
+    "copyright": "©2008 RBC Bearings Incorporated.",
+    "printed_page": "98",
+    "sheets_present_in_the_file": 1,
+    "sheets_read_this_event": [
+      1
+    ],
+    "duplicate": "'RBC - Plain bearings (NAS77 p92).pdf' is the same page from the 2008/2011/2016 edition: its pdf page 94, printed page 92. Compared line by line against this file's text layer and by eye on a render: every number, tolerance and footnote is identical; the only differences are the printed page number (92 vs 98) and the copyright line. The two do not disagree. This event cites JB_NAS77.pdf; the other file's page would be the second source if a later edition changes."
+  },
+  "entries": [
+    {
+      "subject": "NAS77",
+      "subject_kind": "family",
+      "note": "The facts of the page that belong to the standard's size table rather than to one size.",
+      "values": {
+        "series": {
+          "text": "NAS77 unlined flanged bushings. Material options: aluminum bronze, beryllium copper, alloy steel, CRES. A final size (FS) option is available.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "note": "bullets, top left"
+          },
+          "confidence": "traced"
+        },
+        "material_codes": {
+          "text": "Available journal material options: A=Aluminum bronze alloy 642 per AMS 4640 (shown above); S=Steel alloy 4130 per AMS-S-6758; C=CRES type 17-4PH per AMS 5643; B=Beryllium copper per ASTM-B-196.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "note": "below the table"
+          },
+          "confidence": "traced",
+          "note": "The letter after NAS77 in the table's part-number column (NAS77A3-xxx) is the material. So A3 and C3 differ in material and nothing else on this sheet: same B, D, F and H for size 3. Which one the STEP's NAS77C3-015 instances mean is Jeff's question D4, not settled here."
+        },
+        "length_decode": {
+          "text": "xxx: Length in .010 increments (ex: -025 = .25 in.)",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "note": "below the table"
+          },
+          "confidence": "traced"
+        },
+        "bore_tolerance_B": {
+          "text": "Column B (bore): +.0015 / -.0000 in = +.038 / -.000 mm, printed once in the column header and applying to every size.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "column": "B"
+          },
+          "confidence": "traced"
+        },
+        "od_tolerance_D": {
+          "text": "Column D (OD): +.000 / -.0010 in = +.000 / -.025 mm in the header, UNLESS a starred footnote applies: * +.000/-.0005 in (+.000/-.013 mm), ** +.000/-.0007 in (+.000/-.018 mm), *** +.000/-.0008 in (+.000/-.020 mm). The figure prints D as '+.0000 / +.0010 UNLESS OTHERWISE SPECIFIED IN TABLE'.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "column": "D",
+            "figure": "D leader, top right"
+          },
+          "confidence": "traced",
+          "note": "The figure's D band (+.0000/+.0010) and the table header's (+.000/-.0010) disagree in sign on the lower side. Both are recorded as printed; no consumer in this repo uses an unstarred D."
+        },
+        "flange_thickness_tolerance_F": {
+          "text": "Column F (flange thickness): +.000 / -.005 in = +.00 / -.13 mm. The figure prints the same as '.062 +.000 / -.005' at the flange.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "column": "F",
+            "figure": "flange, left of the section"
+          },
+          "confidence": "traced"
+        },
+        "flange_od_tolerance_H": {
+          "text": "Column H (flange diameter): +.010 / -.010 in = +.25 / -.25 mm. The figure prints 'H ± .010'.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "column": "H",
+            "figure": "H leader, left of the section"
+          },
+          "confidence": "traced"
+        },
+        "length_tolerance_L": {
+          "text": "L ± .005 in (figure only; the table has no L column, L is the dash number xxx).",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "figure": "L leader, top of the section"
+          },
+          "confidence": "traced"
+        },
+        "chamfers": {
+          "text": "O.D. .005 — .015 x 45°. I.D. .025 — .035 x 45°, chamfer both ends (see note 6). Undercut .005 max.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "figure": "section and DETAIL I"
+          },
+          "confidence": "traced",
+          "note": "'See note 6' points at a notes block this sheet does not carry."
+        }
+      },
+      "absences": [
+        {
+          "name": "od_to_bore_concentricity",
+          "why": "The sheet bands the bore (B) and the outside diameter (D) each on its own and prints no concentricity, runout or wall-thickness band between them. A wall is only the difference of two catalogue numbers, which this repo does not derive.",
+          "closed_by": "NAS77 itself, not in data/inbox/specs/ -- unconfirmed that it states one"
+        },
+        {
+          "name": "flange_face_squareness_to_bore",
+          "why": "The flange is dimensioned for thickness (F) and diameter (H); no squareness, perpendicularity or runout of its face to the bore is printed.",
+          "closed_by": "NAS77 itself, not in data/inbox/specs/ -- unconfirmed that it states one"
+        }
+      ]
+    },
+    {
+      "subject": "NAS77A3-015A",
+      "subject_kind": "part_number",
+      "note": "Size 3 (.1900 in bore), dash -015 (.15 in long). The part number on the model and in Enovia. The STEP names its instances NAS77C3-015: per the family material_codes, that differs from this by the material letter only.",
+      "values": {
+        "bore_B": {
+          "nominal": 4.826,
+          "min": 4.826,
+          "max": 4.864,
+          "units": "mm",
+          "text": ".1900 in / 4.826 mm; +.0015/-.0000 in = +.038/-.000 mm, so .1900 to .1915 in.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "NAS77A3-xxx",
+            "column": "B"
+          },
+          "confidence": "traced"
+        },
+        "od_D": {
+          "nominal": 7.965,
+          "min": 7.952,
+          "max": 7.965,
+          "units": "mm",
+          "text": "*0.3136 in / 7.965 mm, starred. The footnote in the D column reads +.000/-.0005 in (+.000/-.013 mm).",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "NAS77A3-xxx",
+            "column": "D"
+          },
+          "confidence": "inferred",
+          "note": "Inferred, not traced, because a SECOND '*' footnote, '+.000/-.0020 in (+.000/-.051 mm)', sits under the B column and no B value is starred; the star on D was taken to mean the one in D's own column. If the other one was meant the band is -.0020. Nothing in the topology cites this value."
+        },
+        "flange_thickness_F": {
+          "nominal": 1.575,
+          "min": 1.445,
+          "max": 1.575,
+          "units": "mm",
+          "text": ".062 in / 1.575 mm; +.000/-.005 in = +.00/-.13 mm. The sheet's own mm column is used for the band (1.575 - .13 = 1.445); the inch band gives 1.448.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "NAS77A3-xxx",
+            "column": "F",
+            "figure": "flange, '.062 +.000 / -.005'"
+          },
+          "confidence": "traced"
+        },
+        "flange_od_H": {
+          "nominal": 11.1,
+          "min": 10.85,
+          "max": 11.35,
+          "units": "mm",
+          "text": ".437 in / 11.100 mm; ±.010 in = ±.25 mm.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "NAS77A3-xxx",
+            "column": "H"
+          },
+          "confidence": "traced"
+        },
+        "length_L": {
+          "nominal": 0.15,
+          "plus_minus": 0.005,
+          "units": "in",
+          "text": "Dash -015 = .15 in by the sheet's rule for xxx; L ± .005 in.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "note": "xxx footnote, and figure L ± .005",
+            "figure": "L leader"
+          },
+          "confidence": "traced"
+        },
+        "material_A": {
+          "text": "A = Aluminum bronze alloy 642 per AMS 4640.",
+          "at": {
+            "sheet": 1,
+            "pdf_page": 1,
+            "note": "material options, 'shown above'"
+          },
+          "confidence": "traced"
+        }
+      },
+      "absences": [
+        {
+          "name": "trailing_A_of_015A",
+          "why": "The sheet decodes the letter after NAS77 (material) and the dash number (length) and nothing after the dash number. The A in NAS77A3-015A is not explained; the intro lists 'aluminum coating' as a finish option but gives no code for it.",
+          "closed_by": "NAS77 itself, not in data/inbox/specs/"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Only this one page was read; the catalogue's other journal-bearing pages are not claimed.",
+    "Column H is the flange DIAMETER (the figure's H dimension runs across the flange), not a thickness; F is the thickness."
+  ]
+}

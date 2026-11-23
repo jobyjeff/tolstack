@@ -1218,6 +1218,27 @@ V2_READ_OFF_THEIR_SHEETS = {
 #: The two the same handoff read and left open.
 V2_LEFT_OPEN_BY_THEIR_SHEET = {"pitch_arm_radius", "pitch_arm_bore_to_clamp_face"}
 
+#: v2 edges on the standard parts that cite their spec sheet (handoff
+#: v2s_standard_parts_cite_their_spec_sheets, 2026-11-22): the inner races'
+#: widths (MS14101-3, MS14103-3) and the bushings' flange thicknesses (NAS77).
+V2_CITE_THEIR_SPEC_SHEETS = {
+    "pitch_link_upper_inner_race_width", "tan_link_upper_inner_race_width",
+    "pitch_link_flanged_bushing_flange_thickness",
+    "tan_link_flanged_bushing_flange_thickness",
+}
+
+#: The other eighteen edges on those parts, read against the same sheets and
+#: left open, each note saying what the sheet gives instead of the missing
+#: relation: nine race centre and bore edges and the bushings' wall and
+#: squareness, and the bolts' shank straightness (a per-inch rate).
+V2_LEFT_OPEN_BY_THEIR_SPEC_SHEET = {
+    f"{k}_{s}" for k in ("pitch_link", "tan_link") for s in (
+        "lower_outer_race_od_to_centre", "upper_outer_race_od_to_centre",
+        "lower_inner_race_bore_to_ball", "upper_inner_race_bore_to_ball",
+        "upper_inner_race_face_to_ball", "flanged_bushing_wall",
+        "flanged_bushing_bore_to_flange", "bolt_shank_straight_to_race",
+        "bolt_shank_race_to_flanged")}
+
 
 def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     """Jeff, 2026-11-08: the mount sits on the hub's top face, is located
@@ -1250,12 +1271,16 @@ def test_model_v2_locates_the_tan_link_mount_by_boss_seat_and_fasteners():
     # leaves open say what it has instead; every other v2 edge still waits on
     # its own drawing.
     for edge in v2.edges:
-        if edge.id in V2_TAKEN_FROM_V1 | V2_READ_OFF_THEIR_SHEETS:
+        if edge.id in (V2_TAKEN_FROM_V1 | V2_READ_OFF_THEIR_SHEETS
+                       | V2_CITE_THEIR_SPEC_SHEETS):
             assert edge.dimension is not None, edge.id
             continue
         assert edge.dimension is None, edge.id
         if edge.id in V2_LEFT_OPEN_BY_THEIR_SHEET:
             assert (edge.note or "").startswith("No value. 215071-C"), edge.id
+            continue
+        if edge.id in V2_LEFT_OPEN_BY_THEIR_SPEC_SHEET:
+            assert (edge.note or "").startswith("Open. "), edge.id
             continue
         assert "Value to come" in (edge.note or ""), edge.id
     assert "hub_to_pitch_plate_spindle_coaxiality" not in {e.id for e in v2.edges}
@@ -3360,3 +3385,29 @@ def test_model_v2_each_links_plate_end_reaches_the_plate_through_race_bolt_and_b
                          "pitch_plate_215735_001"], parts
         assert v2.body_of(v2.node(start).parts[0]).id == lug
         assert {v2.body_of(p).id for p in parts} == {"pitch_plate"}
+
+
+def test_v2_standard_part_edges_cite_the_library_value_they_name():
+    """Each valued edge's band is the library's, value for value, and its
+    citation names the sheet the library read it from."""
+    from tolerance_stack import build_library, load_events
+    library = build_library(load_events(
+        Path(__file__).resolve().parent.parent / "docs" / "spec_library" / "events"))
+    v2 = load_topology(MODEL_V2)
+    pins = {
+        "pitch_link_upper_inner_race_width": ("MS14101-3", "ball_width_W", 21),
+        "tan_link_upper_inner_race_width": ("MS14103-3", "ball_width_W", 22),
+        "pitch_link_flanged_bushing_flange_thickness": ("NAS77A3-015A", "flange_thickness_F", 1),
+        "tan_link_flanged_bushing_flange_thickness": ("NAS77A3-015A", "flange_thickness_F", 1),
+    }
+    assert set(pins) == V2_CITE_THEIR_SPEC_SHEETS
+    for edge_id, (subject, field, sheet) in pins.items():
+        dim = v2.edge(edge_id).dimension
+        lib = library.value(subject, field).value
+        assert (dim.nominal, dim.min, dim.max) == (lib.nominal, lib.min, lib.max), edge_id
+        ref = dim.source_ref
+        assert (ref.kind, ref.confidence, ref.sheet) == ("spec", "traced", sheet), edge_id
+        assert ref.document == library.value(subject, field).document, edge_id
+    assert v2.edge("pitch_link_upper_inner_race_width").dimension.nominal == 7.14
+    assert v2.edge("tan_link_upper_inner_race_width").dimension.nominal == 11.10
+    assert v2.edge("tan_link_flanged_bushing_flange_thickness").dimension.min == 1.445

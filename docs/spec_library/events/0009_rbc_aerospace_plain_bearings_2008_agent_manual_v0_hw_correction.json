@@ -1,0 +1,79 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20261122-rbc-aerospace-plain-bearings-2008-agentmanual-v0-hw-correction",
+  "seq": 9,
+  "mode": "correction",
+  "supersedes": "20260910-rbc-aerospace-plain-bearings-2008-agentmanual-v0",
+  "reason": "MS14101-3 had its H and W columns swapped. On page 21 the header order is B, D, H, W, A and the -3 row reads .1900 | .5625 | .218 (5.54) | .281 (7.14) | .293, so H (outer ring width, +/-.005) is .218 / 5.54 and W (the ball, wider, +.000/-.002) is .281 / 7.14; event 0006 recorded 7.14 as width_H and 5.54 as ball_width_W. The figure agrees: W is the overall width and H the narrower one inside it. MS14103-3 on page 22 was read correctly (H .327 / 8.31, W .437 / 11.10); its W is restated only to add the band the sheet prints as numbers.",
+  "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+  "parsed_at": "2026-11-22",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff v2s_standard_parts_cite_their_spec_sheets",
+    "recipe": "Re-read pages 21 and 22 from the PDF text layer (word boxes: the header letters B, D, H, W, A centre over x 185, 238, 288, 338, 389 pt; the -3 row's .218 sits at 271 pt, under H) and on 2.2x renders of both pages."
+  },
+  "document_meta": {
+    "title": "Plain Bearings -- Spherical Bearings, Rod End Bearings, Journal Bearings, Links and Assemblies",
+    "issuer": "RBC Bearings Incorporated"
+  },
+  "entries": [
+    {
+      "subject": "MS14101-3",
+      "subject_kind": "part_number",
+      "values": {
+        "width_H": {
+          "nominal": 5.54,
+          "min": 5.41,
+          "max": 5.67,
+          "units": "mm",
+          "text": ".218 in / 5.54 mm. Band ±.005 in / ±.13 mm, per the column H header.",
+          "at": {
+            "sheet": 21,
+            "pdf_page": 21,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "-3",
+            "column": "H"
+          },
+          "confidence": "traced"
+        },
+        "ball_width_W": {
+          "nominal": 7.14,
+          "min": 7.09,
+          "max": 7.14,
+          "units": "mm",
+          "text": ".281 in / 7.14 mm. Band +.000/-.002 in = +.00/-.05 mm, per the column W header. The ball's width, which is the inner race's width.",
+          "at": {
+            "sheet": 21,
+            "pdf_page": 21,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "-3",
+            "column": "W"
+          },
+          "confidence": "traced"
+        }
+      }
+    },
+    {
+      "subject": "MS14103-3",
+      "subject_kind": "part_number",
+      "values": {
+        "ball_width_W": {
+          "nominal": 11.1,
+          "min": 11.05,
+          "max": 11.1,
+          "units": "mm",
+          "text": ".437 in / 11.10 mm. Band +.000/-.002 in = +.00/-.05 mm, per the column W header. The ball's width, which is the inner race's width.",
+          "at": {
+            "sheet": 22,
+            "pdf_page": 22,
+            "table": "DIMENSIONS — TOLERANCES",
+            "row": "-3",
+            "column": "W"
+          },
+          "confidence": "traced"
+        }
+      }
+    }
+  ]
+}
