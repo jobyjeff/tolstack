@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_contact_suggestions.py",
+  "expect_red": "test_a_shared_mesh_part_with_no_place_is_listed_but_never_a_take",
+  "mutations": [
+    {
+      "contract": "A part that shares its mesh with another part of the model and declares no occurrence is `placed: false`: ranked, never offered as a Take.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "Calls every part placed: the silent wrong offer the issue describes, with nothing on the row to say the face may be the other lug's.",
+      "file": "scripts/build_contact_suggestions.py",
+      "find": "        return None, len(self.mesh_parts(topology).get(sha, [])) < 2",
+      "replace": "        return None, True"
+    }
+  ]
+}

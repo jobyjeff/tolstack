@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a repaint does not lay out again: the same model and layout file give the same map geometry, a model edited in place is laid again, and each model keeps its gathered walk while another model is drawn",
+  "mutations": [
+    {
+      "contract": "The map's layout is remembered by the content of its inputs, so a repaint of a model already drawn does not lay it out again.",
+      "issue": "docs/issues/ISSUE_20261121_the_viewer_node_suite_runs_278_seconds_and_the_default_tier_times_it_out_at_180.md",
+      "note": "Never reads the memo, the rule before 2026-11-22: every repaint re-lays v1's map (~0.6 s), which took the node suite from 19 s to 278 s.",
+      "file": "apps/viewer/map.js",
+      "find": "    if (key !== null && layoutMemo.has(key)) return layoutMemo.get(key);",
+      "replace": "    if (false) return layoutMemo.get(key);"
+    },
+    {
+      "contract": "Each model keeps its own gathered walk, so drawing another model and coming back does not gather it again.",
+      "issue": "docs/issues/ISSUE_20261121_the_viewer_node_suite_runs_278_seconds_and_the_default_tier_times_it_out_at_180.md",
+      "note": "One slot for every model again, the rule before 2026-11-22: drawing another model forgets this one's walk.",
+      "file": "apps/viewer/topology.js",
+      "find": "    gatherMemo.set(topoProj, { layout: layout, out: out });",
+      "replace": "    gatherMemo = new WeakMap(); gatherMemo.set(topoProj, { layout: layout, out: out });"
+    }
+  ]
+}

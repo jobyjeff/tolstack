@@ -22,6 +22,10 @@ const path = require("path");
 const http = require("http");
 
 const here = __dirname;
+// The wall time the closing summary prints runs from here: loading the
+// sources and starting the stand-in servers are part of what a caller waits for.
+const STARTED = Date.now();
+const SLOWEST_SHOWN = 8;
 const argv = process.argv.slice(2);
 const repoFlag = argv.indexOf("--repo");
 const repoRoot = repoFlag === -1
@@ -476,6 +480,22 @@ for (const f of files) {
       failed++;
       console.log(`FAIL  ${r.name}\n      ${r.error}`);
     }
+  }
+  // The run's own wall time and its slowest checks, printed by every run for
+  // the reason the projection pairing line above is: the [real] tier skips in
+  // every worktree, so a render that took the suite from 19 s to 278 s
+  // passed eleven handoffs before a batch merge's timeout found it
+  // (the_viewer_node_suite_runs_inside_its_default_tier_timeout, 2026-11-21).
+  // An armed run's lesson copies these lines. CPU seconds sit beside the
+  // wall clock because on this shared box the wall time is partly other
+  // sessions' load, and the CPU time is the suite's own cost.
+  const slowest = results.filter((r) => !r.skipped && typeof r.ms === "number")
+    .sort((a, b) => b.ms - a.ms).slice(0, SLOWEST_SHOWN);
+  const cpu = process.cpuUsage();
+  console.log(`\nwall time: ${((Date.now() - STARTED) / 1000).toFixed(1)} s, ` +
+    `cpu ${((cpu.user + cpu.system) / 1e6).toFixed(1)} s; slowest checks:`);
+  for (const r of slowest) {
+    console.log(`  ${(r.ms / 1000).toFixed(2).padStart(7)} s  ${r.name}`);
   }
   // A SKIPPED TIER BELONGS IN THE TOTAL LINE, because the total line is the
   // only line a caller reliably reads. This printed `368/368 passed` and

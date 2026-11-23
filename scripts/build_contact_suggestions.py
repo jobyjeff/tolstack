@@ -33,6 +33,21 @@ and one named ``<this mesh's product>.<n>``. The second arm is what finds blade
 The same rule in two languages is paired by
 ``tests/test_contact_suggestions.py`` against the JS source.
 
+**A part with a declared place is measured there and nowhere else**
+(2026-11-21, handoff ``a_take_on_a_lug_feature_binds_that_lugs_own_face``).
+v2's two plate lugs are separate parts on one mesh each -- both straight
+bushings are ``asm217755_214820_002`` -- and the ranking above, run per MESH,
+gave both lugs whichever slot ranked best: the tangential link's bore, for the
+pitch link's feature too. So an end whose part has an occurrence
+(``part_occurrence``: its own ``occurrence``, else its nearest same-mesh
+parent's -- a race is a solid of its bearing's mesh, at the bearing's place)
+is measured at that one occurrence, exactly as ``AA.pinnedOccurrences`` draws
+it. An end whose part declares none and shares its mesh with another part of
+the same model cannot be told apart from that part: it is still ranked (over
+every slot, as before), and the end says ``"placed": false``, which the
+annotator reads as "show it, offer no Take" (``docs/ANNOTATION_SURFACE.md``,
+"Contact suggestions").
+
 Usage -- from the MAIN checkout, where ``data/`` is::
 
     venv-win/Scripts/python.exe scripts/build_contact_suggestions.py
@@ -127,6 +142,34 @@ def candidate_occurrences(sha: str, own: Dict[str, List[Dict[str, Any]]],
     return out
 
 
+def pinned_occurrences(sha: str, key: str, own: Dict[str, List[Dict[str, Any]]],
+                       every: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """``AA.pinnedOccurrences`` for one part: the mesh's own record at ``key``,
+    else another mesh's record at that path, borrowed (blade 1's design pitch
+    link is recorded on the instrumented mesh). ``[]`` when no mesh records it."""
+    mine = [o for o in own.get(sha, []) if o["key"] == key]
+    if mine:
+        return mine
+    return [dict(o, mesh=sha, own=False) for o in every if o["key"] == key][:1]
+
+
+def part_occurrence(parts: Dict[str, Any], part_id: Optional[str],
+                    sha_of) -> Optional[str]:
+    """``AA.partOccurrence``: the occurrence a part is at -- its own
+    ``occurrence``, else the nearest ``parent`` that declares one, when that
+    parent resolves to the same mesh (a bearing's race is a solid of the
+    bearing's mesh, at the bearing's place). ``None`` when neither says."""
+    part = parts.get(part_id) if part_id else None
+    sha = sha_of(part_id)
+    seen = set()
+    while part is not None and part.id not in seen:
+        seen.add(part.id)
+        if part.occurrence:
+            return part.occurrence if sha_of(part.id) == sha else None
+        part = parts.get(part.parent) if part.parent else None
+    return None
+
+
 # ---------------------------------------------------------------------------
 # one edge
 # ---------------------------------------------------------------------------
@@ -142,9 +185,36 @@ class Store:
                            for m in self.meshes}
         self.own, self.every = occurrence_rows(self.provenance)
         self._parts: Dict[str, ic.PartFaces] = {}
+        self._mesh_parts: Dict[str, Dict[str, List[str]]] = {}
 
     def resolve(self, part: Optional[str]) -> Optional[Dict[str, str]]:
         return btp.resolve_mesh(self.meshes, part, self.aliases)
+
+    def sha_of(self, part: Optional[str]) -> Optional[str]:
+        mesh = self.resolve(part)
+        return mesh["sha256"] if mesh else None
+
+    def mesh_parts(self, topology) -> Dict[str, List[str]]:
+        """Per mesh sha, the model's parts that resolve to it."""
+        if topology.id not in self._mesh_parts:
+            out: Dict[str, List[str]] = {}
+            for part in topology.parts:
+                sha = self.sha_of(part.id)
+                if sha:
+                    out.setdefault(sha, []).append(part.id)
+            self._mesh_parts[topology.id] = out
+        return self._mesh_parts[topology.id]
+
+    def place(self, topology, part: Optional[str]) -> Tuple[Optional[str], bool]:
+        """``(occurrence, placed)`` for one part of ``topology``: the occurrence
+        it is measured at (``part_occurrence``), and whether its place is
+        known -- declared, or the only part of the model on its mesh
+        (``AA.partPlaced``)."""
+        sha = self.sha_of(part)
+        occurrence = part_occurrence({p.id: p for p in topology.parts}, part, self.sha_of)
+        if occurrence or not sha:
+            return occurrence, True
+        return None, len(self.mesh_parts(topology).get(sha, [])) < 2
 
     def part_faces(self, sha: str) -> ic.PartFaces:
         if sha not in self._parts:
@@ -156,7 +226,11 @@ class Store:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         return fbf.mesh_units(manifest, self.provenance.get(sha, {}))
 
-    def occurrences(self, sha: str) -> List[Dict[str, Any]]:
+    def occurrences(self, sha: str, pin: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Where a part on ``sha`` may be measured: its one declared occurrence
+        when it has one, else every candidate slot of its mesh."""
+        if pin:
+            return pinned_occurrences(sha, pin, self.own, self.every)
         product = (self.provenance.get(sha, {}).get("extraction") or {}).get("product_name")
         return candidate_occurrences(sha, self.own, self.every, product)
 
@@ -180,9 +254,13 @@ def _end(topology, edge, node_id: str, store: Store,
     feature, _reason = fi.edge_end_feature(models or {topology.id: topology},
                                            fi.StackKey(kind="topology_edge", topology_id=topology.id,
                                                        edge_id=edge.id), direction)
+    occurrence, placed = store.place(topology, part)
+    # `placed` false: the part shares its mesh with another part of this model
+    # and nothing says which slot is its -- ranked, never offered as a Take.
     row: Dict[str, Any] = {"node": node_id, "part": part, "mesh": None,
                            "feature": feature.as_dict() if feature else None,
-                           "asks": rule["surface"] if rule else None}
+                           "asks": rule["surface"] if rule else None,
+                           "occurrence": occurrence, "placed": placed}
     if mesh:
         provenance = store.provenance.get(mesh["sha256"], {})
         row["mesh"] = {"sha256": mesh["sha256"], "part_id": mesh["part_id"],
@@ -246,10 +324,11 @@ def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = No
     if not_mm:
         return empty("no_units", "the mesh does not declare millimetres: "
                      + ", ".join(s[:12] for s in not_mm))
-    occurrences = [store.occurrences(s) for s in shas]
+    occurrences = [store.occurrences(s, e["occurrence"]) for s, e in zip(shas, ends)]
     if not all(occurrences):
         return empty("no_occurrence", "no place in the assembly is recorded for "
-                     + ", ".join(str(e["part"]) for e, o in zip(ends, occurrences) if not o))
+                     + ", ".join(str(e["part"]) + (f" at {e['occurrence']}" if e["occurrence"] else "")
+                                 for e, o in zip(ends, occurrences) if not o))
 
     found = ic.edge_candidates(pairing, store.part_faces(shas[0]), store.part_faces(shas[1]),
                                occurrences[0], occurrences[1], accepts=accepts, axes=axes)
@@ -259,6 +338,11 @@ def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = No
         reach = ic.CONTACT_TOLERANCES["reach_mm"]
         if found["status"] == "no_fit":
             note = "no face of the kind this interface asks for fits near the other part"
+        elif found["nearest_gap_mm"] is None:
+            # Both ends are one mesh at one occurrence -- a bearing's two races,
+            # solids of one mesh at the bearing's place -- and an occurrence is
+            # never compared with itself.
+            note = "both parts are one 3D model at one place; its faces are not compared with each other"
         elif not found["pairs_in_reach"]:
             note = (f"the two parts never come within {reach} mm of each other; "
                     f"nearest {found['nearest_gap_mm']:.2f} mm")
@@ -324,6 +408,7 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
             "gap_edges": len(rows),
             "by_status": dict(sorted(by_status.items())),
             "single_clear_top": sum(1 for e in rows if clear_top(e)),
+            "unplaced": sum(1 for e in rows if not row_placed(e)),
         },
         "topologies": topologies,
     }
@@ -332,13 +417,20 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
     return out_path, data
 
 
+def row_placed(row: Dict[str, Any]) -> bool:
+    """Whether both ends are measured where their own parts are
+    (``AA.contactRowPlaced``): a row with an end ``placed: false`` is listed
+    and offered no Take."""
+    return all(row[side].get("placed", True) for side in SIDES)
+
+
 def clear_top(row: Dict[str, Any]) -> bool:
     """Exactly one clear top pair: the relation its pairing is for (a contact,
     or a flat across an axis), no rival occurrence pair that touches different
     faces, and the runner-up scoring visibly worse. Every face it names is of
     the class its end asks for, by construction (``ic.end_pairing``)."""
     candidates = row.get("candidates") or []
-    if row.get("status") != "ok" or row.get("ambiguous_with"):
+    if row.get("status") != "ok" or row.get("ambiguous_with") or not row_placed(row):
         return False
     wanted = "across" if row.get("pairing") == "plane_across_axis" else "contact"
     if candidates[0]["relation"] != wanted:
@@ -363,7 +455,8 @@ def report_lines(data: Dict[str, Any]) -> List[str]:
                 out.append(f"{head} {e['status']}: {e.get('note', '')}")
                 continue
             top = e["candidates"][0]
-            flag = "" if clear_top(e) else "  (not clear)"
+            flag = (("" if clear_top(e) else "  (not clear)")
+                    + ("" if row_placed(e) else "  (place not known)"))
             out.append(f"{head} {len(e['candidates'])} candidate(s), top "
                        f"{top['relation']} {top['from']['surface']}/{top['to']['surface']} "
                        f"{json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in top['evidence'].items()})}"
@@ -402,7 +495,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     summary = data["summary"]
     print(f"wrote {out}")
     print(f"  {summary['gap_edges']} gap edge(s); {summary['single_clear_top']} with "
-          f"one clear top pair")
+          f"one clear top pair; {summary['unplaced']} with a part whose place is not known")
     for status, count in summary["by_status"].items():
         print(f"    {count:>4}  {status}")
     for line in report_lines(data):

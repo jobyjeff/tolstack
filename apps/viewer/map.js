@@ -591,9 +591,33 @@
   // THE LAYOUT. `model` is the projection's model block (or the page's model
   // object -- only its arrays are read), `doc` the authored layout file.
   // Returns the geometry views/map.js draws, or null with no layout.
+  //
+  // Remembered by the CONTENT of its three inputs, because the page re-draws
+  // the map on every study, Groups and Unused click and the layout is a pure
+  // function of them: v1's computed map spends its whole repair and corner
+  // budget (VA.MAP.budget) and costs ~0.6 s a time, which is what took the
+  // viewer's node suite from 19 s to 278 s on 2026-11-21 -- every study's grid
+  // re-laid the same map (the_viewer_node_suite_runs_inside_its_default_tier_
+  // timeout). Keyed by content, never by identity, so a caller that edits a
+  // model in place and lays it out again gets the new layout. The geometry
+  // returned is shared between callers and is read, never written.
+  var layoutMemo = new Map();
+  var LAYOUT_MEMO_SIZE = 16;
   VA.mapLayout = function (model, doc, metrics) {
     if (!model || !doc || !doc.places) return null;
     var M = metrics || VA.MAP;
+    var key = null;
+    try { key = JSON.stringify([model, doc.places, M]); } catch (_) { key = null; }
+    if (key !== null && layoutMemo.has(key)) return layoutMemo.get(key);
+    var geo = layOut(model, doc, M);
+    if (key !== null) {
+      layoutMemo.set(key, geo);
+      if (layoutMemo.size > LAYOUT_MEMO_SIZE) layoutMemo.delete(layoutMemo.keys().next().value);
+    }
+    return geo;
+  };
+
+  function layOut(model, doc, M) {
     // Where a route still crosses a box, sits its symbol on one or shares a
     // run, its two pins try the other sides of their parts -- every pair of
     // sides, in the interfaces' id order: a try is kept only where the map's
@@ -628,7 +652,7 @@
     delete geo.defects;
     delete geo.sideOf;
     return geo;
-  };
+  }
 
   // One layout, with `turned` -- {"<interface>|<feature>": side} -- putting
   // a pin on a side of the repair's choosing (VA.mapLayout).

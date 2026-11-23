@@ -417,3 +417,17 @@ over the cap on every whole run. Slowest 15 suites:
     62.0s   37 checks  annotate flyout (repo-root mount + file:// degradation)
     58.7s   10 checks  the scene pane reads over HTTP (drawing-checker's mounts, no grant)
 ```
+
+## Measurement 2026-11-22 (review, the_viewer_node_suite_runs_inside_its_default_tier_timeout)
+
+`node scripts/run_viewer_browser_tests.mjs --repo <scratch root>` on the merged
+tree `94f72834` (tree `e0cecc7f`): **3025 s** against the 1800 s merge budget,
+recorded on the ledger as over. One suite carries most of it: "a pattern is
+bound as its like faces …" took **1063.2 s** for 11 checks and went red at 2/11.
+That is the whole-tier-only red in
+`ISSUE_20261120_the_pattern_suites_parts_filter_count_is_red_in_the_whole_browser_tier_and_green_alone.md`.
+The next slowest were the model drawn alone at 208.9 s, the suggestion suite at
+187.8 s (also red, `ISSUE_20261117_…mount_line_never_appearing`), topology
+http at 144.5 s and topology file:// at 118.6 s. Without the pattern suite's
+stall the tier is about 1960 s. The map-layout memo in this handoff brought
+topology http back from 258 s to 144.5 s.

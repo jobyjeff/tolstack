@@ -384,7 +384,10 @@ export const DECLARED_GUARDS = {
   // results pane is the "Pick a study" picker. Seven guards renamed with their
   // rewrite (each asserted a sentence that described the page, and now asserts
   // its absence); the picker and six of the seven carry a spec.
-  fast: { declared: 623, enrollable: 623, names: "501320e323a2" },
+  // 2026-11-22 (the_viewer_node_suite_runs_inside_its_default_tier_timeout): +1 --
+  // a repaint does not lay out again (the map's layout and the gathered walk
+  // are remembered). It carries a spec.
+  fast: { declared: 624, enrollable: 624, names: "301cd115b8d9" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -491,7 +494,7 @@ export const DECLARED_GUARDS = {
   // 2026-11-20 (the_viewer_says_nothing_about_itself): -1 -- the no-element and
   // the scoped instruction are one empty line now, so their two checks are one,
   // renamed. It carries a spec.
-  annotate: { declared: 333, enrollable: 333, names: "98f948721b08" },
+  annotate: { declared: 334, enrollable: 334, names: "8c7682e7b34b" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the

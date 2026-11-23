@@ -2326,13 +2326,17 @@
     return order;
   }
 
-  var gatherMemo = { layout: null, topoProj: null, out: null };
+  // One remembered result per model (the projection object), not one in
+  // all: the page switches between models and the [real] checks walk every
+  // model in turn, and a single slot re-gathered each one on every switch
+  // (~0.3-0.6 s a time on the live models, 2026-11-22). Still keyed by
+  // identity, so a new projection is gathered afresh.
+  var gatherMemo = new WeakMap();
 
   VA.gatherParts = function (layout, topoProj) {
     if (!layout || !topoProj) return layout;
-    if (gatherMemo.layout === layout && gatherMemo.topoProj === topoProj) {
-      return gatherMemo.out;
-    }
+    var memo = gatherMemo.get(topoProj);
+    if (memo && memo.layout === layout) return memo.out;
     var pins = VA.partPins(topoProj);
     var rows = layout.rows || [];
     var order = gatheredOrder(rows, topoProj, pins);
@@ -2361,7 +2365,7 @@
         out.columns = laid.columns;
       }
     }
-    gatherMemo = { layout: layout, topoProj: topoProj, out: out };
+    gatherMemo.set(topoProj, { layout: layout, out: out });
     return out;
   };
 
