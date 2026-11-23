@@ -6201,7 +6201,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       after the pane opens settles first by posting a read-only command
       (`scene-view`) through the queue and awaiting its `annotate:result`
       (the map suite's pin hover, 2026-11-19). Ask it of any new short scene
-      wait that follows a pane open. **Identity writes no longer queue**
+      wait that follows a pane open. Second sighting 2026-11-22 (the nav
+      body-row hover): `__sweep.bodies` is not settled either (true at 0.5 s,
+      queue ~15 s deep), and since the pane is a same-origin iframe on the
+      page's own main thread, a `locator.hover` stalled at "performing hover
+      action" is this cause, not a rebuilt row. **Identity writes no longer queue**
       (2026-11-19, `ExecQueue.runAfterLoad`, `AA.IDENTITY_WRITE_VERBS`). They
       wait only for the load gate, and a second write that arrives while one
       runs is *dropped* as `busy`, not run after it. A new sender that posts
