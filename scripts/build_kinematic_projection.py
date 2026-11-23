@@ -209,24 +209,40 @@ def project_point(point: PointResult) -> Dict[str, Any]:
 SUB_STACK_KINDS = ("linkage", "stop_position")
 
 
-def project_row(study, row) -> Dict[str, Any]:
+def topology_title(topologies_dir: Path, topology_id: Optional[str]) -> Optional[str]:
+    """A topology's own title, read off its document (``None`` where absent)."""
+    path = topologies_dir / f"topology_{topology_id}.json"
+    raw = _read_json_or_none(path) if topology_id else None
+    return raw.get("title") if isinstance(raw, dict) else None
+
+
+def project_row(study, row, topologies_dir: Path) -> Dict[str, Any]:
     """A contributor row, and where its value comes from (``VALUE_FROM``):
     this model's edge, another model's, or none -- the word a reader's badge
-    is chosen by, decided here and never in the browser."""
-    return {**row.as_dict(), "value_from": row.contributor.value_from(study.topology)}
+    is chosen by, decided here and never in the browser. A borrowed value
+    names the model it is borrowed from, by that model's own title."""
+    word = row.contributor.value_from(study.topology)
+    out = {**row.as_dict(), "value_from": word}
+    if word == VALUE_FROM[1]:
+        lender = row.contributor.dimension_ref or row.contributor.borrowed_from
+        out["lender"] = {**lender, "title": topology_title(topologies_dir, lender["topology"])}
+    return out
 
 
-def project_group(study, group) -> Dict[str, Any]:
+def project_group(study, group, topologies_dir: Path) -> Dict[str, Any]:
     """A ``study_ref``'s line, each leaf saying where its value comes from:
     the sub-study's edge, which is another model's when the ref is."""
     projected = group.as_dict()
     word = VALUE_FROM[0] if group.ref.topology == study.topology else VALUE_FROM[1]
     for child in projected["children"]:
         child["value_from"] = word
+        if word == VALUE_FROM[1]:
+            child["lender"] = {"topology": group.ref.topology, "edge": child["edge"],
+                               "title": topology_title(topologies_dir, group.ref.topology)}
     return projected
 
 
-def project_stop(study, sweep, stop) -> Dict[str, Any]:
+def project_stop(study, sweep, stop, topologies_dir: Path) -> Dict[str, Any]:
     """One stop: its fold at the top level, and the two sub-stacks it is made of.
 
     The top-level interval fields are the stop's own fold
@@ -245,7 +261,7 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
     point, stack = at_stop.point, at_stop.stack
     stack_groups = []
     for group in stack.groups:
-        projected = project_group(study, group)
+        projected = project_group(study, group, topologies_dir)
         projected["stop_position"] = True
         projected["gap"] = group.ref.gap
         for child in projected["children"]:
@@ -261,8 +277,9 @@ def project_stop(study, sweep, stop) -> Dict[str, Any]:
         **rounded(at_stop.interval.as_dict()),
         "driver_entry": stack.entry,
         "gap_count": point.gap_count,
-        "rows": [project_row(study, row) for row in point.rows],
-        "groups": [project_group(study, group) for group in point.groups] + stack_groups,
+        "rows": [project_row(study, row, topologies_dir) for row in point.rows],
+        "groups": ([project_group(study, group, topologies_dir) for group in point.groups]
+                   + stack_groups),
         "sub_stacks": [
             {"kind": SUB_STACK_KINDS[0], "term_count": sum(1 for r in point.rows if r.term),
              "refused_count": point.refused_count,
@@ -470,7 +487,7 @@ def project_study(path: Path, data_root: Path, topologies_dir: Path,
         "gap_count": len(gap_rows),
         "gap_rows": gap_rows,
         "envelope": [project_point(p) for p in points],
-        "stops": [project_stop(study, sweep, s) for s in study.stops],
+        "stops": [project_stop(study, sweep, s, topologies_dir) for s in study.stops],
         "range": project_range(study, sweep),
         "contributors": project_contributors(study, points),
         "study_refs": project_study_refs(study, sweep, points),

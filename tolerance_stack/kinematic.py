@@ -1523,8 +1523,14 @@ class ChildRow:
             "band": {"id": dim.id, "name": dim.name, "nominal": dim.nominal,
                      "min": dim.min, "max": dim.max, "half_range": dim.half_range,
                      "units": None},
+            # The sub-study edge's band as it carries it, about its own
+            # nominal: what a grid row prints where the edge is another
+            # model's and this model's edge of the same id has no value.
+            "source": {"nominal": self.sub.source.nominal, "min": self.sub.source.min,
+                       "max": self.sub.source.max},
             "confidence": src.confidence if src is not None else None,
             "source_kind": src.kind if src is not None else None,
+            "citation": _citation(src),
         }
 
 
