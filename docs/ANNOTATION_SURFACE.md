@@ -545,7 +545,10 @@ nothing. When a ball joint's two ends are that, the mesh is compared with
 itself, a face never with itself, and only a pair whose ball (the convex
 sphere) is at the end named for the ball (`BALL_WORD`, read off the node's
 name) counts. When the names do not say which end is the ball, the edge is
-not compared, as before: either sphere could be either race's.
+not compared, as before: either sphere could be either race's. A bearing of
+one solid that models no seat at all (MS14103-3: its race's sphere is the
+ball's own surface) and has exactly one ball offers that ball at both ends,
+its evidence saying the seat is not modelled.
 
 **An edge with no candidate says why**, one of
 `interface_contact.EMPTY_REASONS`: no installed mesh for an end, no recorded

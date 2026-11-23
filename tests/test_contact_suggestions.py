@@ -627,3 +627,55 @@ def test_a_ball_joint_whose_ends_do_not_say_which_is_the_ball_is_not_compared(sh
     (joint,) = data["topologies"][0]["edges"]
     assert (joint["status"], joint["nearest_gap_mm"]) == ("no_contact", None)
     assert "one 3D model at one place" in joint["note"]
+
+
+#: A projection built before 2026-11-22 carries no ``nodes``; these checks
+#: wait for the rebuild rather than reading that one as a failure.
+needs_nodes = pytest.mark.skipif(
+    live_projection() is None or any("nodes" not in t for t in live_projection()["topologies"]),
+    reason="the live contact_suggestions.json predates node rows (2026-11-22); "
+           "scripts/rebuild_projections.ps1 rebuilds it")
+
+V2 = REPO_ROOT / "docs" / "topologies" / "topology_vpa_end_stop_v2.json"
+
+#: v2's shared nodes measured with nothing on 2026-11-22, and why: the
+#: tangential link's MS14103-3 is modelled about 6 degrees off its bolt's
+#: axis, so neither race face meets its bushing within the 2 degree margin
+#: (``CONTACT_TOLERANCES["angle_deg"]``). The lesson has the numbers.
+V2_NODES_WITH_NOTHING = ("tan_link_upper_inner_race_flange_seat",
+                         "tan_link_upper_inner_race_clamp_seat")
+
+
+@needs_live
+@needs_nodes
+def test_real_v2s_seats_and_patterns_have_faces_but_the_two_named():
+    v2 = json.loads(V2.read_text(encoding="utf-8"))
+    shared = [n["id"] for n in v2["nodes"] if len(n["parts"]) == 2]
+    (topology,) = [t for t in live_projection()["topologies"] if t["id"] == v2["id"]]
+    rows = {r["node"]: r for r in topology["nodes"]}
+    assert sorted(rows) == sorted(shared)
+    empty = sorted(n for n, r in rows.items() if r["status"] != "ok")
+    assert empty == sorted(V2_NODES_WITH_NOTHING), [(n, rows[n]["note"]) for n in empty]
+    for node_id, row in rows.items():
+        node = next(n for n in v2["nodes"] if n["id"] == node_id)
+        for c in row["candidates"]:
+            assert c["from"]["faces"] and c["to"]["faces"]
+        if node.get("interface") in ic.PATTERN_INTERFACES and row["status"] == "ok":
+            assert row["pairing"] == ic.PATTERN_PAIRING
+            assert row["candidates"][0]["evidence"]["holes"] >= 1
+
+
+@needs_live
+@needs_nodes
+def test_real_v2s_inner_race_ball_centres_are_offered_their_ball():
+    v2 = json.loads(V2.read_text(encoding="utf-8"))
+    balls = [e["id"] for e in v2["edges"] if e.get("interface") == "spherical"
+             and "inner_race" in json.dumps([n["parts"] for n in v2["nodes"] if n["id"] == e["from"]])]
+    assert len(balls) == 4
+    (topology,) = [t for t in live_projection()["topologies"] if t["id"] == v2["id"]]
+    rows = {r["edge"]: r for r in topology["edges"]}
+    for edge_id in balls:
+        row = rows[edge_id]
+        assert row["status"] == "ok", (edge_id, row.get("note"))
+        top = row["candidates"][0]
+        assert top["evidence"]["ball"] == "from" and top["from"]["surface"] == "spherical"
