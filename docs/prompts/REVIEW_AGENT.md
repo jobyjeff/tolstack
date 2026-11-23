@@ -6306,6 +6306,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       test, list every id the widened set brings in and check each against
       the *this-model* lookups after it (`index.edges[...]`, plan rows, map
       keys). An id only the lender has is the case to probe.
+      Same review: a new kinematic study changes which one sorts first, and
+      `testEveryStudyOpensIn3D` took `studies[0]` as v1's (fixed by id).
+      Grep the runners for `studies || [])[0]` when a study is added.
 
 ## Architectural errors to check
 
