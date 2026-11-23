@@ -1222,8 +1222,16 @@
   // same part's other feature, never a face this one mates with; v2's two
   // flanged-bushing bores were offered the plate's spindle bore that way
   // (2026-11-22). A cross-part dimension (a hub's fastener pattern to the
-  // mount's) stays a mate.
+  // mount's) stays a mate. A dimension of ONE part (`kind` structural, its
+  // `part` no assembly) is within it whatever its end nodes name first: the
+  // plate's pilot-to-fastener dimension ends on the piston-body pattern node,
+  // whose first part is the body, and offered the plate's pattern the plate's
+  // own spindle bore (2026-11-23, topology.dimension_ends' rule).
   AA.edgeWithinOnePart = function (topology, edgeId) {
+    var edge = ((topology && topology.edges) || []).filter(function (e) { return e.id === edgeId; })[0];
+    if (edge && edge.kind === "structural" && edge.part && !((topology.parts || []).some(function (p) {
+      return p.parent === edge.part;
+    }))) return true;
     var from = AA.pickEndPartIds(topology, edgeId, AA.DIRECTIONS[0])[0];
     var to = AA.pickEndPartIds(topology, edgeId, AA.DIRECTIONS[1])[0];
     return !!from && from === to;

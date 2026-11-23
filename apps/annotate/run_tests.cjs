@@ -6218,6 +6218,14 @@ check("a part that declares an occurrence is drawn there alone -- its own record
   assertEqual(AA.edgeWithinOnePart(dims, "fit"), false);
   assertEqual(AA.edgeWithinOnePart(dims, "clocking"), false, "a declared face part decides, as the pick does");
   assertEqual(AA.edgeWithinOnePart(dims, "nowhere"), false);
+  // A dimension of one part ending on a node two parts share, the other part named first.
+  const shared = { parts: [{ id: "plate" }, { id: "body" }, { id: "asm" }, { id: "kid", parent: "asm" }],
+    nodes: [{ id: "axis", parts: ["plate"] }, { id: "pattern", parts: ["body", "plate"] }],
+    edges: [{ id: "pilot_to_holes", kind: "structural", part: "plate", from: "axis", to: "pattern" },
+      { id: "asm_dim", kind: "structural", part: "asm", from: "axis", to: "pattern" }] };
+  assertEqual(AA.edgeWithinOnePart(shared, "pilot_to_holes"), true,
+    "the plate's own dimension, though the pattern node names the body first");
+  assertEqual(AA.edgeWithinOnePart(shared, "asm_dim"), false, "an assembly's dimension runs between its parts");
 });
 
 check("a topology that declares occurrences is drawn alone: its own parts' meshes, " +
