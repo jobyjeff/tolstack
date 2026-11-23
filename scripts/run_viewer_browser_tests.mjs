@@ -7303,8 +7303,34 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     await page.waitForTimeout(500);
     const bodyName = await inPane((w) => w.__sweep.tree.bodies[0].name);
     const bodyRowSel = `#navtree [data-nav-kind="body"][data-nav-id="${bodyName}"]`;
-    // Held, not sampled: the pane's rail rebuilds for seconds after the run
-    // loads (its bodies anchoring), and a rebuild clears the hover on its own.
+    // Settled first: the pane runs the page's commands one at a time
+    // (AA.ExecQueue), and opening the model stays queued for ~15s after the
+    // run's bodies are up (measured 2026-11-22, a_body_row_in_the_nav_takes_a_
+    // resting_hover_every_time). Meanwhile the hover's `light` waits behind it,
+    // and the work -- the parts' face classes, the light's face cuts -- holds
+    // the one thread the page and its same-origin pane share, so
+    // `locator.hover` stalls at "performing hover action" and a 1.5s poll
+    // takes 15s. The nav row is never rebuilt under the pointer (a
+    // MutationObserver saw no replacement). So the pane is settled when a
+    // command posted now, behind everything the page has posted, is answered
+    // -- the map hover's barrier (the_map_pin_hover_lights_its_bound_face_
+    // in_the_scene) -- and the hover below times the light alone.
+    const paneSettled = await page.evaluate((timeout) => new Promise((resolve) => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      if (!w) { resolve(false); return; }
+      const id = "body-row-settled-" + Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => { window.removeEventListener("message", on); resolve(false); }, timeout);
+      function on(e) {
+        if (!e.data || e.data.type !== "annotate:result" || e.data.id !== id) return;
+        clearTimeout(timer);
+        window.removeEventListener("message", on);
+        resolve(true);
+      }
+      window.addEventListener("message", on);
+      w.postMessage({ type: "annotate:exec", id, command: ["scene-view"] }, window.location.origin);
+    }), 180000).catch(() => false);
+    // Held, not sampled: the pane's rail may still rebuild once settled (its
+    // bodies anchoring), and a rebuild clears the hover on its own.
     // The tree's row is not rebuilt with it, so the pointer has to LEAVE the
     // row and come back for a new `mouseenter` -- the reader's hand moving
     // off and on -- until a read finds the light on. One read, not three:
@@ -7351,7 +7377,10 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
     {
       const end = Date.now() + 20000;
       const hoverErrors = [];
-      await heldRow.hover({ timeout: 5000 }).catch((e) => hoverErrors.push(String(e.message).slice(0, 120)));
+      // An error's TAIL, colour codes stripped: where the hover stalled
+      // ("performing hover action") is at the end of Playwright's call log.
+      const hoverError = (e) => hoverErrors.push(String(e.message).replace(/\u001b\[\d+m/g, "").slice(-160));
+      await heldRow.hover({ timeout: 5000 }).catch(hoverError);
       while (Date.now() < end) {
         // Polled, not sampled: between two of the pane's rebuilds the light is
         // on for a moment, and a read 300ms later missed it every time.
@@ -7382,20 +7411,29 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
         }));
         await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 2000 }).catch(() => {});
         await page.waitForTimeout(100);
-        await heldRow.hover({ timeout: 2000 }).catch((e) => hoverErrors.push(String(e.message).slice(0, 120)));
+        await heldRow.hover({ timeout: 2000 }).catch(hoverError);
       }
     }
     if (!bodyLit) {
-      console.log(`      [${label}] DIAG body hover ${bodyName}: rows ` +
+      console.log(`      [${label}] DIAG body hover ${bodyName} (pane settled first: ${paneSettled}): rows ` +
         `${await page.locator(bodyRowSel).count()}; last seen under the pointer ${JSON.stringify(lastSeen)}`);
     }
     push("[real] resting on a body row in the nav lights that body in the scene: every part of it " +
       "glows at its resting look, the rest go faint, and nothing is opaque", bodyLit);
     // Left for a heading -- inside the nav, on no row -- so the only thing
     // that can take the light down is the row's own leave.
-    await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 }).catch(() => {});
-    push("[real] ...and leaving it takes the light down",
-      await until((w) => w.__lastLight === null, null, 10000));
+    const leaveErrors = [];
+    await page.locator("#navtree h2.navtree__heading").first().hover({ timeout: 5000 })
+      .catch((e) => leaveErrors.push(String(e.message).replace(/\u001b\[\d+m/g, "").slice(-160)));
+    const lightDown = await until((w) => w.__lastLight === null, null, 10000);
+    if (!lightDown) {
+      console.log(`      [${label}] DIAG body leave ${bodyName}: ` + JSON.stringify({ leaveErrors,
+        hot: await page.evaluate(() => Array.from(document.querySelectorAll("#navtree .navtree__row--hot"))
+          .map((n) => n.getAttribute("data-nav-id"))),
+        heard: await inPane((w) => (w.__heardLight || []).slice(-6).map((c) => c.slice(0, 60))),
+        light: await inPane((w) => w.__lastLight ? w.__lastLight.layers : null) }));
+    }
+    push("[real] ...and leaving it takes the light down", lightDown);
 
     // A feature row in the nav selects its node: the page's selection, and
     // the scene's layer selects it too (the `model select node` the page

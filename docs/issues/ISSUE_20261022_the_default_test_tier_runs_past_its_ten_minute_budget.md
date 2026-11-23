@@ -273,3 +273,12 @@ skipped, 4 deselected in 1044.52s`); `suite-time record` answered `OVER BUDGET b
 `ISSUE_20261121_the_viewer_node_suite_runs_278_seconds_and_the_default_tier_times_it_out_at_180.md`.
 No `--durations=15` was taken; the pareto after that fix is the next measurement
 to take. The box was shared with other sweep workers' suites.
+
+## Measurement 2026-11-22 -- a_body_row_in_the_nav_takes_a_resting_hover_every_time
+
+`C:/workspace/tolstack/venv-win/Scripts/python.exe -m pytest -q`, worktree,
+single process (`-n` is not installed in this venv: `unrecognized arguments:
+-n --dist`): **602 s** (pytest's own 599.71 s), budget 600 s, `suite-time
+record` said `OVER BUDGET by 0m02s`. 2585 passed, 2 failed (the worktree's
+`test_viewer_js_suite` and the already-filed export run-log red), 1 skipped.
+No `--durations` on this run. The pareto is in the earlier measurements here.
