@@ -75,7 +75,7 @@ def v1_view():
 # --- the counts the strategy session derived by hand --------------------------
 
 MODEL_V2_COUNTS = {
-    "bodies": 5, "parts": 33, "features": 99, "dimensions": 75,
+    "bodies": 5, "parts": 33, "features": 99, "dimensions": 76,
     "interfaces": 50, "contacts": 21, "gaps": 29,
     "between_bodies": 8, "within_bodies": 42, "joints": 36,
     # The pilot of a_part_may_contain_parts (2026-11-14): the pitch link
@@ -104,7 +104,10 @@ MODEL_V2_COUNTS = {
     # bushing's end to its bore), the two attachment radii swapped for a
     # radius to each flanged bushing bore, so sixteen more; three contacts
     # more per lug; and the gaps unchanged, six bolt pins for the two
-    # stand-ins and the four bushing pins to the attachment bores.
+    # stand-ins and the four bushing pins to the attachment bores. Since
+    # 2026-11-22 (the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds)
+    # one dimension more: the plate's datum A to the pitch link lug's bore,
+    # the axial height the v2 blade-pitch study's contributor stands on.
     "assemblies": 7,
 }
 
@@ -125,7 +128,7 @@ def test_model_v2_has_the_counts_the_strategy_session_derived(v2_view):
     assert len(v2_view["features"]) == 99
     assert sum(1 for f in v2_view["features"] if f["shared"]) == 42, \
         "21 nodes on two parts are 42 shared features, two each"
-    assert len(v2_view["dimensions"]) == 75
+    assert len(v2_view["dimensions"]) == MODEL_V2_COUNTS["dimensions"]
     assert len(v2_view["interfaces"]) == 50
 
 
