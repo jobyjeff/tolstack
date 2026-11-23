@@ -1,10 +1,10 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: resolved
 class: surface_disagrees_with_itself
 defer_until: 2026-12-05
-resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3; a one-line fix shape (write `base` at register time) for the next sweep with budget
+resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3; a one-line fix shape (write `base` at register time) for the next sweep with budget; resolved 2026-11-22 by handoff the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map -- register() writes the base class, so every box, district and connector wears it from the first paint
 area: viewer/map
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md
@@ -48,3 +48,13 @@ part in a body carries that body's `tv__fill--t*` class before any hover.
 (fresh load: teal boxes, the NAS6403U11D box orange after a probe hover) and
 `08_map_1536_dag_zoomed_tangential_link.png` (the MS14103-3 inner race orange,
 its neighbours teal).
+
+## Resolved 2026-11-22
+
+Fixed by handoff `the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map`
+(deliverable 6): `register()` in `apps/viewer/views/map.js` writes the entry's
+base as the element's class, so a box wears its body's tint, and a connector
+its between-bodies and bundled weight, from the first paint. The connector
+half was the same defect and nobody had seen it. Pinned by the fast-tier
+check "every box wears its body's ink and every connector its weight from the
+first paint, before any hover".

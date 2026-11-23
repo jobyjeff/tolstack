@@ -664,7 +664,22 @@ a bottom row, five columns by nine rows. Since 2026-11-20 (handoff
 either side of the plate -- with each lug's bolt, straight bushing and inner
 race under it and each race on the pitch plate district's bottom edge beside
 its link: seven columns by ten rows, no route in the region crossing another
-(the file's `provenance.arrangement`).
+(the file's `provenance.arrangement`). Since 2026-11-22 (handoff
+`the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map`; Jeff: line the
+lug stacks up, draw each link as the two-force member it is, fewer crossings)
+**each link is five boxes in one line and each lug stack a column**: the
+tangential link a row from the mount end's inner race, beside the mount, to
+the plate end's under its bolt; the pitch link down the seventh column to the
+blade's row; each lug's inner race, bolt and flanged bushing in a column with
+the plate beside the flanged bushing, and each straight bushing in the
+plate's column under it. The same seven by ten, and no route crosses another.
+**A lug stack cannot be one straight line through the plate while each body
+is one rectangle**: the plate's two inner races sit in the pitch plate's
+district, so each link leaves that rectangle from a corner, and the
+gas-spring mount must meet the piston, which pins the rectangle to the base's
+side; and the plate has four sides for the five parts that meet it. The
+handoff's lesson shows the search; `tests/debug_map_arrangement.mjs` scores
+an arrangement the way the page lays it out.
 Nothing in the layout code assumes either shape: a
 pin's side is decided in cell units, a part's name takes whichever corner of
 its box its jumpers leave clear, and a child's row moves aside for a route
@@ -695,11 +710,18 @@ out of its parent's bottom (below).
   parent meet on the parent's bottom and the child's top, and a child's other
   pins never take its top, which the parent covers. Every pin of a feature
   names it, and the feature is one entity — one hover lights all its pins.
-  The pins of one side are centred and evenly spaced, ordered by the
-  partner's position, then by the constraint's place in its joint, so a
+  The pins of one side are evenly spaced, ordered by the
+  partner's position (two partners tied on it: the nearer at the end toward
+  them, so their routes do not cross), then by the constraint's place in its
+  joint, so a
   joint's constraints leave **parallel pins in the same order at both ends**
   — that is the bundle — then by the ids, so **the order of `edges[]` never
-  moves a pin**. A parent's pin toward its own child sits straight over the
+  moves a pin**. They are centred on the side, unless some meet a partner
+  straight across (the same row, for a flank; the same column, for the top
+  or bottom): then those are centred, and the box grows to hold the rest, so
+  a line of parts is one straight line (2026-11-22). A bundle that detours
+  round a part between leaves both its parts from one flank, and the far
+  end takes its order reversed, so its lanes nest. A parent's pin toward its own child sits straight over the
   child's. A feature that ends no interface (a dimension's end on the part
   alone) is an inner mark. A pin's short label shows on hover and when lit.
 - **A jumper per dimension**, inside the box between the two ends it
@@ -713,14 +735,16 @@ out of its parent's bottom (below).
   a border. Heavier between two bodies than inside one. **Two parts of one
   column with another part between them** (2026-11-17: the upper piston head
   on the piston body, the lower head between) have no straight route that
-  misses it, so a feature whose every interface is such a pair takes the
-  column's outer flank, and its route runs out to a lane beside the boxes
-  between and back. A joint's earlier constraints take the outer lanes, so its
+  misses it, so a feature whose every interface is such a pair takes a
+  flank of the column -- the one with fewer parts beside the span, and on a
+  tie the outer one (2026-11-22) -- and its route runs out to a lane beside
+  the boxes between and back. A joint's earlier constraints take the outer lanes, so its
   bundle nests (`detour`). **Two parts of one row with another part between
   them** are the same case on its side (2026-11-18: the pitch plate
-  assembly's bushings in a row beside it): the row's outer flank, the bottom
-  from the middle row down and the top above it, and a lane under or over the
-  boxes between (`rowDetour`). A child joined to its parent sits more than
+  assembly's bushings in a row beside it): a flank of the row -- the one with
+  fewer parts beside the span, and on a tie the bottom from the middle row
+  down and the top above it -- and a lane under or over the boxes between
+  (`rowDetour`). A child joined to its parent sits more than
   two stubs under it (`VA.MAP.child.joined`), so the route is the short drop
   between the two facing pins and never doubles back. **A route that would cross a box**
   first tries its bend the other way round, then a way through one or two
@@ -735,7 +759,11 @@ out of its parent's bottom (below).
   districts that overlap, a route through a box it does not end on, **a
   route that crosses a box it ends on past its stub**, **a symbol inside a
   box** and **two interfaces' routes on one collinear run** (2026-11-19: the
-  last three are the merged page Jeff reviewed that day), and for an outline
+  last three are the merged page Jeff reviewed that day), **two interfaces'
+  routes that cross**, or where one turns on the other, and **a symbol on
+  another interface's route** (2026-11-22, Jeff: *"Minimizing line crossings
+  whenever possible is also helpful"* -- one note per pair, so the count is
+  the page's own), and for an outline
   **a box it takes in that is not one of its parts** and **a name with no
   corner clear of another**, and **an assembly's dimension with no jumper
   clear of every box**. They fire in tests
@@ -761,7 +789,11 @@ out of its parent's bottom (below).
   reading of it). An assembly's own dimension runs between its two
   features' pins -- straight where that crosses no box, else out of each pin
   and along a lane past the boxes it spans (under, over, left or right, the
-  first that crosses none) -- inside the outline. A district's name is drawn
+  first that crosses none) -- inside the outline. Since 2026-11-22 a lane is
+  drawn as a dimension is on a drawing (the 11-19 walk: *"each link's length
+  is a long lane that reads as another box"*): hairline extension lines out
+  of its two ends, a little past the dimension line, and the dimension line
+  between them with an open arrowhead at each end. A district's name is drawn
   above every outline. An assembly
   that still owns a node kept its box inside the plain outline until
   2026-11-20, when the model began refusing one ("Bodies", rule 1): every
