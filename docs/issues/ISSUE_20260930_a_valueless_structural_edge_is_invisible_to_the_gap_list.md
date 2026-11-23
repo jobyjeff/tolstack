@@ -108,3 +108,17 @@ disagree two inches apart. Shot:
 `docs/sessions/lessons/shots/the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page/11_grid_bodies_off.png`
 (bottom line). The sentence is also a negation on the surface, which the
 prose budget rules out on its own.
+
+## Addendum 2026-11-23 — seen on v2's study rows (walk the_walk_reads_the_v2_study_and_the_map_on_the_merged_page)
+
+The study's gap rows open to a preview that contradicts itself. Opening
+`pitch_link_lower_outer_race_od_to_centre` (MS14101-3's outer cylinder to
+its ball centre, an open spec-sheet dimension) shows the chip
+"DERIVED — the quantity a study computes" and "A study computes it from the
+dimensions on either side". Its own note, two lines below, reads "Open.
+MS14101-3's sheet gives the outside diameter D … and states no offset … so
+no band is cited". The pitch arm's `pitch_arm_radius` reads the same chip.
+Shots: `docs/sessions/lessons/shots/the_walk_reads_the_v2_study_and_the_map_on_the_merged_page/14_gap_card_outer_race.png`,
+`15_open_untraced_pitch_arm_row.png`. Of v2's 105 edges, 81 carry no value.
+By this issue's own finding (`value_source` is `derived` on every edge with no
+dimension), each of them would read this chip. The walk opened only these two.
