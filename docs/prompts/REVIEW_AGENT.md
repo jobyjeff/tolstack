@@ -6342,6 +6342,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `--repo C:/workspace/tolstack` pairs the new pin with trunk's projections
       and prints NOT WITNESSED ("red before the mutation"). Re-run that entry
       `--only` with `--repo <a root built from this tree>`.
+- [ ] **A new thing the map draws that no check pins.** New 2026-11-23
+      (`the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map`). A link's
+      length drawn as a dimension (`j.dimension` in `map.js`, read by
+      `views/map.js`) shipped with no test, and every tier stayed green with it
+      deleted. For any new field `mapLayout` hands the view, rename its
+      assignment on a `git archive HEAD` export and run
+      `node apps/viewer/run_tests.cjs --repo <root>` from the export. Green
+      means nothing pins it
+      (`ISSUE_20261123_a_links_length_drawn_as_a_dimension_is_pinned_by_no_check.md`).
+      Same review: a lesson's before/after table counted "before" under an
+      older rule than "after". Re-score the before with the rule that shipped.
 
 ## Architectural errors to check
 

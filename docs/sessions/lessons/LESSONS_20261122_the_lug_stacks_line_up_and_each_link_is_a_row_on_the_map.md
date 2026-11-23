@@ -21,6 +21,23 @@ Both scored by `tests/debug_map_arrangement.mjs` on v2 built from this branch
 | bounds (cells) | 7.22 × 9.98 | 7.22 × 9.98 |
 | closest parallel legs, plate district | 31 | 44 (the map's pin pitch) |
 
+> **Correction, review 2026-11-23.** The "before" crossing and note counts (1, 1)
+> were measured with the strict crossing test, before the touch rule (a route's
+> corner lying on another) went in; the "after" (0, 0) is measured with the rule
+> that shipped, which counts both. Judged by the shipped `VA.mapRouteNotes`, the
+> 11-21 layout with the 11-21 code has **5** crossing notes: the one strict
+> crossing named above (mount fastener clocking × hub face); two touches in the
+> same hub ↔ mount bundle (the hub boss in the mount pilot against each of
+> those two routes); the tangential plate-end inner race's flange seat against
+> its on-bolt route; and the piston body boss in the upper head pilot against
+> the upper head's fastener clocking. The reduction to 0 is real, and larger
+> than the table says. `tests/debug_map_arrangement.mjs --code <older tree>` prints 0 for that
+> layout, because the older code has no `VA.mapRoutesCross` and the scorer counts
+> nothing silently
+> (`docs/issues/ISSUE_20261123_the_map_arrangement_scorer_counts_zero_crossings_on_code_without_the_crossing_rule.md`).
+> The other rows re-derive: routes 50/50, diagonals 10 → 3, bounds 3034 × 3394
+> both, v1 138 notes.
+
 The three diagonals left: the slide (gas-spring mount to piston body, as
 before), and each lug's one second-load-path route (the tangential inner
 race's clamp seat, the pitch bolt to its straight bushing).

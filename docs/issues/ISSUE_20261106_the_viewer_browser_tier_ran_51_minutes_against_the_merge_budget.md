@@ -450,3 +450,13 @@ Top: pattern suite 432.2 s (red, the open 11-22 issue), the model drawn alone 20
 suggestion suite 188.3 s (red, same issue), topology http 149.6 s, topology file://
 114.7 s, 3D pane follows the selection 112.9 s, annotate rail holds still 112.8 s,
 the map 109.8 s.
+
+## Measurement 2026-11-23 (review of the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_lug_1123`,
+review worktree, sha `3b7c68fe`, tree `6441710d`: **2089.5 s** against 1800 s, 983 checks,
+49/49 suites green, slot wait 0. The runner recorded its own ledger row (`over: true`).
+Top: the model drawn alone 213.6 s, topology http 155.0 s, topology file:// 124.9 s,
+the map 119.2 s, 3D pane follows the selection 116.8 s, the suggestion suite 110.6 s,
+annotate rail holds still 88.7 s, the DAG zoom 85.9 s. With the pattern and suggestion
+suites green this time, the tier is still about 290 s over: no single suite carries it.
