@@ -431,3 +431,13 @@ The next slowest were the model drawn alone at 208.9 s, the suggestion suite at
 http at 144.5 s and topology file:// at 118.6 s. Without the pattern suite's
 stall the tier is about 1960 s. The map-layout memo in this handoff brought
 topology http back from 258 s to 144.5 s.
+
+## Measurement 2026-11-23 (review of the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_blade_v2`,
+merge sha `584e432d`, tree `64160e1d`: **3121 s** against 1800 s, 956 checks, 45/49
+suites. The pattern suite again takes most of it: 1071.7 s, red, and red on
+`integration` too (`ISSUE_20261122_two_annotate_browser_suites_assume_live_features_are_still_unbound.md`).
+Next: the model drawn alone 210.1 s, the suggestion suite 189.0 s (also red on
+`integration`), topology http 157.9 s, topology file:// 119.4 s, 3D pane follows
+the selection 116.4 s. Without the pattern suite the tier is about 2050 s.

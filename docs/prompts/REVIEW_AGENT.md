@@ -6297,6 +6297,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       now prints `wall time … slowest checks:`. Read that block on your armed
       run and compare it with the lesson's. A `[real]` check above a few
       seconds is worth one line in the report.
+- [ ] **An `ids_from` read-through that widens "this model" past this
+      model's index.** New 2026-11-23
+      (`the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds`).
+      `VA.kinematicSameModel` makes v1's stop chains v2's own, but the grid
+      plans rows from v2's edges, so a v1 leaf v2 lacks folds into the total
+      and has no row ("5 terms", 3 rows). When a diff widens a same-model
+      test, list every id the widened set brings in and check each against
+      the *this-model* lookups after it (`index.edges[...]`, plan rows, map
+      keys). An id only the lender has is the case to probe.
 
 ## Architectural errors to check
 

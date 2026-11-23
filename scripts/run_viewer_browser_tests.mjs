@@ -7809,7 +7809,9 @@ async function testEveryStudyOpensIn3D(browser, label, topologies) {
   const topology = topologies && (topologies.topologies || [])
     .find((t) => (t.studies || []).some((s) => s.id === "pitch_link_cotter_hole_clearance"));
   const kinematic = await readProjection("kinematic/kinematic_studies.json");
-  const kin = kinematic && (kinematic.studies || [])[0];
+  // v1's study by id, not the first: since 2026-11-22 v2's study sorts first,
+  // and only v1's is listed on the page this suite opens.
+  const kin = kinematic && (kinematic.studies || []).find((s) => s.id === SWEEP_RAIL_STUDY);
   if (!topology || !kin) {
     push("[real] every study opens in 3D (skipped: the topology and kinematic " +
       "projections are not built -- build them, or pass --repo <main checkout>)", true);
