@@ -66,7 +66,7 @@ fix is in the product, not the checks.
 ## Timings, armed (`node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`, from this worktree; projection paired @ c3928f9a)
 
 Before: 623/623, **326 s** wall (issue: 278 s on a quieter box). After:
-**624/624-class run, 17.5 s wall / 18.2 s cpu** (pre-merge trunk was 19 s).
+**623/623 in 17.5 s wall / 18.2 s cpu**, and after the new guard **624/624 in 15.7 s / 15.4 s cpu** (pre-merge trunk was 19 s).
 
 | check | before (issue's table) | after |
 |---|---:|---:|
@@ -90,3 +90,30 @@ No timeout raise is warranted: 17.5 s against 180 s.
 - To run the named pytest files armed from a worktree I junctioned
   `data/projections/viewer` and `node_modules` to the main checkout's and
   removed both after. Read-only use.
+
+## Browser tier after the fix (`--only`, `--repo C:/workspace/tolstack`, box shared)
+
+All green: topology http 152/152 in 175.7 s (258 s before the fix, 143 s
+before `6f093680`); topology file:// 106/106 in 163.9 s (218 / 124); the map
+32/32 in 174.9 s (123 / 93); the Groups switches 11/11 in 44.2 s (50 / —).
+The browser page memoises within one page load only, and most checks load a
+fresh page, so each still pays one layout: the browser gain is smaller than
+the node tier's, and the map suite's 175 s is box load or that first layout,
+not separable from one run. The first layout of v1 (~0.6 s) is still paid on
+every page load — filed as
+`docs/issues/ISSUE_20261122_v1s_computed_map_spends_its_whole_layout_budget_on_every_page_load.md`.
+
+## Test record
+
+- `node apps/viewer/run_tests.cjs` armed (projection junctioned): 624/624, 15.7 s.
+- `node apps/annotate/run_tests.cjs`: 333/333.
+- Witness `--only` the new guard: 2/2 witnessed.
+- `pytest -q tests/test_viewer_js_suite.py tests/test_mutation_witnesses.py
+  tests/test_mutation_witness_shadow_concurrency.py`, armed from the worktree:
+  53 passed, 1 failed — `test_two_different_repo_roots_both_still_succeed`
+  on MAX_PATH copying lesson shots from this long worktree path
+  (`ISSUE_20261104_a_lesson_screenshot_name_overflows_max_path_in_the_shadow_concurrency_test.md`,
+  already filed); the three timeouts the issue named passed.
+- Full default tier, worktree, viewer tier armed: 1 failed, 2586 passed,
+  1 skipped in 500 s. The failure is the known export-runs red
+  (`ISSUE_20261119_the_gas_spring_mount_export_has_a_sixth_run_the_pitch_linkage_topology_does_not_list.md`).
