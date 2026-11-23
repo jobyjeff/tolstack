@@ -107,7 +107,7 @@ edge; none wears BORROWED.
 
 ## Looked at
 
-Scratch root `C:\workspace	olstack\data\scratch2_sheets\` (the 11-22
+Scratch root `data/scratch/v2_sheets\` (the 11-22
 study_v2 root copied, its inbox re-mirrored from the main checkout, this tree's
 `docs/`), all eight builders run from this worktree with `--data-root`
 (`v2_sheets/build.sh`; crops and topology rebuilt again after the E7 change).
@@ -143,7 +143,7 @@ The grid shows `tan_link_length` (212956-005, 61.4) and `tan_link_race_bores`
 
 ## Jeff's binding log
 
-`C:\workspace	olstack\data\inboxeature-identity\`: 116 files before and
+`data/inbox/feature-identity\`: 116 files before and
 after; the sha256 of its per-file sha256 list was `e3e9fd53…808d` at both ends.
 Nothing was written there.
 
