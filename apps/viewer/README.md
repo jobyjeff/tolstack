@@ -508,7 +508,14 @@ has not been built.
   first row. Sourcing is one small mark per row in its state's colour (none
   for a traced value); a legend under the grid names every mark, and the
   row's Preview has the citation, the note and the crop. The stop's own fold
-  and its verdict are the grid's foot.
+  and its verdict are the grid's foot. A row whose value is another model's
+  (v2's study borrows v1's bands and v1's stop chains, 2026-11-22) leads its
+  name with one muted **borrowed** badge that names that model on hover and
+  opens the citation; a row with no value reads "no value" in its value cells
+  and still shows its sensitivity; a row of its own model shows neither. A
+  study on a model that reuses another's ids treats that model's chains as
+  its own (`VA.kinematicSameModel`), so their leaves this model has are rows
+  and are lit.
 - **The pose** (2026-11-05, `the_grid_and_the_dag_move_with_the_mechanism`).
   The transport is the 3D pane's alone (2026-11-08,
   `the_linkage_play_control_is_the_only_one_and_it_moves_everything`): its ◀ ▶ ▶|

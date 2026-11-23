@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a study's own model is its topology or the one it reuses ids from, and nothing else",
+  "mutations": [
+    {
+      "contract": "A model that reuses another's ids treats that model's refs as its own.",
+      "issue": null,
+      "note": "Forgets ids_from: the other model's chains drop out of the grid and the route.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "(!!study.ids_from && topologyId === study.ids_from)",
+      "replace": "false"
+    }
+  ]
+}

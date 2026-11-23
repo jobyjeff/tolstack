@@ -84,6 +84,16 @@
     stop_position: { words: "stop position" },
   });
 
+  // Where a row's value comes from (tolerance_stack/kinematic.py VALUE_FROM;
+  // the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds). A row valued
+  // on its own model's edge says nothing; a borrowed one wears `badge`; a row
+  // with no value says so in its value cells and its mark, so it needs none.
+  VA.KINEMATIC_VALUE_FROM = VOCAB.table("KINEMATIC_VALUE_FROM", {
+    this_model: { badge: null },
+    other_model: { badge: "borrowed" },
+    none: { badge: null },
+  });
+
   // What a word this page has no branch for must say: loud and named, the
   // VA.unlabelledVerdictText posture, because silence would read as handled.
   VA.unlabelledKinematicText = function (field, value) {
@@ -107,6 +117,15 @@
       if (models[i].topology === topologyId) return models[i];
     }
     return null;
+  };
+
+  // Whether `topologyId` names the study's own model: its own id, or the
+  // model its topology reuses ids from (`ids_from`, docs/DAG_TOPOLOGY.md
+  // "Models"), whose ids name the same features. A ref with no topology is
+  // the study's own.
+  VA.kinematicSameModel = function (study, topologyId) {
+    return !topologyId || topologyId === study.topology ||
+      (!!study.ids_from && topologyId === study.ids_from);
   };
 
   function topologyTitle(topologies, topologyId) {
@@ -684,7 +703,7 @@
                          coefficient: Math.abs(g.entry), magnitude: gapKind ? null : g.reach },
                        stops[s], perCellUnit, decimals);
     });
-    var sameTopology = ref.topology === study.topology;
+    var sameTopology = VA.kinematicSameModel(study, ref.topology);
     var children = (ref.children || []).map(function (child, k) {
       var edge = sameTopology ? index.edges[child.edge] || null : null;
       var first = null;
@@ -777,7 +796,7 @@
     // edges, where they are edges of this topology.
     (study.stops || []).forEach(function (stop) {
       (stop.groups || []).forEach(function (group) {
-        if (group.topology && group.topology !== study.topology) return;
+        if (!VA.kinematicSameModel(study, group.topology)) return;
         (group.children || []).forEach(function (child) { add(child.edge); });
       });
     });
@@ -818,7 +837,7 @@
       if (id && lit.edges[id] && !placed[id]) { placed[id] = true; order.push(id); }
     };
     var refs = (study.study_refs || []).filter(function (ref) {
-      return !ref.topology || ref.topology === study.topology;
+      return VA.kinematicSameModel(study, ref.topology);
     });
     var chainEdges = {};
     var chainNodes = {};
@@ -953,6 +972,34 @@
     }
   };
 
+  // A row whose value is another model's (`value_from`, the builder's
+  // word): its badge's words, the hover title naming that model by its own
+  // title and the band by its own name, and the citation the badge opens.
+  // null for a row valued on its own model, or with no value.
+  VA.kinematicBorrowed = function (row) {
+    var kind = row ? VA.KINEMATIC_VALUE_FROM[row.value_from] : null;
+    if (!kind || !kind.badge) return null;
+    var lender = row.lender || {};
+    var band = (row.band && row.band.name) || row.name || row.edge;
+    return {
+      words: kind.badge,
+      title: "value from " + (lender.title || "another model") + (band ? ": " + band : ""),
+      citation: row.citation || null,
+    };
+  };
+
+  // A borrowed leaf's own numbers (a `study_ref` leaf of the other model,
+  // which carries no display record): its band as the sub-study carries it,
+  // about its own nominal, printed as transcribed. null without one.
+  VA.kinematicLeafValues = function (row, borrowed) {
+    var src = row && row.source;
+    if (!src) return null;
+    var title = borrowed ? borrowed.title : "";
+    return { refused: false, reason: null, nominal: VA.fmt(src.nominal),
+             min: VA.fmt(src.min), max: VA.fmt(src.max), nominalTitle: title,
+             minTitle: title, maxTitle: title, bandFrom: null };
+  };
+
   // The stack at one stop, as the grid draws it: an entry per row, in the
   // order VA.kinematicStackOrder puts the edges in.
   //
@@ -1004,15 +1051,22 @@
     var entries = [];
     var terms = {};
     var term = function (row, depth, parent, curve) {
-      var values = VA.kinematicRowValues(row.display);
+      var borrowed = VA.kinematicBorrowed(row);
+      var values = VA.kinematicRowValues(row.display) ||
+        (borrowed ? VA.kinematicLeafValues(row, borrowed) : null);
       var refused = !!(values && values.refused);
       var entry = {
         kind: "term", edge: row.edge, depth: depth, parent: parent,
-        // A refusal row has no sensitivity and no contribution: a confident
-        // number over a missing input is what this row refuses to be.
+        // A refusal row has no contribution: a confident number over a
+        // missing input is what this row refuses to be. Its sensitivity is
+        // the sweep's and is real whatever the band is, so a row with no band
+        // (a gap) still shows it -- what a band there would cost; a row that
+        // refused for another reason shows none.
         values: values,
         refused: refused,
-        sensitivity: refused ? "" : (row.sign < 0 ? "−" : "") + n(row.coefficient),
+        borrowed: borrowed,
+        sensitivity: refused && row.kind !== "gap" ? ""
+          : (row.sign < 0 ? "−" : "") + n(row.coefficient),
         contribution: !refused && typeof row.magnitude === "number" ? "±" + n(row.magnitude) : "",
         muted: row.kind === "zero_sensitivity",
         // A contributor with no band on file: the gap words, on its chip.
@@ -1055,7 +1109,7 @@
     });
     var positionFold = subStack(stop, SUB_POSITION);
     var groups = (stop.groups || []).filter(function (g) {
-      return !g.topology || g.topology === study.topology;
+      return VA.kinematicSameModel(study, g.topology);
     });
     var positionWords = VA.KINEMATIC_SUB_STACK_KINDS[SUB_POSITION].words;
     var position = positionFold.position || {};
@@ -1172,7 +1226,7 @@
   VA.kinematicSubStacks = function (study, decimals) {
     if (!study) return [];
     return (study.study_refs || []).filter(function (ref) {
-      return (!ref.topology || ref.topology === study.topology) &&
+      return VA.kinematicSameModel(study, ref.topology) &&
         (ref.children || []).length > 0;
     }).map(function (ref) {
       var edges = [];

@@ -202,6 +202,9 @@
 
     // scripts/build_kinematic_projection.py: SUB_STACK_KINDS
     KINEMATIC_SUB_STACK_KINDS: ["linkage", "stop_position"],
+
+    // tolerance_stack/kinematic.py: VALUE_FROM
+    KINEMATIC_VALUE_FROM: ["this_model", "other_model", "none"],
   });
 
   root.annotate = namespace("annotate", {

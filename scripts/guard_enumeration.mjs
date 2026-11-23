@@ -387,7 +387,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-22 (the_viewer_node_suite_runs_inside_its_default_tier_timeout): +1 --
   // a repaint does not lay out again (the map's layout and the gathered walk
   // are remembered). It carries a spec.
-  fast: { declared: 624, enrollable: 624, names: "301cd115b8d9" },
+  // 2026-11-22 (the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds):
+  // four added -- a study's own model, the borrowed badge, a borrowed leaf's
+  // band, and the [real] v2 study and its map route -- each with its spec.
+  fast: { declared: 628, enrollable: 628, names: "5d86cbf2245f" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

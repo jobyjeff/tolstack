@@ -1478,6 +1478,19 @@
     return node;
   }
 
+  // A kinematic term's "borrowed" badge (VA.kinematicBorrowed): its words,
+  // the model and band on hover, and the citation card on hover where the
+  // page has a card host.
+  function borrowedBadge(borrowed, ctx) {
+    var chip = VA.chip("tvflag tvflag--borrowed", borrowed.words, borrowed.title);
+    var card = VA.citationCard(borrowed.citation);
+    if (card && ctx && ctx.onCardShow) {
+      chip.className += " cardtrig";
+      chip.onmouseenter = function () { ctx.onCardShow(card, chip); };
+    }
+    return chip;
+  }
+
   // The sourcing cell: the row's mark or nothing. The mark node rides on the
   // cell (`cell.mark`) for a caller that makes it a card trigger.
   function sourcingCell(mark) {
@@ -1848,7 +1861,14 @@
     var record = VA.elementRecords(ctx.topoProj, VA.previewRecordOptions(ctx))[
       hotKey("edge", planRow.id)] || null;
     var fullName = record ? record.title : missing(planRow.id);
-    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : fullName);
+    var borrowed = term && term.borrowed || null;
+    // A value borrowed from another model wears one quiet badge, first in
+    // the cell so a clipped name never hides it; it opens the citation.
+    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly || borrowed ? "" : fullName);
+    if (borrowed) {
+      nameCell.appendChild(borrowedBadge(borrowed, ctx));
+      if (!valueOnly) nameCell.appendChild(VA.el("span", null, fullName));
+    }
     // A kinematic term whose band is another edge's says whose, on hover.
     var shown = term && term.values || null;
     var lender = shown && shown.bandFrom && shown.bandFrom.edge !== planRow.id
@@ -1856,6 +1876,7 @@
     var lenderName = lender && index.edges[lender.edge] ? index.edges[lender.edge].name : null;
     var nameTitle = fullName + (lender
       ? "\nband from " + (lenderName || lender.edge) + " (dimension_ref)" : "");
+    if (borrowed) nameTitle += "\n" + borrowed.title;
     if (!valueOnly) nameCell.setAttribute("title", nameTitle);
     el.appendChild(nameCell);
 
@@ -1905,7 +1926,7 @@
       if (term.muted) sensitivity.className += " muted";
       // ...and on hover, its curve across the whole sweep (VA.kinematicCurve),
       // in the page's one popover. Drawn the first time it is asked for.
-      if (term.curve && !term.refused && ctx.onCardShow && ctx.kinematicStudy) {
+      if (term.curve && term.sensitivity && ctx.onCardShow && ctx.kinematicStudy) {
         var curveCard = null;
         sensitivity.className += " tvcell--curve";
         sensitivity.onmouseenter = function () {
@@ -2373,11 +2394,10 @@
   function gapsPanel(topoProj) {
     var panel = VA.el("section", "tvgaps");
     var groups = VA.topologyGapGroups(topoProj);
-    if (!groups.length) {
-      panel.appendChild(VA.el("p", "muted tvgaps__none",
-        "Nothing is recorded as missing for this assembly."));
-      return panel;
-    }
+    // An empty list shows nothing: "nothing is missing" is a negation, and on
+    // a model whose edges carry no values it was false (2026-11-22,
+    // ISSUE_20261120_design_the_gap_panel_says_nothing_is_missing_...).
+    if (!groups.length) return panel;
     var total = groups.reduce(function (n, group) { return n + group.gaps.length; }, 0);
     var box = VA.el("details", "tvgaps__box");
     var summary = VA.el("summary", "tvgaps__summary");

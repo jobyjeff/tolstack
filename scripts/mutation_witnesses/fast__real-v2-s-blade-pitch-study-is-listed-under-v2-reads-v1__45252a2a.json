@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] v2's blade-pitch study is listed under v2, reads v1's numbers, tells its rows apart and lights its route",
+  "mutations": [
+    {
+      "contract": "A kinematic study's lit edges and their features are its route on the map.",
+      "issue": null,
+      "note": "Puts nothing on the route, so the whole map reads quiet.",
+      "file": "apps/viewer/views/map.js",
+      "find": "out[key(e.kind, e.id)] = true;",
+      "replace": "/* off the route */"
+    }
+  ]
+}

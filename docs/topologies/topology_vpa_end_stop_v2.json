@@ -1936,6 +1936,15 @@
       "note": "Where the lug sits on the plate. Value to come from 215735-001's drawing: the bore's position is cited on the bore itself (215735-A sheet 2, SECTION A-A), and its basic location is not read yet. Stands where v1's attachment radius does."
     },
     {
+      "id": "pitch_plate_link_flanged_bushing_height",
+      "name": "piston flange face (datum A) to pitch link flanged bushing bore",
+      "kind": "structural",
+      "part": "pitch_plate_215735_001",
+      "from": "piston_body_plate_flange_seat",
+      "to": "pitch_plate_link_flanged_bushing_bore",
+      "note": "The lug's height along the plate's axis (CAD Z): where the bore's axis sits from the plate's face on the piston body flange, datum A of the ⌖Ø0.2 A B C frame 215735-A puts on its 5X Ø 7.950 link bores. The link's bolt is radial, so this height is the bore's position along Z. Stands where v1's pitch_plate_attach_height does. Value to come from 215735-001's drawing."
+    },
+    {
       "id": "pitch_plate_link_flanged_bushing_bore_to_seat",
       "name": "pitch link flanged bushing bore to flange underside",
       "kind": "structural",

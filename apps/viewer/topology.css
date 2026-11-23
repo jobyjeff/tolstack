@@ -1428,6 +1428,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvopen__list { margin: 6px 0 0; padding-left: 18px; }
 .tvopen__term { color: inherit; }
 .tvflag--incomplete { color: var(--inferred); border-color: var(--inferred); }
+/* A kinematic term whose value is another model's: metadata, so muted --
+   never a state colour (2026-11-22). It leads the name cell. */
+.tvflag--borrowed { color: var(--muted); margin-right: 4px; }
 
 /* --- the findings table -------------------------------------------------
    viewer_summary_balance_sheet (2026-09-22), replacing two stacked
@@ -1515,7 +1518,6 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    lines under a DAG is a wall nobody reads, but a count beside a heading is a
    number a reader can act on. */
 .tvgaps { margin: 4px 0 6px; }
-.tvgaps__none { margin: 6px 0; }
 .tvgaps__summary {
   cursor: pointer; display: flex; gap: 8px; align-items: center;
   font-weight: 600; padding: 4px 0;

@@ -171,7 +171,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -311,6 +311,19 @@ LINKAGE_JOINT_INTERFACES: Dict[str, Optional[str]] = {
     "fixed": None,
     "axial_position": None,
 }
+
+#: Where a row's value comes from, for a reader telling three kinds of row
+#: apart (handoff ``the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds``).
+#: **This tuple is the definition.** ``this_model`` -- the band is an edge of
+#: the study's own topology, or an inline band cited in the study itself;
+#: ``other_model`` -- it is another topology's edge (``dimension_ref`` across
+#: models, an inline band that says ``borrowed_from`` one, or a ``study_ref``
+#: leaf of another model's chain); ``none`` -- no band anywhere, a gap row.
+VALUE_FROM = ("this_model", "other_model", "none")
+
+#: The keys a ``borrowed_from`` names: the other model's edge an inline band
+#: is the same citation as. **This tuple is the definition.**
+BORROWED_FROM_FIELDS = ("topology", "edge")
 
 #: The keys a ``study_ref`` names. **This tuple is the definition.**
 STUDY_REF_FIELDS = ("topology", "study_id", "parameter")
@@ -530,6 +543,8 @@ class Contributor:
     cited_nominal: Optional[float] = None
     cited_from: Optional[str] = None
     refusal: Optional[str] = None
+    route_of: Optional[str] = None
+    borrowed_from: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
         self.parameters = tuple(self.parameters)
@@ -555,6 +570,15 @@ class Contributor:
     @property
     def is_gap(self) -> bool:
         return self.dimension is None
+
+    def value_from(self, topology_id: str) -> str:
+        """Which :data:`VALUE_FROM` word this row is, in a study of ``topology_id``."""
+        if self.dimension is None:
+            return VALUE_FROM[2]
+        lender = self.dimension_ref or self.borrowed_from
+        if lender is not None and lender.get("topology") != topology_id:
+            return VALUE_FROM[1]
+        return VALUE_FROM[0]
 
 
 @dataclass(frozen=True)
@@ -710,7 +734,11 @@ def _reconcile_feature(study_id: str, topology: Topology, contributor: Contribut
         if entry is None:
             continue
         disagreements = []
-        if entry.get("topology") not in (None, topology.id):
+        # A model that reuses another's ids (``ids_from``, docs/DAG_TOPOLOGY.md
+        # "Models") names the same feature by the same id, so a run published
+        # against that model is read on this one -- the id itself was checked
+        # against THIS topology above. Any other model is a refusal.
+        if entry.get("topology") not in (None, topology.id, topology.ids_from):
             disagreements.append(f"topology {entry.get('topology')!r} vs {topology.id!r}")
         if entry.get(kind) != ref:
             theirs = next(((k, entry[k]) for k in ("node", "edge", "kind")
@@ -738,6 +766,11 @@ def _resolve_band(study_id: str, contributor: Contributor, raw: Dict[str, Any],
     """Fill ``contributor.dimension`` from the ref or the inline value, or mark a gap."""
     ref = raw.get("dimension_ref")
     inline = raw.get("dimension")
+    if raw.get("borrowed_from") is not None and inline is None:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r} says "
+            f"`borrowed_from` with no inline dimension; it names the edge an INLINE "
+            f"band is the same citation as (a dimension_ref says its own edge)")
     if ref is not None and inline is not None:
         raise KinematicStudyError(
             f"kinematic study {study_id!r}: contributor {contributor.edge!r} has "
@@ -774,6 +807,9 @@ def _resolve_band(study_id: str, contributor: Contributor, raw: Dict[str, Any],
             raise KinematicStudyError(
                 f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s "
                 f"inline dimension cites no source_ref. Cite it or make it a gap.")
+        if raw.get("borrowed_from") is not None:
+            _check_borrowed_from(study_id, contributor, raw["borrowed_from"],
+                                 topologies_dir, topology_cache)
     else:
         if not contributor.gap:
             raise KinematicStudyError(
@@ -796,6 +832,57 @@ def _resolve_band(study_id: str, contributor: Contributor, raw: Dict[str, Any],
             f"kinematic study {study_id!r}: contributor {contributor.edge!r} is a "
             f"{contributor.zone!r} zone, whose band is a radius, and {dim.id!r} is "
             f"not symmetric ({dim.min!r}..{dim.max!r})")
+
+
+def _check_borrowed_from(study_id: str, contributor: Contributor, lender: Dict[str, Any],
+                         topologies_dir: Path, topology_cache: Dict[str, Topology]) -> None:
+    """An inline band that says it is another model's edge's band, paired to it.
+
+    An inline band is authored about 0.0, so it cannot be a ``dimension_ref``
+    to an edge whose band is about a real nominal (v1's ``tan_link_length``,
+    61.40). ``borrowed_from`` names that edge so a reader is told whose number
+    it is, and the pairing is checked here rather than trusted: the edge
+    exists, carries a band of the same half-width, and cites the same
+    document. The value itself is still the inline one.
+    """
+    if not isinstance(lender, dict) or any(not lender.get(k) for k in BORROWED_FROM_FIELDS):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r}: "
+            f"borrowed_from needs {BORROWED_FROM_FIELDS}, got {lender!r}")
+    source = _topology(lender["topology"], topologies_dir, topology_cache)
+    try:
+        edge = source.edge(lender["edge"])
+    except KeyError:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r} is "
+            f"borrowed_from edge {lender['edge']!r} of topology "
+            f"{lender['topology']!r}, which does not declare it") from None
+    own, theirs = contributor.dimension, edge.dimension
+    if theirs is None:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r} is "
+            f"borrowed_from edge {lender['edge']!r} of {lender['topology']!r}, which "
+            f"carries no band")
+    if not math.isclose(own.half_range, theirs.half_range, rel_tol=0.0, abs_tol=1e-12):
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s inline "
+            f"band (half {own.half_range!r}) is not edge {lender['edge']!r}'s of "
+            f"{lender['topology']!r} (half {theirs.half_range!r})")
+    mine = own.source_ref.document if own.source_ref else None
+    lent = theirs.source_ref.document if theirs.source_ref else None
+    if mine != lent:
+        raise KinematicStudyError(
+            f"kinematic study {study_id!r}: contributor {contributor.edge!r}'s inline "
+            f"band cites {mine!r}, edge {lender['edge']!r} of {lender['topology']!r} "
+            f"cites {lent!r}; a borrowed band is the same citation")
+    contributor.borrowed_from = dict(lender)
+    contributor.band_source["borrowed_from"] = dict(lender)
+    # The lender's basic dimension is the row's nominal as it is on the
+    # lender's own model (:func:`_resolve_nominal` lets the contributor's own
+    # edge override it, once that edge cites one).
+    if contributor.zone == "band" and theirs.nominal != 0.0:
+        contributor.cited_nominal = theirs.nominal
+        contributor.cited_from = theirs.id
 
 
 def _resolve_nominal(study_id: str, contributor: Contributor, raw: Dict[str, Any],
@@ -1099,7 +1186,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         contributor = Contributor(
             edge=raw["edge"], parameters=tuple(raw.get("parameters") or ()),
             zone=raw.get("zone"), feature=dict(raw.get("feature") or {}),
-            gap=raw.get("gap"), note=raw.get("note"))
+            gap=raw.get("gap"), note=raw.get("note"), route_of=raw.get("route_of"))
         if contributor.edge in seen:
             raise KinematicStudyError(
                 f"kinematic study {study_id!r}: edge {contributor.edge!r} is a "
@@ -1123,6 +1210,7 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         contributors.append(contributor)
     if not contributors and not study_refs:
         raise KinematicStudyError(f"kinematic study {study_id!r} names no contributors")
+    _check_routes(study_id, contributors)
 
     study = KinematicStudy(
         id=study_id, title=data["title"], topology=topology.id, measure=measure,
@@ -1141,6 +1229,33 @@ def load_kinematic_study(path: str | Path, data_root: str | Path,
         stop_id = (spec.get("configuration") or {}).get("stop")
         study.stop(stop_id)          # a check is applied AT a named stop
     return study, sweep
+
+
+def _check_routes(study_id: str, contributors: Sequence[Contributor]) -> None:
+    """Each ``route_of`` names a contributor of this study, on the same columns.
+
+    A row ``route_of`` another is an edge of the model on the route from that
+    contributor's edge to the ball centre its columns move: the same sweep
+    columns and the same zone, so its sensitivity is the same Jacobian
+    entries -- each its own term on the same coefficient once it has a band.
+    Nothing refuses two contributors on one column; this pins that the rows
+    meant to share are the ones that do.
+    """
+    by_edge = {c.edge: c for c in contributors}
+    for c in contributors:
+        if c.route_of is None:
+            continue
+        owner = by_edge.get(c.route_of)
+        if owner is None or owner.route_of is not None:
+            raise KinematicStudyError(
+                f"kinematic study {study_id!r}: contributor {c.edge!r} is route_of "
+                f"{c.route_of!r}, which is not a contributor of this study with "
+                f"columns of its own")
+        if (c.parameters, c.zone) != (owner.parameters, owner.zone):
+            raise KinematicStudyError(
+                f"kinematic study {study_id!r}: contributor {c.edge!r} is route_of "
+                f"{c.route_of!r} but reads {c.zone!r} {list(c.parameters)}, not its "
+                f"{owner.zone!r} {list(owner.parameters)}")
 
 
 def _load_stops(study_id: str, data: Dict[str, Any], sweep: Sweep, tdir: Path,
@@ -1300,7 +1415,17 @@ class ContributorRow:
             "source_kind": src.kind if src is not None else None,
             "gap": c.gap,
             "note": c.note,
+            "route_of": c.route_of,
+            "citation": _citation(src),
         }
+
+
+def _citation(src: Optional[SourceRef]) -> Optional[Dict[str, Any]]:
+    """A band's citation as a reader's card reads it: the source_ref's fields,
+    the empty ones left out."""
+    if src is None:
+        return None
+    return {k: v for k, v in asdict(src).items() if v is not None}
 
 
 def row_display(row: "ContributorRow") -> Dict[str, Any]:
@@ -1330,6 +1455,11 @@ def row_display(row: "ContributorRow") -> Dict[str, Any]:
     if c.is_gap or c.measured is None:
         out["refused"] = True
         out["reason"] = c.refusal or "no measured nominal"
+        # A gap row's sensitivity is the sweep's, real whatever the band is:
+        # shown so the cost of a band is visible. Its contribution needs a
+        # band and stays empty.
+        if c.is_gap:
+            out["sensitivity"] = row.sign * row.coefficient
         return out
     # The band the fold used: the folded term's element when there is one.
     element = row.term.element if row.term is not None else c.dimension
@@ -1393,8 +1523,14 @@ class ChildRow:
             "band": {"id": dim.id, "name": dim.name, "nominal": dim.nominal,
                      "min": dim.min, "max": dim.max, "half_range": dim.half_range,
                      "units": None},
+            # The sub-study edge's band as it carries it, about its own
+            # nominal: what a grid row prints where the edge is another
+            # model's and this model's edge of the same id has no value.
+            "source": {"nominal": self.sub.source.nominal, "min": self.sub.source.min,
+                       "max": self.sub.source.max},
             "confidence": src.confidence if src is not None else None,
             "source_kind": src.kind if src is not None else None,
+            "citation": _citation(src),
         }
 
 

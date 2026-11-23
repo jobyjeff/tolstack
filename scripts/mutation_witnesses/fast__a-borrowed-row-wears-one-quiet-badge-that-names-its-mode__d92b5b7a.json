@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a borrowed row wears one quiet badge that names its model and opens its citation; a row of its own model wears none and a gap shows its sensitivity",
+  "mutations": [
+    {
+      "contract": "A value borrowed from another model wears a badge in its grid row.",
+      "issue": null,
+      "note": "Draws the name and no badge.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "nameCell.appendChild(borrowedBadge(borrowed, ctx));",
+      "replace": "/* no badge */"
+    }
+  ]
+}

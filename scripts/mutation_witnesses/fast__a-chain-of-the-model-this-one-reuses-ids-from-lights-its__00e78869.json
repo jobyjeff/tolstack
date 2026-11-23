@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a chain of the model this one reuses ids from lights its leaves that this model has, and a borrowed leaf prints the band it carries",
+  "mutations": [
+    {
+      "contract": "A borrowed leaf prints the band its own chain carries, not this model's valueless edge.",
+      "issue": null,
+      "note": "Reads no band for the leaf.",
+      "file": "apps/viewer/views/kinematic.js",
+      "find": "var src = row && row.source;",
+      "replace": "var src = null;"
+    }
+  ]
+}

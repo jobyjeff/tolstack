@@ -147,6 +147,43 @@
     return keys;
   }
 
+  // A study's route on the map (the_blade_pitch_study_folds_on_v2_and_names_
+  // what_v2_adds, 2026-11-22; Jeff, 11-19: "a study simply traces a
+  // subset"). `lit` is the page's lit set (VA.kinematicLitSet): each lit edge
+  // is a dimension or an interface of the model, and what it OWNS by the one
+  // resolver (VA.focusLightOf: itself and its features) is on the route, with
+  // the part box each such feature sits on. Returns {key: true}, or null for
+  // no lit set -- then nothing is quieted.
+  VA.mapRouteKeys = function (model, lit) {
+    if (!model || !lit || !lit.edges) return null;
+    var F = VA.FOCUS_KINDS;
+    var out = {};
+    Object.keys(lit.edges).forEach(function (id) {
+      var kind = model.dimension(id) ? F.dimension : model.interface(id) ? F.interface : null;
+      if (!kind) return;
+      VA.focusLightOf(model, { kind: kind, id: id }).own.forEach(function (e) {
+        out[key(e.kind, e.id)] = true;
+        var f = e.kind === F.feature ? model.feature(e.id) : null;
+        if (f && f.part) out[key(F.part, f.part)] = true;
+      });
+    });
+    return out;
+  };
+
+  // Every drawn entity off the route wears `map__quiet` in its base class,
+  // so a repaint of the selection or the hover keeps it; the districts are
+  // the bodies' ground and stay as they are.
+  function quietOffRoute(reg, route) {
+    if (!route) return;
+    Object.keys(reg.byKey).forEach(function (k) {
+      if (route[k] || k.indexOf(VA.FOCUS_KINDS.body + ":") === 0) return;
+      reg.byKey[k].forEach(function (entry) {
+        entry.base += " map__quiet";
+        paint(entry, "");
+      });
+    });
+  }
+
   // Hover and click on a drawn entity, told to the page: the page holds the
   // one hover and the one selection and lights every surface from them,
   // this map included (topology_app.js's setHovered / selectEntity). A
@@ -478,6 +515,9 @@
     }
     // The selection, in its two tiers; a selection made anywhere else brings
     // its own element into view when it is off-screen, once per change.
+    // A kinematic study's route (2026-11-22): what is off it is drawn
+    // quieter, never hidden, and the selection and the hover still light it.
+    quietOffRoute(reg, VA.mapRouteKeys(model, ctx.stack ? ctx.lit : null));
     var selectedKeys = applySelection(reg, model, ctx.selectedEntity || null);
     if (selectedKey !== view.selectedKey) {
       view.selectedKey = selectedKey;

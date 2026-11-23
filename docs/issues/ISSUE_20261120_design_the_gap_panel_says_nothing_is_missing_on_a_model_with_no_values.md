@@ -1,10 +1,10 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: resolved
 class: reading_surface_copy
 defer_until: 2026-12-05
-resolution: deferred 2026-11-21 (triage) -- med beyond tolstack's budget of 3
+resolution: fixed 2026-11-22 by handoff the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds -- an empty gap list shows nothing (deferred 2026-11-21 by triage before that)
 area: design
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_the_walk_reads_the_links_and_the_pitch_plate_stack_on_the_merged_page.md
