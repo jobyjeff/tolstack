@@ -274,10 +274,10 @@
       },
       "zone": "band",
       "dimension_ref": {
-        "topology": "vpa_pitch_linkage",
-        "edge": "pitch_plate_flange_to_link_hole"
+        "topology": "vpa_end_stop_v2",
+        "edge": "pitch_plate_link_flanged_bushing_height"
       },
-      "note": "v2's edge for the lug's axial height (datum A to the flanged bushing's bore), standing where v1's pitch_plate_attach_height does, banded by the same 215735-A position callout v1 borrows: the Z component of the plate-side joint centre only, as in v1."
+      "note": "v2's own edge for the lug's axial height (datum A to the flanged bushing's bore), standing where v1's pitch_plate_attach_height does, read off 215735-A since 2026-11-23: the same frame v1's pitch_plate_flange_to_link_hole cites, read the same way, so the band is v1's. The Z component of the plate-side joint centre only, as in v1."
     },
     {
       "edge": "pitch_link_flanged_bushing_press_fit",
@@ -416,9 +416,9 @@
       },
       "borrowed_from": {
         "topology": "vpa_end_stop_v2",
-        "edge": "tan_link_length"
+        "edge": "tan_link_race_bores"
       },
-      "note": "The inline band about zero, the same citation as v2's tan_link_length edge carries about 61.40 (borrowed_from pairs the two at load). On v2 a band from 213863-004-A's own sheet lands on tan_link_race_bores, the link body's bore to bore."
+      "note": "The inline band about zero, the same callout v2's tan_link_race_bores (the link body's bore to bore) carries about 61.40, read off 213863-004-A on 2026-11-23; the two are paired at load. The four rows below are the races between the bores and the sphere centres."
     },
     {
       "edge": "tan_link_lower_outer_race_od_to_centre",
@@ -576,10 +576,10 @@
       },
       "zone": "sphere",
       "dimension_ref": {
-        "topology": "vpa_pitch_linkage",
-        "edge": "pitch_plate_tan_link_attach_radius"
+        "topology": "vpa_end_stop_v2",
+        "edge": "pitch_plate_tan_link_flanged_bushing_radius"
       },
-      "note": "v2's edge for where the tangential link's lug sits on the plate (pilot boss to the flanged bushing's bore), standing where v1's pitch_plate_tan_link_attach_radius does, banded by that edge's 215735-A position zone as a ball."
+      "note": "v2's own edge for where the tangential link's lug sits on the plate (pilot boss to the flanged bushing's bore), standing where v1's pitch_plate_tan_link_attach_radius does, read off 215735-A since 2026-11-23: the same position zone, read as a ball, so the band is v1's."
     },
     {
       "edge": "tan_link_flanged_bushing_press_fit",
@@ -683,8 +683,8 @@
       },
       "zone": "sphere",
       "route_of": "pitch_plate_tan_link_flanged_bushing_radius",
-      "gap": "not yet read from its drawing or datasheet",
-      "note": "Along the bolt: the lug bore to the lug face the bushing's flange seats on. The ball zone has all three columns, so a position along the bolt moves one."
+      "gap": "215735-A gives this edge a squareness, not a place along the bolt",
+      "note": "Along the bolt: the lug bore to the lug face the bushing's flange seats on. The ball zone has all three columns, so a position along the bolt moves one. The edge's own value is the ear's ⊥ 0.05 F, a tilt, which this row cannot fold as a position; the sheet places the ear along the bolt by its ⌖ 0.2 A B C, from the plate's datums rather than from the bore."
     },
     {
       "edge": "tan_link_flanged_bushing_flange_thickness",
@@ -831,13 +831,13 @@
   "provenance": {
     "authored_by": "handoff the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds, 2026-11-22",
     "sweep": "The same P2 run as v1's study. Its geometry.features[] name v1's topology; v2 declares ids_from vpa_pitch_linkage and has every node and edge the run names under the same id, so the run is read on v2 (docs/DAG_TOPOLOGY.md, \"Models\").",
-    "bands": "No v2 edge carries a value yet, so each of the six contributors borrows the band v1's study reads, from v1's edge (dimension_ref across models, or the inline band paired by borrowed_from): the first v2 number is v1's number, on v2's parts. tests/test_kinematic.py folds both studies and compares them.",
+    "bands": "Each of the six contributors reads a band from v2's own edges: four were copied from v1 on 2026-11-23 (handoff v2_carries_the_ten_citations_v1_already_has_and_its_own_stop_stacks), and the two plate lugs' and the tangential link body's were read off 215735-A and 213863-004-A the same day (handoff v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets). Every reading agrees with v1's, so v2's numbers are v1's; tests/test_kinematic.py folds both studies and compares them.",
     "rows": "A row `route_of` a contributor is an edge of v2 on the route from that contributor's edge to the ball centre its sweep columns move: the parts v1 lumped into one step. Each reads its contributor's columns, shows that sensitivity and enters no term until it has a value. The lesson of the handoff (docs/sessions/lessons/LESSONS_20261122_the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds.md) lists them, and the edges left out with why.",
     "stops": "The stops' axial stacks are v1's chain studies, by study_ref to v1: v2's own stop stacks come after the drawings are cited."
   },
   "notes": [
     "Variation only, as v1's: every band is about 0.0 and each stop's fold is the deviation of blade pitch from the sweep's own nominal there.",
     "Each stop is its own stack, as v1's: the linkage terms at that pose plus v1's axial stack to the stop's contact.",
-    "Every band is borrowed from v1 for now. The rows with no value are v2's parts between a contributor's edge and its ball centre; their sensitivity is the contributor's, and a band cited on any of them enters as its own term."
+    "Every band is read from v2's own edges. The rows with no value are v2's parts between a contributor's edge and its ball centre; their sensitivity is the contributor's, and a band cited on any of them enters as its own term."
   ]
 }

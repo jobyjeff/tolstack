@@ -1879,9 +1879,30 @@ TEN_COPIED = (
     "tan_link_mount_overall_height",
 )
 
-#: v2's owners whose band is still v1's (215735-A, read for the next link).
-STILL_BORROWED = {"pitch_plate_link_flanged_bushing_height",
-                  "pitch_plate_tan_link_flanged_bushing_radius"}
+#: Each of v2's six contributors, where its band comes from on v2 and why it
+#: still equals v1's. Every band is v2's own edge's since 2026-11-23 (handoff
+#: v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets); a
+#: contributor whose v2 reading parts from v1's moves to V2_DIFFERS_FROM_V1.
+V2_EQUALS_V1_BECAUSE = {
+    "pitch_link_length": "copied from v1: the end-stop workbook's B31, untraced",
+    "pitch_arm_radius": (
+        "copied from v1: the workbook's B26 on pitch_arm_link_hole_to_clocking_hole; "
+        "215071-C relates the link bore to the clamp face only through datums A and B, "
+        "so pitch_arm_radius itself stays open"),
+    "pitch_plate_link_flanged_bushing_height": (
+        "read off 215735-A: the 5X frame v1's pitch_plate_flange_to_link_hole cites, "
+        "read the same way"),
+    "tan_link_length": (
+        "read off 213863-004-A onto tan_link_race_bores: the callout v1's "
+        "tan_link_length cites"),
+    "tan_link_mount_height": "copied from v1: 215198-A",
+    "pitch_plate_tan_link_flanged_bushing_radius": (
+        "read off 215735-A: the 3X frame v1's pitch_plate_tan_link_attach_radius cites"),
+}
+
+#: v2 contributors whose band now differs from v1's, with the reading that
+#: moved it. None does yet.
+V2_DIFFERS_FROM_V1: dict = {}
 
 
 def _both_real():
@@ -1916,13 +1937,20 @@ def _range_terms(result, rename):
 @pytest.mark.skipif(not REAL_RUN.exists(), reason=f"[real] P2 not at {REAL_RUN}")
 def test_real_v2_folds_to_v1s_numbers_at_both_stops_and_over_the_range():
     """(a) Parity, computed: v2's study is v1's study on v2's parts -- the same
-    total and the same terms at each stop and in the range between them, now
-    with v2's own edges under every band but 215735-A's two."""
+    total and the same terms at each stop and in the range between them, with
+    v2's own edges under every band. Which contributor equals v1's and why is
+    V2_EQUALS_V1_BECAUSE; one that differs is V2_DIFFERS_FROM_V1."""
+    assert set(V2_EQUALS_V1_BECAUSE) | set(V2_DIFFERS_FROM_V1) == set(V1_TO_V2.values())
+    assert not set(V2_EQUALS_V1_BECAUSE) & set(V2_DIFFERS_FROM_V1)
     (s1, w1), (s2, w2) = _both_real()
     for stop in ("plus72", "minus7"):
         a, b = fold_at_stop(s1, w1, stop), fold_at_stop(s2, w2, stop)
+        assert not V2_DIFFERS_FROM_V1, "a v2 band moved: compare the terms one by one"
         assert b.interval.as_dict() == a.interval.as_dict()
-        assert _terms_by_edge(b) == _terms_by_edge(a, rename=V1_TO_V2)
+        mine, theirs = _terms_by_edge(b), _terms_by_edge(a, rename=V1_TO_V2)
+        for edge, why in V2_EQUALS_V1_BECAUSE.items():
+            assert mine.get(edge) == theirs.get(edge), f"{edge} ({why}) at {stop}"
+        assert mine == theirs
     r1, r2 = range_between_stops(s1, w1), range_between_stops(s2, w2)
     assert r2.interval.as_dict() == r1.interval.as_dict()
     assert r2.nominal.as_dict() == r1.nominal.as_dict()
@@ -1941,8 +1969,7 @@ def test_real_v2_reads_the_v1_run_and_every_contributor_is_v2s_edge():
     assert sorted(c.edge for c in owners) == sorted(V1_TO_V2.values())
     assert {c.feature_source for c in s2.contributors} == {"artifact"}
     words = {c.edge: c.value_from(s2.topology) for c in owners}
-    assert {e for e, w in words.items() if w == "other_model"} == STILL_BORROWED
-    assert {w for e, w in words.items() if e not in STILL_BORROWED} == {"this_model"}
+    assert set(words.values()) == {"this_model"}, words
     assert {r.topology for r in s2.study_refs} == {"vpa_pitch_linkage", "vpa_end_stop_v2"}
     assert {r.study_id for r in s2.study_refs if r.topology == "vpa_end_stop_v2"} == set(
         V1_TO_V2_STUDY.values())
@@ -1972,9 +1999,8 @@ def test_real_the_projection_says_where_each_v2_value_comes_from():
     assert row["status"] == "ok" and row["ids_from"] == "vpa_pitch_linkage"
     stop = row["stops"][0]
     words = {r["edge"]: r["value_from"] for r in stop["rows"]}
-    assert {e for e in V1_TO_V2.values() if words[e] == "other_model"} == STILL_BORROWED
-    assert {words[e] for e in V1_TO_V2.values() if e not in STILL_BORROWED} == {"this_model"}
-    assert set(words.values()) == {"this_model", "other_model", "none"}
+    assert {words[e] for e in V1_TO_V2.values()} == {"this_model"}
+    assert set(words.values()) == {"this_model", "none"}
     leaves = {g["study"]: {c["value_from"] for c in g["children"]}
               for g in stop["groups"] if g["children"]}
     assert leaves[V1_TO_V2_STUDY["vpa_pitch_linkage_travel_between_end_stops"]] == {"this_model"}
@@ -1995,6 +2021,62 @@ def test_real_the_ten_copied_edges_carry_v1s_dimension_exactly():
         e1, e2 = t1.edge(edge), t2.edge(edge)
         assert (e2.part, e2.from_node, e2.to_node) == (e1.part, e1.from_node, e1.to_node), edge
         assert e2.dimension is not None and e2.dimension == e1.dimension, edge
+
+
+#: The v2 edges read off their sheets on 2026-11-23 (handoff
+#: v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets), by
+#: value: (nominal, plus_minus, document, sheet, zone, confidence, callout).
+READ_OFF_THE_SHEETS = {
+    "pitch_plate_pilot_to_piston_flange": (
+        0.0, 0.05, "215735-A", 1, "D8", "inferred", "Ø 41.040 ±0.025 with ⊥ Ø0.1 A, datum B"),
+    "pitch_plate_pilot_to_piston_fasteners": (
+        0.0, 0.15, "215735-A", 1, "H8", "traced",
+        "5X Ø 5.20 ±0.10 with ⌖ Ø0.3Ⓜ A B C over Ø0.1Ⓜ A B"),
+    "pitch_plate_link_bushing_bores_position": (
+        0.0, 0.015, "215735-A", 2, "B9", "traced",
+        "5X Ø 8.520 ±0.008 with ⌖ Ø0.03Ⓜ GⓂ, 5X INDIVIDUALLY"),
+    "pitch_plate_link_flanged_bushing_radius": (
+        0.0, 0.1, "215735-A", 2, "B9", "traced",
+        "5X Ø 7.950 +0.015/0.000 with ⌖ Ø0.2 A B C over Ø0.1 A"),
+    "pitch_plate_link_flanged_bushing_height": (
+        0.0, 0.1, "215735-A", 2, "B9", "traced",
+        "5X Ø 7.950 +0.015/0.000 with ⌖ Ø0.2 A B C over Ø0.1 A"),
+    "pitch_plate_link_flanged_bushing_bore_to_seat": (
+        0.0, 0.025, "215735-A", 2, "D10", "inferred",
+        "5X 4.06 ±0.10 with ⌖ 0.2 A B C over ⊥ 0.05 G, 5X INDIVIDUALLY"),
+    "pitch_plate_tan_link_bushing_bores_position": (
+        0.0, 0.015, "215735-A", 2, "D3", "traced",
+        "3X Ø 8.520 ±0.008 with ⌖ Ø0.03Ⓜ FⓂ, 3X INDIVIDUALLY"),
+    "pitch_plate_tan_link_flanged_bushing_radius": (
+        0.0, 0.1, "215735-A", 2, "C4", "traced",
+        "3X Ø 7.950 +0.015/0.000 with ⌖ Ø0.2 A B, datum C"),
+    "pitch_plate_tan_link_flanged_bushing_bore_to_seat": (
+        0.0, 0.025, "215735-A", 2, "B4", "inferred",
+        "3X 4.06 ±0.08 with ⌖ 0.2 A B C over ⊥ 0.05 F, 3X INDIVIDUALLY"),
+    "tan_link_race_bores": (
+        61.4, 0.05, "213863-004-A", 1, "E6", "traced",
+        "61.40 (basic, boxed) with ⌖ Ø0.1 B on Ø 14.288 ±0.006"),
+}
+
+#: The two pitch arm edges 215071-C leaves open: the clamp face is in no frame.
+LEFT_OPEN_ON_215071_C = ("pitch_arm_radius", "pitch_arm_bore_to_clamp_face")
+
+
+def test_the_v2_edges_read_off_their_sheets_carry_the_printed_callout_by_value():
+    from tolerance_stack.topology import load_topology
+    t2 = load_topology(REPO_ROOT / "docs" / "topologies" / "topology_vpa_end_stop_v2.json")
+    for edge, (nominal, half, document, sheet, zone, confidence, callout) in (
+            READ_OFF_THE_SHEETS.items()):
+        d = t2.edge(edge).dimension
+        assert d is not None, edge
+        assert (d.nominal, d.min, d.max, d.plus_minus) == pytest.approx(
+            (nominal, nominal - half, nominal + half, half)), edge
+        ref = d.source_ref
+        assert (ref.kind, ref.document, ref.sheet, ref.zone, ref.confidence, ref.callout) == (
+            "drawing", document, sheet, zone, confidence, callout), edge
+    for edge in LEFT_OPEN_ON_215071_C:
+        assert t2.edge(edge).dimension is None, edge
+        assert "215071-C" in t2.edge(edge).note, edge
 
 
 def test_real_each_v2_stop_stack_folds_to_its_v1_twin():

@@ -1635,7 +1635,7 @@
       "part": "pitch_arm",
       "from": "pitch_arm_root_seat",
       "to": "pitch_arm_link_bore",
-      "note": "Value to come from 215071-001's drawing."
+      "note": "No value. 215071-C sheet 2 places the link bore (Ø 4.826) by ⌖ Ø0.13Ⓛ A B C, 50.00 basic from the blade root bore (datum B); datum A is the arm's lug-side face, and the clamp face is in no frame, so the sheet relates the two only through datums A and B. -001 is -002 opposite; note 5 applies every tolerance to both."
     },
     {
       "id": "pitch_arm_bore_to_clamp_face",
@@ -1644,7 +1644,7 @@
       "part": "pitch_arm",
       "from": "pitch_arm_blade_root_bore",
       "to": "pitch_arm_root_seat",
-      "note": "Value to come from 215071-001's drawing."
+      "note": "No value. 215071-C sheet 2 makes the blade root bore (Ø 64.030 +0.030/0.000) datum B, ⊥ Ø0.05 A, where datum A is the arm's lug-side face (⏥ 0.02), the end face opposite the clamp face. The clamp face carries no callout (note 4's general ⌓ 0.8 names no datum) and the thickness between the faces is a reference (19.55), so the sheet relates the bore to it only through datum A."
     },
     {
       "id": "pitch_arm_link_hole_to_clocking_hole",
@@ -1777,7 +1777,38 @@
       "part": "tan_link_213863_004",
       "from": "tan_link_lower_race_bore",
       "to": "tan_link_upper_race_bore",
-      "note": "Value to come from 213863-004's drawing. The machined link's own bore to bore; the length the mechanism reads is the assembly's, between the outer races' centres."
+      "dimension": {
+        "id": "tan_link_race_bores",
+        "name": "tangential link bore centre to bore centre",
+        "nominal": 61.4,
+        "min": 61.35,
+        "max": 61.45,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "213863-004-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": "E6",
+          "view": "PART DETAIL (plan view)",
+          "callout": "61.40 (basic, boxed) with ⌖ Ø0.1 B on Ø 14.288 ±0.006",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213863-004-A.pdf",
+            "sha256": "4e1a130436bd257b47e12560ceee0efca0ff8783df7bcd64f7b2b5f5cbbfec75",
+            "runs": [
+              {
+                "run_id": "20260910_154233_213863-004-A",
+                "ts": "2026-09-10T22:42:43.204081+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and a render of the sheet; the run recorded no dimensions. The sheet is 213863-004's own (title block DRAWING NO 213863-004)."
+          },
+          "confidence": "traced",
+          "note": "213863-004 A sheet 1 of 1 (PART DETAIL), page 1190.56 x 841.89 pt: the boxed basic 61.40 between the two bore centres at bbox [332.97, 139.52, 365.25, 155.67]; Ø 14.288 ±0.006 at [86.72, 170.71, 187.38, 186.86] with its frame ⌖ Ø0.1 B at [93.43, 186.58, 159.12, 202.73] and the datum C box below it; datum B is the Ø 15.876 ±0.006 bore ([481.35, 329.45, 581.15, 345.60], ⊥ Ø0.05 A at [490.28, 348.16, 563.25, 364.31]). So one bore's axis sits within a Ø0.1 zone about 61.40 from the other's: a radius of 0.05, taken along the centre line as the worst case, +/-0.05, as v1's tan_link_length reads it. The bores' own size bands do not move a centre and are not added."
+        }
+      },
+      "note": "The machined link's own bore to bore: 213863-004-A's basic 61.40 with ⌖ Ø0.1 B on the Ø 14.288 bore, as +/-0.05. The length the mechanism reads is the assembly's, between the outer races' centres."
     },
     {
       "id": "pitch_plate_pilot_to_piston_flange",
@@ -1786,7 +1817,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "piston_body_plate_flange_seat",
-      "note": "Value to come from 215735-001's drawing."
+      "dimension": {
+        "id": "pitch_plate_pilot_to_piston_flange",
+        "name": "pilot boss perpendicularity to the piston flange face, as an offset",
+        "nominal": 0.0,
+        "min": -0.05,
+        "max": 0.05,
+        "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": "D8",
+          "view": "front view (-001 SHOWN (CW ROTATION))",
+          "callout": "Ø 41.040 ±0.025 with ⊥ Ø0.1 A, datum B",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "inferred",
+          "note": "215735-A sheet 1 (OVERVIEW), page 1683.78 x 1190.56 pt: Ø 41.040 ±0.025 at bbox [608.76, 596.32, 710.27, 612.47], its frame ⊥ Ø0.1 A at [613.01, 617.58, 676.76, 633.73], and the datum B box below it. The pilot boss is datum B; its axis is square to datum A within a Ø0.1 cylinder. Datum A is the face the boss rises from (⏥ 0.1, the side view at zone G10), the face the piston body's flange seats on, the boss piloting into the body's bore. Read as +/-0.05 about zero, half the zone: a reading of an orientation zone as an offset, hence inferred. It bounds the boss's tilt to the face; an axis has no distance from a face along itself."
+        }
+      },
+      "note": "The boss's squareness to the face the piston body's flange seats on: 215735-A's ⊥ Ø0.1 A on the Ø 41.040 pilot boss, as +/-0.05."
     },
     {
       "id": "pitch_plate_pilot_to_piston_fasteners",
@@ -1795,7 +1861,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "gas_spring_piston_fastener_clocking",
-      "note": "Value to come from 215735-001's drawing."
+      "dimension": {
+        "id": "pitch_plate_pilot_to_piston_fasteners",
+        "name": "piston fastener holes' position from the pilot boss, position zone",
+        "nominal": 0.0,
+        "min": -0.15,
+        "max": 0.15,
+        "plus_minus": 0.15,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 1,
+          "zone": "H8",
+          "view": "front view (-001 SHOWN (CW ROTATION))",
+          "callout": "5X Ø 5.20 ±0.10 with ⌖ Ø0.3Ⓜ A B C over Ø0.1Ⓜ A B",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 1 (OVERVIEW), page 1683.78 x 1190.56 pt: 5X Ø 5.20 ±0.10 at bbox [574.46, 128.89, 673.42, 145.04], its composite frame at [578.72, 150.15, 690.93, 183.31]: ⌖ Ø0.3Ⓜ A B C over Ø0.1Ⓜ A B. The upper segment places the pattern from the datums: B is the pilot boss, and C, the 3X tangential link bores (sheet 2), clocks it. Read as v1 reads its composite 5X frame: the upper segment's Ø0.3 as a radius of 0.15 about each hole's true position. The lower segment, Ø0.1, holds the five holes to each other. Not in the band: the zone grows by a hole's departure from Ø 5.10, to Ø0.5 at Ø 5.30."
+        }
+      },
+      "note": "Where the piston body's fastener holes sit on the plate from the pilot boss: 215735-A's ⌖ Ø0.3Ⓜ A B C on the 5X Ø 5.20 holes, as +/-0.15."
     },
     {
       "id": "pitch_plate_pilot_in_piston",
@@ -2234,7 +2335,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_link_flanged_bushing_bore",
       "to": "pitch_plate_link_straight_bushing_bore",
-      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 5X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 G\u24c2 (5X individually), against the flanged bore as its datum."
+      "dimension": {
+        "id": "pitch_plate_link_bushing_bores_position",
+        "name": "pitch link straight bushing bore's position to the flanged bushing bore",
+        "nominal": 0.0,
+        "min": -0.015,
+        "max": 0.015,
+        "plus_minus": 0.015,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "B9",
+          "view": "SECTION A-A",
+          "callout": "5X Ø 8.520 ±0.008 with ⌖ Ø0.03Ⓜ GⓂ, 5X INDIVIDUALLY",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 5X Ø 8.520 ±0.008 at bbox [441.23, 900.32, 557.19, 916.47], its frame at [445.49, 921.58, 551.75, 937.73]: ⌖ Ø0.03Ⓜ GⓂ, '5X INDIVIDUALLY' at [558.84, 922.01, 647.19, 938.16]. Datum G is the flanged bushing's Ø 7.950 bore of the same lug (box 'G 5X INDIVIDUALLY' at [255.84, 750.09, 361.20, 766.66]). Read as the zone at maximum material: Ø0.03, a radius of 0.015 about zero. Not in the band: the zone grows by the bore's departure from Ø 8.512, to Ø0.046 at Ø 8.528, and the datum's departure from Ø 7.950 (up to 0.015) lets the bore shift as well."
+        }
+      },
+      "note": "How far the straight bushing's bore is off the flanged one's axis, the lug pair's coaxiality: 215735-A's ⌖ Ø0.03Ⓜ GⓂ on the 5X Ø 8.520 bores, as +/-0.015."
     },
     {
       "id": "pitch_link_flanged_bushing_wall",
@@ -2261,7 +2397,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_link_flanged_bushing_bore",
-      "note": "Where the lug sits on the plate. Value to come from 215735-001's drawing: the bore's position is cited on the bore itself (215735-A sheet 2, SECTION A-A), and its basic location is not read yet. Stands where v1's attachment radius does."
+      "dimension": {
+        "id": "pitch_plate_link_flanged_bushing_radius",
+        "name": "pitch link flanged bushing bore's position from the pilot boss, position zone",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "B9",
+          "view": "SECTION A-A",
+          "callout": "5X Ø 7.950 +0.015/0.000 with ⌖ Ø0.2 A B C over Ø0.1 A",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 5X Ø 7.950 +0.015/0.000 at bbox [370.39, 970.11, 485.50, 999.86], its composite frame at [374.64, 1004.97, 469.85, 1038.13]: ⌖ Ø0.2 A B C over Ø0.1 A. The same 5X bore is datum G (box at [255.84, 750.09, 262.64, 766.24], 5X INDIVIDUALLY, on its extension lines). The upper segment holds each bore's axis in a Ø0.2 cylinder about its true position from A B C, read as v1 reads this frame: a radius of 0.1 about zero. The basic location is the 3D model's (sheet 1, note 5). The zone bounds the axis across the bore; along the bore's own axis it bounds nothing. The lower segment, Ø0.1 A, orients the five bores to A and places nothing. B is the pilot boss (sheet 1, Ø 41.040), so this is the bore's place on the plate from the boss."
+        }
+      },
+      "note": "Where the lug sits on the plate from the pilot boss: 215735-A's ⌖ Ø0.2 A B C on the 5X Ø 7.950 bores, as +/-0.1 about the model's location. Stands where v1's attachment radius does."
     },
     {
       "id": "pitch_plate_link_flanged_bushing_height",
@@ -2270,7 +2441,42 @@
       "part": "pitch_plate_215735_001",
       "from": "piston_body_plate_flange_seat",
       "to": "pitch_plate_link_flanged_bushing_bore",
-      "note": "The lug's height along the plate's axis (CAD Z): where the bore's axis sits from the plate's face on the piston body flange, datum A of the ⌖Ø0.2 A B C frame 215735-A puts on its 5X Ø 7.950 link bores. The link's bolt is radial, so this height is the bore's position along Z. Stands where v1's pitch_plate_attach_height does. Value to come from 215735-001's drawing."
+      "dimension": {
+        "id": "pitch_plate_link_flanged_bushing_height",
+        "name": "pitch link flanged bushing bore's height from datum A, position zone",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "B9",
+          "view": "SECTION A-A",
+          "callout": "5X Ø 7.950 +0.015/0.000 with ⌖ Ø0.2 A B C over Ø0.1 A",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 5X Ø 7.950 +0.015/0.000 at bbox [370.39, 970.11, 485.50, 999.86], its composite frame at [374.64, 1004.97, 469.85, 1038.13]: ⌖ Ø0.2 A B C over Ø0.1 A. The same 5X bore is datum G (box at [255.84, 750.09, 262.64, 766.24], 5X INDIVIDUALLY, on its extension lines). The upper segment holds each bore's axis in a Ø0.2 cylinder about its true position from A B C, read as v1 reads this frame: a radius of 0.1 about zero. The basic location is the 3D model's (sheet 1, note 5). The zone bounds the axis across the bore; along the bore's own axis it bounds nothing. The lower segment, Ø0.1 A, orients the five bores to A and places nothing. A is the face the pilot boss rises from (sheet 1, ⏥ 0.1, zone G10), the plate's face on the piston body's flange; with the bore radial, the zone's component along the plate's axis is the bore's height from it, as v1's pitch_plate_flange_to_link_hole reads the same frame. This edge and the radius edge are two directions of one zone."
+        }
+      },
+      "note": "The lug's height along the plate's axis (CAD Z): where the bore's axis sits from the plate's face on the piston body flange, datum A of 215735-A's ⌖ Ø0.2 A B C on the 5X Ø 7.950 bores, as +/-0.1. The link's bolt is radial, so this height is the bore's position along Z. Stands where v1's pitch_plate_attach_height does."
     },
     {
       "id": "pitch_plate_link_flanged_bushing_bore_to_seat",
@@ -2279,7 +2485,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_link_flanged_bushing_bore",
       "to": "pitch_link_flanged_bushing_plate_seat",
-      "note": "The lug face's squareness to its bore. Value to come from 215735-001's drawing."
+      "dimension": {
+        "id": "pitch_plate_link_flanged_bushing_bore_to_seat",
+        "name": "pitch link lug ear perpendicularity to its flanged bushing bore, as an offset",
+        "nominal": 0.0,
+        "min": -0.025,
+        "max": 0.025,
+        "plus_minus": 0.025,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "D10",
+          "view": "SECTION A-A",
+          "callout": "5X 4.06 ±0.10 with ⌖ 0.2 A B C over ⊥ 0.05 G, 5X INDIVIDUALLY",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "inferred",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 5X 4.06 ±0.10 at bbox [307.37, 608.59, 392.34, 624.74], its two frames at [311.62, 629.85, 397.49, 663.01]: ⌖ 0.2 A B C over ⊥ 0.05 G, '5X INDIVIDUALLY' at [383.96, 648.46, 472.31, 664.61]. The 4.06 is the thickness of the lug ear that carries the flanged bushing's bore: the ⊥ names that bore (datum G), and the bore is 3.26 long on the 215735-001 mesh, 0.80 short of 4.06 by the two edge breaks (identity only, never the value). The bushing's flange seats on a face of that ear. ⊥ 0.05 G holds the ear's centre plane square to the bore within a zone 0.05 wide, read as +/-0.025 about zero, half the zone: a reading of an orientation zone as an offset, hence inferred. The face's own departure from that plane within the 4.06 ±0.10 is not in the band. The ⌖ 0.2 A B C places the ear from the plate's datums, not from the bore."
+        }
+      },
+      "note": "The lug face's squareness to its bore: 215735-A's ⊥ 0.05 G on the 5X 4.06 ear, as +/-0.025."
     },
     {
       "id": "pitch_link_flanged_bushing_bore_to_flange",
@@ -2396,7 +2637,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_tan_link_flanged_bushing_bore",
       "to": "pitch_plate_tan_link_straight_bushing_bore",
-      "note": "How far the straight bushing's bore is off the flanged one's axis: the lug pair's coaxiality. No value recorded. Value to come from the callout cited here. The callout that closes it is cited, 215735-A sheet 2, SECTION A-A: 3X \u00d8 8.520 \u00b10.008, \u2316 \u00d80.03\u24c2 F\u24c2 (3X individually), against the flanged bore as its datum."
+      "dimension": {
+        "id": "pitch_plate_tan_link_bushing_bores_position",
+        "name": "tangential link straight bushing bore's position to the flanged bushing bore",
+        "nominal": 0.0,
+        "min": -0.015,
+        "max": 0.015,
+        "plus_minus": 0.015,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "D3",
+          "view": "SECTION A-A",
+          "callout": "3X Ø 8.520 ±0.008 with ⌖ Ø0.03Ⓜ FⓂ, 3X INDIVIDUALLY",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 3X Ø 8.520 ±0.008 at bbox [1197.16, 591.01, 1313.12, 607.16], its frame at [1201.42, 612.27, 1306.82, 628.42]: ⌖ Ø0.03Ⓜ FⓂ, '3X INDIVIDUALLY' at [1313.73, 611.61, 1402.08, 627.76]. Datum F is the flanged bushing's Ø 7.950 bore of the same lug (box 'F 3X INDIVIDUALLY' at [1171.27, 667.37, 1276.19, 683.94]). Read as the zone at maximum material: Ø0.03, a radius of 0.015 about zero. Not in the band: the zone grows by the bore's departure from Ø 8.512, to Ø0.046 at Ø 8.528, and the datum's departure from Ø 7.950 (up to 0.015) lets the bore shift as well."
+        }
+      },
+      "note": "How far the straight bushing's bore is off the flanged one's axis, the lug pair's coaxiality: 215735-A's ⌖ Ø0.03Ⓜ FⓂ on the 3X Ø 8.520 bores, as +/-0.015."
     },
     {
       "id": "tan_link_flanged_bushing_wall",
@@ -2423,7 +2699,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_spindle_bore_axis",
       "to": "pitch_plate_tan_link_flanged_bushing_bore",
-      "note": "Where the lug sits on the plate. Value to come from 215735-001's drawing: the bore's position is cited on the bore itself (215735-A sheet 2, SECTION A-A), and its basic location is not read yet. Stands where v1's attachment radius does."
+      "dimension": {
+        "id": "pitch_plate_tan_link_flanged_bushing_radius",
+        "name": "tangential link flanged bushing bore's position from the pilot boss, position zone",
+        "nominal": 0.0,
+        "min": -0.1,
+        "max": 0.1,
+        "plus_minus": 0.1,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "C4",
+          "view": "SECTION A-A",
+          "callout": "3X Ø 7.950 +0.015/0.000 with ⌖ Ø0.2 A B, datum C",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "traced",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 3X Ø 7.950 +0.015/0.000 at bbox [1182.66, 740.04, 1289.72, 769.80], its frame at [1186.91, 774.91, 1267.66, 791.06]: ⌖ Ø0.2 A B. The frame carries the datum C box ([1210.99, 812.06, 1216.93, 828.21]), and the same bore is datum F (box 'F 3X INDIVIDUALLY' at [1171.27, 667.37, 1276.19, 683.94]). Datum B is the pilot boss (sheet 1, Ø 41.040). The zone holds the bore's axis in a Ø0.2 cylinder about its true position from A and B, read as v1 reads this frame: a radius of 0.1 about zero, which the study takes as a ball. The basic location is the 3D model's (sheet 1, note 5)."
+        }
+      },
+      "note": "Where the lug sits on the plate from the pilot boss: 215735-A's ⌖ Ø0.2 A B on the 3X Ø 7.950 bores, as +/-0.1 about the model's location. Stands where v1's attachment radius does."
     },
     {
       "id": "pitch_plate_tan_link_flanged_bushing_bore_to_seat",
@@ -2432,7 +2743,42 @@
       "part": "pitch_plate_215735_001",
       "from": "pitch_plate_tan_link_flanged_bushing_bore",
       "to": "tan_link_flanged_bushing_plate_seat",
-      "note": "The lug face's squareness to its bore. Value to come from 215735-001's drawing."
+      "dimension": {
+        "id": "pitch_plate_tan_link_flanged_bushing_bore_to_seat",
+        "name": "tangential link lug ear perpendicularity to its flanged bushing bore, as an offset",
+        "nominal": 0.0,
+        "min": -0.025,
+        "max": 0.025,
+        "plus_minus": 0.025,
+        "source_ref": {
+          "kind": "drawing",
+          "document": "215735-A",
+          "revision": "A",
+          "sheet": 2,
+          "zone": "B4",
+          "view": "SECTION A-A",
+          "callout": "3X 4.06 ±0.08 with ⌖ 0.2 A B C over ⊥ 0.05 F, 3X INDIVIDUALLY",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [
+              {
+                "run_id": "20260813_180734_215735-A",
+                "ts": "2026-08-14T01:07:56.112994+00:00"
+              },
+              {
+                "run_id": "20260819_153213_215735-A",
+                "ts": "2026-08-19T22:32:36.201417+00:00"
+              }
+            ],
+            "note": "Read 2026-11-23 off the PDF's text layer and renders of both sheets; neither run recorded dimensions. The sheets show -001, with -002 its mirror (sheet 1: '-001 SHOWN (CW ROTATION)/ -002 OPPOSITE (CCW ROTATION)', and note 5 names both models)."
+          },
+          "confidence": "inferred",
+          "note": "215735-A sheet 2 (PART DETAILS), SECTION A-A, page 1683.78 x 1190.56 pt: 3X 4.06 ±0.08 at bbox [1074.82, 894.65, 1161.49, 910.80], its two frames at [1079.07, 915.91, 1164.93, 949.07]: ⌖ 0.2 A B C over ⊥ 0.05 F, '3X INDIVIDUALLY' at [1146.48, 934.76, 1234.83, 950.91]. The 4.06 is the thickness of the lug ear that carries the flanged bushing's bore: the ⊥ names that bore (datum F), and the bore is 3.26 long on the 215735-001 mesh, 0.80 short of 4.06 by the two edge breaks (identity only, never the value). The bushing's flange seats on a face of that ear. ⊥ 0.05 F holds the ear's centre plane square to the bore within a zone 0.05 wide, read as +/-0.025 about zero, half the zone: a reading of an orientation zone as an offset, hence inferred. The face's own departure from that plane within the 4.06 ±0.08 is not in the band. The ⌖ 0.2 A B C places the ear from the plate's datums, not from the bore."
+        }
+      },
+      "note": "The lug face's squareness to its bore: 215735-A's ⊥ 0.05 F on the 3X 4.06 ear, as +/-0.025."
     },
     {
       "id": "tan_link_flanged_bushing_bore_to_flange",
