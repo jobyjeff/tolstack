@@ -6275,6 +6275,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a false word. When a chip or a label names *why* a field is empty,
       list every row the empty case reaches today (`parts` with no
       `drawing`, in every model), not only the rows that have the chip.
+- [ ] **A memo on a render path: its key must hold every input, and its
+      result is shared.** 2026-11-22
+      (`the_viewer_node_suite_runs_inside_its_default_tier_timeout`):
+      `VA.mapLayout` is now remembered by `JSON.stringify([model,
+      doc.places, M])` and returns one geometry object to every caller. On a
+      diff that touches `layOut`/`layoutOnce` or `views/map.js`, check two
+      things. (1) A new read inside the layout -- another `doc.` field, a
+      `VA.*` value that is not a constant -- is also in the key, or a
+      repaint draws the old map. (2) No caller writes into the returned
+      `geo` (it reaches `VA.lastMapLight.geometry`): `git grep -nE
+      "geo(metry)?\.[a-zA-Z_.]+ *=[^=]" -- apps/viewer`. Same for
+      `VA.gatherParts`' per-projection `WeakMap`.
+- [ ] **A super-linear render hides in a tier that skips in worktrees.**
+      Same handoff: a 0.6 s layout re-paid on every study repaint took the
+      node tier from 19 s to 278 s across eleven handoffs. `run_tests.cjs`
+      now prints `wall time … slowest checks:`. Read that block on your armed
+      run and compare it with the lesson's. A `[real]` check above a few
+      seconds is worth one line in the report.
 
 ## Architectural errors to check
 
