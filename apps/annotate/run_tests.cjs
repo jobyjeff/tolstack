@@ -1771,9 +1771,12 @@ check("a contact row whose part's place is not known is listed, says so, and off
   "a row from an older projection, with no `placed`, reads as placed", () => {
   const unplaced = JSON.parse(JSON.stringify(CAND_CONTACT));
   const row = unplaced.topologies[0].edges[0];
-  row.from = { part: "lug_b_bushing", placed: false };
-  row.to = { part: "plate", placed: true };
+  // The unplaced part at the `to` end: the `from` end's faces are still not
+  // a Take, since they were matched against a slot that may be another part's.
+  row.from = { part: "plate", placed: true };
+  row.to = { part: "lug_b_bushing", placed: false };
   assertEqual(AA.contactRowPlaced(row), false);
+  assertEqual(AA.contactRowPlaced(Object.assign({}, row, { from: row.to, to: row.from })), false);
   assertEqual(AA.contactRowPlaced(CAND_CONTACT.topologies[0].edges[0]), true, "no field: placed");
   for (const direction of ["from", "to"]) {
     const sets = AA.endContactSets(unplaced, "rail_topo", { edgeId: "rod_len", direction });
