@@ -384,7 +384,10 @@ export const DECLARED_GUARDS = {
   // results pane is the "Pick a study" picker. Seven guards renamed with their
   // rewrite (each asserted a sentence that described the page, and now asserts
   // its absence); the picker and six of the seven carry a spec.
-  fast: { declared: 623, enrollable: 623, names: "501320e323a2" },
+  // 2026-11-22 (the_viewer_node_suite_runs_inside_its_default_tier_timeout): +1 --
+  // a repaint does not lay out again (the map's layout and the gathered walk
+  // are remembered). It carries a spec.
+  fast: { declared: 624, enrollable: 624, names: "301cd115b8d9" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.

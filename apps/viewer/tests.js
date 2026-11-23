@@ -15,9 +15,13 @@
 
   VA.runTests = async function () {
     var results = [];
+    // Every result carries its own wall time (`ms`), so the runner can name
+    // the slowest checks: a per-render cost that grew 15x passed eleven
+    // handoffs unseen on 2026-11-21 because nothing printed it.
     async function test(name, fn) {
-      try { await fn(); results.push({ name: name, ok: true }); }
-      catch (err) { results.push({ name: name, ok: false, error: (err && err.message) || String(err) }); }
+      var t0 = Date.now();
+      try { await fn(); results.push({ name: name, ok: true, ms: Date.now() - t0 }); }
+      catch (err) { results.push({ name: name, ok: false, error: (err && err.message) || String(err), ms: Date.now() - t0 }); }
     }
     function skip(name, why) { results.push({ name: name, ok: true, skipped: why }); }
     function eq(a, b, msg) {
@@ -13648,6 +13652,29 @@
         eq(VA.mapLightKeys(model, null), { own: [], touching: [] });
         eq(VA.mapLightKeys(null, { kind: F.part, id: "post" }), { own: ["part:post"], touching: [] });
         void cls;
+      });
+
+    // the_viewer_node_suite_runs_inside_its_default_tier_timeout (2026-11-22):
+    // v1's map costs ~0.6 s to lay out and its gathered walk ~0.3 s, and the
+    // page re-drew both on every study, Groups and Unused click -- the node
+    // suite went from 19 s to 278 s re-paying them. A repaint of a model
+    // already drawn pays neither again, and an edited model is laid afresh.
+    await test("a repaint does not lay out again: the same model and layout file give the same " +
+      "map geometry, a model edited in place is laid again, and each model keeps its gathered " +
+      "walk while another model is drawn", function () {
+        var m = mapModel();
+        var first = VA.mapLayout(m, mapDoc());
+        ok(VA.mapLayout(mapModel(), mapDoc()) === first, "equal content is laid out once");
+        m.parts[0].name = "a renamed";
+        var edited = VA.mapLayout(m, mapDoc());
+        ok(edited !== first, "a model edited in place is laid again");
+        eq(edited.boxes.filter(function (b) { return b.id === "A"; })[0].name, "a renamed");
+        var one = VA.demoTopologyProjection().topologies[0];
+        var two = VA.demoTopologyProjection().topologies[0];
+        var gathered = VA.gatherParts(one.layout, one);
+        ok(gathered !== one.layout, "the fixture's walk is re-gathered, so the memo has something to keep");
+        VA.gatherParts(two.layout, two);
+        ok(VA.gatherParts(one.layout, one) === gathered, "drawing another model keeps this one's walk");
       });
 
     await test("the map's drawn transform keeps the fit's scale, so a fitted drawing stays inside " +
