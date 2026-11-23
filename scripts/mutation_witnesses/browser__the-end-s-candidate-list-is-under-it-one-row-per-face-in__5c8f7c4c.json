@@ -6,9 +6,9 @@
     {
       "contract": "Each candidate row says why it is there, on the row.",
       "issue": "docs/sessions/lessons/LESSONS_20261103_a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there.md",
-      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Without the reason line the list is face numbers -- the count Jeff could not act on, longer.",
+      "note": "Declared with the guard by handoff a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there (2026-11-03). Without the reason line the list is face numbers -- the count Jeff could not act on, longer. Re-pointed 2026-11-21 (a_take_on_a_lug_feature_binds_that_lugs_own_face): the line now also carries the place-not-known phrase.",
       "file": "apps/annotate/app.js",
-      "find": "  reason.textContent = [row.reason, row.bound ? words.bound : null].filter(Boolean).join(\" · \");",
+      "find": "  reason.textContent = [row.reason, row.bound ? words.bound : null, unplaced ? words.unplaced : null]\n    .filter(Boolean).join(\" · \");",
       "replace": "  reason.textContent = \"\";"
     }
   ]

@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a contact row whose part's place is not known is listed, says so, and offers no Take; a row from an older projection, with no `placed`, reads as placed",
+  "mutations": [
+    {
+      "contract": "A contact row with an end `placed: false` reaches the pane's rows as not placed, at both ends, so neither is offered a Take.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "Reads only this end's flag: the plate end of a lug row would be offered a Take on a bore matched against the other lug's bushing -- exactly the 1370/1371 write.",
+      "file": "apps/annotate/sweep.js",
+      "find": "    return !!row && AA.DIRECTIONS.every(function (d) {\n      return !row[d] || row[d].placed !== false;\n    });",
+      "replace": "    return !!row && AA.DIRECTIONS.slice(0, 1).every(function (d) {\n      return !row[d] || row[d].placed !== false;\n    });"
+    },
+    {
+      "contract": "The candidate sets carry the row's placement.",
+      "issue": "docs/issues/ISSUE_20261120_a_take_on_a_v2_lug_feature_binds_the_other_lugs_face.md",
+      "note": "Drops the flag from the shell's feed, where every row is given a Take.",
+      "file": "apps/annotate/sweep.js",
+      "find": "        rank: c.rank, bound: false, placed: AA.contactRowPlaced(row) };",
+      "replace": "        rank: c.rank, bound: false };"
+    }
+  ]
+}
