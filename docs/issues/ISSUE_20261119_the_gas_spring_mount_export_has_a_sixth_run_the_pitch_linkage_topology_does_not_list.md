@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: docs/topologies citations / tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261119_a_bind_on_the_pitch_plate_writes_in_seconds_and_says_so_while_it_waits.md
 handoff: docs/sessions/HANDOFF_20261121_an_export_citation_picks_up_a_new_drawing_checker_run_in_one_command.md
+resolution: handoff completed 2026-11-22 -- closed automatically by dispatch when handoff `an_export_citation_picks_up_a_new_drawing_checker_run_in_one_command` moved to completed/; not independently verified.
 ---
 
 # The gas-spring mount export has a sixth run the pitch-linkage topology does not list
