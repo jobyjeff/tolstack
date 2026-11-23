@@ -169,3 +169,7 @@
 .map__connector--touched .map__connectorline { stroke: color-mix(in srgb, var(--accent) 55%, var(--ink)); stroke-opacity: 1; stroke-width: 4.5; }
 .map__pin--touched .map__pindot { fill: color-mix(in srgb, var(--accent) 55%, var(--fill-ink, var(--muted))); stroke: var(--ink); stroke-width: 2; }
 .map__pin--touched .map__pinlabel { opacity: 1; }
+
+/* Off a kinematic study's route (VA.mapRouteKeys, 2026-11-22): quieter and
+   still readable. The selection and the hover classes still apply over it. */
+.map__quiet { opacity: .35; }

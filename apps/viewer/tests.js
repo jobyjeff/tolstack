@@ -17553,6 +17553,17 @@
                 });
               });
             });
+            // ...and the same lit set is the map's route: what is off it is
+            // quieter, what is on it is each lit edge and its features.
+            var model = VA.buildModel(topo);
+            var route = VA.mapRouteKeys(model, lit);
+            ok(route["dimension:pitch_link_length"], "a contributor's dimension is on the route");
+            ok(route["interface:pitch_link_upper_ball_joint"], "an added row's joint is on it");
+            ok(route["part:pitch_plate_215735_001"], "the part its features sit on is on it");
+            var dims = model.dimensions.filter(function (d) { return !route["dimension:" + d.id]; });
+            ok(dims.length > 0 && dims.length < model.dimensions.length,
+               "some of the model is off the route and some on it");
+            eq(VA.mapRouteKeys(model, null), null, "no lit set, nothing quieted");
             var stack = VA.kinematicStack(v2Study, topo, "plus72", 3, {});
             ok(stack.terms.tan_link_mount_overall_height.borrowed,
                "a v1 chain's leaf v2 has is a borrowed row");
