@@ -148,7 +148,8 @@ def test_every_interface_word_has_a_pairing_rule():
     """A new interface word with no rule would answer `no_contact` for every
     edge that uses it -- silently, and wrongly."""
     assert set(ic.CONTACT_PAIRINGS) == set(INTERFACE_KINDS)
-    assert set(ic.CONTACT_PAIRINGS.values()) | set(ic.END_PAIRINGS.values()) == set(ic.PAIRING_KINDS)
+    assert (set(ic.CONTACT_PAIRINGS.values()) | set(ic.END_PAIRINGS.values())
+            | {ic.node_pairing(None, None, ic.PATTERN_INTERFACES[0])[0]}) == set(ic.PAIRING_KINDS)
 
 
 # ---------------------------------------------------------------------------
@@ -512,3 +513,94 @@ def test_an_own_slot_is_preferred_to_a_borrowed_one_and_the_result_says_which():
     assert found["candidates"][0]["evidence"]["axis_offset_mm"] == pytest.approx(0.05, abs=1e-4)
     assert candidates("cylinder_in_cylinder", pin, bore, [mine], [borrowed])["own"] == \
         {"a": True, "b": False}
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-22: a hole pattern, and a ball inside its own bearing's mesh
+# ---------------------------------------------------------------------------
+
+#: Three hole centres on a 20 mm circle, 120 degrees apart.
+RING = [(20.0 * math.cos(math.radians(a)), 20.0 * math.sin(math.radians(a))) for a in (0, 120, 240)]
+
+
+def flange(radius, z0, z1, sha, counterbore=None):
+    """A flange's ring of holes about +Z -- each hole one bore face, and an
+    optional counterbore on the same centres."""
+    faces = [cylinder_face(radius, z0, z1, convex=False, centre=c) for c in RING]
+    if counterbore:
+        faces += [cylinder_face(counterbore, z0, z1, convex=False, centre=c) for c in RING]
+    return make_mesh(faces, sha=sha)
+
+
+def test_a_flange_on_a_flange_offers_every_hole_that_lines_up_as_one_set():
+    """A body's three 4.9 holes over a plate's three 5.2 holes, each with a
+    14 counterbore on the same centre: one row of three holes per side, the
+    through holes before the counterbores (the sizes nearest each other)."""
+    body = flange(2.45, 2.0, 5.0, "a" * 64)
+    plate = flange(2.6, -3.0, 1.6, "b" * 64, counterbore=7.0)
+    found = candidates(ic.PATTERN_PAIRING, body, plate)
+    assert found["status"] == "ok"
+    top, second = found["candidates"][:2]
+    assert (top["a_faces"], top["b_faces"]) == ([0, 1, 2], [0, 1, 2])
+    assert top["relation"] == "coaxial"
+    e = top["evidence"]
+    assert e["holes"] == 3
+    assert (e["a_radius_mm"], e["b_radius_mm"]) == (pytest.approx(2.45, abs=1e-3),
+                                                    pytest.approx(2.6, abs=1e-3))
+    assert e["axis_offset_mm"] == pytest.approx(0.0, abs=1e-4)
+    assert second["b_faces"] == [3, 4, 5] and second["evidence"]["holes"] == 3
+
+
+def test_a_hole_off_the_other_parts_ring_is_left_out_and_never_filled():
+    plate = flange(2.6, -3.0, 1.6, "b" * 64)
+    body = make_mesh([cylinder_face(2.45, 2.0, 5.0, convex=False, centre=c)
+                      for c in RING[:2] + [(0.0, 5.0)]], sha="a" * 64)
+    (top,) = candidates(ic.PATTERN_PAIRING, body, plate)["candidates"]
+    assert top["evidence"]["holes"] == 2
+    assert (top["a_faces"], top["b_faces"]) == ([0, 1], [0, 1])
+
+
+def test_two_flanges_apart_offer_no_pattern():
+    """Coaxial holes on parts 10 mm apart are not a pattern the parts share."""
+    body = flange(2.45, 12.0, 15.0, "a" * 64)
+    plate = flange(2.6, -3.0, 1.6, "b" * 64)
+    found = candidates(ic.PATTERN_PAIRING, body, plate)
+    assert found["status"] == "no_contact" and not found["candidates"]
+
+
+def test_a_shared_node_pairs_a_pattern_by_its_word_and_a_seat_by_its_flats():
+    assert ic.node_pairing(None, None, "fastener_pattern")[0] == ic.PATTERN_PAIRING
+    assert ic.node_pairing("planar", "planar", None)[0] == "plane_on_plane"
+    assert ic.node_pairing(None, None, None)[0] == "plane_on_plane"
+    assert ic.SEAT_INTERFACE in INTERFACE_KINDS
+    assert set(ic.PATTERN_INTERFACES) <= set(INTERFACE_KINDS)
+
+
+def bearing(ball_at=(0.0, 0.0, 0.0)):
+    """One mesh, two races: face 0 the inner race's ball, face 1 the outer
+    race's seat -- MS14103-3, one solid."""
+    ball = [tuple(tuple(v[i] + ball_at[i] for i in range(3)) for v in tri)
+            for tri in sphere_face(6.0, convex=True)]
+    return make_mesh([ball, sphere_face(6.0, convex=False, lat=30.0, rows=5)], sha="a" * 64)
+
+
+def test_a_balls_race_inside_its_own_bearings_mesh_is_offered_its_ball():
+    """Both races are one mesh at one place. Named which end is the ball, the
+    mesh is compared with itself: the ball end gets the convex sphere and the
+    seat end the race's, whichever side the ball is on."""
+    part = ic.part_faces(bearing())
+    at = [occ("bearing")]
+    assert ic.edge_candidates("ball_in_seat", part, part, at, at)["status"] == "no_contact"
+    found = ic.edge_candidates("ball_in_seat", part, part, at, at, ball="a")
+    assert found["status"] == "ok"
+    assert [(c["a_faces"], c["b_faces"]) for c in found["candidates"]] == [([0], [1])]
+    assert found["candidates"][0]["evidence"]["centre_mm"] == pytest.approx(0.0, abs=1e-4)
+    flipped = ic.edge_candidates("ball_in_seat", part, part, at, at, ball="b")
+    assert [(c["a_faces"], c["b_faces"]) for c in flipped["candidates"]] == [([1], [0])]
+
+
+def test_a_ball_off_its_own_races_centre_is_offered_nothing():
+    part = ic.part_faces(bearing(ball_at=(0.5, 0.0, 0.0)))
+    at = [occ("bearing")]
+    found = ic.edge_candidates("ball_in_seat", part, part, at, at, ball="a")
+    assert found["status"] == "no_contact" and not found["candidates"]

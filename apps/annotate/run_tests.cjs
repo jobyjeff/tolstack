@@ -1790,6 +1790,38 @@ check("a contact row whose part's place is not known is listed, says so, and off
   assertEqual(AA.CANDIDATE_LIST_WORDS.unplaced.length <= 30, true, "one short phrase");
 });
 
+// A node two parts share (handoff a_seat_and_a_pattern_get_contact_suggestions_too):
+// its row lists, per side, the edge ends that ARE that side's feature.
+const NODE_CONTACT = { topologies: [{ id: "rail_topo", edges: [], nodes: [
+  { node: "flange_holes", status: "ok", pairing: "hole_pattern",
+    from: { part: "body", placed: true, ends: [{ edge: "body_holes_to_bore", direction: "to" }] },
+    to: { part: "plate", placed: true, ends: [{ edge: "plate_pilot_to_holes", direction: "to" }] },
+    candidates: [{ rank: 1, relation: "coaxial",
+      from: { sha256: "a", surface: "cylindrical", faces: [110, 111, 112, 113, 114] },
+      to: { sha256: "b", surface: "cylindrical", faces: [2, 3, 553, 554, 559] },
+      evidence: { holes: 5, axis_offset_mm: 0.002, angle_deg: 0, from_radius_mm: 2.45,
+        to_radius_mm: 2.6 } }] },
+  { node: "far_seat", status: "no_contact", pairing: "plane_on_plane", candidates: [],
+    from: { part: "body", ends: [{ edge: "body_holes_to_bore", direction: "to" }] },
+    to: { part: "plate", ends: [] } }] }] };
+
+check("a seat's or a pattern's row reaches each side's feature through the edge ends it lists, " +
+  "as one set with its words, and an end it does not list gets nothing", () => {
+  const body = AA.endContactSets(NODE_CONTACT, "rail_topo", { edgeId: "body_holes_to_bore", direction: "to" });
+  assertEqual(body.map((r) => [r.faceId, r.faces]), [[110, [110, 111, 112, 113, 114]]]);
+  assertEqual(body[0].reason, "lines up with the mating holes");
+  assertEqual(body[0].radius, 2.45);
+  assertEqual(body[0].detail, "5 holes, each on the mating hole's axis within 0.002 mm");
+  const plate = AA.endContactFaces(NODE_CONTACT, "rail_topo", { edgeId: "plate_pilot_to_holes", direction: "to" });
+  assertEqual(plate.map((f) => f.faceId), [2, 3, 553, 554, 559]);
+  assertEqual(plate[0].radius, 2.6);
+  assertEqual(AA.endContactSets(NODE_CONTACT, "rail_topo", { edgeId: "plate_pilot_to_holes", direction: "from" }), [],
+    "the other end of the same edge is another feature");
+  assertEqual(AA.endContactSets(NODE_CONTACT, "rail_topo", { edgeId: "body_holes_to_bore", direction: "from" }), []);
+  assertEqual(AA.suggestionWords(AA.endSuggestion(null, NODE_CONTACT, "rail_topo",
+    { edgeId: "body_holes_to_bore", direction: "to" })), "candidates · 5");
+});
+
 check("a candidate's reason names what the face is to the mating feature, for every relation " +
   "and pairing the engine emits", () => {
   const say = (pairing, relation, evidence, direction, mateSurface) => AA.candidateReason(

@@ -980,6 +980,7 @@
     cylinder_in_cylinder: "pin in bore",
     ball_in_seat: "ball in its seat",
     plane_across_axis: "flat across the axis",
+    hole_pattern: "holes",
   });
   AA.CONTACT_RELATION_WORDS = VOCAB.table("CONTACT_RELATIONS", {
     contact: "touching",
@@ -1036,6 +1037,12 @@
   // mesh -- never a value -- so they are rounded for reading.
   AA.describeContact = function (pairing, candidate) {
     var e = candidate.evidence || {};
+    if (pairing === "hole_pattern") {
+      // A set of like holes lined up with the other part's: "5 holes, each on
+      // the mating hole's axis within 0.003 mm".
+      return e.holes + " " + AA.CONTACT_PAIRING_WORDS[pairing] + ", each on the mating hole's axis within " +
+        mm(e.axis_offset_mm);
+    }
     if (candidate.relation === "across") {
       // A washer's far face and the shank through it: where the shank ends,
       // past the flat (+) or short of it (-).
@@ -1081,6 +1088,7 @@
     cylinder_in_cylinder: "fits the mating {mate}",
     ball_in_seat: "seated against the mating {mate}",
     plane_across_axis: "square to the mating {mate}",
+    hole_pattern: "lines up with the mating holes",
   });
   //: An agent's proposal, on the same list.
   AA.CANDIDATE_PROPOSED_REASON = "agent suggested";
@@ -1113,7 +1121,8 @@
   // this table can state.
   AA.candidateReason = function (row, candidate, direction) {
     if (!row || !candidate) return null;
-    var template = candidate.relation === "contact"
+    // A hole pattern's holes are on one axis, never touching: said by the pairing.
+    var template = candidate.relation === "contact" || row.pairing === "hole_pattern"
       ? AA.CANDIDATE_CONTACT_REASONS[row.pairing] : AA.CANDIDATE_RELATION_REASONS[candidate.relation];
     if (!template) return null;
     return template.split("{mate}").join(mateNoun(candidate, direction));

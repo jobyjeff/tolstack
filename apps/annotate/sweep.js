@@ -1997,30 +1997,55 @@
   // within it): [{sha256, faceId, surface, radius, reason, detail, rank}].
   // `reason` is AA.candidateReason's, `detail` the pair's evidence in words.
   AA.endContactFaces = function (contactDoc, topologyId, via) {
-    if (!via || !via.edgeId || !via.direction) return [];
-    var row = null;
-    ((contactDoc && contactDoc.topologies) || []).forEach(function (t) {
-      if (t.id !== topologyId) return;
-      (t.edges || []).forEach(function (r) { if (r.edge === via.edgeId) row = r; });
-    });
-    var candidates = (row && row.status === "ok" && row.candidates) || [];
     var out = [];
     var seen = {};
-    candidates.slice().sort(function (a, b) { return a.rank - b.rank; }).forEach(function (c) {
-      var side = c[via.direction] || {};
-      if (!side.sha256) return;
-      (side.faces || []).forEach(function (faceId) {
-        var key = side.sha256 + "|" + faceId;
-        if (seen[key]) return;
-        seen[key] = true;
-        out.push({ sha256: side.sha256, faceId: faceId, surface: side.surface || null,
-          radius: AA.candidateRadius(c, via.direction),
-          reason: AA.candidateReason(row, c, via.direction),
-          detail: contactDetail(row.pairing, c), rank: c.rank, placed: AA.contactRowPlaced(row) });
+    contactRowsAt(contactDoc, topologyId, via).forEach(function (at) {
+      var row = at.row;
+      row.candidates.slice().sort(function (a, b) { return a.rank - b.rank; }).forEach(function (c) {
+        var side = c[at.side] || {};
+        if (!side.sha256) return;
+        (side.faces || []).forEach(function (faceId) {
+          var key = side.sha256 + "|" + faceId;
+          if (seen[key]) return;
+          seen[key] = true;
+          out.push({ sha256: side.sha256, faceId: faceId, surface: side.surface || null,
+            radius: AA.candidateRadius(c, at.side),
+            reason: AA.candidateReason(row, c, at.side),
+            detail: contactDetail(row.pairing, c), rank: c.rank, placed: AA.contactRowPlaced(row) });
+        });
       });
     });
     return out;
   };
+
+  // The contact rows that speak for ONE edge end, each with the side of it
+  // that is this end: [{row, side}]. The edge's own row, at `via.direction`;
+  // then every row of a node two parts share (a seat, a fastener pattern --
+  // handoff a_seat_and_a_pattern_get_contact_suggestions_too, 2026-11-22)
+  // whose side lists this end among the edge ends that ARE its feature
+  // (scripts/build_contact_suggestions.py's node_ends). Only rows with a
+  // candidate; [] for an edge feature.
+  function contactRowsAt(contactDoc, topologyId, via) {
+    if (!via || !via.edgeId || !via.direction) return [];
+    var out = [];
+    var ok = function (r) { return r.status === "ok" && (r.candidates || []).length; };
+    ((contactDoc && contactDoc.topologies) || []).forEach(function (t) {
+      if (t.id !== topologyId) return;
+      (t.edges || []).forEach(function (r) {
+        if (r.edge === via.edgeId && ok(r)) out.push({ row: r, side: via.direction });
+      });
+      (t.nodes || []).forEach(function (r) {
+        if (!ok(r)) return;
+        AA.DIRECTIONS.forEach(function (side) {
+          var here = ((r[side] && r[side].ends) || []).some(function (e) {
+            return e.edge === via.edgeId && e.direction === via.direction;
+          });
+          if (here) out.push({ row: r, side: side });
+        });
+      });
+    });
+    return out;
+  }
 
   // The same candidates as AA.endContactFaces, one row per candidate rather
   // than per face: a candidate's faces at this end are ONE feature (six faces
@@ -2029,29 +2054,25 @@
   // Rows: {kind contact, sha256, faceId (the first), faces?, surface, radius,
   // reason, detail, rank}. [] for an edge feature or a pair the engine has none for.
   AA.endContactSets = function (contactDoc, topologyId, via) {
-    if (!via || !via.edgeId || !via.direction) return [];
-    var row = null;
-    ((contactDoc && contactDoc.topologies) || []).forEach(function (t) {
-      if (t.id !== topologyId) return;
-      (t.edges || []).forEach(function (r) { if (r.edge === via.edgeId) row = r; });
-    });
-    var candidates = (row && row.status === "ok" && row.candidates) || [];
     var out = [];
     var seen = {};
-    var ranked = candidates.slice().sort(function (a, b) { return a.rank - b.rank; });
-    ranked.forEach(function (c) {
-      var side = c[via.direction] || {};
-      var faces = side.faces || [];
-      if (!side.sha256 || !faces.length) return;
-      var key = side.sha256 + "|" + faces.slice().sort(function (a, b) { return a - b; }).join(",");
-      if (seen[key]) return;
-      seen[key] = true;
-      var set = { kind: AA.CANDIDATE_ROW_KINDS[1], sha256: side.sha256, faceId: faces[0],
-        surface: side.surface || null, radius: AA.candidateRadius(c, via.direction),
-        reason: AA.candidateReason(row, c, via.direction), detail: contactDetail(row.pairing, c),
-        rank: c.rank, bound: false, placed: AA.contactRowPlaced(row) };
-      if (faces.length > 1) set.faces = faces.slice();
-      out.push(set);
+    contactRowsAt(contactDoc, topologyId, via).forEach(function (at) {
+      var row = at.row;
+      var ranked = row.candidates.slice().sort(function (a, b) { return a.rank - b.rank; });
+      ranked.forEach(function (c) {
+        var side = c[at.side] || {};
+        var faces = side.faces || [];
+        if (!side.sha256 || !faces.length) return;
+        var key = side.sha256 + "|" + faces.slice().sort(function (a, b) { return a - b; }).join(",");
+        if (seen[key]) return;
+        seen[key] = true;
+        var set = { kind: AA.CANDIDATE_ROW_KINDS[1], sha256: side.sha256, faceId: faces[0],
+          surface: side.surface || null, radius: AA.candidateRadius(c, at.side),
+          reason: AA.candidateReason(row, c, at.side), detail: contactDetail(row.pairing, c),
+          rank: c.rank, bound: false, placed: AA.contactRowPlaced(row) };
+        if (faces.length > 1) set.faces = faces.slice();
+        out.push(set);
+      });
     });
     return out;
   };

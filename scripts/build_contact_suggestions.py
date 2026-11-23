@@ -83,7 +83,8 @@ import projection_provenance as prov  # noqa: E402
 from tolerance_stack import feature_geometry as fg  # noqa: E402
 from tolerance_stack import feature_identity as fi  # noqa: E402
 from tolerance_stack import interface_contact as ic  # noqa: E402
-from tolerance_stack.topology import load_topology  # noqa: E402
+from tolerance_stack import model_view as mv  # noqa: E402
+from tolerance_stack.topology import feature_identity_key, load_topology  # noqa: E402
 
 SCHEMA = "joby.tolerance_stack/contact-suggestions/v0"
 PROJECTION_SUBDIR = Path("projections") / "feature-identity"
@@ -299,6 +300,35 @@ def _candidate_row(candidate: Dict[str, Any], sha_from: str, sha_to: str,
     }
 
 
+#: The word in a node's name that says its part is the BALL of a ball joint
+#: (``feature_geometry.required_surface_class``'s ``word``): "ball centre".
+#: Read only when a joint's two races are one mesh at one place, where the
+#: geometry alone cannot say which end is which race (:func:`ball_side`).
+BALL_WORD = "ball"
+
+
+def ball_side(topology, edge, ends: Sequence[Dict[str, Any]], pairing: str) -> Optional[str]:
+    """``"a"``/``"b"`` -- which end is the ball, when the edge is a ball in
+    its seat and both ends are one mesh at one declared place (a bearing's two
+    races, solids of the bearing's mesh: MS14103-3 is one solid, so no solid
+    id can say either). The ball is the convex sphere, and the end whose node
+    is named for the ball takes it (:data:`BALL_WORD`); ``None`` when that is
+    not exactly one end, and the edge is then not compared at all."""
+    if pairing != "ball_in_seat" or not all(e["mesh"] for e in ends):
+        return None
+    if ends[0]["mesh"]["sha256"] != ends[1]["mesh"]["sha256"]:
+        return None
+    if not ends[0]["occurrence"] or ends[0]["occurrence"] != ends[1]["occurrence"]:
+        return None
+    named = []
+    for side, node_id in zip(("a", "b"), (edge.from_node, edge.to_node)):
+        node = topology.node(node_id)
+        found = fg.required_surface_class(node.name or node.id)
+        if found and found.get("word") == BALL_WORD:
+            named.append(side)
+    return named[0] if len(named) == 1 else None
+
+
 def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One gap edge's row: its two ends, and its candidates or its reason."""
     ends = [_end(topology, edge, edge.from_node, store, models),
@@ -311,6 +341,15 @@ def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = No
         "from": ends[0], "to": ends[1],
         "status": None, "candidates": [],
     }
+    return _measure(row, store, accepts, axes, ball_side(topology, edge, ends, pairing))
+
+
+def _measure(row: Dict[str, Any], store: Store, accepts, axes: bool,
+             ball: Optional[str] = None) -> Dict[str, Any]:
+    """Resolve a row's two ends to meshes and places and rank its pairs --
+    the one body an edge's row and a shared node's row both go through."""
+    ends = [row["from"], row["to"]]
+    pairing = row["pairing"]
 
     def empty(reason: str, note: str, **extra) -> Dict[str, Any]:
         row.update(status=reason, note=note, **extra)
@@ -331,7 +370,8 @@ def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = No
                                  for e, o in zip(ends, occurrences) if not o))
 
     found = ic.edge_candidates(pairing, store.part_faces(shas[0]), store.part_faces(shas[1]),
-                               occurrences[0], occurrences[1], accepts=accepts, axes=axes)
+                               occurrences[0], occurrences[1], accepts=accepts, axes=axes,
+                               ball=ball)
     row["pairs_in_reach"] = found["pairs_in_reach"]
     row["nearest_gap_mm"] = found["nearest_gap_mm"]
     if found["status"] != "ok":
@@ -358,6 +398,68 @@ def edge_row(topology, edge, store: Store, models: Optional[Dict[str, Any]] = No
          "from_faces": a["a_faces"], "to_faces": a["b_faces"]}
         for a in found["ambiguous_with"]]
     return row
+
+
+# ---------------------------------------------------------------------------
+# a node two parts share: a seat, a pattern
+# ---------------------------------------------------------------------------
+
+def node_ends(topology, node_id: str, part: str) -> List[Dict[str, str]]:
+    """The edge ends whose feature is ``part`` at ``node_id``
+    (``model_view.end_feature``, the rule the browser's ``featureEnds``
+    inverts): where a reader asking that feature looks for its suggestions,
+    and the end a Take writes through."""
+    out = []
+    for edge in topology.edges:
+        for side in SIDES:
+            if (edge.from_node if side == "from" else edge.to_node) != node_id:
+                continue
+            if mv.end_feature(topology, edge, side) == (part, node_id):
+                out.append({"edge": edge.id, "direction": side})
+    return out
+
+
+def _node_end(topology, node, part: str, store: Store,
+              models: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """One part's side of a shared node, in the shape :func:`_end` gives an
+    edge's end, plus ``ends``: the edge ends that ARE this feature."""
+    mesh = store.resolve(part)
+    declared = node.face_surface if node.face and node.face_part == part else None
+    rule = fg.end_surface_class(None, node.name or node.id, declared, node.interface)
+    key_model, key_part = feature_identity_key(topology, part, node.id, models or {})
+    occurrence, placed = store.place(topology, part)
+    row: Dict[str, Any] = {"node": node.id, "part": part, "mesh": None,
+                           "feature": fi.FeatureKey(key_model, key_part, node.id).as_dict(),
+                           "asks": rule["surface"] if rule else None,
+                           "occurrence": occurrence, "placed": placed,
+                           "ends": node_ends(topology, node.id, part)}
+    if mesh:
+        provenance = store.provenance.get(mesh["sha256"], {})
+        row["mesh"] = {"sha256": mesh["sha256"], "part_id": mesh["part_id"],
+                       "label": provenance.get("label")}
+    return row
+
+
+def shared_nodes(topology) -> List[Any]:
+    """The nodes two parts share -- a seat, a pattern, a joint stated on one
+    node -- which no gap edge names (``docs/DAG_TOPOLOGY.md``)."""
+    return [n for n in topology.nodes if len(n.parts) == 2]
+
+
+def node_row(topology, node, store: Store, models: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """One shared node's row: its two parts' sides (``from`` is ``parts[0]``),
+    and the faces of each that meet the other, or the reason there are none.
+    The same evidence as an edge's row: a seat is flat on flat, a pattern is
+    every like hole that lines up (``ic.pair_patterns``)."""
+    ends = [_node_end(topology, node, part, store, models) for part in node.parts]
+    pairing, accepts, basis = ic.node_pairing(ends[0]["asks"], ends[1]["asks"], node.interface)
+    row: Dict[str, Any] = {
+        "node": node.id, "name": node.name, "interface": node.interface,
+        "pairing": pairing, "pairing_basis": basis, "axes": False,
+        "from": ends[0], "to": ends[1],
+        "status": None, "candidates": [],
+    }
+    return _measure(row, store, accepts, False)
 
 
 # ---------------------------------------------------------------------------
@@ -391,12 +493,17 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
             "id": topology.id,
             "title": topology.title,
             "edges": [edge_row(topology, edge, store, models) for edge in gap_edges(topology)],
+            "nodes": [node_row(topology, node, store, models) for node in shared_nodes(topology)],
         })
 
     rows = [e for t in topologies for e in t["edges"]]
+    node_rows = [n for t in topologies for n in t["nodes"]]
     by_status: Dict[str, int] = {}
     for e in rows:
         by_status[e["status"]] = by_status.get(e["status"], 0) + 1
+    nodes_by_status: Dict[str, int] = {}
+    for n in node_rows:
+        nodes_by_status[n["status"]] = nodes_by_status.get(n["status"], 0) + 1
     data: Dict[str, Any] = {
         "schema": SCHEMA,
         prov.PROVENANCE_KEY: provenance,
@@ -409,6 +516,8 @@ def build(topologies_dir: Path, meshes_dir: Path, out_dir: Path, *,
             "by_status": dict(sorted(by_status.items())),
             "single_clear_top": sum(1 for e in rows if clear_top(e)),
             "unplaced": sum(1 for e in rows if not row_placed(e)),
+            "shared_nodes": len(node_rows),
+            "nodes_by_status": dict(sorted(nodes_by_status.items())),
         },
         "topologies": topologies,
     }
@@ -432,7 +541,8 @@ def clear_top(row: Dict[str, Any]) -> bool:
     candidates = row.get("candidates") or []
     if row.get("status") != "ok" or row.get("ambiguous_with") or not row_placed(row):
         return False
-    wanted = "across" if row.get("pairing") == "plane_across_axis" else "contact"
+    wanted = {"plane_across_axis": "across",
+              ic.PATTERN_PAIRING: "coaxial"}.get(row.get("pairing"), "contact")
     if candidates[0]["relation"] != wanted:
         return False
     if len(candidates) == 1:
@@ -449,8 +559,8 @@ CLEAR_MARGIN = 0.25
 def report_lines(data: Dict[str, Any]) -> List[str]:
     out = []
     for topology in data["topologies"]:
-        for e in topology["edges"]:
-            head = f"  {e['edge']:<44} {e['interface']:<18}"
+        for e in topology["edges"] + topology.get("nodes", []):
+            head = f"  {e.get('edge') or e['node']:<44} {e['interface'] or ic.SEAT_INTERFACE:<18}"
             if e["status"] != "ok":
                 out.append(f"{head} {e['status']}: {e.get('note', '')}")
                 continue
@@ -497,6 +607,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"  {summary['gap_edges']} gap edge(s); {summary['single_clear_top']} with "
           f"one clear top pair; {summary['unplaced']} with a part whose place is not known")
     for status, count in summary["by_status"].items():
+        print(f"    {count:>4}  {status}")
+    print(f"  {summary['shared_nodes']} node(s) two parts share")
+    for status, count in summary["nodes_by_status"].items():
         print(f"    {count:>4}  {status}")
     for line in report_lines(data):
         print(line)

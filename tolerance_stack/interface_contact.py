@@ -68,10 +68,26 @@ CONTACT_PAIRINGS: Dict[str, str] = {
     "transition_fit": "cylinder_in_cylinder",
 }
 
-#: The pairing families :data:`CONTACT_PAIRINGS` and :data:`END_PAIRINGS` map
-#: onto, in the order the evidence fields are documented.
+#: A set of like holes on each of two parts, lined up hole for hole: what a
+#: node two parts share that states ``fastener_pattern`` is (2026-11-22,
+#: handoff ``a_seat_and_a_pattern_get_contact_suggestions_too``). The word a
+#: face set's fit carries for a pattern (``feature_geometry.PATTERN_SURFACE``),
+#: so the two never name one thing differently. Paired by :func:`pair_patterns`.
+PATTERN_PAIRING = fg.PATTERN_SURFACE
+
+#: The pairing families :data:`CONTACT_PAIRINGS`, :data:`END_PAIRINGS` and
+#: :func:`node_pairing` map onto, in the order the evidence fields are documented.
 PAIRING_KINDS = ("plane_on_plane", "cylinder_in_cylinder", "ball_in_seat",
-                 "plane_across_axis")
+                 "plane_across_axis", PATTERN_PAIRING)
+
+#: The ``interface`` words that make a node two parts share a hole pattern
+#: (:func:`node_pairing`): the fasteners run through like holes in both.
+PATTERN_INTERFACES = ("fastener_pattern",)
+
+#: The word a node two parts share pairs by when it states none: two flat
+#: faces together, the seat (``tolerance_stack.topology``: a shared node that
+#: states nothing is a seat).
+SEAT_INTERFACE = "planar"
 
 #: What a ball can sit in. A ball's centre is the joint; its seat is another
 #: sphere (a race), a bore it is centred on, or a flat it rests against.
@@ -783,6 +799,17 @@ def end_pairing(surface_a: Optional[str], surface_b: Optional[str], interface: s
     return kind, ((surface_a,), (surface_b,)), "ends"
 
 
+def node_pairing(surface_a: Optional[str], surface_b: Optional[str], interface: Optional[str]
+                 ) -> Tuple[str, Tuple[Tuple[str, ...], Tuple[str, ...]], str]:
+    """:func:`end_pairing` for a node two parts SHARE -- a seat, a pattern, a
+    joint stated on one node. A pattern word pairs like holes on both parts
+    (:func:`pair_patterns`); otherwise the parts' asks decide as an edge's
+    ends do, and a node stating no word is a seat (:data:`SEAT_INTERFACE`)."""
+    if interface in PATTERN_INTERFACES:
+        return PATTERN_PAIRING, (("cylindrical",), ("cylindrical",)), PAIRING_BASES[2]
+    return end_pairing(surface_a, surface_b, interface or SEAT_INTERFACE)
+
+
 def rank_score(kind: str, evidence: Dict[str, Any], tol: Dict[str, float]) -> float:
     """Smaller is better.
 
@@ -797,6 +824,13 @@ def rank_score(kind: str, evidence: Dict[str, Any], tol: Dict[str, float]) -> fl
         return (abs(evidence["gap_mm"]) / tol["plane_gap_mm"]
                 + evidence["angle_deg"] / tol["angle_deg"]
                 - evidence["overlap_fraction"])
+    if kind == PATTERN_PAIRING:
+        # More holes lined up is the pattern; of as many, the sizes nearest
+        # each other (a through hole before the counterbore over it).
+        ra, rb = evidence["a_radius_mm"], evidence["b_radius_mm"]
+        return (evidence["axis_offset_mm"] / tol["axis_offset_mm"]
+                + evidence["angle_deg"] / tol["angle_deg"]
+                + abs(ra - rb) / max(ra, rb, 1e-9) - evidence["holes"])
     if kind == "plane_across_axis":
         return (evidence["angle_deg"] / tol["angle_deg"]
                 + abs(evidence["end_mm"]) / max(evidence["cylinder_radius_mm"], 1e-9))
@@ -878,14 +912,18 @@ def feature_groups(faces: Sequence[PlacedFace], tol: Dict[str, float]) -> Dict[i
 def pair_faces(kind: str, faces_a: Sequence[PlacedFace], faces_b: Sequence[PlacedFace],
                tolerances: Optional[Dict[str, float]] = None,
                accepts: Optional[Tuple[Sequence[str], Sequence[str]]] = None,
-               axes: bool = False) -> List[Dict[str, Any]]:
+               axes: bool = False, ball: Optional[str] = None) -> List[Dict[str, Any]]:
     """Every pair of features (one per part) that ``kind`` pairs, best first.
 
     A candidate is ``{a_faces, b_faces, a_surface, b_surface, relation,
     evidence, score}``: the faces of the feature on each side, and the evidence
     of the best face pair between the two features. ``accepts`` narrows each
     side to the surface classes its end names (:func:`end_pairing`); ``axes``
-    drops the surface-distance gate, for an axis relation.
+    drops the surface-distance gate, for an axis relation. ``ball`` (``"a"``
+    or ``"b"``) keeps only the pairs whose ball is on that side, and never
+    pairs a face with itself: a bearing's two races are one mesh at one place,
+    compared with itself, and either race's sphere would otherwise be offered
+    as the other's (:func:`edge_candidates`).
     """
     tol = dict(CONTACT_TOLERANCES)
     tol.update(tolerances or {})
@@ -902,8 +940,10 @@ def pair_faces(kind: str, faces_a: Sequence[PlacedFace], faces_b: Sequence[Place
             if not axes and (_norm(_sub(fa.centre, fb.centre))
                              > fa.local.extent + fb.local.extent + reach):
                 continue
+            if ball and fa.face_id == fb.face_id:
+                continue
             evidence = test(fa, fb, tol)
-            if evidence is None:
+            if evidence is None or (ball and evidence.get("ball") != ball):
                 continue
             key = (groups_a[fa.face_id], groups_b[fb.face_id])
             relation = evidence.pop("relation")
@@ -921,6 +961,78 @@ def pair_faces(kind: str, faces_a: Sequence[PlacedFace], faces_b: Sequence[Place
         out.append(row)
     out.sort(key=lambda c: (RELATIONS.index(c["relation"]), c["score"],
                             c["a_faces"], c["b_faces"]))
+    return out
+
+
+def _size_classes(radius: Dict[int, float]) -> Dict[int, int]:
+    """``hole -> size`` (the size's smallest-radius hole): holes whose radii
+    agree to ``feature_geometry.PATTERN_TOLERANCES``' ``radius_fraction``,
+    the like-hole rule's size test (``feature_geometry.like_holes``)."""
+    fraction = fg.PATTERN_TOLERANCES["radius_fraction"]
+    out: Dict[int, int] = {}
+    first: Optional[int] = None
+    for hole in sorted(radius, key=lambda h: (radius[h], h)):
+        if first is None or radius[hole] - radius[first] > fraction * radius[hole]:
+            first = hole
+        out[hole] = first
+    return out
+
+
+def pair_patterns(faces_a: Sequence[PlacedFace], faces_b: Sequence[PlacedFace],
+                  tolerances: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
+    """Every set of like holes on part a lined up with a set on part b, best first.
+
+    A hole is a concave cylinder, its STEP halves one hole
+    (:func:`feature_groups`); holes are like when their radii agree
+    (:func:`_size_classes`). A hole of a lines up with a hole of b when the
+    two are on one axis (:func:`cylinder_in_cylinder`'s angle and offset
+    margins) and near each other (the reach every pair here is gated by). One
+    candidate per size on each side: its faces are every face of every hole
+    that lined up, ``evidence.holes`` how many did, and the worst axis offset
+    and angle among them. Most holes first; of as many, the sizes nearest
+    each other -- a through hole before the counterbore over it, the rule a
+    bound pattern's other side is offered by (``AA.rankOppositePattern``).
+    A fastener is never one of these: a pin is convex.
+    """
+    tol = dict(CONTACT_TOLERANCES)
+    tol.update(tolerances or {})
+    reach = tol["reach_mm"]
+    holes_a = [f for f in faces_a if f.surface == "cylindrical" and f.local.convex is False]
+    holes_b = [f for f in faces_b if f.surface == "cylindrical" and f.local.convex is False]
+    groups_a = feature_groups(holes_a, tol)
+    groups_b = feature_groups(holes_b, tol)
+    radius_a = {f.face_id: f.geometry["radius"] for f in holes_a if groups_a[f.face_id] == f.face_id}
+    radius_b = {f.face_id: f.geometry["radius"] for f in holes_b if groups_b[f.face_id] == f.face_id}
+    lined: Dict[Tuple[int, int], Tuple[float, float]] = {}
+    for fa in holes_a:
+        for fb in holes_b:
+            if _norm(_sub(fa.centre, fb.centre)) > fa.local.extent + fb.local.extent + reach:
+                continue
+            evidence = cylinder_in_cylinder(fa, fb, tol)
+            if evidence is None:
+                continue
+            key = (groups_a[fa.face_id], groups_b[fb.face_id])
+            off = (evidence["axis_offset_mm"], evidence["angle_deg"])
+            if key not in lined or off < lined[key]:
+                lined[key] = off
+    size_a, size_b = _size_classes(radius_a), _size_classes(radius_b)
+    by_size: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+    for ga, gb in sorted(lined):
+        by_size.setdefault((size_a[ga], size_b[gb]), []).append((ga, gb))
+    out = []
+    for (sa, sb), pairs in by_size.items():
+        holes_of_a = {ga for ga, _ in pairs}
+        holes_of_b = {gb for _, gb in pairs}
+        evidence = {"holes": min(len(holes_of_a), len(holes_of_b)),
+                    "a_radius_mm": radius_a[sa], "b_radius_mm": radius_b[sb],
+                    "axis_offset_mm": max(lined[p][0] for p in pairs),
+                    "angle_deg": max(lined[p][1] for p in pairs)}
+        out.append({"a_surface": "cylindrical", "b_surface": "cylindrical",
+                    "relation": "coaxial", "evidence": evidence,
+                    "score": rank_score(PATTERN_PAIRING, evidence, tol),
+                    "a_faces": sorted(f for f, g in groups_a.items() if g in holes_of_a),
+                    "b_faces": sorted(f for f, g in groups_b.items() if g in holes_of_b)})
+    out.sort(key=lambda c: (c["score"], c["a_faces"], c["b_faces"]))
     return out
 
 
@@ -942,7 +1054,7 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
                     tolerances: Optional[Dict[str, float]] = None,
                     limit: int = MAX_CANDIDATES,
                     accepts: Optional[Tuple[Sequence[str], Sequence[str]]] = None,
-                    axes: bool = False) -> Dict[str, Any]:
+                    axes: bool = False, ball: Optional[str] = None) -> Dict[str, Any]:
     """The ranked candidates for one edge, over every occurrence pair in reach.
 
     An occurrence is ``{"key", "placement", "own"?, ...}``. Every pair of
@@ -959,6 +1071,13 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
     at each end, asked which end. That is ``ambiguous_with``, and only the
     edge's own words can settle it.
 
+    One mesh at one occurrence is never compared with itself -- unless
+    ``ball`` names the side the ball is on (2026-11-22): a bearing's two races
+    are solids of one mesh at one place, the inner race's ball in the outer
+    race's seat, so the mesh is paired with itself there and only pairs whose
+    ball is on that side count (:func:`pair_faces`). A ``kind`` of
+    :data:`PATTERN_PAIRING` pairs sets of like holes (:func:`pair_patterns`).
+
     Returns ``{"status": "ok" | one of EMPTY_REASONS, "occurrences", "own",
     "pairs_in_reach", "nearest_gap_mm", "candidates", "ambiguous_with"}``;
     ``own`` is ``{"a", "b"}``, whether each winning occurrence is its mesh's
@@ -967,14 +1086,15 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
     tol = dict(CONTACT_TOLERANCES)
     tol.update(tolerances or {})
     reach = tol["reach_mm"]
-    needed = accepts or (_PAIRERS[kind][0], _PAIRERS[kind][0])
+    surfaces = ("cylindrical",) if kind == PATTERN_PAIRING else _PAIRERS[kind][0]
+    needed = accepts or (surfaces, surfaces)
     in_reach = []
     nearest = math.inf
     boxes_b = [(ob, placed_box(part_b.box, ob["placement"])) for ob in occurrences_b]
     for oa in occurrences_a:
         box_a = placed_box(part_a.box, oa["placement"])
         for ob, box_b in boxes_b:
-            if part_a.sha256 == part_b.sha256 and oa["key"] == ob["key"]:
+            if part_a.sha256 == part_b.sha256 and oa["key"] == ob["key"] and not ball:
                 continue
             gap = box_gap(box_a, box_b)
             nearest = min(nearest, gap)
@@ -1002,7 +1122,11 @@ def edge_candidates(kind: str, part_a: PartFaces, part_b: PartFaces,
         faces_b = [place(part_b.fitted[f], ob["placement"]) for f in ids_b if part_b.fitted.get(f)]
         fitted[0] = fitted[0] or any(f.surface in needed[0] for f in faces_a)
         fitted[1] = fitted[1] or any(f.surface in needed[1] for f in faces_b)
-        candidates = pair_faces(kind, faces_a, faces_b, tol, accepts=accepts, axes=axes)
+        if kind == PATTERN_PAIRING:
+            candidates = pair_patterns(faces_a, faces_b, tol)
+        else:
+            candidates = pair_faces(kind, faces_a, faces_b, tol, accepts=accepts, axes=axes,
+                                    ball=ball)
         if candidates:
             scored.append((oa, ob, candidates,
                            ({f.face_id: f for f in faces_a}, {f.face_id: f for f in faces_b})))

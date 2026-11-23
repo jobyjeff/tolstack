@@ -26,7 +26,7 @@ import build_contact_suggestions as builder  # noqa: E402
 from tolerance_stack import interface_contact as ic  # noqa: E402
 
 from tests.test_interface_contact import (  # noqa: E402
-    IDENTITY, box_faces, cylinder_face, make_mesh, translate)
+    IDENTITY, RING, bearing, box_faces, cylinder_face, make_mesh, translate)
 
 LIVE = Path("C:/workspace/tolstack/data") / builder.PROJECTION_SUBDIR / builder.PROJECTION_NAME
 LIVE_CANDIDATES = (REPO_ROOT / "data" / builder.PROJECTION_SUBDIR / builder.PROJECTION_NAME, LIVE)
@@ -491,3 +491,139 @@ def test_real_every_candidate_says_whether_its_slots_are_its_meshes_own():
     # Blade 1's pitch link is placed at the instrumented variant's slot.
     lower = rows["pitch_link_lower_centre_is_this_bearing"]["candidates"][0]
     assert lower["evidence"]["own"] == {"from": True, "to": False}
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-22: a seat, a pattern and a ball get their faces too
+# ---------------------------------------------------------------------------
+
+def structural(edge_id, part, a, b):
+    return {"id": edge_id, "name": edge_id.replace("_", " "), "kind": "structural",
+            "part": part, "from": a, "to": b,
+            "dimension": {"id": edge_id, "name": edge_id, "nominal": 0.0, "min": 0.0,
+                          "max": 0.0, "plus_minus": 0.0,
+                          "source_ref": {"kind": "assumed", "confidence": "untraced",
+                                         "note": "fixture"}}}
+
+
+@pytest.fixture
+def shared_store(tmp_path):
+    """Two blocks seated flat on each other, the same two blocks' twins 5 mm
+    apart, two flanges whose three holes line up, and a bearing whose two
+    races are one mesh -- each a node two parts share, or a ball joint."""
+    def make(apart=False):
+        root = tmp_path / ("apart" if apart else "seated")
+        meshes = root / "data" / "meshes"
+        gap = 5.0 if apart else 0.0
+        write_mesh(meshes, "1" * 64, "lower", make_mesh(box_faces(0, 10, 0, 10, 0, 2)),
+                   [instance("lower.1", IDENTITY)])
+        write_mesh(meshes, "2" * 64, "upper", make_mesh(box_faces(2, 8, 2, 8, 2, 4)),
+                   [instance("upper.1", translate(0, 0, gap))])
+        write_mesh(meshes, "3" * 64, "body",
+                   make_mesh([cylinder_face(2.45, 2.0, 5.0, convex=False, centre=c) for c in RING]),
+                   [instance("body.1", translate(100, 0, gap))])
+        write_mesh(meshes, "4" * 64, "plate",
+                   make_mesh([cylinder_face(2.6, -3.0, 1.6, convex=False, centre=c) for c in RING]),
+                   [instance("plate.1", translate(100, 0, 0))])
+        write_mesh(meshes, "5" * 64, "bearing", bearing(ball_at=(0.5 if apart else 0.0, 0.0, 0.0)),
+                   [instance("bearing.1", translate(200, 0, 0))])
+        topologies = root / "topologies"
+        topologies.mkdir(parents=True)
+        aliases = [{"topology_part": p, "mesh_part_id": "bearing"} for p in ("inner", "outer")]
+        (topologies / "part_mesh_aliases.json").write_text(json.dumps({"aliases": aliases}),
+                                                           encoding="utf-8")
+        parts = [{"id": p, "name": p} for p in ("lower", "upper", "body", "plate")]
+        parts += [{"id": "bearing", "name": "bearing", "occurrence": "asm/bearing.1"},
+                  {"id": "inner", "name": "inner race", "parent": "bearing"},
+                  {"id": "outer", "name": "outer race", "parent": "bearing"}]
+        sphere = {"surface": "spherical"}
+        nodes = [{"id": "seat", "name": "clamp face", "kind": "mating_surface",
+                  "parts": ["upper", "lower"]},
+                 {"id": "lower_far", "name": "lower far face", "kind": "datum_feature",
+                  "parts": ["lower"]},
+                 {"id": "holes", "name": "fastener holes", "kind": "mating_surface",
+                  "parts": ["body", "plate"], "interface": "fastener_pattern"},
+                 {"id": "ball", "name": "ball centre", "kind": "datum_feature",
+                  "parts": ["inner"], "face": dict(sphere, part="inner")},
+                 {"id": "cup", "name": "bearing centre", "kind": "datum_feature",
+                  "parts": ["outer"], "face": dict(sphere, part="outer")}]
+        topology = {
+            "schema": "joby.tolerance_stack/topology/v0", "id": "shared", "title": "Shared",
+            "units": "mm", "nodes": nodes, "parts": parts,
+            "edges": [structural("lower_height", "lower", "seat", "lower_far"),
+                      gap_edge("ball_joint", "ball", "cup", "spherical")],
+        }
+        (topologies / "topology_shared.json").write_text(json.dumps(topology), encoding="utf-8")
+        _out, data = builder.build(topologies, meshes, root / "data" / builder.PROJECTION_SUBDIR)
+        (t,) = data["topologies"]
+        return ({r["node"]: r for r in t["nodes"]}, {r["edge"]: r for r in t["edges"]}, data)
+    return make
+
+
+def test_a_seat_offers_each_part_the_flat_that_touches_the_other(shared_store):
+    nodes, _edges, data = shared_store()
+    seat = nodes["seat"]
+    assert (seat["status"], seat["pairing"]) == ("ok", "plane_on_plane")
+    assert (seat["from"]["part"], seat["to"]["part"]) == ("upper", "lower")
+    top = seat["candidates"][0]
+    assert top["relation"] == "contact"
+    assert (top["from"]["faces"], top["to"]["faces"]) == ([0], [1])   # upper's bottom, lower's top
+    assert top["evidence"]["gap_mm"] == pytest.approx(0.0, abs=1e-6)
+    assert top["evidence"]["overlap_mm2"] == pytest.approx(36.0, rel=0.05)
+    # Each side names its feature and the edge ends a Take writes through.
+    assert seat["to"]["feature"] == {"topology_id": "shared", "part": "lower", "node": "seat"}
+    assert seat["to"]["ends"] == [{"edge": "lower_height", "direction": "from"}]
+    assert seat["from"]["ends"] == []
+    assert data["summary"]["shared_nodes"] == 2
+    assert data["summary"]["nodes_by_status"] == {"ok": 2}
+
+
+def test_a_pattern_offers_each_part_every_hole_that_lines_up_as_one_row(shared_store):
+    nodes, _edges, _data = shared_store()
+    holes = nodes["holes"]
+    assert (holes["status"], holes["pairing"]) == ("ok", ic.PATTERN_PAIRING)
+    (top,) = holes["candidates"]
+    assert (top["from"]["faces"], top["to"]["faces"]) == ([0, 1, 2], [0, 1, 2])
+    assert top["evidence"]["holes"] == 3
+    assert top["evidence"]["from_radius_mm"] == pytest.approx(2.45, abs=1e-3)
+    assert top["evidence"]["to_radius_mm"] == pytest.approx(2.6, abs=1e-3)
+    assert builder.clear_top(holes)
+
+
+def test_a_ball_whose_races_are_one_mesh_is_offered_its_own_ball(shared_store):
+    """The inner race and the outer race are solids of the bearing's mesh at
+    the bearing's place: the ball centre end gets the convex sphere, the
+    bearing centre end the race's seat."""
+    _nodes, edges, _data = shared_store()
+    joint = edges["ball_joint"]
+    assert joint["status"] == "ok", joint.get("note")
+    assert joint["from"]["occurrence"] == joint["to"]["occurrence"] == "asm/bearing.1"
+    (top,) = joint["candidates"]
+    assert (top["from"]["faces"], top["to"]["faces"]) == ([0], [1])
+    assert top["evidence"]["ball"] == "from"
+
+
+def test_parts_that_do_not_touch_are_offered_nothing(shared_store):
+    """A wrong offer costs a wrong bind: the same seat, pattern and ball with
+    the parts apart (a block lifted 5 mm, the body's flange lifted 5 mm, a
+    ball 0.5 mm off its race's centre) offer no face at all."""
+    nodes, edges, _data = shared_store(apart=True)
+    for row in (nodes["seat"], nodes["holes"], edges["ball_joint"]):
+        assert row["status"] == "no_contact", row.get("node") or row.get("edge")
+        assert row["candidates"] == []
+
+
+def test_a_ball_joint_whose_ends_do_not_say_which_is_the_ball_is_not_compared(shared_store, tmp_path):
+    """Two races of one mesh, neither end named for the ball: either sphere
+    could be either race's, so nothing is offered."""
+    shared_store()
+    root = tmp_path / "seated"
+    path = root / "topologies" / "topology_shared.json"
+    topology = json.loads(path.read_text(encoding="utf-8"))
+    topology["nodes"][3]["name"] = "inner centre"
+    path.write_text(json.dumps(topology), encoding="utf-8")
+    _out, data = builder.build(root / "topologies", root / "data" / "meshes",
+                               root / "data" / builder.PROJECTION_SUBDIR, allow_older=True)
+    (joint,) = data["topologies"][0]["edges"]
+    assert (joint["status"], joint["nearest_gap_mm"]) == ("no_contact", None)
+    assert "one 3D model at one place" in joint["note"]

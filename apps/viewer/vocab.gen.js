@@ -255,7 +255,7 @@
     // tolerance_stack/interface_contact.py: PAIRING_KINDS
     CONTACT_PAIRING_KINDS: [
       "plane_on_plane", "cylinder_in_cylinder", "ball_in_seat",
-      "plane_across_axis"
+      "plane_across_axis", "hole_pattern"
     ],
 
     // tolerance_stack/interface_contact.py: RELATIONS
