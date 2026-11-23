@@ -13292,8 +13292,18 @@
           return { pins: g.pins.map(function (p) { return [p.id, p.iface, p.side, p.x, p.y].join(" "); }).sort(),
                    routes: g.connectors.map(function (c) { return c.id + " " + c.d; }).sort() };
         };
-        [fx.model, mapModel(), TOPO.model].forEach(function (model, i) {
-          var doc = i === 0 ? fx.doc : i === 1 ? mapDoc() : TOPO.map;
+        // Two joints between the same two parts: their pins tie on every
+        // key but the interface id (2026-11-22: two partners in one column
+        // no longer tie, the nearer takes the outside).
+        var twice = mapPartners([["mt", "T", [2, 2]]]);
+        twice.model.interfaces.push({ id: "ma", name: "ma", kind: "contact", source: "edge", ends: ["M@bore", "T@pin"],
+          parts: ["M", "T"], bodies: ["one"], within: "one", joint: "ma" });
+        twice.model.joints.push({ id: "ma", parts: ["M", "T"], bodies: ["one"], within: "one", constraints: ["ma"] });
+        twice.model.counts.interfaces += 1;
+        eq(VA.mapLayout(twice.model, twice.doc).pins.filter(function (p) { return p.id === "M@bore" && p.side === "bottom"; })
+          .map(function (p) { return p.iface; }), ["ma", "mt"], "two joints to one partner: their pins in id order");
+        [fx.model, mapModel(), TOPO.model, twice.model].forEach(function (model, i) {
+          var doc = i === 0 ? fx.doc : i === 1 ? mapDoc() : i === 2 ? TOPO.map : twice.doc;
           var turned = JSON.parse(JSON.stringify(model));
           turned.interfaces.reverse();
           turned.features.reverse();
