@@ -105,8 +105,27 @@ digits across walks.) The scratch copy went from 116 to 121 files: 0116 add,
 
 ## Test record
 
-See the commit's report: the default tier, run once in this worktree, and the
-two fast node tiers.
+All runs were in this worktree. The diff is docs only (this lesson, the
+review page, 24 shots, 3 issues, 1 addendum). No suite, guard or spec
+changed, so neither the browser runner nor the witness runner was run.
+
+- **Default tier:**
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rfs`
+  gave **1 failed, 2619 passed, 3 skipped, 4 deselected in 493.49 s**,
+  single process. It is recorded on the ledger (`suite-time record --tier
+  default --seconds 494`), inside budget. It started on the base tree while
+  this walk's issue and lesson files were still being written. Those paths
+  (`docs/issues/`, `docs/sessions/`) are outside the claims corpus.
+  - The failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+    the documented worktree red. Its tier was run armed (below).
+  - The skips: `test_contact_suggestions.py:649` and `:668` (the live
+    projection predates node rows) and `test_fit_bound_features.py:433` (a
+    re-extraction not installed).
+- **`node apps/annotate/run_tests.cjs`:** 335/335.
+- **`node apps/viewer/run_tests.cjs`:** 529/529, with the node-fs tier
+  skipped (worktree).
+- **`node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack/data/scratch/walk1123`:**
+  **630/630**, with `[real]` armed.
 
 ## Found on arrival
 
