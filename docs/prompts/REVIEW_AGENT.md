@@ -5808,6 +5808,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Grep `scripts/run_viewer_browser_tests.mjs` for the event fields the
       diff stopped writing (`"direction"`, `geometry_key`, an edge id in a
       captured write), and ask for `--only` on every suite that hits.
+- [ ] **One gesture written as a CHAIN of events, where only the first goes
+      through the carry-over writer.** New 2026-11-24
+      (`editing_a_feature_opens_its_form_where_the_tree_was`). The tick writes
+      the set through `AA.buildFeatureSetEvent`, which carries note, modifier,
+      owner and regime over. Then it writes one more `bound` per further
+      proposal answered, through bare `AA.buildBoundEvent`, and the last of
+      those is the binding that stands. For any plan that returns several
+      events, ask which one stands after the fold, and check that THAT one
+      carries what the first did. Probe: build the plan in node on a noted
+      binding and fold it with `build_projection(events, load_models())`
+      (`ISSUE_20261124_a_tick_answering_two_proposals_leaves_a_binding_without_its_note_and_modifier.md`).
 - [ ] **A writer numbering a new event off a snapshot, not off the log.**
       (2026-11-08, `the_bindings_projection_folds_the_events_jeff_accepted`.)
       `AA.nextEventSeq` read only the loaded projection plus the session, so

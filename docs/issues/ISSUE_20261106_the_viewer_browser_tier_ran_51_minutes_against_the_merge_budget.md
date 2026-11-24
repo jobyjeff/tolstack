@@ -472,3 +472,13 @@ annotate rail holds still 116.8 s, topology file:// 116.5 s, the map 102.6 s, th
 84.9 s, no nav click wedges 84.1 s, the pattern suite 81.9 s (red), every study opens in 3D
 72.2 s, kinematic study page 71.8 s. The new "the tree holds still" suite adds 63.0 s, most of
 it the two-second quiet wait after the pane loads, run three times.
+
+## Measurement 2026-11-24 -- review of editing_a_feature_opens_its_form_where_the_tree_was
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rv_form_1124`
+on tree `a9f6e1d7` (sha `95cc7096`): **1994 s against 1800 s**, 45/45 suites green, 953 checks,
+slot wait 0, ledger row self-recorded (`over: true`). Down from 2206 s on 11-23: the change
+retired six feature-body suites and added one. Top: the model drawn alone 215.6 s, the new
+"a feature's form" suite 172.3 s, topology http 149.3 s, topology file:// 119.4 s, 3D pane
+follows 117.4 s, the map 98.2 s, the DAG zoom 83.7 s, no nav click wedges 81.7 s, annotate
+rail holds still 74.8 s, every study opens in 3D 71.8 s, kinematic study page 71.7 s.

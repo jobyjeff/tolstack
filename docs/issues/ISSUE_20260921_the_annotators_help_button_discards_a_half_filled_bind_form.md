@@ -48,3 +48,7 @@ invisible to `apps/annotate/run_tests.cjs`, which has no DOM. The same review
 noted that the sibling toggles are already safe: `transparency` calls only
 `renderHintPanel()`, and the auto-filter switches call only `renderAutoSetup()`
 plus the rail renderers.
+
+## Addendum 2026-11-24 (review of editing_a_feature_opens_its_form_where_the_tree_was)
+
+The bind form this issue is about is gone: `buildBindForm` was deleted on 2026-11-23, and the feature's form that replaced it keeps its set in the pane and re-renders from it. So there is no half-filled field left to lose. The five optional fields it had now have no writer (`ISSUE_20261124_no_surface_writes_a_bindings_note_modifier_or_owner_part_since_the_bind_bar_retired.md`). The owner-not-in-set form under the scene is still there, so check whether it has the same rerender before closing this.
