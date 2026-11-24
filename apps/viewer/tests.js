@@ -10407,8 +10407,17 @@
         lone.model.features.push({ id: "p3@n9", part: "p3", node: "n9", name: "tip", kind: "datum_feature",
           shared: false, body: "b2" });
         lone.model.parts[2].features.push("p3@n9");
+        // ...and a feature that ends two interfaces (p1's boss, also seated
+        // on p2's bore) is listed at the first of them only.
+        lone.model.interfaces.push({ id: "g3", name: "boss on bore", kind: "contact", source: "edge",
+          ends: ["p1@n1", "p2@n3"], parts: ["p1", "p2"], bodies: ["b1"], within: "b1", joint: "p1+p2" });
+        lone.model.joints[0].constraints.push("g3");
         state.models = { mini: VA.buildModel(lone, bodiedIdentity()) };
+        state.navOpen = { "j:p1+p2": true, "i:n2": true, "i:g2": true, "i:g3": true, "i:g1": true };
         root = draw({ structure: true });
+        var once = all(root, "div.navtree__row--feature").map(function (f) { return f.getAttribute("data-nav-id"); });
+        eq(once.slice().sort(), ["p1@n1", "p1@n2", "p2@n2", "p2@n3", "p2@n5", "p3@n4", "p3@n9"],
+           "every feature once, the boss and the bore at the first interface each ends");
         var loose = all(root, "div.navtree__section--loose")[0];
         eq(loose.querySelector("h2").textContent, W.atNoJoint);
         eq(all(loose, "div.navtree__row--feature").map(function (f) { return f.getAttribute("data-nav-id"); }), ["p3@n9"]);
