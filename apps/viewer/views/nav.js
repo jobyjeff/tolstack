@@ -583,7 +583,9 @@
     row.appendChild(name);
     var note = sharedNote(model, fid);
     if (note) row.appendChild(note);
-    activatable(row, function () { if (handlers.onFeature) handlers.onFeature(fid); });
+    // The click itself is handed on: its timeStamp is when the reader
+    // clicked, which a second click's double-click read needs (topology_app.js).
+    activatable(row, function (event) { if (handlers.onFeature) handlers.onFeature(fid, event); });
     hoverable(row, "feature", fid, handlers);
     // Its form (VA.renderFeatureForm): the pencil, on a hovered or selected
     // row; Enter on the selected row; a second click (topology_app.js).

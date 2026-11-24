@@ -1070,11 +1070,15 @@
   //
   // A second click on the same row soon after opens its form. Read here, not
   // as a dblclick: the first click repaints the tree, so the second lands on
-  // a new row element and the browser's dblclick never fires.
-  function onNavFeature(featureId) {
+  // a new row element, and Chrome counts clicks per element -- no dblclick.
+  // Timed by each click's own stamp: the pane shares this thread, and its
+  // work after the first click can hold the second click's handler back for
+  // longer than a double-click lasts (measured: pressed 1 ms apart, handled
+  // 617 ms apart).
+  function onNavFeature(featureId, event) {
     var model = currentModel();
     if (!model || !model.feature(featureId)) return;
-    var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    var now = (event && event.timeStamp) || (typeof performance !== "undefined" ? performance.now() : Date.now());
     lastFeatureTouched = { fid: featureId, at: now };
     var again = lastFeatureClick && lastFeatureClick.fid === featureId && now - lastFeatureClick.at < VA.NAV_DOUBLE_CLICK_MS;
     lastFeatureClick = again ? null : { fid: featureId, at: now };
@@ -2363,8 +2367,10 @@
         var row = hit ? hit.closest('div.navtree__row[data-nav-kind="feature"]') : null;
         if (row && row.isConnected) { openFeatureForm(row.getAttribute("data-nav-id")); return; }
         // The row the first click selected, repainted since: the feature it was.
-        var now = typeof performance !== "undefined" ? performance.now() : Date.now();
-        if (lastFeatureTouched && now - lastFeatureTouched.at < 3 * VA.NAV_DOUBLE_CLICK_MS) {
+        // Timed by the event's own stamp: the pane shares this thread, and its
+        // work after the first click can hold this handler back for seconds.
+        var at = event.timeStamp || (typeof performance !== "undefined" ? performance.now() : Date.now());
+        if (lastFeatureTouched && at - lastFeatureTouched.at < 3 * VA.NAV_DOUBLE_CLICK_MS) {
           openFeatureForm(lastFeatureTouched.fid);
         }
       });
