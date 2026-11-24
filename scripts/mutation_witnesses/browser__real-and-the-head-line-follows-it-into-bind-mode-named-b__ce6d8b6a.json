@@ -4,12 +4,12 @@
   "expect_red": "[real] ...and the head line follows it into bind mode, named by the study and not by the mode",
   "mutations": [
     {
-      "contract": "Every goto completes with a state reply, whoever ran it.",
-      "issue": "docs/sessions/completed/HANDOFF_20261020_the_3d_pane_opens_in_the_mode_the_study_wants.md",
-      "note": "Sweep announces and goto does not: the head would keep the sweep's line (or its resting words) after the pane changed mode.",
-      "file": "apps/annotate/app.js",
-      "find": "commands.register(\"goto\", announced(cmdGoto));",
-      "replace": "commands.register(\"goto\", cmdGoto);"
+      "contract": "In bind mode the head line names the study the pane is showing, not the model it belongs to.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Re-pointed 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays): the goto announcement it mutated is no longer the only post -- the study scope posts the state too -- so dropping it changed nothing on screen. The mutation names the topology where the study should be.",
+      "file": "apps/annotate/commands.js",
+      "find": "      subject = study.title || study.id;",
+      "replace": "      subject = topology ? topology.title || topology.id : study.title || study.id;"
     }
   ]
 }
