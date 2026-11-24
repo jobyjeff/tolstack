@@ -52,3 +52,13 @@ In 3D, sweep mode is unaffected (it poses the parts linkage lists, the
 assembly meshes); out of it the link is drawn by its assembly, machined and
 bearing meshes at once. The races declare no occurrence on purpose (that
 handoff's lesson, "3D"). Still a design call; nothing changed here.
+
+## Addendum 2026-11-23 -- the nav half is done (the_tree_sits_beside_the_3d_canvas_and_holds_still)
+
+The tree lists each part once. An assembly in no body sits under "Across
+bodies" with only those of its parts that are in no body either (v2: each
+link assembly and its two bearings). Every machined link and race is listed
+under the body it moves with, and nowhere else (`VA.navPlan`,
+`apps/viewer/views/nav.js`). It is close to option (c) above: the members are
+not repeated, not even as references. The 3D half (an assembly mesh in no
+body, posed by no body in sweep mode) is unchanged and still open.

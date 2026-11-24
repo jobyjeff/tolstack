@@ -1112,6 +1112,48 @@ projection writes that key as the feature's `identity`. So:
   length, a dimension of the assembly, reads at its outer races' centres.
 - **A feature the source model does not have** -- every race's own bore,
   cylinder and ball -- is keyed to the finer model, as any new feature is.
+- **The viewer's fold reads the same end (2026-11-22).** Until then the
+  shell's own fold (`apps/viewer/identity_fold.js`, `endFeatureKey`) keyed a
+  dimension's end to the edge's own `part` -- the assembly -- where
+  `tolerance_stack.model_view.end_feature` and the annotator name the
+  member: in v2 every edge-end reader of the two link lengths found nothing
+  there while the outer races' features read the same binding as bound. It
+  reads `model.dimensions[].from`/`to` now. And because the face is the
+  ball's, a ball centre left unbound beside a bound seat centre sat next to a
+  green sphere; **the two ends of a ball joint say on both rows that they
+  share a face** (`model.sharesFaceWith`), as do any two features whose
+  records hold the same face. Display only; no event is written.
+
+### The shell's structure tree (2026-11-22)
+
+Handoff `the_tree_sits_beside_the_3d_canvas_and_holds_still`, after Jeff's
+note of the same day ("the menu jumps to a different scroll position").
+The rules this tree keeps (`apps/viewer/views/nav.js`, `VA.navPlan`;
+`apps/viewer/topology_app.js`, "the tree holds still"):
+
+- **On screen only with the 3D pane.** With the pane closed the shell's left
+  column is the model picker and the studies; the map is the structure view.
+  Reopening the pane brings the tree back with the folds and the scroll it
+  was left with.
+- **One grouping at a time, each thing once.** By part (the default):
+  bodies, their parts, an assembly's parts inside it when they move with the
+  same body, then features; "Across bodies" lists an assembly in no body
+  once, with only its parts that are in no body either. By joint: each body's
+  joints, the joints between bodies, then "At no joint"; a feature is listed
+  under the first interface it ends. The switch sits beside All / Unbound.
+- **A redraw holds still.** The row under the pointer -- or, with the
+  pointer off the column, the selected row -- keeps its screen position
+  across every rebuild (a paint, a fold, the filter, a write, a pane
+  message). A fold moves only the rows below it, easing open and shut over
+  `--tree-ease` (none for a reader who asks for reduced motion).
+- **A selection opens only the path to its row** -- no body under it, no
+  other row's folds -- and scrolls only when the row is off screen, by the
+  least that shows it. A feature's body (its Correct, Add a face, Unbind,
+  Remove) opens by its twisty. Where the grouping lists no row for the
+  selection (an interface by part), the path to the rows it owns opens.
+- **One mark per feature**: an empty ring (open), a blue ring (suggested), a
+  green dot (bound). A part and a joint count their features bound,
+  "n of m"; a body keeps its colour, which is identity.
 
 ### Keep settles a disagreement, and any feature can be let go (2026-11-18)
 
