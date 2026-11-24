@@ -2230,7 +2230,9 @@
     var model = currentModel();
     if (!model || !VA.featureEditable(model, fid) || !nodes.navform) return;
     if (!(nodes.flyout && nodes.flyout.open)) return;
-    if (form) closeFeatureForm(true);
+    // Already open on it (the second click and the dblclick both ask): stay.
+    if (form && form.fid === fid) return;
+    if (form) closeFeatureForm(false);
     var at = VA.featureFormEnd(model, fid);
     var feature = model.feature(fid);
     // Leaving comes back to this row: select it first, then take its place.
@@ -2349,6 +2351,17 @@
   // is on this page but a field or a button of the form's own.
   function wireFormKeys() {
     if (typeof document === "undefined" || !document.addEventListener) return;
+    // A double-click on a feature's row, read where it lands: the first
+    // click repaints the tree, so when the second press's release lands on a
+    // newer row the browser sends no click there (onNavFeature's two-click
+    // read misses it), but the dblclick still reaches the column.
+    if (nodes.navtree && nodes.navtree.addEventListener) {
+      nodes.navtree.addEventListener("dblclick", function (event) {
+        var hit = document.elementFromPoint ? document.elementFromPoint(event.clientX, event.clientY) : null;
+        var row = hit && hit.closest ? hit.closest('div.navtree__row[data-nav-kind="feature"]') : null;
+        if (row) openFeatureForm(row.getAttribute("data-nav-id"));
+      });
+    }
     document.addEventListener("keydown", function (event) {
       if (!form || !event) return;
       var t = event.target;

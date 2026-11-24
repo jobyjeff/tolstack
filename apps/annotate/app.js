@@ -3752,13 +3752,43 @@ function openEdit(a) {
   const VA = window.ViewerApp;
   const key = endFeature(a.topology, a.edgeId, a.direction);
   const feature = featureAt(a.topology, a.edgeId, a.direction);
-  const record = key ? VA.featureRecordOf(sessionIdentityProjection(), key) : null;
+  const known = editRecord(a);
+  const record = known.record;
   const sha = a.parts[a.active].sha256;
   const disagree = !!(record && record.state === VA.FEATURE_STATES[1]);
-  const held = disagree ? [] : ((record && record.faces) || [])
+  const held = disagree ? [] : known.faces
     .filter((f) => f.source_step_sha256 === sha).map((f) => f.face_id);
   return { key, featureId: feature ? feature.id : null, sha256: sha, initial: held.slice(),
     lines: AA.editLinesOf(held, null), dismissed: [], offers: [], read: false, queue: Promise.resolve() };
+}
+
+// What the feature holds and what is proposed for it: its record's, and --
+// where a record keyed by feature has not been folded (a projection read with
+// edge-end records only) -- what its ends read, as the answer path before the
+// form read them (AA.endBindings, AA.endProposals). {record, standing,
+// proposals, faces}; `faces` is [{source_step_sha256, face_id}].
+function editRecord(a) {
+  const VA = window.ViewerApp;
+  const key = endFeature(a.topology, a.edgeId, a.direction);
+  const record = key ? VA.featureRecordOf(sessionIdentityProjection(), key) : null;
+  const feature = featureAt(a.topology, a.edgeId, a.direction);
+  const ends = feature ? featureEnds(a.topology, feature) : [{ edgeId: a.edgeId, direction: a.direction }];
+  let standing = (record && record.bindings) || [];
+  const proposals = AA.distinctEvents((record && record.proposals) || []);
+  const atEnds = [];
+  for (const end of ends) {
+    const rec = AA.findBindingRecord(identityFor(a.topology), AA.topologyEdgeKey(a.topologyId, end.edgeId));
+    AA.endProposals(rec, end.direction).forEach((p) => {
+      if (!proposals.some((q) => q.event_id === p.event_id)) proposals.push(p);
+    });
+    atEnds.push(...AA.endBindings(rec, end.direction));
+  }
+  let faces = (record && record.faces) || [];
+  if (!record) {
+    standing = AA.distinctEvents(atEnds);
+    faces = atEnds.map((b) => b.geometry_key).filter(Boolean);
+  }
+  return { record, standing, proposals, faces };
 }
 
 // The held faces as surfaces and patterns, once the part's classes are read.
@@ -3865,7 +3895,7 @@ function editSuggestions(a) {
     (record.disagreement || []).forEach((g) => put({ faces: g.faces.filter((f) => f.source_step_sha256 === e.sha256)
       .map((f) => f.face_id), why: W.disagree }));
   }
-  AA.surestFirst(AA.distinctEvents((record && record.proposals) || [])).forEach((p) => {
+  AA.surestFirst(editRecord(a).proposals).forEach((p) => {
     if (e.dismissed.indexOf(p.event_id) !== -1) return;
     const faces = AA.eventFaceDicts(p).filter((d) => d.source_step_sha256 === e.sha256).map((d) => d.face_id);
     put({ faces, why: AA.editWord("proposal", { confidence: p.confidence }), proposal: p.event_id,
@@ -3906,7 +3936,7 @@ function editSnapshot() {
   const same = faces.length === initial.size && faces.every((f) => initial.has(f));
   let answers = 0;
   try {
-    answers = AA.editAnswers((record && record.proposals) || [], faces.map((f) => ({ sourceStepSha256: e.sha256, faceId: f })),
+    answers = AA.editAnswers(editRecord(a).proposals, faces.map((f) => ({ sourceStepSha256: e.sha256, faceId: f })),
       e.dismissed).length;
   } catch (_) { answers = 0; }
   return {
@@ -3918,7 +3948,7 @@ function editSnapshot() {
     suggestions: editSuggestions(a),
     // What a tick would do: write the set, answer proposals, record a dismissal.
     changed: !same || answers > 0 || e.dismissed.length > 0,
-    holds: !!(record && (record.bindings || []).length),
+    holds: editRecord(a).standing.length > 0,
     dismissed: e.dismissed.length,
     history: editHistory(record),
   };
@@ -3988,9 +4018,9 @@ async function editCommit(a) {
   await a.edit.queue;
   const e = a.edit;
   const VA = window.ViewerApp;
-  const record = e.key ? VA.featureRecordOf(sessionIdentityProjection(), e.key) : null;
+  const known = editRecord(a);
   const plan = (seq) => AA.planEditCommit({
-    featureKey: e.key, standing: (record && record.bindings) || [], proposals: (record && record.proposals) || [],
+    featureKey: e.key, standing: known.standing, proposals: known.proposals,
     dismissed: e.dismissed, faces: editPlanFaces(e),
     fields: { eventId: "annotate-" + Date.now() + "-" + slugify(e.key ? e.key.node : a.edgeId) + "-edit", seq,
       createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) },
