@@ -6,7 +6,7 @@
     {
       "contract": "Leaving the form puts the tree back as it was when the form opened.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
-      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Forgets where the tree was.",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Forgets where the tree was. First NOT WITNESSED: the suite's column was at its top, where a forgotten scroll is still the right one; the suite now scrolls the column before the form opens.",
       "file": "apps/viewer/topology_app.js",
       "find": "    navAnchorOverride = was.anchor;",
       "replace": "    navAnchorOverride = { scroll: 0, key: null, top: 0 };"

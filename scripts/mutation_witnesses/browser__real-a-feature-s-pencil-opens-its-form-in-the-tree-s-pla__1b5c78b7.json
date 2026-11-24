@@ -6,10 +6,10 @@
     {
       "contract": "The form takes the tree's place.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
-      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The tree stays on screen beside the form.",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The tree stays on screen beside the form. Re-pointed the same day at navColumn, the one place the column is given to the tree or the form: the first anchor (the open's own line) was not witnessed because renderNav hid the tree a second time.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    nodes.navtree.style.display = \"none\";\n    nodes.navform.style.display = \"\";",
-      "replace": "    nodes.navform.style.display = \"\";"
+      "find": "    nodes.navtree.style.display = form ? \"none\" : \"\";\n",
+      "replace": "    nodes.navtree.style.display = \"\";\n"
     }
   ]
 }

@@ -6,10 +6,10 @@
     {
       "contract": "Every rebuild of the tree puts the anchored row back at its screen y.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
-      "note": "The rebuild with no anchor restored: the scroll lands where the new heights put it, the jump Jeff reported on 11-22 after the 11-05 guard was lost on 11-10. Re-pointed 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was), where the code it means now is.",
+      "note": "The rebuild lands at the column's top: the jump Jeff reported on 11-22 after the 11-05 guard was lost on 11-10. Re-pointed 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was) at restoreNavAnchor. Dropping the anchor in renderNav was NOT WITNESSED: Chrome keeps a column's scroll through a rebuild made in one task, and with feature bodies gone no row above the pointer changes height, so only a restore that moves the scroll shows.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    navAnchorOverride = null;\n    VA.renderNavTree(nodes.navtree, tree, state, {",
-      "replace": "    navAnchorOverride = null;\n    anchor = null;\n    VA.renderNavTree(nodes.navtree, tree, state, {"
+      "find": "    nav.scrollTop = anchor.scroll;\n    if (!anchor.key) return;\n",
+      "replace": "    nav.scrollTop = 0;\n    return;\n"
     }
   ]
 }

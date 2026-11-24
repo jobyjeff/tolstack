@@ -2068,7 +2068,9 @@
     // (VA.scenePickArmed). Nothing here knows the verb's meaning beyond its name.
     if (document.addEventListener) {
       document.addEventListener("keydown", function (event) {
-        if (!event || event.key !== "Escape" || !sceneTree) return;
+        // While a feature's form is open its Esc is the form's X
+        // (wireFormKeys), which lets the pane go itself.
+        if (!event || event.key !== "Escape" || !sceneTree || form) return;
         if (VA.scenePickArmed(sceneTree)) postToPane(["arm", "off"]);
       });
     }
@@ -2247,8 +2249,7 @@
     }
     form = { fid: fid, anchor: takeNavAnchor(), seen: false, next: false };
     formWrite = null;
-    nodes.navtree.style.display = "none";
-    nodes.navform.style.display = "";
+    navColumn();
     renderForm();
     postToPane(["arm", at.edgeId, at.end, state.topologyId, feature.part]);
   }
@@ -2263,8 +2264,7 @@
     if (!quiet) postToPane(["arm", "off"]);
     postToPane(HOVER_CLEAR);
     VA.clear(nodes.navform);
-    nodes.navform.style.display = "none";
-    nodes.navtree.style.display = "";
+    navColumn();
     navAnchorOverride = was.anchor;
     renderNav();
     if (was.next) {
@@ -2272,6 +2272,13 @@
       var next = model ? VA.nextUnboundFeature(model, was.fid) : null;
       if (next) openFeatureForm(next);
     }
+  }
+
+  // The column is the tree's or, while one is open, the feature's form's:
+  // never both. The one place either is shown or hidden.
+  function navColumn() {
+    nodes.navtree.style.display = form ? "none" : "";
+    if (nodes.navform) nodes.navform.style.display = form ? "" : "none";
   }
 
   function renderForm() {
@@ -3543,7 +3550,7 @@
       return;
     }
     // A feature's form has the column while it is open.
-    nodes.navtree.style.display = form ? "none" : "";
+    navColumn();
     if (nodes.navDivider) nodes.navDivider.style.display = "";
     var tree = VA.navTree(state.topologies, state.stacksResults, state.kinematic);
     var paneOpen = !!(nodes.flyout && nodes.flyout.open);

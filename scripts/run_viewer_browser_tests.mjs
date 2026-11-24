@@ -10899,8 +10899,25 @@ async function testFeatureForm(browser, label, topologies) {
     await page.waitForTimeout(3000);
 
     // --- the pilot: two shoulders, click and tick --------------------------
+    // Every part open, and the column scrolled so the pilot's row sits a
+    // little below its top: leaving has a scroll to give back, which a column
+    // at its top never shows.
+    await page.evaluate(() => {
+      for (let i = 0; i < 60; i += 1) {
+        const b = document.querySelector('#navtree [data-nav-twisty^="p:"][aria-expanded="false"]');
+        if (!b) break;
+        b.click();
+      }
+    });
+    await page.waitForTimeout(1000);
     await showRow(PILOT);
-    await page.evaluate((sel) => { const r = document.querySelector(sel); if (r) r.scrollIntoView({ block: "center" }); }, row(PILOT));
+    const scrolledBefore = await page.evaluate((sel) => {
+      const nav = document.getElementById("navtree");
+      const r = document.querySelector(sel);
+      if (!nav || !r) return 0;
+      nav.scrollTop += r.getBoundingClientRect().top - nav.getBoundingClientRect().top - 120;
+      return nav.scrollTop;
+    }, row(PILOT));
     await page.waitForTimeout(500);
     const pencils = await page.locator(`#navtree [data-nav-edit]`).count();
     // Where the row is on screen before the form takes the column.
@@ -10930,14 +10947,15 @@ async function testFeatureForm(browser, label, topologies) {
     await page.waitForTimeout(500);
     const topAfter = await rowTop(PILOT);
     const mark = await page.locator(row(PILOT) + " .navtree__mark").getAttribute("data-status").catch(() => null);
-    console.log(`    two shoulders: ${JSON.stringify(both)}; row ${topBefore} -> ${topAfter}; mark ${mark}`);
+    console.log(`    two shoulders: ${JSON.stringify(both)}; column scrolled ${scrolledBefore}; row ${topBefore} -> ${topAfter}; mark ${mark}`);
     push("[real] Jeff's two shoulders in two clicks after the form opens (a face, the tick): ONE event, " +
       "all eighteen faces, superseding the one-shoulder binding",
       both.length === 1 && both[0].verdict === "bound" && both[0].faces.length === 18 &&
       shoulderA.every((f) => both[0].faces.indexOf(f) !== -1) && both[0].faces.indexOf(SHOULDER_B) !== -1 &&
       both[0].supersedes === pilot.event_id);
     push("[real] leaving puts the tree back with the feature's row where it was on screen, wearing its mark",
-      back && topBefore !== null && topAfter !== null && Math.abs(topAfter - topBefore) <= 1 && mark === "bound");
+      back && scrolledBefore > 0 && topBefore !== null && topAfter !== null &&
+      Math.abs(topAfter - topBefore) <= 1 && mark === "bound");
 
     // --- the same feature again: an unchanged tick, then an X --------------
     await openByPencil(PILOT);

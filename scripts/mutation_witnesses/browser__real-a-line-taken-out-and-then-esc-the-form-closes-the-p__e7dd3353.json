@@ -6,7 +6,7 @@
     {
       "contract": "Esc discards.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
-      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Esc ticks.",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Esc ticks. First NOT WITNESSED: the scene pick's own Esc handler let the pane go before the form's ran, so the tick found no edit; that handler now leaves Esc to an open form.",
       "file": "apps/viewer/topology_app.js",
       "find": "        closeFeatureForm(false);\n      } else if (event.key === \"Enter\"",
       "replace": "        formOk(false);\n      } else if (event.key === \"Enter\""

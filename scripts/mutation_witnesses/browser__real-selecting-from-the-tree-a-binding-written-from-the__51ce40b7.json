@@ -4,12 +4,12 @@
   "expect_red": "[real] ...selecting from the tree, a binding written from the pane and a tree update from the pane keep the row under the pointer where it was",
   "mutations": [
     {
-      "contract": "A pane's redraw of a feature's body holds the row under the pointer.",
+      "contract": "Every redraw of the tree, from the tree or from the pane, gives the column back the scroll it had.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
-      "note": "The body above the pointer's row redrawn with no anchor: the rows under it move with its height. Re-pointed 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was), where the code it means now is. The feature body's own redraw is gone; every redraw of the tree is renderNav's.",
+      "note": "A redraw that drops the column's scroll: every row moves by what the column was scrolled. Re-pointed 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was): the feature body's own redraw is gone and every redraw is renderNav's. Dropping the anchor there was NOT WITNESSED: Chrome keeps the scroll through a rebuild made in one task, so the anchor only shows when something moves the scroll.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    var anchor = navAnchorOverride || (form ? null : takeNavAnchor());\n",
-      "replace": "    var anchor = navAnchorOverride || null;\n"
+      "find": "    restoreNavAnchor(anchor);\n    if (form) return;\n",
+      "replace": "    nodes.navtree.scrollTop = 0;\n    if (form) return;\n"
     }
   ]
 }
