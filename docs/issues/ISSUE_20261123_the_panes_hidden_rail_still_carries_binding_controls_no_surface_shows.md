@@ -31,3 +31,12 @@ Retire them with their suites: the rail keeps what it shows for selection and
 hover (`followScenePick`, `VA.sceneInspectStep` read its `selected` rows) and
 loses every write. Check `bound-faces` and the owner-not-in-set path first:
 the latter has no other home.
+
+## Addendum 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays)
+
+The bind-mode bar's row above is gone: `buildOwnerNotInSetForm`,
+`buildOwnerNotInSetFields`, `bindContext`, `correctionTarget` and the read-only
+bindings block were deleted with the rest of the bar's binding controls. The
+owner-not-in-set write now has no surface at all; that is filed on its own as
+`ISSUE_20261124_owner_not_in_set_and_the_drawing_wins_note_have_no_surface_since_the_bar_went.md`.
+The hidden rail's rows are unchanged.

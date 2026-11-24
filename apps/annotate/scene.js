@@ -1832,7 +1832,8 @@ export class AnnotateScene {
   // end of the element, in the pick colour, with each end's interface name
   // beside it -- drawn BEFORE Bind, so a reader sees which end the face is
   // about to be written as while it can still be changed. `leader` is
-  // AA.planBindLeader's answer, or null to take it down. Display only, like
+  // a {picked, bound} pair, or null to take it down (nothing has composed one
+  // since the bar's bind instruction went, 2026-11-24). Display only, like
   // everything else drawn in the assembly frame: each centroid (the
   // manifest's `centroid_native`) is put through the placement the part's
   // FIRST drawn occurrence is drawn with, and nothing here is read back into

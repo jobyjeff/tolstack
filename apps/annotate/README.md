@@ -600,9 +600,9 @@ after `sweep`, `goto` or `trace` completes — whoever ran it, the viewer, the
 run picker — the pane posts
 `{type: "annotate:state", mode, topology, study, run, title}` to its parent,
 same-origin (`AA.embedState`). `mode` is `sweep` or `bind`; `title` is the
-one line the pane's head prints verbatim ("Sweep — vpa pitch chunk2 p2",
-"Binding — Travel between end stops"), so the viewer never composes it from
-its own state. The viewer also posts `highlight` while its pointer rests on
+one line the pane's head prints verbatim ("vpa pitch chunk2 p2", "Travel
+between end stops": what is shown, never the mode, since 2026-11-24), so the
+viewer never composes it from its own state. The viewer also posts `highlight` while its pointer rests on
 an edge's row, debounced on its side.
 
 `apps/viewer/`'s topology-mode detail pane emits this link (`annotate this
@@ -777,9 +777,8 @@ of scope), `planArrival` (each switch turns off its own step and disturbs no
 other; topology-off with a *different* topology open refuses outright rather
 than half-applying), `planEntryCommands` (the URL's params as an ordered
 command list — `trace` drops `edge`/`isolate` because a scope entry owns the
-scene), `bindingDirectionsNeeded`/`taskInstruction` (two faces, then one,
-then done, and every sentence the bar composes run past the shared ban list),
-and both remembered settings (round-trip, an unreadable value read as "not
+scene), `bindingDirectionsNeeded` (two faces, then one, then done), and
+both remembered settings (round-trip, an unreadable value read as "not
 set" rather than as *off*, and a `localStorage` that throws on the very
 access still booting with the defaults).
 

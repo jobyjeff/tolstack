@@ -108,7 +108,9 @@ traced ratio" — never restate the rule elsewhere).
   line under the set, and only the tick writes -- one event holding the whole
   set. Correct, Add a face, Remove, Shift-click and the pattern bar are gone,
   and that section's table is now the one statement of the gestures (same
-  document, "Editing a feature").
+  document, "Editing a feature"). Since 2026-11-24 a right-click on a face or
+  a tree row offers what the form and the tree already do, in their words, and
+  the bar over the canvas holds the play controls alone (same table).
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's

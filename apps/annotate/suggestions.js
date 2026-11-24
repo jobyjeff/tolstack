@@ -538,8 +538,6 @@
   // The words the Display checkbox wears. Constants for the same reason every
   // other sentence on this surface is one: run_tests.cjs's shared ban list
   // scans this layer, and nothing scans a string literal inside a DOM handler.
-  // The help panel's own line lives with the other help copy
-  // (AA.HELP_LINES, commands.js) -- one home for that list, not two.
   AA.SUGGEST_SETTING_LABEL = "Suggest likely faces";
   AA.SUGGEST_SETTING_HINT =
     "colours the faces that could be the one you are binding";

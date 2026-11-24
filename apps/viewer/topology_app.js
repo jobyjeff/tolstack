@@ -2045,7 +2045,7 @@
   // The annotator posts {type: "annotate:state", mode, topology, study, run,
   // title} after every sweep / goto / trace it completes, whoever asked for it
   // (this page, its own run picker, its console). `title` is the annotator's
-  // own one line -- "Sweep — vpa pitch chunk2 p2" -- and this page prints it
+  // own one line -- "vpa pitch chunk2 p2" -- and this page prints it
   // verbatim: nothing here composes it from the viewer's state, which could
   // only disagree with what the scene actually holds (a command that failed,
   // a topology the reader kept).

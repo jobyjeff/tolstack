@@ -330,6 +330,12 @@ stream at the wrong end.
   manifest centroids, placed through the part's first drawn occurrence the way
   the part itself is (`AA.planBindLeader`, `scene.setBindLeader`). It is drawn
   before Bind and gone when the pick is; nothing reads it back.
+> **2026-11-24:** the bar's instruction line, its end choice
+> (`AA.planBindChoices`) and the leader it drew (`AA.planBindLeader`) are gone
+> with the rest of the bar's binding controls
+> (`right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays`):
+> a feature is bound in its form ("Editing a feature", below).
+
 - **No flip after the write.** An event is immutable and the verdict set has
   no supersession, so correcting an end after Bind is a schema question, filed
   as `ISSUE_20261021_a_binding_written_at_the_wrong_end_has_no_correction.md`.
@@ -562,11 +568,13 @@ linkage's gap edges. How cleanly each one separates contact from near-miss is
 in `docs/sessions/lessons/LESSONS_20261028_an_interface_suggests_the_faces_that_touch.md`.
 
 **In the annotator.** Selecting a gap edge — or an element ending at one —
-lists that edge's best pairs under **Faces that touch** in the top bar, one
-line of evidence each, and colours the pair in focus in the contact hue
-(`scene.js` `MARK_COLORS.contact`), distinct from the suggestion colour. A
-click on a listed pair is the `frame-contact` verb: it moves the colour to that
-pair and frames the camera on the box the projection carries for it. Both
+colours that edge's best pair in the contact hue (`scene.js`
+`MARK_COLORS.contact`), distinct from the suggestion colour, and a feature's
+form lists its contact faces under **Suggested** with their evidence. The
+`frame-contact` verb moves the colour to another pair and frames the camera on
+the box the projection carries for it. Until 2026-11-24 the pairs were also
+listed under **Faces that touch** in the top bar, which now holds the play
+controls alone. Both
 follow the **Suggest likely faces** setting, like the face suggestions.
 
 ## Sweep mode — playing back a solver's answer
@@ -806,7 +814,30 @@ being edited, and the tick or the X drops back to the tree.
 | **✕** or **Esc** | leaves without writing (`arm off`) |
 | **Unbind** | lets the feature go now (`unbind`, one `retracted`), and closes the form |
 | leaving, any way | the tree comes back with the same row at the same place on screen, wearing its new mark |
-| drag | orbits; nothing is picked |
+| drag | orbits (a right-drag pans); nothing is picked and no menu opens |
+| right-click a face of the part, the form open | **Add to *feature*** or **Take out of *feature*** — a left click on it, as a menu item (`edit click <face>`) — then the part's **Isolate *part*** and **Hide *part*** |
+| right-click a face, no form open | **Bind to *feature*** when the selected feature is on that part: its form opens with that surface in the set, nothing written until the tick; then **Isolate** and **Hide** |
+| right-click empty space | **Show everything**, while anything is hidden |
+| right-click a feature's row | **Edit faces** (its ✎); **Bind the suggested faces** where nothing is bound and its open proposals name one set of faces — its form opens, takes that suggestion and ticks, the one menu item that writes, and it writes what the form's line and ✓ would; **Unbind** (the form's Unbind) |
+| right-click a part's or a body's row | **Isolate**, **Hide** or **Show**, and **Show everything** while anything is hidden — the tree's own show/hide boxes, set as unticking them would |
+| right-click a joint's row | **Go to *part*** for each of its two parts |
+| **Esc** with a menu open | closes the menu; the form, if one is open, waits for the next Esc |
+
+A menu is a shortcut, never the only way: every item is a control the form or
+the tree already has, in the form's words. The menu is drawn by the viewer
+page over the tree or over the pane, placed beside the pointer and inside what
+it was opened over, and lights the right-clicked face while it is open
+(`VA.sceneMenuPlan`, `VA.rowMenuPlan`, `VA.placeMenu` in
+`apps/viewer/views/nav.js`; `openMenu` in `apps/viewer/topology_app.js`). A
+still right-click in the scene is reported by the pane (`annotate:context`,
+below) and is never a pick.
+
+**The bar over the canvas** holds the play controls, the pose and the view,
+and nothing about binding (2026-11-24): in bind mode the sweep's play line,
+the model's placement chip and **Display** (the display switches); in sweep
+mode the transport, the readouts, the run picker, the point export, the
+as-modelled pose with **Go there**, and **Display**. The pane's head names
+what is shown and not the mode.
 
 Where a suggestion came from ("suggested · high", "coaxial with …", "same
 surface, apart", "like holes on one plane") is said only on its line in
@@ -1518,7 +1549,8 @@ layer's own selection there.
 | shell → scene | `{type: "annotate:exec", command}` | the selection follows, a row's 3D control, the model row; `light <json>` with what the page's one resolver says its hover and its selection light (since 2026-11-12, `hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque`: the pane draws the two tiers and decides nothing), `highlight` for a selected edge while a run is loaded |
 | shell → scene | `{type: "annotate:rail", key, act, index?}` | a gesture on a row of the nav's scene tree |
 | scene → shell | `{type: "annotate:result", id, ok, result\|error}` | every exec; ignored by the shell |
-| scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb |
+| scene → shell | `{type: "annotate:state", mode, topology, study, run, title}` | after an announced verb; `title` names what is shown (the run's mechanism, the study, the topology) and, since 2026-11-24, never the mode |
+| scene → shell | `{type: "annotate:context", x, y, face, parts, onPart}` | a right-click that did not travel: where, in the pane's CSS pixels; the face under it (`{sha256, faceId}`, or null over empty space); the parts that mesh is drawn for; and whether the face is on the part an open edit takes faces from. The shell draws the menu (`AA.contextMessage`, `VA.SCENE_CONTEXT_MESSAGE`) |
 | scene → shell | `{type: "annotate:tree", mode, armed, armedEnd, armedLine, chips, rows}` | the rail's rendered rows changed, or an announced verb completed; `armed`: a pick is armed, so the shell's Escape cancels it; `armedEnd` (`{topologyId, edgeId, direction}`) and `armedLine`: where, and what the pick says, which the feature body for that end shows |
 | scene → shell | `{type: "annotate:identity", projection, installedMeshes, eventIds}` | once the log is read, and after every event the pane writes: its merged record (the log folded, plus this session's events) and every event id it folds. The shell takes it only when it folds every event the shell's own record does (`VA.paneIdentityWins`), so a pane on other data never takes bindings away, and repaints only when it adds one |
 | scene → shell | `{type: "annotate:status", word, tone, sentence}` | at boot, and whenever what it can read or write changes (a folder granted at the first bind); the pane header's dot and word (`AA.PANE_STATUS`) |
