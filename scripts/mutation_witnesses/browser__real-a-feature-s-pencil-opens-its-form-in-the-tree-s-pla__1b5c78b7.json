@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] a feature's pencil opens its form in the tree's place: its name, and the shoulder it holds as ONE line of its nine segments, in the bound colour",
+  "mutations": [
+    {
+      "contract": "The form takes the tree's place.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The tree stays on screen beside the form.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.navtree.style.display = \"none\";\n    nodes.navform.style.display = \"\";",
+      "replace": "    nodes.navform.style.display = \"\";"
+    }
+  ]
+}

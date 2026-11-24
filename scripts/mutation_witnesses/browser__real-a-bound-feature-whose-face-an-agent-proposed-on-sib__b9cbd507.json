@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] a bound feature whose face an agent proposed on sibling edges: the tick answers every one of those proposals, each a bound event holding the same set, and nothing is left open",
+  "mutations": [
+    {
+      "contract": "Every proposal the set holds is answered.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Answers the surest only.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    answers.slice(1).forEach(function (p, i) {",
+      "replace": "    answers.slice(1, 1).forEach(function (p, i) {"
+    }
+  ]
+}

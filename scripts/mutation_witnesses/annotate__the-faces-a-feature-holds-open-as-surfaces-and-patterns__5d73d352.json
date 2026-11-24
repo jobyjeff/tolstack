@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the faces a feature holds open as surfaces and patterns, and a line says itself in words a reader can check against the scene",
+  "mutations": [
+    {
+      "contract": "A split surface is one line of its segments.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Drops the joined segments: each of a shoulder's nine faces opens as its own line.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "      var faces = [f].concat(((sib && sib.swept) || []).filter(function (g) { return isHeld[g] && !placed[g]; }));",
+      "replace": "      var faces = [f];"
+    },
+    {
+      "contract": "A line counts its segments in words.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Leaves the count off: two shoulders read the same.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (faces.length > 1) words.push(editWord(\"segments\", { n: faces.length }));",
+      "replace": "    if (faces.length > 99) words.push(editWord(\"segments\", { n: faces.length }));"
+    }
+  ]
+}

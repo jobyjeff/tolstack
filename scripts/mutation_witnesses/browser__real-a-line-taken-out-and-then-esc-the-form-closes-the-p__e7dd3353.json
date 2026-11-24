@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] a line taken out and then Esc: the form closes, the pane lets go, nothing is written",
+  "mutations": [
+    {
+      "contract": "Esc discards.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Esc ticks.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        closeFeatureForm(false);\n      } else if (event.key === \"Enter\"",
+      "replace": "        formOk(false);\n      } else if (event.key === \"Enter\""
+    }
+  ]
+}

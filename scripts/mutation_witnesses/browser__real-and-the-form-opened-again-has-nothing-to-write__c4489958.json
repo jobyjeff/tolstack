@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] ...and the form opened again has nothing to write",
+  "mutations": [
+    {
+      "contract": "The form says whether a tick would write.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Always says it would.",
+      "file": "apps/annotate/app.js",
+      "find": "    changed: !same || answers > 0 || e.dismissed.length > 0,",
+      "replace": "    changed: true,"
+    }
+  ]
+}

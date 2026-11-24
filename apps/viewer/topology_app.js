@@ -3516,7 +3516,8 @@
       if (nodes.navDivider) nodes.navDivider.style.display = "none";
       return;
     }
-    nodes.navtree.style.display = "";
+    // A feature's form has the column while it is open.
+    nodes.navtree.style.display = form ? "none" : "";
     if (nodes.navDivider) nodes.navDivider.style.display = "";
     var tree = VA.navTree(state.topologies, state.stacksResults, state.kinematic);
     var paneOpen = !!(nodes.flyout && nodes.flyout.open);

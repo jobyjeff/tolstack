@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] the X ends it: nothing is armed, the ray sees every part, and the tree is back",
+  "mutations": [
+    {
+      "contract": "The X lets the pane's edit go.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The X closes the form and leaves the pane armed.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (!quiet) postToPane([\"arm\", \"off\"]);",
+      "replace": "    if (false) postToPane([\"arm\", \"off\"]);"
+    }
+  ]
+}

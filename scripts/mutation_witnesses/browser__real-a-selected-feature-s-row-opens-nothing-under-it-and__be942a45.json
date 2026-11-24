@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] a selected feature's row opens nothing under it and offers its pencil",
+  "mutations": [
+    {
+      "contract": "An editable feature's row carries its pencil.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). No row gets a pencil.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (handlers.onEditFeature && VA.featureEditable(model, fid)) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

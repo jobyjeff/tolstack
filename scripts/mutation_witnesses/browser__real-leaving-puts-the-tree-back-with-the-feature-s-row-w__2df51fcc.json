@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] leaving puts the tree back with the feature's row where it was on screen, wearing its mark",
+  "mutations": [
+    {
+      "contract": "Leaving the form puts the tree back as it was when the form opened.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Forgets where the tree was.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    navAnchorOverride = was.anchor;",
+      "replace": "    navAnchorOverride = { scroll: 0, key: null, top: 0 };"
+    }
+  ]
+}

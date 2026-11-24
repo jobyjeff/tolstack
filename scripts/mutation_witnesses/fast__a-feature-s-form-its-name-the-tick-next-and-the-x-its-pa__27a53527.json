@@ -1,0 +1,31 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a feature's form: its name, the tick, Next and the X; its part and what it mates with; the faces one line each, the suggestions with why; every gesture is handed back and nothing here writes; it waits for the pane's own answer",
+  "mutations": [
+    {
+      "contract": "A face already bound reads bound in the form; a new one does not.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Marks every line bound.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      var li = VA.el(\"li\", \"navform__line\" + (line.held ? \" navform__line--held\" : \"\"));",
+      "replace": "      var li = VA.el(\"li\", \"navform__line navform__line--held\");"
+    },
+    {
+      "contract": "The tick waits for the pane's answer for this feature.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Arms the tick before the pane has opened the feature: a press would write nothing it can see.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (!plan.ready) ok.disabled = true;",
+      "replace": "    if (false) ok.disabled = true;"
+    },
+    {
+      "contract": "The form names the feature at the OTHER end of each interface the feature ends.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Lets the feature name itself as its own mate.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        if (other !== fid && out.indexOf(other) === -1 && model.feature(other)) out.push(other);",
+      "replace": "        if (out.indexOf(other) === -1 && model.feature(other)) out.push(other);"
+    }
+  ]
+}

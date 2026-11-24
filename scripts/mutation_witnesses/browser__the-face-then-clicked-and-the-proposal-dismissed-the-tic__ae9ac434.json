@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail suggestion (the row says so, select lights it, Accept, pick a different face)",
+  "expect_red": "the face then clicked and the proposal dismissed: the tick writes `rejected` for the proposal and then `bound` for that face, both as the reviewer, numbered in that order",
+  "mutations": [
+    {
+      "contract": "A dismissal is held until the tick.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Forgets the dismissal: the tick writes no rejection.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (e.dismissed.indexOf(arg) === -1) e.dismissed.push(arg);",
+      "replace": ""
+    }
+  ]
+}

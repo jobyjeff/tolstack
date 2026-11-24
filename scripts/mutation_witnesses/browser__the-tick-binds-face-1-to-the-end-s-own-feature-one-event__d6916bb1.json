@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "the tick binds face 1 to the end's own feature, one event into the mock's captured writes",
+  "mutations": [
+    {
+      "contract": "One tick writes the set once.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Writes the planned events twice.",
+      "file": "apps/annotate/app.js",
+      "find": "  const events = plan(seq);",
+      "replace": "  const events = plan(seq).concat(plan(seq + dry.length));"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "THE TICK: one event holding the whole set, superseding what is bound; nothing when nothing changed; an empty set lets the feature go",
+  "mutations": [
+    {
+      "contract": "A set equal to what is bound writes nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Writes an event for every tick, changed or not.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (same && !answers.length) return out;",
+      "replace": "    if (false) return out;"
+    },
+    {
+      "contract": "The set event supersedes the feature's standing binding.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Writes a fresh binding beside the old one: two would stand and disagree.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    var first = AA.buildFeatureSetEvent(standing, fields);",
+      "replace": "    var first = AA.buildBoundEvent(fields);"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate armed pick (pose, isolate, filter, pre-select, bind, Esc)",
+  "expect_red": "a click on another part writes nothing and keeps the arm",
+  "mutations": [
+    {
+      "contract": "A click that hits no face of the feature's part keeps the edit open.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). A miss ends the edit.",
+      "file": "apps/annotate/app.js",
+      "find": "      return armedClick(pick).catch((err) => setBanner(err.message, \"error\"));",
+      "replace": "      return (pick ? armedClick(pick) : Promise.resolve(disarmPick(\"cancel\"))).catch((err) => setBanner(err.message, \"error\"));"
+    }
+  ]
+}

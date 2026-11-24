@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a click puts a surface in the set or takes it out; a hole of a pattern line comes out alone, and a suggestion taken is one line of its faces",
+  "mutations": [
+    {
+      "contract": "A click on a surface the set holds takes it out; any other puts it in.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Always adds: a second click on a shoulder would add it again rather than take it out.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (!touched) out.push({ kind: AA.EDIT_LINE_KINDS[0], faces: ascending(faces || []) });",
+      "replace": "    out.push({ kind: AA.EDIT_LINE_KINDS[0], faces: ascending(faces || []) });"
+    },
+    {
+      "contract": "A hole taken out of a pattern leaves the pattern one hole fewer.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Keeps the count: a pattern line would claim a hole the set no longer holds.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "        out.push({ kind: line.kind, faces: keep, holes: line.holes - 1 });",
+      "replace": "        out.push({ kind: line.kind, faces: keep, holes: line.holes });"
+    }
+  ]
+}

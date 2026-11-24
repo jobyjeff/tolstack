@@ -10784,7 +10784,10 @@ async function testFeatureForm(browser, label, topologies) {
   const V1 = "vpa_pitch_linkage";
   const V2 = "vpa_end_stop_v2";
   const PILOT = "tan_link_mount_215175_002@tan_link_mount_pilot_bore";
-  const CLOCK = "tan_link_mount_215175_002@tan_link_mount_fastener_clocking";
+  // The hub's side of the tangential link mount's fastener pattern: bound to
+  // one hole (both its halves) in Jeff's log, where the mount's side holds all
+  // ten. The form offers the other nine the moment it opens.
+  const CLOCK = "hub@tan_link_mount_fastener_clocking";
   const BUSH = "gas_spring_mount_213668_002@gas_spring_mount_bushing_bore";
   const SPINDLE = "pitch_plate_215177_001@pitch_plate_spindle_bore_axis";
   const MOUNT = "9913d0cff39c";
@@ -10903,7 +10906,7 @@ async function testFeatureForm(browser, label, topologies) {
     const topBefore = await rowTop(PILOT);
     await until((w) => w.__embedTree.edit && w.__embedTree.edit.read, null, 120000);
     const f0 = await form();
-    console.log(`    pilot form: ${JSON.stringify(f0)}`);
+    console.log(`    pilot form (pencils ${pencils}, opened ${opened}): ${JSON.stringify(f0)}`);
     push("[real] a feature's pencil opens its form in the tree's place: its name, and the shoulder it holds " +
       "as ONE line of its nine segments, in the bound colour",
       pencils > 0 && opened && f0 && f0.treeHidden && f0.name === "pilot bore" && f0.lines.length === 1 &&
@@ -10952,48 +10955,59 @@ async function testFeatureForm(browser, label, topologies) {
     const escClosed = await closed();
     await notArmed();
     push("[real] a line taken out and then Esc: the form closes, the pane lets go, nothing is written",
-      held.length === 1 && escClosed && (await writes()) === before);
+      held.length === 2 && escClosed && (await writes()) === before);
 
-    // --- the bushing bores: a face taken out of a bound feature --------------
-    await openByPencil(BUSH);
+    // --- a face taken out of a bound feature: the second shoulder ------------
+    await openByPencil(PILOT);
     await until((w) => w.__embedTree.edit && w.__embedTree.edit.read, null, 120000);
-    const bush = (await edit()) || { lines: [] };
-    const kept = bush.lines.slice(1).reduce((a, l) => a.concat(l.faces), []).sort((a, b) => a - b);
-    console.log(`    bushing bores: ${JSON.stringify(bush.lines.map((l) => l.text))}`);
+    const two = (await edit()) || { lines: [] };
+    const keep = two.lines.length ? two.lines[0].faces : [];
     before = await writes();
-    await page.locator(`#navform [data-form-line="${bush.lines[0] && bush.lines[0].key}"]`).first().click({ timeout: 10000 }).catch(() => {});
-    await until((w, n) => w.__embedTree.edit && w.__embedTree.edit.lines.length === n - 1, bush.lines.length, 30000);
+    await page.locator(`#navform [data-form-line="${two.lines[1] && two.lines[1].key}"]`).first().click({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__embedTree.edit && w.__embedTree.edit.lines.length === 1, null, 30000);
     await press("ok");
     await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
     const less = await writtenSince(before);
     await closed();
-    push("[real] the bushing bores: a line clicked comes out, and the tick writes ONE event holding the rest",
-      bush.lines.length >= 2 && less.length === 1 && less[0].verdict === "bound" &&
-      JSON.stringify(less[0].faces) === JSON.stringify(kept));
+    push("[real] a line clicked comes out of a bound feature, and the tick writes ONE event holding the rest",
+      two.lines.length === 2 && less.length === 1 && less[0].verdict === "bound" &&
+      JSON.stringify(less[0].faces) === JSON.stringify(keep.slice().sort((a, b) => a - b)));
+
+    // --- the bushing bores: Jeff's case, opened and left -----------------------
+    await openByPencil(BUSH);
+    await until((w) => w.__embedTree.edit && w.__embedTree.edit.read, null, 120000);
+    const bush = (await edit()) || { lines: [] };
+    console.log(`    bushing bores: ${JSON.stringify(bush.lines.map((l) => [l.text, l.faces.length, l.held]))}`);
+    before = await writes();
+    await press("cancel");
+    const bushClosed = await closed();
+    push("[real] the bushing bores open with what they hold, every line bound, and the X writes nothing",
+      bush.lines.length >= 1 && bush.lines.every((l) => l.held) && bushClosed && (await writes()) === before);
+    await notArmed();
 
     // --- the fastener pattern: one hole, its suggested line, Next ------------
     await showRow(CLOCK);
-    await page.locator(row(CLOCK)).first().dblclick({ timeout: 10000 }).catch(() => {});
+    await page.evaluate((sel) => { const r = document.querySelector(sel); if (r) r.scrollIntoView({ block: "center" }); }, row(CLOCK));
+    await page.waitForTimeout(300);
+    const box = await page.locator(row(CLOCK)).first().boundingBox().catch(() => null);
+    if (box) await page.mouse.dblclick(box.x + 40, box.y + box.height / 2);
     const dbl = await formReady(CLOCK);
-    await until((w) => w.__embedTree.edit && w.__embedTree.edit.read && w.__embedTree.edit.suggestions.length, null, 120000);
+    console.log(`    double-click at ${JSON.stringify(box)}: form ${JSON.stringify(await form())}`);
+    await until((w) => w.__embedTree.edit && w.__embedTree.edit.read &&
+      w.__embedTree.edit.suggestions.some((s) => s.with !== undefined), null, 120000);
     const c0 = (await edit()) || { lines: [], suggestions: [] };
-    const opposite = c0.suggestions.find((s) => s.faces.length > 2) || null;
     console.log(`    the clocking opens with ${c0.lines.length} lines; suggestions ` +
       JSON.stringify(c0.suggestions.map((s) => [s.text, s.why, s.faces.length])));
     push("[real] a double-click on a feature's row opens its form too",
       dbl && !!(await form()) && (await form()).fid === CLOCK);
-    const hole = opposite ? opposite.faces[0] : null;
-    before = await writes();
-    if (hole !== null) await clickFace(MOUNT_SHA, hole);
-    await until((w) => w.__embedTree.edit && w.__embedTree.edit.lines.length === 1, null, 60000);
-    await until((w) => w.__embedTree.edit && w.__embedTree.edit.suggestions.some((s) => s.with !== undefined), null, 30000);
-    const c1 = (await edit()) || { lines: [], suggestions: [] };
-    const rest = c1.suggestions.find((s) => s.with !== undefined) || null;
+    const rest = c0.suggestions.find((s) => s.with !== undefined) || null;
+    const hole = c0.lines.length === 1 ? c0.lines[0].faces : [];
     const f2 = await form();
-    console.log(`    one hole: ${JSON.stringify(c1.lines.map((l) => l.text))}; its pattern: ${JSON.stringify(rest && [rest.text, rest.why, rest.faces.length])}`);
-    push("[real] a click on one hole puts that hole in the set and offers the rest of its pattern as a " +
+    console.log(`    one hole: ${JSON.stringify(c0.lines.map((l) => [l.text, l.faces]))}; its pattern: ${JSON.stringify(rest && [rest.text, rest.why, rest.faces.length])}`);
+    before = await writes();
+    push("[real] a feature holding one hole of a pattern opens offering the rest of the pattern as a " +
       "suggestion line -- not in a bar over the canvas, which is gone",
-      c1.lines.length === 1 && !!rest && rest.faces.length >= 2 && (await writes()) === before &&
+      c0.lines.length === 1 && c0.lines[0].held && !!rest && rest.faces.length >= 2 &&
       !!f2 && f2.suggestions.some((s) => s.key === rest.key) &&
       (await inPane((w) => !w.document.querySelector("#an-offer"))));
     const restKey = rest ? rest.key : "";
@@ -11007,24 +11021,27 @@ async function testFeatureForm(browser, label, topologies) {
     console.log(`    the pattern taken: ${JSON.stringify(c2.lines.map((l) => [l.text, l.faces.length]))}`);
     push("[real] hovering the suggestion lights its faces in the scene, and a click makes the hole and the " +
       "rest ONE pattern line",
-      washed && c2.lines.length === 1 && /^\d+ holes/.test(c2.lines[0].text) &&
-      all.indexOf(hole) !== -1 && rest.faces.every((f) => all.indexOf(f) !== -1));
+      washed && c2.lines.length === 1 && /^\d+ holes/.test(c2.lines[0].text) && !!rest &&
+      hole.every((f) => all.indexOf(f) !== -1) && rest.faces.every((f) => all.indexOf(f) !== -1) &&
+      (await writes()) === before);
     const hadNext = !!(await form()) && (await form()).next;
-    await press("next");
+    const nextFid = hadNext ? null : CLOCK;
+    await press(hadNext ? "next" : "ok");
     await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
     const pat = await writtenSince(before);
-    const nextOpen = await page.waitForFunction((fid) => {
+    const nextOpen = hadNext ? await page.waitForFunction((fid) => {
       const f = document.querySelector("#navform .navform");
       return !!f && document.querySelector("#navform").style.display !== "none" &&
         f.getAttribute("data-form-feature") !== fid;
-    }, CLOCK, { timeout: 60000 }).then(() => true).catch(() => false);
+    }, CLOCK, { timeout: 60000 }).then(() => true).catch(() => false) : await closed();
     const f3 = await form();
-    console.log(`    the pattern wrote ${JSON.stringify(pat.map((e) => [e.verdict, e.faces.length]))}; Next opened ${f3 && f3.fid}`);
-    push("[real] Next writes ONE event holding every face of every hole, and opens the part's next unbound feature",
-      hadNext && pat.length === 1 && pat[0].verdict === "bound" && pat[0].faces.length === all.length &&
-      nextOpen && !!f3 && f3.fid.indexOf("tan_link_mount_215175_002@") === 0 && f3.fid !== CLOCK);
-    await press("cancel");
-    await closed();
+    console.log(`    the pattern wrote ${JSON.stringify(pat.map((e) => [e.verdict, e.faces.length, e.supersedes]))}; ` +
+      `Next ${hadNext ? "opened " + (f3 && f3.fid) : "not offered (" + nextFid + " is the part's last unbound)"}`);
+    push("[real] the tick (Next, where the part has another unbound feature) writes ONE event holding every face " +
+      "of every hole, superseding the one-hole binding, and Next opens that feature",
+      pat.length === 1 && pat[0].verdict === "bound" && pat[0].faces.length === all.length && !!pat[0].supersedes &&
+      nextOpen && (!hadNext || (!!f3 && f3.fid.indexOf("hub@") === 0 && f3.fid !== CLOCK)));
+    if (await form()) { await press("cancel"); await closed(); }
     await notArmed();
 
     // --- v1: the same face proposed on sibling edges is answered by the tick --

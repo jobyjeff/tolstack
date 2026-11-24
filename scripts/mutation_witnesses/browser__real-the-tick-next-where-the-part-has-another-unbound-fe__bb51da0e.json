@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] the tick (Next, where the part has another unbound feature) writes ONE event holding every face of every hole, superseding the one-hole binding, and Next opens that feature",
+  "mutations": [
+    {
+      "contract": "The tick writes every face of the set.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Writes the first nine faces only.",
+      "file": "apps/annotate/app.js",
+      "find": "    dismissed: e.dismissed, faces: editPlanFaces(e),",
+      "replace": "    dismissed: e.dismissed, faces: editPlanFaces(e).slice(0, 9),"
+    }
+  ]
+}

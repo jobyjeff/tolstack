@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] Enter on a form whose set is unchanged closes it and writes nothing",
+  "mutations": [
+    {
+      "contract": "An unchanged tick writes nothing.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Every tick writes the set again.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    if (same && !answers.length) return out;",
+      "replace": "    if (false) return out;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] hovering the suggestion lights its faces in the scene, and a click makes the hole and the rest ONE pattern line",
+  "mutations": [
+    {
+      "contract": "The rest of a pattern joins the hole it was offered with, as one line.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). It is added as a line of its own.",
+      "file": "apps/annotate/app.js",
+      "find": "    if (line) {\n      // A pattern's other holes join the hole they were offered with, as one line.",
+      "replace": "    if (false) {\n      // A pattern's other holes join the hole they were offered with, as one line."
+    }
+  ]
+}

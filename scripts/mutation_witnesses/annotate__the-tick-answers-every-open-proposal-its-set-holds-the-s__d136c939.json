@@ -1,0 +1,23 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the tick answers every open proposal its set holds -- the same face proposed twice, on a sibling edge, too -- and records a dismissed one as rejected; the log folds with none left open",
+  "mutations": [
+    {
+      "contract": "Every proposal the set holds is answered, not only the surest.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Answers the first only: the sibling edge's proposal for the same face stays open.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    answers.slice(1).forEach(function (p, i) {",
+      "replace": "    answers.slice(1, 1).forEach(function (p, i) {"
+    },
+    {
+      "contract": "A dismissed proposal is recorded as rejected at the tick.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Forgets the dismissal: nothing records that the reader turned it down.",
+      "file": "apps/annotate/binding_state.js",
+      "find": "    dismissed.forEach(function (p, i) { out.push(AA.buildRejectEvent(p, at(f.eventId + \"-rejected-\" + (i + 1)))); });",
+      "replace": "    dismissed.forEach(function (p, i) { });"
+    }
+  ]
+}

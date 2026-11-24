@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
+  "expect_red": "[real] the bushing bores open with what they hold, every line bound, and the X writes nothing",
+  "mutations": [
+    {
+      "contract": "A line the feature already holds reads bound in its form.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). Marks no line bound.",
+      "file": "apps/annotate/app.js",
+      "find": "      held: line.faces.every((f) => initial.has(f)) })),",
+      "replace": "      held: false })),"
+    }
+  ]
+}

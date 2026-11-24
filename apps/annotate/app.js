@@ -1247,6 +1247,24 @@ async function surfaceSiblingsOf(sha256, faceId) {
     (a, b) => AA.facesTouch(buffers.positions, buffers.ranges, a, b)));
 }
 
+// The surface `faceIds` are on, now: each face and the faces of its surface
+// joined to it, once the part's classes are read (surfaceSiblingsOf has
+// read them); the faces as given until then. What a suggestion line stands
+// for in the feature's form -- a click on it takes the surface, as a click
+// in the scene does.
+function surfaceNow(sha256, faceIds) {
+  const classes = state.faceClasses[sha256];
+  const buffers = state.faceBuffers[sha256];
+  if (!classes || !buffers) return faceIds.slice();
+  const out = new Set();
+  for (const f of faceIds) {
+    out.add(f);
+    AA.surfaceSiblings(classes, f, (a, b) => AA.facesTouch(buffers.positions, buffers.ranges, a, b))
+      .swept.forEach((g) => out.add(g));
+  }
+  return Array.from(out).sort((a, b) => a - b);
+}
+
 // One face of an open part, as an event's geometry key.
 function faceGeometryKey(sha256, faceId) {
   const record = state.scene.faceRecord(sha256, faceId);
@@ -3754,6 +3772,16 @@ async function readEditLines(a) {
   if (AA.editFaces(e.lines).join(",") === e.initial.slice().sort((x, y) => x - y).join(",")) {
     e.lines = AA.editLinesOf(e.initial, (f) => sibs[f]);
   }
+  // A feature that holds one hole of a pattern is offered the rest of it at
+  // once, as a click on that hole would be.
+  const held = new Set(e.initial);
+  e.lines.filter((l) => l.kind === AA.EDIT_LINE_KINDS[0]).forEach((l) => {
+    const sib = sibs[l.faces[0]];
+    const rest = sib ? sib.pattern.filter((f) => !held.has(f)) : [];
+    if (rest.length) {
+      e.offers.push({ faces: rest, holes: sib.holes, with: l.faces[0], why: AA.EDIT_LINE_WORDS.pattern, text: null });
+    }
+  });
   paintEdit();
 }
 
@@ -3816,14 +3844,18 @@ function editSuggestions(a) {
   const out = [];
   const seen = new Set();
   const put = (s) => {
-    const faces = s.faces.map(Number).filter((f) => isFinite(f));
+    const given = s.faces.map(Number).filter((f) => isFinite(f));
+    // A suggested face stands for its surface, as a click does; a pattern's
+    // holes are already each whole.
+    const pattern = s.holes > 1;
+    const faces = pattern ? given : surfaceNow(e.sha256, given);
     if (!faces.length || faces.every((f) => held.has(f))) return;
     const key = faces.slice().sort((x, y) => x - y).join("-");
     if (seen.has(key)) return;
     seen.add(key);
-    const line = s.holes > 1 ? { kind: AA.EDIT_LINE_KINDS[1], faces, holes: s.holes - (s.with != null ? 1 : 0) }
+    const line = pattern ? { kind: AA.EDIT_LINE_KINDS[1], faces, holes: s.holes - (s.with != null ? 1 : 0) }
       : { kind: AA.EDIT_LINE_KINDS[0], faces };
-    const text = s.text || AA.editLineText(line, classes);
+    const text = (pattern && s.text) || AA.editLineText(line, classes);
     out.push(Object.assign({ key, text, why: s.why || "", faces, holes: s.holes || 0,
       title: [text, s.why, s.detail, AA.editLineIds(line)].filter(Boolean).join("\n") },
     s.proposal ? { proposal: s.proposal } : {}, s.with != null ? { with: s.with } : {}));

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
+  "expect_red": "[real] in bind mode a feature's pencil opens its form in the tree's place and arms the pane at one of the feature's own ends",
+  "mutations": [
+    {
+      "contract": "Opening a feature's form arms the pane at the feature's end.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The form opens and the pane is never armed.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    postToPane([\"arm\", at.edgeId, at.end, state.topologyId, feature.part]);",
+      "replace": ""
+    }
+  ]
+}
