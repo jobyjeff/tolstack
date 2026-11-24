@@ -774,13 +774,71 @@ of the rail:
   scene's tree arrives. A rebuild of the nav or of the tree leaves the scroll
   where the reader put it.
 
-### Picking a face — the gestures (2026-10-29)
+### Editing a feature — its form, in the tree's place (2026-11-23)
+
+Handoff `editing_a_feature_opens_its_form_where_the_tree_was`, from Jeff's
+walk on 2026-11-22: an **Add a face** replaced the binding it was meant to
+add to (his events 0102–0104), a pattern was confirmed in a 12 px bar over
+the canvas that he did not see, and the whole flow felt "unintuitive and
+clunky, unpredictable, disorienting". One click did one of five things and
+the page did not say which: a plain armed click replaced the binding; a Take
+replaced it and ended the pick; the bind bar under the scene replaced it; a
+re-click on a held face whose surface had unheld segments replaced it; and
+Add a face or a Shift-click added to it. Each wrote at once. He chose the
+SolidWorks pattern: the left column is replaced by the form of the thing
+being edited, and the tick or the X drops back to the tree.
+
+**This table is the one statement of the gestures.**
+
+| gesture | what it does |
+|---|---|
+| a double-click on a feature's row, its **✎** (on a hovered or selected row), or **Enter** on the selected row | opens the feature's form in the tree's place, and arms the pane at the feature's end (`arm <edge> <end> <model> <part>`): the sweep goes to the as-modelled pose, the feature's part is drawn solid and framed, and the raycast takes only that part. A feature whose part has no 3D model, or that no edge ends at, has no ✎ |
+| the form | the feature's name, **✓**, **Next** (when another feature of the part is unbound) and **✕**; under it the part and the feature it mates with; **Faces**, one line per surface in words — "round · r 6.3500 mm · 6 segments", "4 holes · r 2.7500 mm" (face ids on hover); **Suggested**, best first, each with why; **Unbind** when the feature holds faces; **History**, folded |
+| hover a face in the scene | pre-selects it: the yellow wash and outline, as always |
+| left-click a face of the part | puts its **surface** — the face and every segment of the same surface joined to it — in the set, or takes it out if the set holds any of it. Every click; no mode, no modifier. Nothing is written. Same-surface faces that sit apart, and the other holes of a pattern, become suggestion lines; they are never taken unasked |
+| left-click elsewhere | nothing |
+| hover a line (in **Faces** or **Suggested**) | lights its faces in the scene (`hover face`) |
+| click a line in **Faces**, or its ✕ | takes that surface out (`edit drop <key>`) |
+| click a line in **Suggested** | puts its faces in the set as one line (`edit take <key>`); a pattern's other holes join the hole they were offered with as one pattern line |
+| ✕ on a proposal's line | turns it down — written at the tick, with the rest (`edit dismiss <id>`) |
+| **✓** or **Enter** | writes (`edit ok`, `AA.planEditCommit`): ONE event holding the whole set, superseding every feature-keyed binding standing, ratifying the surest open proposal the set holds; a `rejected` for each proposal dismissed; and, because a proposal is ratified by one event only, one more `bound` with the same set for each further proposal the set holds (the same face proposed on a sibling edge). A set equal to what is bound, answering and dismissing nothing, writes nothing. An empty set over a bound feature lets it go. The form closes either way |
+| **Next** | the tick, then the part's next unbound feature's form |
+| **✕** or **Esc** | leaves without writing (`arm off`) |
+| **Unbind** | lets the feature go now (`unbind`, one `retracted`), and closes the form |
+| leaving, any way | the tree comes back with the same row at the same place on screen, wearing its new mark |
+| drag | orbits; nothing is picked |
+
+Where a suggestion came from ("suggested · high", "coaxial with …", "same
+surface, apart", "like holes on one plane") is said only on its line in
+**Suggested**. A face in the set says what it is and nothing of where it came
+from; who bound it and whether a suggestion was taken is under **History**.
+
+The set is the pane's (`apps/annotate/app.js`'s `openEdit`, `editClick`,
+`editSnapshot`), posted on its tree message as `edit`; the form
+(`apps/viewer/views/nav.js`'s `VA.renderFeatureForm`) draws it and posts the
+pane's `edit` verbs back. The event schema and the fold are unchanged: every
+tick is a shape the writers already wrote (Keep's and Remove's set event, an
+Accept's `ratifies`, a Reject, an Unbind's let-go).
+
+**Gone, not hidden:** Correct, Add a face, Remove per face, the feature
+body's Unbind row, Pick a face, the mate lines' Take, the group offer bar
+(`#an-offer`, `group all|one`), the bind form under the scene in bind mode,
+the armed line's states ("adding a face…", "added face N", "not on …",
+"reading face …") and the feature body's own marks. Nothing in the tree
+writes. A joint row counts its ends ("n of 2").
+
+### Picking a face — how it began (2026-10-29)
 
 Handoff `a_face_is_picked_the_way_cad_picks_it`, from Jeff trying to bind a
 joint end from the shell's rail: the pick was buried in the assembly, nothing
 said before or after a click whether it would do anything, and a "Go there"
-prompt re-flowed the rail. A face is now picked the way CAD picks one. **This
-table is the one statement of the gestures.**
+prompt re-flowed the rail. A face is now picked the way CAD picks one.
+
+> **2026-11-23:** the gestures are the form's ("Editing a feature", above),
+> and that table is the one statement of them. This one is kept for what it
+> says about the pose, the looks and the part; its rows on a click that
+> binds, Shift, Add a face, Accept and Pick a different face describe what
+> the form replaced.
 
 | gesture | what it does |
 |---|---|
@@ -826,6 +884,11 @@ leave it where it is, since the page sends the same word for both and a
 camera that moves on hover moves out from under the pointer. Leaving the
 action puts the scene back at rest. Unticking **See-through parts** draws the
 rest state's ghosts solid; an action still dims what it is not about.
+
+> **2026-11-23:** a suggestion is a line in the feature's form ("Editing a
+> feature", above); a click puts it in the set and the tick writes it. The
+> shell's tree lists no candidates and has no Take; the rows below are the
+> pane's own rail, which no surface shows.
 
 **Taking a suggested face (2026-11-03).** Handoff
 `a_joint_end_lists_its_candidate_faces_and_says_why_each_is_there`, after Jeff
@@ -1226,7 +1289,11 @@ on the same plane (or nearly the same plane)".
   there. `tests/test_hole_pattern.py` holds them at those boundaries, pairs
   them with `AA.PATTERN`, and has both readers offer face 744's pattern on the
   installed hub.
-- **The pick offers it.** A click on a hole of a pattern lights every hole
+- **2026-11-23: the form suggests it.** A click on a hole of a pattern puts
+  that hole in the set and lists the other holes as one suggestion line
+  ("3 holes", "like holes on one plane"); a click on the line makes them one
+  pattern line with the hole clicked. The bar over the canvas below is gone.
+- **The pick offered it (until 2026-11-23).** A click on a hole of a pattern lit every hole
   (`AA.surfaceSiblings`' third tier, `pattern`) and the bar reads "N like holes
   on one plane": **Take all N holes** binds every face of every hole in one
   event; **Just this one** binds the clicked hole. A **Take** on a ranked mate
@@ -1282,6 +1349,10 @@ every binding**:
   face's `surface_class`. The fold keeps it in a key's `proposals` list. That
   list is apart from `bindings`, so the fitter, the scene's anchors and a
   row's state never read a proposal as a binding.
+- **Since 2026-11-23 the form's tick answers them** ("Editing a feature",
+  above): every open proposal the set holds is ratified (one event each,
+  since `ratifies` names one), a dismissed one is rejected, and one left
+  alone stays open.
 - **Accept** writes an ordinary `bound` event with `ratifies: <proposal id>`.
   The fold refuses one that binds any face or end other than the proposed one.
 - **Reject** writes `rejected` with `rejects: <proposal id>` and no face. The

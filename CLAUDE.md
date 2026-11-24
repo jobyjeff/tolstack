@@ -80,9 +80,8 @@ traced ratio" — never restate the rule elsewhere).
   never as a binding: the annotator shows the proposal apart, and Jeff's
   Accept or Reject is the event that counts (`docs/ANNOTATION_SURFACE.md`,
   "Proposals"). Since 2026-10-29 a joint end's Pick in sweep mode arms a
-  CAD-style pick — isolate, filter, pre-select, click binds — and its gesture
-  table is the one statement of how a face is picked
-  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — the gestures"). Since
+  CAD-style pick — isolate, filter, pre-select, click
+  (`docs/ANNOTATION_SURFACE.md`, "Picking a face — how it began"). Since
   2026-11-03 every end with a proposal or contact faces opens to that list,
   each face saying why it is there, and any one can be taken from it (same
   table, "Taking a suggested face"). Since 2026-11-12 both pages read the
@@ -103,7 +102,13 @@ traced ratio" — never restate the rule elsewhere).
   per bound hole on that hole's axis, whatever its size or solid (same
   section). Since 2026-11-22 a seat and a fastener pattern (a node two parts
   share) get contact rows too, and a ball inside its own bearing's mesh its
-  sphere (same document, "Contact suggestions").
+  sphere (same document, "Contact suggestions"). **Since 2026-11-23 a
+  feature is edited in its form, which takes the tree's place**: a click in
+  the scene puts a surface in the set or takes it out, every suggestion is a
+  line under the set, and only the tick writes -- one event holding the whole
+  set. Correct, Add a face, Remove, Shift-click and the pattern bar are gone,
+  and that section's table is now the one statement of the gestures (same
+  document, "Editing a feature").
 - **Where a feature is, in the assembly** → `scripts/fit_bound_features.py`
   and `tolerance_stack/feature_geometry.py` (2026-09-30). A committed binding
   becomes a *fitted nominal* — a sphere centre, a bore axis — in the part's
