@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the right-click menus: a feature's row edits, binds its one suggestion or unbinds; a part's and a body's isolate, hide or show; a joint's goes to either end; a face in the scene goes in or out of the form's set, or binds to the selected feature; each item is the form's or the tree's word",
+  "mutations": [
+    {
+      "contract": "A menu that would run off the right of what it opened over opens on the pointer's other side.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). Clamped instead of flipped, it covers the face or row under the pointer.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (x + size.w > bounds.right) x = at.x - g - size.w;\n",
+      "replace": ""
+    }
+  ]
+}

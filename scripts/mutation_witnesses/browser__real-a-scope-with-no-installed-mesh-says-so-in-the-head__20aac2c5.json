@@ -6,10 +6,10 @@
     {
       "contract": "Every study opens the 3D pane showing only its parts (handoff every_study_opens_in_3d_showing_only_its_parts).",
       "issue": null,
-      "note": "Breaks the one place this guard's claim is decided.",
+      "note": "Breaks the one place this guard's claim is decided. Re-pointed 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays): the head line names the subject and no mode, so the words are joined from a list.",
       "file": "apps/annotate/commands.js",
-      "find": "(noModel ? \" — \" + AA.EMBED_NO_MODEL_WORDS : \"\")",
-      "replace": "\"\""
+      "find": "noModel ? AA.EMBED_NO_MODEL_WORDS : null",
+      "replace": "null"
     }
   ]
 }

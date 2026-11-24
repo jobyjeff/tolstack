@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] a right-drag over the scene opens no menu, and a still right-click is the menu's and never a pick: the scene reports it and the set is unchanged",
+  "mutations": [
+    {
+      "contract": "A still right-click is reported for the menu and never picks.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). The release would fall through to the pick, as it did before 2026-11-24: a right-click toggles a face.",
+      "file": "apps/annotate/scene.js",
+      "find": "      if (press.button === 2) {",
+      "replace": "      if (press.button === 2 && false) {"
+    }
+  ]
+}

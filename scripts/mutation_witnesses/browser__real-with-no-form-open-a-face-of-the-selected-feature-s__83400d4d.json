@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] with no form open, a face of the selected feature's part offers Bind to it, which opens the feature's form with that surface in the set, as a double-click and a left click would, writing nothing",
+  "mutations": [
+    {
+      "contract": "Bind to opens the form with the right-clicked surface already in the set.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). The form would open empty-handed: Bind to would be only an Edit faces.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      if (edit.sha256 === then.click.sha256 && !held) postToPane([\"edit\", \"click\", String(then.click.faceId)]);",
+      "replace": "      void held;"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "tier": "annotate",
   "suite": null,
-  "expect_red": "sweep: the gate line says WHERE the as-modelled frame is, once per run, and says so plainly when no frame qualifies",
+  "expect_red": "sweep: the gate line says WHERE the as-modelled frame is, once per run, and nothing when no frame qualifies",
   "mutations": [
     {
       "contract": "The gate line names the as-modelled frame by its one-based position in the run, so a reader is sent to a frame that exists.",

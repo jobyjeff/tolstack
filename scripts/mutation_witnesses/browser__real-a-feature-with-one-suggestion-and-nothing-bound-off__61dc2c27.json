@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] a feature with one suggestion and nothing bound offers Bind the suggested faces, which writes exactly the events the form's tick writes for the same suggestion taken: one bound event, the same faces, ratifying the same proposal",
+  "mutations": [
+    {
+      "contract": "The tree's accept takes the one suggestion and ticks, as the form's line and tick do.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). Without the take the tick has an unchanged set and writes nothing.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      postToPane([\"edit\", \"take\", proposed[0].key]);\n",
+      "replace": ""
+    }
+  ]
+}

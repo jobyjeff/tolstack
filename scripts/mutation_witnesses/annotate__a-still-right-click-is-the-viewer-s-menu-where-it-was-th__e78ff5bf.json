@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "a still right-click is the viewer's menu: where it was, the face under it and the parts its model is drawn for -- and the bar's one disclosure is the display settings",
+  "mutations": [
+    {
+      "contract": "The context message carries the face id the menu's Add and Bind to act on.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). Without it the menu cannot say which surface it is for.",
+      "file": "apps/annotate/model_layer.js",
+      "find": "      face: pick ? { sha256: pick.sha256, faceId: pick.faceId } : null,",
+      "replace": "      face: pick ? { sha256: pick.sha256 } : null,"
+    }
+  ]
+}

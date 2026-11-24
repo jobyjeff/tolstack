@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
-  "expect_red": "[real] the pane's head line is the annotator's own answer: the mode and the run's mechanism, one line",
+  "expect_red": "[real] the pane's head line is the annotator's own answer: the run's mechanism, one line, and never the mode",
   "mutations": [
     {
       "contract": "The pane's head line is the annotator's annotate:state reply, printed verbatim.",

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] Unbind from the row writes the form's Unbind: one retraction of the feature's binding",
+  "mutations": [
+    {
+      "contract": "Unbind from a row is the form's unbind verb at the feature's end.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). The item would let the pane go and write nothing.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      if (at) postToPane([\"unbind\", at.edgeId, at.end, state.topologyId]);",
+      "replace": "      if (at) postToPane([\"arm\", \"off\"]);"
+    }
+  ]
+}

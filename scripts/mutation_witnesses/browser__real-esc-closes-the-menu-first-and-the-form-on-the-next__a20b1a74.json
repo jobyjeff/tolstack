@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] Esc closes the menu first and the form on the next press, writing nothing",
+  "mutations": [
+    {
+      "contract": "Esc on an open menu is the menu's alone.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). The page's Esc would also reach the form's handler: one press closes both and the edit is lost.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        event.preventDefault();\n        event.stopPropagation();\n        onClose();",
+      "replace": "        event.preventDefault();\n        onClose();"
+    }
+  ]
+}

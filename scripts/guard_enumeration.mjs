@@ -397,7 +397,7 @@ export const DECLARED_GUARDS = {
   // 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was): -14 -- the
   // feature body and the mirrored rows retired (15 checks, their specs with them),
   // and the feature's form is one new check with its spec.
-  fast: { declared: 617, enrollable: 617, names: "b7b881640cbf" },
+  fast: { declared: 618, enrollable: 618, names: "bb8b662cc26a" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -509,7 +509,7 @@ export const DECLARED_GUARDS = {
   // 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was): +4 -- the
   // set a feature is edited as: the toggle, its lines in words, the tick, the
   // proposals the tick answers. Each carries a spec.
-  annotate: { declared: 339, enrollable: 339, names: "6116ee6b94da" },
+  annotate: { declared: 329, enrollable: 329, names: "9240a22ba945" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
   // 19 names in, 5 renamed out. Every new name carries a spec but two: the
@@ -811,7 +811,7 @@ export const DECLARED_GUARDS = {
   // suites of the feature body, the offer bar and the bind form retired with their
   // specs, the faces layer's checks under the rail; the feature's form is one new
   // suite. Every new check carries a spec but the suite's `(skipped: ...)` push.
-  browser: { declared: 767, enrollable: 740, names: "bca49ee61f76" },
+  browser: { declared: 773, enrollable: 746, names: "cde3ed1dec8e" },
 };
 
 

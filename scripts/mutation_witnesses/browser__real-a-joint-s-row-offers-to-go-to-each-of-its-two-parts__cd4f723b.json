@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] a joint's row offers to go to each of its two parts, by name",
+  "mutations": [
+    {
+      "contract": "A joint's menu goes to either end.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). Only the first end offered.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      return ((joint && joint.parts) || []).filter(",
+      "replace": "      return ((joint && joint.parts) || []).slice(0, 1).filter("
+    }
+  ]
+}

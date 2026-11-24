@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the panel's words survive the shared ban list",
+  "mutations": [
+    {
+      "contract": "Every word the parts panel prints passes the shared reader-facing ban list.",
+      "issue": null,
+      "note": "Re-pointed 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays): the no-element pick banner it also scanned is gone. The mutation puts a script path into a panel word.",
+      "file": "apps/annotate/commands.js",
+      "find": "    showAll: \"show or hide every part in this model\",",
+      "replace": "    showAll: \"show or hide every part in this model (see scripts/annotate.py)\","
+    }
+  ]
+}

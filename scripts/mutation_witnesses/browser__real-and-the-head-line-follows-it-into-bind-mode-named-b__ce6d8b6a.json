@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "3D pane follows the selection (sweep, bind, reload, hover)",
-  "expect_red": "[real] ...and the head line follows it into bind mode, named by the study",
+  "expect_red": "[real] ...and the head line follows it into bind mode, named by the study and not by the mode",
   "mutations": [
     {
       "contract": "Every goto completes with a state reply, whoever ran it.",

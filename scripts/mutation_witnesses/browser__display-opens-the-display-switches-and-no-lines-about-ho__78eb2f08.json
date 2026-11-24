@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate top bar + entry context (auto-filter, see-through)",
+  "expect_red": "Display opens the display switches and no lines about how to use the pane",
+  "mutations": [
+    {
+      "contract": "The bar's disclosure is named for what it opens: the display settings.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). Back to Help, the word for the six usage lines that are gone.",
+      "file": "apps/annotate/commands.js",
+      "find": "  AA.DISPLAY_WORD = \"Display\";",
+      "replace": "  AA.DISPLAY_WORD = \"Help\";"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] a part's row offers Isolate and Hide; Hide unticks the part's box, as the box does, and the row then offers Show and Show everything",
+  "mutations": [
+    {
+      "contract": "Hide and Show from a menu run the tree box's own handler with the matching state.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). Hide would show: the item does nothing a reader can see.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      onNavVisibility(item.kind, item.id, item.act === A.show);",
+      "replace": "      onNavVisibility(item.kind, item.id, true);"
+    }
+  ]
+}

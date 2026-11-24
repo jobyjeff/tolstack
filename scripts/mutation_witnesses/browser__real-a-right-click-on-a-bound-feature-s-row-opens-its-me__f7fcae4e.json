@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+  "expect_red": "[real] a right-click on a bound feature's row opens its menu -- Edit faces and Unbind, the form's words, focused, beside the row -- and Edit faces opens the feature's form as its pencil does, writing nothing",
+  "mutations": [
+    {
+      "contract": "A feature's row menu offers Edit faces wherever its pencil would show.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). The menu would offer only Unbind: the one way to the form from the menu gone.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      var items = [menuItem(A.edit, W.edit, { fid: id })];",
+      "replace": "      var items = [];"
+    }
+  ]
+}

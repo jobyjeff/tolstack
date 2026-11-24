@@ -7247,11 +7247,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       study.stops[0].rows.length, 15000);
     push("[real] ...and the pane's rail lists the kinematic study's contributors, " +
       "which the viewer passed with the run", listed);
-    await page.waitForFunction(() => /^Sweep/.test(
-      document.querySelector("#flyout-title").textContent), null, { timeout: 15000 }).catch(() => {});
-    push("[real] the pane's head line is the annotator's own answer: the mode " +
-      "and the run's mechanism, one line",
-      (await headLine()) === "Sweep — " + mechanism);
+    await page.waitForFunction((m) => document.querySelector("#flyout-title").textContent === m,
+      mechanism, { timeout: 15000 }).catch(() => {});
+    push("[real] the pane's head line is the annotator's own answer: the run's " +
+      "mechanism, one line, and never the mode",
+      (await headLine()) === mechanism);
 
     // --- the shell seats the scene beside the model (2026-10-26) -----------
     // nav | scene | DAG + grid | results, left to right (the results pane
@@ -7604,10 +7604,10 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       "gone and the annotator lists that study's elements",
       bindMode && railStudy === CHAIN);
     const chainTitle = topology.studies.find((s) => s.id === CHAIN).title;
-    await page.waitForFunction(() => /^Binding/.test(
-      document.querySelector("#flyout-title").textContent), null, { timeout: 15000 }).catch(() => {});
-    push("[real] ...and the head line follows it into bind mode, named by the study",
-      (await headLine()) === "Binding — " + chainTitle);
+    await page.waitForFunction((t) => document.querySelector("#flyout-title").textContent === t,
+      chainTitle, { timeout: 15000 }).catch(() => {});
+    push("[real] ...and the head line follows it into bind mode, named by the study and not by the mode",
+      (await headLine()) === chainTitle);
     push("[real] the nav stays beside the open pane -- it is what drives it",
       await page.locator("#navtree").isVisible());
     // In bind mode the feature's pencil opens its form as in sweep mode: the
@@ -7703,7 +7703,7 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       w.__sweep.artifact.runId === run && !!w.__lastHighlight, study.sweep.run_id, 15000);
     push("[real] clicking a contributor row with the pane open keeps the page on the " +
       "study and the annotator in sweep mode, the edge highlighted",
-      stillSwept && /^Sweep — /.test(await headLine()) &&
+      stillSwept && (await headLine()) === mechanism &&
       await page.locator("div.kmverdict").count() === 2 &&
       await page.locator(`#topogrid tr.tvrow--selected[data-id="${bound.edge}"]`).count() === 1);
 
@@ -10006,15 +10006,9 @@ async function testAnnotateRail(browser, label) {
     push("select-face tints the face -- in the colour buffer, not just in the " +
       "pick state",
       await tinted() && picked && picked.faceId === 0 && picked.sha256 === sha);
-    // ...and the TOP BAR says so in words. It used to read `Picked: part
-    // 000000000000…, face 0` -- a checksum prefix and a face number, neither
-    // of which a reader of this page can act on. Since 2026-09-21 the bar's
-    // one line is the instruction composed from the element
-    // (AA.taskInstruction), so what is asserted is that it names the ACTION
-    // the pick has enabled.
-    push("...and the top bar names the action the pick has enabled",
-      /Bind the selected face to Demo untraced edge/.test(
-        (await page.locator("#detail").textContent()) || ""));
+    // The top bar said what the pick enabled until 2026-11-24 ("Bind the
+    // selected face to Demo untraced edge"); it holds the play controls alone
+    // now, and a feature is bound in its form.
 
     // THE BUG, and the verb that fixes it. Before this handoff the pick state
     // cleared and the orange stayed: `restoreColors` was reachable only from
@@ -10024,12 +10018,6 @@ async function testAnnotateRail(browser, label) {
       "the pick state, which is the pair that used to disagree",
       !(await tinted()) &&
       (await page.evaluate(() => window.__scene.highlightedFace())) === null);
-    // The fixture's `demo_edge_untraced` already has a `to` binding, so the
-    // bar asks for the REMAINING face -- the singular/plural comes from what
-    // the binding still needs, not from a guess about the element's kind.
-    push("...and the top bar goes back to asking for a face",
-      /Select the remaining face that defines Demo untraced edge/.test(
-        (await page.locator("#detail").textContent()) || ""));
 
     // A REAL pointer into the geometry, and then back onto the same face: the
     // toggle. Two pieces of setup, both of them about the FIXTURE and neither
@@ -10155,9 +10143,7 @@ async function testAnnotateRail(browser, label) {
       await page.mouse.click(canvasBox.x + 6, canvasBox.y + 6);
       push("a click into empty space clears the tint as well as the pick",
         !(await tinted()) &&
-        (await page.evaluate(() => window.__scene.highlightedFace())) === null &&
-        /Select the remaining face/.test(
-          (await page.locator("#detail").textContent()) || ""));
+        (await page.evaluate(() => window.__scene.highlightedFace())) === null);
     }
 
     // The element row's own clear path, which had none either. This page
@@ -10309,9 +10295,6 @@ async function testAnnotateSuggestions(browser, label) {
       suggested.length === 1 && suggested[0].faceId === 1);
     push("...in the shared accent, read off the live material",
       suggested.length === 1 && "#" + suggested[0].color === "#6ea8fe");
-    push("...and the top bar says how far the list was narrowed, in words",
-      /likely face/.test(
-        (await page.locator("#detail .an__suggestion-note").textContent()) || ""));
     push("...with the body see-through, so a candidate behind it is visible",
       await ghosted(sha));
     // ONE BODY, counted by GEOMETRY: since 2026-10-14 a part is drawn at every
@@ -10431,8 +10414,6 @@ async function testAnnotateSuggestions(browser, label) {
     push("an unticked suggestion switch survives a reload",
       !(await setting("Suggest likely faces").isChecked()) &&
       (await overlays("suggested")).length === 0);
-    push("...and nothing on the bar claims a narrowing that is switched off",
-      await page.locator("#detail .an__suggestion-note").count() === 0);
 
     // ...and the verb is never gated: a command typed by hand does what it says.
     await page.evaluate(() => window.AnnotateApp.exec(["suggest"]));
@@ -10491,24 +10472,21 @@ async function testAnnotateSuggestions(browser, label) {
       .sort());
     await page.goto(url + "?embedded=1&mock=1&topology=demo_studyless&edge=demo_studyless_edge",
       { waitUntil: "load" });
-    await page.waitForSelector("#detail .an__contact", { timeout: 15000 });
+    // The list of touching pairs left the bar on 2026-11-24 (the bar holds the
+    // play controls alone; the form's Suggested carries them): the scene's
+    // colours and the `frame-contact` verb are what is left to check.
     await page.waitForFunction(
       () => window.__scene.listMarks("contact").length === 2, null, { timeout: 5000 });
     const topPair = await contactMarks();
     push("a gap edge's top touching pair is coloured on both of its parts, in " +
       "a hue that is not the suggestion colour",
       JSON.stringify(topPair) === JSON.stringify(["0:0:b48cf2", "1:1:b48cf2"]));
-    const listed = await page.locator("#detail .an__contact").allTextContents();
-    push("...and listed in the bar, best first, each as one line of evidence " +
-      "in everyday words",
-      listed.length === 2 && listed[0] === "pin in bore, clearance 0.003 mm, 2.20 mm shared" &&
-      (await page.locator("#detail .an__contact").first().getAttribute("aria-pressed")) === "true");
-    await page.locator("#detail .an__contact").nth(1).click();
+    await page.evaluate(() => window.AnnotateApp.exec(["frame-contact", "demo_studyless_edge", "2"]));
     await page.waitForFunction(
       () => window.__scene.listMarks("contact").some((m) => m.sha256.charAt(0) === "2"),
       null, { timeout: 5000 });
     const framed = await page.evaluate(() => window.__scene.controls.target.toArray());
-    push("clicking a listed pair colours that pair instead and frames the " +
+    push("framing the second pair colours that pair instead and frames the " +
       "camera on it",
       JSON.stringify(await contactMarks()) === JSON.stringify(["0:1:b48cf2", "2:0:b48cf2"]) &&
       Math.abs(framed[0] - 42) < 1e-6 && Math.abs(framed[1] - 2) < 1e-6 &&
@@ -10563,7 +10541,6 @@ async function testAnnotateTopBar(browser, label) {
   const drawnAlone = async (s) => JSON.stringify(await drawnParts()) === JSON.stringify([s]);
   const drawnParts = () => page.evaluate(() => window.__scene.listOpenParts()
     .filter((s) => window.__scene.isVisible(s)).sort());
-  const taskLine = () => page.locator("#detail .an__task").textContent();
   // Is the ONE installed mock part rendered translucent right now? Read off
   // the live material, not off a setting -- the whole claim of the toggle is
   // that the two agree.
@@ -10625,8 +10602,10 @@ async function testAnnotateTopBar(browser, label) {
     await page.locator("#detail .an__disclose").click();
     await page.waitForSelector("#hint-panel", { state: "visible", timeout: 5000 });
     const helpLines = await page.locator("#hint-panel .an__hint-lines li").count();
-    push("Help opens a panel of short lines about what this surface does",
-      helpLines >= 3);
+    // Until 2026-11-24 the disclosure was Help, and opened six lines about how
+    // to use the pane over the switches: a page never describes itself.
+    push("Display opens the display switches and no lines about how to use the pane",
+      helpLines === 0 && (await page.locator("#detail .an__disclose").textContent()) === "Display");
     push("...and the two display switches live in it, both ticked by default",
       await setting("See-through parts").isChecked() &&
       await setting("Suggest likely faces").isChecked());
@@ -10651,9 +10630,12 @@ async function testAnnotateTopBar(browser, label) {
       await modelParts().count() === 1 &&
       await drawnAlone(sha) &&
       await page.evaluate((s) => window.__scene.isVisible(s), sha));
-    push("...and the bar tells the reader what to do, naming the element",
-      /Select the remaining face that defines Demo untraced edge/.test(
-        await taskLine()));
+    // Until 2026-11-24 it said what to click, naming the element ("Select the
+    // remaining face that defines Demo untraced edge"), and a strip named it
+    // again: the bar holds the play controls and nothing about binding.
+    push("...and the bar says nothing about binding it: no step, no element named",
+      (await page.locator("#detail .an__task, #detail .an__bindstrip").count()) === 0 &&
+      !/Demo untraced edge/.test(await page.locator("#detail").textContent()));
     push("...with the part see-through, so a face already bound shows through it",
       await ghosted(sha));
 
@@ -11100,6 +11082,311 @@ async function testFeatureForm(browser, label, topologies) {
       s1.changed === false);
     await press("cancel");
     await closed();
+  } catch (err) {
+    errors.push(String(err));
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
+// The right-click menus (handoff right_click_offers_what_the_form_does_and_the_
+// bar_over_the_canvas_only_plays, 2026-11-24): every item does what its form or
+// tree twin does, checked by the event written or the state reached; a right-
+// drag opens no menu; Esc closes a menu before a form; and accepting a
+// suggestion from the tree writes exactly the event the form's tick writes.
+async function testContextMenus(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const V1 = "vpa_pitch_linkage";
+  const V2 = "vpa_end_stop_v2";
+  const PILOT = "tan_link_mount_215175_002@tan_link_mount_pilot_bore";
+  const MOUNT_PART = "tan_link_mount_215175_002";
+  const SHOULDER_B = 784;
+  // A v1 feature an agent proposed one face for and nothing binds: the tree's
+  // "Bind the suggested faces" is offered on it.
+  const STEP = "piston_head_upper_214698_002@piston_head_upper_step_face";
+  const servedLog = await readProjection("feature-identity/log.json");
+  const events = (servedLog && servedLog.events) || [];
+  const pilot = events.filter((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === MOUNT_PART && e.feature_key.node === "tan_link_mount_pilot_bore").pop();
+  const stepBound = events.some((e) => e.verdict === "bound" && e.feature_key &&
+    e.feature_key.part === "piston_head_upper_214698_002" && e.feature_key.node === "piston_head_upper_step_face");
+  const ids = (topologies && topologies.topologies || []).map((t) => t.id);
+  if (!pilot || stepBound || ids.indexOf(V1) === -1 || ids.indexOf(V2) === -1) {
+    push("[real] the right-click menus (skipped: models v1 and v2, the pilot bore bound, or the upper piston " +
+      "head's step face unbound, are not what the served log holds -- build them, or pass --repo <main checkout>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const MOUNT_SHA = pilot.geometry_keys[0].source_step_sha256;
+  const index = await realDataIndexForTheAnnotator();
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs, aliases: index.aliases,
+    binding: "real", contact: true });
+  const inPane = (fn, arg) => page.evaluate(({ src, arg }) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w || !w.document) return null;
+    return new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+  }, { src: fn.toString(), arg });
+  const until = async (fn, arg, timeout = 60000) => {
+    try {
+      await page.waitForFunction(({ src, arg }) => {
+        const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+        if (!w || !w.document) return false;
+        return !!new Function("w", "arg", "return (" + src + ")(w, arg);")(w, arg);
+      }, { src: fn.toString(), arg }, { timeout, polling: 100 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const row = (fid) => `#navtree [data-nav-kind="feature"][data-nav-id="${fid}"]`;
+  const showRow = async (fid) => {
+    const part = fid.split("@")[0];
+    if (!(await page.locator(row(fid)).count())) {
+      await page.evaluate((key) => {
+        const b = document.querySelector(`#navtree [data-nav-twisty="${key}"][aria-expanded="false"]`);
+        if (b) b.click();
+      }, "p:" + part);
+      await page.waitForSelector(row(fid), { timeout: 10000 }).catch(() => {});
+    }
+    await page.evaluate((sel) => { const r = document.querySelector(sel); if (r) r.scrollIntoView({ block: "center" }); }, row(fid));
+    await page.waitForTimeout(300);
+  };
+  const boot = async (topology) => {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + topology, { waitUntil: "load" });
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    if (!(await page.locator("#annotate-flyout[open]").count())) {
+      await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    }
+    await until((w) => !!w.__embedTree, null, 120000);
+    await page.waitForTimeout(3000);
+  };
+  // The menu on screen: its items' acts and words, or null.
+  const menu = () => page.evaluate(() => {
+    const m = document.getElementById("ctxmenu");
+    if (!m || m.style.display === "none") return null;
+    const r = m.getBoundingClientRect();
+    return { items: Array.from(m.querySelectorAll("button")).map((b) => ({ act: b.getAttribute("data-menu-act"),
+      text: b.textContent })), box: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      focused: m.contains(document.activeElement) };
+  });
+  const rowMenu = async (sel) => {
+    const box = await page.locator(sel).first().boundingBox().catch(() => null);
+    if (!box) return null;
+    await page.mouse.click(box.x + 40, box.y + box.height / 2, { button: "right" });
+    await page.waitForTimeout(400);
+    return menu();
+  };
+  // A still right-click in the scene, as the scene reports it: the pane's own
+  // handler, with the face and the point (the raycast is the scene's and is
+  // covered by the right-drag check below).
+  const sceneMenu = async (sha, faceId, onPart) => {
+    await inPane((w, a) => {
+      const c = w.document.querySelector("#canvas-host canvas").getBoundingClientRect();
+      w.__scene.onContextPick(a.sha ? { sha256: a.sha, faceId: a.faceId } : null,
+        { x: c.left + c.width / 2, y: c.top + c.height / 2 }, a.onPart);
+      return true;
+    }, { sha, faceId, onPart });
+    await page.waitForTimeout(400);
+    return menu();
+  };
+  const choose = (act) => page.locator(`#ctxmenu [data-menu-act="${act}"]`).first().click({ timeout: 10000 }).catch(() => {});
+  const formReady = (fid) => page.waitForFunction((fid) => {
+    const f = document.querySelector("#navform .navform");
+    return !!f && f.getAttribute("data-form-feature") === fid && !f.getAttribute("data-form-waiting");
+  }, fid, { timeout: 120000 }).then(() => true).catch(() => false);
+  const closed = () => page.waitForFunction(() => document.querySelector("#navform").style.display === "none" &&
+    document.querySelector("#navtree").style.display !== "none", null, { timeout: 60000 }).then(() => true).catch(() => false);
+  const formOpen = () => page.evaluate(() => document.querySelector("#navform").style.display !== "none");
+  const edit = () => inPane((w) => w.__embedTree && w.__embedTree.edit);
+  const setFaces = async () => ((await edit()) || { lines: [] }).lines.reduce((a, l) => a.concat(l.faces), []).sort((a, b) => a - b);
+  const writes = () => inPane((w) => (w.__mockWrites || []).length);
+  const writtenSince = (n) => inPane((w, n) => (w.__mockWrites || []).slice(n).map((x) => ({
+    verdict: x.event.verdict, supersedes: x.event.supersedes || null, ratifies: x.event.ratifies || null,
+    rejects: x.event.rejects || null, retracts: x.event.retracts || null,
+    key: x.event.feature_key ? x.event.feature_key.part + "@" + x.event.feature_key.node : null,
+    faces: (x.event.geometry_keys || []).map((k) => k.face_id).sort((a, b) => a - b) })), n);
+  const boxes = () => page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll("#navtree input.navtree__vis"))
+    .map((b) => [b.getAttribute("data-nav-vis"), b.checked])));
+  try {
+    await boot(V2);
+    await showRow(PILOT);
+
+    // --- a feature's row: Edit faces is the pencil ---------------------------
+    const m0 = await rowMenu(row(PILOT));
+    const pane = await page.evaluate(() => document.querySelector("#annotate-flyout iframe").getBoundingClientRect());
+    console.log(`    the pilot's row menu: ${JSON.stringify(m0)}`);
+    const rowOk = !!m0 && m0.items.map((i) => i.act).join(",") === "edit,unbind" && m0.items[1].text === "Unbind" &&
+      m0.focused && m0.box.right <= pane.left + 1;
+    let before = await writes();
+    await choose("edit");
+    const opened = await formReady(PILOT);
+    await until((w) => w.__embedTree.edit && w.__embedTree.edit.read, null, 120000);
+    const held = await setFaces();
+    push("[real] a right-click on a bound feature's row opens its menu -- Edit faces and Unbind, the form's words, " +
+      "focused, beside the row -- and Edit faces opens the feature's form as its pencil does, writing nothing",
+      rowOk && opened && (await formOpen()) && held.length > 0 && (await writes()) === before);
+
+    // --- a face in the scene: in and out of the set -------------------------
+    await until((w, s) => !!w.__scene.faceRecord(s, 784), MOUNT_SHA, 60000);
+    const m1 = await sceneMenu(MOUNT_SHA, SHOULDER_B, true);
+    console.log(`    the scene menu, form open: ${JSON.stringify(m1)}`);
+    const sceneOk = !!m1 && m1.items.map((i) => i.act).join(",") === "add,isolate,hide" &&
+      m1.items[0].text === "Add to pilot bore" &&
+      m1.box.left >= pane.left - 1 && m1.box.right <= pane.right + 1 && m1.box.bottom <= pane.bottom + 1;
+    await choose("add");
+    await until((w, n) => w.__embedTree.edit && w.__embedTree.edit.lines.reduce((a, l) => a + l.faces.length, 0) > n,
+      held.length, 30000);
+    const added = await setFaces();
+    const addOk = added.indexOf(SHOULDER_B) !== -1 && added.length > held.length + 1 && (await writes()) === before;
+    const m2 = await sceneMenu(MOUNT_SHA, SHOULDER_B, true);
+    const outOffered = !!m2 && m2.items[0].act === "remove" && m2.items[0].text === "Take out of pilot bore";
+    await choose("remove");
+    await until((w, n) => w.__embedTree.edit && w.__embedTree.edit.lines.reduce((a, l) => a + l.faces.length, 0) === n,
+      held.length, 30000);
+    push("[real] with the form open, a face of its part offers Add to the feature (and the part's Isolate and Hide, " +
+      "inside the pane); Add puts its whole surface in the set as a left click does, the face then offers Take out, " +
+      "and Take out puts the set back -- nothing written",
+      sceneOk && addOk && outOffered &&
+      JSON.stringify(await setFaces()) === JSON.stringify(held) && (await writes()) === before);
+
+    // --- a right-drag pans and opens nothing; a still right-click picks nothing
+    const canvas = await inPane((w) => {
+      const c = w.document.querySelector("#canvas-host canvas").getBoundingClientRect();
+      return { x: c.left + c.width / 2, y: c.top + c.height / 2 };
+    });
+    const frameAt = await page.evaluate(() => document.querySelector("#annotate-flyout iframe").getBoundingClientRect());
+    const cx = frameAt.left + canvas.x, cy = frameAt.top + canvas.y;
+    await inPane((w) => { w.__shellMessages = w.__shellMessages || {}; delete w.__shellMessages["annotate:context"]; return true; });
+    await page.mouse.move(cx, cy);
+    await page.mouse.down({ button: "right" });
+    await page.mouse.move(cx + 60, cy + 40, { steps: 8 });
+    await page.mouse.up({ button: "right" });
+    await page.waitForTimeout(600);
+    const dragged = await inPane((w) => !!(w.__shellMessages || {})["annotate:context"]);
+    const dragOk = !dragged && !(await menu()) && JSON.stringify(await setFaces()) === JSON.stringify(held);
+    await page.mouse.click(cx + 60, cy + 40, { button: "right" });
+    await page.waitForTimeout(800);
+    const still = await inPane((w) => (w.__shellMessages || {})["annotate:context"] || null);
+    push("[real] a right-drag over the scene opens no menu, and a still right-click is the menu's and never a pick: " +
+      "the scene reports it and the set is unchanged",
+      dragOk && !!still && JSON.stringify(await setFaces()) === JSON.stringify(held));
+
+    // --- Esc: the menu, then the form ----------------------------------------
+    if (!(await menu())) await sceneMenu(MOUNT_SHA, SHOULDER_B, true);
+    const hadMenu = !!(await menu());
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    const afterOne = { menu: !!(await menu()), form: await formOpen() };
+    await page.keyboard.press("Escape");
+    const escClosed = await closed();
+    push("[real] Esc closes the menu first and the form on the next press, writing nothing",
+      hadMenu && !afterOne.menu && afterOne.form && escClosed && (await writes()) === before);
+    await until((w) => w.__embedTree && !w.__embedTree.edit, null, 30000);
+
+    // --- no form: Bind to the selected feature --------------------------------
+    await page.locator(row(PILOT)).first().click({ timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    const m3 = await sceneMenu(MOUNT_SHA, SHOULDER_B, true);
+    const bindOffered = !!m3 && m3.items[0].act === "bind" && m3.items[0].text === "Bind to pilot bore";
+    await choose("bind");
+    const bindOpened = await formReady(PILOT);
+    await until((w, f) => w.__embedTree.edit && w.__embedTree.edit.read &&
+      w.__embedTree.edit.lines.some((l) => l.faces.indexOf(f) !== -1), SHOULDER_B, 60000);
+    const bound = await setFaces();
+    push("[real] with no form open, a face of the selected feature's part offers Bind to it, which opens the " +
+      "feature's form with that surface in the set, as a double-click and a left click would, writing nothing",
+      bindOffered && bindOpened && bound.indexOf(SHOULDER_B) !== -1 && held.every((f) => bound.indexOf(f) !== -1) &&
+      (await writes()) === before);
+    await page.keyboard.press("Escape");
+    await closed();
+    await until((w) => w.__embedTree && !w.__embedTree.edit, null, 30000);
+
+    // --- the part: Isolate, Show everything, Hide = the tree's boxes ---------
+    await sceneMenu(MOUNT_SHA, SHOULDER_B, true);
+    await choose("isolate");
+    await page.waitForTimeout(800);
+    const iso = await boxes();
+    const parts = Object.keys(iso).filter((k) => k.indexOf("part:") === 0);
+    const isoOk = iso["part:" + MOUNT_PART] === true && parts.length > 3 &&
+      parts.filter((k) => k !== "part:" + MOUNT_PART).every((k) => iso[k] === false);
+    const m4 = await sceneMenu(null, null, false);
+    const allOffered = !!m4 && m4.items.map((i) => i.act).join(",") === "show-all";
+    await choose("show-all");
+    await page.waitForTimeout(800);
+    push("[real] Isolate from the scene leaves the part's box ticked and every other part's unticked -- the state " +
+      "unticking them in the tree reaches -- and over empty space Show everything ticks every box again",
+      isoOk && allOffered && Object.values(await boxes()).every(Boolean));
+    const partRow = `#navtree [data-nav-kind="part"][data-nav-id="${MOUNT_PART}"]`;
+    const m5 = await rowMenu(partRow);
+    await choose("hide");
+    await page.waitForTimeout(800);
+    const hid = await boxes();
+    const m6 = await rowMenu(partRow);
+    push("[real] a part's row offers Isolate and Hide; Hide unticks the part's box, as the box does, and the row " +
+      "then offers Show and Show everything",
+      !!m5 && m5.items.map((i) => i.act).join(",") === "isolate,hide" && hid["part:" + MOUNT_PART] === false && m6 && m6.items.map((i) => i.act).join(",") === "isolate,show,show-all");
+    await choose("show-all");
+    await page.waitForTimeout(500);
+
+    // --- a joint: go to either end --------------------------------------------
+    await page.locator("#navtree button", { hasText: /^By joint$/ }).first().click({ timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+    const m7 = await rowMenu('#navtree [data-nav-kind="joint"]');
+    push("[real] a joint's row offers to go to each of its two parts, by name",
+      m7 && m7.items.length === 2 && m7.items.every((i) => i.act === "go-to" && /^Go to /.test(i.text)));
+    await page.keyboard.press("Escape");
+    await page.locator("#navtree button", { hasText: /^By part$/ }).first().click({ timeout: 10000 }).catch(() => {});
+
+    // --- Unbind from the row is the form's Unbind -----------------------------
+    await page.waitForTimeout(1000);
+    await showRow(PILOT);
+    before = await writes();
+    await rowMenu(row(PILOT));
+    await choose("unbind");
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 60000);
+    const unbound = await writtenSince(before);
+    console.log(`    unbind from the row: ${JSON.stringify(unbound)}`);
+    push("[real] Unbind from the row writes the form's Unbind: one retraction of the feature's binding",
+      unbound.length === 1 && unbound[0].verdict === "retracted" && unbound[0].key === PILOT);
+
+    // --- v1: the tree's accept writes what the form's tick writes -------------
+    await boot(V1);
+    await showRow(STEP);
+    const m8 = await rowMenu(row(STEP));
+    const acceptOffered = !!m8 && m8.items.map((i) => i.act).join(",") === "edit,accept";
+    before = await writes();
+    await choose("accept");
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 120000);
+    await closed();
+    const fromTree = await writtenSince(before);
+    await boot(V1);
+    await showRow(STEP);
+    before = await writes();
+    await page.evaluate((fid) => {
+      const b = document.querySelector(`#navtree [data-nav-edit="${fid}"]`);
+      if (b) b.click();
+    }, STEP);
+    await formReady(STEP);
+    await until((w) => w.__embedTree.edit && w.__embedTree.edit.read, null, 120000);
+    await page.locator("#navform [data-form-proposal]").first().click({ timeout: 10000 }).catch(() => {});
+    await until((w) => w.__embedTree.edit && w.__embedTree.edit.lines.length > 0, null, 30000);
+    await page.locator('#navform [data-form-act="ok"]').first().click({ timeout: 10000 }).catch(() => {});
+    await until((w, n) => (w.__mockWrites || []).length > n, before, 120000);
+    await closed();
+    const fromForm = await writtenSince(before);
+    console.log(`    accept from the tree ${JSON.stringify(fromTree)}; the form's tick ${JSON.stringify(fromForm)}`);
+    push("[real] a feature with one suggestion and nothing bound offers Bind the suggested faces, which writes " +
+      "exactly the events the form's tick writes for the same suggestion taken: one bound event, the same faces, " +
+      "ratifying the same proposal",
+      acceptOffered && fromTree.length === 1 && fromTree[0].verdict === "bound" && !!fromTree[0].ratifies &&
+      JSON.stringify(fromTree) === JSON.stringify(fromForm));
   } catch (err) {
     errors.push(String(err));
   } finally {
@@ -14457,6 +14744,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testModelDrawnAloneAndLed(browser, label, topologies)],
       ["a feature's form (two shoulders, a pattern from one hole, a face out, X, an unchanged tick, Next, sibling proposals)",
         (label) => testFeatureForm(browser, label, topologies)],
+      ["the right-click menus (a row's, a face's: in and out of the set, Bind to, isolate and show, Esc, a right-drag, the tree's accept against the form's tick)",
+        (label) => testContextMenus(browser, label, topologies)],
       ["the map (the counts on both models, the one selection on four surfaces, the view)",
         (label) => testTheMap(browser, label, topologies)],
       ["the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",

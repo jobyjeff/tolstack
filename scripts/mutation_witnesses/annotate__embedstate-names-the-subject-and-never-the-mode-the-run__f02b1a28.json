@@ -1,7 +1,7 @@
 {
   "tier": "annotate",
   "suite": null,
-  "expect_red": "embedState names the mode and the subject in one line -- the run's mechanism in sweep mode, the study (or the topology) in bind mode",
+  "expect_red": "embedState names the subject and never the mode -- the run's mechanism in sweep mode, the study (or the topology) in bind mode",
   "mutations": [
     {
       "contract": "In sweep mode the pane's head line names the run by its mechanism in words, the sweep bar's own name for it.",

@@ -1,7 +1,7 @@
 {
   "tier": "browser",
   "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
-  "expect_red": "clicking a listed pair colours that pair instead and frames the camera on it",
+  "expect_red": "framing the second pair colours that pair instead and frames the camera on it",
   "mutations": [
     {
       "contract": "A click on a listed pair frames the camera on that pair's box.",

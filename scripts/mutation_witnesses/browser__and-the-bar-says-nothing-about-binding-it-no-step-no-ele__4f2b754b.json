@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate top bar + entry context (auto-filter, see-through)",
+  "expect_red": "...and the bar says nothing about binding it: no step, no element named",
+  "mutations": [
+    {
+      "contract": "The bar over the canvas names no element being bound.",
+      "issue": "docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md",
+      "note": "Declared with the guard by handoff right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays (2026-11-24). The element's name back on the bar, as the Binding strip had it.",
+      "file": "apps/annotate/app.js",
+      "find": "  line.appendChild(buildBindSweepLine());\n  line.appendChild(modelUnplacedSpan());",
+      "replace": "  line.appendChild(buildBindSweepLine());\n  if (state.selectedEdge) line.appendChild(document.createTextNode(state.selectedEdge.name || \"\"));\n  line.appendChild(modelUnplacedSpan());"
+    }
+  ]
+}
