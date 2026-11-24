@@ -32,3 +32,13 @@ after it follows.
 fixed this suite once (resolved, 9/9). Not investigated further here: the
 branch that found it changes neither the kinematic page nor the mount server,
 and the baseline is identically red.
+
+## Addendum 2026-11-24, later the same day
+
+"3D pane follows the selection" shows the same first symptom intermittently
+inside the mutation-witness runner's shadow tree: one clean run had "[real] the
+seam's handle opens the pane, booted on the study's run…" fail and the suite
+abort on `contentWindow` of null; the next clean run of the same tree was green
+(30/30), and so was a direct `--only` run. Both suites open the pane from
+`topology.html?kinematic=…`, so the HTTP suite's red may be the same arm
+failing every time under its mount server.

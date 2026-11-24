@@ -166,6 +166,43 @@ the tree's accept); it was removed. The browser suites write to the pane's memor
 - `ISSUE_20261124_a_menu_over_a_large_face_covers_part_of_it.md` (bug, low).
 - Addendum on `ISSUE_20261123_the_panes_hidden_rail_still_carries_binding_controls_no_surface_shows.md`.
 
+- `ISSUE_20261124_the_scene_pane_over_http_suite_is_red_on_integration.md` (bug, med) —
+  red identically on integration `48042976` and on this branch.
+
 ## Suite record
 
-(written below once the runs finish)
+All on branch `handoff/right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays`.
+The browser and witness runners ran from the worktree with a `node_modules` junction to
+the main checkout (removed afterwards).
+
+- **Default pytest** (worktree, once, after the last code change):
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q` —
+  `1 failed, 2619 passed, 3 skipped, 4 deselected in 480.30s`. The one red is
+  `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, red in every worktree by
+  design (its `[real]` tier reads `data/projections/`). Ledger row recorded, inside budget.
+  `tests/test_mutation_witnesses.py` alone, after the specs: 49 passed.
+- **Fast tiers**, after the last change: `node apps/annotate/run_tests.cjs` 329/329;
+  `node apps/viewer/run_tests.cjs` 517/517 with the `[real]` tier skipped (worktree).
+- **Browser suites** (`--only`, one per run, `--repo C:/workspace/tolstack`): the
+  right-click menus 10/10 (after consolidation; 20/20 before it); 3D pane follows the
+  selection 30/30; every study opens in 3D 11/11; annotate rail filter + face deselect
+  32/32; annotate armed pick 18/18; annotate top bar + entry context 30/30; annotate face
+  suggestions 26/26; a feature's form 14/14; the tree holds still 4/4; annotate rail holds
+  still 9/9. **The scene pane reads over HTTP: red, 5 failed then aborted — identically on
+  integration `48042976`** (filed). Its one changed sub-check (the sweep bar folds; it reads
+  `.an__sweep-gate`) is therefore not verified by a run here.
+- **Witnesses**, every spec this branch added or re-pointed (21): all 21 WITNESSED, over
+  four runs. The first ran against the scratch root and was spoiled twice by me: its
+  projections carried a dirty-tree stamp (built while I was editing), so the fast entry was
+  red before mutation, and its served log still held my walk's event, so the menus suite
+  skipped and ten entries "stayed green" in 1–3 s. After a clean rebuild the rest ran
+  against the main checkout with `--budget-min 75` (the default 30 left six to the sweep).
+  The bind-mode head-line spec was re-pointed (the `goto` announcement it mutated is no
+  longer the only post — the study scope posts the state too). The 3D pane suite's clean run
+  was red once in a witness shadow (the kinematic page's pane handle did not arm, the
+  HTTP suite's symptom) and green on the next try. Census pins: fast 618/618
+  `bb8b662cc26a`, annotate 329/329 `9240a22ba945`, browser 773/746 `cde3ed1dec8e`.
+- **Not run here**: the whole browser tier and the `--changed-since` witness gate — the
+  review's.
+- **Jeff's log**: 116 files, listing hash `efe47ec6…`, contents hash `39e9abba…`, before and
+  after.
