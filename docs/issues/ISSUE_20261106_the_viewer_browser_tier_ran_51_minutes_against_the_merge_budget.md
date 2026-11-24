@@ -497,3 +497,9 @@ the selection 114.5 s; topology file:// 110.5 s; the map 96.8 s; DAG zoom/Fit/gr
 header 87.1 s; no nav click wedges the page 82.0 s; every study opens in 3D 75.9 s;
 annotate rail holds still 72.4 s; kinematic study page 71.2 s; annotate flyout
 67.2 s; annotate model in the scene 65.1 s.
+
+## Measurement 2026-11-24, round 2 (same review)
+
+The same command on tree `0d763413`, run alone this time (pytest had finished
+first): **2214 s**, 46/46. Running pytest beside it was not what put round 1
+over budget.

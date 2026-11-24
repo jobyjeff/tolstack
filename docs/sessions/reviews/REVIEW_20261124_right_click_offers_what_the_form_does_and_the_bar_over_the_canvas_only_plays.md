@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md
 reviewer: agent
 date: 2026-11-24
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2)
+blockers: 0
 ---
 
 # Review — right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays
@@ -174,3 +174,50 @@ to the issue.
 Fix blocker 1. Then run `--only "annotate hosted posture"` and its witness spec,
 plus `--only "the right-click menus"`, which this review's gate left partly to
 the sweep. Issues 2 and 3 are filed and may ride along or wait.
+
+## Re-run 2026-11-24 — round 2
+
+Round 1 was REQUEST CHANGES, with one blocker. **Round 2: APPROVE.**
+
+The rework is `9315dac4`, one commit, merged into `review/…`. That merge was a
+merge commit (the branch already carried my round-1 commit), with no
+conflicts. Merged tree: `0d763413`.
+
+- **Blocker 1 (closed).** The hosted-posture check now presses the form's tick.
+  It sends `arm`, `edit click 0` and `edit ok` as `annotate:exec` messages with
+  ids, the way the shell does. It also asserts `ok === false` as well as the
+  banner's words. Clicking face 0 toggles it in or out of the set, so the tick
+  always has something to write.
+- **A second regression, found by the fix.** I had not caught this one in
+  round 1. Deleting the Record form also deleted the only caller of
+  `setWriteFailure`. A failed write in the hosted pane therefore showed the
+  storage layer's raw sentence instead of the fixed class line (c21a06bb).
+  `setWriteFailure` is restored and now used for every identity write verb in
+  the exec listener, through `AA.WRITE_FAILURE_VERBS`, a module-level
+  constant. The existing fast check pairs its keys with
+  `AA.IDENTITY_WRITE_VERBS` and pins the "Bind failed · …" line. The `writes`
+  flag it branches on is the listener's own, the same test that routes writes
+  through `runAfterLoad`. Non-write commands keep their message, and the reply
+  to the shell is unchanged.
+- **Findings 2 and 3** stay filed (the tactical agent says so in its lesson).
+  So does the dead CSS: `run_browser_check.mjs` still names `.bind-form__bind`,
+  and the lesson gives that reason.
+- **The rework section of the lesson** matches what I measured.
+
+### Tests (merged tree `0d763413`, review worktree)
+
+- **Fast tiers:** `node apps/annotate/run_tests.cjs` 329/329;
+  `node apps/viewer/run_tests.cjs --repo …/data/scratch/rc1124` 618/618, with
+  `[real]` armed.
+- **Default pytest:** `1 failed, 2619 passed, 3 skipped, 4 deselected in 496.16s`.
+  The one red is the same worktree-only viewer pairing as round 1, green through
+  the scratch root. Ledger: inside budget.
+- **Whole browser tier:** **46/46**. 2214 s, still over the 30-minute budget;
+  the measurement is appended to the open issue. The runner recorded its own
+  ledger row (tree `0d763413`).
+- **Witness gate** (`--changed-since integration --budget-min 10`): `16/16
+  witnessed, 16/67 reached`, exit 0, a capped pass. It left the blocker's spec
+  to the sweep, so I ran it `--only`:
+  `browser__real-pressing-a-bind-control-says-in-one-line-that-bindi__986db3a0`
+  was **WITNESSED in 28 s**.
+- **Jeff's log:** still 116 files, `efe47ec6…` / `39e9abba…`.
