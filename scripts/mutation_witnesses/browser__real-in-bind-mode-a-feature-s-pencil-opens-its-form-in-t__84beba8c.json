@@ -4,11 +4,11 @@
   "expect_red": "[real] in bind mode a feature's pencil opens its form in the tree's place and arms the pane at one of the feature's own ends",
   "mutations": [
     {
-      "contract": "Opening a feature's form arms the pane at the feature's end.",
+      "contract": "Arming at a feature's end opens that feature's edit, which the form reads.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
-      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The form opens and the pane is never armed.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "    postToPane([\"arm\", at.edgeId, at.end, state.topologyId, feature.part]);",
+      "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The arm opens no edit: the form never hears its feature is open. (The first spelling, dropping the shell's arm post, left the check green: the pane was still armed from earlier in the suite.)",
+      "file": "apps/annotate/app.js",
+      "find": "  state.armed.edit = openEdit(state.armed);\n",
       "replace": ""
     }
   ]
