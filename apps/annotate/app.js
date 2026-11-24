@@ -4040,6 +4040,12 @@ async function editCommit(a) {
     await writeIdentityEvent(AA.eventFilename(event.seq, slug + suffix), event, toast);
   }
   disarmPick("bound");
+  // The rail's row for the end says it was just bound, as an answer did.
+  const faces = AA.editFaces(e.lines);
+  if (state.sweep && faces.length) {
+    state.sweep.lastBound = { topologyId: a.topologyId, edgeId: a.edgeId, direction: a.direction,
+      faceId: faces[0], by: String(AA.CONFIG.reviewer || ""), at: events[events.length - 1].created_at };
+  }
   showToast(toast);
   renderSweepRail();
   if (!state.sweep) await paintProposals();

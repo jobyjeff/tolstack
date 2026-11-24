@@ -8745,6 +8745,7 @@ async function testAnnotateRailSuggestion(browser, label, topologies) {
       r.recorded_by === "annotate-app:jeff" && b.recorded_by === "annotate-app:jeff" &&
       b.seq === r.seq + 1 && /_rejected\.json$/.test(answered.writes[0].filename) &&
       answered.writes[0].filename < answered.writes[1].filename);
+    console.log("    after the tick the end reads: " + JSON.stringify({ line: answered.line, suggestedColour: answered.suggestedColour }));
     push("...and the end reads bound to the face picked, with the suggestion gone",
       answered.line === "bound · face 1" && !answered.suggestedColour);
   } catch (err) {
@@ -10991,8 +10992,15 @@ async function testFeatureForm(browser, label, topologies) {
     await page.evaluate((sel) => { const r = document.querySelector(sel); if (r) r.scrollIntoView({ block: "center" }); }, row(CLOCK));
     await page.waitForTimeout(300);
     const box = await page.locator(row(CLOCK)).first().boundingBox().catch(() => null);
+    await page.evaluate(() => {
+      window.__dblDiag = [];
+      const nav = document.getElementById("navtree");
+      ["mousedown", "click", "dblclick"].forEach((t) => nav.addEventListener(t, (e) => window.__dblDiag.push(
+        t + ":" + (e.target.closest("[data-nav-id]") || {}).getAttribute?.("data-nav-id") + "@" + Math.round(performance.now())), true));
+    });
     if (box) await page.mouse.dblclick(box.x + 40, box.y + box.height / 2);
     const dbl = await formReady(CLOCK);
+    console.log("    dblclick events: " + JSON.stringify(await page.evaluate(() => window.__dblDiag)));
     console.log(`    double-click at ${JSON.stringify(box)}: form ${JSON.stringify(await form())}`);
     await until((w) => w.__embedTree.edit && w.__embedTree.edit.read &&
       w.__embedTree.edit.suggestions.some((s) => s.with !== undefined), null, 120000);

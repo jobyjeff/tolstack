@@ -8,8 +8,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md",
       "note": "Declared with the guard by handoff editing_a_feature_opens_its_form_where_the_tree_was (2026-11-23). The edit stays open after it writes.",
       "file": "apps/annotate/app.js",
-      "find": "  disarmPick(\"bound\");\n  showToast(toast);\n  renderSweepRail();\n  if (!state.sweep) await paintProposals();",
-      "replace": "  showToast(toast);\n  renderSweepRail();\n  if (!state.sweep) await paintProposals();"
+      "find": "  disarmPick(\"bound\");\n  // The rail's row for the end says it was just bound, as an answer did.",
+      "replace": "  // The rail's row for the end says it was just bound, as an answer did."
     }
   ]
 }
