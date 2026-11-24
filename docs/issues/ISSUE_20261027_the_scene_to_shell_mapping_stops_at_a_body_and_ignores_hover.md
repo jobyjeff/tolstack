@@ -21,3 +21,24 @@ exactly one lit edge, becomes the selection. Two gaps, one mapping:
 |---|---|---|
 | **A pick on a multi-part body selects nothing.** | `base` carries 3 lit edges, `blade` 2, `pitch_plate` 3; only the two links and the three single-part piston bodies resolve. | Narrowing to the picked *part* (the row key's `sha=` against the topology's `part.mesh.part_id`) would resolve only `base`'s gas-spring mount: the tan-link mount and the pitch arm carry two lit edges each, the pitch plate three. What names a *dimension* is the picked face's binding, which the scene already uses to select feature rows (`data-edge` on a feature row, which the mapping reads); the live inbox has none yet. So this is mostly a binding gap, not a mapping one. |
 | **Hovering in the scene does not light a leader.** | Hovering a DAG mark or grid row lights its leaders (`VA.seamLeaderStates`' `hot`); hovering a part in the scene marks its rail row `sceneHover: true` in `annotate:tree`, which the shell does not read. | `followScenePick`'s twin over the `sceneHover` row, into `paneHot`. |
+
+## Addendum 2026-11-24 (walk `the_walk_binds_through_the_form_on_the_merged_page`)
+
+Since 2026-11-22 the shell's tree lists parts, so this gap is now one a reader
+meets in the binding flow:
+
+- **Bind mode, no form open:** a left click on any face only lights that face
+  in the pane (`select-face`). The tree's selection does not move, even on a
+  bound face. Measured on hub face 165, mount faces 1135 and 324: the
+  selection stayed on the row selected before.
+- **Sweep mode** (the kinematic study, at the as-modelled frame): a click on
+  the gas-spring mount (faces 899 and 979) or the tangential link mount
+  (face 545) selects the pane's own row for that part in body `base`
+  (`#sweep-tree/body=base/sha=…`). The shell's tree stays on the study row.
+  `base` is the multi-part body this issue's table names.
+
+So "select from the scene" in the walk's filmstrip is a click that changes
+nothing in the tree: the tree held still, but it did not follow. The sketch
+(`dispatch/docs/strategy/drafts/mockups/tolstack_binding_pane_20261122/`) has
+no rule for it. In bind mode the right-click's "Bind to *feature*" is the only
+way from a face to a form.

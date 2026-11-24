@@ -1,0 +1,242 @@
+[
+ {
+  "t": 0,
+  "step": "rest",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 1214,
+  "step": "open a part row",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 3270,
+  "step": "open a part row",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 3920,
+  "step": "close it",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 5209,
+  "step": "close it",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 6010,
+  "step": "click a face in the scene (726)",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 7569,
+  "step": "click a face in the scene (726)",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 8730,
+  "step": "click a face in the scene (726)",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": null
+ },
+ {
+  "t": 9604,
+  "step": "double-click a feature row: its form",
+  "openedPart": null,
+  "heldPart": null,
+  "feature": null,
+  "scroll": 0,
+  "form": true,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 13388,
+  "step": "double-click a feature row: its form",
+  "openedPart": null,
+  "heldPart": null,
+  "feature": null,
+  "scroll": 0,
+  "form": true,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 15157,
+  "step": "double-click a feature row: its form",
+  "openedPart": null,
+  "heldPart": null,
+  "feature": null,
+  "scroll": 0,
+  "form": true,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 15981,
+  "step": "tick",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 17523,
+  "step": "tick",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 18248,
+  "step": "tick",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 18944,
+  "step": "tick",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 19931,
+  "step": "tick",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 20614,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 21291,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 22318,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 23015,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 24014,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 25202,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 26411,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ },
+ {
+  "t": 27612,
+  "step": "back in the tree",
+  "openedPart": 558.5,
+  "heldPart": 258.5,
+  "feature": 427,
+  "scroll": 0,
+  "form": false,
+  "selected": "tan_link_mount_215175_002@tan_link_mount_bore"
+ }
+]
