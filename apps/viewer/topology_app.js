@@ -327,6 +327,7 @@
     wireNavPointer();
     wirePaneState();
     wireFormKeys();
+    wireMenus();
     wirePreviewRelease();
     wireFitKey();
 
@@ -2104,6 +2105,10 @@
         onScenePick(msg);
         return;
       }
+      if (msg && msg.type === VA.SCENE_CONTEXT_MESSAGE) {
+        openSceneMenu(msg);
+        return;
+      }
       if (msg && msg.type === "annotate:result") {
         onFormWriteResult(msg);
         return;
@@ -2234,12 +2239,16 @@
     return form ? currentModel() : null;
   }
 
-  function openFeatureForm(fid) {
+  // `then`, from a menu: what to do once the pane's edit is open (formThen).
+  function openFeatureForm(fid, then) {
     var model = currentModel();
     if (!model || !VA.featureEditable(model, fid) || !nodes.navform) return;
     if (!(nodes.flyout && nodes.flyout.open)) return;
     // Already open on it (the second click and the dblclick both ask): stay.
-    if (form && form.fid === fid) return;
+    if (form && form.fid === fid) {
+      if (then) { form.then = then; formThen(sceneTree && sceneTree.edit); }
+      return;
+    }
     if (form) closeFeatureForm(false);
     var at = VA.featureFormEnd(model, fid);
     var feature = model.feature(fid);
@@ -2247,7 +2256,7 @@
     if (!VA.sameFocus(state.focus.selected, { kind: VA.FOCUS_KINDS.feature, id: fid })) {
       selectEntity({ kind: VA.FOCUS_KINDS.feature, id: fid });
     }
-    form = { fid: fid, anchor: takeNavAnchor(), seen: false, next: false };
+    form = { fid: fid, anchor: takeNavAnchor(), seen: false, next: false, then: then || null };
     formWrite = null;
     navColumn();
     renderForm();
@@ -2308,6 +2317,7 @@
     if (edit && edit.featureId === form.fid) form.seen = true;
     else if (form.seen && !edit) { closeFeatureForm(true); return; }
     renderForm();
+    formThen(edit);
   }
 
   function formOk(next) {
@@ -2395,6 +2405,177 @@
         formOk(false);
       }
     });
+  }
+
+  // --- the right-click menus (handoff right_click_offers_what_the_form_does_
+  // and_the_bar_over_the_canvas_only_plays, 2026-11-24) ---------------------------
+  //
+  // One menu for a tree row and for a face in the scene, drawn here and placed
+  // inside what it was opened over (VA.placeMenu). Which items it holds is
+  // VA.rowMenuPlan's and VA.sceneMenuPlan's; each runs a handler the form or
+  // the tree already has, so a menu is a shortcut and never the only way. It
+  // closes on a choice, on Esc (before the form's Esc), and on focus leaving it
+  // -- a click anywhere else, the scene's included, takes focus with it.
+  // `menu` is {node, light} while one is open; `light` the face it lit.
+  var menu = null;
+
+  function menuNode() {
+    var node = document.getElementById("ctxmenu");
+    if (node) return node;
+    node = document.createElement("div");
+    node.id = "ctxmenu";
+    node.className = "ctxmenu";
+    node.style.display = "none";
+    // Inside the pane's dialog when the scene opens it: a dialog shown is
+    // drawn over the page, and a menu outside it would be drawn under it.
+    document.body.appendChild(node);
+    node.addEventListener("focusout", function (event) {
+      if (!menu) return;
+      var to = event.relatedTarget;
+      if (to && node.contains(to)) return;
+      closeMenu();
+    });
+    return node;
+  }
+
+  // Open `items` at page point `at` inside `bounds` (a DOMRect-like box);
+  // `host` is the element the menu is drawn in. `light`, a face the menu
+  // lights in the scene while it is open.
+  function openMenu(items, at, bounds, host, light) {
+    closeMenu();
+    if (!items.length) return false;
+    var node = menuNode();
+    if (node.parentNode !== host) host.appendChild(node);
+    VA.renderContextMenu(node, items, runMenuItem, closeMenu);
+    node.style.display = "";
+    node.style.left = "0px";
+    node.style.top = "0px";
+    // position: fixed (topology.css): the point is the viewport's, in either host.
+    var r = node.getBoundingClientRect();
+    var place = VA.placeMenu(at, { w: r.width, h: r.height }, bounds);
+    node.style.left = place.x + "px";
+    node.style.top = place.y + "px";
+    menu = { node: node, light: light || null };
+    if (light) postToPane(["hover", "face", light.sha256, String(light.faceId)]);
+    var first = node.querySelector(".ctxmenu__item");
+    if (first) first.focus();
+    return true;
+  }
+
+  function closeMenu() {
+    if (!menu) return;
+    var was = menu;
+    menu = null;
+    was.node.style.display = "none";
+    VA.clear(was.node);
+    if (was.light) postToPane(HOVER_CLEAR);
+  }
+
+  // A row of the tree, right-clicked: the row is selected, as a click
+  // selects it, and its menu opens at the pointer inside the column.
+  function openRowMenu(kind, id, event) {
+    var model = currentModel();
+    var paneUp = !!(nodes.flyout && nodes.flyout.open);
+    var items = VA.rowMenuPlan(model, kind, id, {
+      canEdit: paneUp && !!state.annotateMount, canView: paneUp && flyoutLoaded, hidden: state.hiddenParts,
+    });
+    if (!items.length) return false;
+    var entity = kind === "feature" ? { kind: VA.FOCUS_KINDS.feature, id: id } : { kind: kind, id: id };
+    if (!VA.sameFocus(state.focus.selected, entity)) selectEntity(entity);
+    var nav = nodes.navtree.getBoundingClientRect();
+    var bounds = { left: nav.left, top: nav.top, right: Math.max(nav.right, nav.left + 240),
+      bottom: Math.min(nav.bottom, window.innerHeight) };
+    return openMenu(items, { x: event.clientX, y: event.clientY }, bounds, document.body, null);
+  }
+
+  // The scene's still right-click ({type: "annotate:context"}): its point is
+  // the pane's own, so it is moved by where the pane's frame sits.
+  function openSceneMenu(msg) {
+    if (!flyoutFrame) return;
+    var model = currentModel();
+    var items = VA.sceneMenuPlan(model, {
+      face: msg.face, parts: msg.parts, onPart: msg.onPart,
+      form: form ? form.fid : null, edit: sceneTree && sceneTree.edit, selected: selectedFeatureId(),
+      hidden: state.hiddenParts,
+    });
+    var frame = flyoutFrame.getBoundingClientRect();
+    var at = { x: frame.left + msg.x, y: frame.top + msg.y };
+    var host = nodes.flyout && nodes.flyout.open ? nodes.flyout : document.body;
+    openMenu(items, at, frame, host, msg.face && items.length ? msg.face : null);
+  }
+
+  // One item chosen: the handler its form or tree twin runs.
+  function runMenuItem(item) {
+    var A = VA.MENU_ACTS;
+    closeMenu();
+    var model = currentModel();
+    if (!model) return;
+    if (item.act === A.add || item.act === A.remove) {
+      postToPane(["edit", "click", String(item.faceId)]);
+    } else if (item.act === A.bind) {
+      openFeatureForm(item.fid, { click: { sha256: item.sha256, faceId: item.faceId } });
+    } else if (item.act === A.edit) {
+      openFeatureForm(item.fid);
+    } else if (item.act === A.accept) {
+      openFeatureForm(item.fid, { accept: true });
+    } else if (item.act === A.unbind) {
+      var at = VA.featureFormEnd(model, item.fid);
+      if (at) postToPane(["unbind", at.edgeId, at.end, state.topologyId]);
+    } else if (item.act === A.isolate) {
+      var keep = VA.menuPartsOf(model, item.kind, item.id);
+      state.hiddenParts = {};
+      model.parts.forEach(function (p) {
+        if (model.hasMesh(p.id) && keep.indexOf(p.id) === -1) state.hiddenParts[p.id] = true;
+      });
+      renderNav();
+      syncSceneVisibility();
+    } else if (item.act === A.hide || item.act === A.show) {
+      onNavVisibility(item.kind, item.id, item.act === A.show);
+    } else if (item.act === A.showAll) {
+      state.hiddenParts = {};
+      renderNav();
+      syncSceneVisibility();
+    } else if (item.act === A.goTo) {
+      selectEntity({ kind: item.kind, id: item.id });
+    }
+  }
+
+  // What a menu asked of a form it opened, once the pane's edit for it has
+  // read its faces: a face put in the set (Bind to), or the one suggested set
+  // taken and ticked (Bind the suggested faces) -- the very verbs a click in
+  // the scene, a click on the line and the tick send. A form whose
+  // suggestions are not one set is left open with nothing done.
+  function formThen(edit) {
+    var then = form && form.then;
+    if (!then || !edit || !edit.read || edit.featureId !== form.fid) return;
+    form.then = null;
+    if (then.click) {
+      var held = (edit.lines || []).some(function (l) { return l.faces.indexOf(then.click.faceId) !== -1; });
+      if (edit.sha256 === then.click.sha256 && !held) postToPane(["edit", "click", String(then.click.faceId)]);
+      return;
+    }
+    if (then.accept) {
+      var proposed = (edit.suggestions || []).filter(function (s) { return !!s.proposal; });
+      if (proposed.length !== 1) return;
+      postToPane(["edit", "take", proposed[0].key]);
+      formOk(false);
+    }
+  }
+
+  function wireMenus() {
+    if (typeof document === "undefined" || !document.addEventListener || !nodes.navtree) return;
+    nodes.navtree.addEventListener("contextmenu", function (event) {
+      var hit = event.target && event.target.closest ? event.target : null;
+      var row = hit ? hit.closest("div.navtree__row[data-nav-kind]") : null;
+      if (!row) return;
+      if (openRowMenu(row.getAttribute("data-nav-kind"), row.getAttribute("data-nav-id"), event)) {
+        event.preventDefault();
+      }
+    });
+    // The column scrolled, or the page resized: what the menu was opened
+    // over has moved, so it goes.
+    nodes.navtree.addEventListener("scroll", closeMenu);
+    window.addEventListener("resize", closeMenu);
   }
 
   function onPaneIdentity(msg) {

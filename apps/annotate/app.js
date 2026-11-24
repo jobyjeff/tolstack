@@ -1355,6 +1355,15 @@ function partNameOfMesh(topology, sha256) {
   return part ? part.name || part.id : null;
 }
 
+// Every topology part a mesh is drawn for, in the topology's order: what a
+// right-click on it names (two parts can share one model).
+function partIdsOfMesh(topology, sha256) {
+  return ((topology && topology.parts) || []).filter((p) => {
+    const mesh = AA.resolveMeshIdentifier(state.meshList, p.id, state.partMeshAliases);
+    return mesh && mesh.sha256 === sha256;
+  }).map((p) => p.id);
+}
+
 // One feature's faces, ranked by the mate: its part's faces against the faces
 // bound on the other side, both where `topology` draws them. Candidate rows
 // (AA.endCandidates' shape, kind `mate`); [] when nothing is bound opposite,
@@ -2708,7 +2717,7 @@ function renderSweepBar() {
       AA.exec(["sweep", value]).catch((err) => setBanner(err.message, "error"));
     }));
   }
-  summary.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
+  summary.appendChild(disclosure(AA.DISPLAY_WORD, state.helpOpen, () => AA.exec(["help"])));
   if (window.SweepExport) {
     window.SweepExport.renderControl(summary, sweepExportSource);
   }
@@ -2794,23 +2803,15 @@ function renderSweepBar() {
 
   work.appendChild(buildSweepGate());
   work.appendChild(buildSweepBack());
-  if (sweep.artifact.topologyId === null) {
-    const note = document.createElement("p");
-    note.className = "an__sweep-note";
-    note.textContent = AA.SWEEP_NO_TOPOLOGY;
-    work.appendChild(note);
-  }
-
   if (sweep.bodies.length) work.appendChild(buildSweepBodiesDisclosure());
   el.detail.appendChild(work);
   renderSweepReadouts();
   renderHintPanel();
 }
 
-// The frame rule, said once, where the bind instruction would otherwise be.
-// It is the ONLY place the frame rule is written (a click on the canvas away
-// from the pose pulses this line, it does not raise a second message), and
-// it names where the pose is and goes there. Built once per bar: the frame
+// The as-modelled pose, named, and the control that goes there (a click on
+// the canvas away from the pose pulses this line rather than raising a
+// message of its own). Built once per bar: the frame
 // does not change while a run plays, so the per-frame repaint only shows or
 // hides it. On the bar whether it is folded or not.
 function buildSweepGate() {
@@ -3013,7 +3014,8 @@ function renderSweepReadouts() {
   }
   if (sweep.nodes.gate) {
     const atHome = AA.sweepIsAsModelled(frame);
-    sweep.nodes.gate.style.display = atHome ? "none" : "block";
+    // A run with no as-modelled frame has no pose to name or go to.
+    sweep.nodes.gate.style.display = atHome || sweep.asModelledIndex === null ? "none" : "block";
   }
   if (sweep.nodes.back) sweep.nodes.back.style.display = sweepBackShown() ? "block" : "none";
 }
@@ -3705,14 +3707,6 @@ function setArmedLine(text, flash) {
   node.textContent = text;
   node.classList.remove("tree-row__note--flash");
   if (flash) { void node.offsetWidth; node.classList.add("tree-row__note--flash"); }
-}
-
-// A failed write on a banner surface: the class in words, the raw text on
-// hover and in the console.
-function setWriteFailure(verb, err) {
-  console.error(verb + " failed:", err);
-  setBanner(AA.bindFailureWords(err, verb), "error");
-  el.noticeText.title = err.message;
 }
 
 // The raw storage text, kept behind the armed row's hover.
@@ -5951,14 +5945,6 @@ function placeAtFeatureEnds(base, event) {
   }
 }
 
-function precedenceNote(edge) {
-  if (edge.confidence && edge.confidence !== "no_source_ref") {
-    return "A drawing already cites this element (confidence: " + edge.confidence + "). " +
-      "The drawing wins -- a binding here only records which feature this is, it does not supply a dimension.";
-  }
-  return null;
-}
-
 // The first topology, until a goto or the shell says otherwise.
 function selectFirstTopology() {
   const topologies = state.topologyProjection.topologies;
@@ -6256,118 +6242,33 @@ function selectEdge(edge) {
 // --- the top bar (deliverable 1) -------------------------------------------
 //
 // One horizontal band above the canvas, where a 320px column used to stand to
-// the right of it. Jeff, on the flyout: "the 'Pick an element on the left,
-// then click a face in the 3D view to bind it.' has a vertical divider, so it
-// takes up half of the usable 3d canvas. Make it a horizontal divider so it's
-// just a single line at the top. Could even be a collapsible 'commands'
-// element that gives general help."
+// the right of it (2026-09-21). Since 2026-11-24 (handoff right_click_offers_
+// what_the_form_does_and_the_bar_over_the_canvas_only_plays) it holds the
+// play controls, the pose and the view, and nothing about binding: a feature
+// is edited in its form, which is on screen whenever something is being
+// edited, so the bar no longer says what to click, names the element being
+// bound, lists its faces, the faces that touch or its proposals, or carries
+// the owner-not-in-set form. The lesson's table says where each went.
 //
-// Line one is always there and is always one line: the instruction, composed
-// from the element (AA.taskInstruction), and two quiet disclosures. Everything
-// else -- the precedence guard, the bind form, the owner-not-in-set escape
-// hatch, the general help and the display settings -- opens under it only when
-// there is something to open. That is the whole shape of the trade: the bar
-// costs one line at rest where the column cost a third of the canvas always.
-//
-// The node keeps the id `#detail`: it is still "what the reader is being told
-// and what they can do about it", and the hosted-posture guard (scripts/
+// The node keeps the id `#detail`: the hosted-posture guard (scripts/
 // run_viewer_browser_tests.mjs) names it when it checks that a page which has
 // said it cannot annotate is not also instructing the reader to.
 function renderDetail() {
-  // Sweep mode owns the whole bar while it is on: the bind instruction, the
-  // bind form and the owner-not-in-set escape hatch are all about a workflow
-  // that is switched off here, and showing them under a line that says
-  // picking is disabled is the exact contradiction the hosted-page work was
-  // about (ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_
-  // reader_to_bind_a_face).
-  if (state.sweep) {
-    if (state.scene) state.scene.setBindLeader(null);
-    return renderSweepBar();
-  }
+  if (state.scene) state.scene.setBindLeader(null);
+  // Sweep mode's bar is the transport (renderSweepBar).
+  if (state.sweep) return renderSweepBar();
   el.detail.innerHTML = "";
-  const edge = state.selectedEdge;
-  const canWrite = !!(state.storage && state.storage.canWrite());
-
   const line = document.createElement("div");
   line.className = "an__detail-line";
-  const task = document.createElement("span");
-  task.className = "an__task";
-  // The instruction and the leader both follow the bind form's interface
-  // choice, which changes WITHOUT a re-render (a re-render would throw away
-  // whatever the reader has typed into the optional fields) -- so they are
-  // composed here, once per render and once per choice.
-  const refreshBindStep = () => {
-    const bind = edge ? bindContext(edge) : null;
-    task.textContent = AA.taskInstruction({
-      elementName: edge ? (edge.name || edge.id) : null,
-      scopeName: (!edge && state.panelFilter && state.panelFilter.name) || null,
-      picked: !!state.currentPick,
-      needed: bind ? bind.needed : null,
-      names: bind ? bind.names : null,
-      chosen: bind && state.currentPick ? bind.plan.selected : null,
-    });
-    // The line ellipsizes on a narrow bar; the whole sentence is one hover away.
-    task.title = task.textContent;
-    if (state.scene) {
-      state.scene.setBindLeader(bind && canWrite && state.currentPick
-        ? AA.planBindLeader({ pick: state.currentPick, plan: bind.plan }) : null);
-    }
-    return bind;
-  };
-  const bind = refreshBindStep();
-  line.appendChild(task);
-  line.appendChild(modelUnplacedSpan());
   // The play control never goes away (the_model_is_derived_once_and_the_left_
-  // column_is_its_tree): in bind mode it sits on this one line, folded to its
-  // word or open to its play, which puts the sweep back on -- the one that
-  // was playing, else the newest run. On the line, not under it: the bar is
-  // one line at rest.
+  // column_is_its_tree): in bind mode it is this line, folded to its word or
+  // open to its play, which puts the sweep back on -- the one that was
+  // playing, else the newest run.
   line.appendChild(buildBindSweepLine());
-  line.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
+  line.appendChild(modelUnplacedSpan());
+  line.appendChild(disclosure(AA.DISPLAY_WORD, state.helpOpen, () => AA.exec(["help"])));
   el.detail.appendChild(line);
   paintModelUnplaced();
-  // While an element is being bound, the strip names it and carries the way
-  // out: leave binding, and back to the sweep if one was playing.
-  if (edge) el.detail.appendChild(buildBindStrip(edge));
-
-  const work = document.createElement("div");
-  work.className = "an__detail-work";
-
-  if (edge) {
-    // What the colours on the body mean, in one muted line, and only while
-    // there is something to explain. A reader who sees part of a body lit up
-    // should not have to guess whether that is every round face on the part or
-    // the two that line up with a face already bound.
-    const suggestion = suggestionLine();
-    if (suggestion) {
-      const p = document.createElement("p");
-      p.className = "an__suggestion-note";
-      p.textContent = suggestion;
-      work.appendChild(p);
-    }
-    const contacts = buildContactBlock();
-    if (contacts) work.appendChild(contacts);
-    const note = precedenceNote(edge);
-    if (note) {
-      const p = document.createElement("p");
-      p.className = "precedence-note";
-      p.textContent = note;
-      work.appendChild(p);
-    }
-    // A read-only transport shows no bind controls and no sentence about
-    // them: "This transport cannot write -- binding controls are hidden.
-    // Connect a read/write folder to bind." stood here until 2026-11-19 (the_
-    // viewer_says_nothing_about_itself: a page never describes its mode, and
-    // a feature that is absent shows nothing). A press says so in one line
-    // (AA.READ_ONLY_WRITE).
-    const bound = bind && buildBindingsBlock(edge, bind);
-    if (bound) work.appendChild(bound);
-    if (canWrite) {
-      work.appendChild(buildOwnerNotInSetForm(edge));
-    }
-  }
-
-  if (work.childNodes.length) el.detail.appendChild(work);
   renderHintPanel();
 }
 
@@ -6412,85 +6313,6 @@ async function resumeSweep(play) {
   if (play) await AA.exec(["play"]);
 }
 
-// The binding strip: what is being bound, and the one exit. The exit lets go
-// of the element and the face (`deselect all`) and, where a sweep was playing
-// before the goto that brought the reader here, puts it back.
-function buildBindStrip(edge) {
-  const strip = document.createElement("div");
-  strip.className = "an__detail-line an__bindstrip";
-  const label = document.createElement("span");
-  label.className = "an__bindstrip-label";
-  label.textContent = AA.BIND_BAR_WORDS.binding;
-  strip.appendChild(label);
-  const name = document.createElement("span");
-  name.className = "an__bindstrip-name";
-  name.textContent = edge.name || edge.id;
-  name.title = name.textContent;
-  strip.appendChild(name);
-  const back = state.sweepReturn;
-  const exit = sweepButton("\u2715", back ? AA.BIND_BAR_WORDS.leaveBack : AA.BIND_BAR_WORDS.leave,
-    async () => {
-      await AA.exec(["deselect", "all"]);
-      if (state.sweepReturn) await resumeSweep(false);
-    });
-  exit.classList.add("an__bindstrip-x");
-  exit.dataset.bindExit = "1";
-  strip.appendChild(exit);
-  return strip;
-}
-
-// The faces that touch, listed: per row, a muted heading and the top
-// AA.CONTACT_LISTED candidates as quiet buttons, each one line of evidence in
-// everyday words. A click is `frame-contact` -- it frames and colours, never
-// picks. The candidate in focus is the pressed one.
-function buildContactBlock() {
-  const rows = currentContactRows();
-  if (!rows.length) return null;
-  const focus = focusedContact();
-  const block = document.createElement("div");
-  block.className = "an__contacts";
-  for (const { row, via } of rows) {
-    const head = document.createElement("p");
-    head.className = "an__contacts-head";
-    head.textContent = (via ? AA.CONTACT_HEADING_AT + (row.name || row.edge) : AA.CONTACT_HEADING) +
-      ((row.ambiguous_with || []).length ? " — " + AA.CONTACT_AMBIGUOUS : "");
-    head.title = head.textContent;
-    block.appendChild(head);
-    const list = document.createElement("ol");
-    list.className = "an__contacts-list";
-    for (const c of row.candidates.slice(0, AA.CONTACT_LISTED)) {
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.className = "an__contact";
-      const inFocus = !!focus && focus.row.edge === row.edge && focus.candidate.rank === c.rank;
-      btn.setAttribute("aria-pressed", inFocus ? "true" : "false");
-      btn.dataset.edge = row.edge;
-      btn.dataset.rank = String(c.rank);
-      btn.textContent = AA.describeContact(row.pairing, c);
-      btn.title = btn.textContent;
-      btn.onclick = () => {
-        Promise.resolve()
-          .then(() => AA.exec(["frame-contact", row.edge, String(c.rank)]))
-          .catch((err) => setBanner(err.message, "error"));
-      };
-      li.appendChild(btn);
-      list.appendChild(li);
-    }
-    block.appendChild(list);
-  }
-  return block;
-}
-
-// The suggestion line, or null when there is nothing to say -- the setting is
-// off, no element is selected, or the element produced neither candidates nor a
-// reason. Composed by AA.describeSuggestions so the counts and the stage names
-// come off the plan rather than being written twice.
-function suggestionLine() {
-  if (!state.faceSuggestions || !state.selectedEdge || !state.suggestionPlan) return null;
-  return AA.describeSuggestions(state.suggestionPlan,
-    AA.edgeEndNames(state.currentTopology, state.selectedEdge)) || null;
-}
-
 // A quiet toggle: no button chrome, subdued until hover/focus, and its state
 // carried on `aria-expanded` rather than in its label, so the word does not
 // change under the reader's cursor.
@@ -6520,18 +6342,11 @@ function renderHintPanel() {
   }
   el.hintPanel.style.display = "flex";
 
-  const help = group("What you can do");
-  const lines = document.createElement("ul");
-  lines.className = "an__hint-lines";
-  for (const text of (state.sweep ? AA.SWEEP_HELP_LINES : AA.HELP_LINES)) {
-    const li = document.createElement("li");
-    li.textContent = text;
-    lines.appendChild(li);
-  }
-  help.appendChild(lines);
-  el.hintPanel.appendChild(help);
-
-  const display = group("Display");
+  // The display settings alone: the disclosure that opens them names them,
+  // and the lines about how to use the pane are gone (2026-11-24: a page
+  // never describes itself).
+  const display = document.createElement("div");
+  display.className = "an__hint-group";
   if (state.sweep) {
     // What is drawn, as four checkboxes over the one vocabulary the
     // `layer` verb parses -- so the panel cannot offer a layer the verb refuses, or
@@ -6565,15 +6380,6 @@ function renderHintPanel() {
   el.hintPanel.appendChild(display);
 }
 
-function group(title) {
-  const box = document.createElement("div");
-  box.className = "an__hint-group";
-  const h = document.createElement("h4");
-  h.textContent = title;
-  box.appendChild(h);
-  return box;
-}
-
 // One labelled checkbox that drives a command. `onSet` may throw or reject --
 // the box goes back to where it was and the banner says why, the same
 // put-it-back-on-failure the parts panel's own checkbox does.
@@ -6595,31 +6401,6 @@ function settingCheckbox(label, checked, title, onSet) {
   row.appendChild(box);
   row.appendChild(document.createTextNode(label));
   return row;
-}
-
-function labeledSelect(labelText, options, id) {
-  const label = document.createElement("label");
-  label.textContent = labelText;
-  const select = document.createElement("select");
-  select.id = id;
-  for (const opt of options) {
-    const o = document.createElement("option");
-    o.value = opt; o.textContent = opt;
-    select.appendChild(o);
-  }
-  const box = document.createElement("div");
-  box.appendChild(label); box.appendChild(select);
-  return { box, select };
-}
-
-function labeledInput(labelText, id) {
-  const label = document.createElement("label");
-  label.textContent = labelText;
-  const input = document.createElement("input");
-  input.type = "text"; input.id = id;
-  const box = document.createElement("div");
-  box.appendChild(label); box.appendChild(input);
-  return { box, input };
 }
 
 function nowIso() { return new Date().toISOString().replace(/\.\d+Z$/, "Z"); }
@@ -6748,41 +6529,6 @@ async function nextEventSeq(count) {
   const seq = Math.max(AA.nextEventSeq(state.identityProjection, state.sessionEvents, onDisk), reservedSeq + 1);
   reservedSeq = seq + Math.max(1, count || 1) - 1;
   return seq;
-}
-
-// What the bind form, the instruction and the leader all read about one
-// element: its record, what it still needs, its two ends' names, and the
-// interface choice as AA.planBindChoices settles it. The reader's choice
-// counts only for the element AND the face it was made on -- a new pick or a
-// new element starts with no choice again, never with the last one carried
-// over as a default nobody aimed.
-function bindContext(edge) {
-  if (!state.currentTopology) return null;
-  const record = AA.findBindingRecord(mergedIdentityProjection(),
-    AA.topologyEdgeKey(state.currentTopology.id, edge.id));
-  const names = AA.edgeEndNames(state.currentTopology, edge);
-  const c = state.bindChoice;
-  const pick = state.currentPick;
-  let chosen = c && pick && c.edgeId === edge.id && c.sha256 === pick.sha256 &&
-    c.faceId === pick.faceId ? c.direction : null;
-  // A correction plans against the record WITHOUT the binding it replaces, so
-  // the end that binding held is open again, and starts on that end: the
-  // reader is fixing a face, and the end it was written at is the aimed value.
-  const target = correctionTarget(record, edge);
-  const planned = target ? AA.recordWithout(record, target.event_id) : record;
-  if (target && !chosen) chosen = target.direction;
-  return {
-    record, names, target,
-    needed: AA.bindingDirectionsNeeded(planned),
-    plan: AA.planBindChoices({ record: planned, names, chosen }),
-  };
-}
-
-// The standing binding a correction is armed on for this element, or null.
-function correctionTarget(record, edge) {
-  const c = state.correcting;
-  if (!c || c.edgeId !== edge.id || !record) return null;
-  return (record.bindings || []).find((b) => b.event_id === c.eventId) || null;
 }
 
 // Write one event and repaint -- the tail every correction write shares.
@@ -6928,91 +6674,6 @@ function cmdBoundFaces(value) {
   return state.boundFaces;
 }
 
-// What an element's bindings say about themselves, in the bar: one line per
-// standing binding (end and face), and the bindings a correction replaced
-// under one quiet disclosure. Nothing at all for an element with no binding.
-// Read-only since 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_
-// was): its Correct, Flip, Accept and Reject wrote beside the feature's form,
-// which is now the one place a binding is written.
-function buildBindingsBlock(edge, bind) {
-  const shown = AA.describeBindings(bind.record, bind.names);
-  const proposed = AA.describeProposals(bind.record, bind.names);
-  if (!shown.current.length && !shown.earlier.length && !proposed.length) return null;
-  const box = document.createElement("div");
-  box.className = "an__bound";
-  for (const row of proposed) box.appendChild(buildProposalRow(edge, bind, row, false));
-  for (const row of shown.current) {
-    const line = document.createElement("div");
-    line.className = "an__bound-row";
-    line.dataset.direction = row.direction;
-    const text = document.createElement("span");
-    text.className = "an__bound-text";
-    text.textContent = row.end + " · face " + row.face;
-    text.title = text.textContent;
-    line.appendChild(text);
-    box.appendChild(line);
-  }
-  if (shown.earlier.length) {
-    const hist = document.createElement("details");
-    hist.className = "an__nis an__bound-history";
-    const summary = document.createElement("summary");
-    summary.textContent = "Earlier bindings (" + shown.earlier.length + ")";
-    hist.appendChild(summary);
-    for (const row of shown.earlier) {
-      const li = document.createElement("div");
-      li.className = "an__bound-earlier";
-      li.textContent = row.date + " · " + row.end + " · face " + row.face;
-      hist.appendChild(li);
-    }
-    box.appendChild(hist);
-  }
-  return box;
-}
-
-// One agent proposal, answered in one click (handoff an_agent_proposes_a_face_
-// binding_and_a_human_ratifies_it): the end and face it names, who proposed it
-// and how sure, the basis on hover -- and Accept (writes the `bound` event,
-// recorded as this reviewer, naming the proposal) or Reject (writes the
-// `rejected` event; the agent may never propose that face for this element
-// again). Over HTTP the folder is asked for inside the click, like any write.
-function buildProposalRow(edge, bind, row, canWrite) {
-  const line = document.createElement("div");
-  line.className = "an__bound-row an__proposal";
-  line.dataset.direction = row.direction;
-  line.dataset.proposal = row.eventId;
-  const text = document.createElement("span");
-  text.className = "an__bound-text";
-  text.textContent = row.end + " · face " + row.face + " · proposed by " + row.actor + " · " + row.confidence;
-  text.title = AA.proposalHoverText(row);
-  line.appendChild(text);
-  if (!canWrite) return line;
-  const answer = async (verb) => {
-    try {
-      // The one answer path (writeAnswer), as the sweep rail's Accept uses it.
-      const plan = AA.planAnswer(verb, { proposal: row.event,
-        standing: AA.endBindings(bind.record, row.direction) });
-      await writeAnswer(plan, edge.id, verb === AA.ANSWER_VERBS[0]
-        ? "Bound face " + row.face + " at " + row.end
-        : "Rejected face " + row.face + " for " + row.end);
-      await paintProposals();
-    } catch (err) {
-      setWriteFailure(verb === "accept" ? "Accept" : "Reject", err);
-    }
-  };
-  for (const [verb, label] of [[AA.ANSWER_VERBS[0], AA.SUGGESTION_ROW_WORDS.accept], [AA.ANSWER_VERBS[1], "Reject"]]) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "an__bound-act an__proposal-" + verb;
-    btn.textContent = label;
-    btn.title = verb === AA.ANSWER_VERBS[0]
-      ? "bind face " + row.face + " at " + row.end
-      : "turn this face down; it will not be proposed for this element again";
-    btn.onclick = () => answer(verb);
-    line.appendChild(btn);
-  }
-  return line;
-}
-
 // The selected element's open proposals, drawn on the parts as dashed
 // outlines in the suggestion colour -- apart from a binding's solid green and
 // never in the colour buffer a pick uses. Every UI path that changes the
@@ -7040,109 +6701,6 @@ async function paintProposals() {
     sha256: r.sha256, faceId: r.face, text: AA.proposalHoverText(r) })));
   renderPartsPanel();
   return rows;
-}
-
-// The interface choice: one button per end that may be chosen, carrying the
-// stored word as its value and the interface's name as its label, and a
-// muted row for an end already bound, with the face it has. Long interface
-// names wrap -- they are the whole content of the control.
-function buildEndChoice(plan, onPick) {
-  const box = document.createElement("div");
-  box.className = "an__ends";
-  box.setAttribute("role", "radiogroup");
-  const legend = document.createElement("span");
-  legend.className = "an__ends-label";
-  legend.id = "bind-ends-label";
-  legend.textContent = "This face is";
-  box.setAttribute("aria-labelledby", legend.id);
-  box.appendChild(legend);
-  const buttons = [];
-  for (const end of plan.ends) {
-    if (plan.choices.indexOf(end.direction) === -1) {
-      const taken = document.createElement("div");
-      taken.className = "an__end an__end--taken";
-      taken.dataset.direction = end.direction;
-      const name = document.createElement("span");
-      name.textContent = end.name || "";
-      const note = document.createElement("span");
-      note.className = "an__end-note";
-      note.textContent = "already bound" +
-        (end.bound && typeof end.bound.faceId === "number" ? " · face " + end.bound.faceId : "");
-      taken.appendChild(name);
-      taken.appendChild(note);
-      box.appendChild(taken);
-      continue;
-    }
-    const choice = document.createElement("button");
-    choice.type = "button";
-    choice.className = "an__end";
-    choice.setAttribute("role", "radio");
-    choice.dataset.direction = end.direction;
-    choice.textContent = end.name || "";
-    choice.onclick = () => onPick(end.direction);
-    buttons.push(choice);
-    box.appendChild(choice);
-  }
-  const show = (selected) => {
-    for (const b of buttons) {
-      b.setAttribute("aria-checked", b.dataset.direction === selected ? "true" : "false");
-    }
-  };
-  show(plan.selected);
-  return { box, show };
-}
-
-// The escape hatch for an element whose owning part is not in the loaded set
-// -- there is no face to click for it, so it is the one binding action that
-// needs no pick. A DISCLOSURE since 2026-09-21: it is rare and it carries a
-// text field, and on a bar across the top of the canvas a permanently-open
-// note field beside every element is chrome the common path never wants.
-// Collapsed it is one quiet word; the state is per session, not a preference.
-function buildOwnerNotInSetForm(edge) {
-  const box = document.createElement("details");
-  box.className = "an__nis";
-  box.open = state.notInSetOpen;
-  const summary = document.createElement("summary");
-  summary.textContent = "Owner not in this set…";
-  summary.setAttribute("title",
-    "record that this element's part is not among the parts loaded here, " +
-    "so no face here can stand for it");
-  box.appendChild(summary);
-  box.ontoggle = () => { state.notInSetOpen = box.open; };
-  const body = document.createElement("div");
-  body.className = "an__nis-body";
-  body.appendChild(buildOwnerNotInSetFields(edge));
-  box.appendChild(body);
-  return box;
-}
-
-function buildOwnerNotInSetFields(edge) {
-  const form = document.createElement("div");
-  form.className = "owner-not-in-set-form";
-  const noteField = labeledInput("why the owner isn't in the loaded set", "owner-nis-note-input");
-  form.appendChild(noteField.box);
-  const btn = document.createElement("button");
-  btn.textContent = "Record owner not in set";
-  btn.onclick = async () => {
-    try {
-      const seq = await nextEventSeq();
-      const eventId = "annotate-" + Date.now() + "-" + slugify(edge.id) + "-not-in-set";
-      const event = AA.buildOwnerNotInSetEvent({
-        eventId,
-        seq,
-        createdAt: nowIso(),
-        recordedBy: AA.humanActor(AA.CONFIG.reviewer),
-        stackKey: identityWriteKey(state.currentTopology, edge.id),
-        note: noteField.input.value || null,
-      });
-      await writeIdentityEvent(AA.eventFilename(seq, slugify(edge.id) + "_owner_not_in_set"), event,
-        (name) => "Wrote " + name);
-    } catch (err) {
-      setWriteFailure("Record", err);
-    }
-  };
-  form.appendChild(btn);
-  return form;
 }
 
 // --- the parts panel (deliverable 2): every installed mesh, show/hide/isolate,
@@ -8084,11 +7642,19 @@ async function main() {
       if (plan.action === "clear") AA.exec(["deselect", "face"]);
       else {
         AA.exec(["select-face", plan.pick.sha256, String(plan.pick.faceId)]);
-        if (!state.selectedEdge) setBanner(AA.PICK_NEEDS_ELEMENT, "warn");
       }
     } catch (err) {
       setBanner(err.message, "error");
     }
+  };
+
+  // A still right-click is the shell's menu (handoff right_click_offers_what_
+  // the_form_does_and_the_bar_over_the_canvas_only_plays): this says where it
+  // was and what was under it, and the shell draws the menu and runs what is
+  // chosen through the verbs the form and the tree already use. `onPart`:
+  // the face is on the armed part (always, with nothing armed).
+  state.scene.onContextPick = (pick, at, onPart) => {
+    postToShell(AA.contextMessage(at, pick, pick ? partIdsOfMesh(state.currentTopology, pick.sha256) : [], onPart));
   };
 
   if (MOCK) {

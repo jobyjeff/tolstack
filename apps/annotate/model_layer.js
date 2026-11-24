@@ -825,6 +825,17 @@
     if (nodeId && members && members.length > 1) out.members = members.slice();
     return out;
   };
+  // ...and a still right-click in the scene, for the shell's menu (paired
+  // with VA.SCENE_CONTEXT_MESSAGE the same way): where, in the pane's CSS
+  // pixels; the face under it ({sha256, faceId}) or null over empty space;
+  // the parts that mesh is drawn for; and whether the face is on the part an
+  // open edit takes faces from (true with no edit open).
+  AA.CONTEXT_MESSAGE = "annotate:context";
+  AA.contextMessage = function (at, pick, parts, onPart) {
+    return { type: AA.CONTEXT_MESSAGE, x: Math.round(at.x), y: Math.round(at.y),
+      face: pick ? { sha256: pick.sha256, faceId: pick.faceId } : null,
+      parts: (parts || []).slice(), onPart: !!pick && !!onPart };
+  };
   AA.modelPickMessage = function (nodeId) {
     return { type: AA.PICK_MESSAGE, kind: AA.MODEL_SELECT_KINDS[0], id: nodeId };
   };

@@ -10435,6 +10435,85 @@
         eq(act(failed, "ok").getAttribute("data-pending"), VA.WRITE_PRESS_STATES[1]);
       });
 
+    await test("the right-click menus: a feature's row edits, binds its one suggestion or unbinds; a part's " +
+      "and a body's isolate, hide or show; a joint's goes to either end; a face in the scene goes in or out " +
+      "of the form's set, or binds to the selected feature; each item is the form's or the tree's word", function () {
+        var A = VA.MENU_ACTS;
+        var W = VA.MENU_WORDS;
+        var acts = function (items) { return items.map(function (i) { return i.act; }); };
+        // d1's `from` end is the boss (p1@n1): proposals there make it suggested.
+        var withProposals = function (proposals) {
+          var id = bodiedIdentity();
+          id.stack_keys[0].proposals = proposals;
+          return VA.buildModel(bodiedProj(), id);
+        };
+        var key = function (face) { return { source_step_sha256: "s1", face_id: face }; };
+        var one = withProposals([{ event_id: "e5", direction: "from", confidence: "high", geometry_keys: [key(7)] }]);
+        var edit = { canEdit: true, canView: true, hidden: {} };
+        eq(acts(VA.rowMenuPlan(one, "feature", "p1@n1", edit)), [A.edit, A.accept],
+           "one suggestion: it can be bound from the row");
+        var same = withProposals([{ event_id: "e5", direction: "from", geometry_keys: [key(7)] },
+          { event_id: "e6", direction: "from", geometry_keys: [key(7)] }]);
+        eq(VA.featureAcceptable(same, "p1@n1"), true, "two proposals of the same face are one suggestion");
+        var two = withProposals([{ event_id: "e5", direction: "from", geometry_keys: [key(7)] },
+          { event_id: "e6", direction: "from", geometry_key: key(8) }]);
+        eq(acts(VA.rowMenuPlan(two, "feature", "p1@n1", edit)), [A.edit], "two suggestions: the form chooses");
+        eq(acts(VA.rowMenuPlan(one, "feature", "p1@n2", edit)), [A.edit, A.unbind], "a bound feature unbinds");
+        eq(VA.rowMenuPlan(one, "feature", "p1@n2", { canEdit: false }), [], "no pane, no form, no menu");
+        eq(VA.rowMenuPlan(one, "feature", "p2@n3", edit), [], "a part with no 3D model has no form");
+        var row = VA.rowMenuPlan(one, "feature", "p1@n2", edit);
+        eq(row.map(function (i) { return i.text; }), [W.edit, VA.FEATURE_FORM_WORDS.unbind], "the form's words");
+
+        eq(acts(VA.rowMenuPlan(one, "part", "p1", edit)), [A.isolate, A.hide]);
+        eq(acts(VA.rowMenuPlan(one, "part", "p1", { canView: true, hidden: { p1: true } })),
+           [A.isolate, A.show, A.showAll], "a hidden part shows; anything hidden offers everything back");
+        eq(acts(VA.rowMenuPlan(one, "part", "p1", { canView: true, hidden: { p3: true } })),
+           [A.isolate, A.hide, A.showAll]);
+        eq(VA.rowMenuPlan(one, "part", "p2", edit), [], "nothing to show for a part with no 3D model");
+        eq(VA.rowMenuPlan(one, "part", "p1", { canView: false }), [], "no scene, nothing to show or hide");
+        eq(VA.menuPartsOf(one, "body", "b1"), ["p1"], "a body's items act on its parts with a 3D model");
+        var joint = VA.rowMenuPlan(one, "joint", "p1+p2", edit);
+        eq(joint.map(function (i) { return [i.act, i.text, i.id]; }),
+           [[A.goTo, "Go to hub", "p1"], [A.goTo, "Go to mount", "p2"]]);
+
+        // The scene: a form open on the boss, holding faces 11 and 12 of s1.
+        var pane = { featureId: "p1@n1", sha256: "s1", lines: [{ faces: [11, 12] }] };
+        var scene = function (faceId, extra) {
+          return VA.sceneMenuPlan(one, Object.assign({ face: { sha256: "s1", faceId: faceId }, parts: ["p1"],
+            onPart: true, form: "p1@n1", edit: pane, selected: "p1@n1", hidden: {} }, extra || {}));
+        };
+        eq(scene(12).map(function (i) { return [i.act, i.text]; }),
+           [[A.remove, "Take out of boss"], [A.isolate, "Isolate hub"], [A.hide, "Hide hub"]]);
+        eq(scene(40)[0], { act: A.add, text: "Add to boss", faceId: 40 });
+        eq(acts(scene(40, { onPart: false })), [A.isolate, A.hide], "a face the edit does not take is not offered");
+        eq(acts(scene(40, { face: { sha256: "s9", faceId: 40 } })), [A.isolate, A.hide]);
+        eq(scene(40, { form: null, edit: null })[0], { act: A.bind, text: "Bind to boss", fid: "p1@n1",
+          sha256: "s1", faceId: 40 }, "no form: bind to the selected feature");
+        eq(acts(scene(40, { form: null, edit: null, selected: "p3@n4" })), [A.isolate, A.hide],
+           "a feature of another part is not offered");
+        eq(acts(scene(40, { form: null, edit: null, selected: null })), [A.isolate, A.hide]);
+        eq(VA.sceneMenuPlan(one, { face: null, parts: [], hidden: { p1: true } }).map(function (i) { return i.act; }),
+           [A.showAll], "empty space: everything back, when anything is hidden");
+        eq(VA.sceneMenuPlan(one, { face: null, parts: [], hidden: {} }), []);
+
+        // Where it opens: beside the pointer, flipped off an edge, clamped last.
+        var box = { left: 0, top: 0, right: 1000, bottom: 800 };
+        eq(VA.placeMenu({ x: 100, y: 100 }, { w: 200, h: 90 }, box), { x: 104, y: 104 });
+        eq(VA.placeMenu({ x: 900, y: 780 }, { w: 200, h: 90 }, box), { x: 696, y: 686 });
+        eq(VA.placeMenu({ x: 10, y: 10 }, { w: 1200, h: 900 }, box), { x: 0, y: 0 });
+
+        // The words survive the shared ban list; each item a button that hands
+        // the item back.
+        Object.keys(W).forEach(function (k) { bannedIn(W[k], "VA.MENU_WORDS." + k); });
+        var picked = [];
+        var menu = render(function (r) { VA.renderContextMenu(r, row, function (i) { picked.push(i.act); }, function () {}); });
+        var buttons = all(menu, "button.ctxmenu__item");
+        eq(buttons.map(function (b) { return b.getAttribute("data-menu-act"); }), [A.edit, A.unbind]);
+        buttons[1].onclick({ stopPropagation: function () {} });
+        eq(picked, [A.unbind]);
+        eq(VA.SCENE_CONTEXT_MESSAGE, "annotate:context", "the literal apps/annotate asserts too");
+      });
+
     await test("a feature row selects its node, an interface row its element, a fold is " +
       "the row's own, and a show/hide box names its part or body", function () {
         var proj = bodiedProj();

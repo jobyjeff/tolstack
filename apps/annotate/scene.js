@@ -275,8 +275,11 @@ export class AnnotateScene {
     canvas.addEventListener("pointerdown", (ev) => {
       pointersDown.add(ev.pointerId);
       this._press = pointersDown.size === 1
-        ? { x: ev.clientX, y: ev.clientY, pointerId: ev.pointerId } : null;
+        ? { x: ev.clientX, y: ev.clientY, pointerId: ev.pointerId, button: ev.button } : null;
     });
+    // The browser's own menu never opens over the scene: a right-click that
+    // did not move is the app's (onContextPick, below), and a right-drag pans.
+    canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
     canvas.addEventListener("pointerup", (ev) => {
       pointersDown.delete(ev.pointerId);
       const press = this._press;
@@ -294,6 +297,18 @@ export class AnnotateScene {
       if (!at) return;
       const ndcX = ((at.x - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((at.y - rect.top) / rect.height) * 2 + 1;
+      // A RIGHT-click that did not travel is a context menu, never a pick
+      // (handoff right_click_offers_what_the_form_does_and_the_bar_over_the_
+      // canvas_only_plays): the face under it -- on the armed part while a
+      // pick is armed, else the nearest -- and, where the armed ray saw
+      // nothing, what an unfiltered one hits. Until 2026-11-24 a still
+      // right-click picked exactly as a left one did.
+      if (press.button === 2) {
+        const hit = this.pick(ndcX, ndcY);
+        const other = hit || !this._pickFilter ? null : this.pick(ndcX, ndcY, { all: true });
+        this.onContextPick(hit || other, { x: at.x, y: at.y }, !!hit || !this._pickFilter);
+        return;
+      }
       // While a pick is armed the ray sees only the armed part -- not a
       // model dot, not a bead -- and what an unfiltered ray would have hit
       // instead goes along as the third argument, so a click on another part
@@ -323,6 +338,11 @@ export class AnnotateScene {
     // space -- and, in sweep mode, with the joint bead under the pointer
     // (sweepHover's answer, or null) as the second argument.
     this.onPick = function () {};
+    // ...and with the face under a still right-click (the same shape, or null
+    // over empty space), where it was in the page's own CSS pixels, and whether
+    // the face is one an armed pick would take (always true when nothing is
+    // armed).
+    this.onContextPick = function () {};
 
     // Overridable by the app: where a part sits in the assembly, as a list
     // of 3x4 row-major placements, or null for "nothing records one" (the

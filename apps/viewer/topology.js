@@ -3154,6 +3154,10 @@
   // previews the first and freezes on the second (topology_app.js).
   VA.SCENE_HOVER_MESSAGE = "annotate:hover";
   VA.SCENE_PICK_MESSAGE = "annotate:pick";
+  // ...and a still right-click in the scene (apps/annotate's
+  // AA.CONTEXT_MESSAGE): {x, y, face, parts, onPart}, which this page answers
+  // with its menu (topology_app.js's openSceneMenu).
+  VA.SCENE_CONTEXT_MESSAGE = "annotate:context";
   // ...and the one it posts after every event it writes, and once it has read
   // the log (apps/annotate's AA.IDENTITY_MESSAGE): {projection,
   // installedMeshes}, its merged feature-identity record. The page replaces

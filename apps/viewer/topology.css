@@ -383,6 +383,17 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
   border: none; padding: 0 2px; cursor: pointer; visibility: hidden; }
 .navform__line:hover > .navform__x, .navform__x:focus-visible { visibility: visible; outline: none; }
 .navform__x:hover { color: var(--ink); }
+/* The right-click menu (topology_app.js's openMenu): over the tree or over
+   the 3D pane, fixed to the viewport so it sits where it was opened in
+   either. One plain list of the form's own words; the hovered or focused item
+   is the one fill. */
+.ctxmenu { position: fixed; z-index: 20; display: flex; flex-direction: column; min-width: 180px; max-width: 320px;
+  padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); font-size: var(--t-dense); }
+.ctxmenu__item { font: inherit; color: var(--ink); background: none; border: none; text-align: left;
+  padding: 5px 8px; border-radius: 4px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctxmenu__item:hover, .ctxmenu__item:focus-visible { background: #20242c; outline: none; }
 .navform__foot { display: flex; }
 .navform__history { color: var(--muted); font-size: var(--t-meta); }
 .navform__summary { cursor: pointer; }

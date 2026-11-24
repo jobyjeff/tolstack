@@ -654,6 +654,16 @@ check("Bound faces is on by default, remembered, and a store that throws is the 
 check("the identity message is the viewer's word for it", () => {
   assertEqual(AA.IDENTITY_MESSAGE, "annotate:identity");
 });
+check("a still right-click is the viewer's menu: where it was, the face under it and the parts " +
+  "its model is drawn for -- and the bar's one disclosure is the display settings", () => {
+  assertEqual(AA.CONTEXT_MESSAGE, "annotate:context");
+  assertEqual(AA.contextMessage({ x: 10.4, y: 20.6 }, { sha256: "s", faceId: 3, record: {} }, ["p1", "p2"], true),
+    { type: "annotate:context", x: 10, y: 21, face: { sha256: "s", faceId: 3 }, parts: ["p1", "p2"], onPart: true });
+  assertEqual(AA.contextMessage({ x: 1, y: 2 }, null, [], true),
+    { type: "annotate:context", x: 1, y: 2, face: null, parts: [], onPart: false }, "empty space");
+  assertEqual(AA.DISPLAY_WORD, "Display");
+  assertNothingBanned(AA.DISPLAY_WORD, "AA.DISPLAY_WORD");
+});
 check("recordWithout opens the end the corrected binding held", () => {
   const row = { bindings: [boundFixture("a", 1, 110, "from")] };
   assertEqual(AA.bindingDirectionsNeeded(AA.recordWithout(row, "a")).length, 2);
@@ -1524,9 +1534,8 @@ check("context membership is the scope plus what the reader added minus what the
   assertEqual(edit, { added: ["d"], removed: [] });
 });
 
-check("the panel's words and the pick banner survive the shared ban list", () => {
+check("the panel's words survive the shared ban list", () => {
   Object.keys(AA.PARTS_COPY).forEach((k) => assertNothingBanned(AA.PARTS_COPY[k], "AA.PARTS_COPY." + k));
-  assertNothingBanned(AA.PICK_NEEDS_ELEMENT, "AA.PICK_NEEDS_ELEMENT");
 });
 
 // --- faceSubGeometry (handoff study_3d_flyout): the mark-face overlay's
@@ -2054,7 +2063,7 @@ check("planHighlight tints a bound face only where its part is open, and an unbo
   assertEqual(AA.planHighlight(TRACE_IDENTITY, "other", "e_solid", open).face, null);
   assertEqual(AA.planHighlight(null, "demo_system", "e_solid", open).face, null);
 });
-check("embedState names the mode and the subject in one line -- the run's mechanism " +
+check("embedState names the subject and never the mode -- the run's mechanism " +
   "in sweep mode, the study (or the topology) in bind mode", () => {
   const sweep = { runId: "run-1", topologyId: "vpa_pitch_linkage",
     mechanismName: "vpa_pitch_chunk2_p2" };
@@ -2062,15 +2071,14 @@ check("embedState names the mode and the subject in one line -- the run's mechan
   const study = { id: "travel", title: "Travel between end stops" };
   assertEqual(AA.embedState(sweep, topology, study), {
     type: "annotate:state", mode: "sweep", topology: "vpa_pitch_linkage",
-    study: null, run: "run-1", title: "Sweep — vpa pitch chunk2 p2",
+    study: null, run: "run-1", title: "vpa pitch chunk2 p2",
   });
   assertEqual(AA.embedState(null, topology, study), {
     type: "annotate:state", mode: "bind", topology: "vpa_pitch_linkage",
-    study: "travel", run: null, title: "Binding — Travel between end stops",
+    study: "travel", run: null, title: "Travel between end stops",
   });
-  assertEqual(AA.embedState(null, topology, null).title,
-    "Binding — Propeller pitch linkage");
-  assertEqual(AA.embedState(null, null, null).title, "Binding");
+  assertEqual(AA.embedState(null, topology, null).title, "Propeller pitch linkage");
+  assertEqual(AA.embedState(null, null, null).title, "");
 });
 check("embedPose tells the page where the pane's transport is: the run it is on, the " +
   "point index, the driver there and whether it plays", () => {
@@ -2093,8 +2101,8 @@ check("isolate parts: the named parts are ghost and every other installed part f
   assertEqual(AA.planPartScope(["a"], ["a"], false), { ghost: ["a"], faint: [], hide: [] });
   const topology = { id: "t", title: "Linkage" };
   assertEqual(AA.embedState(null, topology, null, true).title,
-    "Binding — Linkage — no 3D model for these parts yet");
-  assertEqual(AA.embedState(null, topology, null, false).title, "Binding — Linkage");
+    "Linkage — no 3D model for these parts yet");
+  assertEqual(AA.embedState(null, topology, null, false).title, "Linkage");
 });
 check("an action's looks: the parts it is about keep their resting look and never go opaque on their " +
   "own, their neighbours ghost, the rest faint", () => {
@@ -3205,131 +3213,8 @@ check("bindingDirectionsNeeded: nothing bound needs both directions; one " +
   }), ["from"]);
 });
 
-check("taskInstruction: with no element there is no step, so the line is " +
-  "empty -- scoped or not", () => {
-  // It said "Pick an element on the left, then click a face in the 3D view
-  // to bind it." (scoped: "Showing <scope>. Pick an element ...") until
-  // 2026-11-19: how to use the pane, always on screen
-  // (the_viewer_says_nothing_about_itself). The Help disclosure says it.
-  assertEqual(AA.TASK_NO_ELEMENT, "");
-  assertEqual(AA.taskInstruction({}), "");
-  assertEqual(AA.taskInstruction(null), "");
-  assertEqual(AA.taskInstruction({ scopeName: "End-stop chain" }), "");
-  if (!AA.HELP_LINES.some((line) => /Click one to work on it/.test(line))) {
-    throw new Error("the Help no longer says how to start: " + AA.HELP_LINES.join(" | "));
-  }
-});
-
 // The two ends of the fixture element, by the names the form shows.
 const END_NAMES = { from: "bushing face against the plate", to: "plate far face" };
-
-check("taskInstruction: two faces, then one, then done -- the count comes " +
-  "from what the binding still needs", () => {
-  const named = (needed) => AA.taskInstruction({
-    elementName: "Bushing length", needed, names: END_NAMES,
-  });
-  // The form binds ONE face per event (Jeff: "I was expecting it to ask me for
-  // two faces"), so the two-face state says so and asks for the first.
-  assertEqual(named(["from", "to"]),
-    "Bushing length needs two faces, bound one at a time. Click the first one " +
-    "in the 3D view.");
-  // One end bound: the end still needed, BY ITS INTERFACE NAME.
-  assertEqual(named(["to"]),
-    "Select the remaining face that defines Bushing length: plate far face.");
-  assertEqual(named(["from"]),
-    "Select the remaining face that defines Bushing length: bushing face " +
-    "against the plate.");
-  assertEqual(named([]),
-    "Bushing length already has the faces it needs. Click a face to bind another.");
-  // An element with no record at all defaults to both, never to "done".
-  assertEqual(AA.taskInstruction({ elementName: "Bushing length", names: END_NAMES }),
-    named(["from", "to"]));
-});
-
-check("taskInstruction: a picked face turns the instruction into the action " +
-  "the bind form is about to take", () => {
-  const picked = (needed, chosen) => AA.taskInstruction({ elementName: "Bushing length",
-    picked: true, needed, names: END_NAMES, chosen });
-  // Both ends open and nothing chosen: choose the interface, then Bind -- and
-  // the other face comes next.
-  assertEqual(picked(["from", "to"], null),
-    "Choose which interface of Bushing length this face is, then press Bind. " +
-    "The other face comes next.");
-  assertEqual(picked(["from", "to"], "from"),
-    "Bind the selected face to Bushing length as bushing face against the plate. " +
-    "The other face comes next.");
-  // One end bound: Bind writes the face as that named end, and it is the last.
-  assertEqual(picked(["to"], "to"),
-    "Bind the selected face to Bushing length as plate far face, the last face " +
-    "it needs.");
-  assertEqual(picked([], null),
-    "Choose which interface of Bushing length this face is, then press Bind.");
-});
-
-check("taskInstruction: no state prints the stored direction word -- swapping " +
-  "which interface is which end swaps nothing but the names", () => {
-  const swapped = { from: END_NAMES.to, to: END_NAMES.from };
-  const states = [
-    { needed: ["from", "to"] }, { needed: ["to"] }, { needed: [] },
-    { needed: ["from", "to"], picked: true },
-    { needed: ["from", "to"], picked: true, chosen: "from" },
-    { needed: ["to"], picked: true, chosen: "to" },
-    { needed: [], picked: true, chosen: "from" },
-  ];
-  const flip = (list) => list.map((d) => (d === "from" ? "to" : "from"));
-  states.forEach((st, i) => {
-    const one = AA.taskInstruction(Object.assign({ elementName: "Bushing length",
-      names: END_NAMES }, st));
-    const other = AA.taskInstruction({ elementName: "Bushing length", names: swapped,
-      picked: st.picked, needed: flip(st.needed),
-      chosen: st.chosen ? flip([st.chosen])[0] : undefined });
-    if (one !== other) {
-      throw new Error(`state #${i + 1} reads the stored word, not the interface: ` +
-        JSON.stringify(one) + " vs " + JSON.stringify(other));
-    }
-    if (/\bfrom\b/i.test(one) || /\bto\b/i.test(one.replace(/ to Bushing length| to bind/g, ""))) {
-      throw new Error(`state #${i + 1} prints a direction word: ${one}`);
-    }
-  });
-});
-
-check("planBindChoices: no default while both ends are open, the remaining end " +
-  "preselected once one is bound, and the bound one shown as taken with its face", () => {
-  const open = AA.planBindChoices({ record: null, names: END_NAMES });
-  assertEqual(open.selected, null, "an untouched form has a default end");
-  assertEqual(open.choices, AA.DIRECTIONS);
-  assertEqual(open.ends.map((e) => e.name), [END_NAMES.from, END_NAMES.to]);
-  assertEqual(AA.planBindChoices({ record: null, names: END_NAMES, chosen: "to" }).selected,
-    "to", "the reader's choice was not kept");
-  assertEqual(AA.planBindChoices({ record: null, names: END_NAMES, chosen: "sideways" }).selected,
-    null, "a word outside the vocabulary was taken as a choice");
-  const record = { bindings: [{ direction: "to",
-    geometry_key: { source_step_sha256: "a".repeat(64), face_id: 110 } }] };
-  const one = AA.planBindChoices({ record, names: END_NAMES, chosen: "to" });
-  assertEqual(one.choices, ["from"], "a bound end is still offered as a choice");
-  assertEqual(one.selected, "from", "the one end left was not preselected");
-  assertEqual(one.ends[1].bound, { faceId: 110, sha256: "a".repeat(64) },
-    "the bound end does not carry the face it has");
-});
-
-check("whichever interface is chosen, the event the form writes stores one of " +
-  "AA.DIRECTIONS -- the names are what the form shows, never what it writes", () => {
-  const choices = AA.planBindChoices({ record: null, names: END_NAMES }).choices;
-  assertEqual(choices.length, 2);
-  choices.forEach((chosen) => {
-    const selected = AA.planBindChoices({ record: null, names: END_NAMES, chosen }).selected;
-    const event = AA.buildBoundEvent({
-      eventId: "e-" + chosen, seq: 1, createdAt: "2026-10-21T00:00:00Z",
-      recordedBy: "annotate-app",
-      stackKey: AA.topologyEdgeKey("t", "e"),
-      geometryKey: { source_step_sha256: "a".repeat(64), face_id: 1 },
-      direction: selected,
-    });
-    if (AA.DIRECTIONS.indexOf(event.direction) === -1 || event.direction !== chosen) {
-      throw new Error("choosing " + chosen + " stored " + JSON.stringify(event.direction));
-    }
-  });
-});
 
 check("edgeEndNames: each end is its interface node's own name, keyed by the " +
   "stored word", () => {
@@ -3337,63 +3222,6 @@ check("edgeEndNames: each end is its interface node's own name, keyed by the " +
     edges: [{ id: "e", from: "a", to: "b" }] };
   assertEqual(AA.edgeEndNames(topo, topo.edges[0]), { from: "seat face", to: "b" });
   assertEqual(AA.edgeEndNames(topo, null), {});
-});
-
-check("planBindLeader: drawn only between the picked face and the face bound at " +
-  "the OTHER end -- never on a first bind, never from a face to itself", () => {
-  const sha = "a".repeat(64);
-  const pick = { sha256: sha, faceId: 113 };
-  const firstBind = AA.planBindChoices({ record: null, names: END_NAMES, chosen: "from" });
-  assertEqual(AA.planBindLeader({ pick, plan: firstBind }), null,
-    "a leader was drawn with only one face to draw from");
-  const record = { bindings: [{ direction: "to",
-    geometry_key: { source_step_sha256: sha, face_id: 110 } }] };
-  const second = AA.planBindChoices({ record, names: END_NAMES });
-  assertEqual(AA.planBindLeader({ pick, plan: second }), {
-    picked: { sha256: sha, faceId: 113, label: END_NAMES.from },
-    bound: { sha256: sha, faceId: 110, label: END_NAMES.to },
-  });
-  assertEqual(AA.planBindLeader({ pick: { sha256: sha, faceId: 110 }, plan: second }), null,
-    "a leader was drawn from the bound face to itself");
-  assertEqual(AA.planBindLeader({ pick: null, plan: second }), null);
-});
-
-check("every sentence the top bar composes survives the shared ban list, and " +
-  "carries no schema word", () => {
-  const sentences = AA.HELP_LINES.slice()
-    .concat([
-      AA.taskInstruction({ elementName: "Bushing length", needed: ["from", "to"] }),
-      AA.taskInstruction({ elementName: "Bushing length", needed: ["to"] }),
-      AA.taskInstruction({ elementName: "Bushing length", needed: [] }),
-      AA.taskInstruction({ elementName: "Bushing length", picked: true }),
-      AA.taskInstruction({ elementName: "Bushing length", picked: true,
-        needed: ["to"], names: END_NAMES, chosen: "to" }),
-      AA.taskInstruction({ elementName: "Bushing length", needed: ["to"],
-        names: END_NAMES }),
-    ]);
-  if (sentences.length < 9) {
-    throw new Error("the sentence scan collected " + sentences.length +
-      " strings -- it has drifted and now passes against anything");
-  }
-  sentences.forEach((text, i) => {
-    assertNothingBanned(text, `top-bar sentence #${i + 1} (${JSON.stringify(text)})`);
-    if (/[a-z]_[a-z]/.test(text)) {
-      throw new Error(`top-bar sentence #${i + 1} carries an underscored identifier: ${text}`);
-    }
-  });
-});
-
-check("HELP_LINES are LINES -- short, one idea each, no paragraphs", () => {
-  if (AA.HELP_LINES.length < 3) {
-    throw new Error("the help panel has fewer lines than it claims to");
-  }
-  AA.HELP_LINES.forEach((line) => {
-    // The house rule this is: "short lines, no paragraphs". A line long enough
-    // to wrap three times in the bar is a paragraph wearing a bullet.
-    if (line.length > 110) {
-      throw new Error(`a help line is a paragraph (${line.length} chars): ${line}`);
-    }
-  });
 });
 
 // --- remembered settings ----------------------------------------------------
@@ -4816,12 +4644,6 @@ check("every sentence the suggestion surface can print survives the shared " +
     .concat(AA.SUGGESTION_RULES.map((r) => r.says))
     .concat(AA.NARROWING_STAGES.map((s) => s.says))
     .concat(AA.NARROWING_STAGES.map((s) => s.needs))
-    .concat([
-      AA.describeSuggestions(plan("plate_thickness", null)),
-      AA.describeSuggestions(plan("stand_off", null)),
-      AA.describeSuggestions(plan("plate_thickness",
-        boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0))),
-    ])
     .concat(plan("stand_off", null).ends.map((e) => e.note))
     .concat(plan("hole_depth", null).ends.map((e) => e.note))
     .filter(Boolean);
@@ -4835,37 +4657,6 @@ check("every sentence the suggestion surface can print survives the shared " +
       throw new Error(`suggestion sentence #${i + 1} carries an underscored identifier: ${text}`);
     }
   });
-});
-
-check("describeSuggestions counts the faces and names the stage that produced " +
-  "them, so a lit-up body is never unexplained", () => {
-  const wide = AA.describeSuggestions(plan("plate_thickness", null));
-  if (wide.indexOf("3 likely faces") !== 0) {
-    throw new Error("unexpected stage-1 summary: " + wide);
-  }
-  if (wide.indexOf(AA.NARROWING_STAGES[0].says) === -1) {
-    throw new Error("the summary does not name the stage it reached: " + wide);
-  }
-  const narrow = AA.describeSuggestions(plan("plate_thickness",
-    boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0)));
-  if (narrow.indexOf("1 likely face -") !== 0) {
-    throw new Error("a single face is not described in the singular: " + narrow);
-  }
-});
-
-check("describeSuggestions says WHICH face the narrowing compared against -- " +
-  "its number and the interface it was bound as", () => {
-  const names = AA.edgeEndNames(SUGGEST_TOPOLOGY, SUGGEST_TOPOLOGY.edges[0]);
-  const identity = boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0);
-  const text = AA.describeSuggestions(plan("plate_thickness", identity), names);
-  const says = AA.NARROWING_STAGES[1].says;
-  if (text.indexOf(says + " (face 0, bound as plate near face against the washer)") === -1) {
-    throw new Error("the same-part stage does not name the face it compared against: " + text);
-  }
-  // Stage 1 compared against nothing, so it names nothing.
-  if (/\(face /.test(AA.describeSuggestions(plan("plate_thickness", null), names))) {
-    throw new Error("the surface-class stage claims a reference face it never had");
-  }
 });
 
 // --- the display, read statically out of scene.js and app.js ----------------
@@ -4962,10 +4753,6 @@ check("contact words: each pairing, relation and seat says what it is in " +
     "flat across the axis, ends 0.023 mm past it");
   assertEqual(say("plane_across_axis", "across", { end_mm: -0.0109, axis_offset_mm: 0.0012 }),
     "flat across the axis, ends 0.011 mm short of it");
-  [AA.CONTACT_HEADING, AA.CONTACT_HEADING_AT, AA.CONTACT_AMBIGUOUS].forEach((text, i) => {
-    assertNoCommandOrPath(text, `contact sentence #${i + 1}`);
-    if (/[a-z]_[a-z]/.test(text)) throw new Error("an underscored identifier: " + text);
-  });
 });
 
 check("the suggestion colour IS the shared accent -- one declaration in " +
@@ -5472,7 +5259,7 @@ check("sweep: the frame rule -- the as-modelled pose is recognised, and any " +
 });
 
 check("sweep: the gate line says WHERE the as-modelled frame is, once per run, " +
-  "and says so plainly when no frame qualifies", () => {
+  "and nothing when no frame qualifies", () => {
   const art = AA.readSweepArtifact(sweepFixture());
   assertEqual(AA.sweepAsModelledIndex(art), 0, "the fixture's identity frame");
   const words = AA.sweepGateWords(art, 0);
@@ -5490,7 +5277,7 @@ check("sweep: the gate line says WHERE the as-modelled frame is, once per run, "
   }
   assertEqual(AA.sweepAsModelledIndex(Object.assign({}, art, { points: [art.points[1]] })),
     null, "no frame qualifies");
-  assertNothingBanned(AA.sweepGateWords(art, null), "the no-frame gate line");
+  assertEqual(AA.sweepGateWords(art, null), "", "the no-frame gate line");
 });
 
 check("sweep: the topology a run is about is read off its feature joins, and " +

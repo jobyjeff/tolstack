@@ -544,30 +544,6 @@
   AA.SUGGEST_SETTING_HINT =
     "colours the faces that could be the one you are binding";
 
-  // The reader-facing summary of a plan. Counts, and the stage that produced
-  // them, in words: "6 likely faces (every face of the right kind on this
-  // part)". `names` (optional) is AA.edgeEndNames's answer for the element.
-  AA.describeSuggestions = function (plan, names) {
-    if (!plan) return "";
-    // Nothing suggested says whatever the PLAN says and nothing of its own: a
-    // part with no installed mesh has a sentence already (the rail's "No
-    // installed 3D part for ..."), and "no face here looks like it" would be
-    // this surface claiming to have looked at a shape it never read.
-    if (!plan.faces.length) return plan.note || "";
-    var stages = [];
-    plan.ends.forEach(function (end) {
-      if (!end.candidates.length || !end.stage) return;
-      var row = null;
-      for (var i = 0; i < AA.NARROWING_STAGES.length; i++) {
-        if (AA.NARROWING_STAGES[i].key === end.stage) row = AA.NARROWING_STAGES[i];
-      }
-      var says = row ? row.says + referenceClause(end, names || {}) : null;
-      if (says && stages.indexOf(says) === -1) stages.push(says);
-    });
-    return plan.faces.length + " likely face" + (plan.faces.length === 1 ? "" : "s") +
-      (stages.length ? " -- " + stages.join("; ") : "");
-  };
-
   // Which face "the one already bound" IS (Jeff, 2026-10-21, read it as some
   // earlier binding he did not know about, when it was the face he had just
   // written): " (face 110, bound as <interface name>)", off the end's own
@@ -969,9 +945,6 @@
   // runs between two joints, and the faces that close those joints are the
   // ones a reader binding the length is looking for.
 
-  // How many candidates the bar lists.
-  AA.CONTACT_LISTED = 3;
-
   // What each pairing is, in a reader's words. Keyed by the Python vocabulary
   // (tolerance_stack/interface_contact.py's PAIRING_KINDS and RELATIONS,
   // generated), so a kind added there without words here throws at load.
@@ -992,13 +965,6 @@
     cylindrical: "ball on a bore's axis",
     planar: "ball against a flat",
   });
-  // The heading over the list, and the one a list read off a neighbouring
-  // joint wears (with that joint's name).
-  AA.CONTACT_HEADING = "Faces that touch";
-  AA.CONTACT_HEADING_AT = "Faces that touch at ";
-  // When a second pair of occurrences touches different faces -- a link with
-  // a bearing at each end -- the list is one of those places.
-  AA.CONTACT_AMBIGUOUS = "these parts touch in more than one place";
 
   function mm(value) {
     var abs = Math.abs(value);

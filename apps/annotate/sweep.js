@@ -1027,12 +1027,14 @@
     return null;
   };
 
-  // The one sentence the gate line carries -- the only place this rule is
-  // written. `index` is AA.sweepAsModelledIndex's answer.
+  // Where the as-modelled pose is, on the gate line beside the control that
+  // goes there; nothing when no frame of the run is at it. `index` is
+  // AA.sweepAsModelledIndex's answer. A pose, not a rule: until 2026-11-24
+  // the line said face picking works there only, which is binding talk on
+  // the bar that holds the play controls (a feature's form goes to the pose
+  // itself when it opens).
   AA.sweepGateWords = function (artifact, index) {
-    if (index === null || index === undefined) {
-      return "No frame of this run is at the as-modelled pose, so faces cannot be picked here.";
-    }
+    if (index === null || index === undefined) return "";
     // The value a reader is scrubbing TO: the run's reference measure (blade
     // pitch) where it has one, the driver otherwise -- the same choice the
     // chip at the scrubber handle makes.
@@ -1046,16 +1048,13 @@
       value = AA.indexToDriver(AA.sweepDriverValues(artifact), index);
       unit = artifact.driverUnit || "";
     }
-    return "Face picking works at the as-modelled pose only — frame " +
+    return "As modelled: frame " +
       (index + 1) + " of " + artifact.points.length + ", " +
       AA.formatSweepNumber(value, unit) + (unit ? " " + unit : "") + ".";
   };
 
   //: The label of the control that goes to that frame.
   AA.SWEEP_GO_TO_POSE = "Go there";
-
-  //: What the bar says about a run whose artifact names no topology.
-  AA.SWEEP_NO_TOPOLOGY = "This run names no topology, so the element list stays as it was.";
 
   // --- where a part sits in the assembly (every mode, not only this one) ----
   //

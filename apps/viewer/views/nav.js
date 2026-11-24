@@ -1325,6 +1325,195 @@
     return root;
   };
 
+  // --- the right-click menus (handoff right_click_offers_what_the_form_does_
+  // and_the_bar_over_the_canvas_only_plays, 2026-11-24) ---------------------------
+  //
+  // One menu, drawn by this page over the tree or over the 3D pane, and every
+  // item a shortcut to something the form or the tree already does: a menu
+  // runs the same handler, never a path of its own. Its words are the form's.
+  // Which items a menu holds is decided here, from the model and what the
+  // page holds (VA.sceneMenuPlan, VA.rowMenuPlan); topology_app.js runs them.
+
+  // What an item does, named once (its `data-menu-act`).
+  VA.MENU_ACTS = Object.freeze({
+    add: "add", remove: "remove", bind: "bind",
+    edit: "edit", accept: "accept", unbind: "unbind",
+    isolate: "isolate", hide: "hide", show: "show", showAll: "show-all",
+    goTo: "go-to",
+  });
+
+  VA.MENU_WORDS = Object.freeze({
+    add: "Add to {feature}",
+    remove: "Take out of {feature}",
+    bind: "Bind to {feature}",
+    edit: "Edit faces",
+    accept: "Bind the suggested faces",
+    acceptTitle: "bind the one suggested set, as the form's ✓ would",
+    unbind: VA.FEATURE_FORM_WORDS.unbind,
+    isolate: "Isolate",
+    hide: "Hide",
+    show: "Show",
+    showAll: "Show everything",
+    goTo: "Go to {part}",
+  });
+
+  function menuItem(act, text, extra) {
+    return Object.assign({ act: act, text: text }, extra || {});
+  }
+
+  // Meshed parts hidden now, of `model`, from the page's hidden set.
+  function hiddenMeshed(model, hidden) {
+    return Object.keys(hidden || {}).filter(function (p) { return hidden[p] && model.hasMesh(p); });
+  }
+
+  // The parts a body's or a part's (an assembly's) items act on: every
+  // meshed part under it.
+  VA.menuPartsOf = function (model, kind, id) {
+    var parts = kind === "body" ? model.allPartsOf(id) : model.subtreeOf(id);
+    return parts.filter(function (p) { return model.hasMesh(p); });
+  };
+
+  // The show/hide items for one entity: Isolate, then Hide (or Show when all
+  // of it is hidden), then Show everything while anything is hidden. `name`,
+  // where given, goes after the verb (the scene's menu names its part).
+  function viewItems(model, kind, id, hidden, name) {
+    var W = VA.MENU_WORDS;
+    var A = VA.MENU_ACTS;
+    var parts = VA.menuPartsOf(model, kind, id);
+    if (!parts.length) return [];
+    var named = function (verb) { return name ? verb + " " + name : verb; };
+    var at = { kind: kind, id: id };
+    var allHidden = parts.every(function (p) { return !!(hidden && hidden[p]); });
+    var out = [menuItem(A.isolate, named(W.isolate), at),
+      allHidden ? menuItem(A.show, named(W.show), at) : menuItem(A.hide, named(W.hide), at)];
+    if (hiddenMeshed(model, hidden).length) out.push(menuItem(A.showAll, W.showAll));
+    return out;
+  }
+
+  // Can the tree bind a feature's suggestion without its form? Only a
+  // feature with nothing bound whose open proposals name one set of faces --
+  // one line under the form's Suggested, so the tick has one thing to write.
+  VA.featureAcceptable = function (model, fid) {
+    if (!VA.featureEditable(model, fid)) return false;
+    if (model.status(fid) !== VA.FEATURE_STATUSES.suggested || model.bindingsOf(fid).length) return false;
+    var record = model.featureRecord(fid);
+    if (record && record.state === VA.FEATURE_STATES[1]) return false;
+    var sets = {};
+    model.proposalsOf(fid).forEach(function (p) {
+      var keys = p.event.geometry_keys || (p.event.geometry_key ? [p.event.geometry_key] : []);
+      sets[keys.map(function (k) { return k.source_step_sha256 + "#" + k.face_id; }).sort().join(",")] = true;
+    });
+    return Object.keys(sets).length === 1;
+  };
+
+  // The menu over the 3D pane. `ctx`: {face, parts, onPart} (the pane's
+  // annotate:context), `form` the feature being edited or null, `edit` the
+  // pane's edit snapshot, `selected` the selected feature or null, `hidden`
+  // the page's hidden parts.
+  VA.sceneMenuPlan = function (model, ctx) {
+    var W = VA.MENU_WORDS;
+    var A = VA.MENU_ACTS;
+    var c = ctx || {};
+    var out = [];
+    if (!model) return out;
+    var face = c.face || null;
+    var parts = (c.parts || []).filter(function (p) { return !!model.part(p); });
+    if (face && c.form && c.onPart && c.edit && c.edit.featureId === c.form && c.edit.sha256 === face.sha256) {
+      var held = (c.edit.lines || []).some(function (l) { return (l.faces || []).indexOf(face.faceId) !== -1; });
+      var editing = model.feature(c.form);
+      out.push(menuItem(held ? A.remove : A.add,
+        fill(held ? W.remove : W.add, { feature: editing ? editing.name : c.form }), { faceId: face.faceId }));
+    } else if (face && !c.form && c.selected) {
+      var feature = model.feature(c.selected);
+      if (feature && VA.featureEditable(model, c.selected) && parts.indexOf(feature.part) !== -1) {
+        out.push(menuItem(A.bind, fill(W.bind, { feature: feature.name }),
+          { fid: c.selected, sha256: face.sha256, faceId: face.faceId }));
+      }
+    }
+    if (parts.length) out = out.concat(viewItems(model, "part", parts[0], c.hidden, model.part(parts[0]).name));
+    else if (hiddenMeshed(model, c.hidden).length) out.push(menuItem(A.showAll, W.showAll));
+    return out;
+  };
+
+  // The menu over a tree row. `ctx`: {canEdit (a form can open here),
+  // canView (the scene is up), hidden}.
+  VA.rowMenuPlan = function (model, kind, id, ctx) {
+    var W = VA.MENU_WORDS;
+    var A = VA.MENU_ACTS;
+    var c = ctx || {};
+    if (!model) return [];
+    if (kind === "feature") {
+      if (!c.canEdit || !VA.featureEditable(model, id)) return [];
+      var items = [menuItem(A.edit, W.edit, { fid: id })];
+      if (VA.featureAcceptable(model, id)) items.push(menuItem(A.accept, W.accept, { fid: id, title: W.acceptTitle }));
+      if (model.bindingsOf(id).length) items.push(menuItem(A.unbind, W.unbind, { fid: id }));
+      return items;
+    }
+    if (kind === "part" || kind === "body") return c.canView ? viewItems(model, kind, id, c.hidden) : [];
+    if (kind === "joint") {
+      var joint = model.joint(id);
+      return ((joint && joint.parts) || []).filter(function (p) { return !!model.part(p); }).map(function (p) {
+        return menuItem(A.goTo, fill(W.goTo, { part: model.part(p).name }), { kind: "part", id: p });
+      });
+    }
+    return [];
+  };
+
+  // Where a menu of `size` opens for a pointer `at`, inside `bounds` (all
+  // page pixels): just below and right of the pointer, so the face or row
+  // under it stays in view; flipped to the pointer's other side where it
+  // would run off, and clamped inside as a last resort.
+  VA.MENU_GAP_PX = 4;
+  VA.placeMenu = function (at, size, bounds) {
+    var g = VA.MENU_GAP_PX;
+    var x = at.x + g;
+    var y = at.y + g;
+    if (x + size.w > bounds.right) x = at.x - g - size.w;
+    if (y + size.h > bounds.bottom) y = at.y - g - size.h;
+    x = Math.max(bounds.left, Math.min(x, bounds.right - size.w));
+    y = Math.max(bounds.top, Math.min(y, bounds.bottom - size.h));
+    return { x: Math.round(x), y: Math.round(y) };
+  };
+
+  // The menu's DOM into `root` (cleared): one button per item. `onPick(item)`
+  // runs one; `onClose()` is every other way out (Esc, focus leaving it).
+  VA.renderContextMenu = function (root, items, onPick, onClose) {
+    VA.clear(root);
+    root.setAttribute("role", "menu");
+    items.forEach(function (item) {
+      var b = VA.el("button", "ctxmenu__item", item.text);
+      b.setAttribute("type", "button");
+      b.setAttribute("role", "menuitem");
+      b.setAttribute("data-menu-act", item.act);
+      b.setAttribute("title", item.title || item.text);
+      b.onclick = function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        onPick(item);
+      };
+      root.appendChild(b);
+    });
+    root.onkeydown = function (event) {
+      var buttons = Array.prototype.slice.call(root.querySelectorAll(".ctxmenu__item"));
+      var at = buttons.indexOf(document.activeElement);
+      if (event.key === "Escape") {
+        // The menu closes first; the form's Esc waits for the next press.
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        var step = event.key === "ArrowDown" ? 1 : -1;
+        var next = buttons[(at + step + buttons.length) % buttons.length];
+        if (next) next.focus();
+      } else if (event.key === "Enter") {
+        // A button's own Enter clicks it; the form's Enter (the tick) is not
+        // asked.
+        event.stopPropagation();
+      }
+    };
+    return root;
+  };
+
   // The six gestures a mirrored row can hand back, named once on this side;
   // the annotator's receiver (AA.RAIL_ACTS, apps/annotate/commands.js) names
   // them once on the other, and tests/test_rail_act_vocabulary_is_paired.py

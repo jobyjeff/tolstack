@@ -325,14 +325,16 @@
   // back to the sweep that was playing, or simply to nothing selected. Until
   // then the only way back was a bar that existed after some exits and a
   // console verb.
+  // Since 2026-11-24 the strip is gone: a feature being edited has its form,
+  // whose X is the way out.
   AA.BIND_BAR_WORDS = Object.freeze({
     sweep: "Sweep",
     play: "play the newest sweep in 3D",
     playBack: "back to the sweep, playing",
-    binding: "Binding",
-    leave: "leave binding",
-    leaveBack: "leave binding and go back to the sweep",
   });
+
+  // The bar's one disclosure, in both modes: the display settings.
+  AA.DISPLAY_WORD = "Display";
 
   // Whether a `goto` onto an EDGE could show anything at all: null when it
   // could, else {edgeId, kind: "no-part" | "no-mesh", text, missingParts,
@@ -929,10 +931,6 @@
     };
   };
 
-  // The line a click on a face puts in the banner when nothing will bind it.
-  AA.PICK_NEEDS_ELEMENT =
-    "Pick an element on the left to bind this face to.";
-
   // --- on/off, as one vocabulary ---------------------------------------------
   //
   // Two settings verbs take a switch and a reader's own checkbox drives both,
@@ -1106,26 +1104,6 @@
     return commands;
   };
 
-  // --- the one-line task instruction (deliverable 2) -------------------------
-  //
-  // Jeff: "user can just be given simple instructions (ie select the two faces
-  // that define the bushing length…)". The bar's collapsed line, composed from
-  // the element rather than written once in the markup -- so the sentence a
-  // reader meets names the thing they arrived for.
-  //
-  // Singular/plural comes from what the binding actually needs: a topology edge
-  // is a dimension BETWEEN two interfaces, and a binding event carries a
-  // `direction` (AA.DIRECTIONS: from, to), so an element with nothing bound
-  // needs two faces and one with a `from` already recorded needs one more.
-  //
-  // With no element there is no step to name, so the line is empty. It said
-  // "Pick an element on the left, then click a face in the 3D view to bind
-  // it." (and, scoped, "Showing <scope>. Pick an element on the left, then
-  // click a face in the 3D view.") until 2026-11-19: how to use the pane, on
-  // the pane's one always-visible line (the_viewer_says_nothing_about_itself).
-  // The Help disclosure beside it still says it, on request.
-  AA.TASK_NO_ELEMENT = "";
-
   // Which directions a record still has no face for. An absent record needs
   // both -- the same "absence is the consumer's to notice" posture
   // elementBindingState takes.
@@ -1155,147 +1133,6 @@
     });
     return out;
   };
-
-  // Pure: what the bind form's interface choice offers, for one element.
-  //
-  //   ends      one row per stored direction word, in AA.DIRECTIONS order:
-  //             its interface name, and the face already bound there (null
-  //             while that end is open)
-  //   choices   the direction words a reader may choose between
-  //   selected  the one Bind will write, or null -- Bind is disabled while
-  //             it is null
-  //
-  // NO DEFAULT while both ends are open. The dropdown this replaces
-  // preselected its first option, so a Bind nobody aimed wrote `from` -- and
-  // the first event a reader ever wrote (face 110 of the upper piston head,
-  // the step face) went in at the wrong end exactly that way. With one end
-  // open there is nothing to guess: it is preselected and the bound one is
-  // shown as taken. With both bound (a reader binding another face) both are
-  // offered again, still with no default.
-  AA.planBindChoices = function (opts) {
-    var o = opts || {};
-    var names = o.names || {};
-    var bound = {};
-    ((o.record && o.record.bindings) || []).forEach(function (b) {
-      if (!b || !b.direction || bound[b.direction] !== undefined) return;
-      var key = b.geometry_key || {};
-      bound[b.direction] = { faceId: key.face_id, sha256: key.source_step_sha256 || null };
-    });
-    var needed = AA.bindingDirectionsNeeded(o.record);
-    var ends = AA.DIRECTIONS.map(function (d) {
-      return { direction: d, name: names[d] || null, bound: bound[d] || null };
-    });
-    if (needed.length === 1) {
-      return { ends: ends, choices: needed.slice(), selected: needed[0] };
-    }
-    var choices = AA.DIRECTIONS.slice();
-    return {
-      ends: ends, choices: choices,
-      selected: choices.indexOf(o.chosen) === -1 ? null : o.chosen,
-    };
-  };
-
-  // Pure: the leader the 3D view draws before a Bind -- a line from the
-  // picked face to the face already bound at the OTHER end, each end labelled
-  // with its interface name, so a wrong end is seen before it is written.
-  // Null whenever there is only one face to draw from: on a first bind, a
-  // leader with one end would be a guess about where the second face is.
-  AA.planBindLeader = function (opts) {
-    var o = opts || {};
-    var pick = o.pick;
-    var plan = o.plan;
-    if (!pick || !plan || !plan.selected) return null;
-    var mine = null;
-    var other = null;
-    plan.ends.forEach(function (end) {
-      if (end.direction === plan.selected) mine = end;
-      else if (end.bound) other = end;
-    });
-    if (!other || !other.bound.sha256 || typeof other.bound.faceId !== "number") return null;
-    if (other.bound.sha256 === pick.sha256 && other.bound.faceId === pick.faceId) return null;
-    return {
-      picked: { sha256: pick.sha256, faceId: pick.faceId, label: mine ? mine.name : null },
-      bound: { sha256: other.bound.sha256, faceId: other.bound.faceId, label: other.name },
-    };
-  };
-
-  // The one-line instruction. The form binds ONE face per event, so every
-  // state names the step the reader is on and what is left (Jeff: "I was
-  // expecting it to ask me for two faces to define the thickness"), and an
-  // end is named by its interface, never by the stored word. `ctx`:
-  //
-  //   elementName  the selected element, or null
-  //   scopeName    the scope bar's name when no element is selected
-  //   picked       a face is picked
-  //   needed       AA.bindingDirectionsNeeded's answer (default: both)
-  //   names        AA.edgeEndNames's answer
-  //   chosen       the direction word the bind form will write, or null
-  AA.taskInstruction = function (ctx) {
-    var c = ctx || {};
-    if (!c.elementName) return AA.TASK_NO_ELEMENT;
-    var names = c.names || {};
-    var needed = c.needed || AA.DIRECTIONS;
-    var nameOf = function (direction) {
-      return names[direction] || "the other interface";
-    };
-    if (c.picked) {
-      if (!c.chosen) {
-        return "Choose which interface of " + c.elementName + " this face is, " +
-          "then press Bind." + (needed.length > 1 ? " The other face comes next." : "");
-      }
-      var as = "Bind the selected face to " + c.elementName + " as " + nameOf(c.chosen);
-      if (needed.length > 1) return as + ". The other face comes next.";
-      if (needed.length === 1) return as + ", the last face it needs.";
-      return as + ".";
-    }
-    if (needed.length > 1) {
-      return c.elementName + " needs two faces, bound one at a time. " +
-        "Click the first one in the 3D view.";
-    }
-    if (needed.length === 1) {
-      return "Select the remaining face that defines " + c.elementName + ": " +
-        nameOf(needed[0]) + ".";
-    }
-    return c.elementName + " already has the faces it needs. " +
-      "Click a face to bind another.";
-  };
-
-  // --- the help the top bar opens (deliverable 1) ----------------------------
-  //
-  // Jeff: "Could even be a collapsible 'commands' element that gives general
-  // help." Short lines, no paragraphs, and here rather than in the markup for
-  // the reason every other sentence on this surface is a constant: this is the
-  // only layer a test can read (run_tests.cjs has no DOM), so copy that lives
-  // here is copy the shared ban list actually scans.
-  AA.HELP_LINES = Object.freeze([
-    "Click a face in the 3D view to select it; click it again to let it go.",
-    "The rows on the left are this study's elements. Click one to work on it.",
-    "A scope bar on the left says when the lists are narrowed to one element, " +
-      "and lifts it.",
-    "Set up automatically decides how much of that an arrival from the stack " +
-      "viewer does for you.",
-    "See-through parts renders bodies translucent, so faces already bound show " +
-      "through in green.",
-    "Suggest likely faces colours the faces that could be the one you are " +
-      "binding. You still pick.",
-  ]);
-
-  // The help sweep mode shows INSTEAD of the lines above. A reader in sweep
-  // mode cannot bind anything and is not being asked to, so the bind help
-  // would be six lines about a workflow that is switched off -- the same
-  // "a feature that is absent shows nothing" rule the hosted page follows.
-  AA.SWEEP_HELP_LINES = Object.freeze([
-    "This is a solver's answer being played back. Nothing here changes the " +
-      "model, and nothing is written.",
-    "Drag the bar to scrub, or press space to play and pause. The arrow keys " +
-      "step one point; Home and End jump to the ends.",
-    "The numbers beside the bar are the solver's own, at the point nearest " +
-      "the handle — they are not blended between points.",
-    "A point the solver could not settle is drawn in the warning colour and " +
-      "marked under the bar.",
-    "Binding is switched off until you scrub back to the pose the model was " +
-      "built in, which is where every face this app knows about sits.",
-  ]);
 
   // --- remembered settings ---------------------------------------------------
   //
@@ -1429,10 +1266,12 @@
   //
   // The viewer drives this app with {type: "annotate:exec", command} and this
   // app answers what it is now showing with {type: "annotate:state", ...}
-  // (app.js's postEmbedState). The two modes, in the words the pane's head
-  // line uses -- written here, beside the app that is in them, so the viewer
-  // prints the line verbatim and composes nothing.
-  AA.EMBED_MODE_WORDS = Object.freeze({ sweep: "Sweep", bind: "Binding" });
+  // (app.js's postEmbedState). Its `title` is the pane's head line, which the
+  // viewer prints verbatim and composes nothing of: what is shown, never the
+  // mode it is shown in. "Sweep — " and "Binding — " led it until 2026-11-24
+  // (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_
+  // plays: a page never describes itself, and a feature being edited has its
+  // form on screen).
 
   // What the app is showing, as the reply carries it. `sweep` is the loaded
   // run's artifact (AA.readSweepArtifact's shape) or null; `topology` and
@@ -1457,8 +1296,7 @@
       topology: (sweep && sweep.topologyId) || (topology && topology.id) || null,
       study: !sweep && study ? study.id : null,
       run: sweep ? sweep.runId : null,
-      title: (subject ? AA.EMBED_MODE_WORDS[mode] + " — " + subject : AA.EMBED_MODE_WORDS[mode]) +
-        (noModel ? " — " + AA.EMBED_NO_MODEL_WORDS : ""),
+      title: [subject, noModel ? AA.EMBED_NO_MODEL_WORDS : null].filter(Boolean).join(" — "),
     };
   };
 
