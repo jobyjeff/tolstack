@@ -3581,11 +3581,6 @@ async function testTheMap(browser, label, topologies) {
       counts.symbols.length === model.model.interfaces.filter((i) => i.kind).length &&
       counts.symbols.indexOf("fastener_pattern") !== -1 && counts.symbols.indexOf("pin_in_bore") !== -1 &&
       counts.symbols.filter((s) => s === "spherical").length === 4);
-    console.log(`      [${label}] the hub to blade joint: ${JSON.stringify(counts.bearing)}`);
-    push("[real] the hub to blade joint is the model's rotary joint: the map draws its rotary symbol, " +
-      "its hover says so, and the tree's joint row reads rotary",
-      counts.bearing.symbol === "revolute" && /a rotary joint$/.test(counts.bearing.title || "") &&
-      counts.bearing.tree === "rotary");
 
     // --- 3. the fit, and the fills -------------------------------------------
     const fitted = await page.evaluate(() => {
@@ -3622,6 +3617,22 @@ async function testTheMap(browser, label, topologies) {
       document.querySelectorAll("#topopane svg.tv__rails").length === 0);
     push("[real] with the 3D pane open beside it the region still draws the map",
       sceneReady && stillMap);
+    // The tree is on screen only with the pane (2026-11-22), and lists
+    // interfaces by joint: the hub to blade joint's word is read there.
+    await page.locator('#navtree [data-nav-group-by="joint"]').first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+    await settle(400);
+    counts.bearing.tree = await page.evaluate(() => {
+      const row = document.querySelector('.navtree__row--interface[data-nav-id="hub_blade1_root_bearing_bore"]');
+      const word = row ? row.querySelector(".navtree__count") : null;
+      return word ? word.textContent : null;
+    });
+    await page.locator('#navtree [data-nav-group-by="part"]').first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+    await settle(400);
+    console.log(`      [${label}] the hub to blade joint: ${JSON.stringify(counts.bearing)}`);
+    push("[real] the hub to blade joint is the model's rotary joint: the map draws its rotary symbol, " +
+      "its hover says so, and the tree's joint row reads rotary",
+      counts.bearing.symbol === "revolute" && /a rotary joint$/.test(counts.bearing.title || "") &&
+      counts.bearing.tree === "rotary");
 
     // --- 5. hover, map -> tree, grid, scene -----------------------------------
     // The pane runs the page's commands one at a time, in arrival order
@@ -3715,6 +3726,12 @@ async function testTheMap(browser, label, topologies) {
       !!s.paneLayers && s.paneLayers.some((l) => l.role === "select" && l.tier === "own"));
 
     // --- 8. select, tree and grid -> map -------------------------------------
+    // The hub's row is opened by hand: since 2026-11-22 selecting the mount
+    // opens the mount's path only, never its neighbour's part.
+    if (!(await page.locator("#navtree " + navRow("feature", MAP_BOUND_FEATURE)).count())) {
+      await page.locator('#navtree [data-nav-twisty="p:hub"]').first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+      await settle(400);
+    }
     await page.locator("#navtree " + navRow("feature", MAP_BOUND_FEATURE)).first().click({ timeout: 5000, noWaitAfter: true });
     await page.waitForFunction((sel) => /--selected/.test((document.querySelector(sel) || {}).getAttribute?.("class") || ""),
       mapEl("feature", MAP_BOUND_FEATURE), { timeout: 10000 }).catch(() => {});
@@ -7615,6 +7632,11 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       await page.locator(`#navtree [data-nav-twisty="p:pitch_link"]`).first().click({ timeout: 5000 }).catch(() => {});
     }
     await page.locator(chainFeature).first().click({ timeout: 5000 }).catch(() => {});
+    // Its body opens by its twisty, never by the selection (2026-11-22).
+    const chainTwisty = `#navtree [data-nav-twisty="f:pitch_link@${CHAIN_NODE}"][aria-expanded="false"]`;
+    if (await page.locator(chainTwisty).count()) {
+      await page.locator(chainTwisty).first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+    }
     await page.waitForFunction((sel) => {
       const row = document.querySelector(sel);
       return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
@@ -8503,6 +8525,11 @@ async function testAnnotateRailHoldsStill(browser, label, topologies) {
       const twisty = page.locator(`#navtree [data-nav-twisty="p:${part}"]`).first();
       if (await twisty.getAttribute("aria-expanded").catch(() => null) === "false") await twisty.click();
       await page.locator(`#navtree [data-nav-kind="feature"][data-nav-id="${part}@${node}"]`).first().click();
+      // The body opens by its own twisty, never by the selection (2026-11-22).
+      const body = page.locator(`#navtree [data-nav-twisty="f:${part}@${node}"]`).first();
+      if (await body.getAttribute("aria-expanded").catch(() => null) === "false") {
+        await body.click({ noWaitAfter: true }).catch(() => {});
+      }
       await until((n) => {
         const row = document.querySelector('#navtree [data-nav-kind="feature"][data-nav-id="' + n + '"]');
         const slot = row && row.parentNode.querySelector(".navtree__scene");
