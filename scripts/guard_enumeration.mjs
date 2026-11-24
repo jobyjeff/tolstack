@@ -394,7 +394,7 @@ export const DECLARED_GUARDS = {
   // a map box and connector wear their base class from the first paint, and
   // the route notes name a crossing, a touch and a symbol on another route.
   // Each carries a spec.
-  fast: { declared: 630, enrollable: 630, names: "2a196717b742" },
+  fast: { declared: 631, enrollable: 631, names: "a7c3d35f66ff" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
   // checkbox popover's -- with its spec.
@@ -801,7 +801,7 @@ export const DECLARED_GUARDS = {
   // totals' fold -- each asserting a page-describing sentence is gone. None
   // carried a spec before, and none is written: each is the browser twin of a
   // fast guard that carries one.
-  browser: { declared: 800, enrollable: 771, names: "f42c4e486016" },
+  browser: { declared: 805, enrollable: 776, names: "b6559288ad85" },
 };
 
 

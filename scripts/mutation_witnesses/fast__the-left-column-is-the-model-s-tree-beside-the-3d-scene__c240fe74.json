@@ -1,0 +1,39 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the left column is the model's tree, beside the 3D scene only: by part, bodies open to parts and parts to features with one mark each, each listed once; by joint, bodies to the joints inside them, the joints between bodies and a compound joint to its constraints, each feature once; a part and a joint count their features bound",
+  "mutations": [
+    {
+      "contract": "A body is open by default, so the tree shows its parts without a click.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Renamed 2026-11-22 with its guard (the_tree_sits_beside_the_3d_canvas_and_holds_still); was the_model_is_derived_once's. Closes every body by default.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      : !!node.children.length && isOpen(state, node.fold, node.type === T.body);\n",
+      "replace": "      : !!node.children.length && isOpen(state, node.fold, false);\n"
+    },
+    {
+      "contract": "A feature row wears one status mark, read off the model object.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Draws every mark as none, which is the bound/suggested state leaving the column silently.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    row.appendChild(mark(model.status(fid)));\n",
+      "replace": "    row.appendChild(mark(VA.FEATURE_STATUSES.none));\n"
+    },
+    {
+      "contract": "By joint, each feature is listed once, at the first interface it ends.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Lists a feature under every interface it ends, which is the twice-listed tree Jeff reported.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        return !listed[fid] && model.feature(fid) && featureShown(model, fid, state);\n",
+      "replace": "        return model.feature(fid) && featureShown(model, fid, state);\n"
+    },
+    {
+      "contract": "With the 3D scene closed the column holds no structure.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Draws the structure whatever the scene is doing.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "      if (model && handlers.structure) {\n",
+      "replace": "      if (model) {\n"
+    }
+  ]
+}

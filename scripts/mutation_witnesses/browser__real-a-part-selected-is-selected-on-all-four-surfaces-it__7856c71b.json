@@ -1,12 +1,12 @@
 {
   "tier": "browser",
   "suite": "the model drawn alone (the end-stop model's parts only, one light on the tree, the grid, the map and the scene)",
-  "expect_red": "[real] a part selected is selected on all four surfaces: its rows, pins, box and bracket wear the accent, the interfaces it touches the fainter accent, the folds down to every lit row open, and in the scene its bound faces are overlaid harder than the part, which keeps its resting look",
+  "expect_red": "[real] a part selected is selected on all four surfaces: its rows, pins, box and bracket wear the accent, the features across its interfaces the fainter accent, and in the scene its bound faces are overlaid harder than the part, which keeps its resting look",
   "mutations": [
     {
       "contract": "A selected part's container and bracket wear the accent.",
       "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
-      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque (rule 3: a part's container is selectable, and shows it). No container or bracket is ever marked.",
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque (rule 3: a part's container is selectable, and shows it). No container or bracket is ever marked. Renamed 2026-11-22 with its guard (the_tree_sits_beside_the_3d_canvas_and_holds_still): a selection opens only its own row's path.",
       "file": "apps/viewer/views/topology.js",
       "find": "    var tier = selectedTier(ctx, kind, id);\n    return tier === VA.FOCUS_TIERS.own ? \" \" + cls + \"--selected\"",
       "replace": "    var tier = null;\n    return tier === VA.FOCUS_TIERS.own ? \" \" + cls + \"--selected\""

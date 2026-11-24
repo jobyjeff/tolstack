@@ -6,10 +6,10 @@
     {
       "contract": "A fold flips the row's open state: the reader's choice is the opposite of what the row showed.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
-      "note": "Writes the row's current state back, so a click folds nothing. Renamed 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the row selects the body now; the twisty folds.",
+      "note": "Writes the row's current state back, so a click folds nothing. Renamed 2026-11-12 (hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque): the row selects the body now; the twisty folds. Re-anchored 2026-11-22 (the_tree_sits_beside_the_3d_canvas_and_holds_still): a close eases shut first, then writes the fold; the mutation writes it open again.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.navOpen[key] = !open;\n",
-      "replace": "    state.navOpen[key] = open;\n"
+      "find": "        state.navOpen[key] = false;\n",
+      "replace": "        state.navOpen[key] = true;\n"
     }
   ]
 }

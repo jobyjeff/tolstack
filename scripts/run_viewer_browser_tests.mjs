@@ -7453,7 +7453,9 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
       nodeSelected && await page.locator(featureSel + ".navtree__row--on").count() >= 1 &&
       await page.locator(`#topopane g.map__pin--selected[data-map-id="${FEATURE_PART}@${FEATURE_NODE}"]`).count() === 1);
 
-    // ...and its body: the pitch link's lower bearing centre is bound in the
+    // ...and its body, which the reader opens by its twisty (since 2026-11-22 a
+    // selection opens no body: the_tree_sits_beside_the_3d_canvas_and_holds_
+    // still). The pitch link's lower bearing centre is bound in the
     // real log, so since 2026-11-12 (a_binding_shows_the_moment_it_is_made_
     // and_is_corrected_where_it_is_shown) the body is the model's own line --
     // the face and the part -- with Correct and Unbind, not the pane's rows.
@@ -7465,6 +7467,8 @@ async function testThreeDPane(browser, fileBase, label, topologies) {
         line: (body.querySelector(".navtree__featurewords") || {}).textContent || "",
         acts: Array.from(body.querySelectorAll("button")).map((b) => b.textContent) } : null;
     }, sel);
+    await page.locator(`#navtree [data-nav-twisty="f:${FEATURE_PART}@${FEATURE_NODE}"]`).first()
+      .click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
     await page.waitForFunction((sel) => {
       const row = document.querySelector(sel);
       return !!(row && row.parentNode.querySelector('.navtree__featurebody[data-body-kind="bound"]'));
@@ -14273,6 +14277,214 @@ async function testPreviewFromTheScene(browser, label) {
 // meshes, the run and the topology projection are the facts it is about.
 const MODEL_ALONE_TOPOLOGY = "vpa_end_stop_v2";
 
+// --- the tree holds still (handoff the_tree_sits_beside_the_3d_canvas_and_
+// holds_still, 2026-11-22) -----------------------------------------------------
+//
+// Why this suite exists: the 11-05 scroll guard was lost in the 11-10
+// rebuild, and Jeff reported the jump again on 11-22. Each check measures one
+// row's screen y before and after a redraw -- opening a row, closing it,
+// selecting from the tree, a binding written from the pane, a tree update
+// from the pane, a pick in the scene, the pane closed and reopened -- with
+// the column scrolled, so a rebuild that loses the scroll shows. A misfire
+// costs an agent a red suite, never Jeff a click.
+async function testTreeHoldsStill(browser, label, topologies) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const errors = [];
+  const model = topologies && (topologies.topologies || []).find((t) => t.id === MODEL_ALONE_TOPOLOGY);
+  const index = await realDataIndexForTheAnnotator();
+  const PART = "gas_spring_mount_213668_002";
+  if (!model || !model.model || !(model.model.parts || []).some((p) => p.id === PART) || !index.meshes.length) {
+    push("[real] the tree holds still (skipped: the end-stop model or the meshes are not on disk -- " +
+      "build them, or pass --repo <a root built from this tree>)", true);
+    return reportSuite(label, checks, errors);
+  }
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await installRealAnnotatorReads(page, { meshes: index.meshes, runs: index.runs,
+    aliases: index.aliases, binding: "real" });
+  // The pane's last identity and tree messages, kept so a check can post
+  // them again from the pane's own frame (a write and a tree update, without
+  // writing anything).
+  await page.addInitScript(() => {
+    if (window.top !== window) return;
+    window.__paneMsgs = {};
+    window.addEventListener("message", (e) => {
+      const d = e.data;
+      if (d && (d.type === "annotate:identity" || d.type === "annotate:tree")) window.__paneMsgs[d.type] = d;
+    }, true);
+  });
+  const fromPane = (msg) => page.evaluate((m) => {
+    const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+    if (!w) return false;
+    w.Function("m", "parent.postMessage(m, location.origin);")(m);
+    return true;
+  }, msg);
+  const rowSel = (kind, id) => `#navtree div.navtree__row[data-nav-kind="${kind}"][data-nav-id="${id}"]`;
+  const top = (sel) => page.evaluate((s) => {
+    const n = document.querySelector(s);
+    return n ? Math.round(n.getBoundingClientRect().top * 10) / 10 : null;
+  }, sel);
+  const scrollOf = () => page.evaluate(() => document.getElementById("navtree").scrollTop);
+  const pointAt = async (sel) => {
+    const box = await page.locator(sel).first().boundingBox();
+    if (box) await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+  };
+  const settle = () => page.waitForTimeout(450);
+  const still = (a, b) => a !== null && b !== null && Math.abs(a - b) < 1;
+  const diag = {};
+  try {
+    await page.goto(url + "/apps/viewer/topology.html?topology=" + MODEL_ALONE_TOPOLOGY, { waitUntil: "load" });
+    await pickModel(page, MODEL_ALONE_TOPOLOGY);
+    await page.waitForSelector("#pane-handle:visible", { timeout: 30000 }).catch(() => {});
+    const closedRows = await page.locator("#navtree div.navtree__row[data-nav-kind='part']").count();
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    await page.waitForSelector("#navtree div.navtree__struct", { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => !!window.__paneMsgs && !!window.__paneMsgs["annotate:tree"], null,
+      { timeout: 120000, polling: 200 }).catch(() => {});
+    // The pane redraws the column for seconds after it loads (its bodies
+    // anchoring); a redraw between a press and its release eats the click, so
+    // the checks start once the column has been left alone for two seconds.
+    await page.evaluate(() => new Promise((done) => {
+      const nav = document.getElementById("navtree");
+      let last = Date.now();
+      const seen = new MutationObserver(() => { last = Date.now(); });
+      seen.observe(nav, { childList: true });
+      const end = Date.now() + 90000;
+      const tick = () => {
+        if (Date.now() - last > 2000 || Date.now() > end) { seen.disconnect(); done(); return; }
+        setTimeout(tick, 200);
+      };
+      tick();
+    }));
+    const partSel = rowSel("part", PART);
+    // The column scrolled a little, so a redraw that loses the scroll shows.
+    await page.evaluate(() => { document.getElementById("navtree").scrollTop = 90; });
+    await settle();
+    const scrolled = await scrollOf();
+
+    // Open, then close, the part with the pointer on it.
+    const twisty = `#navtree [data-nav-twisty="p:${PART}"]`;
+    const above = rowSel("body", "base");
+    await pointAt(twisty);
+    const a0 = await top(partSel), b0 = await top(above);
+    await page.mouse.down(); await page.mouse.up();
+    await settle();
+    const a1 = await top(partSel), b1 = await top(above);
+    const opened = await page.locator(`#navtree [data-nav-under="p:${PART}"]`).count();
+    await page.mouse.down(); await page.mouse.up();
+    await settle();
+    const a2 = await top(partSel), b2 = await top(above);
+    const closed = await page.locator(`#navtree [data-nav-under="p:${PART}"]`).count();
+    Object.assign(diag, { scrolled, a: [a0, a1, a2], b: [b0, b1, b2], opened, closed });
+    push("[real] the tree holds still: opening and closing a row under the pointer, with the column " +
+      "scrolled, keeps that row and every row above it where they were",
+      scrolled > 0 && opened === 1 && closed === 0 && still(a0, a1) && still(a1, a2) &&
+      still(b0, b1) && still(b1, b2));
+
+    // Select from the tree, a binding written from the pane, a tree update
+    // from the pane -- the pointer on the feature row each time.
+    await page.mouse.down(); await page.mouse.up();
+    await settle();
+    const features = await page.evaluate((p) => Array.from(document.querySelectorAll(
+      `#navtree [data-nav-under="p:${p}"] div.navtree__row--feature`)).map((r) => r.getAttribute("data-nav-id")), PART);
+    const F = features[2], G = features[0];
+    const fSel = rowSel("feature", F);
+    await pointAt(fSel);
+    const f0 = await top(fSel);
+    await page.mouse.down(); await page.mouse.up();
+    const selected = await page.waitForSelector(fSel + ".navtree__row--on", { timeout: 5000 })
+      .then(() => 1).catch(() => 0);
+    await settle();
+    const f1 = await top(fSel);
+    await pointAt(fSel);
+    const identity = await page.evaluate(() => window.__paneMsgs["annotate:identity"] || null);
+    let wrote = false;
+    if (identity) {
+      const msg = JSON.parse(JSON.stringify(identity));
+      msg.eventIds = msg.eventIds.concat(["hold-still-probe"]);
+      const before = await page.evaluate(() => JSON.stringify(window.__identityApplied || null));
+      await fromPane(msg);
+      wrote = await page.waitForFunction((b) => JSON.stringify(window.__identityApplied || null) !== b,
+        before, { timeout: 10000, polling: 100 }).then(() => true).catch(() => false);
+      await settle();
+    }
+    const f2 = await top(fSel);
+    // A body open above the row under the pointer, redrawn from the pane.
+    await page.locator(`#navtree [data-nav-twisty="f:${G}"]`).click({ noWaitAfter: true, timeout: 5000 }).catch(() => {});
+    await settle();
+    await pointAt(fSel);
+    const f3 = await top(fSel);
+    const tree = await page.evaluate(() => window.__paneMsgs["annotate:tree"] || null);
+    if (tree) await fromPane(tree);
+    await settle();
+    const f4 = await top(fSel);
+    Object.assign(diag, { features, f: [f0, f1, f2, f3, f4], selected, wrote, tree: !!tree });
+    push("[real] ...selecting from the tree, a binding written from the pane and a tree update from " +
+      "the pane keep the row under the pointer where it was",
+      !!F && selected === 1 && wrote && !!tree && still(f0, f1) && still(f1, f2) && still(f3, f4));
+
+    // A pick in the scene: the pointer off the column, the selected row holds;
+    // a pick whose row is off screen brings it in by the least that shows it.
+    await page.mouse.move(1500, 850);
+    const s0 = await top(fSel);
+    const gNode = await page.locator(rowSel("feature", G)).getAttribute("data-node-id").catch(() => null);
+    await fromPane({ type: "annotate:pick", kind: "node", id: gNode });
+    await settle();
+    const s1 = await top(fSel);
+    const gOn = await page.locator(rowSel("feature", G) + ".navtree__row--on").count();
+    const far = (model.model.features || []).find((f) => f.part === "blade_root" && !f.shared);
+    const farNode = far ? far.node : null;
+    const farSel = far ? rowSel("feature", far.id) : null;
+    await page.evaluate(() => { document.getElementById("navtree").scrollTop = 0; });
+    await settle();
+    if (farNode) await fromPane({ type: "annotate:pick", kind: "node", id: farNode });
+    await settle();
+    const fit = farSel ? await page.evaluate((s) => {
+      const n = document.querySelector(s);
+      const nav = document.getElementById("navtree").getBoundingClientRect();
+      if (!n) return null;
+      const r = n.getBoundingClientRect();
+      return { top: r.top - nav.top, bottom: nav.bottom - r.bottom };
+    }, farSel) : null;
+    Object.assign(diag, { s: [s0, s1], gOn, far: far && far.id, fit });
+    push("[real] ...a pick in the scene keeps the selected row where it was, and a pick whose row is " +
+      "off screen scrolls the column only as far as shows it",
+      still(s0, s1) && gOn === 1 && !!fit && fit.top >= 0 && fit.bottom >= 0 && fit.bottom < 40);
+
+    // Closed and reopened: no structure with the pane closed; back with the
+    // same folds and the same scroll.
+    await page.evaluate(() => { document.getElementById("navtree").scrollTop = 90; });
+    await settle();
+    await page.mouse.move(1500, 850);
+    const c0 = await top(partSel), cs0 = await scrollOf();
+    await page.locator("#flyout-collapse").click({ timeout: 5000 }).catch(() => {});
+    await page.waitForSelector("#annotate-flyout:not([open])", { timeout: 10000 }).catch(() => {});
+    await settle();
+    const gone = await page.locator("#navtree div.navtree__struct").count();
+    const studies = await page.locator("#navtree .navtree__section--studies").count();
+    await page.locator("#pane-handle").click({ timeout: 10000 }).catch(() => {});
+    await page.waitForSelector("#navtree div.navtree__struct", { timeout: 30000 }).catch(() => {});
+    await settle();
+    const c1 = await top(partSel), cs1 = await scrollOf();
+    const keptOpen = await page.locator(`#navtree [data-nav-under="p:${PART}"]`).count();
+    Object.assign(diag, { closedRows, gone, studies, c: [c0, c1], cs: [cs0, cs1], keptOpen });
+    push("[real] ...closing the pane takes the structure out of the column, and reopening it brings " +
+      "it back with the same folds and the same scroll",
+      closedRows === 0 && gone === 0 && studies === 1 && keptOpen === 1 && cs0 > 0 && cs0 === cs1 && still(c0, c1));
+    if (checks.some((c) => !c.cond)) console.log(`      [${label}] DIAG ${JSON.stringify(diag)}`);
+  } catch (err) {
+    errors.push(String(err));
+    console.log(`      [${label}] DIAG ${JSON.stringify(diag)}`);
+  } finally {
+    await page.close();
+    server.close();
+  }
+  return reportSuite(label, checks, errors);
+}
+
 async function testModelDrawnAloneAndLed(browser, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -14592,6 +14804,12 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     // unbound feature, since 2026-11-12), or the last row of a suggested
     // end's list.
     await selectOneFeature();
+    // A selection opens no body (since 2026-11-22): the reader's twisty does.
+    if (!(await page.locator("#navtree .navtree__featurebody").count())) {
+      await page.locator(`#navtree [data-nav-twisty="f:${ONE_FEATURE}"]`).first()
+        .click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+      await page.waitForTimeout(600);
+    }
     await page.locator('#navtree .navtree__featurebody [data-body-act="arm"], ' +
       '#navtree .navtree__featurebody [data-kind="action"]').last()
       .click({ timeout: 5000 }).catch(() => {});
@@ -14795,7 +15013,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       "glows at its resting look with its bound faces harder, every other part faint, nothing opaque",
       !!boundTokens &&
       uniq(hubHover.treeOwn).length === 5 && hubHover.treeOwn.indexOf(HUB) !== -1 &&
-      hubHover.treeTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
+      hubHover.treeTouching.indexOf(MOUNT + "@tan_link_mount_pilot_bore") !== -1 &&
       hubHover.rowsOwn.slice().sort().join() === hubDims.join() &&
       hubHover.rowsTouching.join() === PILOT &&
       uniq(hubHover.dotsOwn).join() === hubNodes.join() && hubHover.jumpersOwn.join() === hubDims.join() &&
@@ -14840,9 +15058,9 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       `${JSON.stringify(hubSel.rowsTouched)}; map pins ${JSON.stringify(hubSel.dotsSelected.sort())}; boxes ` +
       `${JSON.stringify(hubSel.containersSelected)}; braces ${JSON.stringify(hubSel.bracesSelected)}; pane ${JSON.stringify(hubSelLight && hubSelLight.layers)}`);
     push("[real] a part selected is selected on all four surfaces: its rows, pins, box and bracket " +
-      "wear the accent, the interfaces it touches the fainter accent, the folds down to every lit row open, " +
+      "wear the accent, the features across its interfaces the fainter accent, " +
       "and in the scene its bound faces are overlaid harder than the part, which keeps its resting look",
-      uniq(hubSel.treeOn).length === 5 && hubSel.treeOnTouching.indexOf(BASE_FACE) !== -1 &&
+      uniq(hubSel.treeOn).length === 5 && hubSel.treeOnTouching.indexOf(MOUNT + "@" + BASE_FACE) !== -1 &&
       hubSel.rowsSelected.slice().sort().join() === hubDims.join() && hubSel.rowsTouched.join() === PILOT &&
       uniq(hubSel.dotsSelected).join() === hubNodes.join() && hubSel.containersSelected.indexOf(HUB) !== -1 &&
       hubSel.bracesSelected.indexOf(HUB) !== -1 &&
@@ -14870,7 +15088,7 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       "fainter, its district and its parts' boxes in the accent, and every one of its parts glows at its " +
       "resting look -- nothing opaque",
       baseParts.every((p) => baseSel.treeOn.indexOf(p) !== -1) && baseSel.treeOn.indexOf("base") !== -1 &&
-      baseSel.treeOn.indexOf(BASE_FACE) !== -1 && baseSel.treeOnTouching.indexOf("hub_blade1_root_bearing_bore") !== -1 &&
+      baseSel.treeOn.indexOf(HUB + "@" + BASE_FACE) !== -1 && baseSel.treeOn.indexOf(MOUNT + "@" + BASE_FACE) !== -1 &&
       baseSel.containersSelected.indexOf("base") !== -1 && baseParts.every((p) => baseSel.containersSelected.indexOf(p) !== -1) &&
       !!baseLayer && baseLayer.partOverlays >= baseParts.length && baseLooks.every((r) => r.opacity < 1) &&
       !!boundTokens && lookOf(baseLooks, hubSha).look === "ghost" && !!lookOf(baseLooks, linkSha).look &&
@@ -14943,40 +15161,47 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(600);
 
-    // 4. the locating boss selected from the Parts section: the pilot
-    //    interface it is an end of opens and is on screen.
+    // 4. the locating boss selected from the tree: since 2026-11-22 (the_tree_
+    //    sits_beside_the_3d_canvas_and_holds_still) a selection opens the path
+    //    to its own row and nothing else -- no interface (the tree lists by
+    //    part), no body under the row -- and the row stays where it was. Until
+    //    then every lit row's folds opened and the column scrolled to the
+    //    interface across the pilot.
     await page.evaluate(() => { document.getElementById("navtree").scrollTop = 0; });
-    await page.locator(navRow("feature", HUB + "@hub_spindle_bore_axis")).first().click({ timeout: 5000 }).catch(() => {});
+    const bossSelector = navRow("feature", HUB + "@hub_spindle_bore_axis");
+    const foldsOf = () => page.evaluate(() => Array.from(document.querySelectorAll("#navtree [data-nav-under]"))
+      .map((n) => n.getAttribute("data-nav-under")).sort());
+    const rowTop = (sel) => page.evaluate((s) => {
+      const r = document.querySelector(s);
+      return r ? Math.round(r.getBoundingClientRect().top) : null;
+    }, sel);
+    const foldsBefore = await foldsOf();
+    const bossBefore = await rowTop(bossSelector);
+    await page.locator(bossSelector).first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.mouse.move(4, 4);
     await page.waitForTimeout(600);
     const bossSel = await pageLit();
-    console.log(`      [${label}] locating boss selected: on ${JSON.stringify(uniq(bossSel.treeOn))}, on-touching ` +
-      `${JSON.stringify(uniq(bossSel.treeOnTouching))}; interface row ${JSON.stringify(bossSel.interfaceRow)}; pilot end drawn ${bossSel.pilotEnd}`);
-    // The page reveals a lit row "never at the cost of the own row leaving the
-    // screen" (revealLitRows): where the boss's row and the interface's do
-    // not fit in the nav together -- v2's ground holds one more part since
-    // 2026-11-19 -- the boss's row stays and the interface is not scrolled to.
-    const bossRow = await page.evaluate((sel) => {
-      const r = document.querySelector(sel);
-      const b = r && r.getBoundingClientRect();
-      return b ? [b.top, b.bottom] : null;
-    }, navRow("feature", HUB + "@hub_spindle_bore_axis"));
-    const ir = bossSel.interfaceRow;
-    const bothFit = !!(bossRow && ir && ir.box && ir.nav &&
-      Math.max(ir.box[1], bossRow[1]) - Math.min(ir.box[0], bossRow[0]) + 16 <= ir.nav[1] - ir.nav[0]);
-    const bossOnScreen = !!(bossRow && ir && ir.nav && bossRow[0] >= ir.nav[0] && bossRow[1] <= ir.nav[1]);
-    console.log(`      [${label}] boss row ${JSON.stringify(bossRow)}; both fit ${bothFit}; boss on screen ${bossOnScreen}`);
-    push("[real] selecting the hub's locating boss from the Parts section opens the folds down to the pilot interface " +
-      "it is an end of -- the Interfaces group, the hub-mount joint, the interface itself -- lights that row fainter " +
-      "with the pilot bore across it, and scrolls it into view",
-      bossSel.treeOn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 && !!bossSel.interfaceRow &&
-      /navtree__row--on-touching/.test(bossSel.interfaceRow.cls) &&
-      (bothFit ? bossSel.interfaceRow.onScreen : bossOnScreen) &&
-      bossSel.pilotEnd && bossSel.treeOnTouching.indexOf(MOUNT + "@tan_link_mount_pilot_bore") !== -1 &&
-      bossSel.treeOnTouching.indexOf(HUB_JOINT) !== -1);
+    const foldsAfter = await foldsOf();
+    const bossAfter = await rowTop(bossSelector);
+    console.log(`      [${label}] locating boss selected: on ${JSON.stringify(uniq(bossSel.treeOn))}; folds ` +
+      `${JSON.stringify(foldsBefore)} -> ${JSON.stringify(foldsAfter)}; row top ${bossBefore} -> ${bossAfter}`);
+    push("[real] selecting the hub's locating boss from the tree lights its row where it was and opens no fold, " +
+      "its own body included",
+      bossSel.treeOn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 && bossBefore !== null &&
+      bossBefore === bossAfter && JSON.stringify(foldsBefore) === JSON.stringify(foldsAfter));
 
-    // 5. an interface hovered (the base face, under the hub-mount joint now open).
+    // 5. an interface hovered (the base face, under the hub-mount joint). The
+    //    tree lists interfaces and joints by joint (since 2026-11-22), so the
+    //    grouping is switched and the joint and the interface opened.
+    await page.locator('#navtree [data-nav-group-by="joint"]').first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+    await page.waitForTimeout(600);
+    for (const fold of ["j:" + HUB_JOINT, "i:" + BASE_FACE]) {
+      if (!(await page.locator(`#navtree [data-nav-under="${fold}"]`).count())) {
+        await page.locator(`#navtree [data-nav-twisty="${fold}"]`).first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+        await page.waitForTimeout(500);
+      }
+    }
     await hoverNav("interface", BASE_FACE);
     const ifaceHover = await pageLit();
     const ifaceLight = await paneLight();
@@ -15012,7 +15237,6 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       uniq(jointHover.dotsOwn).join() === jointNodes.join() &&
       uniq(jointHover.connectorsOwn).join() === uniq([BASE_FACE, "tan_link_mount_fastener_clocking", PILOT]).join() &&
       jointHover.rowsOwn.join() === PILOT && jointHover.treeOwn.indexOf(HUB_JOINT) !== -1 &&
-      jointHover.treeTouching.indexOf(HUB) !== -1 && jointHover.treeTouching.indexOf(MOUNT) !== -1 &&
       jointHover.containersTouching.indexOf(HUB) !== -1 && jointHover.containersTouching.indexOf(MOUNT) !== -1 &&
       lookOf(jointLooks, hubSha).look === "ghost" && lookOf(jointLooks, mountSha).look === "ghost" &&
       lookOf(jointLooks, linkSha).look === "faint" && jointLooks.every((r) => r.opacity < 1));
@@ -15040,10 +15264,13 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       gapHover.rowsOwn.join() === PILOT && gapHover.rowsTouching.slice().sort().join() === dimsAtPilot.join() &&
       gapHover.connectorsOwn.join() === PILOT &&
       uniq(gapHover.dotsOwn).join() === uniq(["hub_spindle_bore_axis", "tan_link_mount_pilot_bore"]).join() &&
-      gapHover.treeOwn.indexOf(PILOT) !== -1 && gapHover.treeOwn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 &&
+      gapHover.treeOwn.indexOf(PILOT) !== -1 &&
+      (gapHover.treeOwn.indexOf(HUB + "@hub_spindle_bore_axis") !== -1 || gapHover.treeHolds.length > 0) &&
       (pilotBound ? !!gapLayer && gapLayer.faceOverlays > 0 : !(gapLayer && gapLayer.faceOverlays > 0)) &&
       gapLooks.length > 0 && gapLooks.every((r) => r.opacity < 1));
     await page.mouse.move(4, 4);
+    await page.waitForTimeout(600);
+    await page.locator('#navtree [data-nav-group-by="part"]').first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
     await page.waitForTimeout(600);
 
     // 8. the same with no sweep loaded (bind mode). The selection step 4
@@ -15305,6 +15532,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         (label) => testTheMap(browser, label, topologies)],
       ["the Groups switches (the map's containers on both models, the grid's assemblies on the fixture)",
         (label) => testGroupsSwitches(browser, label, topologies)],
+      ["the tree holds still (open, close, select, a write, a pane update, a scene pick, the pane closed and reopened)",
+        (label) => testTreeHoldsStill(browser, label, topologies)],
       ["a window resize re-clamps the pane and the map (5120 to 1920, no reload)",
         (label) => testWindowResizeReclamps(browser, label, topologies)],
     ];

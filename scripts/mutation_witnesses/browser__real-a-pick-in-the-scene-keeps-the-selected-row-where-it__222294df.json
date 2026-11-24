@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the tree holds still (open, close, select, a write, a pane update, a scene pick, the pane closed and reopened)",
+  "expect_red": "[real] ...a pick in the scene keeps the selected row where it was, and a pick whose row is off screen scrolls the column only as far as shows it",
+  "mutations": [
+    {
+      "contract": "A pick off screen scrolls by the least that shows its row.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Scrolls the picked row to the top of the column, the far jump the least-scroll rule replaced.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    else if (b.bottom > n.bottom) nav.scrollTop += b.bottom - n.bottom + 8;\n",
+      "replace": "    else if (b.bottom > n.bottom) nav.scrollTop += b.top - n.top;\n"
+    }
+  ]
+}

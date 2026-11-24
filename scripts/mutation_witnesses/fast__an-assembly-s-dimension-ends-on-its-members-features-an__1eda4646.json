@@ -1,0 +1,23 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an assembly's dimension ends on its members' features: an edge-end reader finds the binding the member's feature holds, and two features that share one face say so on both rows",
+  "mutations": [
+    {
+      "contract": "A dimension's end is the feature the model view names for it: an assembly's dimension ends on its member.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Restores the pre-2026-11-22 rule (the edge's own part), under which v2's link lengths read nothing at their ends while the outer races' features were bound.",
+      "file": "apps/viewer/identity_fold.js",
+      "find": "    if (named && t.identity[named]) return t.identity[named];\n",
+      "replace": "    named = null;\n"
+    },
+    {
+      "contract": "The two ends of a ball joint share one face, and both rows say so.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "Drops the concentric rule: a ball centre lit through its seat's binding says nothing.",
+      "file": "apps/viewer/model.js",
+      "find": "      share(iface.ends[0], iface.ends[1], VA.SHARED_FACE_WHY.concentric);\n",
+      "replace": ""
+    }
+  ]
+}

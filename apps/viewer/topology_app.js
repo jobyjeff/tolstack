@@ -306,6 +306,7 @@
       // are state.navOpen's and stay as they were.
       sceneTree = null;
       structScroll = nodes.navtree ? nodes.navtree.scrollTop : null;
+      paneWasOpen = false;
       renderNav();
       // Closed is remembered as firmly as open: the pane stays where the
       // reader left it, either way, across a reload.
@@ -1925,9 +1926,13 @@
     syncPaneHandle();
     // The nav grows the structure tree and the slots the scene's rows are
     // drawn into -- at the scroll it was left at when the pane last closed.
+    // The first open starts at the top: the tree appears above the studies,
+    // and holding the studies row still would scroll past the whole tree.
+    var wasOpen = paneWasOpen;
+    paneWasOpen = true;
     renderNav();
-    if (structScroll !== null && nodes.navtree) {
-      nodes.navtree.scrollTop = structScroll;
+    if (!wasOpen && nodes.navtree) {
+      nodes.navtree.scrollTop = structScroll === null ? 0 : structScroll;
       structScroll = null;
     }
 
@@ -2181,6 +2186,7 @@
   var sceneTree = null;
   // The column's scroll when the pane closed, put back when it reopens.
   var structScroll = null;
+  var paneWasOpen = false;
 
   function sceneRail(key, act, index) {
     if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;

@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "the tree holds still (open, close, select, a write, a pane update, a scene pick, the pane closed and reopened)",
+  "expect_red": "[real] ...selecting from the tree, a binding written from the pane and a tree update from the pane keep the row under the pointer where it was",
+  "mutations": [
+    {
+      "contract": "A pane's redraw of a feature's body holds the row under the pointer.",
+      "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
+      "note": "The body above the pointer's row redrawn with no anchor: the rows under it move with its height.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "  function renderSceneSlot() {\n    var anchor = takeNavAnchor();\n    fillSceneSlots();\n    restoreNavAnchor(anchor);\n  }\n",
+      "replace": "  function renderSceneSlot() {\n    fillSceneSlots();\n    nodes.navtree.scrollTop = 0;\n  }\n"
+    }
+  ]
+}
