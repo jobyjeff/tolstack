@@ -1167,6 +1167,10 @@ check("a failed bind says its class in fixed words, and never the storage layer'
     }
   }
   assertEqual(AA.bindFailureWords(abort, "Accept"), "Accept failed · folder access was not granted");
+  // Every write verb's failed banner leads with its own word (the pane's exec listener).
+  assertEqual(Object.keys(AA.WRITE_FAILURE_VERBS).sort(), AA.IDENTITY_WRITE_VERBS.slice().sort());
+  assertEqual(AA.bindFailureWords(new Error(AA.READ_ONLY_WRITE), AA.WRITE_FAILURE_VERBS.edit),
+    "Bind failed · binding is not available here");
   assertEqual(Object.keys(AA.BIND_FAILURE_WORDS).sort(), AA.BIND_FAILURE_CLASSES.slice().sort());
   Object.keys(AA.BIND_FAILURE_WORDS).forEach((k) => assertNothingBanned(AA.BIND_FAILURE_WORDS[k], "bind failure words"));
 });

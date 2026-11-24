@@ -228,6 +228,14 @@ function prefStore() {
   }
 }
 
+// A failed write: its class in fixed words (AA.bindFailureWords), the storage
+// layer's own text on hover and in the console.
+function setWriteFailure(verb, err) {
+  console.error(verb + " failed:", err);
+  setBanner(AA.bindFailureWords(err, verb), "error");
+  el.noticeText.title = err && err.message ? err.message : "";
+}
+
 function setBanner(text, kind) {
   // One line, the whole of it on hover, until the next message or a click
   // on its close control. Every kind lands here -- an error above all,
@@ -7323,7 +7331,8 @@ window.addEventListener("message", (ev) => {
       reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,
         ok: true, result: outcome.result === undefined ? null : outcome.result };
     } else {
-      setBanner(outcome.error.message, "error");
+      if (writes) setWriteFailure(AA.WRITE_FAILURE_VERBS[String(msg.command[0])], outcome.error);
+      else setBanner(outcome.error.message, "error");
       reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,
         ok: false, error: outcome.error.message };
     }
@@ -7569,7 +7578,7 @@ async function main() {
       ev.target.tagName === "TEXTAREA" || ev.target.tagName === "BUTTON");
     if (ev.key === "Enter" && state.armed && state.armed.edit && !typing) {
       ev.preventDefault();
-      AA.exec(["edit", "ok"]).catch((err) => setBanner(err.message, "error"));
+      AA.exec(["edit", "ok"]).catch((err) => setWriteFailure(AA.WRITE_FAILURE_VERBS.edit, err));
       return;
     }
     if (!state.sweep) return;
