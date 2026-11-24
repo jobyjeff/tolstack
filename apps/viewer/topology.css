@@ -374,9 +374,10 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .navform__line--held { color: var(--mark-bound); }
 .navform__text { flex: 1 1 auto; min-width: 0; display: flex; justify-content: space-between; gap: 8px; }
 .navform__line > .navform__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.navform__line--suggested > .navform__text { display: flex; }
+/* A suggestion: what it is, and under it, muted, why it is there. */
+.navform__line--suggested > .navform__text { display: flex; flex-direction: column; gap: 0; }
 .navform__what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.navform__why { flex: none; max-width: 55%; color: var(--muted); font-size: var(--t-meta);
+.navform__why { color: var(--muted); font-size: var(--t-meta);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navform__x { flex: none; font: inherit; font-size: var(--t-meta); color: var(--muted); background: none;
   border: none; padding: 0 2px; cursor: pointer; visibility: hidden; }

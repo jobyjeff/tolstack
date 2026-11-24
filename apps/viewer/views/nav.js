@@ -1248,8 +1248,13 @@
 
     var body = VA.el("div", "navform__body");
     var about = VA.el("div", "navform__about");
-    about.appendChild(VA.el("div", "navform__part", plan.part));
-    plan.mates.forEach(function (m) { about.appendChild(VA.el("div", "navform__mate", m)); });
+    var aboutLine = function (cls, text) {
+      var line = VA.el("div", cls, text);
+      line.setAttribute("title", text);
+      about.appendChild(line);
+    };
+    aboutLine("navform__part", plan.part);
+    plan.mates.forEach(function (m) { aboutLine("navform__mate", m); });
     body.appendChild(about);
 
     var hoverable = function (row, faces) {

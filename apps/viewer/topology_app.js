@@ -1075,6 +1075,7 @@
     var model = currentModel();
     if (!model || !model.feature(featureId)) return;
     var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    lastFeatureTouched = { fid: featureId, at: now };
     var again = lastFeatureClick && lastFeatureClick.fid === featureId && now - lastFeatureClick.at < VA.NAV_DOUBLE_CLICK_MS;
     lastFeatureClick = again ? null : { fid: featureId, at: now };
     if (again && VA.featureEditable(model, featureId)) {
@@ -2221,6 +2222,7 @@
   var formWrite = null;
   var formWriteCount = 0;
   var lastFeatureClick = null;
+  var lastFeatureTouched = null;
 
   function formModel() {
     return form ? currentModel() : null;
@@ -2357,9 +2359,14 @@
     // read misses it), but the dblclick still reaches the column.
     if (nodes.navtree && nodes.navtree.addEventListener) {
       nodes.navtree.addEventListener("dblclick", function (event) {
-        var hit = document.elementFromPoint ? document.elementFromPoint(event.clientX, event.clientY) : null;
-        var row = hit && hit.closest ? hit.closest('div.navtree__row[data-nav-kind="feature"]') : null;
-        if (row) openFeatureForm(row.getAttribute("data-nav-id"));
+        var hit = event.target && event.target.closest ? event.target : null;
+        var row = hit ? hit.closest('div.navtree__row[data-nav-kind="feature"]') : null;
+        if (row && row.isConnected) { openFeatureForm(row.getAttribute("data-nav-id")); return; }
+        // The row the first click selected, repainted since: the feature it was.
+        var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        if (lastFeatureTouched && now - lastFeatureTouched.at < 3 * VA.NAV_DOUBLE_CLICK_MS) {
+          openFeatureForm(lastFeatureTouched.fid);
+        }
       });
     }
     document.addEventListener("keydown", function (event) {

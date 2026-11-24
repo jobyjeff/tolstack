@@ -3908,7 +3908,26 @@ function editSuggestions(a) {
     put({ faces: r.faces || [r.faceId], holes: r.faces && r.faces.length > 1 && /holes/.test(r.text) ? holesIn(r.text) : 0,
       text: r.text, why: r.reason, detail: r.detail });
   });
-  return out.slice(0, AA.CANDIDATES_LISTED);
+  // Lines that say the same thing for the same reason are one line: the apart
+  // pieces of one coaxial bore, each ranked on its own, read as one surface
+  // (the gas-spring mount's bushing bores listed five identical lines).
+  const merged = [];
+  const group = new Map();
+  for (const s of out) {
+    const k = s.proposal || s.with !== undefined || s.holes > 1 ? null : s.text + "|" + s.why;
+    const twin = k ? group.get(k) : null;
+    if (!twin) {
+      if (k) group.set(k, s);
+      merged.push(s);
+      continue;
+    }
+    twin.faces = Array.from(new Set(twin.faces.concat(s.faces))).sort((x, y) => x - y);
+    twin.key = twin.faces.join("-");
+    const line = { kind: AA.EDIT_LINE_KINDS[0], faces: twin.faces };
+    twin.text = AA.editLineText(line, classes);
+    twin.title = [twin.text, twin.why, AA.editLineIds(line)].filter(Boolean).join("\n");
+  }
+  return merged.slice(0, AA.CANDIDATES_LISTED);
 }
 
 // "10 of 10 holes Ø5, …" -> 10: how many holes a pattern row binds.
