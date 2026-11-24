@@ -460,3 +460,15 @@ Top: the model drawn alone 213.6 s, topology http 155.0 s, topology file:// 124.
 the map 119.2 s, 3D pane follows the selection 116.8 s, the suggestion suite 110.6 s,
 annotate rail holds still 88.7 s, the DAG zoom 85.9 s. With the pattern and suggestion
 suites green this time, the tier is still about 290 s over: no single suite carries it.
+
+## Measurement 2026-11-23 -- review of the_tree_sits_beside_the_3d_canvas_and_holds_still
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/tree1123`
+on tree `4d2fe745` (merge sha `2ae97443`): **2206 s against 1800 s**, 48/50 suites (the two
+reds are the live-data ones in `ISSUE_20261122_two_annotate_browser_suites_assume_live_features_are_still_unbound.md`),
+984 checks, slot wait 0, ledger row self-recorded (`over: true`). Top: the model drawn alone
+216.1 s, the suggestion suite 187.9 s (red), topology http 148.9 s, 3D pane follows 121.2 s,
+annotate rail holds still 116.8 s, topology file:// 116.5 s, the map 102.6 s, the DAG zoom
+84.9 s, no nav click wedges 84.1 s, the pattern suite 81.9 s (red), every study opens in 3D
+72.2 s, kinematic study page 71.8 s. The new "the tree holds still" suite adds 63.0 s, most of
+it the two-second quiet wait after the pane loads, run three times.

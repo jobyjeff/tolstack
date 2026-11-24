@@ -6362,6 +6362,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`ISSUE_20261123_a_links_length_drawn_as_a_dimension_is_pinned_by_no_check.md`).
       Same review: a lesson's before/after table counted "before" under an
       older rule than "after". Re-score the before with the rule that shipped.
+- [ ] **The structure tree exists only with the 3D pane open, and lists by
+      part.** New 2026-11-23 (`the_tree_sits_beside_the_3d_canvas_and_holds_still`).
+      With the pane closed `#navtree` holds the picker and the studies only;
+      interfaces and joints have rows only under **By joint**
+      (`[data-nav-group-by="joint"]`); a selection opens no feature body (its
+      `[data-nav-twisty="f:…"]` does). A new or edited browser check that reads
+      a tree row must open the pane, wait out its ~10 s of redraws, and pick the
+      grouping first, or it reads nothing and passes vacuously through a
+      `.catch(() => {})`. Who keeps the tree still: `takeNavAnchor` /
+      `restoreNavAnchor` around every rebuild, pinned by the browser suite "the
+      tree holds still" (four witnesses, each ~1 min `--only`, usually left to
+      the sweep by the 10-minute gate, so run them `--only`). A diff touching
+      `renderNav`, `renderSceneSlot`, `revealLitRows` or `VA.navPlan` runs that
+      suite.
 
 ## Architectural errors to check
 

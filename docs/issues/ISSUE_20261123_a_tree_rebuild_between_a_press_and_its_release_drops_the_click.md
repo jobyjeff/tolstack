@@ -29,3 +29,12 @@ Fix shapes, for whoever takes it: patch the rows in place instead of
 rebuilding (the plan, `VA.navPlan`, already says which rows exist), or skip a
 rebuild while a pointer button is down over the column and run it on
 release.
+
+## Addendum 2026-11-23 (review) -- the ease has the same cause
+
+Read from the code, not measured: `easeHeight` (`topology_app.js`) tweens the
+`[data-nav-under]` element it found when the fold was pressed. A rebuild that lands
+during the 140 ms ease replaces that element; the tween goes on driving the detached
+one, and the new one is drawn at its full height until the close's `done()` repaints.
+In the pane's first ~10 s, when it redraws the column several times a second, a close
+can show as open-snap-closed. Patching rows in place (the fix shape above) fixes both.
