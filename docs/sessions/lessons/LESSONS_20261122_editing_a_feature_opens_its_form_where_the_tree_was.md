@@ -88,6 +88,17 @@ the seven-circle/three-diamond mark vocabulary), the feature twisty, the armed l
   walk's two events from the scratch inbox, the scratch root's `log.json` still carried
   them, and the browser suites read that file. Rebuild `build_feature_identity_projection.py`
   and `build_kinematic_projection.py` into the scratch root afterwards.
+- **Five of the new browser witnesses were NOT WITNESSED, each for a reason in the app, not the
+  spec.** (1) The tree was hidden in two places (the open, and `renderNav`), so dropping one
+  hid nothing; now `navColumn` is the one place. (2) Esc had two handlers: the scene pick's let
+  the pane go before the form's ran, so "Esc ticks" found no edit to tick; the scene pick's
+  handler now leaves Esc to an open form. (3) The form suite's column sat at its top, where a
+  forgotten scroll is still right; the suite scrolls it first (299 px in the run). (4, 5)
+  Dropping `renderNav`'s anchor changes nothing Chrome shows: a rebuild in one task keeps the
+  column's scroll, and with feature bodies gone no row above the pointer changes height. The
+  tree-holds-still specs now mutate the restore and the reveal instead, and the second
+  needed a mutation that does not redden the first check: a restore that lands at the top
+  leaves the column at 0, and then the later check has nothing to lose.
 - **`--only` takes one suite per browser-runner run.** Several `--only` flags run only the
   first.
 - The browser suite's [real] cases must not assume what Jeff has bound. The tangential link
@@ -177,4 +188,27 @@ and the scratch root's identity and kinematic projections were rebuilt.
 
 ## Suite record
 
-(filled in below)
+All on branch `handoff/editing_a_feature_opens_its_form_where_the_tree_was`; the node and
+browser runners pointed at the main checkout (`--repo C:/workspace/tolstack`), the witness
+runner at the scratch root `data/scratch/tree1123`.
+
+- **Default pytest** (worktree, once): `2 failed, 2618 passed, 3 skipped, 4 deselected in
+  505.73s`. The two reds: `tests/test_viewer_js_suite.py`, red in every worktree by design
+  (the `[real]` tier reads `data/projections/`), and the guard census, whose pins were then
+  written back (`cef574fa`); `tests/test_mutation_witnesses.py` alone afterwards: 49 passed.
+- **Fast tiers**, last run after the final code change: `node apps/annotate/run_tests.cjs`
+  339/339; `node apps/viewer/run_tests.cjs` 516/516 with the `[real]` tier skipped (worktree).
+- **Browser suites** (`--only`, one per run): a feature's form 14/14 (last run after the
+  final change); 3D pane follows the selection 30/30 (after); the tree holds still 4/4
+  (after); the model drawn alone 22/22 (after); annotate armed pick 18/18; rail suggestion
+  19/19; the rail holds still 9/9; topology http 152/152; suite http green. The last four
+  ran before the suggestion merge and the double-click change, which touch neither.
+- **Witnesses**, every spec this change added or re-pointed (44): first run 21/22 witnessed,
+  22 left by the 30-minute budget; the follow-up (23 entries, 78 min) 18/23; the five it
+  could not see repaired (above) and re-run, 4/5 witnessed; the last one re-pointed and
+  witnessed, 1/1. Every entry is now witnessed. Census pins: fast 617/617 `b7b881640cbf`,
+  annotate 339/339 `6116ee6b94da`, browser 767/740 `bca49ee61f76`.
+- **Not run here**: the whole browser tier and the `--changed-since` witness gate. Both are
+  the review's.
+- **Jeff's log**: 116 files, listing hash `efe47ec6…` and contents hash `39e9abba…`, before
+  and after the walk. Every write went to the scratch copy.
