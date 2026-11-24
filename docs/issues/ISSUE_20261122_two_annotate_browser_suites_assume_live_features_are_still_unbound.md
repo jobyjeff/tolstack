@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: open
+status: resolved
 area: tests/browser annotate [real]
 reporter: agent
 class: test_bound_to_live_data
@@ -56,3 +56,7 @@ So the pattern suite's count also moves run to run. `MOUNT_FACE`
 fixing in the same change: both suites settle on `__sweep.bodies`, which that
 handoff measured as true ~15 s before the pane's `annotate:exec` queue drains.
 Settle on the `scene-view` barrier instead.
+
+## Addendum 2026-11-23 — resolved
+
+Both suites (`a pattern is bound as its like faces…`, `a suggestion names its face…`) retired with the feature body in editing_a_feature_opens_its_form_where_the_tree_was. Their replacement, `a feature's form`, reads which features are bound from the served log and edits bound ones (the pilot, the bushing bores, the hub's one-hole clocking), so it does not assume a live feature is unbound.

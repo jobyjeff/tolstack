@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: open
+status: resolved
 area: annotate/binding
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_the_walk_reads_the_v2_study_and_the_map_on_the_merged_page.md
@@ -57,3 +57,7 @@ onward) removes these buttons. Until then, or in its form:
 - The bound set stays visible while adding.
 
 Each needs a guard and a witness spec.
+
+## Addendum 2026-11-23 — resolved
+
+Fixed by editing_a_feature_opens_its_form_where_the_tree_was: Add a face and Take are gone. A feature is edited in its form; a click puts a surface in the set or takes it out, a suggestion line joins the set, and only the tick writes, once. Jeff's two shoulders on the scratch copy of his log: one event, 18 faces, superseding 0104's binding (the browser suite `a feature's form`).
