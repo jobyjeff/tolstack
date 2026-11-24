@@ -949,4 +949,228 @@
     if (!m) throw new Error("not a numbered event filename: " + filename);
     return String(parseInt(m[1], 10) + 1).padStart(4, "0") + m[2];
   };
+  // --- editing a feature: the set, held until the tick (handoff editing_a_
+  // feature_opens_its_form_where_the_tree_was, 2026-11-23) ----------------------
+  //
+  // A feature's faces are edited as a set the pane holds and writes once, at
+  // the tick. The set is a list of LINES, each one thing a reader can check
+  // against the scene: a surface (the face clicked and every segment of the
+  // same surface joined to it) or a pattern of holes. A click in the scene
+  // puts a surface in or takes it out; nothing here writes.
+
+  //: What a line is. `pattern` carries `holes`, how many holes its faces make.
+  AA.EDIT_LINE_KINDS = Object.freeze(["surface", "pattern"]);
+
+  //: The words a line and a suggestion's reason are made of (the pane's; the
+  //: form's own controls are the shell's VA.FEATURE_FORM_WORDS).
+  AA.EDIT_LINE_WORDS = Object.freeze({
+    segments: "{n} segments",
+    holes: "{n} holes",
+    face: "face {face}",
+    faces: "{n} faces",
+    ids: "faces {ids}",
+    proposal: "suggested · {confidence}",
+    sameSurface: "same surface, apart",
+    pattern: "like holes on one plane",
+    disagree: "bound before",
+  });
+
+  //: The form's verbs (`edit <verb> ...`, apps/annotate/app.js cmdEdit): take a
+  //: suggestion, drop a line, dismiss a proposal, click a face by id, the
+  //: tick, and the snapshot a harness reads. The X is `arm off`.
+  AA.EDIT_VERBS = Object.freeze(["take", "drop", "dismiss", "click", "ok", "state"]);
+
+  //: The form's history disclosure and the tick's toast.
+  AA.EDIT_HISTORY_WORDS = Object.freeze({
+    bound: "bound {date} by {who}",
+    fromSuggestion: " · a suggestion taken",
+    earlier: "{n} earlier",
+    toast: "Saved · {n} faces",
+  });
+
+  function editWord(key, fields) {
+    var text = AA.EDIT_LINE_WORDS[key];
+    Object.keys(fields || {}).forEach(function (k) { text = text.split("{" + k + "}").join(String(fields[k])); });
+    return text;
+  }
+  AA.editWord = editWord;
+
+  function ascending(ids) {
+    var seen = {};
+    return ids.map(Number).filter(function (f) { return seen[f] ? false : (seen[f] = true); })
+      .sort(function (a, b) { return a - b; });
+  }
+
+  // Every face the lines hold, ascending, each once.
+  AA.editFaces = function (lines) {
+    var all = [];
+    (lines || []).forEach(function (l) { all = all.concat(l.faces); });
+    return ascending(all);
+  };
+
+  // A line in words: "round · r 6.35 mm · 6 segments", "4 holes · r 2.75 mm",
+  // "face 12" while the part's surfaces are not read yet. `classes` is the
+  // part's AA.classifyPartFaces, by face id, or null.
+  AA.editLineText = function (line, classes) {
+    var faces = line.faces || [];
+    var cls = classes ? classes[faces[0]] : null;
+    var radius = cls && cls.radius > 0 && AA.formatSweepNumber
+      ? "r " + AA.formatSweepNumber(cls.radius, "mm") + " mm" : null;
+    if (line.kind === AA.EDIT_LINE_KINDS[1]) {
+      return [editWord("holes", { n: line.holes })].concat(radius ? [radius] : []).join(" · ");
+    }
+    var known = cls && cls.surface && cls.surface !== "other" && AA.SURFACE_WORDS;
+    if (!known) return faces.length === 1 ? editWord("face", { face: faces[0] }) : editWord("faces", { n: faces.length });
+    var words = [AA.SURFACE_WORDS[cls.surface]];
+    if (radius) words.push(radius);
+    if (faces.length > 1) words.push(editWord("segments", { n: faces.length }));
+    return words.join(" · ");
+  };
+
+  // The face ids a line holds, for the hover that shows them on demand.
+  AA.editLineIds = function (line) {
+    return editWord("ids", { ids: (line.faces || []).join(", ") });
+  };
+
+  // A click on a surface (`faces`: the face clicked and its joined segments):
+  // a surface the set holds any of comes out -- out of its pattern, if it is
+  // one hole of one -- and any other goes in as a line of its own. Returns
+  // the new lines; the old are left as they were.
+  AA.editToggle = function (lines, faces) {
+    var hit = {};
+    (faces || []).forEach(function (f) { hit[Number(f)] = true; });
+    var touched = false;
+    var out = [];
+    (lines || []).forEach(function (line) {
+      var keep = line.faces.filter(function (f) { return !hit[f]; });
+      if (keep.length === line.faces.length) { out.push(line); return; }
+      touched = true;
+      if (!keep.length) return;
+      if (line.kind === AA.EDIT_LINE_KINDS[1] && line.holes > 2) {
+        out.push({ kind: line.kind, faces: keep, holes: line.holes - 1 });
+      } else {
+        out.push({ kind: AA.EDIT_LINE_KINDS[0], faces: keep });
+      }
+    });
+    if (!touched) out.push({ kind: AA.EDIT_LINE_KINDS[0], faces: ascending(faces || []) });
+    return out;
+  };
+
+  // A suggestion taken: its faces the set does not hold yet, as one line
+  // (`holes` > 1 makes it a pattern). Nothing new, nothing changes.
+  AA.editAdd = function (lines, faces, holes) {
+    var held = {};
+    AA.editFaces(lines).forEach(function (f) { held[f] = true; });
+    var fresh = ascending(faces || []).filter(function (f) { return !held[f]; });
+    if (!fresh.length) return (lines || []).slice();
+    var line = holes > 1 ? { kind: AA.EDIT_LINE_KINDS[1], faces: fresh, holes: holes }
+      : { kind: AA.EDIT_LINE_KINDS[0], faces: fresh };
+    return (lines || []).concat([line]);
+  };
+
+  // The faces a feature holds now, as lines: each face with the faces of its
+  // surface joined to it (`siblingsOf(id)` -> AA.surfaceSiblings' answer, or
+  // null while the part is not read), and surfaces that are holes of one
+  // pattern as one pattern line.
+  AA.editLinesOf = function (faceIds, siblingsOf) {
+    var held = ascending(faceIds || []);
+    var isHeld = {};
+    held.forEach(function (f) { isHeld[f] = true; });
+    var placed = {};
+    var groups = [];
+    held.forEach(function (f) {
+      if (placed[f]) return;
+      var sib = siblingsOf ? siblingsOf(f) : null;
+      var faces = [f].concat(((sib && sib.swept) || []).filter(function (g) { return isHeld[g] && !placed[g]; }));
+      faces.forEach(function (g) { placed[g] = true; });
+      groups.push({ faces: ascending(faces), pattern: (sib && sib.pattern) || [] });
+    });
+    var lines = [];
+    var used = {};
+    groups.forEach(function (g, i) {
+      if (used[i]) return;
+      used[i] = true;
+      var inPattern = {};
+      g.pattern.forEach(function (f) { inPattern[f] = true; });
+      var members = [g];
+      groups.forEach(function (h, j) {
+        if (used[j] || !g.pattern.length) return;
+        if (h.faces.every(function (f) { return inPattern[f]; })) { used[j] = true; members.push(h); }
+      });
+      var faces = [];
+      members.forEach(function (m) { faces = faces.concat(m.faces); });
+      lines.push(members.length > 1 ? { kind: AA.EDIT_LINE_KINDS[1], faces: ascending(faces), holes: members.length }
+        : { kind: AA.EDIT_LINE_KINDS[0], faces: g.faces });
+    });
+    return lines;
+  };
+
+  function faceToken(g) { return g.sourceStepSha256 + "#" + g.faceId; }
+  function dictToken(d) { return d.source_step_sha256 + "#" + d.face_id; }
+
+  // The open proposals a set answers: each not dismissed whose every face
+  // the set holds, surest first, each once.
+  AA.editAnswers = function (proposals, faces, dismissed) {
+    var have = {};
+    (faces || []).forEach(function (g) { have[faceToken(g)] = true; });
+    var no = dismissed || [];
+    return AA.surestFirst(AA.distinctEvents(proposals || [])).filter(function (p) {
+      var named = eventFaceDicts(p);
+      return no.indexOf(p.event_id) === -1 && named.length > 0 && named.every(function (d) { return have[dictToken(d)]; });
+    });
+  };
+
+  // THE TICK, planned once: what one press of the form's tick writes, in the
+  // order to write it. `a` is {featureKey, standing (the feature's bindings),
+  // proposals (its open ones), dismissed (proposal ids the reader turned
+  // down), faces (the set, as geometry fields), fields {eventId, seq,
+  // createdAt, recordedBy}}.
+  //
+  //   - each dismissed proposal: a `rejected` naming it;
+  //   - a set holding faces: ONE event holding the whole set, superseding
+  //     every feature-keyed binding standing (AA.buildFeatureSetEvent, the
+  //     writer Keep and Remove used) and ratifying the surest open proposal
+  //     the set answers; a proposal is ratified by one event only, so each
+  //     further one the set answers (the same face proposed on a sibling
+  //     edge) is one more event with the same set, superseding the one before;
+  //   - an empty set over a bound feature: the let-go (AA.buildLetGoEvent);
+  //   - a set equal to what is bound, answering nothing and dismissing
+  //     nothing: no events at all.
+  AA.planEditCommit = function (a) {
+    var f = a.fields;
+    var standing = AA.distinctEvents(a.standing || []);
+    var held = {};
+    standing.forEach(function (b) { eventFaceDicts(b).forEach(function (d) { held[dictToken(d)] = true; }); });
+    var faces = a.faces || [];
+    var same = faces.length === Object.keys(held).length && faces.every(function (g) { return held[faceToken(g)]; });
+    var open = AA.distinctEvents(a.proposals || []);
+    var dismissed = open.filter(function (p) { return (a.dismissed || []).indexOf(p.event_id) !== -1; });
+    var answers = AA.editAnswers(open, faces, a.dismissed);
+    var out = [];
+    var seq = f.seq;
+    var at = function (id) {
+      return { eventId: id, seq: seq++, createdAt: f.createdAt, recordedBy: f.recordedBy };
+    };
+    dismissed.forEach(function (p, i) { out.push(AA.buildRejectEvent(p, at(f.eventId + "-rejected-" + (i + 1)))); });
+    if (same && !answers.length) return out;
+    if (!faces.length) {
+      if (standing.length) out.push(AA.buildLetGoEvent(a.featureKey, standing, at(f.eventId)));
+      return out;
+    }
+    var fields = at(f.eventId);
+    fields.featureKey = a.featureKey;
+    fields.geometryKeys = faces;
+    var first = AA.buildFeatureSetEvent(standing, fields);
+    if (answers.length) first.ratifies = answers[0].event_id;
+    out.push(first);
+    answers.slice(1).forEach(function (p, i) {
+      var more = at(f.eventId + "-ratifies-" + (i + 2));
+      more.featureKey = a.featureKey;
+      more.geometryKeys = faces;
+      more.supersedes = out[out.length - 1].event_id;
+      more.ratifies = p.event_id;
+      out.push(AA.buildBoundEvent(more));
+    });
+    return out;
+  };
 })(window.AnnotateApp = window.AnnotateApp || {}, window.TolstackVocab.annotate);

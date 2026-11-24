@@ -15,8 +15,8 @@
 //   Rigid bodies
 //     body                          a band in the body's ink; show/hide
 //       part                        heavier; "n of m" features bound; show/hide
-//         feature  o                one mark: open, suggested, bound
-//           (its faces, when opened: the pane's rows for it)
+//         feature  o                one mark: open, suggested, bound; its
+//                                   pencil opens its form in the tree's place
 //   Across bodies                   an assembly in no body, listed once
 //   -- or, by joint: body > joint > constraint > feature, Joints between
 //      bodies, At no joint; each feature once --
@@ -30,10 +30,10 @@
 // Gone: the Models list, the component chip, the whole-rail mirror ("All N
 // interfaces", "In this model" / "Other parts"), the Stacks section on a model
 // those stacks are not part of, and any all/unbound/bound filter (Jeff,
-// 2026-11-09: a part has a handful of features). What stays of the mirror is
-// VA.renderSceneTree, which now draws ONE subtree -- the pane's rows for the
-// selected feature -- under that feature's row (topology_app.js's
-// renderSceneSlot picks the rows; VA.sceneRowsForFeature is the rule).
+// 2026-11-09: a part has a handful of features). Since 2026-11-23 nothing of
+// the pane's rows is drawn here: a feature's faces are its form's
+// (VA.renderFeatureForm), and the rows are read only for what the pane has
+// selected (VA.sceneInspectStep, topology_app.js's followScenePick).
 //
 // Selecting a study never restructures the tree above it: the Studies
 // section marks the open one and nothing else moves.
@@ -383,6 +383,10 @@
 
   VA.navFeatureKey = function (fid) { return "f:" + fid; };
 
+  // Two clicks on one feature row this close together open its form
+  // (topology_app.js's onNavFeature), the platform's usual double-click gap.
+  VA.NAV_DOUBLE_CLICK_MS = 450;
+
   // --- the tree's plan (the_tree_sits_beside_the_3d_canvas_and_holds_still,
   // 2026-11-22) -----------------------------------------------------------------
   //
@@ -563,19 +567,15 @@
   // selection or hover reaches it. `withPart` prepends the part, for a
   // feature listed outside it (by joint).
   //
-  // A click selects it and the twisty alone opens what is under it -- the
-  // scene's rows for it (handlers.sceneSlot); a selection opens nothing
-  // under a row (2026-11-22: the selected feature's body opening, and the
-  // last one's closing, moved the rows under the pointer).
-  function featureRow(model, fid, state, handlers, withPart, open) {
+  // A click selects it; nothing opens under it (2026-11-23: its faces are
+  // its form's, which takes the tree's place).
+  function featureRow(model, fid, state, handlers, withPart) {
     var feature = model.feature(fid);
     var row = VA.el("div", "navtree__row navtree__row--feature" + rowClasses("feature", fid));
     row.setAttribute("data-nav-kind", "feature");
     row.setAttribute("data-nav-id", fid);
     row.setAttribute("data-node-id", feature.node);
-    row.setAttribute("data-nav-fold", VA.navFeatureKey(fid));
-    if (handlers.sceneSlot) row.appendChild(twisty(VA.navFeatureKey(fid), open, handlers));
-    else row.appendChild(leafGap());
+    row.appendChild(leafGap());
     row.appendChild(mark(model.status(fid)));
     var text = withPart ? model.label(feature.part) + " · " + feature.name : feature.name;
     var name = label(text, null, null);
@@ -585,6 +585,32 @@
     if (note) row.appendChild(note);
     activatable(row, function () { if (handlers.onFeature) handlers.onFeature(fid); });
     hoverable(row, "feature", fid, handlers);
+    // Its form (VA.renderFeatureForm): the pencil, on a hovered or selected
+    // row; Enter on the selected row; a second click (topology_app.js).
+    if (handlers.onEditFeature && VA.featureEditable(model, fid)) {
+      var W = VA.FEATURE_FORM_WORDS;
+      var pen = VA.el("button", "navtree__edit", W.edit);
+      pen.setAttribute("type", "button");
+      pen.setAttribute("title", W.editTitle);
+      pen.setAttribute("aria-label", W.editTitle);
+      pen.setAttribute("data-nav-edit", fid);
+      pen.onclick = function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        handlers.onEditFeature(fid);
+      };
+      row.appendChild(pen);
+      var select = row.onkeydown;
+      row.onkeydown = function (event) {
+        if (event && event.key === "Enter" && event.target === row && row.classList.contains("navtree__row--on")) {
+          // Stopped here: the form's own Enter (the tick) listens on the page.
+          if (event.preventDefault) event.preventDefault();
+          if (event.stopPropagation) event.stopPropagation();
+          handlers.onEditFeature(fid);
+          return;
+        }
+        select(event);
+      };
+    }
     return row;
   }
 
@@ -594,7 +620,7 @@
     var T = VA.NAV_ROW_TYPES;
     var W = VA.NAV_WORDS;
     var leaf = !node.children.length;
-    if (node.type === T.feature) return featureRow(model, node.id, state, handlers, node.withPart, open);
+    if (node.type === T.feature) return featureRow(model, node.id, state, handlers, node.withPart);
     if (node.type === T.body) {
       var body = model.body(node.id);
       var brow = entityRow("navtree__row--body", "body", body.id, node.fold, open, handlers, leaf);
@@ -658,23 +684,15 @@
     return row;
   }
 
-  // One plan node drawn: its row and, when open, what is under it -- its
-  // children, or for a feature its body (the slot the scene's rows for it
-  // are drawn into, topology_app.js's renderSceneSlot).
+  // One plan node drawn: its row and, when open, its children. A feature
+  // is a leaf.
   function planItem(model, node, state, handlers, depth) {
     var T = VA.NAV_ROW_TYPES;
     var li = VA.el("li", "navtree__item navtree__item--" + node.type);
     li.setAttribute("data-depth", String(depth));
-    var isFeature = node.type === T.feature;
-    var open = isFeature ? !!handlers.sceneSlot && isOpen(state, node.fold, false)
-      : !!node.children.length && isOpen(state, node.fold, node.type === T.body);
+    var open = node.type !== T.feature && !!node.children.length && isOpen(state, node.fold, node.type === T.body);
     li.appendChild(planRow(model, node, state, handlers, open));
-    if (open && isFeature) {
-      var slot = VA.el("div", "navtree__scene");
-      slot.setAttribute("data-scene-feature", node.id);
-      slot.setAttribute("data-nav-under", node.fold);
-      li.appendChild(slot);
-    } else if (open) {
+    if (open) {
       var list = VA.el("ul", "navtree__children");
       list.setAttribute("data-nav-under", node.fold);
       node.children.forEach(function (c) { list.appendChild(planItem(model, c, state, handlers, depth + 1)); });
@@ -1042,343 +1060,89 @@
     });
   };
 
-  // A feature's body, under its row (one_selection_one_hover_and_leaders_
-  // off, deliverable 3): the pane's rows for the feature, with the pane's
-  // own head row for it NOT drawn -- the feature row above is the one title.
-  // One end row (sweep mode, the usual case) is drawn as its state line, its
-  // actions and its list -- the candidate faces, if any, then the one pick
-  // action the pane puts last -- so a feature with no suggestion, with some
-  // and with an open proposal all read the same way. Several rows (a node
-  // that is the end of two joints; bind mode's element rows) are drawn as
-  // they are, since each needs its own name. No marks legend: a row's own
-  // words say what its mark means, on hover.
-  VA.renderFeatureBody = function (slot, rows, opts) {
-    VA.clear(slot);
-    if (opts && opts.plan) return renderBodyPlan(slot, opts.plan, opts);
-    if (!rows || !rows.length) return slot;
-    var send = (opts && opts.send) || function () {};
-    var row = rows[0];
-    if (rows.length !== 1 || typeof row.head === "string") {
-      slot.appendChild(sceneList(rows, send));
-      return slot;
-    }
-    var body = VA.el("div", "navtree__featurebody");
-    // The state line: the pane's second line for the row -- a bound face, a
-    // suggestion count, an armed pick's words. The feature row's own mark is
-    // the one mark; the pane's kind and mark for the end ride here as data
-    // for the stylesheet and the tier, drawn as words.
-    var line = VA.el("div", "navtree__featurestate" +
-      (row.selected ? " navtree__featurestate--on" : "") +
-      (row.sceneHover ? " navtree__featurestate--hot" : ""));
-    line.setAttribute("data-scene-key", row.key);
-    if (row.kind) line.setAttribute("data-kind", row.kind);
-    if (row.mark) line.setAttribute("data-mark", row.mark);
-    if (row.attention) line.setAttribute("data-attention", "true");
-    if (row.suggestion) line.setAttribute("data-suggestion", "true");
-    var words = VA.el("span", "navtree__featurewords", row.sub || row.text || "");
-    if (row.title) words.setAttribute("title", row.title);
-    line.appendChild(words);
-    if (row.alert) {
-      var alert = VA.el("span", "navtree__scenealert");
-      alert.appendChild(VA.warningIcon("navtree__scenealert-mark"));
-      alert.setAttribute("title", row.alert);
-      alert.setAttribute("aria-label", row.alert);
-      alert.setAttribute("tabindex", "0");
-      line.appendChild(alert);
-    }
-    line.onmouseenter = function () { send(row.key, VA.SCENE_ACTS.enter); };
-    line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };
-    body.appendChild(line);
-    // The row's own actions, where it has any (Accept on an open proposal;
-    // an armed pick's part switch), on a line of their own.
-    if (row.buttons && row.buttons.length) {
-      var acts = VA.el("div", "navtree__featureacts");
-      row.buttons.forEach(function (spec, i) { acts.appendChild(sceneButton(row, spec, i, send)); });
-      body.appendChild(acts);
-    }
-    // The list: candidate faces, then the pick action (the pane's order).
-    if (row.rows && row.rows.length) body.appendChild(sceneList(row.rows, send));
-    slot.appendChild(body);
-    return slot;
-  };
-
-  // --- a feature's body from the model's own status (handoff a_binding_shows_
-  // the_moment_it_is_made_and_is_corrected_where_it_is_shown, deliverable 3)
+  // --- a feature's form (handoff editing_a_feature_opens_its_form_where_the_
+  // tree_was, 2026-11-23) --------------------------------------------------------
   //
-  // A feature's body always says something. Until 2026-11-12 it was only the
-  // pane's rows for the feature's node, and a feature the loaded sweep run
-  // does not carry, or one whose proposal had just been accepted, had none:
-  // a twisty that opened to nothing, and a bound face nobody could correct.
-  // Now the body is planned here from the model (its status, its bindings,
-  // its own ends) and the pane's rows are drawn only for a suggestion:
-  //
-  //   bound      "bound · face 12 of 214373-002" -- hovering it lights the
-  //              face; Correct (arm the pick on the feature's part; the new
-  //              set supersedes), Add a face (arm a pick that adds to the
-  //              set, 2026-11-15), Unbind (a retraction), and Flip where the
-  //              feature is a dimension's end whose other end is free. A
-  //              feature holding a set says "bound · 3 faces of ...", then
-  //              what the pane read the set as when it is a hole pattern
-  //              ("10 holes Ø5.5 on a Ø240 circle", the tree's `fits`), and
-  //              lists each face (hoverable) with Remove
-  //   disagree   "2 faces disagree" (or "2 sets of faces disagree"), each
-  //              face or set hoverable with Keep: nothing is bound until one
-  //              is kept (the feature reads suggested); Pick a face, for when
-  //              none is the feature's face; Unbind, to let them all go
-  //              (2026-11-18)
-  //   suggested  the pane's candidate rows, as before; with none (the run does
-  //              not carry the feature) the suggestion's line -- naming its
-  //              face: hovering lights it, a click turns the pane to it,
-  //              Take accepts it (2026-11-15) -- and Pick a face
-  //   mates      under an unbound or armed feature whose other side is bound,
-  //              the faces that mate with it (the pane's `mates`), each with
-  //              why it is there and Take; led, when a pattern is bound
-  //              opposite, by the whole pattern on this part as one line
-  //              ("10 of 10 holes Ø5, coaxial within 0.003 mm") whose hover
-  //              lights the set and whose Take binds it (2026-11-18)
-  //   neither    "not bound" and Pick a face, which arms the same pick
-  //   armed      the pane's own armed line and Cancel, while a pick is armed
-  //              at one of the feature's ends; Unbind too when the feature
-  //              holds faces
-  //
-  // Every action is a pane verb (VA.FEATURE_BODY_VERBS), posted by the page;
-  // the words are this table's.
-  VA.FEATURE_BODY_WORDS = Object.freeze({
-    bound: "bound · face {face} of {part}",
-    boundSet: "bound · {n} faces of {part}",
-    setFace: "face {face}",
-    remove: "Remove",
-    removeTitle: "take this face out of the feature's set",
-    disagree: "{n} faces disagree",
-    disagreeSets: "{n} sets of faces disagree",
-    groupFaces: "faces {faces}",
-    keep: "Keep",
-    keepTitle: "keep this as the feature's binding; the others are let go",
-    none: "not bound",
-    noMesh: "not bound · no 3D model of this part",
-    suggested: "suggested · {confidence}",
-    pick: "Pick a face",
-    pickTitle: "pick this feature's face on its own part",
-    correct: "Correct",
-    correctTitle: "pick the right face on this part; it replaces this one",
-    addFace: "Add a face",
-    addFaceTitle: "pick another face of this feature; it joins the set (Shift-click keeps picking)",
+  // Editing a feature replaces the tree with its form -- the SolidWorks
+  // pattern Jeff chose on 2026-11-22: the feature's name, the tick, Next and
+  // the X; under it its part and the feature it mates with; the faces it will
+  // hold, one line per surface; the suggestions, best first, each with why;
+  // Unbind; and, folded, its history. The set is the pane's (apps/annotate/
+  // app.js's editSnapshot, on its tree message): this draws it and hands each
+  // gesture back as a pane `edit` verb. Nothing here writes, and nothing in
+  // the tree does any more: until 2026-11-23 every opened feature carried
+  // Correct, Add a face, Unbind and a Remove per face, each writing at once.
+  VA.FEATURE_FORM_WORDS = Object.freeze({
+    edit: "✎",
+    editTitle: "edit this feature's faces (double-click the row, or Enter)",
+    ok: "✓",
+    okTitle: "bind these faces (Enter)",
+    next: "Next",
+    nextTitle: "bind these faces and open the next unbound feature of this part",
+    cancel: "✕",
+    cancelTitle: "leave without binding (Esc)",
+    faces: "Faces",
+    suggested: "Suggested",
+    remove: "✕",
+    removeTitle: "take this surface out of the set",
+    takeTitle: "add to the set",
+    dismiss: "✕",
+    dismissTitle: "not this one: the suggestion is turned down when you bind",
     unbind: "Unbind",
     unbindTitle: "let this feature go: nothing bound; the record keeps what it held",
-    flip: "Flip",
-    flipTitle: "this face is the dimension's other end",
-    cancel: "Cancel",
-    cancelTitle: "stop picking (Esc)",
-    take: "Take",
-    takeTitle: "bind this face to the feature",
-    takeSetTitle: "bind all of these faces to the feature, as one set",
-    acceptTitle: "bind the suggested face to the feature",
-    lookTitle: "click to turn the 3D view to it",
-    // A press that writes, on the pressed control from the press until the
-    // pane answers; then, if it did not write, what the control says, the
-    // reason on hover (the pane's AA.ARMED_PICK_WORDS says the same words).
+    history: "History",
+    matesWith: "mates with {feature}",
     writing: "writing…",
     failed: "not written",
-    busy: "another write was still running",
   });
 
-  // The states a writing control is in, on its `data-pending` (the pane's
-  // WRITE_PRESS_STATES, apps/annotate/app.js).
-  VA.WRITE_PRESS_STATES = Object.freeze(["writing", "failed"]);
-
-  // The pane verbs a body's actions post, each `<verb> <edge> <end>
-  // <topology>` except `arm off` (apps/annotate/app.js registers them).
-  VA.FEATURE_BODY_VERBS = Object.freeze({ arm: "arm", unbind: "unbind", flip: "flip", keep: "keep",
-    dropFace: "drop-face", accept: "accept", take: "take", camera: "camera" });
-
-  // The body verbs that write an event (the pane's AA.IDENTITY_WRITE_VERBS
-  // holds each): the pressed control shows it pending until the pane answers.
-  VA.FEATURE_BODY_WRITE_VERBS = Object.freeze([VA.FEATURE_BODY_VERBS.unbind, VA.FEATURE_BODY_VERBS.flip,
-    VA.FEATURE_BODY_VERBS.keep, VA.FEATURE_BODY_VERBS.dropFace, VA.FEATURE_BODY_VERBS.accept,
-    VA.FEATURE_BODY_VERBS.take]);
-
-  // One body command as one string: which control a pending write is on.
-  VA.bodyCommandKey = function (command) {
-    return (command || []).map(String).join(" ");
+  // The feature at the other end of each interface `fid` ends, once each,
+  // in the model's order: what the form names it as mating with.
+  VA.featureMates = function (model, fid) {
+    var out = [];
+    (model.interfaces || []).forEach(function (iface) {
+      var ends = iface.ends || [];
+      if (ends.indexOf(fid) === -1) return;
+      ends.forEach(function (other) {
+        if (other !== fid && out.indexOf(other) === -1 && model.feature(other)) out.push(other);
+      });
+    });
+    return out;
   };
 
-  // A body control that writes, shown pending the moment it is pressed --
-  // before anything is posted, so the press reads as taken within the frame.
-  function markWriting(button) {
-    button.textContent = VA.FEATURE_BODY_WORDS.writing;
-    button.disabled = true;
-    button.setAttribute("data-pending", VA.WRITE_PRESS_STATES[0]);
-  }
-
-  // The arm mode Add a face asks for (`arm <edge> <end> <topology> <part>
-  // add`): the pane's AA.ARM_PICK_MODES[0], paired by tests/test_hole_pattern.py.
-  VA.ARM_ADD = "add";
-
-  // The kinds of body VA.featureBodyPlan returns (null: draw the pane's rows).
-  VA.FEATURE_BODY_KINDS = Object.freeze({ bound: "bound", none: "none", armed: "armed",
-    disagree: "disagree" });
-
-  function fill(template, values) {
-    return String(template).replace(/\{(\w+)\}/g, function (_, k) {
-      return values[k] === undefined || values[k] === null ? "" : String(values[k]);
-    });
-  }
-
-  // `model` the one model; `fid` the feature; `topologyId` what its verbs
-  // name; `rows` the pane's rows for it (VA.sceneRowsForFeature); `tree` the
-  // pane's newest tree message (its `armedEnd`, `armedLine` and `mates`), or
-  // null. Returns {kind, lines: [{text, sub?, title?, face?, look?, actions?}],
-  // actions: [{text, title, command}]} or null for "draw the pane's rows".
-  // `look` is the pane verb a click on the line posts.
-  VA.featureBodyPlan = function (model, fid, topologyId, rows, tree) {
-    var feature = model && model.feature(fid);
-    if (!feature) return null;
-    var W = VA.FEATURE_BODY_WORDS, V = VA.FEATURE_BODY_VERBS, K = VA.FEATURE_BODY_KINDS;
-    var ends = model.endsOf(fid);
-    var armed = tree && tree.armedEnd;
-    // The faces that mate with the side bound opposite (the pane's ranking),
-    // each a line: the face, why it is there, Take.
-    var mates = tree && tree.mates && tree.mates[fid];
-    var mateLines = mates ? mates.rows.map(function (r) {
-      // A row for a set (the whole pattern) names every face: its hover, its
-      // look and its Take carry them all.
-      var ids = (r.faces || [r.faceId]).map(String);
-      return { text: r.text, sub: r.reason, title: [r.text, r.reason, r.detail].filter(Boolean).join("\n"),
-        face: r.faces ? { sha256: r.sha256, faceId: r.faceId, faceIds: r.faces } : { sha256: r.sha256, faceId: r.faceId },
-        look: [V.camera, "face", r.sha256].concat(ids),
-        actions: [{ text: W.take, title: r.faces ? W.takeSetTitle : W.takeTitle,
-          command: [V.take, r.edgeId || mates.edgeId, r.direction || mates.direction, r.sha256, ids[0], topologyId].concat(ids.slice(1)) }] };
-    }) : [];
-    var record = model.featureRecord ? model.featureRecord(fid) : null;
-    if (armed && ends.some(function (e) { return e.edgeId === armed.edgeId && e.end === armed.direction; })) {
-      // A feature that holds faces can be let go from here too: the pick is
-      // cancelled and the feature unbound, one click.
-      var holds = record && (record.bindings || []).length;
-      return { kind: K.armed, lines: [{ text: String(tree.armedLine || "") }].concat(mateLines),
-        actions: [{ text: W.cancel, title: W.cancelTitle, command: [V.arm, "off"] }].concat(holds
-          ? [{ text: W.unbind, title: W.unbindTitle, command: [V.unbind, armed.edgeId, armed.direction, topologyId] }]
-          : []) };
-    }
-    var status = model.status(fid);
-    var disagree = record && record.state === VA.FEATURE_STATES[1];
-    // The pane's rows already carry its mates (app.js candidatesWithMates), so
-    // a feature with rows draws them; the mate lines below are for a feature
-    // the pane lists no row for.
-    if (status === VA.FEATURE_STATUSES.suggested && rows && rows.length && !disagree) return null;
-    var part = model.part(feature.part);
-    var partWords = (part && (part.number || part.label)) || feature.part;
-    // `arm` also names the feature's own part, armed first (a shared node is
-    // two features); unbind and flip need only the end; keep and remove name
-    // the face too.
-    var verb = function (name, e, face) {
-      var cmd = [name, e.edgeId, e.end, topologyId];
-      if (face) return cmd.concat([face.source_step_sha256, String(face.face_id)]);
-      return name === V.arm ? cmd.concat([feature.part]) : cmd;
-    };
-    var faceLine = function (face, text, actions) {
-      return { text: text, face: { sha256: face.source_step_sha256, faceId: face.face_id }, actions: actions };
-    };
-    // Unbind lets the feature go whatever it holds -- one face, a set, or
-    // sets that disagree (the pane retracts every binding in one event).
-    var unbind = function (e) { return { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, e) }; };
-    if (disagree && ends.length) {
-      // One line per set that disagrees, its Keep naming every face of it: a
-      // set and the same set with a face added share faces, so a face alone
-      // cannot say which is kept (Jeff's pitch plate bore, 2026-11-17).
-      var groups = record.disagreement;
-      var single = groups.every(function (g) { return g.faces.length === 1; });
-      return { kind: K.disagree, lines: [{ text: fill(single ? W.disagree : W.disagreeSets, { n: groups.length }) }]
-        .concat(groups.map(function (g) {
-          var f = g.faces[0];
-          var text = g.faces.length === 1 ? fill(W.setFace, { face: f.face_id })
-            : fill(W.groupFaces, { faces: g.faces.map(function (x) { return x.face_id; }).join(", ") });
-          var line = faceLine(f, text, [{ text: W.keep, title: W.keepTitle,
-            command: verb(V.keep, ends[0], f).concat(g.faces.slice(1).map(function (x) { return String(x.face_id); })) }]);
-          // The hover lights the set Keep would keep, not its first face.
-          if (g.faces.length > 1) line.face.faceIds = g.faces.map(function (x) { return x.face_id; });
-          return line;
-        })), actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, ends[0]) }, unbind(ends[0])] };
-    }
-    // Add a face: the same arm as Correct, in the mode that adds.
-    var addFace = function (e) {
-      return { text: W.addFace, title: W.addFaceTitle, command: verb(V.arm, e).concat([VA.ARM_ADD]) };
-    };
-    if (status === VA.FEATURE_STATUSES.bound && record && (record.faces || []).length > 1 && ends.length) {
-      var end = model.bindingsOf(fid)[0] || ends[0];
-      // What the pane read the set as, when it is a pattern: one line, no verb.
-      var fit = tree && tree.fits && tree.fits[fid];
-      return { kind: K.bound, lines: [{ text: fill(W.boundSet, { n: record.faces.length, part: partWords }),
-        actions: [
-          { text: W.correct, title: W.correctTitle, command: verb(V.arm, end) },
-          addFace(end),
-          { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, end) },
-        ] }].concat(fit ? [{ text: fit, fit: true }] : []).concat(record.faces.map(function (f) {
-        return faceLine(f, fill(W.setFace, { face: f.face_id }),
-          [{ text: W.remove, title: W.removeTitle, command: verb(V.dropFace, end, f) }]);
-      })), actions: [] };
-    }
-    if (status === VA.FEATURE_STATUSES.bound) {
-      var plan = { kind: K.bound, lines: [], actions: [] };
-      // The feature's binding reaches it at every end that uses it: one line.
-      var seenFace = {};
-      model.bindingsOf(fid).filter(function (b) {
-        var k = b.event.geometry_key || {};
-        var id = k.source_step_sha256 + "#" + k.face_id;
-        if (seenFace[id]) return false;
-        seenFace[id] = true;
-        return true;
-      }).forEach(function (b) {
-        var key = b.event.geometry_key || {};
-        var actions = [
-          { text: W.correct, title: W.correctTitle, command: verb(V.arm, b) },
-          addFace(b),
-          { text: W.unbind, title: W.unbindTitle, command: verb(V.unbind, b) },
-        ];
-        // Flip where a direction applies: the binding is on a dimension (both
-        // its ends are this part's) and nothing stands at the other end.
-        var other = b.end === VA.EDGE_ENDS.from ? VA.EDGE_ENDS.to : VA.EDGE_ENDS.from;
-        if (model.dimension(b.edgeId) && !model.bindingsAt(b.edgeId, other).length) {
-          actions.push({ text: W.flip, title: W.flipTitle, command: verb(V.flip, b) });
-        }
-        plan.lines.push({ text: fill(W.bound, { face: key.face_id, part: partWords }),
-          face: { sha256: key.source_step_sha256, faceId: key.face_id }, actions: actions });
-      });
-      return plan;
-    }
-    if (!ends.length) return { kind: K.none, lines: [{ text: W.none }], actions: [] };
-    if (!model.hasMesh(feature.part)) return { kind: K.none, lines: [{ text: W.noMesh }], actions: [] };
-    // The surest proposal, which the line, its face and its Take all read
-    // (the pane's `accept` answers the surest at that end, which this is).
+  // The end a form arms the pane at: where the feature's binding is, else
+  // where its surest proposal sits, else its first own end; null for a
+  // feature no edge ends at.
+  VA.featureFormEnd = function (model, fid) {
+    var bound = model.bindingsOf(fid)[0];
+    if (bound) return { edgeId: bound.edgeId, end: bound.end };
     var best = VA.surestProposal(model.proposalsOf(fid));
-    var head = { text: W.none };
-    if (best) {
-      var faces = VA.eventFaces(best.event);
-      head = { text: fill(W.suggested, { confidence: best.event.confidence }) };
-      if (faces.length) {
-        head.face = { sha256: faces[0].source_step_sha256, faceId: faces[0].face_id };
-        head.title = head.text + " · " + faces.map(function (f) { return "face " + f.face_id; }).join(", ") +
-          "\n" + W.lookTitle;
-        head.look = [V.camera, "face", faces[0].source_step_sha256].concat(faces.map(function (f) {
-          return String(f.face_id);
-        }));
-        head.suggestion = true;
-        head.actions = [{ text: W.take, title: W.acceptTitle, command: [V.accept, best.edgeId, best.end, topologyId] }];
-      }
+    if (best) return { edgeId: best.edgeId, end: best.end };
+    var ends = model.endsOf(fid);
+    return ends.length ? { edgeId: ends[0].edgeId, end: ends[0].end } : null;
+  };
+
+  // Can this feature be edited here: an edge ends at it, and its part has a
+  // 3D model to click on.
+  VA.featureEditable = function (model, fid) {
+    var feature = model && model.feature(fid);
+    return !!(feature && model.endsOf(fid).length && model.hasMesh(feature.part));
+  };
+
+  // Tick and on: the next feature of the same part, after this one in the
+  // part's order and then from its top, that is not bound and can be
+  // edited; null when there is none.
+  VA.nextUnboundFeature = function (model, fid) {
+    var feature = model && model.feature(fid);
+    var part = feature ? model.part(feature.part) : null;
+    var list = (part && part.features) || [];
+    var at = list.indexOf(fid);
+    var order = list.slice(at + 1).concat(list.slice(0, Math.max(at, 0)));
+    for (var i = 0; i < order.length; i++) {
+      if (order[i] !== fid && model.status(order[i]) !== VA.FEATURE_STATUSES.bound &&
+        VA.featureEditable(model, order[i])) return order[i];
     }
-    // Picked at the end a proposal sits at, else the feature's first own end.
-    // A ranked mate that IS the proposal's face is one face, listed once: on
-    // the proposal's line, its reason under it.
-    if (head.face) {
-      mateLines = mateLines.filter(function (l) {
-        if (l.face.faceIds || l.face.sha256 !== head.face.sha256 || l.face.faceId !== head.face.faceId) return true;
-        head.sub = l.sub;
-        head.title = head.title + "\n" + l.sub;
-        return false;
-      });
-    }
-    var at = best || ends[0];
-    return { kind: K.none, lines: [head].concat(mateLines),
-      actions: [{ text: W.pick, title: W.pickTitle, command: verb(V.arm, at) }] };
+    return null;
   };
 
   // The surest of a feature's proposals (model.proposalsOf), by the proposal
@@ -1398,86 +1162,155 @@
     return i === -1 ? order.length : i;
   }
 
-  // Draw a plan: each line (hovering a bound one lights its face through
-  // opts.hoverFace), its own actions under it, then the plan's.
-  // `opts.write` is the page's write in flight or just failed ({key, state,
-  // reason}, VA.WRITE_PRESS_STATES): while one is writing every writing
-  // control is disabled (the pane writes one at a time) and the pressed one
-  // reads W.writing; a failed one reads W.failed, the reason on hover, and
-  // pressing it again tries again.
-  function renderBodyPlan(slot, plan, opts) {
-    var command = (opts && opts.command) || function () {};
-    var hoverFace = (opts && opts.hoverFace) || function () {};
-    var write = (opts && opts.write) || null;
-    var S = VA.WRITE_PRESS_STATES;
-    var body = VA.el("div", "navtree__featurebody");
-    body.setAttribute("data-body-kind", plan.kind);
-    var actsOf = function (list) {
-      var acts = VA.el("div", "navtree__featureacts");
-      list.forEach(function (a) {
-        var writes = VA.FEATURE_BODY_WRITE_VERBS.indexOf(a.command[0]) !== -1;
-        var mine = writes && write && write.key === VA.bodyCommandKey(a.command);
-        var button = VA.el("button", "navtree__scenebtn", a.text);
-        if (a.title) button.setAttribute("title", a.title);
-        button.setAttribute("data-body-act", a.command[0] + (a.command[1] === "off" ? "-off" : ""));
-        if (writes && write && write.state === S[0]) button.disabled = true;
-        if (mine && write.state === S[0]) markWriting(button);
-        if (mine && write.state === S[1]) {
-          button.textContent = VA.FEATURE_BODY_WORDS.failed;
-          button.setAttribute("title", write.reason || VA.FEATURE_BODY_WORDS.failed);
-          button.setAttribute("data-pending", S[1]);
-        }
-        button.onclick = function (event) {
-          if (event) {
-            if (event.preventDefault) event.preventDefault();
-            if (event.stopPropagation) event.stopPropagation();
-          }
-          if (writes) markWriting(button);
-          command(a.command);
-        };
-        acts.appendChild(button);
-      });
-      return acts;
+  // The states the tick is in while it writes and once it did not, on its
+  // `data-pending` (the pane's WRITE_PRESS_STATES, apps/annotate/app.js).
+  VA.WRITE_PRESS_STATES = Object.freeze(["writing", "failed"]);
+
+  // What the form draws: {fid, name, part, mates: [words], ready, lines,
+  // suggestions, changed, holds, history, next}. `edit` is the pane's
+  // snapshot (null until the pane has opened the feature); `next` the
+  // feature Next opens, or null.
+  VA.featureFormPlan = function (model, fid, edit, next) {
+    var feature = model && model.feature(fid);
+    if (!feature) return null;
+    var W = VA.FEATURE_FORM_WORDS;
+    var ready = !!(edit && edit.featureId === fid);
+    return {
+      fid: fid,
+      name: feature.name,
+      part: model.label(feature.part),
+      mates: VA.featureMates(model, fid).map(function (other) {
+        var f = model.feature(other);
+        var p = model.part(f.part);
+        return fill(W.matesWith, { feature: (p ? p.name + " " : "") + f.name });
+      }),
+      ready: ready,
+      sha256: ready ? edit.sha256 : null,
+      lines: ready ? edit.lines : [],
+      suggestions: ready ? edit.suggestions : [],
+      changed: ready && !!edit.changed,
+      holds: ready && !!edit.holds,
+      history: ready ? edit.history || [] : [],
+      next: next || null,
     };
+  };
+
+  // Draw the form into `root` (cleared). `h` is {onOk(next), onCancel,
+  // onDrop(key), onTake(key), onDismiss(id), onHover(faces|null), onUnbind},
+  // `write` the tick's press in flight or failed ({state, reason}).
+  VA.renderFeatureForm = function (root, plan, h, write) {
+    VA.clear(root);
+    if (!plan) return root;
+    var W = VA.FEATURE_FORM_WORDS;
+    var form = VA.el("div", "navform");
+    form.setAttribute("data-form-feature", plan.fid);
+    if (!plan.ready) form.setAttribute("data-form-waiting", "true");
+    var head = VA.el("div", "navform__head");
+    var name = VA.el("span", "navform__name", plan.name);
+    name.setAttribute("title", plan.name);
+    head.appendChild(name);
+    var writing = write && write.state === VA.WRITE_PRESS_STATES[0];
+    var button = function (cls, text, title, act, attr) {
+      var b = VA.el("button", cls, text);
+      b.setAttribute("type", "button");
+      b.setAttribute("title", title);
+      b.setAttribute("aria-label", title);
+      b.setAttribute("data-form-act", attr);
+      b.onclick = function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        act();
+      };
+      return b;
+    };
+    var ok = button("navform__ok", W.ok, W.okTitle, function () { h.onOk(false); }, "ok");
+    if (writing) {
+      ok.disabled = true;
+      ok.setAttribute("data-pending", VA.WRITE_PRESS_STATES[0]);
+    } else if (write && write.state === VA.WRITE_PRESS_STATES[1]) {
+      ok.setAttribute("data-pending", VA.WRITE_PRESS_STATES[1]);
+      ok.setAttribute("title", W.failed + ": " + (write.reason || ""));
+    }
+    if (!plan.ready) ok.disabled = true;
+    head.appendChild(ok);
+    if (plan.next) {
+      var nx = button("navform__next", W.next, W.nextTitle, function () { h.onOk(true); }, "next");
+      if (writing || !plan.ready) nx.disabled = true;
+      head.appendChild(nx);
+    }
+    head.appendChild(button("navform__cancel", W.cancel, W.cancelTitle, h.onCancel, "cancel"));
+    form.appendChild(head);
+
+    var body = VA.el("div", "navform__body");
+    var about = VA.el("div", "navform__about");
+    about.appendChild(VA.el("div", "navform__part", plan.part));
+    plan.mates.forEach(function (m) { about.appendChild(VA.el("div", "navform__mate", m)); });
+    body.appendChild(about);
+
+    var hoverable = function (row, faces) {
+      row.onmouseenter = function () { h.onHover({ sha256: plan.sha256, faceIds: faces }); };
+      row.onmouseleave = function () { h.onHover(null); };
+    };
+    var faces = VA.el("div", "navform__group");
+    faces.appendChild(VA.el("div", "navform__label", W.faces));
+    var box = VA.el("ul", "navform__box");
+    box.setAttribute("data-form-list", "faces");
     plan.lines.forEach(function (line) {
-      var row = VA.el("div", "navtree__featurestate");
-      var words = VA.el("span", "navtree__featurewords", line.text);
-      words.setAttribute("title", line.title || line.text);
-      if (line.sub) {
-        // A face and, under it, why it is listed.
-        var text = VA.el("span", "navtree__featuretext");
-        text.appendChild(words);
-        var sub = VA.el("span", "navtree__featuresub", line.sub);
-        sub.setAttribute("title", line.title || line.sub);
-        text.appendChild(sub);
-        row.appendChild(text);
-      } else {
-        row.appendChild(words);
-      }
-      if (line.suggestion) row.setAttribute("data-suggestion", "true");
-      if (line.fit) row.setAttribute("data-fit", "true");
-      if (line.face) {
-        row.setAttribute("data-face", String(line.face.faceId));
-        row.onmouseenter = function () { hoverFace(line.face); };
-        row.onmouseleave = function () { hoverFace(null); };
-      }
-      if (line.look) {
-        row.setAttribute("data-look", "true");
-        row.onclick = function (event) {
-          if (event && event.stopPropagation) event.stopPropagation();
-          command(line.look);
-        };
-      }
-      body.appendChild(row);
-      // A listed face (it has a reason under it) takes its Take at its right,
-      // on its own line, as the pane's candidate rows do; other lines' actions
-      // are a line of their own under them.
-      if (line.actions && line.actions.length) (line.sub ? row : body).appendChild(actsOf(line.actions));
+      var li = VA.el("li", "navform__line" + (line.held ? " navform__line--held" : ""));
+      li.setAttribute("data-form-line", line.key);
+      li.setAttribute("title", line.title || line.text);
+      li.appendChild(VA.el("span", "navform__text", line.text));
+      var x = button("navform__x", W.remove, W.removeTitle, function () { h.onDrop(line.key); }, "drop");
+      li.appendChild(x);
+      li.onclick = function () { h.onDrop(line.key); };
+      hoverable(li, line.faces);
+      box.appendChild(li);
     });
-    if (plan.actions.length) body.appendChild(actsOf(plan.actions));
-    slot.appendChild(body);
-    return slot;
-  }
+    faces.appendChild(box);
+    body.appendChild(faces);
+
+    if (plan.suggestions.length) {
+      var sug = VA.el("div", "navform__group");
+      sug.appendChild(VA.el("div", "navform__label", W.suggested));
+      var list = VA.el("ul", "navform__list");
+      list.setAttribute("data-form-list", "suggested");
+      plan.suggestions.forEach(function (s) {
+        var li = VA.el("li", "navform__line navform__line--suggested");
+        li.setAttribute("data-form-suggestion", s.key);
+        li.setAttribute("title", (s.title || s.text) + "\n" + W.takeTitle);
+        var text = VA.el("span", "navform__text");
+        text.appendChild(VA.el("span", "navform__what", s.text));
+        if (s.why) text.appendChild(VA.el("span", "navform__why", s.why));
+        li.appendChild(text);
+        if (s.proposal) {
+          li.setAttribute("data-form-proposal", s.proposal);
+          li.appendChild(button("navform__x", W.dismiss, W.dismissTitle, function () { h.onDismiss(s.proposal); },
+            "dismiss"));
+        }
+        li.onclick = function () { h.onTake(s.key); };
+        hoverable(li, s.faces);
+        list.appendChild(li);
+      });
+      sug.appendChild(list);
+      body.appendChild(sug);
+    }
+
+    if (plan.holds) {
+      var foot = VA.el("div", "navform__foot");
+      var un = button("navform__unbind", W.unbind, W.unbindTitle, h.onUnbind, "unbind");
+      if (writing) un.disabled = true;
+      foot.appendChild(un);
+      body.appendChild(foot);
+    }
+    if (plan.history.length) {
+      var hist = VA.el("details", "navform__history");
+      hist.appendChild(VA.el("summary", "navform__summary", W.history));
+      plan.history.forEach(function (line) { hist.appendChild(VA.el("div", "navform__event", line)); });
+      body.appendChild(hist);
+    }
+    form.appendChild(body);
+    root.appendChild(form);
+    return root;
+  };
 
   // The six gestures a mirrored row can hand back, named once on this side;
   // the annotator's receiver (AA.RAIL_ACTS, apps/annotate/commands.js) names
@@ -1491,43 +1324,6 @@
     check: "check",
     button: "button",
   });
-
-  // `tree` is the annotator's {chips, rows} (apps/annotate/app.js's
-  // embedTree, which carries the row shape) -- here already narrowed to the
-  // selected feature's rows (VA.sceneRowsForFeature); `opts.send(key, act,
-  // index?)` hands a gesture back to it. Every word and every effect is the
-  // annotator's: this draws what it was sent, and a gesture is only ever
-  // "this row, this control".
-  //
-  // Keyboard: a disclosure is a <summary>, a row that does something on a
-  // click is a focusable button-role row (Enter or Space), and its checkbox
-  // and buttons are native controls -- so the whole tree is reachable by Tab.
-  // Focus lights the row in the scene the way a resting pointer does.
-  VA.renderSceneTree = function (slot, tree, opts) {
-    VA.clear(slot);
-    if (!tree || !tree.rows || !tree.rows.length) return slot;
-    var send = (opts && opts.send) || function () {};
-    if (tree.legend && tree.legend.length) slot.appendChild(sceneLegend(tree.legend));
-    slot.appendChild(sceneList(tree.rows, send));
-    return slot;
-  };
-
-  // The marks' legend, above the rows: each mark the annotator can put on a
-  // row, drawn as it is on the row, beside its word; the longer sense on hover.
-  function sceneLegend(items) {
-    var box = VA.el("div", "navtree__scenelegend");
-    items.forEach(function (item) {
-      var entry = VA.el("span", "navtree__scenelegenditem");
-      if (item.title) entry.setAttribute("title", item.title);
-      var glyph = VA.el("span", "navtree__scenemark");
-      glyph.setAttribute("data-mark", item.mark);
-      glyph.setAttribute("aria-hidden", "true");
-      entry.appendChild(glyph);
-      entry.appendChild(VA.el("span", "navtree__scenelegendword", item.text));
-      box.appendChild(entry);
-    });
-    return box;
-  }
 
   // Is a pick armed in the scene? The annotator says so on its tree message
   // (`armed`, apps/annotate/app.js's embedTree), so an Esc here knows it has
@@ -1566,171 +1362,4 @@
     return { letGo: false, held: held === nodeId ? held : null };
   };
 
-  function sceneList(rows, send) {
-    var ul = VA.el("ul", "navtree__scenelist");
-    rows.forEach(function (row) { ul.appendChild(sceneItem(row, send)); });
-    return ul;
-  }
-
-  function sceneItem(row, send) {
-    var li = VA.el("li", "navtree__sceneitem");
-    if (typeof row.head === "string") {
-      var head = VA.el("div", "navtree__scenehead");
-      head.setAttribute("data-scene-key", row.key);
-      var words = VA.el("span", "navtree__scenetext", row.head);
-      words.setAttribute("title", row.head + (row.sub ? "\n" + row.sub : ""));
-      head.appendChild(words);
-      sceneControls(head, row, send);
-      li.appendChild(head);
-      return li;
-    }
-    var line = VA.el("div", "navtree__scenerow" +
-      (row.selected ? " navtree__scenerow--on" : "") +
-      (row.sceneHover ? " navtree__scenerow--hot" : "") +
-      (row.wrap ? " navtree__scenerow--wrap" : ""));
-    line.setAttribute("data-scene-key", row.key);
-    // What kind of thing the row is, and the state its mark is in
-    // (AA.RAIL_ROW_KINDS, AA.RAIL_MARKS): the look is the stylesheet's.
-    if (row.kind) line.setAttribute("data-kind", row.kind);
-    if (row.mark) line.setAttribute("data-mark", row.mark);
-    if (row.attention) line.setAttribute("data-attention", "true");
-    if (row.suggestion) line.setAttribute("data-suggestion", "true");
-    if (row.title) line.setAttribute("title", row.title);
-    if (typeof row.twisty === "string") {
-      // A row with its own disclosure in front of it -- a joint end's
-      // candidate list: the row's click is still the row's (it selects), and
-      // only the twisty opens and closes the list under it.
-      var tw = VA.el("button", "navtree__scenetwisty");
-      tw.setAttribute("aria-expanded", row.open ? "true" : "false");
-      tw.setAttribute("data-scene-part", "twisty");
-      if (row.twisty) {
-        tw.setAttribute("title", row.twisty);
-        tw.setAttribute("aria-label", row.twisty);
-      }
-      tw.onclick = function (event) {
-        if (event) {
-          if (event.preventDefault) event.preventDefault();
-          if (event.stopPropagation) event.stopPropagation();
-        }
-        send(row.key, VA.SCENE_ACTS.toggle);
-      };
-      line.appendChild(tw);
-    } else if (typeof row.open === "boolean") {
-      var fold = VA.el("span", "navtree__scenetwisty");
-      fold.setAttribute("aria-hidden", "true");
-      line.appendChild(fold);
-    } else {
-      line.appendChild(VA.el("span", "navtree__scenegap"));
-    }
-    var glyph = VA.el("span", "navtree__scenemark");
-    glyph.setAttribute("aria-hidden", "true");
-    line.appendChild(glyph);
-    var text = VA.el("span", "navtree__scenetext");
-    text.appendChild(VA.el("span", "navtree__scenename", row.text));
-    if (row.sub) text.appendChild(VA.el("span", "navtree__scenesub", row.sub));
-    line.appendChild(text);
-    if (row.value) line.appendChild(VA.el("span", "navtree__scenevalue", row.value));
-    if (row.alert) {
-      var alert = VA.el("span", "navtree__scenealert");
-      alert.appendChild(VA.warningIcon("navtree__scenealert-mark"));
-      alert.setAttribute("title", row.alert);
-      alert.setAttribute("aria-label", row.alert);
-      alert.setAttribute("tabindex", "0");
-      line.appendChild(alert);
-    }
-    sceneControls(line, row, send);
-    line.onmouseenter = function () { send(row.key, VA.SCENE_ACTS.enter); };
-    line.onmouseleave = function () { send(row.key, VA.SCENE_ACTS.leave); };
-
-    if (typeof row.open === "boolean" && typeof row.twisty !== "string") {
-      // A disclosure. Its open state is the annotator's (a joint opening is
-      // that joint selected), so a click asks for the toggle and the reply
-      // redraws it; the native toggle is not taken.
-      var box = VA.el("details", "navtree__scenenode");
-      box.open = row.open;
-      var summary = VA.el("summary", "navtree__scenesummary");
-      summary.appendChild(line);
-      summary.onclick = function (event) {
-        if (event && event.preventDefault) event.preventDefault();
-        send(row.key, VA.SCENE_ACTS.toggle);
-      };
-      summary.onfocus = function () { send(row.key, VA.SCENE_ACTS.enter); };
-      summary.onblur = function () { send(row.key, VA.SCENE_ACTS.leave); };
-      box.appendChild(summary);
-      if (row.rows && row.rows.length) box.appendChild(sceneList(row.rows, send));
-      li.appendChild(box);
-      return li;
-    }
-    if (row.activate) {
-      line.setAttribute("tabindex", "0");
-      line.setAttribute("role", "button");
-      line.classList.add("navtree__scenerow--act");
-      // An action row that is pressed (an armed pick's Cancel) says so.
-      if (row.pressed) line.setAttribute("aria-pressed", "true");
-      line.onclick = function () { send(row.key, VA.SCENE_ACTS.activate); };
-      line.onkeydown = function (event) {
-        if (!event || (event.key !== "Enter" && event.key !== " ")) return;
-        if (event.target !== line) return;
-        if (event.preventDefault) event.preventDefault();
-        send(row.key, VA.SCENE_ACTS.activate);
-      };
-      line.onfocus = function () { send(row.key, VA.SCENE_ACTS.enter); };
-      line.onblur = function () { send(row.key, VA.SCENE_ACTS.leave); };
-    }
-    li.appendChild(line);
-    // A row's list: under an open disclosure, or under a row with no
-    // disclosure of its own (an end's list is always sent since 2026-11-10;
-    // the feature row above is its disclosure).
-    if (row.open !== false && row.rows && row.rows.length) li.appendChild(sceneList(row.rows, send));
-    return li;
-  }
-
-  // A row's own checkbox and buttons, each a native control that hands its
-  // gesture back rather than acting here. The checkbox does not flip on its
-  // own: the annotator's answer redraws it.
-  function sceneControls(line, row, send) {
-    if (row.buttons && row.buttons.length) {
-      var acts = VA.el("span", "navtree__sceneacts");
-      row.buttons.forEach(function (spec, i) { acts.appendChild(sceneButton(row, spec, i, send)); });
-      line.appendChild(acts);
-    }
-    if (row.check) {
-      var box = VA.el("input", "navtree__scenecheck");
-      box.type = "checkbox";
-      box.checked = !!row.check.checked;
-      box.indeterminate = !!row.check.indeterminate;
-      box.disabled = !!row.check.disabled;
-      if (row.check.title) box.setAttribute("title", row.check.title);
-      box.setAttribute("data-scene-part", "check");
-      box.onclick = function (event) {
-        if (event) {
-          if (event.preventDefault) event.preventDefault();
-          if (event.stopPropagation) event.stopPropagation();
-        }
-        send(row.key, VA.SCENE_ACTS.check);
-      };
-      line.appendChild(box);
-    }
-  }
-
-  // A control that writes (`spec.writes`, the pane's pressWrite) shows the
-  // pending word at its press, here, before the gesture crosses; the pane's
-  // next tree carries its state from then (`disabled`, `pending`).
-  function sceneButton(row, spec, i, send) {
-    var button = VA.el("button", "navtree__scenebtn", spec.text);
-    if (spec.title) button.setAttribute("title", spec.title);
-    if (spec.pressed) button.setAttribute("aria-pressed", "true");
-    if (spec.disabled) button.disabled = true;
-    if (spec.pending) button.setAttribute("data-pending", spec.pending);
-    button.setAttribute("data-scene-part", "button-" + i);
-    button.onclick = function (event) {
-      if (event) {
-        if (event.preventDefault) event.preventDefault();
-        if (event.stopPropagation) event.stopPropagation();
-      }
-      if (spec.writes) markWriting(button);
-      send(row.key, VA.SCENE_ACTS.button, i);
-    };
-    return button;
-  }
 })(window.ViewerApp = window.ViewerApp || {});

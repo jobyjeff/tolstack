@@ -1412,7 +1412,7 @@
   // shell's body shows each one pending from the press until it answers
   // (VA.FEATURE_BODY_WRITE_VERBS, tests/test_bind_latency_vocabularies.py
   // pairs the two).
-  AA.IDENTITY_WRITE_VERBS = Object.freeze(["accept", "take", "unbind", "keep", "drop-face", "group", "flip"]);
+  AA.IDENTITY_WRITE_VERBS = Object.freeze(["accept", "take", "unbind", "keep", "drop-face", "edit", "flip"]);
 
   // What the shell's feature body's Unbind and Flip say once written
   // (app.js's cmdUnbind / cmdFlip), as a toast.

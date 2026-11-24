@@ -2545,8 +2545,6 @@
   //: buttons, the toast and the bar's way back.
   AA.ARMED_PICK_WORDS = Object.freeze({
     armed: "at the as-modelled pose for picking",
-    notOn: "not on {part}",
-    sameFace: "already bound to face {face}",
     bound: "bound · face {face}",
     toast: "Bound {end} to face {face} of {part}",
     noPart: "no installed 3D part to pick on",
@@ -2562,16 +2560,7 @@
     switchTitle: "the face is on the other part of this joint",
     others: { ghost: "ghost others", hide: "hide others" },
     othersTitle: "how the parts you are not picking on are drawn",
-    //: An arm that adds to the feature's set (the body's Add a face), and
-    //: what a Shift-click or an adding click says once written.
-    adding: "adding a face to the feature",
-    added: "added face {face} · {n} faces",
-    alreadyHeld: "face {face} is already in the feature",
-    disagree: "the feature's faces disagree -- keep one first",
-    //: A click being read and written (it can take seconds on a large part);
-    //: a click that lands meanwhile is dropped, and the line stays.
-    reading: "reading face {face}…",
-    //: Any other press that writes (Take, Take all, Keep, Unbind, ...), on
+    //: A press that writes (Take, the form's tick, ...), on
     //: the pressed control from the press until the write lands; then, if it
     //: did not, what the control says, the reason on hover. The shell's body
     //: says the same words (VA.FEATURE_BODY_WORDS, paired by tests/test_bind_
@@ -2580,13 +2569,6 @@
     failed: "not written",
     busy: "another write was still running",
   });
-
-  //: The modes an arm can be asked for beside a plain pick (`arm <edge> <end>
-  //: <topology> <part> <mode>`): `add` -- a click adds the face to the
-  //: feature's set rather than replacing it. The shell's body sends it
-  //: (VA.ARM_ADD, apps/viewer/views/nav.js; tests/test_hole_pattern.py pairs
-  //: the two).
-  AA.ARM_PICK_MODES = Object.freeze(["add"]);
 
   //: How the parts an armed pick is NOT on are drawn: ghosted (very low
   //: opacity, no depth write) or hidden. Ghost first: it is the default.

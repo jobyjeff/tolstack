@@ -223,6 +223,7 @@
     nodes = {
       banner: document.getElementById("banner"),
       navtree: document.getElementById("navtree"),
+      navform: document.getElementById("navform"),
       toolbar: document.getElementById("toolbar"),
       topojoint: document.getElementById("topojoint"),
       pane: document.getElementById("topopane"),
@@ -305,6 +306,7 @@
       // reader had it scrolled comes back with it (launchAnnotate). Its folds
       // are state.navOpen's and stay as they were.
       sceneTree = null;
+      closeFeatureForm(true);
       structScroll = nodes.navtree ? nodes.navtree.scrollTop : null;
       paneWasOpen = false;
       renderNav();
@@ -324,6 +326,7 @@
     wirePageHover();
     wireNavPointer();
     wirePaneState();
+    wireFormKeys();
     wirePreviewRelease();
     wireFitKey();
 
@@ -460,7 +463,7 @@
         if (!event || event.key !== "Escape") return;
         if (nodes.crop && nodes.crop.style.display === "block") { hideCrop(); return; }
         hideCrop();
-        if (modalOpen() || VA.scenePickArmed(sceneTree)) return;
+        if (modalOpen() || form || VA.scenePickArmed(sceneTree)) return;
         if (state.focus.selected) unfreeze();
       });
       // The pointer's own track, for the hover-intent corridor below. Cheap on
@@ -1061,13 +1064,23 @@
   }
 
   // A feature row selects that feature: its node lights on the DAG, in the
-  // grid, in the Preview and in the scene, and its row opens to its body
-  // (views/nav.js's featureItem). A feature of a node already selected is a
-  // new selection of the same element (a node two parts share is one
-  // element, two rows), so the body moves and nothing else repaints.
+  // grid, in the Preview and in the scene. A feature of a node already
+  // selected is a new selection of the same element (a node two parts share
+  // is one element, two rows).
+  //
+  // A second click on the same row soon after opens its form. Read here, not
+  // as a dblclick: the first click repaints the tree, so the second lands on
+  // a new row element and the browser's dblclick never fires.
   function onNavFeature(featureId) {
     var model = currentModel();
     if (!model || !model.feature(featureId)) return;
+    var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    var again = lastFeatureClick && lastFeatureClick.fid === featureId && now - lastFeatureClick.at < VA.NAV_DOUBLE_CLICK_MS;
+    lastFeatureClick = again ? null : { fid: featureId, at: now };
+    if (again && VA.featureEditable(model, featureId)) {
+      openFeatureForm(featureId);
+      return;
+    }
     selectEntity({ kind: VA.FOCUS_KINDS.feature, id: featureId });
   }
 
@@ -1963,7 +1976,8 @@
     // like the head line: gone until the re-driven scene sends its own.
     sceneTree = null;
     partScopePosted = null;
-    renderSceneSlot();
+    // A re-driven scene has let any edit go.
+    closeFeatureForm(true);
     if (!flyoutFrame) {
       flyoutFrame = document.createElement("iframe");
       flyoutFrame.className = "flyout__frame";
@@ -1971,7 +1985,7 @@
       flyoutFrame.addEventListener("load", function () {
         flyoutLoaded = true;
         // A pane that (re)loaded answers nothing it was asked before.
-        bodyWrite = null;
+        formWrite = null;
       });
       flyoutFrame.src = embedHref;
       nodes.flyout.appendChild(flyoutFrame);
@@ -2059,7 +2073,7 @@
       var msg = event.data;
       if (msg && msg.type === "annotate:tree") {
         sceneTree = msg;
-        renderSceneSlot();
+        formFollowsTree(msg);
         followScenePick(msg);
         // The pane's rows are what the page's selection is drawn as there:
         // a fresh tree is asked to agree with it.
@@ -2084,7 +2098,7 @@
         return;
       }
       if (msg && msg.type === "annotate:result") {
-        onBodyWriteResult(msg);
+        onFormWriteResult(msg);
         return;
       }
       if (msg && msg.type === "annotate:status") {
@@ -2188,93 +2202,112 @@
   var structScroll = null;
   var paneWasOpen = false;
 
-  function sceneRail(key, act, index) {
-    if (!flyoutFrame || !flyoutLoaded || !flyoutFrame.contentWindow) return;
-    var msg = { type: "annotate:rail", key: key, act: act };
-    if (typeof index === "number") msg.index = index;
-    flyoutFrame.contentWindow.postMessage(msg, window.location.origin);
-  }
-
-  // Which mirrored row (and which control in it) has focus, so a rebuilt
-  // tree puts the keyboard back where it was.
-  function sceneFocus(root) {
-    var active = typeof document !== "undefined" ? document.activeElement : null;
-    if (!active || !root || !root.contains || !root.contains(active)) return null;
-    var row = active.closest && active.closest("[data-scene-key]");
-    return row ? { key: row.getAttribute("data-scene-key"),
-      part: active.getAttribute("data-scene-part") || "" } : null;
-  }
-
-  // The edges a feature is an end of, for its bind-mode rows (an element row
-  // is an edge): its OWN part's edges at its node (model.endsOf), never the
-  // other part's on a node two parts share.
-  function featureEdgeIds(model, fid) {
-    var seen = {};
-    return model.endsOf(fid).map(function (e) { return e.edgeId; })
-      .filter(function (id) { return seen[id] ? false : (seen[id] = true); });
-  }
-
-  // A feature's body: the pane's rows for its node (VA.sceneRowsForFeature),
-  // drawn under the row by VA.renderFeatureBody -- its state line, its
-  // candidate faces, its one pick action. Every OPEN feature row has a slot
-  // (views/nav.js's featureItem, `data-scene-feature`), and each is filled
-  // here; no tree yet, or no rows for the node, draws nothing.
-  function renderSceneSlot() {
-    var anchor = takeNavAnchor();
-    fillSceneSlots();
-    restoreNavAnchor(anchor);
-  }
-
-  function fillSceneSlots() {
-    var slots = nodes.navtree && nodes.navtree.querySelectorAll
-      ? nodes.navtree.querySelectorAll(".navtree__scene[data-scene-feature]") : [];
-    if (!slots.length) return;
-    var focus = sceneFocus(nodes.navtree);
-    var model = currentModel();
-    for (var i = 0; i < slots.length; i++) {
-      var fid = slots[i].getAttribute("data-scene-feature");
-      var feature = model && fid ? model.feature(fid) : null;
-      var rows = feature && sceneTree
-        ? VA.sceneRowsForFeature(sceneTree, feature.node, featureEdgeIds(model, fid)) : [];
-      // The body from the model's own status (VA.featureBodyPlan): a bound
-      // face with its Correct and Unbind, or Pick a face; the pane's rows
-      // only for a suggestion they list.
-      var plan = feature ? VA.featureBodyPlan(model, fid, state.topologyId, rows, sceneTree) : null;
-      VA.renderFeatureBody(slots[i], rows, { send: sceneRail, plan: plan, command: bodyCommand,
-        hoverFace: faceHoverFor(fid), write: bodyWrite });
-    }
-    if (!focus) return;
-    var rows = nodes.navtree.querySelectorAll(".navtree__scene [data-scene-key]");
-    for (var j = 0; j < rows.length; j++) {
-      if (rows[j].getAttribute("data-scene-key") !== focus.key) continue;
-      var target = focus.part
-        ? rows[j].querySelector('[data-scene-part="' + focus.part + '"]') : rows[j];
-      // The keyboard goes back; the column's scroll is the anchor's.
-      if (target && target.focus) target.focus({ preventScroll: true });
-      break;
-    }
-  }
-
-  // A body action, posted to the pane (VA.FEATURE_BODY_VERBS). Nothing here
-  // writes: the pane writes the event and posts its record back.
+  // --- a feature's form, in the tree's place (handoff editing_a_feature_
+  // opens_its_form_where_the_tree_was, 2026-11-23) ---------------------------------
   //
-  // One that writes (VA.FEATURE_BODY_WRITE_VERBS) is the page's write in
-  // flight until the pane answers it by id (onBodyWriteResult): the pressed
-  // control reads pending and every writing control is disabled meanwhile
-  // (renderBodyPlan), and a failure stays on the control that failed. The
-  // button showed it at the press already; the repaint here keeps it so.
-  var bodyWrite = null;
-  var bodyWriteCount = 0;
-  function bodyCommand(cmd) {
-    if (VA.FEATURE_BODY_WRITE_VERBS.indexOf(cmd[0]) === -1) {
-      postToPane(cmd);
-      return;
+  // A double-click on a feature's row, its pencil, or Enter on the selected
+  // row opens its form: the tree is hidden, the form drawn in its column
+  // (VA.renderFeatureForm), and the pane is armed at the feature's end --
+  // which is the pane's edit (apps/annotate/app.js's openEdit): a click in
+  // the scene puts a surface in or out, and the pane's tree message carries
+  // the set (`edit`). The tick and Enter write (`edit ok`), the X and Esc
+  // discard (`arm off`); leaving puts the tree back with the same row at the
+  // same place on screen (takeNavAnchor, saved at the open). The pane ending
+  // the edit itself -- its own Esc or Enter, an Unbind -- closes the form too.
+  //
+  // `form` is {fid, anchor, seen, next}; `formWrite` the tick in flight or
+  // failed ({id, state, reason}).
+  var form = null;
+  var formWrite = null;
+  var formWriteCount = 0;
+  var lastFeatureClick = null;
+
+  function formModel() {
+    return form ? currentModel() : null;
+  }
+
+  function openFeatureForm(fid) {
+    var model = currentModel();
+    if (!model || !VA.featureEditable(model, fid) || !nodes.navform) return;
+    if (!(nodes.flyout && nodes.flyout.open)) return;
+    if (form) closeFeatureForm(true);
+    var at = VA.featureFormEnd(model, fid);
+    var feature = model.feature(fid);
+    // Leaving comes back to this row: select it first, then take its place.
+    if (!VA.sameFocus(state.focus.selected, { kind: VA.FOCUS_KINDS.feature, id: fid })) {
+      selectEntity({ kind: VA.FOCUS_KINDS.feature, id: fid });
     }
-    if (bodyWrite && bodyWrite.state === VA.WRITE_PRESS_STATES[0]) return;
-    var id = "body-write-" + (++bodyWriteCount);
+    form = { fid: fid, anchor: takeNavAnchor(), seen: false, next: false };
+    formWrite = null;
+    nodes.navtree.style.display = "none";
+    nodes.navform.style.display = "";
+    renderForm();
+    postToPane(["arm", at.edgeId, at.end, state.topologyId, feature.part]);
+  }
+
+  // Back to the tree. `quiet`: the pane has already let the edit go (or will
+  // be told by whoever called), so nothing is posted.
+  function closeFeatureForm(quiet) {
+    if (!form) return;
+    var was = form;
+    form = null;
+    formWrite = null;
+    if (!quiet) postToPane(["arm", "off"]);
+    postToPane(HOVER_CLEAR);
+    VA.clear(nodes.navform);
+    nodes.navform.style.display = "none";
+    nodes.navtree.style.display = "";
+    navAnchorOverride = was.anchor;
+    renderNav();
+    if (was.next) {
+      var model = currentModel();
+      var next = model ? VA.nextUnboundFeature(model, was.fid) : null;
+      if (next) openFeatureForm(next);
+    }
+  }
+
+  function renderForm() {
+    if (!form || !nodes.navform) return;
+    var model = currentModel();
+    var edit = sceneTree && sceneTree.edit;
+    var plan = VA.featureFormPlan(model, form.fid, edit, model ? VA.nextUnboundFeature(model, form.fid) : null);
+    VA.renderFeatureForm(nodes.navform, plan, {
+      onOk: formOk,
+      onCancel: function () { closeFeatureForm(false); },
+      onDrop: function (key) { postToPane(["edit", "drop", key]); },
+      onTake: function (key) { postToPane(["edit", "take", key]); },
+      onDismiss: function (id) { postToPane(["edit", "dismiss", id]); },
+      onHover: formHover,
+      onUnbind: function () {
+        var e = sceneTree && sceneTree.edit;
+        if (!e) return;
+        formPress(["unbind", e.edgeId, e.direction, e.topologyId]);
+      },
+    }, formWrite);
+  }
+
+  // The pane's newest tree, for the form: the edit opened, changed or ended.
+  function formFollowsTree(tree) {
+    if (!form) return;
+    var edit = tree && tree.edit;
+    if (edit && edit.featureId === form.fid) form.seen = true;
+    else if (form.seen && !edit) { closeFeatureForm(true); return; }
+    renderForm();
+  }
+
+  function formOk(next) {
+    if (!form || (formWrite && formWrite.state === VA.WRITE_PRESS_STATES[0])) return;
+    form.next = !!next;
+    formPress(["edit", "ok"]);
+  }
+
+  // A press that writes: pending until the pane answers it by id
+  // (onFormWriteResult); the pane's tree closes the form when it lands.
+  function formPress(cmd) {
+    var id = "form-write-" + (++formWriteCount);
     if (!postToPaneWithId(cmd, id)) return;
-    bodyWrite = { key: VA.bodyCommandKey(cmd), id: id, state: VA.WRITE_PRESS_STATES[0], reason: null };
-    renderSceneSlot();
+    formWrite = { id: id, state: VA.WRITE_PRESS_STATES[0], reason: null };
+    renderForm();
   }
 
   function postToPaneWithId(command, id) {
@@ -2284,35 +2317,51 @@
     return true;
   }
 
-  // The pane's answer to the page's write: done (the record it posted first
-  // has already repainted the body), or not written -- an error, or the press
-  // dropped because a write of the pane's own was running.
-  function onBodyWriteResult(msg) {
-    if (!bodyWrite || msg.id !== bodyWrite.id) return;
-    var W = VA.FEATURE_BODY_WORDS;
+  // The pane's answer to the tick: done (its tree has closed the form, or
+  // will), or not written -- an error, or dropped behind another write.
+  function onFormWriteResult(msg) {
+    if (!formWrite || msg.id !== formWrite.id) return;
     var busy = msg.ok && msg.result && msg.result.action === "busy";
-    if (msg.ok && !busy) bodyWrite = null;
-    else bodyWrite = { key: bodyWrite.key, id: bodyWrite.id, state: VA.WRITE_PRESS_STATES[1],
-      reason: busy ? W.busy : String(msg.error || W.failed) };
-    renderSceneSlot();
+    if (msg.ok && !busy) {
+      formWrite = null;
+      // A tick that changed nothing ends the edit without a write; the tree
+      // that says so may already have closed the form.
+      if (form && form.seen && !(sceneTree && sceneTree.edit)) closeFeatureForm(true);
+      return;
+    }
+    formWrite = { id: formWrite.id, state: VA.WRITE_PRESS_STATES[1],
+      reason: busy ? VA.FEATURE_FORM_WORDS.failed : String(msg.error || VA.FEATURE_FORM_WORDS.failed) };
+    if (form) form.next = false;
+    renderForm();
   }
 
-  function faceHoverFor(fid) {
-    return function (face) { bodyHoverFace(face, fid); };
-  }
-
-  // A bound line hovered is its feature hovered (the one hover, so the
-  // feature lights on every surface) with its face washed in the scene
-  // (`hover face`, which works in either pane mode); leaving it lets both go.
-  function bodyHoverFace(face, fid) {
-    if (face) {
-      setHovered({ kind: VA.FOCUS_KINDS.feature, id: fid }, "tree");
-      // A line for a set lights every face of it (`hover face` takes several).
-      postToPane(["hover", "face", face.sha256].concat((face.faceIds || [face.faceId]).map(String)));
+  // A line hovered lights its faces in the scene (`hover face`, several at
+  // once); leaving it lets them go.
+  function formHover(face) {
+    if (face && face.sha256) {
+      postToPane(["hover", "face", face.sha256].concat((face.faceIds || []).map(String)));
       return;
     }
     postToPane(HOVER_CLEAR);
-    setHovered(null, "tree");
+  }
+
+  // Esc is the X and Enter the tick while the form is open, wherever focus
+  // is on this page but a field or a button of the form's own.
+  function wireFormKeys() {
+    if (typeof document === "undefined" || !document.addEventListener) return;
+    document.addEventListener("keydown", function (event) {
+      if (!form || !event) return;
+      var t = event.target;
+      var tag = t && t.tagName ? t.tagName.toLowerCase() : "";
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      if (event.key === "Escape") {
+        if (event.preventDefault) event.preventDefault();
+        closeFeatureForm(false);
+      } else if (event.key === "Enter" && tag !== "button" && tag !== "summary") {
+        if (event.preventDefault) event.preventDefault();
+        formOk(false);
+      }
+    });
   }
 
   function onPaneIdentity(msg) {
@@ -2668,14 +2717,6 @@
     var entity = target.kind === "node" ? featureEntityOfNode(target.id)
       : VA.focusEntityOf(currentModel(), target.kind, target.id);
     if (!entity || VA.sameFocus(entity, state.focus.selected)) return;
-    // A reader working in a feature's body when the pane moves on (a Take
-    // selects the partner end) keeps working there: the partner's body
-    // opens. A selection alone opens no body (setSelected).
-    var was = state.focus.selected;
-    if (was && was.kind === VA.FOCUS_KINDS.feature && entity.kind === VA.FOCUS_KINDS.feature &&
-        state.navOpen[VA.navFeatureKey(was.id)]) {
-      state.navOpen[VA.navFeatureKey(entity.id)] = true;
-    }
     hideCrop();
     selectFromScene(entity);
   }
@@ -3482,7 +3523,10 @@
     // The tree holds still (deliverable 2): the row under the pointer -- or,
     // with none, the selected row, else the top row on screen -- is where it
     // was after the redraw as before it (takeNavAnchor, below).
-    var anchor = takeNavAnchor();
+    // While a feature's form has the column the tree is hidden and holds no
+    // anchor; closing the form hands back the one it saved.
+    var anchor = navAnchorOverride || (form ? null : takeNavAnchor());
+    navAnchorOverride = null;
     VA.renderNavTree(nodes.navtree, tree, state, {
       onTopology: onNavTopology,
       onStudy: onNavStudy,
@@ -3512,15 +3556,14 @@
       // would be clipped -- and the shared node is `position: fixed`, which is
       // the reason it is not.
       onCardShow: showCard,
-      // The open scene's own tree goes under the row it is showing
-      // (renderSceneSlot, below); a closed scene has no slot at all.
-      sceneSlot: paneOpen,
+      // A feature's form, in the tree's place: only beside the open scene.
+      onEditFeature: paneOpen && state.annotateMount ? openFeatureForm : null,
       // Standing bindings that name an edge no model has, or a mesh not
       // installed: one line at the foot of the tree (VA.orphanBindings).
       orphans: VA.orphanBindings(state.identity, state.topologies, state.installedMeshes),
     });
-    fillSceneSlots();
     restoreNavAnchor(anchor);
+    if (form) return;
     revealLitRows();
     if (navEaseOpen) {
       easeOpen(navEaseOpen);
@@ -3542,6 +3585,7 @@
   // (revealLitRows). Until 2026-11-22 nothing saved the column's scroll, and
   // a rebuild landed wherever the new heights put it.
   var navPointer = null;
+  var navAnchorOverride = null;
 
   function wireNavPointer() {
     var nav = nodes.navtree;
