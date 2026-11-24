@@ -6305,7 +6305,7 @@ function renderDetail() {
     // viewer_says_nothing_about_itself: a page never describes its mode, and
     // a feature that is absent shows nothing). A press says so in one line
     // (AA.READ_ONLY_WRITE).
-    const bound = bind && buildBindingsBlock(edge, bind, canWrite);
+    const bound = bind && buildBindingsBlock(edge, bind);
     if (bound) work.appendChild(bound);
     if (canWrite) {
       work.appendChild(buildOwnerNotInSetForm(edge));
@@ -6874,16 +6874,18 @@ function cmdBoundFaces(value) {
 }
 
 // What an element's bindings say about themselves, in the bar: one line per
-// standing binding (end and face) with the two ways to correct it, and the
-// bindings a correction replaced under one quiet disclosure. Nothing at all for
-// an element with no binding. Controls only where the transport can write.
-function buildBindingsBlock(edge, bind, canWrite) {
+// standing binding (end and face), and the bindings a correction replaced
+// under one quiet disclosure. Nothing at all for an element with no binding.
+// Read-only since 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_
+// was): its Correct, Flip, Accept and Reject wrote beside the feature's form,
+// which is now the one place a binding is written.
+function buildBindingsBlock(edge, bind) {
   const shown = AA.describeBindings(bind.record, bind.names);
   const proposed = AA.describeProposals(bind.record, bind.names);
   if (!shown.current.length && !shown.earlier.length && !proposed.length) return null;
   const box = document.createElement("div");
   box.className = "an__bound";
-  for (const row of proposed) box.appendChild(buildProposalRow(edge, bind, row, canWrite));
+  for (const row of proposed) box.appendChild(buildProposalRow(edge, bind, row, false));
   for (const row of shown.current) {
     const line = document.createElement("div");
     line.className = "an__bound-row";
@@ -6893,59 +6895,6 @@ function buildBindingsBlock(edge, bind, canWrite) {
     text.textContent = row.end + " · face " + row.face;
     text.title = text.textContent;
     line.appendChild(text);
-    if (canWrite) {
-      const armed = !!bind.target && bind.target.event_id === row.eventId;
-      const other = AA.otherDirection(row.direction);
-      // Flipping into an end that already has a face would stack two faces on
-      // one end -- legitimate, but never what a one-click flip should do.
-      if (!shown.current.some((o) => o.direction === other)) {
-        const flip = document.createElement("button");
-        flip.type = "button";
-        flip.className = "an__bound-act an__bound-flip";
-        flip.textContent = "Flip direction";
-        flip.title = "this face belongs at " + bind.names[other];
-        flip.onclick = async () => {
-          try {
-            // The row as drawn may be older than the record (a write still
-            // landing): act only on a binding that stands now.
-            const now = AA.findBindingRecord(mergedIdentityProjection(), bind.record && bind.record.stack_key);
-            const live = ((now && now.bindings) || []).find((b) => b.event_id === row.eventId);
-            if (!live) {
-              renderDetail();
-              return;
-            }
-            // The face belongs to the other end's FEATURE: bound there with
-            // the same faces, taken back here (AA.planFeatureWrite).
-            const seq = await nextEventSeq(2);
-            const events = AA.planFeatureWrite({
-              target: live,
-              featureKey: endFeature(state.currentTopology, edge.id, other),
-              faces: AA.eventFaceFields(live),
-              fields: { eventId: "annotate-" + Date.now() + "-" + slugify(edge.id), seq,
-                createdAt: nowIso(), recordedBy: AA.humanActor(AA.CONFIG.reviewer) },
-            });
-            state.correcting = null;
-            for (const event of events) {
-              await writeIdentityEvent(AA.eventFilename(event.seq, slugify(edge.id)), event,
-                "Moved the face to " + bind.names[other]);
-            }
-          } catch (err) {
-            setWriteFailure("Correction", err);
-          }
-        };
-        line.appendChild(flip);
-      }
-      const fix = document.createElement("button");
-      fix.type = "button";
-      fix.className = "an__bound-act an__bound-correct";
-      fix.textContent = armed ? "Cancel correction" : "Correct this binding";
-      fix.setAttribute("aria-pressed", armed ? "true" : "false");
-      fix.onclick = () => {
-        state.correcting = armed ? null : { edgeId: edge.id, eventId: row.eventId };
-        renderDetail();
-      };
-      line.appendChild(fix);
-    }
     box.appendChild(line);
   }
   if (shown.earlier.length) {

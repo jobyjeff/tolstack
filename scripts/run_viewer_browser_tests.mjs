@@ -10902,8 +10902,9 @@ async function testFeatureForm(browser, label, topologies) {
     await page.evaluate((sel) => { const r = document.querySelector(sel); if (r) r.scrollIntoView({ block: "center" }); }, row(PILOT));
     await page.waitForTimeout(500);
     const pencils = await page.locator(`#navtree [data-nav-edit]`).count();
-    let opened = await openByPencil(PILOT);
+    // Where the row is on screen before the form takes the column.
     const topBefore = await rowTop(PILOT);
+    let opened = await openByPencil(PILOT);
     await until((w) => w.__embedTree.edit && w.__embedTree.edit.read, null, 120000);
     const f0 = await form();
     console.log(`    pilot form (pencils ${pencils}, opened ${opened}): ${JSON.stringify(f0)}`);
