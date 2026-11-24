@@ -206,3 +206,35 @@ the main checkout (removed afterwards).
   review's.
 - **Jeff's log**: 116 files, listing hash `efe47ec6…`, contents hash `39e9abba…`, before and
   after.
+
+## Rework after review (REQUEST CHANGES, one blocker)
+
+- **The blocker:** "annotate hosted posture" pressed `.owner-not-in-set-form button`, and
+  that form went with the bar. I ran `--only` for the ten suites I *edited*, and not for
+  this one: none of its lines changed, but the DOM it reads did. A deletion reaches every
+  suite that reads the thing deleted, so grep the suites for each deleted class or id, not
+  only for the checks you edited.
+- **The fix:** the check now presses the form's tick. It posts `arm <edge> <end>
+  <topology>`, `edit click 0` and `edit ok` to the hosted pane as `annotate:exec` messages
+  with an id, the way the shell does, on the first end whose part has a mesh. A tick
+  writes only a changed set, and clicking face 0 puts it in or takes it out, so there is
+  always something to write, whatever the log holds.
+- **What the fix found:** the bar's Record form was the only caller of `setWriteFailure`,
+  so once it was deleted a failed tick in the hosted pane showed the storage layer's raw
+  sentence (`AA.READ_ONLY_WRITE`) as the banner, not c21a06bb's fixed line. I restored
+  `setWriteFailure`. The pane's exec listener now uses it for every write verb, with
+  `AA.WRITE_FAILURE_VERBS` ("Bind failed · binding is not available here"; the raw sentence
+  on hover), and so does Enter. Non-write commands keep their own message. The reply to the
+  shell is unchanged, so the form's own failure line is untouched. The existing fast check
+  "a failed bind says its class in fixed words…" now pairs `AA.WRITE_FAILURE_VERBS` with
+  `AA.IDENTITY_WRITE_VERBS`. No new guard, so the census pins stand.
+- **Re-run:** fast tiers annotate 329/329 and viewer 517/517 (worktree, `[real]` skipped).
+  Browser `--only "annotate hosted posture"` 15/15 and `--only "the right-click menus"`
+  10/10, both against `data/scratch/rc1124`. Witness `--only` the hosted check's spec
+  (`browser__real-pressing-a-bind-control-says-in-one-line-that-bindi__986db3a0`, mutation
+  in `storage/http.js`, unchanged): WITNESSED in 31 s. Nothing was written to the scratch
+  log, and Jeff's log is still 116 files, `efe47ec6…` / `39e9abba…`.
+- **Not done here:** review findings 2 (the row menu's silent Unbind) and 3 (the menus suite
+  is gated on Jeff's live log) stay filed. The dead `.bind-form` / `.owner-not-in-set-form`
+  CSS also stays, because `apps/annotate/run_browser_check.mjs` (already broken, filed)
+  still names `.bind-form__bind`.

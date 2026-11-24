@@ -11776,31 +11776,51 @@ async function testAnnotateHostedPosture(browser, label, topologies) {
           await page.locator("#connect-btn").evaluate((n) => n.style.display) === "none" &&
           !/Connect folder|connected folder/.test(
             await page.evaluate(() => document.body.innerText)));
-        // A bind, pressed: the owner-not-in-set record is the one bind control
-        // that needs no face picked, so it is the one this tier can press.
-        const pressed = await page.evaluate(async () => {
-          const rows = Array.from(document.querySelectorAll("#element-list li"));
-          const row = rows.find((r) => typeof r.onclick === "function");
-          if (!row) return null;
-          row.click();
-          await new Promise((r) => setTimeout(r, 200));
-          const button = document.querySelector(".owner-not-in-set-form button");
-          if (!button) return null;
-          button.click();
-          await new Promise((r) => setTimeout(r, 300));
-          const notice = document.querySelector("#notice-text");
-          return { text: notice.textContent.trim(), title: notice.title };
-        });
+        // A bind, pressed: the form's tick (`edit ok`), posted the way the
+        // shell posts it (an `annotate:exec` with an id). Since 2026-11-24 the
+        // bar's owner-not-in-set form is gone, and the tick is the write every
+        // bind ends in. A tick writes only a changed set, so the first face of
+        // the feature's part goes in or out of it first -- either way there is
+        // something to write, whatever the log already holds.
+        const ends = (topologies.topologies || []).flatMap((t) =>
+          (t.edges || []).map((e) => [t.id, e.id]));
+        const pressed = await page.evaluate(async (ends) => {
+          const send = (command) => new Promise((resolve) => {
+            const id = "hosted-" + Math.random();
+            const heard = (ev) => {
+              if (!ev.data || ev.data.type !== "annotate:result" || ev.data.id !== id) return;
+              window.removeEventListener("message", heard);
+              resolve(ev.data);
+            };
+            window.addEventListener("message", heard);
+            window.postMessage({ type: "annotate:exec", id, command }, window.location.origin);
+          });
+          for (const [topologyId, edgeId] of ends) {
+            for (const end of window.AnnotateApp.DIRECTIONS) {
+              const armed = await send(["arm", edgeId, end, topologyId]);
+              const edit = armed.ok ? (await send(["edit", "state"])).result : null;
+              if (!edit) continue;
+              const click = await send(["edit", "click", "0"]);
+              if (!click.ok) { await send(["arm", "off"]); continue; }
+              const tick = await send(["edit", "ok"]);
+              const notice = document.querySelector("#notice-text");
+              const seen = { ok: tick.ok, text: notice.textContent.trim(), title: notice.title };
+              await send(["arm", "off"]);
+              return seen;
+            }
+          }
+          return null;
+        }, ends);
         // Since c21a06bb (a failed write says its class in fixed words) the
         // banner is the read-only class's fixed line and the storage layer's
         // own sentence, AA.READ_ONLY_WRITE, rides on hover.
         const expected = await page.evaluate(() => {
           const AA = window.AnnotateApp;
-          return { text: AA.bindFailureWords(new Error(AA.READ_ONLY_WRITE), "Record"),
+          return { text: AA.bindFailureWords(new Error(AA.READ_ONLY_WRITE), AA.WRITE_FAILURE_VERBS.edit),
             title: AA.READ_ONLY_WRITE };
         });
         push("[real] pressing a bind control says, in one line, that binding is not available here",
-          pressed !== null && pressed.text === expected.text && pressed.title === expected.title);
+          pressed !== null && pressed.ok === false && pressed.text === expected.text && pressed.title === expected.title);
       } finally {
         served.closeAllConnections();
         served.close();

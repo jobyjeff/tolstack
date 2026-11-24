@@ -1251,6 +1251,16 @@
   // pairs the two).
   AA.IDENTITY_WRITE_VERBS = Object.freeze(["accept", "take", "unbind", "keep", "drop-face", "edit", "flip"]);
 
+  // The word a failed write of each verb leads its banner with
+  // (AA.bindFailureWords): "Bind failed · binding is not available here" for
+  // the form's tick, the storage layer's own sentence on hover. The bar's
+  // Record form did this until it went (2026-11-24); the pane's exec
+  // listener does it now for every write verb.
+  AA.WRITE_FAILURE_VERBS = Object.freeze({
+    accept: "Accept", take: "Take", unbind: "Unbind", keep: "Keep",
+    "drop-face": "Remove", edit: "Bind", flip: "Flip",
+  });
+
   // What the shell's feature body's Unbind and Flip say once written
   // (app.js's cmdUnbind / cmdFlip), as a toast.
   AA.BODY_VERB_WORDS = Object.freeze({
