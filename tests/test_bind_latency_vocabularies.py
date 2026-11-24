@@ -46,12 +46,14 @@ def _list(source: str, name: str) -> list[str]:
 
 
 def test_a_pending_press_reads_the_same_in_the_shell_and_the_pane():
-    shell = _table(_read(NAV), "VA.FEATURE_BODY_WORDS")
+    # Since 2026-11-23 the shell's pressing control is the feature form's tick
+    # (VA.FEATURE_FORM_WORDS); the pane's busy word has no shell twin, since
+    # the form reads a dropped tick as not written.
+    shell = _table(_read(NAV), "VA.FEATURE_FORM_WORDS")
     pane = _table(_read(SWEEP), "AA.ARMED_PICK_WORDS")
-    for key in PRESS_WORDS:
+    for key in ("writing", "failed"):
         assert _word(shell, key) == _word(pane, key), key
-    # Worded the way the armed click's own line is: lower case, the ellipsis.
-    assert _word(pane, "reading").endswith("…") and _word(pane, "writing").endswith("…")
+    assert _word(pane, "writing").endswith("…")
 
 
 def test_a_writing_controls_states_are_one_list_on_both_sides():
@@ -60,18 +62,20 @@ def test_a_writing_controls_states_are_one_list_on_both_sides():
     assert shell == pane == ["writing", "failed"]
 
 
-def test_every_body_write_is_a_pane_write_and_every_pane_write_is_held_one_at_a_time():
+def test_every_form_write_is_a_pane_write_and_every_pane_write_is_held_one_at_a_time():
+    """The form writes through two pane verbs -- the tick (`edit ok`) and
+    Unbind -- and every verb the pane counts as a write holds the one-write
+    flag: registered through oneWriteAtATime, or, for `edit`, whose other
+    sub-verbs write nothing, its tick through it."""
     nav = _read(NAV)
-    verbs = dict(re.findall(r'(\w+): "([a-z-]+)"', _table_from_verbs(nav)))
-    body = [verbs[w.split(".")[-1]] for w in _list(nav, "VA.FEATURE_BODY_WRITE_VERBS")]
-    pane = [w.strip('"') for w in _list(_read(COMMANDS), "AA.IDENTITY_WRITE_VERBS")]
-    assert body and set(body) <= set(pane), sorted(set(body) - set(pane))
     app = _read(APP)
+    shell = _read(REPO / "apps" / "viewer" / "topology_app.js")
+    pane = [w.strip('"') for w in _list(_read(COMMANDS), "AA.IDENTITY_WRITE_VERBS")]
+    assert 'formPress(["edit", "ok"])' in shell and 'formPress(["unbind"' in shell
+    assert {"edit", "unbind"} <= set(pane)
     for verb in pane:
+        if verb == "edit":
+            assert 'oneWriteAtATime(editCommit, "edit")' in app
+            continue
         assert re.search(r'commands\.register\("' + re.escape(verb) + r'", oneWriteAtATime\(', app), verb
-
-
-def _table_from_verbs(nav: str) -> str:
-    match = re.search(r"VA\.FEATURE_BODY_VERBS = Object\.freeze\(\{(.*?)\}\);", nav, re.S)
-    assert match
-    return match.group(1)
+    assert "VA.FEATURE_BODY_WRITE_VERBS" not in nav

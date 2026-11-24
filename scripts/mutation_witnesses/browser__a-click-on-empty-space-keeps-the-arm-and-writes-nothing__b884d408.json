@@ -6,10 +6,10 @@
     {
       "contract": "A miss keeps the arm.",
       "issue": "docs/sessions/lessons/LESSONS_20261029_a_face_is_picked_the_way_cad_picks_it.md",
-      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). CAD keeps a selection mode through a miss.",
+      "note": "Declared with the guard by handoff a_face_is_picked_the_way_cad_picks_it (2026-10-29). CAD keeps a selection mode through a miss. Re-pointed 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was), where the code it means now is.",
       "file": "apps/annotate/app.js",
-      "find": "  if (plan.action === acts[3]) return plan;",
-      "replace": "  if (plan.action === acts[3]) return disarmPick(\"cancel\");"
+      "find": "  if (!pick || !a.edit || pick.sha256 !== a.edit.sha256) return Promise.resolve({ action: \"stay\" });",
+      "replace": "  if (!pick || !a.edit || pick.sha256 !== a.edit.sha256) return Promise.resolve(disarmPick(\"cancel\"));"
     }
   ]
 }

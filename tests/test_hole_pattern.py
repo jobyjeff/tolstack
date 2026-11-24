@@ -255,15 +255,21 @@ def test_real_the_hub_fastener_hole_offers_ten_holes_and_both_readers_agree(tmp_
     assert js["words"] == "10 holes \u00d85.5 on a \u00d8240 circle"
 
 
-# --- Add a face: the shell asks for the arm mode the pane knows ----------------
+# --- the feature's form: the shell posts only the edit verbs the pane knows ---
 
 
-def test_the_add_a_face_mode_is_the_panes():
-    """The body's Add a face posts ``arm ... add`` (``VA.ARM_ADD``); the pane
-    takes exactly the modes in ``AA.ARM_PICK_MODES`` and refuses any other."""
-    nav = (REPO / "apps" / "viewer" / "views" / "nav.js").read_text(encoding="utf-8")
-    sweep = (REPO / "apps" / "annotate" / "sweep.js").read_text(encoding="utf-8")
-    shell = re.search(r'VA\.ARM_ADD = "([a-z]+)";', nav)
-    pane = re.search(r"AA\.ARM_PICK_MODES = Object\.freeze\(\[([^\]]*)\]\);", sweep)
-    assert shell and pane
-    assert [w.strip().strip('"') for w in pane.group(1).split(",")] == [shell.group(1)]
+def test_the_forms_edit_verbs_are_the_panes():
+    """Add a face (``arm ... add``) retired on 2026-11-23 with the feature
+    body: a set grows in the feature's form. Every ``edit <verb>`` the form
+    posts (apps/viewer/topology_app.js) is one the pane's ``AA.EDIT_VERBS``
+    lists, and the pane registers ``edit``."""
+    shell = (REPO / "apps" / "viewer" / "topology_app.js").read_text(encoding="utf-8")
+    state = (REPO / "apps" / "annotate" / "binding_state.js").read_text(encoding="utf-8")
+    app = (REPO / "apps" / "annotate" / "app.js").read_text(encoding="utf-8")
+    posted = set(re.findall(r'\["edit", "([a-z]+)"', shell))
+    pane = re.search(r"AA\.EDIT_VERBS = Object\.freeze\(\[([^\]]*)\]\);", state)
+    assert posted and pane
+    verbs = [w.strip().strip('"') for w in pane.group(1).split(",")]
+    assert posted <= set(verbs), sorted(posted - set(verbs))
+    assert 'commands.register("edit", cmdEdit);' in app
+    assert "VA.ARM_ADD" not in shell and "ARM_PICK_MODES" not in app

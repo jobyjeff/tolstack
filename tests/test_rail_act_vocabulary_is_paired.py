@@ -42,8 +42,11 @@ def test_each_act_is_its_own_word_on_the_wire():
 
 def test_no_gesture_word_is_spelled_inline_beside_the_table():
     sender = SENDER.read_text(encoding="utf-8")
+    # Since 2026-11-23 nothing in the nav sends a gesture (the feature body
+    # that did is the feature's form, which posts pane verbs), so there may be
+    # none; one that comes back must not spell its word inline.
     sends = re.findall(r"\bsend\([^;\n]*", sender)
-    assert sends and not [s for s in sends if re.search(r'"(%s)"' % "|".join(
+    assert not [s for s in sends if re.search(r'"(%s)"' % "|".join(
         _acts(SENDER, "VA.SCENE_ACTS")), s)]
     app = (REPO_ROOT / "apps" / "annotate" / "app.js").read_text(encoding="utf-8")
     start = app.index("function railGesture(")

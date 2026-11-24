@@ -55,16 +55,21 @@ def _resolved(name: str) -> str:
     return _token(STYLE_CSS, ref.group(1)) if ref else value
 
 
+# Since 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was) the
+# nav draws none of the pane's rows: the feature body that wore the second
+# mark vocabulary (seven circles, three diamonds) is the feature's form. So
+# the nav styles none of the annotator's kinds or marks, and one that comes
+# back must be a kind or mark the annotator sends.
 def test_every_kind_the_nav_styles_is_one_the_annotator_sends_and_back():
     kinds = _frozen(COMMANDS, "AA.RAIL_ROW_KINDS")
     assert kinds and all(k == v for k, v in kinds.items())
-    assert _css_values("data-kind") == set(kinds.values())
+    assert _css_values("data-kind") <= set(kinds.values())
 
 
 def test_every_mark_the_nav_styles_is_one_the_annotator_sends_and_back():
     marks = _frozen(COMMANDS, "AA.RAIL_MARKS")
     assert marks and all(k == v for k, v in marks.items())
-    assert _css_values("data-mark") == set(marks.values())
+    assert _css_values("data-mark") <= set(marks.values())
     for mark in marks.values():
         _token(TOPOLOGY_CSS, f"--mark-{mark}")
 

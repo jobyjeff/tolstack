@@ -6,10 +6,10 @@
     {
       "contract": "A body is open by default, so the tree shows its parts without a click.",
       "issue": "docs/sessions/lessons/LESSONS_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md",
-      "note": "Renamed 2026-11-22 with its guard (the_tree_sits_beside_the_3d_canvas_and_holds_still); was the_model_is_derived_once's. Closes every body by default.",
+      "note": "Renamed 2026-11-22 with its guard (the_tree_sits_beside_the_3d_canvas_and_holds_still); was the_model_is_derived_once's. Closes every body by default. Re-pointed 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was), where the code it means now is.",
       "file": "apps/viewer/views/nav.js",
-      "find": "      : !!node.children.length && isOpen(state, node.fold, node.type === T.body);\n",
-      "replace": "      : !!node.children.length && isOpen(state, node.fold, false);\n"
+      "find": "    var open = node.type !== T.feature && !!node.children.length && isOpen(state, node.fold, node.type === T.body);\n",
+      "replace": "    var open = node.type !== T.feature && !!node.children.length && isOpen(state, node.fold, false);\n"
     },
     {
       "contract": "A feature row wears one status mark, read off the model object.",
