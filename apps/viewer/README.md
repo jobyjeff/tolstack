@@ -380,9 +380,11 @@ features', a body's and everything in it -- and what it *touches* is the
 fainter `--on-touching` / `--hot-touching`: the interfaces to a part's
 neighbours, their joint, the feature across each. **Every row selects** -- a
 body's, a part's, a joint's, an interface's, a feature's -- and only the
-twisty folds. A selection opens every fold on the path to every lit row
-(interfaces, joints and groups, not only parts: `VA.navRevealPaths`) and
-scrolls the first lit row not on screen into view; a hover opens nothing,
+twisty folds. Since 2026-11-22 a selection opens the path to its own row and
+nothing else (`VA.navSelectionPaths`, over the tree's plan `VA.navPlan`),
+scrolls only if that row is off screen, and every redraw keeps the row under
+the pointer where it was (topology_app.js, "the tree holds still"); the tree
+is drawn only with the 3D pane, by part or by joint. A hover opens nothing,
 and a closed fold that hides a lit row wears a small mark instead
 (`--holds`, `--holds-touching`). The reader's later fold still wins.
 
@@ -1164,8 +1166,8 @@ less pronounced color for interfaces"*). The derivations are
 `VA.focusElementKeysOf` (`{own, touching}` element and container keys for the
 grid), `VA.mapLightKeys` (entity keys for the map), `VA.focusNavRowsOf` (row
 keys for the tree),
-`VA.navRevealPaths` (the folds a lit row is behind, outermost first — what a
-selection opens) and `VA.sceneLightOf` (ids for the pane). Until 2026-11-12 a
+the tree's plan (`VA.navPlan`'s paths: the folds a row is behind, outermost
+first — what a selection opens, `VA.navSelectionPaths`) and `VA.sceneLightOf` (ids for the pane). Until 2026-11-12 a
 part hover lit every edge of every part that touched any of its nodes, plus
 whole rail legs — Jeff's "random rows" — because a node key led every row at
 that node.

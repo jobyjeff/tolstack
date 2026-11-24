@@ -15862,13 +15862,14 @@
                ["interface:tan_link_mount_hub_face", "interface:tan_link_mount_fastener_clocking",
                 "interface:hub_boss_in_tan_link_mount_pilot"]);
             eq(joint.touching, ["part:hub", "part:" + MOUNT]);
-            // Where the pilot gap's ends are revealed when it is selected:
-            // under itself, inside the hub-mount joint's fold.
-            var reveal = VA.navRevealPaths(model,
-              VA.focusLightOf(model, { kind: F.interface, id: "hub_boss_in_tan_link_mount_pilot" }),
-              { kind: F.interface, id: "hub_boss_in_tan_link_mount_pilot" });
-            eq(reveal["feature:" + MOUNT + "@tan_link_mount_pilot_bore"],
-               ["b:base", "bi:base", "j:hub+" + MOUNT, "i:hub_boss_in_tan_link_mount_pilot"]);
+            // What selecting the pilot gap opens (the tree's plan, 2026-11-22):
+            // by part, the paths to its two ends; by joint, the path to its
+            // own row inside the hub-mount joint's fold.
+            var pilot = { kind: F.interface, id: "hub_boss_in_tan_link_mount_pilot" };
+            eq(VA.navSelectionPaths(VA.navPlan(model, {}), model, pilot),
+               [["b:base", "p:hub"], ["b:base", "p:" + MOUNT]]);
+            eq(VA.navSelectionPaths(VA.navPlan(model, { navGroup: VA.NAV_GROUPINGS[1] }), model, pilot),
+               [["b:base", "j:hub+" + MOUNT]]);
           });
 
         await test("[real] the pitch-link studies render their verdicts and " +
