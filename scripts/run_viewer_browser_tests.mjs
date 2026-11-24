@@ -14355,10 +14355,22 @@ async function testTreeHoldsStill(browser, label, topologies) {
     return n ? Math.round(n.getBoundingClientRect().top * 10) / 10 : null;
   }, sel);
   const scrollOf = () => page.evaluate(() => document.getElementById("navtree").scrollTop);
+  let pointer = null;
   const pointAt = async (sel) => {
     const box = await page.locator(sel).first().boundingBox();
-    if (box) await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+    if (!box) return;
+    pointer = { x: box.x + box.width * 0.6, y: box.y + box.height / 2 };
+    await page.mouse.move(pointer.x, pointer.y);
   };
+  // A press is one click dispatched where the pointer rests: a mouse down and
+  // up split across a rebuild lose the click (ISSUE_20261123_a_tree_rebuild_
+  // between_a_press_and_its_release_drops_the_click), which is a fact about
+  // clicks, not about whether the tree holds still.
+  const press = () => page.evaluate((pt) => {
+    const n = pt && document.elementFromPoint(pt.x, pt.y);
+    if (n) n.click();
+    return !!n;
+  }, pointer);
   const settle = () => page.waitForTimeout(450);
   const still = (a, b) => a !== null && b !== null && Math.abs(a - b) < 1;
   const diag = {};
@@ -14397,11 +14409,11 @@ async function testTreeHoldsStill(browser, label, topologies) {
     const above = rowSel("body", "base");
     await pointAt(twisty);
     const a0 = await top(partSel), b0 = await top(above);
-    await page.mouse.down(); await page.mouse.up();
+    await press();
     await settle();
     const a1 = await top(partSel), b1 = await top(above);
     const opened = await page.locator(`#navtree [data-nav-under="p:${PART}"]`).count();
-    await page.mouse.down(); await page.mouse.up();
+    await press();
     await settle();
     const a2 = await top(partSel), b2 = await top(above);
     const closed = await page.locator(`#navtree [data-nav-under="p:${PART}"]`).count();
@@ -14413,7 +14425,7 @@ async function testTreeHoldsStill(browser, label, topologies) {
 
     // Select from the tree, a binding written from the pane, a tree update
     // from the pane -- the pointer on the feature row each time.
-    await page.mouse.down(); await page.mouse.up();
+    await press();
     await settle();
     const features = await page.evaluate((p) => Array.from(document.querySelectorAll(
       `#navtree [data-nav-under="p:${p}"] div.navtree__row--feature`)).map((r) => r.getAttribute("data-nav-id")), PART);
@@ -14421,7 +14433,7 @@ async function testTreeHoldsStill(browser, label, topologies) {
     const fSel = rowSel("feature", F);
     await pointAt(fSel);
     const f0 = await top(fSel);
-    await page.mouse.down(); await page.mouse.up();
+    await press();
     const selected = await page.waitForSelector(fSel + ".navtree__row--on", { timeout: 5000 })
       .then(() => 1).catch(() => 0);
     await settle();
@@ -15202,6 +15214,11 @@ async function testModelDrawnAloneAndLed(browser, label, topologies) {
       const r = document.querySelector(s);
       return r ? Math.round(r.getBoundingClientRect().top) : null;
     }, sel);
+    const bossBody = `#navtree [data-nav-twisty="f:${HUB}@hub_spindle_bore_axis"][aria-expanded="true"]`;
+    if (await page.locator(bossBody).count()) {
+      await page.locator(bossBody).first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
+      await page.waitForTimeout(600);
+    }
     const foldsBefore = await foldsOf();
     const bossBefore = await rowTop(bossSelector);
     await page.locator(bossSelector).first().click({ timeout: 5000, noWaitAfter: true }).catch(() => {});
