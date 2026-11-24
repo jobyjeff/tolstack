@@ -16,8 +16,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261117_a_joint_says_what_kind_it_is.md",
       "note": "Prints the stored word with its underscores spaced, as the row did before the word table: 'revolute'.",
       "file": "apps/viewer/views/nav.js",
-      "find": "    row.appendChild(count(VA.interfaceKindWord(interfaceRow.kind)));",
-      "replace": "    row.appendChild(count(String(interfaceRow.kind || \"\").replace(/_/g, \" \")));"
+      "find": "    row.appendChild(count(VA.interfaceKindWord(iface.kind)));",
+      "replace": "    row.appendChild(count(String(iface.kind || \"\").replace(/_/g, \" \")));"
     }
   ]
 }

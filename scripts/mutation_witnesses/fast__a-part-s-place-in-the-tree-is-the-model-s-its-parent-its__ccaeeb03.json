@@ -6,10 +6,10 @@
     {
       "contract": "A part inside an assembly is revealed behind each ancestor's fold.",
       "issue": "docs/sessions/lessons/LESSONS_20261112_a_part_may_contain_parts.md",
-      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Drops the ancestors from a nested part's reveal path.",
-      "file": "apps/viewer/model.js",
-      "find": "      for (var up = model.parentOf(id); up; up = model.parentOf(up)) ancestors.unshift(\"p:\" + up);\n",
-      "replace": ""
+      "note": "Declared by handoff a_part_may_contain_parts (2026-11-14). Drops the ancestors from a nested part's reveal path. Re-anchored 2026-11-22 (the_tree_sits_beside_the_3d_canvas_and_holds_still): the tree is drawn from VA.navPlan.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "        walk(n.children, above.concat([n.fold]));",
+      "replace": "        walk(n.children, n.type === T.part ? above : above.concat([n.fold]));"
     }
   ]
 }

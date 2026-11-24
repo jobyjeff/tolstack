@@ -801,7 +801,7 @@ export const DECLARED_GUARDS = {
   // totals' fold -- each asserting a page-describing sentence is gone. None
   // carried a spec before, and none is written: each is the browser twin of a
   // fast guard that carries one.
-  browser: { declared: 805, enrollable: 776, names: "b6559288ad85" },
+  browser: { declared: 805, enrollable: 776, names: "f925558c6eeb" },
 };
 
 

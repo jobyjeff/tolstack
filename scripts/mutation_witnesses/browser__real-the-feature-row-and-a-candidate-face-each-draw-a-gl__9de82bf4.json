@@ -16,8 +16,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20261110_one_selection_one_hover_and_leaders_off.md",
       "note": "Declared with the guard by handoff one_selection_one_hover_and_leaders_off (2026-11-10). Collapses the feature row's mark to nothing.",
       "file": "apps/viewer/topology.css",
-      "find": ".navtree__mark { flex: none; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; }",
-      "replace": ".navtree__mark { flex: none; width: 0; height: 0; border-radius: 50%; box-sizing: border-box; }"
+      "find": ".navtree__mark { flex: none; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box;",
+      "replace": ".navtree__mark { flex: none; width: 0; height: 0; border-radius: 50%; box-sizing: border-box;"
     }
   ]
 }

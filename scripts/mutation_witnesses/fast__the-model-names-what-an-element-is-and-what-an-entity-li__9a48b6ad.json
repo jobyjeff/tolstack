@@ -22,10 +22,10 @@
     {
       "contract": "A touching feature is revealed under the interface it is an end of, not by opening the part across the joint.",
       "issue": "docs/sessions/lessons/LESSONS_20261112_hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque.md",
-      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. Every feature revealed under its part.",
-      "file": "apps/viewer/model.js",
-      "find": "      var under = e.kind === F.feature ? hostAmong(hosts, e.id) : null;",
-      "replace": "      var under = null;"
+      "note": "Declared by handoff hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque. Every feature revealed under its part. Re-anchored 2026-11-22 (the_tree_sits_beside_the_3d_canvas_and_holds_still): the tree is drawn from VA.navPlan.",
+      "file": "apps/viewer/views/nav.js",
+      "find": "    if (own) return [own];",
+      "replace": "    if (own && false) return [own];"
     }
   ]
 }

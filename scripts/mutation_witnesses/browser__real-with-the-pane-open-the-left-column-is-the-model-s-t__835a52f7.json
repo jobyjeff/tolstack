@@ -6,9 +6,9 @@
     {
       "contract": "The left column lists the model's bodies whatever the pane shows; the pane's rail is never mirrored whole.",
       "issue": "docs/sessions/lessons/LESSONS_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md",
-      "note": "Drops the bodies section, which is the column going back to a list of studies with the model nowhere on it. Re-pointed 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): the section now carries the Parts filter.",
+      "note": "Drops the bodies section, which is the column going back to a list of studies with the model nowhere on it. Re-pointed 2026-11-15 (a_pattern_is_bound_as_its_like_faces_and_a_face_can_be_added): the section now carries the Parts filter. Re-anchored 2026-11-22 (the_tree_sits_beside_the_3d_canvas_and_holds_still): the tree is drawn from VA.navPlan.",
       "file": "apps/viewer/views/nav.js",
-      "find": "        root.appendChild(section(\"bodies\", VA.NAV_WORDS.bodies, bodies, control));\n",
+      "find": "      box.appendChild(section(s.kind, s.heading, list));\n",
       "replace": ""
     }
   ]
