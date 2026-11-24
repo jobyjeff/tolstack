@@ -482,3 +482,18 @@ retired six feature-body suites and added one. Top: the model drawn alone 215.6 
 "a feature's form" suite 172.3 s, topology http 149.3 s, topology file:// 119.4 s, 3D pane
 follows 117.4 s, the map 98.2 s, the DAG zoom 83.7 s, no nav click wedges 81.7 s, annotate
 rail holds still 74.8 s, every study opens in 3D 71.8 s, kinematic study page 71.7 s.
+
+## Measurement 2026-11-24 (review of right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays)
+
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack/data/scratch/rc1124`
+on tree `03799c96`: **2206 s (36m46s) against the 30-minute budget**, 958 checks
+in 46 suites, slot wait 0 s. The default pytest tier was running beside it for
+its first ~8 minutes. The new suite, `the right-click menus`, added 211 s by
+itself, the second-largest in the tier.
+
+Top suites (runner's own timing): the model drawn alone 212.6 s; the right-click
+menus 211.2 s; a feature's form 172.7 s; topology http 148.4 s; 3D pane follows
+the selection 114.5 s; topology file:// 110.5 s; the map 96.8 s; DAG zoom/Fit/grid
+header 87.1 s; no nav click wedges the page 82.0 s; every study opens in 3D 75.9 s;
+annotate rail holds still 72.4 s; kinematic study page 71.2 s; annotate flyout
+67.2 s; annotate model in the scene 65.1 s.

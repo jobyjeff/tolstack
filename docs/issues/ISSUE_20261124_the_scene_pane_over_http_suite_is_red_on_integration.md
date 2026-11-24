@@ -42,3 +42,14 @@ abort on `contentWindow` of null; the next clean run of the same tree was green
 (30/30), and so was a direct `--only` run. Both suites open the pane from
 `topology.html?kinematic=…`, so the HTTP suite's red may be the same arm
 failing every time under its mount server.
+
+## Addendum 2026-11-24 (review)
+
+In the review's whole browser tier on the merged tree `03799c96`, run with
+`--repo C:/workspace/tolstack/data/scratch/rc1124`, this suite went **green:
+`10/10 sub-checks passed`** (62.4 s). The tactical's two `--only` runs aborted
+at the same five sub-checks. So the red is not deterministic on this tree. It
+looks like a timing or arming flake ("the kinematic page's pane handle did not
+arm", as the lesson says of the 3D pane suite) rather than a fixed defect.
+Whoever takes this should run it `--only` several times before changing any
+code.

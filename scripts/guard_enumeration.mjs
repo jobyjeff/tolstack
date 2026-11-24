@@ -397,6 +397,9 @@ export const DECLARED_GUARDS = {
   // 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was): -14 -- the
   // feature body and the mirrored rows retired (15 checks, their specs with them),
   // and the feature's form is one new check with its spec.
+  // 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_
+  // only_plays): +1 -- the menus' plans (a row's, a face's, the placement). It
+  // carries a spec. (Comment added by the review; the pin was the author's.)
   fast: { declared: 618, enrollable: 618, names: "bb8b662cc26a" },
   // 2026-10-29 (the_contributor_table_lives_in_the_results_pane_and_groups_are_
   // checkboxes): one swapped -- the Groups filter's four-state check for the
@@ -509,6 +512,10 @@ export const DECLARED_GUARDS = {
   // 2026-11-23 (editing_a_feature_opens_its_form_where_the_tree_was): +4 -- the
   // set a feature is edited as: the toggle, its lines in words, the tick, the
   // proposals the tick answers. Each carries a spec.
+  // 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_
+  // only_plays): -10 -- the bar's binding sentences, end choice, leader, help lines
+  // and suggestion summary retired with their specs (11 checks); the still
+  // right-click's message is one new check with its spec. (Comment added by the review.)
   annotate: { declared: 329, enrollable: 329, names: "9240a22ba945" },
   // 2026-10-28 (the_scene_pane_is_one_flyout_that_reads_over_http): +14 on
   // integration's 699/666 (re-measured at the review merge) --
@@ -811,6 +818,10 @@ export const DECLARED_GUARDS = {
   // suites of the feature body, the offer bar and the bind form retired with their
   // specs, the faces layer's checks under the rail; the feature's form is one new
   // suite. Every new check carries a spec but the suite's `(skipped: ...)` push.
+  // 2026-11-24 (right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_
+  // only_plays): +6 -- the right-click menus are one new suite (ten checks with
+  // specs, and its `(skipped: ...)` push); five checks that read the bar's binding
+  // lines retired with their specs. (Comment added by the review.)
   browser: { declared: 773, enrollable: 746, names: "cde3ed1dec8e" },
 };
 

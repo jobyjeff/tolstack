@@ -6031,6 +6031,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       names and attributes, and run `--only` on every suite that hits. Baseline a
       red one against `git archive integration` on the same scratch data
       before you call it the merge's.
+      **Second sighting, by deletion** (2026-11-24, `right_click_offers_what_the_
+      form_does_and_the_bar_over_the_canvas_only_plays`): the diff deleted
+      `buildOwnerNotInSetForm` from the pane's bar, and `annotate hosted posture`
+      still pressed `.owner-not-in-set-form button`, 15/15 on integration to
+      14/15 on the merge. For every builder a diff deletes, grep the harness for
+      its CSS classes too, not only for the classes the diff renames.
 - [ ] **A new kind of selectable, and the one let-go gesture still keys on the
       old selection's form.** New 2026-11-13
       (`hover_and_select_light_the_same_things_on_all_four_surfaces_and_nothing_goes_opaque`,
@@ -6388,6 +6394,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `renderNav`, `renderSceneSlot`, `revealLitRows` or `VA.navPlan` runs that
       suite.
 
+- [ ] **A write sent from the viewer as a bare `postToPane` has no failure path.**
+      New 2026-11-24 (`right_click_offers_…`). The pane answers every
+      `annotate:exec` with `{type: "annotate:result", id}`, but only a command
+      sent with an id (`formPress` / `postToPaneWithId`) is ever heard, and
+      `onFormWriteResult` is what shows "not written". The row menu's Unbind
+      posts bare, so a refused retraction is silent
+      (`ISSUE_20261124_unbind_from_a_rows_menu_fails_without_a_word.md`). For
+      every new verb that writes, check which of the two it goes through.
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
