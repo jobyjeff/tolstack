@@ -528,6 +528,87 @@ check("Unbind lets a feature whose faces disagree go: one retracted event naming
   try { AA.buildLetGoEvent(BORE_KEY, before.bindings, { recordedBy: "agent:x" }); } catch (err) { refused = err.message; }
   assertEqual(/an agent only proposes/.test(refused || ""), true, refused);
 });
+// --- the feature's form: the set held until the tick (handoff editing_a_
+// feature_opens_its_form_where_the_tree_was, 2026-11-23) ------------------------
+check("a click puts a surface in the set or takes it out; a hole of a pattern line comes out alone, " +
+  "and a suggestion taken is one line of its faces", () => {
+  const S = AA.EDIT_LINE_KINDS;
+  let lines = AA.editToggle([], [12, 11, 13]);
+  assertEqual(lines, [{ kind: S[0], faces: [11, 12, 13] }], "one surface, its segments, one line");
+  lines = AA.editToggle(lines, [40, 41]);
+  assertEqual(AA.editFaces(lines), [11, 12, 13, 40, 41], "a second surface joins: Jeff's two shoulders");
+  assertEqual(AA.editToggle(lines, [12, 11, 13]), [{ kind: S[0], faces: [40, 41] }], "the same surface again comes out");
+  const pattern = [{ kind: S[1], faces: [1, 2, 3, 4, 5, 6, 7, 8], holes: 4 }];
+  assertEqual(AA.editToggle(pattern, [3, 4]), [{ kind: S[1], faces: [1, 2, 5, 6, 7, 8], holes: 3 }]);
+  assertEqual(AA.editToggle([{ kind: S[1], faces: [1, 2, 3, 4], holes: 2 }], [3, 4]), [{ kind: S[0], faces: [1, 2] }],
+    "a pattern of one hole is a surface");
+  assertEqual(AA.editAdd([{ kind: S[0], faces: [1] }], [1, 9, 7], 0), [{ kind: S[0], faces: [1] }, { kind: S[0], faces: [7, 9] }]);
+  assertEqual(AA.editAdd([{ kind: S[0], faces: [1] }], [1], 0), [{ kind: S[0], faces: [1] }], "nothing new, nothing changes");
+  assertEqual(AA.editAdd([], [5, 6, 7], 3)[0].kind, S[1]);
+});
+check("the faces a feature holds open as surfaces and patterns, and a line says itself in words a " +
+  "reader can check against the scene", () => {
+  const sib = { 1: { swept: [2], pattern: [3, 4, 5, 6] }, 2: { swept: [1], pattern: [] },
+    3: { swept: [4], pattern: [1, 2, 5, 6] }, 5: { swept: [6], pattern: [1, 2, 3, 4] }, 9: { swept: [], pattern: [] } };
+  const lines = AA.editLinesOf([9, 1, 2, 3, 4, 5, 6], (f) => sib[f] || null);
+  assertEqual(lines, [{ kind: "pattern", faces: [1, 2, 3, 4, 5, 6], holes: 3 }, { kind: "surface", faces: [9] }]);
+  assertEqual(AA.editLinesOf([4, 5], null), [{ kind: "surface", faces: [4] }, { kind: "surface", faces: [5] }],
+    "before the part is read, a face a line");
+  const classes = { 1: { surface: "cylindrical", radius: 6.35 }, 9: { surface: "planar", radius: 0 } };
+  assertEqual(AA.editLineText({ kind: "surface", faces: [1, 2, 3] }, classes), "round · r 6.3500 mm · 3 segments");
+  assertEqual(AA.editLineText({ kind: "surface", faces: [9] }, classes), "flat");
+  assertEqual(AA.editLineText({ kind: "pattern", faces: [1, 2], holes: 4 }, classes), "4 holes · r 6.3500 mm");
+  assertEqual(AA.editLineText({ kind: "surface", faces: [7] }, null), "face 7");
+  assertEqual(AA.editLineIds({ faces: [7, 8] }), "faces 7, 8", "the ids, on demand");
+});
+function boreProposal(id, seq, faces, confidence) {
+  return { schema: AA.EVENT_SCHEMA_V1, event_id: id, seq, created_at: "2026-11-20T00:00:" + String(seq).padStart(2, "0") + "Z",
+    recorded_by: "agent:propose_bindings", feature_key: BORE_KEY, verdict: "proposed",
+    geometry_keys: boreFaces(faces).map((g) => ({ source_step_sha256: g.sourceStepSha256, face_id: g.faceId,
+      area_native2: g.areaNative2, centroid_native: g.centroidNative })),
+    confidence: confidence || "high", basis: "fits the bushing" };
+}
+function tick(record, faces, dismissed) {
+  return AA.planEditCommit({ featureKey: BORE_KEY, standing: record ? record.bindings : [],
+    proposals: record ? record.proposals : [], dismissed: dismissed || [], faces: boreFaces(faces),
+    fields: { eventId: "tick", seq: 200, createdAt: "t", recordedBy: AA.humanActor("jeff") } });
+}
+check("THE TICK: one event holding the whole set, superseding what is bound; nothing when nothing changed; " +
+  "an empty set lets the feature go", () => {
+  const log = [boreBind("b1", 1, [1380, 1381])];
+  const record = boreRecord(log);
+  assertEqual(tick(record, [1380, 1381]), [], "an unchanged set writes nothing");
+  const two = tick(record, [1380, 1381, 1509, 1510]);
+  assertEqual([two.length, two[0].verdict, two[0].supersedes, two[0].geometry_keys.map((g) => g.face_id)],
+    [1, "bound", "b1", [1380, 1381, 1509, 1510]], "Jeff's two shoulders: one event, the union");
+  const after = boreRecord(log.concat(two));
+  assertEqual([after.state, after.faces.length, after.bindings.length], ["bound", 4, 1]);
+  const first = tick(null, [7, 8]);
+  assertEqual([first.length, first[0].supersedes], [1, undefined], "a first bind supersedes nothing");
+  const go = tick(record, []);
+  assertEqual([go.length, go[0].verdict, go[0].retracts], [1, "retracted", "b1"]);
+  assertEqual(tick(null, []), [], "an empty set over nothing is nothing");
+});
+check("the tick answers every open proposal its set holds -- the same face proposed twice, on a sibling " +
+  "edge, too -- and records a dismissed one as rejected; the log folds with none left open", () => {
+  const log = [boreProposal("p1", 1, [1380], "high"), boreProposal("p2", 2, [1380], "medium"),
+    boreProposal("p3", 3, [44], "low")];
+  const record = boreRecord(log);
+  assertEqual(record.proposals.map((p) => p.event_id), ["p1", "p2", "p3"]);
+  const events = tick(record, [1380, 1381], ["p3"]);
+  assertEqual(events.map((e) => [e.verdict, e.ratifies || e.rejects || null]),
+    [["rejected", "p3"], ["bound", "p1"], ["bound", "p2"]]);
+  assertEqual(events[2].supersedes, events[1].event_id, "the second answer replaces the first: one binding stands");
+  assertEqual(events.map((e) => e.seq), [200, 201, 202]);
+  const after = boreRecord(log.concat(events));
+  assertEqual([after.state, after.proposals.length, after.bindings.length, after.faces.map((f) => f.face_id)],
+    ["bound", 0, 1, [1380, 1381]]);
+  // Unchanged, but a proposal the bound set holds is still open: the tick answers it.
+  const bound = [boreBind("b1", 1, [1380]), boreProposal("p9", 2, [1380])];
+  const again = tick(boreRecord(bound), [1380]);
+  assertEqual(again.map((e) => [e.verdict, e.ratifies, e.supersedes]), [["bound", "p9", "b1"]]);
+  assertEqual(boreRecord(bound.concat(again)).proposals.length, 0);
+});
 check("Add a face over a feature holding the same bind twice writes one event that leaves one binding, " +
   "the union -- where it used to leave three standing and two sets disagreeing", () => {
   const log = boreLog().slice(0, 2);

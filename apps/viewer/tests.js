@@ -269,55 +269,6 @@
         eq(VA.annotateEmbedHref(VA.ANNOTATE_PAGE), "../annotate/index.html?embedded=1");
       });
 
-    await test("the faces layer draws the rows the annotator sent for one feature, " +
-      "and every gesture goes back as (row, act) -- nothing acts here",
-      function () {
-        var sent = [];
-        var send = function (key, act, index) {
-          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
-        };
-        var slot = document.createElement("div");
-        VA.renderSceneTree(slot, null, { send: send });
-        eq(slot.childNodes.length, 0, "no tree yet draws nothing");
-        VA.renderSceneTree(slot, {
-          rows: [
-            { key: "h", head: "bodies (1)" },
-            { key: "b", text: "blade · 2 parts", title: "blade · 2 parts", open: true,
-              check: { checked: true, indeterminate: false, disabled: false, title: "show" },
-              rows: [{ key: "b/p", text: "211587-001 blade", sub: "moved to its body",
-                buttons: [{ text: "Isolate", title: "", pressed: false }] }] },
-            { key: "c", text: "pitch link length", value: "0.12", activate: true,
-              selected: true, attention: true, alert: "No face bound" },
-          ],
-        }, { send: send });
-        eq(slot.querySelectorAll("button.navtree__scenechip").length, 0,
-           "no type chips: the layer is one feature's rows, not a rail to filter");
-        var summary = slot.querySelector("summary.navtree__scenesummary");
-        ok(summary, "a row with children is a disclosure");
-        eq(slot.querySelector("details.navtree__scenenode").open, true);
-        summary.click();
-        var check = slot.querySelector("input.navtree__scenecheck");
-        eq(check.checked, true);
-        check.onclick({ preventDefault: function () {}, stopPropagation: function () {} });
-        slot.querySelector("button.navtree__scenebtn").onclick({
-          preventDefault: function () {}, stopPropagation: function () {} });
-        var rows = slot.querySelectorAll("div.navtree__scenerow");
-        var contributor = rows[rows.length - 1];
-        eq(contributor.getAttribute("tabindex"), "0", "a row that does something is reachable by Tab");
-        eq(contributor.getAttribute("role"), "button");
-        ok(contributor.classList.contains("navtree__scenerow--on"));
-        eq(contributor.getAttribute("data-attention"), "true");
-        contributor.click();
-        contributor.onkeydown({ key: "Enter", target: contributor, preventDefault: function () {} });
-        contributor.onmouseenter();
-        contributor.onfocus();
-        contributor.onblur();
-        eq(sent.join(" | "), ["b toggle", "b check",
-          "b/p button 0", "c activate", "c activate", "c enter", "c enter", "c leave"].join(" | "));
-        eq(slot.querySelector("span.navtree__scenealert").getAttribute("title"), "No face bound");
-        eq(slot.querySelector("span.navtree__scenesub").textContent, "moved to its body");
-      });
-
     await test("the faces layer picks the pane's rows for one feature: the rows keyed " +
       "by its node in sweep mode, the scoped element list in bind mode", function () {
         // Sweep mode: the annotator's keys name a joint end by its node
@@ -355,162 +306,6 @@
         eq(VA.sceneRowsForFeature(bind, "base_post_seat"), []);
         eq(VA.sceneRowsForFeature(null, "x"), []);
         eq(VA.sceneRowsForFeature(bind, null), []);
-      });
-
-    await test("a feature's body is the pane's end row without its head: the state line " +
-      "carrying the end's kind and mark, its actions, then its list with the one pick action " +
-      "last -- and several rows, or bind mode's elements, are drawn as rows", function () {
-        var sent = [];
-        var send = function (key, act, index) {
-          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
-        };
-        var stop = { preventDefault: function () {}, stopPropagation: function () {} };
-        var slot = document.createElement("div");
-        var end = { key: "#sweep-tree/joint=j/edge=g1,feature=n3,direction=from", text: "bore",
-          sub: "candidates \u00b7 2", kind: "end", mark: "contact", suggestion: true, activate: true,
-          selected: true, title: "bore\ncandidates \u00b7 2",
-          buttons: [{ text: "Accept", title: "bind the suggested face at this end" }],
-          rows: [
-            { key: "#sweep-tree/joint=j/edge=g1,feature=n3,direction=from/face=3", text: "face 3 \u00b7 round",
-              sub: "coaxial with the mating pin", kind: "candidate", suggestion: true, wrap: true,
-              buttons: [{ text: "Take" }] },
-            { key: "#sweep-tree/joint=j/edge=g1,feature=n3,direction=from/direction=from", text: "Pick a face\u2026",
-              kind: "action", activate: true, wrap: true },
-          ] };
-        VA.renderFeatureBody(slot, [end], { send: send });
-        // A real NodeList (the browser) has no filter; the shim's array does.
-        var endRows = function (box) {
-          return Array.prototype.filter.call(box.querySelectorAll("div.navtree__scenerow"), function (r) {
-            return r.getAttribute("data-kind") === "end";
-          });
-        };
-        eq(endRows(slot).length, 0,
-           "the pane's own row for the feature is not drawn: the feature row above is the title");
-        eq(slot.textContent.indexOf("bore"), -1, "...so its name is not repeated");
-        var line = slot.querySelector(".navtree__featurestate");
-        eq(line.getAttribute("data-kind"), "end");
-        eq(line.getAttribute("data-mark"), "contact");
-        eq(line.getAttribute("data-suggestion"), "true");
-        eq(line.querySelector("span.navtree__featurewords").textContent, "candidates \u00b7 2");
-        eq(line.querySelector("span.navtree__featurewords").getAttribute("title"), "bore\ncandidates \u00b7 2");
-        eq(slot.querySelectorAll("div.navtree__scenelegend").length, 0, "no legend under a row");
-        var order = Array.prototype.map.call(slot.querySelector("div.navtree__featurebody").childNodes,
-          function (n) { return n.className.split(" ")[0]; });
-        eq(order, ["navtree__featurestate", "navtree__featureacts", "navtree__scenelist"],
-           "state line, actions, list -- in that order");
-        eq(slot.querySelector("div.navtree__featureacts").querySelector("button").textContent, "Accept");
-        var rows = slot.querySelector("ul.navtree__scenelist").querySelectorAll("div.navtree__scenerow");
-        eq(rows.length, 2);
-        eq(rows[1].getAttribute("data-kind"), "action");
-        eq(rows[1].textContent, "Pick a face\u2026", "the pick action is the list's last row");
-        line.onmouseenter();
-        rows[1].onclick();
-        eq(sent, [end.key + " enter", end.rows[1].key + " activate"]);
-        // An armed pick's Cancel row is pressed, and an Esc here has it.
-        var armed = { key: "e", text: "bore", sub: "at the as-modelled pose for picking", kind: "end",
-          activate: true, rows: [{ key: "e/c", text: "Cancel", kind: "action", activate: true, pressed: true }] };
-        var slot2 = document.createElement("div");
-        VA.renderFeatureBody(slot2, [armed], { send: send });
-        eq(slot2.querySelector("div.navtree__scenerow--act").getAttribute("aria-pressed"), "true");
-        // Two end rows on one node, or bind mode's element rows: drawn as rows.
-        var slot3 = document.createElement("div");
-        VA.renderFeatureBody(slot3, [end, Object.assign({}, end, { key: "other", text: "bore (other joint)" })],
-          { send: send });
-        eq(endRows(slot3).length, 2);
-        var slot4 = document.createElement("div");
-        VA.renderFeatureBody(slot4, [], { send: send });
-        eq(slot4.childNodes.length, 0, "no rows draws nothing");
-        VA.renderFeatureBody(slot4, null, { send: send });
-        eq(slot4.childNodes.length, 0);
-      });
-
-    await test("a mirrored row wears its kind and its mark, every row has a twisty column and " +
-      "a glyph, the legend draws each mark beside its word, and a row's buttons are one group " +
-      "before its checkbox", function () {
-        var slot = document.createElement("div");
-        VA.renderSceneTree(slot, {
-          legend: [{ mark: "bound", text: "bound", title: "a face is bound" },
-            { mark: "open", text: "no face yet", title: "nothing yet" }],
-          rows: [
-            { key: "b", text: "pitch plate · 2 parts", kind: "body", open: true,
-              check: { checked: true }, rows: [
-                { key: "b/p", text: "215177-001 pitch plate", kind: "part", check: { checked: true },
-                  buttons: [{ text: "Isolate" }, { text: "Remove" }] }] },
-            { key: "e", text: "pitch link upper ball", kind: "end", mark: "picked", activate: true,
-              buttons: [{ text: "Re-pick" }] },
-          ] }, { send: function () {} });
-        var legend = slot.querySelectorAll("span.navtree__scenelegenditem");
-        eq(legend.length, 2);
-        eq(legend[1].querySelector(".navtree__scenemark").getAttribute("data-mark"), "open");
-        eq(legend[1].textContent, "no face yet");
-        eq(legend[1].getAttribute("title"), "nothing yet");
-        var rows = slot.querySelectorAll("div.navtree__scenerow");
-        eq(Array.prototype.map.call(rows, function (r) { return r.getAttribute("data-kind"); }).join(" "),
-          "body part end");
-        eq(rows[2].getAttribute("data-mark"), "picked");
-        eq(rows[0].getAttribute("data-mark"), null, "a body wears no state mark");
-        Array.prototype.forEach.call(rows, function (r) {
-          eq(r.childNodes[0].className === "navtree__scenetwisty" || r.childNodes[0].className === "navtree__scenegap",
-            true, "the first column is the twisty's, on every row");
-          eq(r.childNodes[1].className, "navtree__scenemark");
-        });
-        var part = rows[1];
-        var kids = Array.prototype.map.call(part.childNodes, function (n) { return n.className; });
-        eq(kids.slice(-2).join(" "), "navtree__sceneacts navtree__scenecheck",
-          "the buttons are one group and the checkbox is the row's last control");
-        eq(part.querySelector("span.navtree__sceneacts").querySelectorAll("button.navtree__scenebtn").length, 2);
-      });
-
-    await test("a mirrored row the annotator marks as a suggestion carries the mark, and " +
-      "no other row does", function () {
-        var slot = document.createElement("div");
-        VA.renderSceneTree(slot, { rows: [
-          { key: "s", text: "pitch link lower ball", sub: "suggested · high", suggestion: true, activate: true },
-          { key: "n", text: "pitch link upper ball", sub: "no face bound", attention: true },
-        ] }, { send: function () {} });
-        var rows = slot.querySelectorAll("div.navtree__scenerow");
-        eq(rows[0].getAttribute("data-suggestion"), "true");
-        eq(rows[0].getAttribute("data-attention"), null, "a suggestion is not amber");
-        eq(rows[1].getAttribute("data-suggestion"), null);
-      });
-
-    await test("a joint end with a candidate list mirrors as a row with a twisty in front: the " +
-      "twisty toggles, the row still selects, the list shows only when open, and its words wrap",
-      function () {
-        var sent = [];
-        var send = function (key, act, index) {
-          sent.push(index === undefined ? key + " " + act : key + " " + act + " " + index);
-        };
-        var stop = { preventDefault: function () {}, stopPropagation: function () {} };
-        var slot = document.createElement("div");
-        VA.renderSceneTree(slot, { rows: [
-          { key: "e", text: "hub spindle bore axis", sub: "candidates · 2", suggestion: true,
-            activate: true, twisty: "hide the suggested faces", open: true, buttons: [{ text: "Pick", title: "" }],
-            rows: [
-              { key: "e/c", text: "face 3460 · round · r 47.5 mm", sub: "coaxial with the mating pin",
-                suggestion: true, wrap: true, buttons: [{ text: "Take", title: "bind this face at this end" }] },
-              { key: "e/o", text: "Pick another face…", activate: true, wrap: true },
-            ] },
-          { key: "f", text: "pitch plate spindle bore axis", sub: "suggested · high", suggestion: true,
-            activate: true, twisty: "show the suggested faces", open: false },
-        ] }, { send: send });
-        var twisties = slot.querySelectorAll("button.navtree__scenetwisty");
-        eq(twisties.length, 2);
-        eq(twisties[0].getAttribute("aria-expanded"), "true");
-        eq(twisties[1].getAttribute("aria-expanded"), "false");
-        eq(slot.querySelectorAll("details").length, 0, "a twisty row is not a <details>: its click selects");
-        var lines = slot.querySelectorAll("div.navtree__scenerow");
-        eq(lines.length, 4, "the open list's two rows, under the first end only");
-        ok(lines[1].classList.contains("navtree__scenerow--wrap"));
-        ok(!lines[0].classList.contains("navtree__scenerow--wrap"));
-        twisties[0].onclick(stop);
-        lines[0].click();
-        lines[1].querySelector("button.navtree__scenebtn").onclick(stop);
-        lines[1].onmouseenter();
-        lines[2].click();
-        twisties[1].onclick(stop);
-        eq(sent.join(" | "), ["e toggle", "e activate", "e/c button 0", "e/c enter",
-          "e/o activate", "f toggle"].join(" | "));
       });
 
     await test("annotateExecCommands mirrors annotateLink param for param -- " +
@@ -10330,7 +10125,7 @@
         var draw = function (handlers) {
           return render(function (r) { VA.renderNavTree(r, tree, state, handlers); });
         };
-        var root = draw({ structure: true, sceneSlot: true, onVisibility: function () {},
+        var root = draw({ structure: true, onVisibility: function () {},
           onNavGroup: function () {} });
         eq(all(root, "h2.navtree__heading").map(function (h) { return h.textContent; }),
            [VA.NAV_WORDS.bodies]);
@@ -10356,15 +10151,24 @@
            [S.none, S.bound], "one mark per feature, every state drawn");
         ok(hasClass(features[1], "navtree__row--on"), "the selected feature is marked");
         ok(!hasClass(features[0], "navtree__row--on"));
-        // The reader opened the selected feature's body: its slot sits under it.
-        eq(all(root, "div.navtree__scene").length, 1);
-        ok(insideOf(features[1].parentNode, all(root, "div.navtree__scene")[0]));
-        eq(all(root, "div.navtree__scene")[0].getAttribute("data-scene-feature"), "p1@n2");
-        eq(all(root, "div.navtree__scene")[0].getAttribute("data-nav-under"), "f:p1@n2");
-        eq(features.map(function (f) {
-          return f.querySelector("button.navtree__twisty").getAttribute("aria-expanded");
-        }), ["false", "true"]);
-        eq(features[1].getAttribute("data-nav-fold"), "f:p1@n2");
+        // A feature is a leaf (2026-11-23): no twisty, nothing under it, even
+        // with its old fold open; its pencil, where it can be edited, opens
+        // its form in the tree's place.
+        eq(all(root, "div.navtree__scene").length, 0, "no body under a feature");
+        eq(features.map(function (f) { return f.querySelector("button.navtree__twisty"); }), [null, null]);
+        var model = state.models.mini;
+        eq(all(root, "button.navtree__edit").length, 0, "no pencil where the page edits nothing");
+        var editing = [];
+        var withPen = draw({ structure: true, onEditFeature: function (fid) { editing.push(fid); } });
+        var pens = all(withPen, "button.navtree__edit");
+        eq(pens.map(function (b) { return b.getAttribute("data-nav-edit"); }),
+           ["p1@n1", "p1@n2"].filter(function (fid) { return VA.featureEditable(model, fid); }),
+           "a pencil on each editable feature");
+        ok(pens.length > 0, "the fixture has an editable feature");
+        if (pens.length) {
+          pens[0].onclick({ stopPropagation: function () {} });
+          eq(editing, [pens[0].getAttribute("data-nav-edit")], "the pencil opens that feature's form");
+        }
         // Show/hide: a part with a mesh has the box, one without has none; a
         // body with any meshed part has one.
         eq(parts[0].querySelector("input.navtree__vis") !== null, true);
@@ -10382,7 +10186,7 @@
         // listed, and the joint between bodies is its own section.
         state.navGroup = VA.NAV_GROUPINGS[1];
         state.navOpen = { "j:p1+p2": true, "i:n2": true, "i:g2": true, "i:g1": true };
-        root = draw({ structure: true, sceneSlot: true });
+        root = draw({ structure: true });
         eq(all(root, "h2.navtree__heading").map(function (h) { return h.textContent; }),
            [W.bodies, W.between]);
         eq(all(root, "div.navtree__row--body").map(function (b) { return b.getAttribute("data-nav-id"); }), ["b1"]);
@@ -10514,317 +10318,6 @@
       ] };
     }
 
-    await test("a feature's body says what it is: bound with its face, part number, Correct, " +
-      "Add a face, Unbind and Flip; not bound with Pick a face on its own part; a suggestion the pane " +
-      "lists is the pane's rows; an armed end is its line and Cancel", function () {
-        var model = VA.buildModel(bodiedProj(), boundIdentity());
-        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
-        var bound = VA.featureBodyPlan(model, "p1@n2", "mini", [], null);
-        eq(bound.kind, K.bound);
-        eq(bound.lines.map(function (l) { return l.text; }), ["bound · face 12 of 100-001"]);
-        eq(bound.lines[0].face, { sha256: "aa", faceId: 12 });
-        eq(bound.lines[0].actions.map(function (a) { return a.command; }), [
-          ["arm", "d1", "to", "mini", "p1"], ["arm", "d1", "to", "mini", "p1", VA.ARM_ADD],
-          ["unbind", "d1", "to", "mini"], ["flip", "d1", "to", "mini"]],
-          "Correct arms the pick on the feature's own part; Add a face the same arm, adding; " +
-          "Flip because d1's other end is free");
-        // p2's side of the shared node: nothing bound, and p2 has no mesh.
-        var noMesh = VA.featureBodyPlan(model, "p2@n2", "mini", [], null);
-        eq([noMesh.kind, noMesh.lines[0].text, noMesh.actions.length], [K.none, W.noMesh, 0]);
-        // p1@n1: nothing at its ends; p1 has a mesh, so Pick a face at its first own end.
-        var none = VA.featureBodyPlan(model, "p1@n1", "mini", [], null);
-        eq(none.lines[0].text, W.none);
-        eq(none.actions.map(function (a) { return [a.text, a.command]; }),
-           [[W.pick, ["arm", "d1", "from", "mini", "p1"]]]);
-        // A suggestion with no rows from the pane (the run does not carry it):
-        // its surest confidence, and Pick at the proposal's end.
-        var meshed = bodiedProj();
-        meshed.model.parts[1].mesh = { installed: true, part_id: "p2" };
-        var suggested = VA.buildModel(meshed, { stack_keys: [boundIdentity().stack_keys[1]] });
-        var s = VA.featureBodyPlan(suggested, "p2@n3", "mini", [], null);
-        eq(s.lines[0].text, "suggested · high");
-        eq(s.actions[0].command, ["arm", "g1", "from", "mini", "p2"]);
-        eq(VA.featureBodyPlan(suggested, "p2@n3", "mini", [{ key: "k" }], null), null,
-           "a suggestion the pane lists rows for is the pane's rows");
-        // Armed at one of the feature's ends: the pane's line and Cancel.
-        var armed = VA.featureBodyPlan(model, "p1@n2", "mini", [],
-          { armedEnd: { topologyId: "mini", edgeId: "d1", direction: "to" }, armedLine: "click a face" });
-        eq([armed.kind, armed.lines[0].text, armed.actions[0].command], [K.armed, "click a face", ["arm", "off"]]);
-        eq(VA.featureBodyPlan(model, "p1@n1", "mini", [],
-          { armedEnd: { topologyId: "mini", edgeId: "d1", direction: "to" } }).kind, K.none,
-          "an arm at another feature's end is not this one's");
-        // Flip is not offered when the other end already has a face.
-        var both = boundIdentity();
-        both.stack_keys[0].bindings.push({ event_id: "e9", direction: "from", verdict: "bound",
-          geometry_key: { source_step_sha256: "aa", face_id: 3 } });
-        var two = VA.featureBodyPlan(VA.buildModel(bodiedProj(), both), "p1@n2", "mini", [], null);
-        eq(two.lines[0].actions.map(function (a) { return a.command[0]; }), ["arm", "arm", "unbind"]);
-      });
-
-    // --- a suggestion names its face; the mate ranks the other side (handoff
-    // a_suggestion_names_its_face_and_the_mating_side_ranks_the_candidates).
-    await test("a suggestion's line names the surest proposal's face: hovering lights it, a click " +
-      "turns the pane to it, and Take accepts that proposal at its end, on the model", function () {
-        var meshed = bodiedProj();
-        meshed.model.parts[1].mesh = { installed: true, part_id: "p2" };
-        var identity = { stack_keys: [{ stack_key: { kind: "topology_edge", topology_id: "mini", edge_id: "g1" },
-          bindings: [], proposals: [
-            { event_id: "e2", direction: "from", confidence: "medium",
-              geometry_key: { source_step_sha256: "bb", face_id: 7 } },
-            { event_id: "e5", direction: "from", confidence: "high",
-              geometry_keys: [{ source_step_sha256: "bb", face_id: 134 }, { source_step_sha256: "bb", face_id: 135 }] }] }] };
-        var plan = VA.featureBodyPlan(VA.buildModel(meshed, identity), "p2@n3", "mini", [], null);
-        var head = plan.lines[0];
-        eq(head.text, "suggested · high", "the line names the surest confidence");
-        eq(head.face, { sha256: "bb", faceId: 134 }, "...and the surest proposal's face, not the first listed");
-        eq(head.look, ["camera", "face", "bb", "134", "135"], "a click turns the pane to all its faces");
-        eq(head.actions.map(function (a) { return [a.text, a.command]; }),
-           [["Take", ["accept", "g1", "from", "mini"]]], "Take accepts the surest proposal at its end");
-        eq(plan.actions.map(function (a) { return a.text; }), ["Pick a face"], "Pick a face stays beside Take");
-        // Drawn: the line carries its face, hover posts it, a click posts the look.
-        var slot = document.createElement("div");
-        var hovered = [], posted = [];
-        VA.renderFeatureBody(slot, [], { plan: plan, command: function (c) { posted.push(c); },
-          hoverFace: function (f) { hovered.push(f); } });
-        var line = slot.querySelectorAll(".navtree__featurestate")[0];
-        eq(line.getAttribute("data-face"), "134");
-        line.onmouseenter();
-        line.onclick({ stopPropagation: function () {} });
-        eq(hovered, [{ sha256: "bb", faceId: 134 }], "hovering the line lights its face");
-        eq(posted, [["camera", "face", "bb", "134", "135"]], "clicking the line turns the pane to it");
-      });
-
-    // --- a bind on the pitch plate writes in seconds and says so while it
-    // waits (handoff 2026-11-19): the press is shown taken in the click itself.
-    await test("a body press that writes reads pending in the click itself, before the pane " +
-      "answers; while it writes every writing control waits; a failure stays on its control", function () {
-        var model = VA.buildModel(bodiedProj(), boundIdentity());
-        var W = VA.FEATURE_BODY_WORDS, S = VA.WRITE_PRESS_STATES;
-        var plan = VA.featureBodyPlan(model, "p1@n2", "mini", [], null);
-        var posted = [];
-        // The writer never answers: what the control shows is the click's own doing.
-        var never = function (c) { posted.push(c); return new Promise(function () {}); };
-        var slot = document.createElement("div");
-        VA.renderFeatureBody(slot, [], { plan: plan, command: never });
-        var byAct = function (act) {
-          return Array.prototype.slice.call(slot.querySelectorAll("button")).filter(function (b) {
-            return b.getAttribute("data-body-act") === act;
-          })[0];
-        };
-        var unbind = byAct("unbind");
-        unbind.onclick({ preventDefault: function () {}, stopPropagation: function () {} });
-        eq([unbind.textContent, !!unbind.disabled, unbind.getAttribute("data-pending")], [W.writing, true, S[0]],
-           "Unbind reads writing and is disabled before the pane has answered anything");
-        eq(posted, [["unbind", "d1", "to", "mini"]], "and the command went");
-        // The page's repaint while it writes: the pressed one still pending, the
-        // other writer (Flip) waiting, a non-writing control (Correct) free.
-        var writing = { key: VA.bodyCommandKey(["unbind", "d1", "to", "mini"]), state: S[0] };
-        VA.renderFeatureBody(slot, [], { plan: plan, command: never, write: writing });
-        eq([byAct("unbind").textContent, !!byAct("unbind").disabled], [W.writing, true]);
-        eq(!!byAct("flip").disabled, true, "another write waits for this one");
-        eq(!!byAct("arm").disabled, false, "Correct writes nothing, so it is free");
-        // Not written: the reason on the control, which is pressable again.
-        VA.renderFeatureBody(slot, [], { plan: plan, command: never,
-          write: { key: writing.key, state: S[1], reason: "the folder was not granted" } });
-        eq([byAct("unbind").textContent, byAct("unbind").getAttribute("title"), !!byAct("unbind").disabled,
-          byAct("unbind").getAttribute("data-pending")], [W.failed, "the folder was not granted", false, S[1]]);
-        // A mirrored row's control that writes (the pane's candidate Take) does
-        // the same at its own press, before the gesture crosses to the pane.
-        var sent = [];
-        VA.renderFeatureBody(slot, [{ key: "k", text: "end", buttons: [{ text: "Take", writes: true },
-          { text: "Pick on the other part" }] }], { send: function (k, act, i) { sent.push([k, act, i]); } });
-        var buttons = slot.querySelectorAll("button");
-        buttons[0].onclick({ preventDefault: function () {}, stopPropagation: function () {} });
-        eq([buttons[0].textContent, !!buttons[0].disabled], [W.writing, true]);
-        buttons[1].onclick({ preventDefault: function () {}, stopPropagation: function () {} });
-        eq(buttons[1].textContent, "Pick on the other part", "a control that writes nothing is left as it is");
-        eq(sent.map(function (s) { return s[2]; }), [0, 1]);
-      });
-
-    await test("an unbound feature with the other side bound lists the pane's ranked mates, each " +
-      "with its reason and Take; armed, they are listed under the pick's line", function () {
-        var model = VA.buildModel(bodiedProj(), boundIdentity());
-        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
-          { sha256: "aa", faceId: 2356, text: "face 2356 · round · r 41.2750 mm",
-            reason: "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", detail: "axes 0.003° and 0.000 mm apart" },
-          { sha256: "aa", faceId: 2427, text: "face 2427 · round · r 42.0860 mm",
-            reason: "coaxial with blade bonded assembly, Ø84.17 vs Ø82.51", detail: null }] } } };
-        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
-        eq(plan.lines.map(function (l) { return l.text; }),
-           ["not bound", "face 2356 · round · r 41.2750 mm", "face 2427 · round · r 42.0860 mm"]);
-        eq(plan.lines[1].sub, "coaxial with blade bonded assembly, Ø82.55 vs Ø82.51", "each says why it is there");
-        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "2356", "mini"],
-           "Take binds that face at the feature's end, on the model");
-        eq(plan.actions[0].command, ["arm", "d1", "from", "mini", "p1"], "Pick a face is still there");
-        var armed = VA.featureBodyPlan(model, "p1@n1", "mini", [], Object.assign({
-          armedEnd: { topologyId: "mini", edgeId: "d1", direction: "from" }, armedLine: "click a face" }, tree));
-        eq(armed.lines.map(function (l) { return l.text; }).slice(0, 2),
-           ["click a face", "face 2356 · round · r 41.2750 mm"], "armed: the line, then the ranked faces");
-        // With nothing ranked (the other side unbound) the body is what it was.
-        eq(VA.featureBodyPlan(model, "p1@n1", "mini", [], { mates: {} }).lines.length, 1);
-        // A suggested feature the pane lists rows for draws those rows, mates or
-        // not: the pane's rows carry the mates among its proposals and contact
-        // faces (the 2026-11-15 review: mate lines in their place hid them).
-        var meshed = bodiedProj();
-        meshed.model.parts[1].mesh = { installed: true, part_id: "p2" };
-        var withProposal = VA.buildModel(meshed, { stack_keys: [boundIdentity().stack_keys[1]] });
-        eq(VA.featureBodyPlan(withProposal, "p2@n3", "mini", [], null).lines[0].text, "suggested · high");
-        eq(VA.featureBodyPlan(withProposal, "p2@n3", "mini", [{ key: "k" }],
-           { mates: { "p2@n3": tree.mates["p1@n1"] } }), null, "pane rows win over the mate lines");
-        // Drawn: a ranked face's Take is on its own line.
-        var slot = document.createElement("div");
-        VA.renderFeatureBody(slot, [], { plan: plan, command: function () {}, hoverFace: function () {} });
-        var rows = slot.querySelectorAll(".navtree__featurestate");
-        eq(rows[1].querySelector(".navtree__featuresub").textContent, plan.lines[1].sub);
-        eq(rows[1].querySelectorAll("button").length, 1, "Take sits on the ranked face's line");
-      });
-
-    await test("a feature with both ends of its joint unbound lists the contact candidates, each " +
-      "row's Take naming its own edge and end", function () {
-        var model = VA.buildModel(bodiedProj(), null);
-        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
-          { sha256: "aa", faceId: 10, faces: [10, 11, 12], edgeId: "d1", direction: "from",
-            text: "3 faces · round · r 5 mm", reason: "fits the mating bore", detail: "clearance 0.015 mm" },
-          { sha256: "aa", faceId: 40, edgeId: "d2", direction: "to", text: "face 40", reason: "coincident" }] } } };
-        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
-        eq(plan.lines.map(function (l) { return l.text; }), ["not bound", "3 faces · round · r 5 mm", "face 40"]);
-        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "10", "mini", "11", "12"],
-           "Take binds the whole candidate");
-        eq(plan.lines[2].actions[0].command, ["take", "d2", "to", "aa", "40", "mini"],
-           "a row of another gap edge binds there");
-        eq(plan.actions[0].text, VA.FEATURE_BODY_WORDS.pick, "Pick a face stays");
-      });
-
-    await test("a pattern bound opposite leads the mates with one line for the whole set: its " +
-      "hover lights every face, its look frames them and its Take binds them all", function () {
-        var model = VA.buildModel(bodiedProj(), boundIdentity());
-        var tree = { mates: { "p1@n1": { topologyId: "mini", edgeId: "d1", direction: "from", n: 2, rows: [
-          { sha256: "aa", faceId: 72, faces: [72, 73, 161, 162], text: "2 of 2 holes Ø5, coaxial within 0.000 mm",
-            reason: "the whole pattern bound on gas-spring mount", detail: "faces 72, 73, 161, 162" },
-          { sha256: "aa", faceId: 72, text: "face 72 · round · r 2.5000 mm", reason: "coaxial with gas-spring mount" }] } } };
-        var plan = VA.featureBodyPlan(model, "p1@n1", "mini", [], tree);
-        eq(plan.lines[1].text, "2 of 2 holes Ø5, coaxial within 0.000 mm", "the set leads");
-        eq(plan.lines[1].actions[0].command, ["take", "d1", "from", "aa", "72", "mini", "73", "161", "162"],
-           "Take names every face of the set");
-        eq(plan.lines[1].look, ["camera", "face", "aa", "72", "73", "161", "162"]);
-        var hovered = [];
-        var slot = document.createElement("div");
-        VA.renderFeatureBody(slot, [], { plan: plan, command: function () {},
-          hoverFace: function (f) { hovered.push(f); } });
-        slot.querySelectorAll(".navtree__featurestate")[1].onmouseenter();
-        eq(hovered, [{ sha256: "aa", faceId: 72, faceIds: [72, 73, 161, 162] }], "the hover carries the set");
-        eq(plan.lines[2].face, { sha256: "aa", faceId: 72 }, "a single face's line is one face");
-      });
-
-    await test("a feature whose faces disagree says so, lists each face with Keep, and offers " +
-      "Pick a face for when neither is its face", function () {
-        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
-        var f1 = { source_step_sha256: "aa", face_id: 3460 }, f2 = { source_step_sha256: "bb", face_id: 144 };
-        var record = { state: VA.FEATURE_STATES[1], disagreement: [{ faces: [f1] }, { faces: [f2] }] };
-        var model = {
-          feature: function () { return { part: "hub" }; },
-          endsOf: function () { return [{ edgeId: "g1", end: "from" }, { edgeId: "g2", end: "to" }]; },
-          status: function () { return VA.FEATURE_STATUSES.suggested; },
-          featureRecord: function () { return record; },
-          part: function () { return { number: "214373-002" }; },
-        };
-        var plan = VA.featureBodyPlan(model, "hub@boss", "mini", [{ key: "k" }], null);
-        eq(plan.kind, K.disagree, "a disagreement is planned even where the pane lists rows");
-        eq(plan.lines.map(function (l) { return l.text; }), ["2 faces disagree", "face 3460", "face 144"]);
-        eq(plan.lines.slice(1).map(function (l) { return l.actions[0].command; }), [
-          ["keep", "g1", "from", "mini", "aa", "3460"], ["keep", "g1", "from", "mini", "bb", "144"]]);
-        eq(plan.actions.map(function (a) { return [a.text, a.command]; }),
-           [[W.pick, ["arm", "g1", "from", "mini", "hub"]], [W.unbind, ["unbind", "g1", "from", "mini"]]],
-           "Unbind lets the faces that disagree all go");
-      });
-
-    await test("sets of faces that disagree are one line each, and Keep names the whole set -- a set and " +
-      "the same set with faces added share a face (Jeff's pitch plate bore, events 0093-0100)", function () {
-        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
-        var f = function (id) { return { source_step_sha256: "37e9", face_id: id }; };
-        var record = { state: VA.FEATURE_STATES[1], bindings: [{ event_id: "a" }, { event_id: "b" }],
-          disagreement: [{ faces: [f(1380), f(1381)] }, { faces: [f(1380), f(1381), f(1509), f(1510)] }] };
-        var model = {
-          feature: function () { return { part: "pitch_plate_215177_001" }; },
-          endsOf: function () { return [{ edgeId: "pitch_plate_attach_radius", end: "from" }]; },
-          status: function () { return VA.FEATURE_STATUSES.suggested; },
-          featureRecord: function () { return record; },
-          part: function () { return { number: "215177-001" }; },
-        };
-        var plan = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [], null);
-        eq(plan.kind, K.disagree);
-        eq(plan.lines.map(function (l) { return l.text; }),
-           ["2 sets of faces disagree", "faces 1380, 1381", "faces 1380, 1381, 1509, 1510"]);
-        eq(plan.lines.slice(1).map(function (l) { return l.actions[0].command; }), [
-          ["keep", "pitch_plate_attach_radius", "from", "vpa", "37e9", "1380", "1381"],
-          ["keep", "pitch_plate_attach_radius", "from", "vpa", "37e9", "1380", "1381", "1509", "1510"]]);
-        eq(plan.lines[1].actions[0].text, W.keep);
-        // Each set's line lights the set Keep would keep (2026-11-18).
-        eq(plan.lines[2].face.faceIds, [1380, 1381, 1509, 1510], "the hover carries the whole set");
-        // Armed at the feature's end: Cancel, and Unbind since it holds faces.
-        var armed = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [],
-          { armedEnd: { edgeId: "pitch_plate_attach_radius", direction: "from" }, armedLine: "pick a face" });
-        eq(armed.actions.map(function (a) { return [a.text, a.command]; }), [[W.cancel, ["arm", "off"]],
-          [W.unbind, ["unbind", "pitch_plate_attach_radius", "from", "vpa"]]]);
-        record = { state: VA.FEATURE_STATES[4], bindings: [] };
-        armed = VA.featureBodyPlan(model, "pitch_plate_215177_001@bore", "vpa", [],
-          { armedEnd: { edgeId: "pitch_plate_attach_radius", direction: "from" }, armedLine: "pick a face" });
-        eq(armed.actions.map(function (a) { return a.text; }), [W.cancel], "nothing held, nothing to unbind");
-      });
-
-    await test("a feature holding a set says how many faces, Correct, Add a face and Unbind; " +
-      "what the pane read it as when it is a hole pattern, in one line; and each face with Remove", function () {
-        var W = VA.FEATURE_BODY_WORDS, K = VA.FEATURE_BODY_KINDS;
-        var faces = [743, 744, 500].map(function (id) { return { source_step_sha256: "aa", face_id: id }; });
-        var record = { state: VA.FEATURE_STATES[0], faces: faces };
-        var model = {
-          feature: function () { return { part: "hub" }; },
-          endsOf: function () { return [{ edgeId: "g1", end: "from" }]; },
-          bindingsOf: function () { return [{ edgeId: "g1", end: "from" }]; },
-          status: function () { return VA.FEATURE_STATUSES.bound; },
-          featureRecord: function () { return record; },
-          part: function () { return { number: "214373-002" }; },
-        };
-        var tree = { fits: { "hub@clocking": "2 holes Ø5.5 not on a circle" } };
-        var plan = VA.featureBodyPlan(model, "hub@clocking", "v2", [], tree);
-        eq(plan.kind, K.bound);
-        eq(plan.lines.map(function (l) { return l.text; }), ["bound · 3 faces of 214373-002",
-          "2 holes Ø5.5 not on a circle", "face 743", "face 744", "face 500"]);
-        eq(plan.lines[0].actions.map(function (a) { return [a.text, a.command]; }), [
-          [W.correct, ["arm", "g1", "from", "v2", "hub"]],
-          [W.addFace, ["arm", "g1", "from", "v2", "hub", VA.ARM_ADD]],
-          [W.unbind, ["unbind", "g1", "from", "v2"]]]);
-        eq([plan.lines[1].fit, plan.lines[1].actions], [true, undefined], "the fit line is words, no verb");
-        eq(plan.lines[4].actions[0].command, ["drop-face", "g1", "from", "v2", "aa", "500"]);
-        var slot = document.createElement("div");
-        VA.renderFeatureBody(slot, [], { plan: plan, command: function () {}, hoverFace: function () {} });
-        var rows = Array.prototype.slice.call(slot.querySelectorAll(".navtree__featurestate"));
-        eq(rows.map(function (r) { return r.getAttribute("data-fit"); }), [null, "true", null, null, null]);
-        // No fit from the pane (a set that is no pattern, or no pane): no line.
-        var bare = VA.featureBodyPlan(model, "hub@clocking", "v2", [], null);
-        eq(bare.lines.length, 4);
-      });
-
-    await test("a planned body renders its lines and actions: a bound line lights its face on " +
-      "hover and lets go on leave, and each button posts its own verb", function () {
-        var model = VA.buildModel(bodiedProj(), boundIdentity());
-        var posted = [], hovered = [];
-        var slot = document.createElement("div");
-        VA.renderFeatureBody(slot, [], { plan: VA.featureBodyPlan(model, "p1@n2", "mini", [], null),
-          command: function (c) { posted.push(c.join(" ")); }, hoverFace: function (f) { hovered.push(f); } });
-        var body = slot.querySelector(".navtree__featurebody");
-        eq(body.getAttribute("data-body-kind"), "bound");
-        var line = slot.querySelector(".navtree__featurestate");
-        eq(line.getAttribute("data-face"), "12");
-        line.onmouseenter();
-        line.onmouseleave();
-        eq(hovered, [{ sha256: "aa", faceId: 12 }, null]);
-        var buttons = Array.prototype.slice.call(slot.querySelectorAll("button"));
-        eq(buttons.map(function (b) { return b.textContent; }), ["Correct", "Add a face", "Unbind", "Flip"]);
-        buttons.forEach(function (b) { b.click(); });
-        eq(posted, ["arm d1 to mini p1", "arm d1 to mini p1 add", "unbind d1 to mini", "flip d1 to mini"]);
-      });
-
     await test("a binding that names an interface no model has, or a mesh not installed, is " +
       "counted in one line at the foot of the tree, opening to the list", function () {
         var identity = boundIdentity();
@@ -10884,6 +10377,62 @@
         eq(VA.paneIdentityWins(mine, { projection: {}, eventIds: ["c"] }), false, "a demo pane's record");
         eq(VA.paneIdentityWins(null, { projection: {}, eventIds: [] }), true, "a page with no record takes any");
         eq(VA.paneIdentityWins(mine, { projection: {} }), false, "no event list: not trusted");
+      });
+
+    await test("a feature's form: its name, the tick, Next and the X; its part and what it mates with; " +
+      "the faces one line each, the suggestions with why; every gesture is handed back and nothing here " +
+      "writes; it waits for the pane's own answer", function () {
+        var model = VA.buildModel(bodiedProj(), bodiedIdentity());
+        var W = VA.FEATURE_FORM_WORDS;
+        eq(VA.featureMates(model, "p1@n1"), ["p2@n5"], "the boss mates with the pilot bore");
+        eq(VA.nextUnboundFeature(model, "p1@n2"), "p1@n1", "Next: the part's next unbound feature, from its top");
+        eq(VA.nextUnboundFeature(model, "p3@n4"), null, "none left on the part");
+        eq(VA.featureEditable(model, "p2@n3"), false, "a part with no 3D model has no form");
+        eq(VA.featureFormEnd(model, "p1@n2"), { edgeId: "d1", end: "to" }, "armed where it is bound");
+        var edit = { featureId: "p1@n1", sha256: "s1", changed: true, holds: true,
+          lines: [{ key: "11-12", text: "round · 2 segments", title: "faces 11, 12", faces: [11, 12], held: true },
+                  { key: "40", text: "flat", title: "faces 40", faces: [40], held: false }],
+          suggestions: [{ key: "5-6", text: "3 holes", why: "like holes on one plane", faces: [5, 6] },
+                        { key: "9", text: "face 9", why: "suggested · high", faces: [9], proposal: "e9" }],
+          history: ["bound 2026-11-20 by jeff"] };
+        var calls = [];
+        var h = { onOk: function (n) { calls.push(["ok", n]); }, onCancel: function () { calls.push(["x"]); },
+          onDrop: function (k) { calls.push(["drop", k]); }, onTake: function (k) { calls.push(["take", k]); },
+          onDismiss: function (id) { calls.push(["dismiss", id]); },
+          onHover: function (f) { calls.push(["hover", f && f.faceIds]); }, onUnbind: function () { calls.push(["unbind"]); } };
+        var withAttr = function (r, sel, attr) { return all(r, sel).filter(function (n) { return n.getAttribute(attr) !== null; }); };
+        var act = function (r, name) { return all(r, "button").filter(function (n) { return n.getAttribute("data-form-act") === name; })[0]; };
+        var plan = VA.featureFormPlan(model, "p1@n1", edit, "p2@n5");
+        var root = render(function (r) { VA.renderFeatureForm(r, plan, h, null); });
+        eq(root.querySelector("span.navform__name").textContent, "boss");
+        eq(root.querySelector("div.navform__part").textContent, "100-001 hub");
+        eq(all(root, "div.navform__mate").map(function (m) { return m.textContent; }),
+           [W.matesWith.replace("{feature}", "mount pilot bore")]);
+        eq(withAttr(root, "li.navform__line", "data-form-line").map(function (l) { return [l.textContent.replace(W.remove, ""), hasClass(l, "navform__line--held")]; }),
+           [["round · 2 segments", true], ["flat", false]], "a bound face reads bound; a new one does not");
+        eq(withAttr(root, "li.navform__line", "data-form-suggestion").map(function (l) { return l.querySelector("span.navform__why").textContent; }),
+           ["like holes on one plane", "suggested · high"], "where a suggestion came from is said on it");
+        eq(withAttr(root, "li.navform__line", "data-form-line").filter(function (l) { return l.querySelector("span.navform__why"); }).length, 0, "...and never on a face in the set");
+        withAttr(root, "li.navform__line", "data-form-line")[1].onclick();
+        withAttr(root, "li.navform__line", "data-form-suggestion")[0].onclick();
+        withAttr(root, "li.navform__line", "data-form-suggestion")[1].onmouseenter();
+        withAttr(root, "li.navform__line", "data-form-suggestion")[1].onmouseleave();
+        withAttr(root, "li.navform__line", "data-form-suggestion")[1].querySelector("button.navform__x").onclick({ stopPropagation: function () {} });
+        ["ok", "next", "cancel", "unbind"].forEach(function (name) {
+          act(root, name).onclick({ stopPropagation: function () {} });
+        });
+        eq(calls, [["drop", "40"], ["take", "5-6"], ["hover", [9]], ["hover", null], ["dismiss", "e9"],
+                   ["ok", false], ["ok", true], ["x"], ["unbind"]]);
+        eq(all(root, "details.navform__history").length, 1, "the history is folded away");
+        // Before the pane answers for this feature: the form, its tick waiting.
+        var waiting = render(function (r) { VA.renderFeatureForm(r, VA.featureFormPlan(model, "p1@n1", null, null), h, null); });
+        eq([act(waiting, "ok").disabled, (act(waiting, "next") ? 1 : 0),
+            withAttr(waiting, "li.navform__line", "data-form-line").length], [true, 0, 0]);
+        // The tick while it writes, and once it did not.
+        var busy = render(function (r) { VA.renderFeatureForm(r, plan, h, { state: VA.WRITE_PRESS_STATES[0] }); });
+        eq(act(busy, "ok").disabled, true);
+        var failed = render(function (r) { VA.renderFeatureForm(r, plan, h, { state: VA.WRITE_PRESS_STATES[1], reason: "disk" }); });
+        eq(act(failed, "ok").getAttribute("data-pending"), VA.WRITE_PRESS_STATES[1]);
       });
 
     await test("a feature row selects its node, an interface row its element, a fold is " +

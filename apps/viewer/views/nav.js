@@ -1096,6 +1096,12 @@
     failed: "not written",
   });
 
+  function fill(template, values) {
+    return String(template).replace(/\{(\w+)\}/g, function (_, k) {
+      return values[k] === undefined || values[k] === null ? "" : String(values[k]);
+    });
+  }
+
   // The feature at the other end of each interface `fid` ends, once each,
   // in the model's order: what the form names it as mating with.
   VA.featureMates = function (model, fid) {
