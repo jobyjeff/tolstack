@@ -126,8 +126,19 @@ All runs were in this worktree. The diff is docs only (this lesson, the
 review page, 33 shots and 2 JSONs, 3 issues, 1 addendum). No suite, guard or
 spec changed, so neither the browser runner nor the witness runner was run.
 
-- **Default tier:** see the addendum below (filled in from the run's own
-  output).
+- **Default tier:**
+  `C:/workspace/tolstack/venv-win/Scripts/python.exe -X utf8 -m pytest -q -p no:cacheprovider -rfs`
+  gave **1 failed, 2619 passed, 3 skipped, 4 deselected in 498.85 s**,
+  single process. It is recorded on the ledger (`suite-time record --tier
+  default --seconds 499`), inside budget. It ran on the base tree while
+  this walk's page, lesson and issues were being written. Those paths
+  (`docs/sessions/`, `docs/issues/`) are outside the claims corpus.
+  - The failure is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
+    the documented worktree red (no `data/projections` here). Its tier was
+    run armed (below).
+  - The skips: `test_contact_suggestions.py:649` and `:668` (the live
+    projection predates node rows) and `test_fit_bound_features.py:433`
+    (a re-extraction not installed). They are the same as on 11-23.
 - **`node apps/annotate/run_tests.cjs`:** 329/329.
 - **`node apps/viewer/run_tests.cjs`:** 517/517, with the node-fs tier skipped
   (worktree).
