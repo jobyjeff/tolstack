@@ -1,0 +1,66 @@
+[
+ {
+  "t": 0,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 296.5,
+  "underHeight": null,
+  "scroll": 60
+ },
+ {
+  "t": 25,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 404.4,
+  "underHeight": 106,
+  "scroll": 60
+ },
+ {
+  "t": 50,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 472.9,
+  "underHeight": 174,
+  "scroll": 60
+ },
+ {
+  "t": 75,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 512.2,
+  "underHeight": 214,
+  "scroll": 60
+ },
+ {
+  "t": 100,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 530.5,
+  "underHeight": 232,
+  "scroll": 60
+ },
+ {
+  "t": 125,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 535.7,
+  "underHeight": 237,
+  "scroll": 60
+ },
+ {
+  "t": 150,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 536,
+  "underHeight": 238,
+  "scroll": 60
+ },
+ {
+  "t": 175,
+  "bodyRow": 134,
+  "partRow": 247.5,
+  "nextPart": 536,
+  "underHeight": 238,
+  "scroll": 60
+ }
+]
