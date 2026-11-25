@@ -7,6 +7,7 @@ reporter: agent
 needs: jeff
 ask: Re-bind the tangential link's mount-end outer race outside cylinder; it holds the inner race bore's four faces
 found_by: docs/sessions/HANDOFF_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md
+todo: 20261125T125730_nqmtnw
 ---
 
 # The mount-end outer race's outside cylinder holds the inner race bore's four faces

@@ -7,6 +7,7 @@ reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261122_the_walk_binds_through_the_form_on_the_merged_page.md
 needs: jeff
 ask: Open the gas-spring mount's "bushing bores" form and set its faces to the surfaces the two bushings sit in, then tick
+todo: 20261125T125730_f67du5
 ---
 
 # Which faces of the gas-spring mount are its "bushing bores"
