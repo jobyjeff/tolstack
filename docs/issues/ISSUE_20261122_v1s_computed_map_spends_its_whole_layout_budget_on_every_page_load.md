@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: apps/viewer map layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261121_the_viewer_node_suite_runs_inside_its_default_tier_timeout.md
+class: unclaimed_perf_headroom
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # v1's computed map spends its whole layout budget on every page load

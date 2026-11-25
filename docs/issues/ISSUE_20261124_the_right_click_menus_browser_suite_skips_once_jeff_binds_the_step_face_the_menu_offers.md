@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 class: real_suite_gated_on_live_log_state
 found_by: docs/sessions/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md
+handoff: docs/sessions/HANDOFF_20261125_the_real_browser_checks_hold_their_premise_by_construction.md
 ---
 
 # The right-click menus browser suite skips once Jeff binds the step face the menu offers

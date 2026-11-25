@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: low
-status: deferred
+status: triaged
 class: stale_check_expectation
-defer_until: 2026-11-23
-resolution: triage 2026-11-16 (2nd sweep) -- low, deferred onto the same wake date as its likely root, ISSUE_20261108_the_annotate_real_browser_check_still_expects_v1_as_the_default_model
+resolution: triage 2026-11-16 (2nd sweep) -- low, deferred onto the same wake date as its likely root, ISSUE_20261108_the_annotate_real_browser_check_still_expects_v1_as_the_default_model | woke 2026-11-25 -- date trigger passed; re-triage
 area: annotate/browser-check
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261116_the_annotate_check_runs_every_pass.md
+handoff: docs/sessions/HANDOFF_20261125_the_real_browser_checks_hold_their_premise_by_construction.md
 ---
 
 # The annotate check's `--real` pass throws after its two known placement reds

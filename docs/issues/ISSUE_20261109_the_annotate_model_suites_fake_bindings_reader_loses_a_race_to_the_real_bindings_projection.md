@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: tests/browser-tier
 reporter: agent
 class: flaky_check
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
-defer_until: 2026-11-23
-resolution: triage 2026-11-09 -- med beyond budget; 14-day date
+resolution: triage 2026-11-09 -- med beyond budget; 14-day date | woke 2026-11-25 -- date trigger passed; re-triage
+handoff: docs/sessions/HANDOFF_20261125_the_real_browser_checks_hold_their_premise_by_construction.md
 ---
 
 # The "annotate model in the scene" suite's fake bindings reader can lose a race to the real bindings projection

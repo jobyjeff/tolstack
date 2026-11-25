@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/nav
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_the_tree_sits_beside_the_3d_canvas_and_holds_still.md
+handoff: docs/sessions/HANDOFF_20261125_a_write_from_the_form_or_the_menu_never_vanishes_without_a_word.md
 ---
 
 # A tree rebuild between a press and its release drops the click

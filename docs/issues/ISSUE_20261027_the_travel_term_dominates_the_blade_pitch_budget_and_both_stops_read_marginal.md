@@ -1,13 +1,12 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: resolved
 area: kinematic study / S461-607
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261026_a_contributor_may_be_a_study.md
-defer_until: 2026-11-24
-resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3 | woke 2026-11-10 -- date trigger passed; re-triage | deferred 2026-11-10 (triage) -- med beyond BUDGET=3
+resolution: deferred 2026-10-27 (triage) -- med beyond BUDGET=3 | woke 2026-11-10 -- date trigger passed; re-triage | deferred 2026-11-10 (triage) -- med beyond BUDGET=3 | woke 2026-11-25 -- date trigger passed; re-triage | superseded by each_stop_is_its_own_stack -- the S461-607 blade-to-blade check the travel was weighed against is gone (its own addendum); the -7 stop's marginal reading moves only with the travel study's drawing follow-ups
 class: acceptance_limit_borrowed_from_another_chain
 ---
 

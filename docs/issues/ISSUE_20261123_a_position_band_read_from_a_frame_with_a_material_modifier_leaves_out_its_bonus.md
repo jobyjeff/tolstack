@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: SOP/GD&T readings
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets.md
+class: domain_rule_awaiting_strategy
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # A position band read from a frame with a material modifier leaves out its bonus

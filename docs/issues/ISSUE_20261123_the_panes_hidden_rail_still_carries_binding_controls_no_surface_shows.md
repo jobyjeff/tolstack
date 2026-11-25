@@ -1,10 +1,13 @@
 ---
 type: chore
 priority: low
-status: open
+status: deferred
 area: annotate/rail
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md
+class: one_affordance_two_places
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # The pane's hidden rail still carries binding controls no surface shows

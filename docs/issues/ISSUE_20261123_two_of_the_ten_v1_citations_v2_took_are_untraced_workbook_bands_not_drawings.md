@@ -1,11 +1,14 @@
 ---
 type: chore
 priority: med
-status: open
+status: deferred
 area: topologies/v2
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261122_v2_carries_the_ten_citations_v1_already_has_and_its_own_stop_stacks.md
+class: citation_authoring_gap
+defer_until: 2026-12-09
+resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3
 ---
 
 # Two of the "ten citations" v1 holds are untraced workbook bands, and two table drawings differ

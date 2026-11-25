@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/map
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map.md
+class: geometric_deliverable_pinned_only_where_a_pure_function
+defer_until: 2026-12-09
+resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3
 ---
 
 # A link's length drawn as a dimension is pinned by no check

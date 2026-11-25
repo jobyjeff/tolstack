@@ -1,13 +1,13 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: triaged
 area: annotate/browser-check
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
 class: stale_check_expectation
-defer_until: 2026-11-23
-resolution: triage 2026-11-09 -- med beyond budget; 14-day date
+resolution: triage 2026-11-09 -- med beyond budget; 14-day date | woke 2026-11-25 -- date trigger passed; re-triage
+handoff: docs/sessions/HANDOFF_20261125_the_real_browser_checks_hold_their_premise_by_construction.md
 ---
 
 # The annotate `[real]` browser check still expects v1 as the default model

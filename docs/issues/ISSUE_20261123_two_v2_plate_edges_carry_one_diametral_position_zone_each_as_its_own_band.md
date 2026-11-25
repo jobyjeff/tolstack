@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: topology/v2 pitch plate
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets.md
+class: stack_term_double_count
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # Two v2 plate edges carry one diametral position zone, each as its own band

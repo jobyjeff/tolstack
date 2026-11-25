@@ -1,13 +1,12 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: resolved
 area: viewer/seam-leaders
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261108_the_scene_draws_the_model_alone_and_every_node_it_places_has_a_leader.md
-defer_until: 2026-11-24
 class: dag_layout_policy
-resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md) | woke 2026-11-25 -- date trigger passed; re-triage | superseded by the_map_is_the_only_drawing_and_classic_retires -- the seam leaders across the pane were removed, so no node is owed a leader
 ---
 
 # Two of the end-stop model's joint nodes have no leader in the sweep

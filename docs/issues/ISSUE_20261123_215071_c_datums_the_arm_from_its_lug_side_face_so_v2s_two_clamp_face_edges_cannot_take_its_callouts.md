@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: topology/v2 pitch arm
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets.md
+class: domain_rule_awaiting_strategy
+defer_until: 2026-12-09
+resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3
 ---
 
 # 215071-C datums the arm from its lug-side face, so v2's two clamp-face edges cannot take its callouts

@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: annotate/form
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md
+handoff: docs/sessions/HANDOFF_20261125_a_write_from_the_form_or_the_menu_never_vanishes_without_a_word.md
 ---
 
 # A tick that answers two proposals leaves a binding without its note and modifier

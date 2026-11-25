@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: viewer/feature form
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261122_the_walk_binds_through_the_form_on_the_merged_page.md
+handoff: docs/sessions/HANDOFF_20261125_a_write_from_the_form_or_the_menu_never_vanishes_without_a_word.md
 ---
 
 # Next in a feature's form cycles between the part's features that offer nothing

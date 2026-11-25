@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md
+handoff: docs/sessions/HANDOFF_20261125_the_pane_opening_browser_suites_are_green_every_run.md
 ---
 
 # The scene pane over HTTP suite is red on integration

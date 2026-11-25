@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/browser annotate scene
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_v2_reads_the_pitch_plate_the_pitch_arm_and_the_tangential_link_sheets.md
+handoff: docs/sessions/HANDOFF_20261125_the_pane_opening_browser_suites_are_green_every_run.md
 ---
 
 # The scene suite gets no anchors message once v2 takes ten values

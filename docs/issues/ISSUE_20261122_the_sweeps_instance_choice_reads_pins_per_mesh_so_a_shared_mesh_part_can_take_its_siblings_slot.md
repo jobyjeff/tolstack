@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: annotate/sweep
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261121_a_take_on_a_lug_feature_binds_that_lugs_own_face.md
+class: fixed_at_one_of_n_sites
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # The sweep's instance choice reads pins per mesh, so a shared-mesh part can take its sibling's slot

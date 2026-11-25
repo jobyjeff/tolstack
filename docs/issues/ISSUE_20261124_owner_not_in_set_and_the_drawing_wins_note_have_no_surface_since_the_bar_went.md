@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: med
-status: open
+status: deferred
 area: annotate/form
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md
+class: setting_without_surface
+defer_until: 2026-12-09
+resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3
 ---
 
 # Owner-not-in-set and the "drawing wins" note have no surface since the bar went

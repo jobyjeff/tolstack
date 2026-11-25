@@ -1,13 +1,12 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: resolved
 area: viewer/dag
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_dag_and_grid_nest_coloured_bodies_and_compact_means_denser_rows.md
 class: topology_layout
-defer_until: 2026-11-23
-resolution: triage 2026-11-09 -- med beyond budget (v1 is no longer the default model); 14-day date
+resolution: triage 2026-11-09 -- med beyond budget (v1 is no longer the default model); 14-day date | woke 2026-11-25 -- date trigger passed; re-triage | superseded by the_map_is_the_only_drawing_and_classic_retires -- the study-group labels (tv__studyname) were removed with the rails drawing
 ---
 
 # v1's chain-study names overprint each other on the DAG

@@ -7,8 +7,8 @@ reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
 class: topology_layout
-defer_until: 2026-11-23
-resolution: triage 2026-11-09 -- med beyond budget; 14-day date
+defer_until: 2026-12-09
+resolution: triage 2026-11-09 -- med beyond budget; 14-day date | woke 2026-11-25 -- date trigger passed; re-triage | deferred 2026-11-25 (triage) -- med beyond BUDGET=3; the walk now only orders the grid's rows (rails retired 2026-11-17), and DAG_TOPOLOGY.md still says both sentences
 ---
 
 # The `authored` walk order only breaks ties, so re-ordering a body's `parts` does not always re-order the page

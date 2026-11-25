@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: contact suggestions
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_a_seat_and_a_pattern_get_contact_suggestions_too.md
+class: absolute_threshold_on_scaled_geometry
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # A fastener pattern node offers single counterbore faces as pattern rows, each with a Take

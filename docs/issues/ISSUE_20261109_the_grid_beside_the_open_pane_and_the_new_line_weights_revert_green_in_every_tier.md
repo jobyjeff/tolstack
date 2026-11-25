@@ -1,13 +1,12 @@
 ---
 type: chore
 priority: med
-status: deferred
+status: resolved
 area: viewer/layout
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261109_the_demo_path_reads_cleanly_on_a_projector.md
-defer_until: 2026-11-24
 class: guard_cannot_fail
-resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md) | woke 2026-11-25 -- date trigger passed; re-triage | superseded by the_map_is_the_only_drawing_and_classic_retires -- VA.gridKeptWidth and the 1706px Preview clamp are gone (graphNeed returns 0) and the rails and seam leaders whose weights it named were removed
 ---
 
 # The grid beside the open 3D pane, and the new line weights, revert green in every tier

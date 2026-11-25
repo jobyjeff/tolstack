@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: med
-status: open
+status: deferred
 area: viewer/nav feature body
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261122_a_seat_and_a_pattern_get_contact_suggestions_too.md
+class: unsurfaced_or_buried_signal
+defer_until: 2026-12-09
+resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3
 ---
 
 # A feature's suggestions show only while the 3D pane is open

@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser-truth
 class: browser_flake
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds.md
+handoff: docs/sessions/HANDOFF_20261125_the_pane_opening_browser_suites_are_green_every_run.md
 ---
 
 # The map suite stopped on a nav feature-row click once, then passed on rerun

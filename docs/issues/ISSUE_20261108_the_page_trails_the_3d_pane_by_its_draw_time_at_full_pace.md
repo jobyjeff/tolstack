@@ -6,8 +6,8 @@ area: viewer/pose
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261108_the_linkage_play_control_is_the_only_one_and_it_moves_everything.md
 class: pose_sync
-resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
-defer_until: 2026-11-22
+resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake | woke 2026-11-25 -- date trigger passed; re-triage | deferred 2026-11-25 (triage) -- med beyond BUDGET=3
+defer_until: 2026-12-09
 ---
 
 # The kinematic page trails the 3D pane by its own per-frame draw time at the pane's full pace

@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: kinematic
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_the_blade_pitch_study_folds_on_v2_and_names_what_v2_adds.md
+class: stack_term_double_count
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # The v2 blade-pitch study leaves out edges that need a ruling before they carry values

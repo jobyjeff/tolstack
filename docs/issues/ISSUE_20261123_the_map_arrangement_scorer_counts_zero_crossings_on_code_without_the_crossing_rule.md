@@ -1,10 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/map tooling
 reporter: agent
 found_by: docs/sessions/HANDOFF_20261122_the_lug_stacks_line_up_and_each_link_is_a_row_on_the_map.md
+class: silent_failure
+defer_until: class:silent_failure
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default; class trigger: R9 not landed
 ---
 
 # The map arrangement scorer counts zero crossings on code that has no crossing rule

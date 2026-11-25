@@ -6,9 +6,9 @@ area: viewer/dag
 reporter: agent
 audience: strategy
 found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md
-defer_until: 2026-11-24
+defer_until: 2026-12-09
 class: two_vocabularies_for_one_fact
-resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md) | woke 2026-11-25 -- date trigger passed; re-triage | deferred 2026-11-25 (triage) -- med beyond BUDGET=3; the DAG is the map now, and the grid-side functions it lists (bodyOfPart, partPins, gridPlan, gridBraces, litPartIds) are still in topology.js
 ---
 
 # The DAG and the grid still derive membership from the raw arrays, and disagree with the tree

@@ -1,11 +1,14 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: contact suggestions
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261122_a_seat_and_a_pattern_get_contact_suggestions_too.md
+class: mesh_placement_disagrees_with_the_mechanism
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # The tangential link's MS14103-3 sits six degrees off its bolt, so its race seats get no contact row

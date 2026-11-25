@@ -1,11 +1,14 @@
 ---
 type: feature
 priority: low
-status: open
+status: deferred
 area: spec_library
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261122_v2s_standard_parts_cite_their_spec_sheets.md
+class: missing_capability
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # The spec library cannot add a subject to an already-read document without restating the whole document

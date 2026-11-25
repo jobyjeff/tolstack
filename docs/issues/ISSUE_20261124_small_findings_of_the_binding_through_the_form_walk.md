@@ -1,11 +1,13 @@
 ---
 type: bug
 priority: low
-status: open
+status: deferred
 area: viewer/feature form
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261122_the_walk_binds_through_the_form_on_the_merged_page.md
 class: walk_small_findings
+defer_until: 2026-12-25
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default
 ---
 
 # Small findings of the binding-through-the-form walk (2026-11-24)

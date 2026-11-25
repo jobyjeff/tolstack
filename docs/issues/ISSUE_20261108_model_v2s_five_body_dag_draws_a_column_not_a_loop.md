@@ -1,15 +1,14 @@
 ---
 type: bug
 priority: med
-status: deferred
+status: resolved
 class: dag_layout_policy
 area: viewer/dag-layout
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261108_model_v2_is_the_end_stop_linkage_in_five_bodies_and_the_nav_switches_models.md
-resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days. Strategy 2026-11-08 evening: option (a) is deliverable 2 of the handoff below; labels and nesting are the DAG/grid sibling | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake
+resolution: triage 2026-11-08: med beyond budget (3/3 spent on highs); 14 days. Strategy 2026-11-08 evening: option (a) is deliverable 2 of the handoff below; labels and nesting are the DAG/grid sibling | defer_until backfilled 2026-11-15 (triage) -- the 11-08 sweep deferred without a trigger, so it could never wake | woke 2026-11-25 -- date trigger passed; re-triage | superseded by the_map_is_the_only_drawing_and_classic_retires -- the rails drawing it measured is gone; every model draws a map
 handoff: docs/sessions/HANDOFF_20261108_the_end_stop_model_names_its_datums_right_and_folds_its_riders.md
-defer_until: 2026-11-22
 ---
 
 # Model v2's five-body DAG draws a column, not a loop

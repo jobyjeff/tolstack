@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: low
-status: open
+status: resolved
 area: annotate/contact-suggestions
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261121_a_take_on_a_lug_feature_binds_that_lugs_own_face.md
+resolution: fixed by a_seat_and_a_pattern_get_contact_suggestions_too (review da4e158f): a one-mesh ball joint is compared with itself, a face never with itself; v2's four inner-race ball joints read ok. The solid-based pairing (b) is unasked until a second mesh needs it
 ---
 
 # Two parts that are solids of one mesh at one place are never compared for contact

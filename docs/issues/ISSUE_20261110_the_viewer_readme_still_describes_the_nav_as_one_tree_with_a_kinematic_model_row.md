@@ -5,9 +5,9 @@ status: deferred
 area: viewer/docs
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20261110_the_model_is_derived_once_and_the_left_column_is_its_tree.md
-defer_until: 2026-11-24
+defer_until: 2026-12-09
 class: stale_doc_after_refactor
-resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md)
+resolution: deferred 2026-11-10 (triage) -- med beyond BUDGET=3; viewer selection/layout files are the strategy thread's F1b/F1c sequence (dispatch/docs/strategy/HANDOFF_20261109_strategy.md) | woke 2026-11-25 -- date trigger passed; re-triage | deferred 2026-11-25 (triage) -- med beyond BUDGET=3; 'The one nav' was rewritten (ef34f7fb); 'The Kinematic model row' and the 'single drawn triangle' sentences remain
 ---
 
 # The viewer README still describes the nav as one tree with a Kinematic model row
