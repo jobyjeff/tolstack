@@ -1,3 +1,11 @@
+---
+type: review
+handoff: docs/sessions/completed/HANDOFF_20261121_an_export_citation_picks_up_a_new_drawing_checker_run_in_one_command.md
+reviewer: agent
+date: 2026-11-22
+verdict: APPROVE
+---
+
 # Review — an_export_citation_picks_up_a_new_drawing_checker_run_in_one_command
 
 **Verdict: APPROVE.**

@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: med
-status: deferred
+status: triaged
 area: annotate/form
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261122_right_click_offers_what_the_form_does_and_the_bar_over_the_canvas_only_plays.md
 class: setting_without_surface
-defer_until: 2026-12-09
-resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3
+resolution: deferred 2026-11-25 (triage) -- med beyond BUDGET=3 | triaged 2026-11-25 (triage, class escalation) -- three arrivals of setting_without_surface in two days; one brief decides all three
+strategy: docs/strategy/BRIEF_20261125_what_the_retired_bind_bar_held_needs_a_home_or_a_retirement.md
 ---
 
 # Owner-not-in-set and the "drawing wins" note have no surface since the bar went

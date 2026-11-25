@@ -1,14 +1,14 @@
 ---
 type: feature
 priority: low
-status: deferred
+status: triaged
 area: annotate/form
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20261122_editing_a_feature_opens_its_form_where_the_tree_was.md
 class: setting_without_surface
-defer_until: 2026-12-25
-resolution: deferred 2026-11-25 (triage) -- low, deferred by default
+resolution: deferred 2026-11-25 (triage) -- low, deferred by default | triaged 2026-11-25 (triage, class escalation) -- three arrivals of setting_without_surface in two days; one brief decides all three
+strategy: docs/strategy/BRIEF_20261125_what_the_retired_bind_bar_held_needs_a_home_or_a_retirement.md
 ---
 
 # Flip has no place in the feature's form
